@@ -27,6 +27,10 @@ export function useApplicantFilters({
   fieldToJobIds,
   currentUserId,
 }: UseApplicantFiltersProps) {
+  const normalizeStatus = useCallback((value: unknown) => {
+    return String(value ?? '').trim().toLowerCase();
+  }, []);
+
   // Get selected company from column filters
   const selectedCompanyIds = useMemo((): string[] | null => {
     if (selectedCompanyFilterValue) {
@@ -78,8 +82,10 @@ export function useApplicantFilters({
     
     // Apply status filter (from props or URL params)
     if (effectiveOnlyStatus !== undefined && effectiveOnlyStatus !== null) {
-      const allowed = Array.isArray(effectiveOnlyStatus) ? effectiveOnlyStatus : [effectiveOnlyStatus];
-      filtered = filtered.filter((a: any) => allowed.includes(a.status));
+      const allowed = (Array.isArray(effectiveOnlyStatus) ? effectiveOnlyStatus : [effectiveOnlyStatus])
+        .map(normalizeStatus)
+        .filter(Boolean);
+      filtered = filtered.filter((a: any) => allowed.includes(normalizeStatus(a.status)));
       return filtered;
     }
     
@@ -88,30 +94,31 @@ export function useApplicantFilters({
     const statusVal = statusFilter?.value;
 
     if (isSuperAdmin) {
-      if (statusVal === 'trashed') return filtered;
+      if (normalizeStatus(statusVal) === 'trashed') return filtered;
       if (Array.isArray(statusVal) && statusVal.length > 0) {
-        filtered = filtered.filter((a: any) => statusVal.includes(a.status));
+        const allowed = statusVal.map(normalizeStatus).filter(Boolean);
+        filtered = filtered.filter((a: any) => allowed.includes(normalizeStatus(a.status)));
         return filtered;
       }
-      filtered = filtered.filter((a: any) => a.status !== 'trashed');
+      filtered = filtered.filter((a: any) => normalizeStatus(a.status) !== 'trashed');
       return filtered;
     }
 
     if (Array.isArray(statusVal) && statusVal.length > 0) {
-      const allowed = statusVal.filter((s: any) => s !== 'trashed');
+      const allowed = statusVal.map(normalizeStatus).filter((s: string) => s !== 'trashed');
       if (allowed.length === 0) {
-        filtered = filtered.filter((a: any) => a.status !== 'trashed');
+        filtered = filtered.filter((a: any) => normalizeStatus(a.status) !== 'trashed');
         return filtered;
       }
       filtered = filtered.filter(
-        (a: any) => allowed.includes(a.status) && a.status !== 'trashed'
+        (a: any) => allowed.includes(normalizeStatus(a.status)) && normalizeStatus(a.status) !== 'trashed'
       );
       return filtered;
     }
 
-    filtered = filtered.filter((a: any) => a.status !== 'trashed');
+    filtered = filtered.filter((a: any) => normalizeStatus(a.status) !== 'trashed');
     return filtered;
-  }, [applicants, columnFilters, isSuperAdmin, effectiveOnlyStatus, selectedCompanyIds, jobPositionMap]);
+  }, [applicants, columnFilters, isSuperAdmin, effectiveOnlyStatus, selectedCompanyIds, jobPositionMap, normalizeStatus]);
 
   // Check if duplicates only filter is enabled
   const duplicatesOnlyEnabled = useMemo(
@@ -157,14 +164,14 @@ export function useApplicantFilters({
 
   // Get status filter options
   const statusFilterOptions = useMemo(() => {
-    const uniqueStatuses = Array.from(new Set(applicants.map((a: any) => a?.status).filter(Boolean)));
+    const uniqueStatuses = Array.from(new Set(applicants.map((a: any) => normalizeStatus(a?.status)).filter(Boolean)));
     const defaultOrder = ['pending', 'approved', 'interview', 'interviewed', 'rejected', 'trashed'];
     const sorted = [...defaultOrder, ...uniqueStatuses.filter(s => !defaultOrder.includes(s))];
     return sorted.map((status) => ({
       id: status,
       title: status.charAt(0).toUpperCase() + status.slice(1),
     }));
-  }, [applicants]);
+  }, [applicants, normalizeStatus]);
 
   // Get status color function
   const getStatusColor = useCallback((status: string) => {

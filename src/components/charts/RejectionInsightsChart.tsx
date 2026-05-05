@@ -1,4 +1,4 @@
-import { Suspense, lazy, useMemo } from "react";
+import { Suspense, lazy, useMemo, useCallback } from "react";
 import type { ApexOptions } from "apexcharts";
 import { useRejectionInsights } from "../../hooks/queries/useApplicants";
 
@@ -6,18 +6,40 @@ const Chart = lazy(() => import("react-apexcharts"));
 
 type RejectionInsightsChartProps = {
   companyId?: string[];
+  maxReasons?: number;
+  showPercentageLabels?: boolean;
 };
+
+const MAX_REASON_LENGTH = 34;
+const DEFAULT_MAX_REASONS = 10;
+const TRUNCATION_LIMIT = 31;
 
 function formatReason(reason: string): string {
   const normalized = reason.trim();
-  return normalized.length > 34 ? `${normalized.slice(0, 31)}...` : normalized;
+  if (!normalized) return "Unknown";
+  return normalized.length > MAX_REASON_LENGTH 
+    ? `${normalized.slice(0, TRUNCATION_LIMIT)}...` 
+    : normalized;
 }
 
-export default function RejectionInsightsChart({ companyId }: RejectionInsightsChartProps) {
-  const { data, isLoading, isFetching } = useRejectionInsights({ companyId });
+function getReasonColor(index: number): string {
+  const colors = ["#e42e2b", "#f97316", "#eab308", "#22c55e", "#06b6d4", "#8b5cf6", "#ec4899"];
+  return colors[index % colors.length];
+}
 
+export default function RejectionInsightsChart({ 
+  companyId, 
+  maxReasons = DEFAULT_MAX_REASONS,
+  showPercentageLabels = false 
+}: RejectionInsightsChartProps) {
+  const { data, isLoading, isFetching, error, refetch } = useRejectionInsights({ companyId });
+
+  // Memoized data transformation
   const rows = useMemo(() => {
     const items = Array.isArray(data) ? data : (data as any)?.data ?? [];
+    
+    if (!items.length) return [];
+
     const normalizedReason = (reason: string) => reason.replace(/\s+/g, ' ').trim();
 
     const sorted = [...items]
@@ -26,10 +48,11 @@ export default function RejectionInsightsChart({ companyId }: RejectionInsightsC
         count: Number(item.count ?? 0),
       }))
       .filter((item) => item.count > 0)
-      .sort((a, b) => b.count - a.count);
+      .sort((a, b) => b.count - a.count)
+      .slice(0, maxReasons);
 
     return sorted;
-  }, [data]);
+  }, [data, maxReasons]);
 
   const totalRejected = useMemo(
     () => rows.reduce((sum, item) => sum + item.count, 0),
@@ -37,41 +60,87 @@ export default function RejectionInsightsChart({ companyId }: RejectionInsightsC
   );
 
   const topReason = rows[0];
-  const topReasonShare = totalRejected > 0 && topReason ? Math.round((topReason.count / totalRejected) * 100) : 0;
+  const topReasonShare = totalRejected > 0 && topReason 
+    ? Math.round((topReason.count / totalRejected) * 100) 
+    : 0;
 
-  const chartHeight = Math.max(330, rows.length * 50);
+  const chartHeight = useMemo(
+    () => Math.max(330, Math.min(rows.length * 50, 600)),
+    [rows.length]
+  );
 
-  const options: ApexOptions = {
+  // Format number with locale support
+  const formatNumber = useCallback((num: number): string => {
+    return new Intl.NumberFormat().format(num);
+  }, []);
+
+  // ApexCharts options with fixed type issues
+  const options: ApexOptions = useMemo(() => ({
     chart: {
-      fontFamily: "Outfit, sans-serif",
+      fontFamily: "Outfit, system-ui, -apple-system, sans-serif",
       type: "bar",
       height: chartHeight,
-      toolbar: { show: false },
+      toolbar: { 
+        show: true,
+        tools: {
+          download: true,
+          selection: false,
+          zoom: false,
+          zoomin: false,
+          zoomout: false,
+          pan: false,
+          reset: false,
+        },
+      },
       animations: {
         enabled: true,
         speed: 650,
+        animateGradually: {
+          enabled: true,
+          delay: 150,
+        },
       },
+      background: "transparent",
     },
     plotOptions: {
       bar: {
         horizontal: true,
-        barHeight: "58%",
+        barHeight: "65%",
         borderRadius: 8,
         borderRadiusApplication: "end",
+        borderRadiusWhenStacked: "last",
+        dataLabels: {
+          position: "top",
+        },
       },
     },
-    colors: ["#e42e2b"],
+    colors: rows.map((_, index) => getReasonColor(index)),
     dataLabels: {
-      enabled: false,
+      enabled: showPercentageLabels,
+      formatter: function(val: number) {
+        const percentage = totalRejected > 0 ? Math.round((val / totalRejected) * 100) : 0;
+        return `${percentage}%`;
+      },
+      style: {
+        fontSize: "11px",
+        fontWeight: 500,
+        colors: ["#1f2937"],
+      },
+      offsetX: 10,
     },
     grid: {
       borderColor: "#E5E7EB",
       strokeDashArray: 4,
+      position: "back",
       xaxis: {
         lines: { show: true },
       },
       yaxis: {
         lines: { show: false },
+      },
+      padding: {
+        left: 0,
+        right: 0,
       },
     },
     xaxis: {
@@ -79,24 +148,49 @@ export default function RejectionInsightsChart({ companyId }: RejectionInsightsC
       labels: {
         style: {
           fontSize: "12px",
-          colors: ["#e42e2b"],
+          fontWeight: 500,
+          colors: "#374151",
         },
+        trim: true,
+        maxHeight: 60,
       },
       axisBorder: { show: false },
       axisTicks: { show: false },
+      title: {
+        text: "Number of rejections",
+        style: {
+          fontSize: "12px",
+          fontWeight: 500,
+          color: "#6B7280",
+        },
+      },
     },
     yaxis: {
       labels: {
         style: {
           fontSize: "12px",
-          colors: ["#e42e2b"],
+          fontWeight: 500,
+          colors: "#374151",
         },
+        maxWidth: 200,
+        trim: true,
       },
     },
     tooltip: {
       theme: "light",
       y: {
-        formatter: (val: number) => `${val} rejected applicant${val === 1 ? "" : "s"}`,
+        formatter: function(val: number) {
+          return `${formatNumber(val)} rejected applicant${val === 1 ? "" : "s"}`;
+        },
+      },
+      x: {
+        formatter: function( opts?: any) {
+          const category = rows[opts?.dataPointIndex]?.reason || "";
+          return `Reason: ${category}`;
+        },
+      },
+      marker: {
+        show: true,
       },
     },
     stroke: {
@@ -104,21 +198,94 @@ export default function RejectionInsightsChart({ companyId }: RejectionInsightsC
     },
     fill: {
       opacity: 1,
+      type: "solid",
     },
     legend: {
       show: false,
     },
-  };
+    states: {
+      hover: {
+        filter: {
+          type: "darken",
+          value: 0.1,
+        },
+      },
+    },
+  }), [rows, chartHeight, showPercentageLabels, totalRejected, formatNumber]);
 
-  const series = [
+  const series = useMemo(() => [
     {
       name: "Rejected applicants",
       data: rows.map((item) => item.count),
     },
-  ];
+  ], [rows]);
+
+  // Loading skeleton
+  if (isLoading) {
+    return (
+      <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-white/[0.03] sm:p-6">
+        <div className="animate-pulse">
+          <div className="h-7 w-48 bg-gray-200 rounded dark:bg-gray-700" />
+          <div className="mt-2 h-4 w-96 bg-gray-200 rounded dark:bg-gray-700" />
+          <div className="mt-6 grid gap-6 xl:grid-cols-[220px_1fr]">
+            <div className="h-96 bg-gray-100 rounded-2xl dark:bg-gray-800" />
+            <div className="h-96 bg-gray-100 rounded-2xl dark:bg-gray-800" />
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  // Error state with retry option
+  if (error) {
+    return (
+      <section className="rounded-2xl border border-red-200 bg-red-50 p-5 shadow-sm dark:border-red-800 dark:bg-red-900/10 sm:p-6">
+        <div className="text-center">
+          <div className="text-red-600 dark:text-red-400 text-4xl mb-3">⚠️</div>
+          <h3 className="text-lg font-semibold text-red-800 dark:text-red-200">
+            Failed to load rejection insights
+          </h3>
+          <p className="mt-2 text-sm text-red-600 dark:text-red-300">
+            {error instanceof Error ? error.message : "An unexpected error occurred"}
+          </p>
+          <button
+            onClick={() => refetch()}
+            className="mt-4 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 transition-colors"
+          >
+            Try again
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  // Empty state
+  if (!rows.length) {
+    return (
+      <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-white/[0.03] sm:p-6">
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <div className="text-5xl mb-4">📊</div>
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
+            No rejection insights yet
+          </h3>
+          <p className="mt-2 max-w-md text-sm text-gray-500 dark:text-gray-400">
+            Once applicants are rejected with reasons, the chart will appear here automatically.
+          </p>
+          <div className="mt-6 rounded-lg bg-gray-50 p-4 dark:bg-gray-800/50">
+            <p className="text-xs text-gray-600 dark:text-gray-400">
+              💡 Tip: Make sure to include rejection reasons when updating applicant status
+            </p>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
-    <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-white/[0.03] sm:p-6">
+    <section 
+      className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-white/[0.03] sm:p-6"
+      aria-label="Rejection reasons analytics"
+    >
       <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
@@ -130,76 +297,129 @@ export default function RejectionInsightsChart({ companyId }: RejectionInsightsC
         </div>
 
         <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-center">
-          <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800/70">
-            <div className="text-xs uppercase tracking-wide text-gray-400">Total rejected</div>
+          <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-gray-50 to-white px-4 py-3 dark:border-gray-700 dark:from-gray-800 dark:to-gray-900">
+            <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-gray-400">
+              <span className="text-lg">📊</span>
+              Total rejected
+            </div>
             <div className="mt-1 text-2xl font-bold text-gray-900 dark:text-white/90">
-              {isLoading ? '—' : totalRejected}
+              {formatNumber(totalRejected)}
             </div>
           </div>
-          <div className="rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 dark:border-brand-500/30 dark:bg-brand-500/10">
-            <div className="text-xs uppercase tracking-wide text-brand-500/80 dark:text-brand-300">Top reason share</div>
+          <div className="rounded-xl border border-brand-200 bg-gradient-to-br from-brand-50 to-white px-4 py-3 dark:border-brand-500/30 dark:from-brand-500/10 dark:to-gray-900">
+            <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-brand-500/80 dark:text-brand-300">
+              <span className="text-lg">🎯</span>
+              Top reason share
+            </div>
             <div className="mt-1 text-2xl font-bold text-brand-600 dark:text-brand-300">
-              {isLoading ? '—' : `${topReasonShare}%`}
+              {topReasonShare}%
             </div>
           </div>
         </div>
       </div>
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-[220px_1fr]">
-        <div className="rounded-2xl border border-gray-200 bg-gradient-to-br from-gray-50 via-white to-brand-50/50 p-5 dark:border-gray-800 dark:from-gray-900 dark:via-gray-900 dark:to-brand-500/10">
-          <div className="text-sm font-medium text-gray-500 dark:text-gray-400">Main driver</div>
-          <div className="mt-2 text-xl font-semibold text-gray-900 dark:text-white/90">
-            {isLoading ? 'Loading...' : topReason?.reason ?? 'No data yet'}
+      <div className="mt-6 grid gap-6 xl:grid-cols-[280px_1fr]">
+        {/* Sidebar with insights summary */}
+        <div className="rounded-2xl border border-gray-200 bg-gradient-to-br from-gray-50 via-white to-brand-50/50 p-5 shadow-sm dark:border-gray-800 dark:from-gray-900 dark:via-gray-900 dark:to-brand-500/10">
+          <div className="flex items-center gap-2 text-sm font-medium text-gray-500 dark:text-gray-400">
+            <span className="text-lg">🔍</span>
+            Main driver
           </div>
-          <div className="mt-3 text-sm text-gray-500 dark:text-gray-400">
-            {isLoading
-              ? 'Waiting for rejected applicant insights.'
-              : topReason
-                ? `${topReason.count} rejection${topReason.count === 1 ? '' : 's'} recorded under this reason.`
-                : 'No rejection data available for the current company scope.'}
+          <div className="mt-2 text-xl font-semibold text-gray-900 dark:text-white/90 break-words">
+            {topReason?.reason ?? 'No data yet'}
+          </div>
+          <div className="mt-3 space-y-2">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              {topReason
+                ? `${formatNumber(topReason.count)} rejection${topReason.count === 1 ? '' : 's'} recorded under this reason (${topReasonShare}% of total).`
+                : 'Waiting for rejected applicant insights.'}
+            </p>
+            
+           
           </div>
 
-          <div className="mt-5 max-h-96 space-y-2 overflow-y-auto">
-            {rows.slice(0, 5).map((item, index) => {
-              const share = totalRejected > 0 ? Math.round((item.count / totalRejected) * 100) : 0;
-              return (
-                <div key={item.reason} className="rounded-xl bg-white/80 p-3 shadow-sm dark:bg-gray-900/70">
-                  <div className="flex items-center justify-between gap-2 text-sm">
-                    <span className="truncate font-medium text-gray-700 dark:text-gray-300">
-                      {index + 1}. {formatReason(item.reason)}
-                    </span>
-                    <span className="text-gray-500 dark:text-gray-400">{share}%</span>
+          {/* Top reasons list with improved UX */}
+          <div className="mt-5">
+            <div className="mb-3 text-xs font-medium text-gray-500 dark:text-gray-400">
+              Top {Math.min(rows.length, 5)} reasons
+            </div>
+            <div className="max-h-96 space-y-2 overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin' }}>
+              {rows.slice(0, 5).map((item, index) => {
+                const share = totalRejected > 0 ? Math.round((item.count / totalRejected) * 100) : 0;
+                return (
+                  <div 
+                    key={item.reason} 
+                    className="group rounded-xl bg-white/80 p-3 shadow-sm transition-all hover:shadow-md dark:bg-gray-900/70"
+                    style={{ borderLeft: `3px solid ${getReasonColor(index)}` }}
+                  >
+                    <div className="flex items-center justify-between gap-2 text-sm">
+                      <span className="flex items-center gap-2 truncate font-medium text-gray-700 dark:text-gray-300">
+                        <span className="text-xs text-gray-400">{index + 1}.</span>
+                        <span className="truncate" title={item.reason}>
+                          {formatReason(item.reason)}
+                        </span>
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-500 dark:text-gray-400">{share}%</span>
+                        <span className="text-xs text-gray-400">
+                          ({formatNumber(item.count)})
+                        </span>
+                      </div>
+                    </div>
+                    {/* Progress bar for visual representation */}
+                    <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+                      <div 
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{ 
+                          width: `${share}%`,
+                          backgroundColor: getReasonColor(index)
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+              {rows.length > 5 && (
+                <div className="rounded-xl bg-gray-100/50 p-3 text-center dark:bg-gray-800/50">
+                  <div className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                    +{rows.length - 5} more reason{rows.length - 5 !== 1 ? 's' : ''}
                   </div>
                 </div>
-              );
-            })}
-            {rows.length > 5 && (
-              <div className="rounded-xl bg-gray-100/50 p-3 text-center dark:bg-gray-800/50">
-                <div className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                  +{rows.length - 5} more reason{rows.length - 5 !== 1 ? 's' : ''}
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
 
-        <div className="min-h-[330px] rounded-2xl border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-gray-900/50 sm:p-4">
-          {isLoading ? (
-            <div className="flex h-[310px] items-center justify-center rounded-xl bg-gray-50 dark:bg-gray-800/60">
-              <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-200 border-t-brand-500" />
-            </div>
-          ) : rows.length > 0 ? (
-            <div className={`${isFetching ? 'opacity-70' : ''} transition-opacity`}>
-              <Suspense fallback={<div style={{ height: `${chartHeight}px` }} className="rounded-xl bg-gray-50 dark:bg-gray-800/60" />}>
-                <Chart options={options} series={series} type="bar" height={chartHeight} />
-              </Suspense>
-            </div>
-          ) : (
-            <div className="flex h-[310px] flex-col items-center justify-center rounded-xl bg-gray-50 text-center dark:bg-gray-800/60">
-              <div className="text-sm font-medium text-gray-700 dark:text-gray-300">No rejection insights yet</div>
-              <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Once applicants are rejected with reasons, the chart will appear here.
-              </div>
+        {/* Chart container */}
+        <div className="min-h-[330px] rounded-2xl border border-gray-200 bg-white p-3 shadow-sm transition-all dark:border-gray-800 dark:bg-gray-900/50 sm:p-4">
+          <div className={`${isFetching ? 'opacity-70 transition-opacity' : ''}`}>
+            <Suspense 
+              fallback={
+                <div 
+                  style={{ height: `${chartHeight}px` }} 
+                  className="flex items-center justify-center rounded-xl bg-gray-50 dark:bg-gray-800/60"
+                >
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-200 border-t-brand-500" />
+                </div>
+              }
+            >
+              <Chart 
+                options={options} 
+                series={series} 
+                type="bar" 
+                height={chartHeight}
+                width="100%"
+              />
+            </Suspense>
+          </div>
+          
+          {/* Refresh indicator */}
+          {isFetching && !isLoading && (
+            <div className="mt-2 text-right">
+              <span className="inline-flex items-center gap-1 text-xs text-gray-400">
+                <div className="h-2 w-2 animate-spin rounded-full border border-gray-400 border-t-transparent" />
+                Updating...
+              </span>
             </div>
           )}
         </div>

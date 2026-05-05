@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import { useNavigate } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
+import { applicantsKeys } from '../../../../hooks/queries/useApplicants';
 import axiosInstance from '../../../../config/axios';
 import Swal from '../../../../utils/swal';
 import { useAuth } from '../../../../context/AuthContext';
@@ -258,10 +259,16 @@ export default function Applicants({
   );
 
   const effectiveOnlyStatus = useMemo((): string | string[] | undefined => {
+    // Priority: explicit prop -> route param -> query param
     if (onlyStatus) return onlyStatus;
     if (params.status) return params.status;
+    // urlParams is defined below; include it via closure (safe because
+    // urlParams depends on location.search and will update when query changes)
+    const searchParams = new URLSearchParams(location.search);
+    const qStatus = searchParams.get('status');
+    if (qStatus) return qStatus;
     return undefined;
-  }, [onlyStatus, params.status]);
+  }, [onlyStatus, params.status, location.search]);
 
   const isSuperAdmin = useMemo(() => {
     const roleName = user?.roleId?.name;
@@ -362,8 +369,18 @@ export default function Applicants({
   companyId: companyId as any,
   jobPositionId: undefined,
   departmentId: departmentIds as any,
+  status: effectiveOnlyStatus,
   enabled: true,
 });
+  // Check the query state directly to detect ongoing fetches for this key
+  const applicantsQueryKey = applicantsKeys.list({
+    companyId: companyId as any,
+    jobPositionId: undefined,
+    departmentId: departmentIds as any,
+    status: effectiveOnlyStatus,
+  });
+  const applicantsQueryState = queryClient.getQueryState(applicantsQueryKey as any);
+  const isApplicantsQueryFetching = applicantsQueryState?.fetchStatus === 'fetching';
   const {
     data: allCompaniesRaw = [],
     refetch: refetchCompanies,
@@ -803,6 +820,47 @@ export default function Applicants({
   const [customFilterOpen, setCustomFilterOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const mountedRef = useRef(true);
+
+  const hasInitialStatusFilter = useMemo(() => {
+    try {
+      const qStatus = new URLSearchParams(location.search).get('status');
+      return Boolean(params.status || qStatus || onlyStatus);
+    } catch (e) {
+      return false;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const [isFilterTransitioning, setIsFilterTransitioning] = useState(
+    () => hasInitialStatusFilter
+  );
+
+  const prevEffectiveStatusRef = useRef<string | string[] | undefined>(
+    effectiveOnlyStatus
+  );
+
+  useEffect(() => {
+    const statusChanged =
+      prevEffectiveStatusRef.current !== effectiveOnlyStatus;
+
+    if (statusChanged) {
+      prevEffectiveStatusRef.current = effectiveOnlyStatus;
+      setIsFilterTransitioning(true);
+      refetchApplicants().catch(() => {});
+    }
+  }, [effectiveOnlyStatus, refetchApplicants]);
+
+  useEffect(() => {
+    if (!isFilterTransitioning) return;
+    if (isApplicantsFetching) return;
+    if (!isApplicantsFetched) return;
+
+    const id = setTimeout(() => {
+      setIsFilterTransitioning(false);
+    }, 80);
+
+    return () => clearTimeout(id);
+  }, [isFilterTransitioning, isApplicantsFetching, isApplicantsFetched]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -1295,7 +1353,7 @@ export default function Applicants({
   ]);
 
   const isTableLoading = Boolean(
-    isJobPositionsFetching || isApplicantsFetching || isCompaniesFetching
+    isJobPositionsFetching || isApplicantsFetching || isCompaniesFetching || isFilterTransitioning || isApplicantsQueryFetching
   );
 
   const renderCellSkeleton = (
@@ -2198,7 +2256,7 @@ export default function Applicants({
     rowCount: isTableLoading ? skeletonData.length : filteredApplicants.length,
     initialState: {
       pagination,
-      columnFilters,
+      columnFilters: isTableLoading ? [] : columnFilters,
       columnVisibility: layout.columnVisibility || {},
       density: 'compact',
       columnOrder:
@@ -2216,7 +2274,7 @@ export default function Applicants({
     state: {
       sorting,
       pagination,
-      columnFilters,
+      columnFilters: isTableLoading ? [] : columnFilters,
       rowSelection,
       columnVisibility: layout.columnVisibility || {},
     },

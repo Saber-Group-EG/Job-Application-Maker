@@ -72,6 +72,85 @@ const getCustomFieldLabel = (field: any): string => {
   return toPlainString(field?.label) || field?.fieldId || 'Custom Field';
 };
 
+const isPlainObject = (value: any): value is Record<string, any> => {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+};
+
+const findReadableValue = (value: any): string => {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value.trim();
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (Array.isArray(value)) {
+    const parts = value
+      .map((item) => findReadableValue(item))
+      .filter(Boolean);
+    return parts.join(', ');
+  }
+  if (isPlainObject(value)) {
+    const direct = value.answer ?? value.value ?? value.en ?? value.ar ?? null;
+    if (direct !== null && direct !== undefined) {
+      const directText = findReadableValue(direct);
+      if (directText) return directText;
+    }
+
+    const entries = Object.entries(value)
+      .filter(([key, entryValue]) => key !== '_id' && key !== 'id' && entryValue !== null && entryValue !== undefined)
+      .map(([key, entryValue]) => {
+        const entryText = findReadableValue(entryValue);
+        if (!entryText) return '';
+        const label = formatLabel(key);
+        return label && label !== key ? `${label}: ${entryText}` : entryText;
+      })
+      .filter(Boolean);
+
+    return entries.join(' | ');
+  }
+  return String(value).trim();
+};
+
+const renderReadableObject = (value: any) => {
+  if (!isPlainObject(value)) return null;
+
+  const entries = Object.entries(value).filter(([key, entryValue]) => {
+    if (key === '_id' || key === 'id') return false;
+    if (entryValue === null || entryValue === undefined) return false;
+    if (typeof entryValue === 'string') return entryValue.trim() !== '';
+    if (typeof entryValue === 'number' || typeof entryValue === 'boolean') return true;
+    if (Array.isArray(entryValue)) return entryValue.length > 0;
+    return true;
+  });
+
+  if (entries.length === 0) return null;
+
+  return (
+    <div className="space-y-2 rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/40">
+      {entries.map(([key, entryValue]) => {
+        const label = formatLabel(key);
+        const text = findReadableValue(entryValue);
+
+        if (!text) return null;
+
+        return (
+          <div key={key} className="flex flex-col gap-1 sm:flex-row sm:items-start sm:gap-3">
+            <span className="min-w-[120px] shrink-0 text-[10px] font-bold uppercase tracking-widest text-gray-400">
+              {label}:
+            </span>
+            <span className="text-sm font-medium text-gray-900 dark:text-white whitespace-pre-wrap break-words">
+              {typeof entryValue === 'string' && /^(https?:\/\/)/i.test(entryValue.trim()) ? (
+                <a href={entryValue.trim()} target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:underline break-words">
+                  {entryValue.trim()}
+                </a>
+              ) : (
+                text
+              )}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 const findMatchingResponseKeyForField = (
   field: any,
   responses: Record<string, any>
@@ -261,21 +340,14 @@ export default function CustomResponses({ applicant, customFields }: Props) {
                   }
                   return { node: txt, text: txt };
                 }
-                // find primitive property as fallback summary
-                for (const [, val] of Object.entries(vv)) {
-                  if (val === null || val === undefined) continue;
-                  if (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean') {
-                    const txt = String(val);
-                    return { node: txt, text: txt };
-                  }
+                const structured = renderReadableObject(vv);
+                if (structured) {
+                  const txt = findReadableValue(vv);
+                  return { node: structured, text: txt || 'Object' };
                 }
-                try {
-                  const txt = JSON.stringify(vv, null, 2);
-                  return { node: <pre className="whitespace-pre-wrap">{txt}</pre>, text: txt };
-                } catch (e) {
-                  const txt = String(vv);
-                  return { node: txt, text: txt };
-                }
+
+                const txt = findReadableValue(vv);
+                return { node: txt || 'Object', text: txt || 'Object' };
               }
 
               const txt = String(vv);
@@ -292,10 +364,7 @@ export default function CustomResponses({ applicant, customFields }: Props) {
                     {v.map((item: any, idx: number) => {
                       const isExpanded = expandedResponses[key]?.has(idx) || false;
 
-                      const firstKey = Object.keys(item)[0];
-                      const firstVal = item[firstKey];
-                      const summaryCandidate = firstVal ?? Object.values(item).find((vv: any) => typeof vv === 'string' || typeof vv === 'number') ?? `Item ${idx + 1}`;
-                      const summaryText = String((summaryCandidate && (summaryCandidate.answer ?? summaryCandidate.value ?? summaryCandidate.en ?? summaryCandidate.ar ?? summaryCandidate)));
+                      const summaryText = findReadableValue(item) || `Item ${idx + 1}`;
                       const summaryIsArabic = isArabic(summaryText);
                       const displaySummary = summaryIsArabic
                         ? (summaryText.length > 30 ? '...' + summaryText.slice(-30) : summaryText)
@@ -394,7 +463,7 @@ export default function CustomResponses({ applicant, customFields }: Props) {
                                                     {React.isValidElement(displayNode) ? (
                                                       displayNode
                                                     ) : (
-                                                      <SmartText value={itemValue} preserveNewlines className="break-words" />
+                                                      <SmartText value={findReadableValue(itemValue) || itemValue} preserveNewlines className="break-words" />
                                                     )}
                                                   </span>
                                                 )}
@@ -442,12 +511,9 @@ export default function CustomResponses({ applicant, customFields }: Props) {
                 }
                 return String(txt);
               }
-              if (typeof v.en === 'string' || typeof v.ar === 'string') return toPlainString(v);
-              try {
-                return JSON.stringify(v, null, 2);
-              } catch (e) {
-                return String(v);
-              }
+              const structured = renderReadableObject(v);
+              if (structured) return structured;
+              return findReadableValue(v) || 'Object';
             }
 
             if (typeof v === 'string') {

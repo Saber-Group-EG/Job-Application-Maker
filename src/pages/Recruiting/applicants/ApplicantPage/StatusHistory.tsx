@@ -1,4 +1,5 @@
 import { Fragment, useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom'; // Add this import
 import ComponentCard from '../../../../components/common/ComponentCard';
 import { useAuth } from '../../../../context/AuthContext';
 import { toPlainString } from '../../../../utils/strings';
@@ -18,6 +19,15 @@ const formatDate = (dateString?: string) => {
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+  });
+};
+
+const formatDateOnly = (dateString?: string) => {
+  if (!dateString) return '';
+  return new Date(dateString).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
   });
 };
 
@@ -47,7 +57,7 @@ const getReadableMessageText = (value?: string) => {
 };
 
 const getStatusColor = (status: string) => {
-  switch (status) {
+  switch (status?.toLowerCase()) {
     case 'pending':
       return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
     case 'interview':
@@ -65,6 +75,7 @@ const getStatusColor = (status: string) => {
 
 export default function StatusHistory({ applicant, loading = false }: Props) {
   const { user } = useAuth();
+  const navigate = useNavigate(); // Add this for navigation
   const [activityTab, setActivityTab] = useState<'all' | 'status' | 'actions' | 'interview' | 'previous'>('all');
   const [expandedHistory, setExpandedHistory] = useState<string | null>(null);
 
@@ -80,6 +91,12 @@ export default function StatusHistory({ applicant, loading = false }: Props) {
     const currentId = String(applicant?._id || '');
     return previousApplicants.filter((a: any) => String(a?._id || '') !== currentId);
   }, [previousApplicants, applicant?._id]);
+
+  const handlePreviousEntryClick = (applicantId: string) => {
+    // Navigate to the applicant detail page
+    // Adjust the path based on your actual route structure
+    navigate(`/applicant-details/${applicantId}`);
+  };
 
   return (
     <div>
@@ -222,17 +239,23 @@ export default function StatusHistory({ applicant, loading = false }: Props) {
                           <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Phone</th>
                           <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Status</th>
                           <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Applied Date</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Job Position</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
                         {filteredPreviousApplicants.map((prev: any, index: number) => (
-                          <tr key={prev?._id || index} className="hover:bg-gray-50 dark:hover:bg-gray-800/30">
-                            <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
+                          <tr 
+                            key={prev?._id || index} 
+                            className="hover:bg-gray-50 dark:hover:bg-gray-800/30 cursor-pointer transition-colors"
+                            onClick={() => handlePreviousEntryClick(prev?._id)}
+                          >
+                            <td className="px-4 py-3 text-sm text-brand-600 hover:underline dark:text-brand-400">
                               {prev?.fullName || 'N/A'}
                             </td>
                             <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
                               <a
                                 href={`mailto:${prev?.email}`}
+                                onClick={(e) => e.stopPropagation()}
                                 className="text-brand-600 hover:underline dark:text-brand-400"
                               >
                                 {prev?.email || 'N/A'}
@@ -251,9 +274,13 @@ export default function StatusHistory({ applicant, loading = false }: Props) {
                               </span>
                             </td>
                             <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                              {formatDate(prev?.createdAt || prev?.appliedAt)}
-                            </td>
-                          </tr>
+                              {/* Fixed: Use submittedAt instead of createdAt/appliedAt */}
+                              {formatDateOnly(prev?.submittedAt) || formatDateOnly(prev?.createdAt) || formatDateOnly(prev?.appliedAt) || 'N/A'}
+                             </td>
+                            <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                              {prev?.jobPositionId?.title?.en || prev?.jobPositionId?.title || 'N/A'}
+                             </td>
+                           </tr>
                         ))}
                       </tbody>
                     </table>
@@ -583,13 +610,13 @@ export default function StatusHistory({ applicant, loading = false }: Props) {
                               </td>
                               <td className="px-4 py-3 align-top text-sm text-gray-600 dark:text-gray-400">
                                 {formatDate(activity.date)}
-                              </td>
+                               </td>
                               <td className="px-4 py-3 align-top text-sm text-gray-700 dark:text-gray-300">
                                 {getActorName(activity)}
-                              </td>
+                               </td>
                               <td className="px-4 py-3 align-top text-sm text-gray-700 dark:text-gray-300">
                                 <p className="max-w-[420px] truncate">{getSummary(activity)}</p>
-                              </td>
+                               </td>
                               <td className="px-4 py-3 align-top text-sm text-gray-600 dark:text-gray-400">
                                 {channels ? (
                                   <div className="flex items-center gap-1">
@@ -600,7 +627,7 @@ export default function StatusHistory({ applicant, loading = false }: Props) {
                                 ) : (
                                   '-'
                                 )}
-                              </td>
+                               </td>
                               <td className="px-4 py-3 align-top">
                                 <button
                                   type="button"
@@ -609,14 +636,14 @@ export default function StatusHistory({ applicant, loading = false }: Props) {
                                 >
                                   {isExpanded ? 'Hide' : 'View'}
                                 </button>
-                              </td>
-                            </tr>
+                               </td>
+                             </tr>
                             {isExpanded && (
                               <tr className="bg-gray-50/60 dark:bg-gray-800/40">
                                 <td colSpan={6} className="px-4 py-4">
                                   {renderDetails(activity)}
-                                </td>
-                              </tr>
+                                 </td>
+                               </tr>
                             )}
                           </Fragment>
                         );

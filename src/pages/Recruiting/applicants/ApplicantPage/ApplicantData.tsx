@@ -23,6 +23,7 @@ import {
   applicantsKeys,
   useApplicants,
   useCompanies,
+  useJobPosition,
 } from '../../../../hooks/queries';
 import { useAuth } from '../../../../context/AuthContext';
 import { useQueryClient } from '@tanstack/react-query';
@@ -291,6 +292,33 @@ const ApplicantData = () => {
     (applicant as any)?.jobPosition,
   ]);
 
+  const applicantJobPositionId = useMemo(() => {
+    if (!applicant) return '';
+    if (typeof (applicant as any).jobPositionId === 'string') {
+      return (applicant as any).jobPositionId;
+    }
+    if (typeof (applicant as any).jobPositionId === 'object') {
+      return (applicant as any).jobPositionId?._id || (applicant as any).jobPositionId?.id || '';
+    }
+    if (typeof (applicant as any).jobPosition === 'string') {
+      return (applicant as any).jobPosition;
+    }
+    if (typeof (applicant as any).jobPosition === 'object') {
+      return (applicant as any).jobPosition?._id || (applicant as any).jobPosition?.id || '';
+    }
+    return '';
+  }, [applicant?._id, (applicant as any)?.jobPositionId, (applicant as any)?.jobPosition]);
+
+  const [shouldFetchApplicantJobPosition, setShouldFetchApplicantJobPosition] =
+    useState(false);
+
+  const {
+    data: fetchedApplicantJobPosition,
+    isFetching: isApplicantJobPositionFetching,
+  } = useJobPosition(applicantJobPositionId, {
+    enabled: shouldFetchApplicantJobPosition && !!applicantJobPositionId,
+  });
+
   const resolvedJobPosId = useMemo(() => {
     if (!applicant) return '';
     if (applicantJobPosition)
@@ -307,8 +335,9 @@ const ApplicantData = () => {
     (applicant as any)?.jobPosition,
   ]);
 
-  const jobPositionDetail = applicantJobPosition as any;
-  const isJobPositionDetailFetched = Boolean(applicantJobPosition);
+let rawJobPositionDetail = (fetchedApplicantJobPosition ?? applicantJobPosition) as any;
+const jobPositionDetail = rawJobPositionDetail?.jobPosition ?? rawJobPositionDetail;
+  const isJobPositionDetailFetched = Boolean(jobPositionDetail);
 
   const jobPosCompanyId = useMemo(() => {
     if (!applicantJobPosition) return '';
@@ -437,6 +466,8 @@ const ApplicantData = () => {
   }, [resolvedCompanyId, companies]);
 
   const fetchedCompany = useMemo(() => {
+    if (jobPositionDetail && typeof jobPositionDetail.companyId === 'object')
+      return jobPositionDetail.companyId as any;
     if (resolvedCompanyFromList) return resolvedCompanyFromList;
     if (applicant && typeof applicant.companyId === 'object')
       return applicant.companyId as any;
@@ -447,7 +478,8 @@ const ApplicantData = () => {
       return (applicantJobPosition as any).companyId;
     }
     return null as any;
-  }, [resolvedCompanyFromList, applicant?._id, applicantJobPosition]);
+  }, [resolvedCompanyFromList, applicant?._id, applicantJobPosition, jobPositionDetail]);
+
 
   const jobPositions: any[] = [];
 
@@ -521,6 +553,7 @@ const ApplicantData = () => {
 
   useEffect(() => {
     hasMarkedSeenRef.current = false;
+    setShouldFetchApplicantJobPosition(false);
   }, [id]);
 
   useEffect(() => {
@@ -1032,91 +1065,100 @@ const ApplicantData = () => {
 
   // State for edit-only mode
   const [isEditOnlyMode, setIsEditOnlyMode] = useState(false);
+  const [pendingCustomEditMode, setPendingCustomEditMode] = useState<
+    'edit' | 'interview' | null
+  >(null);
 
-  const openEditOnlyMode = () => {
-    if (!canManageApplicant) return;
-    if (!applicant) return;
+ const openEditOnlyMode = () => {
+  if (!canManageApplicant) return;
+  if (!applicant) return;
+  setShouldFetchApplicantJobPosition(true);
+  if (!jobPositionDetail) {
+    setPendingCustomEditMode('edit');
+    return;
+  }
 
-    const availableCustomFields = getAvailableCustomFieldsForInterview();
+  // FIX: Use the same method to get custom fields as openInterviewEditMode
+  const availableCustomFields = getAvailableCustomFieldsForInterview();
 
-    const rawCustomResponses =
-      applicant?.customResponses &&
-      typeof applicant.customResponses === 'object'
-        ? applicant.customResponses
-        : applicant?.customFieldResponses &&
-            typeof applicant.customFieldResponses === 'object'
-          ? applicant.customFieldResponses
-          : {};
+  const rawCustomResponses =
+    applicant?.customResponses &&
+    typeof applicant.customResponses === 'object'
+      ? applicant.customResponses
+      : applicant?.customFieldResponses &&
+          typeof applicant.customFieldResponses === 'object'
+        ? applicant.customFieldResponses
+        : {};
 
-    const mappedResponseKeys = new Set<string>();
-    const nextCustomResponses: Record<string, any> = {};
+  const mappedResponseKeys = new Set<string>();
+  const nextCustomResponses: Record<string, any> = {};
 
-    availableCustomFields.forEach((field: any, fieldIndex: number) => {
-      const fieldId = getCustomFieldId(field, fieldIndex);
-      const matchedKey = findMatchingResponseKeyForField(
-        field,
-        rawCustomResponses
-      );
-      if (matchedKey) mappedResponseKeys.add(matchedKey);
-      const rawValue =
-        matchedKey &&
-        Object.prototype.hasOwnProperty.call(rawCustomResponses, matchedKey)
-          ? rawCustomResponses[matchedKey]
-          : rawCustomResponses[fieldId];
-
-      nextCustomResponses[fieldId] = coerceCustomFieldValueForForm(
-        field,
-        rawValue
-      );
-    });
-
-    const unmappedCustomResponses = Object.fromEntries(
-      Object.entries(rawCustomResponses).filter(
-        ([key]) => !mappedResponseKeys.has(key)
-      )
+  availableCustomFields.forEach((field: any, fieldIndex: number) => {
+    const fieldId = getCustomFieldId(field, fieldIndex);
+    const matchedKey = findMatchingResponseKeyForField(
+      field,
+      rawCustomResponses
     );
+    if (matchedKey) mappedResponseKeys.add(matchedKey);
+    const rawValue =
+      matchedKey &&
+      Object.prototype.hasOwnProperty.call(rawCustomResponses, matchedKey)
+        ? rawCustomResponses[matchedKey]
+        : rawCustomResponses[fieldId];
 
-    const inferredCustomFields = buildInferredCustomFieldsFromResponses(
-      unmappedCustomResponses
+    nextCustomResponses[fieldId] = coerceCustomFieldValueForForm(
+      field,
+      rawValue
     );
+  });
 
-    inferredCustomFields.forEach((field: any, inferredIndex: number) => {
-      const fieldId = getCustomFieldId(
-        field,
-        availableCustomFields.length + inferredIndex
-      );
-      const rawValue = rawCustomResponses[fieldId];
-      nextCustomResponses[fieldId] = coerceCustomFieldValueForForm(
-        field,
-        rawValue
-      );
-    });
+  const unmappedCustomResponses = Object.fromEntries(
+    Object.entries(rawCustomResponses).filter(
+      ([key]) => !mappedResponseKeys.has(key)
+    )
+  );
 
-    setInterviewUnmappedCustomResponses(unmappedCustomResponses);
-    setInterviewEditableCustomFields([
-      ...availableCustomFields,
-      ...inferredCustomFields,
-    ]);
+  const inferredCustomFields = buildInferredCustomFieldsFromResponses(
+    unmappedCustomResponses
+  );
 
-    setInterviewEditForm({
-      fullName: applicant?.fullName ? String(applicant.fullName) : '',
-      email: applicant?.email ? String(applicant.email) : '',
-      phone: applicant?.phone ? String(applicant.phone) : '',
-      gender: applicant?.gender ? normalizeGenderLocal(applicant.gender) : '',
-      birthDate: toInputDate(getBirthDateValue()),
-      address: applicant?.address ? String(applicant.address) : '',
-      expectedSalary:
-        applicant?.expectedSalary !== undefined &&
-        applicant?.expectedSalary !== null
-          ? String(applicant.expectedSalary)
-          : '',
-      customResponses: nextCustomResponses,
-      jobSpecsResponses: buildInitialJobSpecsResponses(applicant, []),
-    });
+  inferredCustomFields.forEach((field: any, inferredIndex: number) => {
+    const fieldId = getCustomFieldId(
+      field,
+      availableCustomFields.length + inferredIndex
+    );
+    const rawValue = rawCustomResponses[fieldId];
+    nextCustomResponses[fieldId] = coerceCustomFieldValueForForm(
+      field,
+      rawValue
+    );
+  });
 
-    setIsEditOnlyMode(true);
-    setIsInterviewEditMode(false);
-  };
+  setInterviewUnmappedCustomResponses(unmappedCustomResponses);
+  setInterviewEditableCustomFields([
+    ...availableCustomFields,
+    ...inferredCustomFields,
+  ]);
+
+  setInterviewEditForm({
+    fullName: applicant?.fullName ? String(applicant.fullName) : '',
+    email: applicant?.email ? String(applicant.email) : '',
+    phone: applicant?.phone ? String(applicant.phone) : '',
+    gender: applicant?.gender ? normalizeGenderLocal(applicant.gender) : '',
+    birthDate: toInputDate(getBirthDateValue()),
+    address: applicant?.address ? String(applicant.address) : '',
+    expectedSalary:
+      applicant?.expectedSalary !== undefined &&
+      applicant?.expectedSalary !== null
+        ? String(applicant.expectedSalary)
+        : '',
+    customResponses: nextCustomResponses,
+    jobSpecsResponses: buildInitialJobSpecsResponses(applicant, []),
+  });
+
+  setIsEditOnlyMode(true);
+  setIsInterviewEditMode(false);
+};
 
   const handleEditSave = async () => {
     if (!id || !applicant) return;
@@ -1204,6 +1246,7 @@ const ApplicantData = () => {
       setSelectedQuestionGroupIds([]);
       setInterviewQuestionDrafts([]);
       setInterviewEditableCustomFields([]);
+      setShouldFetchApplicantJobPosition(false);
 
       Swal.fire('Saved', 'Applicant data was updated successfully.', 'success');
     } catch (err: any) {
@@ -1216,6 +1259,7 @@ const ApplicantData = () => {
   const handleEditCancel = () => {
     setIsInterviewEditMode(false);
     setIsEditOnlyMode(false);
+    setShouldFetchApplicantJobPosition(false);
     setInterviewTargetMode('existing');
     setInterviewTargetId('');
     setSelectedQuestionGroupIds([]);
@@ -1296,7 +1340,29 @@ const ApplicantData = () => {
     }
     if (typeof rawValue === 'boolean') return 'checkbox';
     if (typeof rawValue === 'number') return 'number';
-    if (isPlainObject(rawValue)) return 'json';
+    if (isPlainObject(rawValue)) {
+      const declaredType = String(rawValue.type || rawValue.inputType || '').trim().toLowerCase();
+      const declaredAnswer = rawValue.answer ?? rawValue.value ?? rawValue.en ?? rawValue.ar ?? null;
+
+      if (declaredType === 'repeatable_group' || declaredType === 'repeatable-group') return 'repeatable_group';
+      if (declaredType === 'dropdown' || declaredType === 'select') return 'dropdown';
+      if (declaredType === 'radio') return 'radio';
+      if (declaredType === 'checkbox') return 'checkbox';
+      if (declaredType === 'textarea') return 'textarea';
+      if (declaredType === 'url' || declaredType === 'link') return 'url';
+      if (declaredType === 'email') return 'email';
+      if (declaredType === 'phone') return 'phone';
+      if (declaredType === 'date') return 'date';
+      if (declaredType === 'number') return 'number';
+      if (declaredType === 'json') return 'json';
+
+      if (declaredAnswer !== null && declaredAnswer !== undefined) {
+        const answerType = inferCustomResponseInputType(declaredAnswer);
+        if (answerType !== 'json') return answerType;
+      }
+
+      return 'json';
+    }
     if (typeof rawValue === 'string') {
       const trimmed = rawValue.trim();
       if (!trimmed) return 'text';
@@ -1323,17 +1389,111 @@ const ApplicantData = () => {
     return toPlainString(field?.label) || field?.fieldId || 'Custom Field';
   };
 
-  const getCustomFieldChoices = (field: any): string[] => {
-    if (!Array.isArray(field?.choices)) return [];
-    return field.choices
-      .map((choice: any) => toPlainString(choice))
-      .filter(Boolean);
-  };
+const getCustomFieldChoices = (field: any): string[] => {
+
+  
+  if (!field) return [];
+  
+  // Try multiple possible locations for choices
+  let rawChoices = field?.choices ?? 
+                   field?.options ?? 
+                   field?.values ?? 
+                   field?.items ?? 
+                   [];
+
+  
+  // If it's not an array, try to convert
+  if (!Array.isArray(rawChoices)) {
+    if (rawChoices && typeof rawChoices === 'object') {
+      if (rawChoices.en || rawChoices.ar) {
+        return [toPlainString(rawChoices)];
+      }
+      rawChoices = Object.values(rawChoices);
+      if (!Array.isArray(rawChoices)) return [];
+    } else {
+      return [];
+    }
+  }
+  
+  // Extract the choice values - handle both string choices and object choices with 'en' property
+  const result = rawChoices
+    .map((choice: any) => {
+      if (choice && typeof choice === 'object') {
+        // Handle choices that are objects with 'en' property (like in your payload)
+        if (typeof choice.en === 'string') {
+  
+          return choice.en;
+        }
+        if (typeof choice.ar === 'string') return choice.ar;
+        // Handle other common patterns
+        if (typeof choice.label === 'string') return choice.label;
+        if (typeof choice.name === 'string') return choice.name;
+        if (typeof choice.text === 'string') return choice.text;
+        if (typeof choice.value === 'string') return choice.value;
+        return toPlainString(choice);
+      }
+      return toPlainString(choice);
+    })
+    .filter(choice => choice && choice.trim().length > 0);
+  
+
+  return result;
+};
 
   const getCustomFieldGroupFields = (field: any): any[] => {
     if (Array.isArray(field?.groupFields)) return field.groupFields;
     if (Array.isArray(field?.subFields)) return field.subFields;
     return [];
+  };
+
+  const coerceNestedCustomValueForForm = (field: any, value: any): any => {
+    const inputType = String(
+      field?.inputType || inferCustomResponseInputType(value) || 'text'
+    ).toLowerCase();
+
+    if (inputType === 'repeatable_group') {
+      if (!Array.isArray(value)) return [];
+      const groupFields = getCustomFieldGroupFields(field);
+
+      return value.map((row: any) => {
+        const normalizedRow =
+          row && typeof row === 'object' && !Array.isArray(row) ? { ...row } : {};
+
+        groupFields.forEach((subField: any, subIndex: number) => {
+          const subFieldId = getCustomFieldId(subField, subIndex);
+          const rawSubValue =
+            normalizedRow[subFieldId] !== undefined
+              ? normalizedRow[subFieldId]
+              : normalizedRow[String(subField?.label?.en || subField?.label?.ar || subField?.label || '')];
+          normalizedRow[subFieldId] = coerceNestedCustomValueForForm(subField, rawSubValue);
+        });
+
+        return normalizedRow;
+      });
+    }
+
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      const candidate = value.answer ?? value.value ?? value.en ?? value.ar ?? null;
+      if (candidate !== null && candidate !== undefined) {
+        return coerceNestedCustomValueForForm(field, candidate);
+      }
+
+      try {
+        return JSON.stringify(value, null, 2);
+      } catch {
+        return String(value);
+      }
+    }
+
+    if (Array.isArray(value)) {
+      return value.map((item: any) =>
+        item && typeof item === 'object' && !Array.isArray(item)
+          ? coerceNestedCustomValueForForm(field, item)
+          : String(item)
+      );
+    }
+
+    return value;
   };
 
   const inferRepeatableGroupFields = (rows: any[]): any[] => {
@@ -1492,13 +1652,45 @@ const ApplicantData = () => {
     ).toLowerCase();
     if (inputType === 'repeatable_group') {
       if (!Array.isArray(rawValue)) return [];
-      return rawValue.map((row: any) =>
-        row && typeof row === 'object' && !Array.isArray(row) ? { ...row } : {}
-      );
+      return rawValue.map((row: any) => {
+        const normalizedRow =
+          row && typeof row === 'object' && !Array.isArray(row) ? { ...row } : {};
+        const groupFields = getCustomFieldGroupFields(field);
+
+        groupFields.forEach((subField: any, subIndex: number) => {
+          const subFieldId = getCustomFieldId(subField, subIndex);
+          const rawSubValue =
+            normalizedRow[subFieldId] !== undefined
+              ? normalizedRow[subFieldId]
+              : normalizedRow[String(subField?.label?.en || subField?.label?.ar || subField?.label || '')];
+          normalizedRow[subFieldId] = coerceNestedCustomValueForForm(subField, rawSubValue);
+        });
+
+        return normalizedRow;
+      });
+    }
+    if (
+      ['url', 'email', 'phone', 'text', 'textarea', 'dropdown', 'radio', 'select'].includes(
+        inputType
+      )
+    ) {
+      if (rawValue && typeof rawValue === 'object' && !Array.isArray(rawValue)) {
+        const candidate = rawValue.answer ?? rawValue.value ?? rawValue.en ?? rawValue.ar ?? null;
+        if (candidate !== null && candidate !== undefined) {
+          return coerceCustomFieldValueForForm(field, candidate);
+        }
+      }
     }
     if (inputType === 'json') {
-      if (rawValue === undefined || rawValue === null || rawValue === '')
-        return '';
+      if (rawValue === undefined || rawValue === null || rawValue === '') return '';
+
+      if (typeof rawValue === 'object' && !Array.isArray(rawValue)) {
+        const candidate = rawValue.answer ?? rawValue.value ?? rawValue.en ?? rawValue.ar ?? null;
+        if (candidate !== null && candidate !== undefined) {
+          return coerceNestedCustomValueForForm(field, candidate);
+        }
+      }
+
       if (typeof rawValue === 'string') {
         const trimmed = rawValue.trim();
         if (!trimmed) return '';
@@ -1508,6 +1700,7 @@ const ApplicantData = () => {
           return rawValue;
         }
       }
+
       try {
         return JSON.stringify(rawValue, null, 2);
       } catch {
@@ -1516,6 +1709,7 @@ const ApplicantData = () => {
     }
     if (inputType === 'checkbox') {
       const choices = getCustomFieldChoices(field);
+      
       if (choices.length === 0) {
         if (typeof rawValue === 'boolean') return rawValue;
         if (typeof rawValue === 'string') {
@@ -1584,6 +1778,19 @@ const ApplicantData = () => {
         return normalizedRow;
       });
     }
+    if (
+      ['url', 'email', 'phone', 'text', 'textarea', 'dropdown', 'radio', 'select'].includes(
+        inputType
+      ) &&
+      rawValue &&
+      typeof rawValue === 'object' &&
+      !Array.isArray(rawValue)
+    ) {
+      const candidate = rawValue.answer ?? rawValue.value ?? rawValue.en ?? rawValue.ar ?? null;
+      if (candidate !== null && candidate !== undefined) {
+        return coerceCustomFieldValueForPayload(field, candidate);
+      }
+    }
     if (inputType === 'json') {
       if (rawValue === undefined || rawValue === null || rawValue === '')
         return '';
@@ -1646,6 +1853,7 @@ const ApplicantData = () => {
   };
 
   const extractArrayField = (source: any, key: string): any[] => {
+
     if (!source || typeof source !== 'object') return [];
     if (Array.isArray((source as any)?.[key])) return (source as any)[key];
     if (Array.isArray((source as any)?.data?.[key]))
@@ -1655,45 +1863,29 @@ const ApplicantData = () => {
     return [];
   };
 
-  const getAvailableCustomFieldsForInterview = () => {
-    const fromDetail = extractArrayField(jobPositionDetail, 'customFields');
-    if (fromDetail.length > 0) {
-      return fromDetail;
-    }
-    const applicantCandidates = [
-      applicant,
-      fetchedApplicant,
-      stateApplicant,
-    ].filter(Boolean) as any[];
-    for (const candidate of applicantCandidates) {
-      const jobPosCandidates: any[] = [];
-      if (
-        candidate?.jobPositionId &&
-        typeof candidate.jobPositionId === 'object'
-      ) {
-        jobPosCandidates.push(candidate.jobPositionId);
-      }
-      if (candidate?.jobPosition && typeof candidate.jobPosition === 'object') {
-        jobPosCandidates.push(candidate.jobPosition);
-      }
-      for (const jobPos of jobPosCandidates) {
-        const fields = extractArrayField(jobPos, 'customFields');
-        if (fields.length > 0) {
-          return fields;
-        }
-      }
-    }
-    if (resolvedJobPosId && Array.isArray(jobPositions)) {
-      const found = jobPositions.find(
-        (j: any) => String(j?._id ?? j?.id ?? '') === String(resolvedJobPosId)
-      );
-      const fromList = extractArrayField(found, 'customFields');
-      if (fromList.length > 0) {
-        return fromList;
-      }
-    }
-    return [] as any[];
-  };
+const getAvailableCustomFieldsForInterview = () => {
+  // Try to get customFields from different possible locations
+  let customFieldsArray: any[] = [];
+  
+  // Check if jobPositionDetail has customFields (it does based on logs)
+  if (jobPositionDetail?.customFields && Array.isArray(jobPositionDetail.customFields)) {
+    customFieldsArray = jobPositionDetail.customFields;
+   
+  }
+  
+  // If found, return them
+  if (customFieldsArray.length > 0) {
+    return customFieldsArray;
+  }
+  
+  // Fallback logic...
+  const fromDetail = extractArrayField(jobPositionDetail, 'customFields');
+  if (fromDetail.length > 0) {
+    return fromDetail;
+  }
+  
+  return [] as any[];
+};
 
   const getAvailableJobSpecsForInterview = () => {
     if (jobPositionDetail) {
@@ -1818,11 +2010,26 @@ const ApplicantData = () => {
                   question: String(q?.question || '').trim(),
                   score: Number(q?.score ?? 0),
                   answerType: String(q?.answerType || 'text').trim() || 'text',
-                  choices: Array.isArray(q?.choices)
-                    ? (q.choices as any[])
-                        .map((c) => String(c ?? '').trim())
-                        .filter(Boolean)
-                    : [],
+                  choices: (() => {
+                    const rawChoices =
+                      q?.choices ?? q?.options ?? q?.values ?? q?.items ?? [];
+                    if (!Array.isArray(rawChoices)) return [];
+                    return rawChoices
+                      .map((c: any) => {
+                        if (c && typeof c === 'object') {
+                          return (
+                            toPlainString(c.label) ||
+                            toPlainString(c.name) ||
+                            toPlainString(c.text) ||
+                            toPlainString(c.value) ||
+                            toPlainString(c.en) ||
+                            toPlainString(c.ar)
+                          );
+                        }
+                        return String(c ?? '').trim();
+                      })
+                      .filter(Boolean);
+                  })(),
                 }))
                 .filter((q: any) => q.question)
             : [];
@@ -1942,6 +2149,7 @@ const ApplicantData = () => {
 
   useEffect(() => {
     if (!isInterviewEditMode) return;
+    if (shouldFetchApplicantJobPosition && isApplicantJobPositionFetching) return;
 
     const selectedGroups = companyInterviewGroups.filter((g) =>
       selectedQuestionGroupIds.includes(g.id)
@@ -2125,13 +2333,24 @@ const ApplicantData = () => {
     interviewTargetId,
     applicantInterviews,
     getPreferredInterviewToUpdate,
+    shouldFetchApplicantJobPosition,
+    isApplicantJobPositionFetching,
   ]);
 
   const openInterviewEditMode = () => {
     if (!canManageInterviews) return;
     if (!applicant) return;
+    setShouldFetchApplicantJobPosition(true);
+    if (!jobPositionDetail) {
+      setPendingCustomEditMode('interview');
+      return;
+    }
 
     const availableCustomFields = getAvailableCustomFieldsForInterview();
+
+  if (availableCustomFields.length > 0) {
+
+  }
     const availableSpecs = getAvailableJobSpecsForInterview();
 
     const rawCustomResponses =
@@ -2188,10 +2407,10 @@ const ApplicantData = () => {
     });
 
     setInterviewUnmappedCustomResponses(unmappedCustomResponses);
-    setInterviewEditableCustomFields([
-      ...availableCustomFields,
-      ...inferredCustomFields,
-    ]);
+setInterviewEditableCustomFields([
+  ...availableCustomFields,
+  ...inferredCustomFields,
+]);
 
     setInterviewEditForm({
       fullName: applicant?.fullName ? String(applicant.fullName) : '',
@@ -2731,7 +2950,22 @@ const ApplicantData = () => {
     setSelectedQuestionGroupIds([]);
     setInterviewQuestionDrafts([]);
     setInterviewEditableCustomFields([]);
+    setShouldFetchApplicantJobPosition(false);
   };
+
+  useEffect(() => {
+    if (!pendingCustomEditMode) return;
+    if (!jobPositionDetail) return;
+
+    const nextMode = pendingCustomEditMode;
+    setPendingCustomEditMode(null);
+
+    if (nextMode === 'edit') {
+      openEditOnlyMode();
+    } else {
+      openInterviewEditMode();
+    }
+  }, [pendingCustomEditMode, jobPositionDetail]);
 
   const inlineStyleHtml = (html: string) => {
     if (!html) return '';
@@ -3355,9 +3589,10 @@ const ApplicantData = () => {
 
   const customFieldsForInterview = getAvailableCustomFieldsForInterview();
   const editableCustomFieldsForInterview =
-    (isInterviewEditMode || isEditOnlyMode) &&
-    interviewEditableCustomFields.length > 0
-      ? interviewEditableCustomFields
+    isInterviewEditMode || isEditOnlyMode
+      ? interviewEditableCustomFields.length > 0
+        ? interviewEditableCustomFields
+        : customFieldsForInterview
       : customFieldsForInterview;
 
   if (loading) {
@@ -4773,6 +5008,7 @@ const ApplicantData = () => {
                       const fieldLabel = getCustomFieldLabelText(field);
                       const rawValue =
                         interviewEditForm.customResponses?.[fieldId];
+                      const displayValue = rawValue;
                       const inputType = String(
                         field?.inputType ||
                           inferCustomResponseInputType(rawValue) ||
@@ -4805,845 +5041,417 @@ const ApplicantData = () => {
                             </div>
                           </div>
 
-                          {inputType === 'repeatable_group' ? (
-                            <div className="space-y-3">
-                              <div className="flex items-center justify-between">
-                                <p className="text-xs text-gray-500 dark:text-gray-400">
-                                  Add multiple entries for this grouped field.
-                                </p>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    addInterviewRepeatableRow(field, fieldId)
-                                  }
-                                  className="inline-flex items-center rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
-                                >
-                                  <PlusIcon className="h-3 w-3 mr-1" />
-                                  Add Entry
-                                </button>
-                              </div>
 
-                              {Array.isArray(rawValue) &&
-                              rawValue.length > 0 ? (
-                                <div className="space-y-3">
-                                  {rawValue.map(
-                                    (row: any, rowIndex: number) => (
-                                      <div
-                                        key={`${fieldId}_row_${rowIndex}`}
-                                        className="rounded-lg border border-gray-200 p-3 dark:border-gray-700"
-                                      >
-                                        <div className="mb-3 flex items-center justify-between">
-                                          <p className="text-xs font-semibold text-gray-600 dark:text-gray-300">
-                                            Entry #{rowIndex + 1}
-                                          </p>
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              removeInterviewRepeatableRow(
-                                                fieldId,
-                                                rowIndex
-                                              )
-                                            }
-                                            className="text-xs font-semibold text-red-600 hover:text-red-700"
-                                          >
-                                            Remove
-                                          </button>
-                                        </div>
+                        {/* Render different input types based on inputType */}
+{inputType === 'repeatable_group' ? (
+  <div className="space-y-3">
+    <div className="flex items-center justify-between">
+      <p className="text-xs text-gray-500 dark:text-gray-400">
+        Add multiple entries for this grouped field.
+      </p>
+      <button
+        type="button"
+        onClick={() => addInterviewRepeatableRow(field, fieldId)}
+        className="inline-flex items-center rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
+      >
+        <PlusIcon className="h-3 w-3 mr-1" />
+        Add Entry
+      </button>
+    </div>
 
-                                        <div className="grid grid-cols-1 gap-3">
-                                          {groupFields.map(
-                                            (
-                                              subField: any,
-                                              subFieldIndex: number
-                                            ) => {
-                                              const subFieldId =
-                                                getCustomFieldId(
-                                                  subField,
-                                                  subFieldIndex
-                                                );
-                                              const subLabel =
-                                                getCustomFieldLabelText(
-                                                  subField
-                                                );
-                                              const subValue =
-                                                row?.[subFieldId];
-                                              const subInputType = String(
-                                                subField?.inputType ||
-                                                  inferCustomResponseInputType(
-                                                    subValue
-                                                  ) ||
-                                                  'text'
-                                              ).toLowerCase();
-                                              const subChoices =
-                                                getCustomFieldChoices(subField);
+    {Array.isArray(rawValue) && rawValue.length > 0 ? (
+      <div className="space-y-3">
+        {rawValue.map((row: any, rowIndex: number) => (
+          <div
+            key={`${fieldId}_row_${rowIndex}`}
+            className="rounded-lg border border-gray-200 p-3 dark:border-gray-700"
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-xs font-semibold text-gray-600 dark:text-gray-300">
+                Entry #{rowIndex + 1}
+              </p>
+              <button
+                type="button"
+                onClick={() => removeInterviewRepeatableRow(fieldId, rowIndex)}
+                className="text-xs font-semibold text-red-600 hover:text-red-700"
+              >
+                Remove
+              </button>
+            </div>
 
-                                              return (
-                                                <div
-                                                  key={`${fieldId}_${subFieldId}_${subFieldIndex}`}
-                                                >
-                                                  <Label className="mb-1 block text-[11px] font-semibold uppercase text-gray-500 dark:text-gray-400">
-                                                    {subLabel}
-                                                  </Label>
+            <div className="grid grid-cols-1 gap-3">
+              {groupFields.map((subField: any, subFieldIndex: number) => {
+                const subFieldId = getCustomFieldId(subField, subFieldIndex);
+                const subLabel = getCustomFieldLabelText(subField);
+                const subValue = row?.[subFieldId];
+                const subInputType = String(
+                  subField?.inputType ||
+                    inferCustomResponseInputType(subValue) ||
+                    'text'
+                ).toLowerCase();
+                const subChoices = getCustomFieldChoices(subField);
 
-                                                  {subInputType ===
-                                                  'textarea' ? (
-                                                    <textarea
-                                                      value={subValue ?? ''}
-                                                      onChange={(e) =>
-                                                        updateInterviewRepeatableCell(
-                                                          fieldId,
-                                                          rowIndex,
-                                                          subFieldId,
-                                                          e.target.value
-                                                        )
-                                                      }
-                                                      rows={3}
-                                                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
-                                                    />
-                                                  ) : subInputType ===
-                                                    'json' ? (
-                                                    <textarea
-                                                      value={subValue ?? ''}
-                                                      onChange={(e) =>
-                                                        updateInterviewRepeatableCell(
-                                                          fieldId,
-                                                          rowIndex,
-                                                          subFieldId,
-                                                          e.target.value
-                                                        )
-                                                      }
-                                                      rows={5}
-                                                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-mono text-gray-900 outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
-                                                      placeholder='{"key": "value"}'
-                                                    />
-                                                  ) : subInputType ===
-                                                    'dropdown' ? (
-                                                    <select
-                                                      value={subValue ?? ''}
-                                                      onChange={(e) =>
-                                                        updateInterviewRepeatableCell(
-                                                          fieldId,
-                                                          rowIndex,
-                                                          subFieldId,
-                                                          e.target.value
-                                                        )
-                                                      }
-                                                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
-                                                    >
-                                                      <option value="">
-                                                        Select
-                                                      </option>
-                                                      {subChoices.map(
-                                                        (choice: string) => (
-                                                          <option
-                                                            key={`${subFieldId}_${choice}`}
-                                                            value={choice}
-                                                          >
-                                                            {choice}
-                                                          </option>
-                                                        )
-                                                      )}
-                                                    </select>
-                                                  ) : subInputType ===
-                                                    'radio' ? (
-                                                    <div className="space-y-1">
-                                                      {subChoices.map(
-                                                        (choice: string) => (
-                                                          <label
-                                                            key={`${subFieldId}_${choice}`}
-                                                            className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300"
-                                                          >
-                                                            <input
-                                                              type="radio"
-                                                              name={`${fieldId}_${rowIndex}_${subFieldId}`}
-                                                              checked={
-                                                                String(
-                                                                  subValue ?? ''
-                                                                ) === choice
-                                                              }
-                                                              onChange={() =>
-                                                                updateInterviewRepeatableCell(
-                                                                  fieldId,
-                                                                  rowIndex,
-                                                                  subFieldId,
-                                                                  choice
-                                                                )
-                                                              }
-                                                            />
-                                                            <span>
-                                                              {choice}
-                                                            </span>
-                                                          </label>
-                                                        )
-                                                      )}
-                                                    </div>
-                                                  ) : subInputType ===
-                                                    'checkbox' ? (
-                                                    subChoices.length > 0 ? (
-                                                      <div className="space-y-1">
-                                                        {subChoices.map(
-                                                          (choice: string) => {
-                                                            const selected =
-                                                              Array.isArray(
-                                                                subValue
-                                                              )
-                                                                ? subValue.map(
-                                                                    (v: any) =>
-                                                                      String(v)
-                                                                  )
-                                                                : [];
-                                                            const checked =
-                                                              selected.includes(
-                                                                choice
-                                                              );
-                                                            return (
-                                                              <label
-                                                                key={`${subFieldId}_${choice}`}
-                                                                className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300"
-                                                              >
-                                                                <input
-                                                                  type="checkbox"
-                                                                  checked={
-                                                                    checked
-                                                                  }
-                                                                  onChange={(
-                                                                    e
-                                                                  ) => {
-                                                                    const next =
-                                                                      e.target
-                                                                        .checked
-                                                                        ? [
-                                                                            ...new Set(
-                                                                              [
-                                                                                ...selected,
-                                                                                choice,
-                                                                              ]
-                                                                            ),
-                                                                          ]
-                                                                        : selected.filter(
-                                                                            (
-                                                                              v: string
-                                                                            ) =>
-                                                                              v !==
-                                                                              choice
-                                                                          );
-                                                                    updateInterviewRepeatableCell(
-                                                                      fieldId,
-                                                                      rowIndex,
-                                                                      subFieldId,
-                                                                      next
-                                                                    );
-                                                                  }}
-                                                                />
-                                                                <span>
-                                                                  {choice}
-                                                                </span>
-                                                              </label>
-                                                            );
-                                                          }
-                                                        )}
-                                                      </div>
-                                                    ) : (
-                                                      <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                                                        <input
-                                                          type="checkbox"
-                                                          checked={Boolean(
-                                                            subValue
-                                                          )}
-                                                          onChange={(e) =>
-                                                            updateInterviewRepeatableCell(
-                                                              fieldId,
-                                                              rowIndex,
-                                                              subFieldId,
-                                                              e.target.checked
-                                                            )
-                                                          }
-                                                        />
-                                                        <span>Checked</span>
-                                                      </label>
-                                                    )
-                                                  ) : subInputType ===
-                                                    'tags' ? (
-                                                    <div className="mb-2 flex min-h-11 rounded-lg border border-gray-300 py-1.5 pl-3 pr-3 shadow-theme-xs outline-hidden transition focus-within:border-blue-500 dark:border-gray-700 dark:bg-gray-900">
-                                                      <div className="flex flex-wrap flex-auto gap-2 items-center">
-                                                        {Array.isArray(
-                                                          subValue
-                                                        ) && subValue.length > 0
-                                                          ? subValue.map(
-                                                              (tagVal: any) => {
-                                                                const text =
-                                                                  String(
-                                                                    tagVal
-                                                                  );
-                                                                return (
-                                                                  <div
-                                                                    key={`${fieldId}_${rowIndex}_${subFieldId}_${text}`}
-                                                                    className="group flex items-center justify-center rounded-full border-[0.7px] border-transparent bg-gray-100 py-1 pl-2.5 pr-2 text-sm text-gray-800 hover:border-gray-200 dark:bg-gray-800 dark:text-white/90 dark:hover:border-gray-800"
-                                                                  >
-                                                                    <span className="flex-initial max-w-full">
-                                                                      {text}
-                                                                    </span>
-                                                                    <button
-                                                                      type="button"
-                                                                      onClick={(
-                                                                        e
-                                                                      ) => {
-                                                                        e.stopPropagation();
-                                                                        const curr =
-                                                                          Array.isArray(
-                                                                            subValue
-                                                                          )
-                                                                            ? subValue
-                                                                            : [];
-                                                                        const next =
-                                                                          curr.filter(
-                                                                            (
-                                                                              t: any
-                                                                            ) =>
-                                                                              String(
-                                                                                t
-                                                                              ) !==
-                                                                              String(
-                                                                                tagVal
-                                                                              )
-                                                                          );
-                                                                        updateInterviewRepeatableCell(
-                                                                          fieldId,
-                                                                          rowIndex,
-                                                                          subFieldId,
-                                                                          next
-                                                                        );
-                                                                      }}
-                                                                      className="pl-2 text-gray-500 cursor-pointer group-hover:text-gray-400 dark:text-gray-400"
-                                                                      aria-label={`Remove ${text}`}
-                                                                    >
-                                                                      <svg
-                                                                        className="fill-current"
-                                                                        width="14"
-                                                                        height="14"
-                                                                        viewBox="0 0 14 14"
-                                                                        xmlns="http://www.w3.org/2000/svg"
-                                                                      >
-                                                                        <path
-                                                                          fillRule="evenodd"
-                                                                          clipRule="evenodd"
-                                                                          d="M3.40717 4.46881C3.11428 4.17591 3.11428 3.70104 3.40717 3.40815C3.70006 3.11525 4.17494 3.11525 4.46783 3.40815L6.99943 5.93975L9.53095 3.40822C9.82385 3.11533 10.2987 3.11533 10.5916 3.40822C10.8845 3.70112 10.8845 4.17599 10.5916 4.46888L8.06009 7.00041L10.5916 9.53193C10.8845 9.82482 10.8845 10.2997 10.5916 10.5926C10.2987 10.8855 9.82385 10.8855 9.53095 10.5926L6.99943 8.06107L4.46783 10.5927C4.17494 10.8856 3.70006 10.8856 3.40717 10.5927C3.11428 10.2998 3.11428 9.8249 3.40717 9.53201L5.93877 7.00041L3.40717 4.46881Z"
-                                                                        />
-                                                                      </svg>
-                                                                    </button>
-                                                                  </div>
-                                                                );
-                                                              }
-                                                            )
-                                                          : null}
+                return (
+                  <div key={`${fieldId}_${subFieldId}_${subFieldIndex}`}>
+                    <Label className="mb-1 block text-[11px] font-semibold uppercase text-gray-500 dark:text-gray-400">
+                      {subLabel}
+                    </Label>
 
-                                                        <input
-                                                          type="text"
-                                                          value={
-                                                            tagInputBuffers[
-                                                              `${fieldId}__${rowIndex}__${subFieldId}`
-                                                            ] ?? ''
-                                                          }
-                                                          onChange={(e) => {
-                                                            const key = `${fieldId}__${rowIndex}__${subFieldId}`;
-                                                            const v =
-                                                              e.target.value;
-                                                            setTagInputBuffers(
-                                                              (prev) => ({
-                                                                ...prev,
-                                                                [key]: v,
-                                                              })
-                                                            );
-                                                            if (
-                                                              v.includes(',')
-                                                            ) {
-                                                              const next = v
-                                                                .split(',')
-                                                                .map((vv) =>
-                                                                  vv.trim()
-                                                                )
-                                                                .filter(
-                                                                  Boolean
-                                                                );
-                                                              const currentArr =
-                                                                Array.isArray(
-                                                                  subValue
-                                                                )
-                                                                  ? subValue
-                                                                  : [];
-                                                              const merged =
-                                                                mergeTags(
-                                                                  currentArr,
-                                                                  next
-                                                                );
-                                                              updateInterviewRepeatableCell(
-                                                                fieldId,
-                                                                rowIndex,
-                                                                subFieldId,
-                                                                merged
-                                                              );
-                                                              setTagInputBuffers(
-                                                                (prev) => ({
-                                                                  ...prev,
-                                                                  [key]: '',
-                                                                })
-                                                              );
-                                                            }
-                                                          }}
-                                                          onKeyDown={(e) => {
-                                                            if (
-                                                              e.key === 'Enter'
-                                                            ) {
-                                                              e.preventDefault();
-                                                              const key = `${fieldId}__${rowIndex}__${subFieldId}`;
-                                                              const buf = (
-                                                                tagInputBuffers[
-                                                                  key
-                                                                ] ?? ''
-                                                              ).toString();
-                                                              if (
-                                                                !buf ||
-                                                                !buf.trim()
-                                                              ) {
-                                                                setTagInputBuffers(
-                                                                  (prev) => ({
-                                                                    ...prev,
-                                                                    [key]: '',
-                                                                  })
-                                                                );
-                                                                return;
-                                                              }
-                                                              const next = buf
-                                                                .split(',')
-                                                                .map((vv) =>
-                                                                  vv.trim()
-                                                                )
-                                                                .filter(
-                                                                  Boolean
-                                                                );
-                                                              if (next.length) {
-                                                                const currentArr =
-                                                                  Array.isArray(
-                                                                    subValue
-                                                                  )
-                                                                    ? subValue
-                                                                    : [];
-                                                                const merged =
-                                                                  mergeTags(
-                                                                    currentArr,
-                                                                    next
-                                                                  );
-                                                                updateInterviewRepeatableCell(
-                                                                  fieldId,
-                                                                  rowIndex,
-                                                                  subFieldId,
-                                                                  merged
-                                                                );
-                                                              }
-                                                              setTagInputBuffers(
-                                                                (prev) => ({
-                                                                  ...prev,
-                                                                  [key]: '',
-                                                                })
-                                                              );
-                                                            }
-                                                          }}
-                                                          onBlur={() => {
-                                                            const key = `${fieldId}__${rowIndex}__${subFieldId}`;
-                                                            const buf = (
-                                                              tagInputBuffers[
-                                                                key
-                                                              ] ?? ''
-                                                            ).toString();
-                                                            if (
-                                                              buf &&
-                                                              buf.trim()
-                                                            ) {
-                                                              const next = buf
-                                                                .split(',')
-                                                                .map((vv) =>
-                                                                  vv.trim()
-                                                                )
-                                                                .filter(
-                                                                  Boolean
-                                                                );
-                                                              const currentArr =
-                                                                Array.isArray(
-                                                                  subValue
-                                                                )
-                                                                  ? subValue
-                                                                  : [];
-                                                              const merged =
-                                                                mergeTags(
-                                                                  currentArr,
-                                                                  next
-                                                                );
-                                                              updateInterviewRepeatableCell(
-                                                                fieldId,
-                                                                rowIndex,
-                                                                subFieldId,
-                                                                merged
-                                                              );
-                                                              setTagInputBuffers(
-                                                                (prev) => ({
-                                                                  ...prev,
-                                                                  [key]: '',
-                                                                })
-                                                              );
-                                                            }
-                                                          }}
-                                                          className="flex-1 bg-transparent p-1 text-sm text-gray-800 outline-none dark:text-white/90"
-                                                          placeholder="tag1, tag2, tag3"
-                                                        />
-                                                      </div>
-                                                    </div>
-                                                  ) : (
-                                                    <input
-                                                      type={
-                                                        subInputType ===
-                                                        'number'
-                                                          ? 'number'
-                                                          : subInputType ===
-                                                              'date'
-                                                            ? 'date'
-                                                            : subInputType ===
-                                                                'email'
-                                                              ? 'email'
-                                                              : subInputType ===
-                                                                  'url'
-                                                                ? 'url'
-                                                                : subInputType ===
-                                                                    'phone'
-                                                                  ? 'tel'
-                                                                  : 'text'
-                                                      }
-                                                      value={subValue ?? ''}
-                                                      onChange={(e) =>
-                                                        updateInterviewRepeatableCell(
-                                                          fieldId,
-                                                          rowIndex,
-                                                          subFieldId,
-                                                          e.target.value
-                                                        )
-                                                      }
-                                                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
-                                                    />
-                                                  )}
-                                                </div>
-                                              );
-                                            }
-                                          )}
-                                        </div>
-                                      </div>
-                                    )
-                                  )}
-                                </div>
-                              ) : (
-                                <p className="rounded-lg border border-dashed border-gray-300 px-3 py-2 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
-                                  No entries yet.
-                                </p>
-                              )}
-                            </div>
-                          ) : inputType === 'textarea' ? (
-                            <textarea
-                              value={rawValue ?? ''}
-                              onChange={(e) =>
-                                setInterviewCustomFieldValue(
+                    {subInputType === 'textarea' ? (
+                      <textarea
+                        value={subValue ?? ''}
+                        onChange={(e) =>
+                          updateInterviewRepeatableCell(
+                            fieldId,
+                            rowIndex,
+                            subFieldId,
+                            e.target.value
+                          )
+                        }
+                        rows={3}
+                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                      />
+                    ) : subInputType === 'dropdown' ? (
+                      <select
+                        value={subValue ?? ''}
+                        onChange={(e) =>
+                          updateInterviewRepeatableCell(
+                            fieldId,
+                            rowIndex,
+                            subFieldId,
+                            e.target.value
+                          )
+                        }
+                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                      >
+                        <option value="">-- Select --</option>
+                        {subChoices.map((choice: string) => (
+                          <option key={`${subFieldId}_${choice}`} value={choice}>
+                            {choice}
+                          </option>
+                        ))}
+                      </select>
+                    ) : subInputType === 'radio' ? (
+                      <div className="space-y-1">
+                        {subChoices.map((choice: string) => (
+                          <label
+                            key={`${subFieldId}_${choice}`}
+                            className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300"
+                          >
+                            <input
+                              type="radio"
+                              name={`${fieldId}_${rowIndex}_${subFieldId}`}
+                              checked={String(subValue ?? '') === choice}
+                              onChange={() =>
+                                updateInterviewRepeatableCell(
                                   fieldId,
-                                  e.target.value
+                                  rowIndex,
+                                  subFieldId,
+                                  choice
                                 )
                               }
-                              rows={4}
-                              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
                             />
-                          ) : inputType === 'json' ? (
-                            <textarea
-                              value={rawValue ?? ''}
-                              onChange={(e) =>
-                                setInterviewCustomFieldValue(
-                                  fieldId,
-                                  e.target.value
-                                )
-                              }
-                              rows={6}
-                              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-mono text-gray-900 outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
-                              placeholder='{"key": "value"}'
-                            />
-                          ) : inputType === 'dropdown' ? (
-                            <select
-                              value={rawValue ?? ''}
-                              onChange={(e) =>
-                                setInterviewCustomFieldValue(
-                                  fieldId,
-                                  e.target.value
-                                )
-                              }
-                              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
-                            >
-                              <option value="">Select</option>
-                              {choices.map((choice: string) => (
-                                <option
-                                  key={`${fieldId}_${choice}`}
-                                  value={choice}
-                                >
-                                  {choice}
-                                </option>
-                              ))}
-                            </select>
-                          ) : inputType === 'radio' ? (
-                            <div className="space-y-1">
-                              {choices.map((choice: string) => (
-                                <label
-                                  key={`${fieldId}_${choice}`}
-                                  className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300"
-                                >
-                                  <input
-                                    type="radio"
-                                    name={`field_${fieldId}`}
-                                    checked={String(rawValue ?? '') === choice}
-                                    onChange={() =>
-                                      setInterviewCustomFieldValue(
-                                        fieldId,
-                                        choice
-                                      )
-                                    }
-                                  />
-                                  <span>{choice}</span>
-                                </label>
-                              ))}
-                            </div>
-                          ) : inputType === 'checkbox' ? (
-                            choices.length > 0 ? (
-                              <div className="space-y-1">
-                                {choices.map((choice: string) => {
-                                  const selected = Array.isArray(rawValue)
-                                    ? rawValue.map((v: any) => String(v))
-                                    : [];
-                                  const checked = selected.includes(choice);
-                                  return (
-                                    <label
-                                      key={`${fieldId}_${choice}`}
-                                      className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300"
-                                    >
-                                      <input
-                                        type="checkbox"
-                                        checked={checked}
-                                        onChange={(e) => {
-                                          const next = e.target.checked
-                                            ? [
-                                                ...new Set([
-                                                  ...selected,
-                                                  choice,
-                                                ]),
-                                              ]
-                                            : selected.filter(
-                                                (v: string) => v !== choice
-                                              );
-                                          setInterviewCustomFieldValue(
-                                            fieldId,
-                                            next
-                                          );
-                                        }}
-                                      />
-                                      <span>{choice}</span>
-                                    </label>
-                                  );
-                                })}
-                              </div>
-                            ) : (
-                              <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                            <span>{choice}</span>
+                          </label>
+                        ))}
+                      </div>
+                    ) : subInputType === 'checkbox' ? (
+                      subChoices.length > 0 ? (
+                        <div className="space-y-1">
+                          {subChoices.map((choice: string) => {
+                            const selected = Array.isArray(subValue)
+                              ? subValue.map((v: any) => String(v))
+                              : [];
+                            const checked = selected.includes(choice);
+                            return (
+                              <label
+                                key={`${subFieldId}_${choice}`}
+                                className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300"
+                              >
                                 <input
                                   type="checkbox"
-                                  checked={Boolean(rawValue)}
-                                  onChange={(e) =>
-                                    setInterviewCustomFieldValue(
-                                      fieldId,
-                                      e.target.checked
-                                    )
-                                  }
-                                />
-                                <span>Checked</span>
-                              </label>
-                            )
-                          ) : inputType === 'tags' ? (
-                            <div className="mb-2 flex min-h-11 rounded-lg border border-gray-300 py-1.5 pl-3 pr-3 shadow-theme-xs outline-hidden transition focus-within:border-blue-500 dark:border-gray-700 dark:bg-gray-900">
-                              <div className="flex flex-wrap flex-auto gap-2 items-center">
-                                {Array.isArray(rawValue) && rawValue.length > 0
-                                  ? rawValue.map((tagVal: any) => {
-                                      const text = String(tagVal);
-                                      return (
-                                        <div
-                                          key={`${fieldId}_tag_${text}`}
-                                          className="group flex items-center justify-center rounded-full border-[0.7px] border-transparent bg-gray-100 py-1 pl-2.5 pr-2 text-sm text-gray-800 hover:border-gray-200 dark:bg-gray-800 dark:text-white/90 dark:hover:border-gray-800"
-                                        >
-                                          <span className="flex-initial max-w-full">
-                                            {text}
-                                          </span>
-                                          <button
-                                            type="button"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              const curr = Array.isArray(
-                                                rawValue
-                                              )
-                                                ? rawValue
-                                                : [];
-                                              const next = curr.filter(
-                                                (t: any) =>
-                                                  String(t) !== String(tagVal)
-                                              );
-                                              setInterviewCustomFieldValue(
-                                                fieldId,
-                                                next
-                                              );
-                                            }}
-                                            className="pl-2 text-gray-500 cursor-pointer group-hover:text-gray-400 dark:text-gray-400"
-                                            aria-label={`Remove ${text}`}
-                                          >
-                                            <svg
-                                              className="fill-current"
-                                              width="14"
-                                              height="14"
-                                              viewBox="0 0 14 14"
-                                              xmlns="http://www.w3.org/2000/svg"
-                                            >
-                                              <path
-                                                fillRule="evenodd"
-                                                clipRule="evenodd"
-                                                d="M3.40717 4.46881C3.11428 4.17591 3.11428 3.70104 3.40717 3.40815C3.70006 3.11525 4.17494 3.11525 4.46783 3.40815L6.99943 5.93975L9.53095 3.40822C9.82385 3.11533 10.2987 3.11533 10.5916 3.40822C10.8845 3.70112 10.8845 4.17599 10.5916 4.46888L8.06009 7.00041L10.5916 9.53193C10.8845 9.82482 10.8845 10.2997 10.5916 10.5926C10.2987 10.8855 9.82385 10.8855 9.53095 10.5926L6.99943 8.06107L4.46783 10.5927C4.17494 10.8856 3.70006 10.8856 3.40717 10.5927C3.11428 10.2998 3.11428 9.8249 3.40717 9.53201L5.93877 7.00041L3.40717 4.46881Z"
-                                              />
-                                            </svg>
-                                          </button>
-                                        </div>
-                                      );
-                                    })
-                                  : null}
-
-                                <input
-                                  type="text"
-                                  value={tagInputBuffers[fieldId] ?? ''}
+                                  checked={checked}
                                   onChange={(e) => {
-                                    const v = e.target.value;
-                                    setTagInputBuffers((prev) => ({
-                                      ...prev,
-                                      [fieldId]: v,
-                                    }));
-                                    if (v.includes(',')) {
-                                      const next = v
-                                        .split(',')
-                                        .map((vv) => vv.trim())
-                                        .filter(Boolean);
-                                      const currentArr = Array.isArray(rawValue)
-                                        ? rawValue
-                                        : [];
-                                      const merged = mergeTags(
-                                        currentArr,
-                                        next
-                                      );
-                                      setInterviewCustomFieldValue(
-                                        fieldId,
-                                        merged
-                                      );
-                                      setTagInputBuffers((prev) => ({
-                                        ...prev,
-                                        [fieldId]: '',
-                                      }));
-                                    }
-                                  }}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                      e.preventDefault();
-                                      const buf = (
-                                        tagInputBuffers[fieldId] ?? ''
-                                      ).toString();
-                                      if (!buf || !buf.trim()) {
-                                        setTagInputBuffers((prev) => ({
-                                          ...prev,
-                                          [fieldId]: '',
-                                        }));
-                                        return;
-                                      }
-                                      const next = buf
-                                        .split(',')
-                                        .map((vv) => vv.trim())
-                                        .filter(Boolean);
-                                      if (next.length) {
-                                        const currentArr = Array.isArray(
-                                          rawValue
-                                        )
-                                          ? rawValue
-                                          : [];
-                                        const merged = mergeTags(
-                                          currentArr,
-                                          next
+                                    const next = e.target.checked
+                                      ? [...new Set([...selected, choice])]
+                                      : selected.filter(
+                                          (v: string) => v !== choice
                                         );
-                                        setInterviewCustomFieldValue(
-                                          fieldId,
-                                          merged
-                                        );
-                                      }
-                                      setTagInputBuffers((prev) => ({
-                                        ...prev,
-                                        [fieldId]: '',
-                                      }));
-                                    }
+                                    updateInterviewRepeatableCell(
+                                      fieldId,
+                                      rowIndex,
+                                      subFieldId,
+                                      next
+                                    );
                                   }}
-                                  onBlur={() => {
-                                    const buf = (
-                                      tagInputBuffers[fieldId] ?? ''
-                                    ).toString();
-                                    if (buf && buf.trim()) {
-                                      const next = buf
-                                        .split(',')
-                                        .map((vv) => vv.trim())
-                                        .filter(Boolean);
-                                      const currentArr = Array.isArray(rawValue)
-                                        ? rawValue
-                                        : [];
-                                      const merged = mergeTags(
-                                        currentArr,
-                                        next
-                                      );
-                                      setInterviewCustomFieldValue(
-                                        fieldId,
-                                        merged
-                                      );
-                                      setTagInputBuffers((prev) => ({
-                                        ...prev,
-                                        [fieldId]: '',
-                                      }));
-                                    }
-                                  }}
-                                  className="flex-1 bg-transparent p-1 text-sm text-gray-800 outline-none dark:text-white/90"
-                                  placeholder="tag1, tag2, tag3"
                                 />
-                              </div>
-                            </div>
-                          ) : (
-                            <input
-                              type={
-                                inputType === 'number'
-                                  ? 'number'
-                                  : inputType === 'date'
-                                    ? 'date'
-                                    : inputType === 'email'
-                                      ? 'email'
-                                      : inputType === 'url'
-                                        ? 'url'
-                                        : inputType === 'phone'
-                                          ? 'tel'
-                                          : 'text'
-                              }
-                              value={rawValue ?? ''}
-                              onChange={(e) =>
-                                setInterviewCustomFieldValue(
-                                  fieldId,
-                                  e.target.value
-                                )
-                              }
-                              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
-                            />
-                          )}
+                                <span>{choice}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                          <input
+                            type="checkbox"
+                            checked={Boolean(subValue)}
+                            onChange={(e) =>
+                              updateInterviewRepeatableCell(
+                                fieldId,
+                                rowIndex,
+                                subFieldId,
+                                e.target.checked
+                              )
+                            }
+                          />
+                          <span>Checked</span>
+                        </label>
+                      )
+                    ) : subInputType === 'json' ? (
+                      <textarea
+                        value={subValue ?? ''}
+                        onChange={(e) =>
+                          updateInterviewRepeatableCell(
+                            fieldId,
+                            rowIndex,
+                            subFieldId,
+                            e.target.value
+                          )
+                        }
+                        rows={5}
+                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-mono text-gray-900 outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                        placeholder='{"key": "value"}'
+                      />
+                    ) : (
+                      <input
+                        type={
+                          subInputType === 'number'
+                            ? 'number'
+                            : subInputType === 'date'
+                            ? 'date'
+                            : subInputType === 'email'
+                            ? 'email'
+                            : subInputType === 'url'
+                            ? 'url'
+                            : subInputType === 'phone'
+                            ? 'tel'
+                            : 'text'
+                        }
+                        value={subValue ?? ''}
+                        onChange={(e) =>
+                          updateInterviewRepeatableCell(
+                            fieldId,
+                            rowIndex,
+                            subFieldId,
+                            e.target.value
+                          )
+                        }
+                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    ) : (
+      <p className="rounded-lg border border-dashed border-gray-300 px-3 py-2 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
+        No entries yet.
+      </p>
+    )}
+  </div>
+) : inputType === 'textarea' ? (
+  <textarea
+    value={displayValue ?? ''}
+    onChange={(e) => setInterviewCustomFieldValue(fieldId, e.target.value)}
+    rows={4}
+    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+  />
+) : inputType === 'dropdown' ? (
+  <select
+    value={String(displayValue ?? '')}
+    onChange={(e) => setInterviewCustomFieldValue(fieldId, e.target.value)}
+    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+  >
+    <option value="">-- Select --</option>
+    {choices.map((choice: string) => (
+      <option key={`${fieldId}_${choice}`} value={choice}>
+        {choice}
+      </option>
+    ))}
+  </select>
+) : inputType === 'radio' ? (
+  <div className="space-y-2">
+    {choices.map((choice: string) => (
+      <label
+        key={`${fieldId}_${choice}`}
+        className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300"
+      >
+        <input
+          type="radio"
+          name={`field_${fieldId}`}
+          checked={String(displayValue ?? '') === choice}
+          onChange={() => setInterviewCustomFieldValue(fieldId, choice)}
+        />
+        <span>{choice}</span>
+      </label>
+    ))}
+  </div>
+) : inputType === 'checkbox' ? (
+  choices.length > 0 ? (
+    <div className="space-y-2">
+      {choices.map((choice: string) => {
+        const selected = Array.isArray(rawValue) 
+          ? rawValue.map((v: any) => String(v)) 
+          : rawValue ? [String(rawValue)] : [];
+        const checked = selected.includes(choice);
+        return (
+          <label
+            key={`${fieldId}_${choice}`}
+            className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300"
+          >
+            <input
+              type="checkbox"
+              checked={checked}
+              onChange={(e) => {
+                let next;
+                if (e.target.checked) {
+                  next = [...new Set([...selected, choice])];
+                } else {
+                  next = selected.filter((v: string) => v !== choice);
+                }
+                setInterviewCustomFieldValue(fieldId, next);
+              }}
+            />
+            <span>{choice}</span>
+          </label>
+        );
+      })}
+    </div>
+  ) : (
+    <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+      <input
+        type="checkbox"
+        checked={Boolean(rawValue)}
+        onChange={(e) => setInterviewCustomFieldValue(fieldId, e.target.checked)}
+      />
+      <span>Checked</span>
+    </label>
+  )
+) : inputType === 'tags' ? (
+  <div className="mb-2 flex min-h-11 rounded-lg border border-gray-300 py-1.5 pl-3 pr-3 shadow-theme-xs outline-hidden transition focus-within:border-blue-500 dark:border-gray-700 dark:bg-gray-900">
+    <div className="flex flex-wrap flex-auto gap-2 items-center">
+      {Array.isArray(rawValue) && rawValue.length > 0
+        ? rawValue.map((tagVal: any) => {
+            const text = String(tagVal);
+            return (
+              <div
+                key={`${fieldId}_tag_${text}`}
+                className="group flex items-center justify-center rounded-full border-[0.7px] border-transparent bg-gray-100 py-1 pl-2.5 pr-2 text-sm text-gray-800 hover:border-gray-200 dark:bg-gray-800 dark:text-white/90 dark:hover:border-gray-800"
+              >
+                <span className="flex-initial max-w-full">{text}</span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const curr = Array.isArray(rawValue) ? rawValue : [];
+                    const next = curr.filter((t: any) => String(t) !== text);
+                    setInterviewCustomFieldValue(fieldId, next);
+                  }}
+                  className="pl-2 text-gray-500 cursor-pointer group-hover:text-gray-400 dark:text-gray-400"
+                  aria-label={`Remove ${text}`}
+                >
+                  <svg
+                    className="fill-current"
+                    width="14"
+                    height="14"
+                    viewBox="0 0 14 14"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      clipRule="evenodd"
+                      d="M3.40717 4.46881C3.11428 4.17591 3.11428 3.70104 3.40717 3.40815C3.70006 3.11525 4.17494 3.11525 4.46783 3.40815L6.99943 5.93975L9.53095 3.40822C9.82385 3.11533 10.2987 3.11533 10.5916 3.40822C10.8845 3.70112 10.8845 4.17599 10.5916 4.46888L8.06009 7.00041L10.5916 9.53193C10.8845 9.82482 10.8845 10.2997 10.5916 10.5926C10.2987 10.8855 9.82385 10.8855 9.53095 10.5926L6.99943 8.06107L4.46783 10.5927C4.17494 10.8856 3.70006 10.8856 3.40717 10.5927C3.11428 10.2998 3.11428 9.8249 3.40717 9.53201L5.93877 7.00041L3.40717 4.46881Z"
+                    />
+                  </svg>
+                </button>
+              </div>
+            );
+          })
+        : null}
+
+      <input
+        type="text"
+        value={tagInputBuffers[fieldId] ?? ''}
+        onChange={(e) => {
+          const v = e.target.value;
+          setTagInputBuffers((prev) => ({ ...prev, [fieldId]: v }));
+          if (v.includes(',')) {
+            const next = v.split(',').map((vv) => vv.trim()).filter(Boolean);
+            const currentArr = Array.isArray(rawValue) ? rawValue : [];
+            const merged = mergeTags(currentArr, next);
+            setInterviewCustomFieldValue(fieldId, merged);
+            setTagInputBuffers((prev) => ({ ...prev, [fieldId]: '' }));
+          }
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            const buf = (tagInputBuffers[fieldId] ?? '').toString();
+            if (!buf || !buf.trim()) {
+              setTagInputBuffers((prev) => ({ ...prev, [fieldId]: '' }));
+              return;
+            }
+            const next = buf.split(',').map((vv) => vv.trim()).filter(Boolean);
+            if (next.length) {
+              const currentArr = Array.isArray(rawValue) ? rawValue : [];
+              const merged = mergeTags(currentArr, next);
+              setInterviewCustomFieldValue(fieldId, merged);
+            }
+            setTagInputBuffers((prev) => ({ ...prev, [fieldId]: '' }));
+          }
+        }}
+        onBlur={() => {
+          const buf = (tagInputBuffers[fieldId] ?? '').toString();
+          if (buf && buf.trim()) {
+            const next = buf.split(',').map((vv) => vv.trim()).filter(Boolean);
+            const currentArr = Array.isArray(rawValue) ? rawValue : [];
+            const merged = mergeTags(currentArr, next);
+            setInterviewCustomFieldValue(fieldId, merged);
+            setTagInputBuffers((prev) => ({ ...prev, [fieldId]: '' }));
+          }
+        }}
+        className="flex-1 bg-transparent p-1 text-sm text-gray-800 outline-none dark:text-white/90"
+        placeholder="tag1, tag2, tag3"
+      />
+    </div>
+  </div>
+) : inputType === 'json' ? (
+  <textarea
+    value={displayValue ?? ''}
+    onChange={(e) => setInterviewCustomFieldValue(fieldId, e.target.value)}
+    rows={6}
+    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-mono text-gray-900 outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+    placeholder='{"key": "value"}'
+  />
+) : (
+  <input
+    type={
+      inputType === 'number' ? 'number' :
+      inputType === 'date' ? 'date' :
+      inputType === 'email' ? 'email' :
+      inputType === 'url' ? 'url' :
+      inputType === 'phone' ? 'tel' :
+      'text'
+    }
+    value={displayValue ?? ''}
+    onChange={(e) => setInterviewCustomFieldValue(fieldId, e.target.value)}
+    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+    placeholder={`Enter ${fieldLabel.toLowerCase()}`}
+  />
+)}
                         </div>
                       );
                     })}

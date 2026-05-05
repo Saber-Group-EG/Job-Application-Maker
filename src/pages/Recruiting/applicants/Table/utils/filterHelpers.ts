@@ -552,27 +552,31 @@ export function filterByStatus(
   statusFilter: string | string[] | undefined,
   isSuperAdmin: boolean
 ): Applicant[] {
+  const normalizeStatus = (value: unknown) => String(value ?? '').trim().toLowerCase();
+
   if (statusFilter === undefined || statusFilter === null) {
     // No status filter - hide trashed for non-super-admins
     if (!isSuperAdmin) {
-      return applicants.filter(a => a.status !== 'trashed');
+      return applicants.filter(a => normalizeStatus(a.status) !== 'trashed');
     }
     return applicants;
   }
   
-  const allowed = Array.isArray(statusFilter) ? statusFilter : [statusFilter];
+  const allowed = (Array.isArray(statusFilter) ? statusFilter : [statusFilter])
+    .map(normalizeStatus)
+    .filter(Boolean);
   
   // Super admin can see trashed when explicitly filtered
   if (isSuperAdmin) {
-    return applicants.filter(a => allowed.includes(a.status));
+    return applicants.filter(a => allowed.includes(normalizeStatus(a.status)));
   }
   
   // Non-super-admin: never show trashed
   const allowedWithoutTrashed = allowed.filter(s => s !== 'trashed');
   if (allowedWithoutTrashed.length === 0) {
-    return applicants.filter(a => a.status !== 'trashed');
+    return applicants.filter(a => normalizeStatus(a.status) !== 'trashed');
   }
-  return applicants.filter(a => allowedWithoutTrashed.includes(a.status) && a.status !== 'trashed');
+  return applicants.filter(a => allowedWithoutTrashed.includes(normalizeStatus(a.status)) && normalizeStatus(a.status) !== 'trashed');
 }
 
 // Get company ID from applicant (with fallback to job position)
