@@ -232,7 +232,7 @@ class ApplicantsService {
       // Ignore normalization errors
     }
     
-    return response as Applicant;
+    return response.applicant as Applicant;
   }
 
   async createApplicant(data: CreateApplicantRequest): Promise<Applicant> {
