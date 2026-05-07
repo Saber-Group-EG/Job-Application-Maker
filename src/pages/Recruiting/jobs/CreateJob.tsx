@@ -2086,14 +2086,42 @@ export default function CreateJob() {
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div className="space-y-2">
                   {jobForm.companyId ? (
-                    <MultiSelect
-                      label="Allowed Statuses"
-                      options={allowedStatusOptions}
-                      value={jobForm.allowedStatuses}
-                      onChange={(selected) => handleInputChange("allowedStatuses", selected)}
-                      placeholder={allowedStatusOptions.length > 0 ? "Select statuses" : "No company statuses available"}
-                      disabled={allowedStatusOptions.length === 0}
-                    />
+                    <>
+                      <MultiSelect
+                        label="Allowed Statuses"
+                        options={allowedStatusOptions}
+                        value={jobForm.allowedStatuses}
+                        onChange={(selected) => handleInputChange("allowedStatuses", selected)}
+                        placeholder={allowedStatusOptions.length > 0 ? "Select statuses" : "No company statuses available"}
+                        disabled={allowedStatusOptions.length === 0}
+                      />
+                      {jobForm.allowedStatuses.length > 0 && (
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {jobForm.allowedStatuses.map((statusId: string) => {
+                            const status = selectedCompany?.settings?.statuses?.find((s: any) => s._id === statusId || s.id === statusId);
+                            if (!status) return null;
+                            return (
+                              <div 
+                                key={statusId}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm"
+                                style={{
+                                  backgroundColor: `${status.color || '#e0e0e0'}15`,
+                                  borderColor: status.color || '#e0e0e0',
+                                }}
+                              >
+                                <div 
+                                  className="size-2 rounded-full"
+                                  style={{ backgroundColor: status.color || '#e0e0e0' }}
+                                />
+                                <span className="font-medium text-gray-700 dark:text-gray-300">
+                                  {toPlainString(status?.name) || 'Unknown'}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
                   ) : (
                     <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-gray-500 dark:border-gray-700 dark:bg-gray-800/50">
                       Select a company first to choose allowed statuses.

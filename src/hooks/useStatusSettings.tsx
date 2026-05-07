@@ -119,9 +119,10 @@ export function useStatusSettings(company?: Company | any) {
 
   const defaultStatus = statuses.find((s) => s.isDefault)?.name ?? statuses[0]?.name ?? 'pending';
 
-  const statusOptions = statuses.map((s) => ({
-    value: s.name,
+  const statusOptions = statuses.map((s: any) => ({
+    value: s._id || s.id || s.name,
     label: s.name,
+    text: s.name,
     color: s.color,
     textColor: s.textColor,
     description: getDescription(s.statusKey || s.name),

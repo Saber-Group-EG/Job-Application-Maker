@@ -95,6 +95,7 @@ export type CreateJobPositionRequest = {
   // optional legacy/extra fields
   requirements?: string[];
   status?: string;
+  allowedStatuses?: string[];
   jobSpecs?: Array<{
     spec: LocalizedString;
     weight: number;
@@ -143,6 +144,7 @@ export type UpdateJobPositionRequest = {
   jobCode?: string;
   requirements?: string[];
   status?: string;
+  allowedStatuses?: string[];
   order?: number;
   jobSpecs?: Array<{
     spec: LocalizedString;

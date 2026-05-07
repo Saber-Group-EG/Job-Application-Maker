@@ -3,6 +3,8 @@
 import type { Applicant } from './applicants';
 
 export type CompanyStatus = {
+  _id?: string;
+  id?: string;
   name: string;
   color: string;
   textColor?: string;

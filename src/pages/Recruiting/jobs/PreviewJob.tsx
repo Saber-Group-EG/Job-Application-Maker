@@ -714,6 +714,45 @@ export default function PreviewJob() {
         </section>
       )}
 
+      {/* Allowed Statuses Section */}
+      {job.allowedStatuses && job.allowedStatuses.length > 0 && company?.settings?.statuses && (
+        <section className="rounded-3xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900 md:p-8">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+            <CheckCircleIcon className="size-5 text-brand-500" />
+            Allowed Applicant Statuses
+          </h2>
+          <div className="flex flex-wrap gap-3">
+            {job.allowedStatuses.map((statusId: string) => {
+              const status = company.settings.statuses.find((s: any) => s._id === statusId || s.id === statusId);
+              if (!status) return null;
+              return (
+                <div 
+                  key={statusId} 
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700"
+                  style={{
+                    backgroundColor: `${status.color || '#e0e0e0'}20`,
+                    borderColor: status.color || '#e0e0e0'
+                  }}
+                >
+                  <div 
+                    className="size-3 rounded-full"
+                    style={{ backgroundColor: status.color || '#e0e0e0' }}
+                  />
+                  <span className="font-medium text-gray-900 dark:text-white">
+                    {status.name}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          {job.allowedStatuses.some((statusId: string) => !company.settings.statuses.find((s: any) => s._id === statusId || s.id === statusId)) && (
+            <p className="mt-4 text-sm text-gray-500 italic">
+              Note: Some statuses may no longer be available in company settings.
+            </p>
+          )}
+        </section>
+      )}
+
       {/* Custom Fields - Cards-style UI */}
       {job.customFields && job.customFields.length > 0 && (
         <section className="space-y-4">

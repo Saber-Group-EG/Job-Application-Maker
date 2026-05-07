@@ -1341,7 +1341,7 @@ export default function Applicants({
       });
       await showExportNotification(result);
     } finally {
-      setIsExporting(false);
+      if (mountedRef.current) setIsExporting(false);
     }
   }, [
     selectedApplicantIds,
@@ -2572,6 +2572,7 @@ export default function Applicants({
               handleStatusChange={handleBulkStatusChange}
               isSubmittingStatus={isSubmittingBulkStatus}
               companyId={selectedApplicantCompanyId ?? undefined}
+              companySettings={selectedApplicantCompany}
               jobIds={selectedApplicantJobIds}
               jobs={jobPositions}
             />

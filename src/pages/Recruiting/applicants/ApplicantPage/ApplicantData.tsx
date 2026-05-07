@@ -310,14 +310,14 @@ const ApplicantData = () => {
   }, [applicant?._id, (applicant as any)?.jobPositionId, (applicant as any)?.jobPosition]);
 
   const [shouldFetchApplicantJobPosition, setShouldFetchApplicantJobPosition] =
-    useState(false);
+  useState(true);
 
-  const {
-    data: fetchedApplicantJobPosition,
-    isFetching: isApplicantJobPositionFetching,
-  } = useJobPosition(applicantJobPositionId, {
-    enabled: shouldFetchApplicantJobPosition && !!applicantJobPositionId,
-  });
+ const {
+  data: fetchedApplicantJobPosition,
+  isFetching: isApplicantJobPositionFetching,
+} = useJobPosition(applicantJobPositionId, {
+  enabled: !!applicantJobPositionId,  // always fetch when ID exists
+});
 
   const resolvedJobPosId = useMemo(() => {
     if (!applicant) return '';
@@ -3718,6 +3718,7 @@ setInterviewEditableCustomFields([
           <div className="flex flex-wrap gap-2 sm:gap-3">
             <button
               onClick={() => {
+              setShouldFetchApplicantJobPosition(true);
                 setStatusForm((prev) => ({
                   ...prev,
                   status: applicant?.status || hookDefaultStatus || '',
@@ -6128,11 +6129,17 @@ setInterviewEditableCustomFields([
           companyId={resolvedCompanyId}
           companySettings={companyFromMe || companyObj}
           jobIds={
-            applicantJobPosition
-              ? [applicantJobPosition._id || applicantJobPosition.id || '']
-              : []
-          }
-          jobs={applicantJobPosition ? [applicantJobPosition] : []}
+  applicantJobPositionId ? [applicantJobPositionId] : []
+}
+jobs={[
+  // prefer the fully-fetched job (has allowedStatuses + companyId.settings)
+  ...(jobPositionDetail ? [jobPositionDetail] : []),
+  // fall back to the populated job from the applicant if different
+  ...(applicantJobPosition &&
+  jobPositionDetail?._id !== (applicantJobPosition._id || applicantJobPosition.id)
+    ? [applicantJobPosition]
+    : []),
+]}
         />
       </div>
     </>

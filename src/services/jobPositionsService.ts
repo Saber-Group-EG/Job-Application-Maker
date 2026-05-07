@@ -189,6 +189,7 @@ class JobPositionsService {
     if (data.order !== undefined) payload.order = data.order;
     if (data.registrationStart) payload.registrationStart = data.registrationStart;
     if (data.registrationEnd) payload.registrationEnd = data.registrationEnd;
+    if (Array.isArray(data.allowedStatuses)) payload.allowedStatuses = data.allowedStatuses;
     if (data.jobSpecs?.length) payload.jobSpecs = data.jobSpecs;
     if (data.customFields?.length) payload.customFields = data.customFields;
     if (data.fieldConfig) payload.fieldConfig = normalizeJobFieldConfig(data.fieldConfig);
