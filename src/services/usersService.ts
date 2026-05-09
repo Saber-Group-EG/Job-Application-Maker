@@ -165,13 +165,22 @@ class SavedQuestionGroupsService extends BaseService {
 // ==================== USERS SERVICE ====================
 class UsersService extends BaseService {
   async getAllUsers(params?: { companies?: string[] | string }): Promise<any[]> {
-  const response = await this.request<any>('get', '/users', undefined, params);
-  if (Array.isArray(response)) return response;
-  if (response && typeof response === 'object' && 'data' in response && Array.isArray(response.data)) {
-    return response.data;
+    let queryParams: any = {};
+    
+    if (params?.companies) {
+      const companies = Array.isArray(params.companies) ? params.companies : [params.companies];
+      if (companies.length > 0) {
+        queryParams.companyId = companies;
+      }
+    }
+    const response = await this.request<any>('get', '/users', undefined, queryParams);
+    if (Array.isArray(response)) return response;
+    if (response && typeof response === 'object' && 'data' in response && Array.isArray(response.data)) {
+      return response.data;
+    }
+    return [];
   }
-  return [];
-}
+
 
   async getUserById(userId: string): Promise<User> {
     return this.request<User>('get', `/users/${userId}`);
