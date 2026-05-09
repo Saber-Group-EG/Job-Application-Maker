@@ -38,6 +38,9 @@ const PreviewJob = lazy(() => import('../pages/Recruiting/jobs/PreviewJob'));
 const Applicants = lazy(
   () => import('../pages/Recruiting/applicants/Table/ApplicantsTable')
 );
+const ApplicantDetails = lazy(
+  () => import('../pages/Recruiting/ApplicantPage/ApplicantDetails')
+);
 const ApplicantDynamicPage = lazy(
   () => import('../pages/Recruiting/applicants/Table/ApplicantDynamicPage')
 );
@@ -163,6 +166,7 @@ export default function App() {
                 path={patterns.applicants.page}
                 element={<ApplicantDynamicPage />}
               />
+              <Route path={paths.applicants.new} element={<ApplicantDetails />} />
               <Route
                 path={patterns.applicants.details}
                 element={<ApplicantData />} />

@@ -101,6 +101,44 @@ export function useUser(id: string, options?: { enabled?: boolean }) {
 }
 
 // ===== User Mutations =====
+
+
+
+const getDetailedErrorMessage = (error: any): string => {
+  if (!error) return "An unknown error occurred";
+  
+  // Extract from response data
+  const responseData = error.response?.data;
+  
+  if (typeof responseData === 'string' && responseData.trim()) {
+    return responseData;
+  }
+  
+  if (typeof responseData?.message === 'string' && responseData.message.trim()) {
+    return responseData.message;
+  }
+  
+  if (Array.isArray(responseData?.errors) && responseData.errors.length > 0) {
+    const firstError = responseData.errors[0];
+    if (typeof firstError === 'string' && firstError.trim()) return firstError;
+    if (typeof firstError?.message === 'string' && firstError.message.trim()) return firstError.message;
+    if (typeof firstError?.msg === 'string' && firstError.msg.trim()) return firstError.msg;
+  }
+  
+  if (typeof responseData?.error?.message === 'string' && responseData.error.message.trim()) {
+    return responseData.error.message;
+  }
+  
+  // Fallback to error.message
+  if (typeof error.message === 'string' && error.message.trim()) {
+    return error.message;
+  }
+  
+  return "Failed to create user";
+};
+
+
+
 export function useCreateUser() {
   const queryClient = useQueryClient();
 
@@ -108,10 +146,22 @@ export function useCreateUser() {
     mutationFn: (data: CreateUserRequest) => usersService.createUser(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: usersKeys.lists() });
-      showSuccessToast("User created successfully");
+      Swal.fire({
+        title: "Success",
+        text: "User created successfully",
+        icon: "success",
+        timer: 1500,
+        showConfirmButton: false,
+      });
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, "Failed to create user");
+      const detailedMessage = getDetailedErrorMessage(error);
+      Swal.fire({
+        title: "Error",
+        text: detailedMessage || "Failed to create user",
+        icon: "error",
+        confirmButtonColor: "#ef4444",
+      });
     },
   });
 }
@@ -128,7 +178,7 @@ export function useUpdateUser() {
       showSuccessToast("User updated successfully");
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, "Failed to update user");
+      showErrorToast(getDetailedErrorMessage(error), "Failed to update user");
     },
   });
 }
@@ -147,7 +197,7 @@ export function useDeleteUser() {
       showSuccessToast("User deleted successfully");
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, "Failed to delete user");
+      showErrorToast(getDetailedErrorMessage(error), "Failed to delete user");
     },
   });
 }

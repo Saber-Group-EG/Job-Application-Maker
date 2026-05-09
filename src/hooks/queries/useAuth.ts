@@ -51,7 +51,6 @@ export function useLoginMutation() {
       // ✅ Invalidate all auth queries to ensure consistency
       await queryClient.invalidateQueries({ queryKey: authKeys.all });
       
-      showSuccessToast("Login successful");
     },
     onError: (error: ApiError) => {
       queryClient.removeQueries({ queryKey: authKeys.currentUser() });
@@ -68,7 +67,6 @@ export function useRegisterMutation() {
     onSuccess: async (user: User) => {
       queryClient.setQueryData(authKeys.currentUser(), user);
       await queryClient.invalidateQueries({ queryKey: authKeys.all });
-      showSuccessToast("Registration successful");
     },
     onError: (error: ApiError) => {
       queryClient.removeQueries({ queryKey: authKeys.currentUser() });
@@ -106,7 +104,6 @@ export function useLogoutMutation() {
       // ✅ Method 4: Cancel all ongoing queries
       queryClient.cancelQueries();
       
-      showSuccessToast("Logged out successfully");
       
       // ✅ Don't navigate here - let the AuthProvider handle it
     },
@@ -126,7 +123,7 @@ export function useChangePasswordMutation() {
     onSuccess: () => {
       // ✅ After password change, invalidate user data to refresh
       queryClient.invalidateQueries({ queryKey: authKeys.currentUser() });
-      showSuccessToast("Password changed successfully");
+
     },
     onError: (error: ApiError) => {
       showErrorToast(error.message, "Failed to change password");
@@ -153,15 +150,7 @@ export function useRefreshTokenMutation() {
 }
 
 // ===== Toast Helpers =====
-function showSuccessToast(message: string) {
-  Swal.fire({
-    title: "Success",
-    text: message,
-    icon: "success",
-    timer: 1500,
-    showConfirmButton: false,
-  });
-}
+
 
 function showErrorToast(message: string, fallback: string) {
   Swal.fire({

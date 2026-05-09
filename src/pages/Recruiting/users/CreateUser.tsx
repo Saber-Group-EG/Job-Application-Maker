@@ -250,59 +250,93 @@ export default function CreateUser() {
     });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError("");
-    setIsSaving(true);
+ const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setFormError("");
+  setIsSaving(true);
 
-    try {
-      if (!formData.fullName || !formData.email || !formData.password || !formData.roleId) {
-        throw new Error("Name, email, password, and role are required.");
-      }
-
-      const normalizedCompanies = formData.companies
-        .filter((assignment) => Boolean(assignment.companyId))
-        .map((assignment) => {
-          const allowedDeptIds = getAvailableDepartmentIds(assignment.companyId);
-          const validDepartments = assignment.departments.filter((deptId) =>
-            allowedDeptIds.has(String(deptId))
-          );
-
-          return {
-            companyId: assignment.companyId,
-            departments: validDepartments,
-          };
-        });
-
-      await createUserMutation.mutateAsync({
-        fullName: formData.fullName,
-        email: formData.email,
-        password: formData.password,
-        phone: formData.phone,
-        roleId: formData.roleId,
-        isActive: formData.isActive,
-        companies: normalizedCompanies,
-        permissions: userPermissions.map((item) => ({
-          permission: item.permission,
-          access: item.access,
-        })),
-      });
-
-      await Swal.fire({
-        title: "Company Created",
-        text: "User profile has been added successfully.",
-        icon: "success",
-        background: "rgba(255, 255, 255, 0.9)",
-        backdrop: "rgba(0,0,0,0.4)",
-      });
-
-      navigate("/users");
-    } catch (err: any) {
-      setFormError(err.message || "Failed to create user profile.");
-    } finally {
-      setIsSaving(false);
+  try {
+    if (!formData.fullName || !formData.email || !formData.password || !formData.roleId) {
+      throw new Error("Name, email, password, and role are required.");
     }
-  };
+
+    const normalizedCompanies = formData.companies
+      .filter((assignment) => Boolean(assignment.companyId))
+      .map((assignment) => {
+        const allowedDeptIds = getAvailableDepartmentIds(assignment.companyId);
+        const validDepartments = assignment.departments.filter((deptId) =>
+          allowedDeptIds.has(String(deptId))
+        );
+
+        return {
+          companyId: assignment.companyId,
+          departments: validDepartments,
+        };
+      });
+
+    await createUserMutation.mutateAsync({
+      fullName: formData.fullName,
+      email: formData.email,
+      password: formData.password,
+      phone: formData.phone,
+      roleId: formData.roleId,
+      isActive: formData.isActive,
+      companies: normalizedCompanies,
+      permissions: userPermissions.map((item) => ({
+        permission: item.permission,
+        access: item.access,
+      })),
+    });
+
+    await Swal.fire({
+      title: "Success",
+      text: "User profile has been added successfully.",
+      icon: "success",
+      background: "rgba(255, 255, 255, 0.9)",
+      backdrop: "rgba(0,0,0,0.4)",
+      confirmButtonColor: "#10b981",
+    });
+
+    navigate("/users");
+  } catch (err: any) {
+    // Extract detailed error message
+    let errorMessage = "Failed to create user profile.";
+    
+    // Try to get detailed error from response
+    if (err.response?.data) {
+      const responseData = err.response.data;
+      
+      if (typeof responseData === 'string') {
+        errorMessage = responseData;
+      } else if (responseData.message) {
+        errorMessage = responseData.message;
+      } else if (responseData.error?.message) {
+        errorMessage = responseData.error.message;
+      } else if (Array.isArray(responseData.errors) && responseData.errors.length > 0) {
+        errorMessage = responseData.errors[0].message || responseData.errors[0];
+      } else if (Array.isArray(responseData.details) && responseData.details.length > 0) {
+        errorMessage = responseData.details[0].message || responseData.details[0];
+      }
+    } else if (err.message) {
+      errorMessage = err.message;
+    }
+    
+    setFormError(errorMessage);
+    
+    // Show error Swal alert
+    await Swal.fire({
+      title: "Error",
+      text: errorMessage,
+      icon: "error",
+      confirmButtonText: "OK",
+      confirmButtonColor: "#ef4444",
+      background: "rgba(255, 255, 255, 0.9)",
+      backdrop: "rgba(0,0,0,0.4)",
+    });
+  } finally {
+    setIsSaving(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0F172A] p-4 sm:p-8">
