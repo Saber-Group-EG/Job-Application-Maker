@@ -164,22 +164,26 @@ class SavedQuestionGroupsService extends BaseService {
 
 // ==================== USERS SERVICE ====================
 class UsersService extends BaseService {
-  async getAllUsers(params?: { companies?: string[] | string }): Promise<any[]> {
-    let queryParams: any = {};
-    
-    if (params?.companies) {
-      const companies = Array.isArray(params.companies) ? params.companies : [params.companies];
-      if (companies.length > 0) {
-        queryParams.companyId = companies;
-      }
+  async getAllUsers(params?: { companies?: string[] | string; PageCount?: string | number }): Promise<any[]> {
+  let queryParams: any = {};
+  
+  if (params?.companies) {
+    const companies = Array.isArray(params.companies) ? params.companies : [params.companies];
+    if (companies.length > 0) {
+      queryParams.companyId = companies;
     }
-    const response = await this.request<any>('get', '/users', undefined, queryParams);
-    if (Array.isArray(response)) return response;
-    if (response && typeof response === 'object' && 'data' in response && Array.isArray(response.data)) {
-      return response.data;
-    }
-    return [];
   }
+  // Add pageCount parameter
+  if (params?.PageCount) {
+    queryParams.PageCount = params.PageCount;
+  }
+  const response = await this.request<any>('get', '/users', undefined, queryParams);
+  if (Array.isArray(response)) return response;
+  if (response && typeof response === 'object' && 'data' in response && Array.isArray(response.data)) {
+    return response.data;
+  }
+  return [];
+}
 
 
   async getUserById(userId: string): Promise<User> {

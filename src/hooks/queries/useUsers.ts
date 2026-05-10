@@ -62,6 +62,7 @@ function getUserCompanyIds(user: any): string[] | undefined {
 interface UseUsersParams {
   companies?: string[];
   enabled?: boolean;
+  PageCount?: string | number; // Add this
 }
 
 export function useUsers(params: UseUsersParams = {}): UseQueryResult<any[], Error> {
@@ -72,7 +73,7 @@ export function useUsers(params: UseUsersParams = {}): UseQueryResult<any[], Err
   return useQuery({
     queryKey: usersKeys.list(companies),
     queryFn: async () => {
-      const response = await usersService.getAllUsers({ companies });
+      const response = await usersService.getAllUsers({ companies, PageCount: 'all' } as any);
       // Always return an array
       if (Array.isArray(response)) return response;
       if (response && typeof response === 'object' && 'data' in response && Array.isArray((response as any).data)) {
