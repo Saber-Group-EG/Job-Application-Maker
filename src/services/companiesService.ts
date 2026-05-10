@@ -87,28 +87,31 @@ class CompaniesService {
     return extractCompany(response);
   }
 
-  async getAllCompanies(companyIds?: string[]): Promise<Company[]> {
-    if (!companyIds?.length) {
-      const response = await this.request<Company[]>('get', '/companies', undefined, { deleted: 'false' });
-      return Array.isArray(response) ? response : [];
-    }
-
-    const uniqueIds = [...new Set(companyIds.filter(Boolean))];
-    if (uniqueIds.length === 1) {
-      const response = await this.request<Company[]>('get', '/companies', undefined, { deleted: 'false', companyId: uniqueIds[0] });
-      return Array.isArray(response) ? response : [];
-    }
-
-    const companiesLists = await Promise.all(
-      uniqueIds.map(id => this.request<Company[]>('get', '/companies', undefined, { deleted: 'false', companyId: id }))
-    );
-    
-    const uniqueCompanies = new Map<string, Company>();
-    companiesLists.flat().forEach(company => {
-      if (company?._id) uniqueCompanies.set(company._id, company);
-    });
-    return Array.from(uniqueCompanies.values());
+async getAllCompanies(companyIds?: string[]): Promise<Company[]> {
+  if (!companyIds?.length) {
+    const response = await this.request<Company[]>('get', '/companies', undefined, { deleted: 'false' });
+    return Array.isArray(response) ? response : [];
   }
+
+  const uniqueIds = [...new Set(companyIds.filter(Boolean))];
+  
+  // For single company, use the proper REST endpoint
+  if (uniqueIds.length === 1) {
+    const response = await this.request<Company>('get', `/companies/${uniqueIds[0]}`, undefined, { deleted: 'false' });
+    return response ? [response] : [];
+  }
+
+  // For multiple companies, make parallel requests to individual endpoints
+  const companiesLists = await Promise.all(
+    uniqueIds.map(id => this.request<Company>('get', `/companies/${id}`, undefined, { deleted: 'false' }))
+  );
+  
+  const uniqueCompanies = new Map<string, Company>();
+  companiesLists.forEach(company => {
+    if (company?._id) uniqueCompanies.set(company._id, company);
+  });
+  return Array.from(uniqueCompanies.values());
+}
 
   async getCompaniesByIds(companyIds: string[]): Promise<Company[]> {
     const companies = await this.getAllCompanies(companyIds);

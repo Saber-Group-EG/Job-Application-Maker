@@ -65,18 +65,41 @@ export function useCompanies(companyIds?: string[], options?: { enabled?: boolea
   const userCompanyIds = getUserCompanyIds(user);
   const effectiveIds = companyIds?.length ? companyIds : userCompanyIds;
 
+
   return useQuery({
-    queryKey: companiesKeys.list(effectiveIds),
+    // Fix: Make the query key unique for each combination of IDs
+    queryKey: companiesKeys.list(effectiveIds ? [...effectiveIds].sort() : []),
     queryFn: async () => {
-      if (effectiveIds?.length === 1) {
-        const company = await companiesService.getCompanyById(effectiveIds[0]);
-        return [company];
+      if (!effectiveIds?.length) {
+        // Admin case - fetch all companies
+        const companies = await companiesService.getAllCompanies();
+        return companies;
       }
-      return companiesService.getAllCompanies(effectiveIds);
+      
+      if (effectiveIds.length === 1) {
+        // Single company case
+        const company = await companiesService.getCompanyById(effectiveIds[0]);
+        return company ? [company] : [];
+      }
+      
+      // Multiple companies case - fetch all in parallel
+      const companiesPromises = effectiveIds.map(id => 
+        companiesService.getCompanyById(id).catch(error => {
+          console.error(`Failed to fetch company ${id}:`, error);
+          return null;
+        })
+      );
+      
+      const results = await Promise.all(companiesPromises);
+      const validCompanies = results.filter(company => company !== null);
+      
+      return validCompanies;
     },
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
     enabled: options?.enabled ?? true,
+    // Add this to ensure the query doesn't get stuck in loading state
+    retry: 1,
   });
 }
 
