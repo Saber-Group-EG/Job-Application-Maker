@@ -114,56 +114,56 @@ const ApplicantDetails: React.FC = () => {
         </div>
 
         {activeTab === 'details' ? (
-          <>
-            {/* Top Row - Personal Info and Comment Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-6">
-              {/* Personal Info Card - takes 2 columns */}
-              <div className="lg:col-end-auto lg:col-span-2">
-                <PersonalInfo />
-              </div>
+  <>
+    {/* Top Row - Personal Info and Comment Section */}
+    <div className="flex flex-col lg:flex-row gap-6 mb-6">
+  {/* Personal Info Card */}
+  <div className="lg:w-80 flex-shrink-0 ml-20">
+    <PersonalInfo />
+  </div>
 
-              {/* Right Column - Comment Section */}
-              <div className="lg:col-span-3 space-y-6">
-                {/* Add Comment Section */}
-                <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-5">
-                  <h3 className="text-sm font-semibold text-gray-800 mb-3">Add Comment</h3>
-                  <div className="flex gap-3">
-                    <textarea
-                      value={comment}
-                      onChange={(e) => setComment(e.target.value)}
-                      placeholder="Write a comment..."
-                      className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 resize-none"
-                      rows={3}
-                    />
-                    <button
-                      onClick={handleAddComment}
-                      className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap h-fit"
-                    >
-                      Add Comment
-                    </button>
-                  </div>
-                </div>
+  {/* Right Column - Takes all remaining space */}
+  <div className="flex-1 space-y-6">
+    {/* Add Comment Section */}
+    <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-5">
+      <h3 className="text-sm font-semibold text-gray-800 mb-3">Add Comment</h3>
+      <div className="flex gap-3">
+        <textarea
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          placeholder="Write a comment..."
+          className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 resize-none"
+          rows={3}
+        />
+        <button
+          onClick={handleAddComment}
+          className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap h-fit"
+        >
+          Add Comment
+        </button>
+      </div>
+    </div>
 
-                {/* Job Spec Section */}
-                <JobSpec />
-              </div>
-            </div>
+    {/* Job Spec Section */}
+    <JobSpec />
+  </div>
+</div>
 
-            {/* Custom Responses Section - Full Width */}
-            <div className="mb-6">
-              <CustomResponses isEditable={isEditing} />
-            </div>
+    {/* Custom Responses Section - Full Width */}
+    <div className="mb-6">
+      <CustomResponses isEditable={isEditing} />
+    </div>
 
-            {/* Activity Feed - Full Width */}
-            <div className="w-full">
-              <ActivityFeed activities={activities} />
-            </div>
-          </>
-        ) : (
-          <div className="mb-6">
-            <InterviewQuestions />
-          </div>
-        )}
+    {/* Activity Feed - Full Width */}
+    <div className="w-full">
+      <ActivityFeed activities={activities} />
+    </div>
+  </>
+) : (
+  <div className="mb-6">
+    <InterviewQuestions />
+  </div>
+)}
       </div>
     </div>
   );

@@ -200,21 +200,21 @@ const InterviewQuestions: React.FC = () => {
           </div>
           <h3 className="text-2xl font-bold text-gray-900 mb-2">Interview Session</h3>
           <p className="text-gray-500 mb-8">Prepare or resume the interview process for this candidate</p>
-          <div className="flex gap-4 justify-center">
-            <button 
-              onClick={() => setView('group-picking')}
-              className="group flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-            >
-              <Sparkles className="h-4 w-4 group-hover:rotate-12 transition-transform" />
-              Create New Interview
-            </button>
-            <button 
-              className="group flex items-center gap-3 px-6 py-3 bg-white border-2 border-gray-200 text-gray-700 rounded-xl font-semibold hover:border-blue-300 hover:bg-blue-50 transition-all duration-200"
-            >
-              <History className="h-4 w-4 group-hover:text-blue-600 transition-colors" />
-              Use Existing Interview
-            </button>
-          </div>
+         <div className="flex gap-3 justify-center items-center">
+  <button 
+    onClick={() => setView('group-picking')}
+    className="group flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg font-medium hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-sm"
+  >
+    <Sparkles className="h-3.5 w-3.5 group-hover:rotate-12 transition-transform" />
+    Create New Interview
+  </button>
+  <button 
+    className="group flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium hover:border-blue-400 hover:bg-blue-50 transition-all duration-200 text-sm"
+  >
+    <History className="h-3.5 w-3.5 group-hover:text-blue-600 transition-colors" />
+    Use Existing Interview
+  </button>
+</div>
         </div>
       </div>
     );
