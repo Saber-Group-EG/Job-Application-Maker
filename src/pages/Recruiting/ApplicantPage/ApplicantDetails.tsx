@@ -8,6 +8,7 @@ import InterviewQuestions from './components/InterviewQuestions';
 const ApplicantDetails: React.FC = () => {
   const [comment, setComment] = useState('');
   const [activeTab, setActiveTab] = useState<'details' | 'interview'>('details');
+  const [isEditing, setIsEditing] = useState(false);
   const [activities, setActivities] = useState([
     {
       id: '1',
@@ -48,8 +49,8 @@ const ApplicantDetails: React.FC = () => {
   };
 
   const handleEdit = () => {
-    // Add your edit logic here
-    console.log('Edit clicked');
+    setIsEditing(!isEditing);
+    console.log('Edit clicked', !isEditing);
   };
 
   return (
@@ -72,9 +73,11 @@ const ApplicantDetails: React.FC = () => {
             <div className="flex gap-3">
               <button 
                 onClick={handleEdit}
-                className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                className={`px-4 py-2 text-white text-sm font-medium rounded-lg transition-colors ${
+                  isEditing ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'
+                }`}
               >
-                Edit
+                {isEditing ? 'Save' : 'Edit'}
               </button>
               <button 
                 onClick={handleDelete}
@@ -148,7 +151,7 @@ const ApplicantDetails: React.FC = () => {
 
             {/* Custom Responses Section - Full Width */}
             <div className="mb-6">
-              <CustomResponses />
+              <CustomResponses isEditable={isEditing} />
             </div>
 
             {/* Activity Feed - Full Width */}

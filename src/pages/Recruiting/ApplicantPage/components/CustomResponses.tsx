@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown, ExternalLink, Check, ChevronRight } from 'lucide-react';
 
 interface BaseQuestion {
@@ -48,9 +48,10 @@ interface ResponseSection {
   questions: Question[];
 }
 
-const CustomResponses: React.FC = () => {
+const CustomResponses: React.FC<{ isEditable?: boolean }> = ({ isEditable = false }) => {
   const [openSections, setOpenSections] = useState<Set<string>>(new Set(['personal_info', 'skills', 'experience']));
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null);
+  const dropdownRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   
   const [sections, setSections] = useState<ResponseSection[]>([
     {
@@ -170,6 +171,21 @@ const CustomResponses: React.FC = () => {
       ],
     },
   ]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownOpen) {
+        const currentRef = dropdownRefs.current.get(dropdownOpen);
+        if (currentRef && !currentRef.contains(event.target as Node)) {
+          setDropdownOpen(null);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [dropdownOpen]);
 
   const toggleSection = (sectionId: string) => {
     setOpenSections(prev => {
@@ -291,9 +307,14 @@ const CustomResponses: React.FC = () => {
             <input
               type="text"
               value={(question as TextQuestion).value || ''}
-              onChange={(e) => updateTextValue(question.id, e.target.value)}
+              onChange={(e) => isEditable && updateTextValue(question.id, e.target.value)}
               placeholder={(question as TextQuestion).placeholder}
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+              readOnly={!isEditable}
+              className={`w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none ${
+                isEditable 
+                  ? 'focus:border-blue-400 focus:ring-1 focus:ring-blue-400 bg-white cursor-text' 
+                  : 'bg-gray-50 cursor-not-allowed opacity-75'
+              }`}
             />
           </div>
         );
@@ -309,9 +330,14 @@ const CustomResponses: React.FC = () => {
               <input
                 type="url"
                 value={(question as UrlQuestion).value || ''}
-                onChange={(e) => updateUrlValue(question.id, e.target.value)}
+                onChange={(e) => isEditable && updateUrlValue(question.id, e.target.value)}
                 placeholder={(question as UrlQuestion).placeholder}
-                className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+                readOnly={!isEditable}
+                className={`flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none ${
+                  isEditable 
+                    ? 'focus:border-blue-400 focus:ring-1 focus:ring-blue-400 bg-white cursor-text' 
+                    : 'bg-gray-50 cursor-not-allowed opacity-75'
+                }`}
               />
               {(question as UrlQuestion).value && (
                 <a
@@ -330,11 +356,12 @@ const CustomResponses: React.FC = () => {
       case 'checkbox':
         return (
           <div key={question.id} className={`${paddingClass} mb-3 last:mb-0`}>
-            <label className="flex items-center gap-2 cursor-pointer">
+            <label className={`flex items-center gap-2 ${isEditable ? 'cursor-pointer' : 'cursor-not-allowed opacity-75'}`}>
               <input
                 type="checkbox"
                 checked={(question as CheckboxQuestion).checked || false}
-                onChange={(e) => updateCheckbox(question.id, e.target.checked)}
+                onChange={(e) => isEditable && updateCheckbox(question.id, e.target.checked)}
+                disabled={!isEditable}
                 className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
               />
               <span className="text-sm text-gray-700">
@@ -348,34 +375,58 @@ const CustomResponses: React.FC = () => {
       case 'dropdown':
         const dropdownQuestion = question as DropdownQuestion;
         return (
-          <div key={question.id} className={`${paddingClass} mb-4 last:mb-0 relative`}>
+          <div 
+            key={question.id} 
+            className={`${paddingClass} mb-4 last:mb-0 relative`}
+            ref={(el) => {
+              if (el) dropdownRefs.current.set(question.id, el);
+              else dropdownRefs.current.delete(question.id);
+            }}
+          >
             <label className="block text-sm font-medium text-gray-700 mb-1">
               {question.text}
               {question.required && <span className="text-red-500 ml-1">*</span>}
             </label>
             <button
-              onClick={() => setDropdownOpen(dropdownOpen === question.id ? null : question.id)}
-              className="w-full flex items-center justify-between px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white hover:border-gray-300 transition-colors"
+              type="button"
+              onClick={() => isEditable && setDropdownOpen(dropdownOpen === question.id ? null : question.id)}
+              disabled={!isEditable}
+              className={`w-full flex items-center justify-between px-3 py-2 text-sm border border-gray-200 rounded-lg transition-all duration-200 focus:outline-none ${
+                isEditable 
+                  ? 'bg-white hover:border-gray-300 hover:bg-gray-50 focus:border-blue-400 focus:ring-1 focus:ring-blue-400 cursor-pointer' 
+                  : 'bg-gray-50 cursor-not-allowed opacity-75'
+              }`}
             >
-              <span className="text-gray-700">
+              <span className={`${!dropdownQuestion.selectedValue ? 'text-gray-400' : 'text-gray-700'}`}>
                 {dropdownQuestion.selectedValue || 'Select an option'}
               </span>
-              <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${dropdownOpen === question.id ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`h-4 w-4 text-gray-400 transition-all duration-200 ${dropdownOpen === question.id ? 'rotate-180' : ''}`} />
             </button>
-            {dropdownOpen === question.id && (
-              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
-                {dropdownQuestion.options.map(option => (
-                  <button
-                    key={option}
-                    onClick={() => updateDropdown(question.id, option)}
-                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between"
-                  >
-                    {option}
-                    {dropdownQuestion.selectedValue === option && (
-                      <Check className="h-3 w-3 text-blue-600" />
-                    )}
-                  </button>
-                ))}
+            {isEditable && dropdownOpen === question.id && (
+              <div className="absolute z-[100] w-full mt-2 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                <div className="py-1 max-h-60 overflow-auto scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent">
+                  {dropdownQuestion.options.map((option, index) => (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() => updateDropdown(question.id, option)}
+                      className={`
+                        w-full text-left px-4 py-2.5 text-sm transition-colors duration-150
+                        flex items-center justify-between group
+                        ${index !== dropdownQuestion.options.length - 1 ? 'border-b border-gray-50' : ''}
+                        ${dropdownQuestion.selectedValue === option 
+                          ? 'bg-blue-50 text-blue-700' 
+                          : 'text-gray-700 hover:bg-gray-50'
+                        }
+                      `}
+                    >
+                      <span className="flex-1">{option}</span>
+                      {dropdownQuestion.selectedValue === option && (
+                        <Check className="h-4 w-4 text-blue-600 flex-shrink-0 ml-3" />
+                      )}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -386,10 +437,10 @@ const CustomResponses: React.FC = () => {
         const isGroupOpen = openSections.has(group.groupId);
         
         return (
-          <div key={group.id} className="mb-4 border border-gray-100 rounded-lg overflow-hidden">
+          <div key={group.id} className="mb-4 border border-gray-100 rounded-lg">
             <button
               onClick={() => toggleSection(group.groupId)}
-              className="w-full bg-gray-50 px-4 py-3 border-b border-gray-100 flex items-center justify-between hover:bg-gray-100 transition-colors"
+              className="w-full bg-gray-50 px-4 py-3 border-b border-gray-100 flex items-center justify-between hover:bg-gray-100 transition-colors rounded-t-lg"
             >
               <div className="text-left">
                 <h4 className="text-sm font-semibold text-gray-800">{group.groupName}</h4>
@@ -419,18 +470,26 @@ const CustomResponses: React.FC = () => {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+    <div className="bg-white rounded-lg shadow-sm border border-gray-100 relative z-[100]">
       <div className="p-5 border-b border-gray-100">
         <h3 className="text-sm font-semibold text-gray-800">Custom Responses</h3>
         <p className="text-xs text-gray-400 mt-0.5">Questionnaire responses from applicant</p>
       </div>
 
-      <div className="divide-y divide-gray-100">
+      <div className="flex flex-col">
         {sections.map((section) => {
           const isOpen = openSections.has(section.id);
+          const hasOpenDropdownInside = section.questions.some(q => 
+            q.id === dropdownOpen || (q.type === 'group' && q.questions.some(sq => sq.id === dropdownOpen))
+          );
           
           return (
-            <div key={section.id} className="overflow-hidden">
+            <div 
+              key={section.id} 
+              className={`relative border-b last:border-b-0 border-gray-100 ${
+                hasOpenDropdownInside ? 'z-[999]' : isOpen ? 'z-20' : 'z-10'
+              }`}
+            >
               {/* Section Header */}
               <button
                 onClick={() => toggleSection(section.id)}
@@ -451,8 +510,8 @@ const CustomResponses: React.FC = () => {
               
               {/* Section Content - Slides open/closed */}
               <div
-                className={`transition-all duration-300 ease-in-out overflow-hidden ${
-                  isOpen ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
+                className={`transition-all duration-300 ease-in-out ${
+                  isOpen ? 'max-h-[2000px] opacity-100 overflow-visible' : 'max-h-0 opacity-0 overflow-hidden'
                 }`}
               >
                 <div className="px-5 pb-5 pt-2 bg-gray-50/30">
@@ -463,7 +522,7 @@ const CustomResponses: React.FC = () => {
           );
         })}
       </div>
-    </div>
+      </div>
   );
 };
 
