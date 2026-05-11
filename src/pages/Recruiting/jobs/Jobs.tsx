@@ -581,61 +581,62 @@ export default function Jobs() {
   };
 
   const handleToggleActive = async (job: any) => {
-    try {
-      const newStatus = !job.isActive;
+  try {
+    const newStatus = !job.isActive;
 
-      // Backend update validation expects required job fields, not only isActive.
-      const payload: any = {
-        isActive: newStatus,
-        title: toLocalized(job.title, "Untitled Role"),
-        description: toLocalized(job.description, ""),
-        employmentType: job.employmentType || "full-time",
-        workArrangement: job.workArrangement || "on-site",
-      };
+    const payload: any = {
+      isActive: newStatus,
+      title: toLocalized(job.title, "Untitled Role"),
+      description: toLocalized(job.description, ""),
+      employmentType: job.employmentType || "full-time",
+      workArrangement: job.workArrangement || "on-site",
+    };
 
-      if (typeof job.salary === "number") payload.salary = job.salary;
-      if (typeof job.salaryVisible === "boolean") payload.salaryVisible = job.salaryVisible;
-      payload.fieldConfig = normalizeFieldConfig(job);
-      if (typeof job.bilingual === "boolean") payload.bilingual = job.bilingual;
+    if (typeof job.salary === "number") payload.salary = job.salary;
+    if (typeof job.salaryVisible === "boolean") payload.salaryVisible = job.salaryVisible;
+    payload.fieldConfig = normalizeFieldConfig(job);
+    if (typeof job.bilingual === "boolean") payload.bilingual = job.bilingual;
 
-      await updateJobMutation.mutateAsync({
-        id: job._id,
-        data: payload,
-      });
-      Swal.fire({
-        title: "Status Updated",
-        text: `Role is now ${newStatus ? "Active" : "Inactive"}`,
-        icon: "success",
-        timer: 1500,
-        showConfirmButton: false
-      });
-    } catch (err: any) {
-      const details = err?.response?.data?.details;
-      const detailMessage = Array.isArray(details) && details.length > 0 ? details[0]?.message : "";
-      Swal.fire("Error", detailMessage || "Failed to update status", "error");
-    }
-  };
+    await updateJobMutation.mutateAsync({
+      id: job._id,
+      data: payload,
+    });
+    await refetchJobs(); // Add this line
+    Swal.fire({
+      title: "Status Updated",
+      text: `Role is now ${newStatus ? "Active" : "Inactive"}`,
+      icon: "success",
+      timer: 1500,
+      showConfirmButton: false
+    });
+  } catch (err: any) {
+    const details = err?.response?.data?.details;
+    const detailMessage = Array.isArray(details) && details.length > 0 ? details[0]?.message : "";
+    Swal.fire("Error", detailMessage || "Failed to update status", "error");
+  }
+};
 
   const handleDelete = async (e: React.MouseEvent, jobId: string) => {
-    e.stopPropagation();
-    const result = await Swal.fire({
-      title: "Confirm Deletion",
-      text: "This action will permanently remove this recruitment mandate.",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#EF4444",
-      confirmButtonText: "Yes, delete mandate"
-    });
+  e.stopPropagation();
+  const result = await Swal.fire({
+    title: "Confirm Deletion",
+    text: "This action will permanently remove this recruitment mandate.",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#EF4444",
+    confirmButtonText: "Yes, delete mandate"
+  });
 
-    if (result.isConfirmed) {
-      try {
-        await deleteJobMutation.mutateAsync(jobId);
-        Swal.fire("Deleted", "Mandate has been purged.", "success");
-      } catch (err) {
-        Swal.fire("Error", "Purge sequence failed.", "error");
-      }
+  if (result.isConfirmed) {
+    try {
+      await deleteJobMutation.mutateAsync(jobId);
+      await refetchJobs(); // Add this line
+      Swal.fire("Deleted", "Mandate has been purged.", "success");
+    } catch (err) {
+      Swal.fire("Error", "Purge sequence failed.", "error");
     }
-  };
+  }
+};
 
   if (isLoadingJobs) {
     return <LoadingSpinner fullPage message="Accessing Position Registry..." />;

@@ -21,6 +21,8 @@ import { useSavedFields } from "../../../hooks/queries";
 import { useRecommendedFields } from "../../../hooks/queries/useSystemSettings";
 import { useCreateJobPosition, useUpdateJobPosition, useJobPositions } from "../../../hooks/queries/useJobPositions";
 import { toPlainString } from "../../../utils/strings";
+import { useQueryClient } from "@tanstack/react-query";
+
 
 type JobSpec = {
   spec: string;
@@ -163,7 +165,6 @@ const applicantFieldConfigMeta: Array<{
     description: "Candidate salary expectation input.",
   },
 ];
-
 const normalizeFieldConfig = (
   value: any,
   legacySalaryFieldVisible?: boolean
@@ -318,6 +319,7 @@ const subFieldTypeOptions = [
 ];
 
 export default function CreateJob() {
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const location = useLocation();
@@ -592,16 +594,15 @@ export default function CreateJob() {
     const selectedJob = allJobs.find((j: any) => j._id === jobId);
     if (selectedJob) {
       // Extract company and department IDs
-      const companyId = typeof selectedJob.companyId === 'string' ? selectedJob.companyId : (selectedJob.companyId as any)?._id;
       const departmentId = typeof selectedJob.departmentId === 'string' ? selectedJob.departmentId : (selectedJob.departmentId as any)?._id;
 
       // Populate form with selected job data (with "Copy" suffix)
       setJobForm({
-        companyId: companyId || "",
+        companyId: "",
         departmentId: departmentId || "",
         jobCode: "", // Will be auto-generated
-        title: (typeof selectedJob.title === 'object' ? selectedJob.title.en : selectedJob.title) + ' (Copy)',
-        titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selectedJob.title.ar + ' (نسخة)' : '',
+        title: (typeof selectedJob.title === 'object' ? selectedJob.title.en : selectedJob.title),
+titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selectedJob.title.ar : '',
         description: typeof selectedJob.description === 'object' ? selectedJob.description.en || '' : (selectedJob.description || ''),
         descriptionAr: typeof selectedJob.description === 'object' ? selectedJob.description.ar || '' : '',
         salary: selectedJob.salary || 0,
@@ -1366,256 +1367,247 @@ export default function CreateJob() {
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setIsSubmitting(true);
+  e.preventDefault();
+  setIsSubmitting(true);
 
-    try {
-      // Validate required fields
-      if (!jobForm.companyId) {
-        const errorMsg = "Please select a company before submitting.";
-        setFormError(errorMsg);
-        setJobStatus(`Error: ${errorMsg}`);
-        setIsSubmitting(false);
-        await Swal.fire({
-          title: "Validation Error",
-          text: errorMsg,
-          icon: "error",
-          confirmButtonText: "OK",
-        });
-        return;
-      }
+  try {
+    // Validate required fields
+    if (!jobForm.companyId) {
+      const errorMsg = "Please select a company before submitting.";
+      setFormError(errorMsg);
+      setJobStatus(`Error: ${errorMsg}`);
+      setIsSubmitting(false);
+      await Swal.fire({
+        title: "Validation Error",
+        text: errorMsg,
+        icon: "error",
+        confirmButtonText: "OK",
+      });
+      return;
+    }
 
-      if (!jobForm.departmentId) {
-        const errorMsg = "Please select a department before submitting.";
-        setFormError(errorMsg);
-        setJobStatus(`Error: ${errorMsg}`);
-        setIsSubmitting(false);
-        await Swal.fire({
-          title: "Validation Error",
-          text: errorMsg,
-          icon: "error",
-          confirmButtonText: "OK",
-        });
-        return;
-      }
+    if (!jobForm.departmentId) {
+      const errorMsg = "Please select a department before submitting.";
+      setFormError(errorMsg);
+      setJobStatus(`Error: ${errorMsg}`);
+      setIsSubmitting(false);
+      await Swal.fire({
+        title: "Validation Error",
+        text: errorMsg,
+        icon: "error",
+        confirmButtonText: "OK",
+      });
+      return;
+    }
 
-      if (!isEditMode && !jobForm.jobCode?.trim()) {
-        const errorMsg = "Job code is required.";
-        setFormError(errorMsg);
-        setJobStatus(`Error: ${errorMsg}`);
-        setIsSubmitting(false);
-        await Swal.fire({
-          title: "Validation Error",
-          text: errorMsg,
-          icon: "error",
-          confirmButtonText: "OK",
-        });
-        return;
-      }
+    if (!isEditMode && !jobForm.jobCode?.trim()) {
+      const errorMsg = "Job code is required.";
+      setFormError(errorMsg);
+      setJobStatus(`Error: ${errorMsg}`);
+      setIsSubmitting(false);
+      await Swal.fire({
+        title: "Validation Error",
+        text: errorMsg,
+        icon: "error",
+        confirmButtonText: "OK",
+      });
+      return;
+    }
 
-      if (!jobForm.title?.trim() || (jobForm.bilingual && !jobForm.titleAr?.trim())) {
-        const errorMsg = jobForm.bilingual 
-          ? "Job title (both English and Arabic) is required."
-          : "Job title is required.";
-        setFormError(errorMsg);
-        setJobStatus(`Error: ${errorMsg}`);
-        setIsSubmitting(false);
-        await Swal.fire({
-          title: "Validation Error",
-          text: errorMsg,
-          icon: "error",
-          confirmButtonText: "OK",
-        });
-        return;
-      }
+    if (!jobForm.title?.trim() || (jobForm.bilingual && !jobForm.titleAr?.trim())) {
+      const errorMsg = jobForm.bilingual 
+        ? "Job title (both English and Arabic) is required."
+        : "Job title is required.";
+      setFormError(errorMsg);
+      setJobStatus(`Error: ${errorMsg}`);
+      setIsSubmitting(false);
+      await Swal.fire({
+        title: "Validation Error",
+        text: errorMsg,
+        icon: "error",
+        confirmButtonText: "OK",
+      });
+      return;
+    }
 
-      if (!jobForm.employmentType) {
-        const errorMsg = "Employment type is required.";
-        setFormError(errorMsg);
-        setJobStatus(`Error: ${errorMsg}`);
-        setIsSubmitting(false);
-        await Swal.fire({
-          title: "Validation Error",
-          text: errorMsg,
-          icon: "error",
-          confirmButtonText: "OK",
-        });
-        return;
-      }
+    if (!jobForm.employmentType) {
+      const errorMsg = "Employment type is required.";
+      setFormError(errorMsg);
+      setJobStatus(`Error: ${errorMsg}`);
+      setIsSubmitting(false);
+      await Swal.fire({
+        title: "Validation Error",
+        text: errorMsg,
+        icon: "error",
+        confirmButtonText: "OK",
+      });
+      return;
+    }
 
-      if (!jobForm.workArrangement) {
-        const errorMsg = "Work arrangement is required.";
-        setFormError(errorMsg);
-        setJobStatus(`Error: ${errorMsg}`);
-        setIsSubmitting(false);
-        await Swal.fire({
-          title: "Validation Error",
-          text: errorMsg,
-          icon: "error",
-          confirmButtonText: "OK",
-        });
-        return;
-      }
+    if (!jobForm.workArrangement) {
+      const errorMsg = "Work arrangement is required.";
+      setFormError(errorMsg);
+      setJobStatus(`Error: ${errorMsg}`);
+      setIsSubmitting(false);
+      await Swal.fire({
+        title: "Validation Error",
+        text: errorMsg,
+        icon: "error",
+        confirmButtonText: "OK",
+      });
+      return;
+    }
 
-      if (!isEditMode && jobsLoading) {
-        const errorMsg = "Please wait, loading existing company jobs to assign order.";
-        setFormError(errorMsg);
-        setJobStatus(`Error: ${errorMsg}`);
-        setIsSubmitting(false);
-        await Swal.fire({
-          title: "Please wait",
-          text: errorMsg,
-          icon: "info",
-          confirmButtonText: "OK",
-        });
-        return;
-      }
+    if (!isEditMode && jobsLoading) {
+      const errorMsg = "Please wait, loading existing company jobs to assign order.";
+      setFormError(errorMsg);
+      setJobStatus(`Error: ${errorMsg}`);
+      setIsSubmitting(false);
+      await Swal.fire({
+        title: "Please wait",
+        text: errorMsg,
+        icon: "info",
+        confirmButtonText: "OK",
+      });
+      return;
+    }
 
-      if (!jobForm.registrationStart) {
-        const errorMsg = "Registration start date is required.";
-        setFormError(errorMsg);
-        setJobStatus(`Error: ${errorMsg}`);
-        setIsSubmitting(false);
-        await Swal.fire({
-          title: "Validation Error",
-          text: errorMsg,
-          icon: "error",
-          confirmButtonText: "OK",
-        });
-        return;
-      }
+    if (!jobForm.registrationStart) {
+      const errorMsg = "Registration start date is required.";
+      setFormError(errorMsg);
+      setJobStatus(`Error: ${errorMsg}`);
+      setIsSubmitting(false);
+      await Swal.fire({
+        title: "Validation Error",
+        text: errorMsg,
+        icon: "error",
+        confirmButtonText: "OK",
+      });
+      return;
+    }
 
-      if (!jobForm.registrationEnd) {
-        const errorMsg = "Registration end date is required.";
-        setFormError(errorMsg);
-        setJobStatus(`Error: ${errorMsg}`);
-        setIsSubmitting(false);
-        await Swal.fire({
-          title: "Validation Error",
-          text: errorMsg,
-          icon: "error",
-          confirmButtonText: "OK",
-        });
-        return;
-      }
+    if (!jobForm.registrationEnd) {
+      const errorMsg = "Registration end date is required.";
+      setFormError(errorMsg);
+      setJobStatus(`Error: ${errorMsg}`);
+      setIsSubmitting(false);
+      await Swal.fire({
+        title: "Validation Error",
+        text: errorMsg,
+        icon: "error",
+        confirmButtonText: "OK",
+      });
+      return;
+    }
 
-      // Validate repeatable_group fields have labels
-      const emptyGroupFieldLabels = jobForm.customFields
-        .map((field, index) => ({ field, index }))
-        .filter(({ field }) => field.inputType === "repeatable_group" && !field.label.trim());
-      
-      if (emptyGroupFieldLabels.length > 0) {
-        const errorMsg = `Group Field #${emptyGroupFieldLabels[0].index + 1} must have a label.`;
-        setFormError(errorMsg);
-        setJobStatus(`Error: ${errorMsg}`);
-        setIsSubmitting(false);
-        await Swal.fire({
-          title: "Validation Error",
-          text: errorMsg,
-          icon: "error",
-          confirmButtonText: "OK",
-        });
-        return;
-      }
+    // Validate repeatable_group fields have labels
+    const emptyGroupFieldLabels = jobForm.customFields
+      .map((field, index) => ({ field, index }))
+      .filter(({ field }) => field.inputType === "repeatable_group" && !field.label.trim());
+    
+    if (emptyGroupFieldLabels.length > 0) {
+      const errorMsg = `Group Field #${emptyGroupFieldLabels[0].index + 1} must have a label.`;
+      setFormError(errorMsg);
+      setJobStatus(`Error: ${errorMsg}`);
+      setIsSubmitting(false);
+      await Swal.fire({
+        title: "Validation Error",
+        text: errorMsg,
+        icon: "error",
+        confirmButtonText: "OK",
+      });
+      return;
+    }
 
-      const salaryValue = Number(jobForm.salary);
+    const salaryValue = Number(jobForm.salary);
 
-      const makeBilingualObject = (en: any, ar?: any) =>
-        jobForm.bilingual ? { en: en ?? "", ar: ar ?? en ?? "" } : { en: en ?? "" };
+    const makeBilingualObject = (en: any, ar?: any) =>
+      jobForm.bilingual ? { en: en ?? "", ar: ar ?? en ?? "" } : { en: en ?? "" };
 
-      const buildChoices = (choices: any, choicesAr?: any) => {
-        const out: any[] = [];
-        if (!Array.isArray(choices)) return out;
-        choices.forEach((c: any, i: number) => {
-          const enVal = (typeof c === "string" ? c : (c?.en || "") + "").toString().trim();
-          const arVal = (Array.isArray(choicesAr) ? (choicesAr[i] || "") : (typeof c === "object" && c?.ar ? c.ar : "")).toString().trim();
-          if (jobForm.bilingual) {
-            if (!enVal && !arVal) return;
-            out.push({ en: enVal || arVal, ar: arVal || enVal });
-          } else {
-            if (!enVal) return;
-            out.push({ en: enVal });
-          }
-        });
-        return out;
-      };
-
-      const payload: any = {};
-      // Only include companyId and jobCode when creating (not updating)
-      if (!isEditMode) {
-        payload.companyId = jobForm.companyId;
-        if (jobForm.jobCode) payload.jobCode = jobForm.jobCode;
-        payload.order = nextCompanyOrder;
-      }
-      payload.title = makeBilingualObject(jobForm.title, jobForm.titleAr);
-      payload.description = makeBilingualObject(jobForm.description, jobForm.descriptionAr);
-      // Send departmentId as empty string if not selected
-      payload.departmentId = jobForm.departmentId || "";
-      payload.termsAndConditions = jobForm.termsAndConditions
-        .filter((term, idx) => term.trim() || (jobForm.bilingual && jobForm.termsAndConditionsAr[idx]?.trim()))
-        .map((t, idx) => makeBilingualObject(t, jobForm.termsAndConditionsAr[idx] || t));
-      payload.salary = isNaN(salaryValue) ? undefined : salaryValue;
-      payload.salaryVisible = jobForm.salaryVisible;
-      payload.fieldConfig = normalizeFieldConfig(jobForm.fieldConfig);
-      payload.openPositions = jobForm.openPositions;
-      payload.registrationStart = jobForm.registrationStart;
-      payload.registrationEnd = jobForm.registrationEnd;
-      payload.allowedStatuses = Array.isArray(jobForm.allowedStatuses)
-        ? jobForm.allowedStatuses.filter(Boolean)
-        : [];
-      payload.hideAfterRegistrationEnd = Boolean(jobForm.hideAfterRegistrationEnd);
-      payload.jobSpecs = jobForm.jobSpecs
-        .filter((spec) => spec.spec.trim() || (jobForm.bilingual && spec.specAr?.trim()))
-        .map((spec) => ({
-          spec: makeBilingualObject(spec.spec, spec.specAr || spec.spec),
-          weight: spec.weight,
-        }));
-      payload.customFields = jobForm.customFields.map((cf) => ({
-        fieldId: cf.fieldId,
-        label: makeBilingualObject(cf.label, cf.labelAr || cf.label),
-        inputType: cf.inputType,
-        isRequired: cf.isRequired,
-        minValue: cf.minValue,
-        maxValue: cf.maxValue,
-        choices: buildChoices(cf.choices, cf.choicesAr),
-        groupFields: Array.isArray(cf.subFields)
-          ? cf.subFields.map((sf) => ({
-              fieldId: sf.fieldId,
-              label: makeBilingualObject(sf.label, sf.labelAr || sf.label),
-              inputType: sf.inputType,
-              isRequired: sf.isRequired,
-              choices: buildChoices(sf.choices, sf.choicesAr),
-            }))
-          : [],
-        displayOrder: cf.displayOrder,
-      }));
-      payload.employmentType = jobForm.employmentType;
-      payload.workArrangement = jobForm.workArrangement;
-      payload.bilingual = jobForm.bilingual;
-
-      if (isEditMode && editJobId) {
-        // Update existing job
-        await updateJobMutation.mutateAsync({ id: editJobId, data: payload });
-        setJobStatus("Job updated successfully");
-      } else {
-        // Ensure backend receives creator info
-        try {
-          const createdBy = (user as any)?._id ?? (user as any)?.id ?? undefined;
-          if (createdBy) payload.createdBy = createdBy;
-        } catch (e) {
-          // ignore
+    const buildChoices = (choices: any, choicesAr?: any) => {
+      const out: any[] = [];
+      if (!Array.isArray(choices)) return out;
+      choices.forEach((c: any, i: number) => {
+        const enVal = (typeof c === "string" ? c : (c?.en || "") + "").toString().trim();
+        const arVal = (Array.isArray(choicesAr) ? (choicesAr[i] || "") : (typeof c === "object" && c?.ar ? c.ar : "")).toString().trim();
+        if (jobForm.bilingual) {
+          if (!enVal && !arVal) return;
+          out.push({ en: enVal || arVal, ar: arVal || enVal });
+        } else {
+          if (!enVal) return;
+          out.push({ en: enVal });
         }
-        // Create new job with optimistic update
-        await createJobMutation.mutateAsync(payload);
-        setJobStatus("Job created successfully");
-      }
+      });
+      return out;
+    };
 
-      // Show toast notification
+    const payload: any = {};
+    
+    // Only include companyId and jobCode when creating (not updating)
+    if (!isEditMode) {
+      if (jobForm.jobCode) payload.jobCode = jobForm.jobCode;
+      payload.order = nextCompanyOrder;
+    }
+    
+    payload.companyId = jobForm.companyId;
+    payload.title = makeBilingualObject(jobForm.title, jobForm.titleAr);
+    payload.description = makeBilingualObject(jobForm.description, jobForm.descriptionAr);
+    payload.departmentId = jobForm.departmentId || "";
+    payload.termsAndConditions = jobForm.termsAndConditions
+      .filter((term, idx) => term.trim() || (jobForm.bilingual && jobForm.termsAndConditionsAr[idx]?.trim()))
+      .map((t, idx) => makeBilingualObject(t, jobForm.termsAndConditionsAr[idx] || t));
+    payload.salary = isNaN(salaryValue) ? undefined : salaryValue;
+    payload.salaryVisible = jobForm.salaryVisible;
+    payload.fieldConfig = normalizeFieldConfig(jobForm.fieldConfig);
+    payload.openPositions = jobForm.openPositions;
+    payload.registrationStart = jobForm.registrationStart;
+    payload.registrationEnd = jobForm.registrationEnd;
+    payload.allowedStatuses = Array.isArray(jobForm.allowedStatuses)
+      ? jobForm.allowedStatuses.filter(Boolean)
+      : [];
+    payload.hideAfterRegistrationEnd = Boolean(jobForm.hideAfterRegistrationEnd);
+    payload.jobSpecs = jobForm.jobSpecs
+      .filter((spec) => spec.spec.trim() || (jobForm.bilingual && spec.specAr?.trim()))
+      .map((spec) => ({
+        spec: makeBilingualObject(spec.spec, spec.specAr || spec.spec),
+        weight: spec.weight,
+      }));
+    payload.customFields = jobForm.customFields.map((cf) => ({
+      fieldId: cf.fieldId,
+      label: makeBilingualObject(cf.label, cf.labelAr || cf.label),
+      inputType: cf.inputType,
+      isRequired: cf.isRequired,
+      minValue: cf.minValue,
+      maxValue: cf.maxValue,
+      choices: buildChoices(cf.choices, cf.choicesAr),
+      groupFields: Array.isArray(cf.subFields)
+        ? cf.subFields.map((sf) => ({
+            fieldId: sf.fieldId,
+            label: makeBilingualObject(sf.label, sf.labelAr || sf.label),
+            inputType: sf.inputType,
+            isRequired: sf.isRequired,
+            choices: buildChoices(sf.choices, sf.choicesAr),
+          }))
+        : [],
+      displayOrder: cf.displayOrder,
+    }));
+    payload.employmentType = jobForm.employmentType;
+    payload.workArrangement = jobForm.workArrangement;
+    payload.bilingual = jobForm.bilingual;
+
+    if (isEditMode && editJobId) {
+      // Update existing job
+      await updateJobMutation.mutateAsync({ id: editJobId, data: payload });
+      setJobStatus("Job updated successfully");
+      
+      // Invalidate and refetch jobs to refresh the list
+      await queryClient.invalidateQueries({ queryKey: ['jobPositions'] });
+      await queryClient.refetchQueries({ queryKey: ['jobPositions'] });
+      
+      // Show success toast
       Swal.fire({
         title: "Success!",
-        text: isEditMode
-          ? "Job updated successfully."
-          : "Job created successfully.",
+        text: "Job updated successfully.",
         icon: "success",
         position: "top-end",
         timer: 1500,
@@ -1625,18 +1617,64 @@ export default function CreateJob() {
           container: "!mt-16",
         },
       });
-
-      // Navigate immediately
-      navigate("/jobs");
-    } catch (err) {
-      const errorMsg = getErrorMessage(err);
-      setFormError(errorMsg);
-      setJobStatus(`Error: ${errorMsg}`);
-      console.error(`Error ${isEditMode ? "updating" : "creating"} job:`, err);
-    } finally {
-      setIsSubmitting(false);
+      
+      // Navigate after a short delay to ensure refetch completes
+      setTimeout(() => {
+        navigate("/jobs");
+      }, 500);
+    } else {
+      // Ensure backend receives creator info
+      try {
+        const createdBy = (user as any)?._id ?? (user as any)?.id ?? undefined;
+        if (createdBy) payload.createdBy = createdBy;
+      } catch (e) {
+        // ignore
+      }
+      
+      // Create new job with optimistic update
+      await createJobMutation.mutateAsync(payload);
+      setJobStatus("Job created successfully");
+      
+      // Invalidate and refetch jobs to refresh the list
+      await queryClient.invalidateQueries({ queryKey: ['jobPositions'] });
+      await queryClient.refetchQueries({ queryKey: ['jobPositions'] });
+      
+      // Show success toast
+      Swal.fire({
+        title: "Success!",
+        text: "Job created successfully.",
+        icon: "success",
+        position: "top-end",
+        timer: 1500,
+        showConfirmButton: false,
+        toast: true,
+        customClass: {
+          container: "!mt-16",
+        },
+      });
+      
+      // Navigate after a short delay to ensure refetch completes
+      setTimeout(() => {
+        navigate("/jobs");
+      }, 500);
     }
-  };
+  } catch (err) {
+    const errorMsg = getErrorMessage(err);
+    setFormError(errorMsg);
+    setJobStatus(`Error: ${errorMsg}`);
+    console.error(`Error ${isEditMode ? "updating" : "creating"} job:`, err);
+    
+    // Show error toast
+    await Swal.fire({
+      title: "Error!",
+      text: errorMsg,
+      icon: "error",
+      confirmButtonText: "OK",
+    });
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
  
 
@@ -1761,7 +1799,7 @@ export default function CreateJob() {
             <div className="mb-6 flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                  {isEditMode ? "Department" : "Company & Organization"}
+                  {"Company & Organization"}
                 </h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   {isEditMode ? "Assigned department for this position" : "Specify where this position belongs"}
@@ -1775,7 +1813,7 @@ export default function CreateJob() {
             </div>
 
             <div className={`grid grid-cols-1 gap-6 ${!isEditMode && shouldShowCompanyField ? 'md:grid-cols-2' : ''}`}>
-              {!isEditMode && shouldShowCompanyField && (
+              {(
                 <div className="space-y-2">
                   <Label htmlFor="companyId" required>Target Company</Label>
                   {companies.length > 0 ? (

@@ -42,7 +42,7 @@ const ApplicantDetails: React.FC = () => {
 
   return (
     <div className="bg-gray-50 min-h-screen p-6">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-8xl mx-auto">
         
         {/* Header */}
         <div className="mb-6">
@@ -59,7 +59,7 @@ const ApplicantDetails: React.FC = () => {
         {/* Top Row - Personal Info and Comment Section */}
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-6">
           {/* Personal Info Card - takes 2 columns */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-1">
             <PersonalInfo />
           </div>
 
