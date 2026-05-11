@@ -12,6 +12,7 @@ import {
   Settings,
   Mail, // Add this icon
   Layout,
+  FileText,
 } from 'lucide-react';
 import Swal from '../../../utils/swal';
 import PageMeta from '../../../components/common/PageMeta';
@@ -31,6 +32,7 @@ import type {
   InterviewQuestion,
 } from '../../../services/companiesService';
 import ApplicantPagesSettings from './ApplicantsPagesTab';
+import JobOffersTab from './JobOffersTab';
 
 type CompanyShape = {
   _id: string;
@@ -91,7 +93,7 @@ const normalizeGroups = (
   return groups.map((group) => ({
     name: String(group?.name ?? ''),
     questions: Array.isArray(group?.questions)
-      ? group.questions.map((question : any) => normalizeQuestion(question))
+      ? group.questions.map((question: any) => normalizeQuestion(question))
       : [],
   }));
 };
@@ -103,11 +105,6 @@ const getCompanyName = (company: CompanyShape | undefined): string => {
   if (typeof companyData.name === 'string') return companyData.name;
   return companyData.name?.en || companyData.name?.ar || 'Unnamed Company';
 };
-
-
-
-
-
 
 export default function InterviewCompanySettingsPage() {
   const { user, hasPermission } = useAuth();
@@ -149,6 +146,7 @@ export default function InterviewCompanySettingsPage() {
     | 'lead-statuses'
     | 'email-templates'
     | 'applicant-pages'
+    | 'job-offers'
   >('interview-groups');
 
   const isInterviewGroupsTab = activeTab === 'interview-groups';
@@ -156,6 +154,7 @@ export default function InterviewCompanySettingsPage() {
   const isApplicantStatusTab = activeTab === 'lead-statuses';
   const isEmailTemplatesTab = activeTab === 'email-templates';
   const isApplicantPagesTab = activeTab === 'applicant-pages';
+  const isOffersTab = activeTab === 'job-offers';
 
   const selectedCompany = useMemo(
     () =>
@@ -176,10 +175,10 @@ export default function InterviewCompanySettingsPage() {
   });
 
   // In InterviewCompanySettingsPage.tsx
-const derivedInterviewSettings = isSuperAdmin
-    ? (selectedCompany as any)?.settings?.interviewSettings ??
+  const derivedInterviewSettings = isSuperAdmin
+    ? ((selectedCompany as any)?.settings?.interviewSettings ??
       (selectedCompany as any)?.interviewSettings ??
-      null
+      null)
     : interviewSettingsFromQuery;
 
   const isLoading = isSuperAdmin
@@ -338,50 +337,55 @@ const derivedInterviewSettings = isSuperAdmin
     }));
   };
 
-const handleSaveAll = async () => {
-  if (!selectedCompanyId) {
-    Swal.fire('Validation', 'Please select a company first.', 'warning');
-    return;
-  }
+  const handleSaveAll = async () => {
+    if (!selectedCompanyId) {
+      Swal.fire('Validation', 'Please select a company first.', 'warning');
+      return;
+    }
 
-  const payloadGroups = validateGroups();
-  if (!payloadGroups) return;
+    const payloadGroups = validateGroups();
+    if (!payloadGroups) return;
 
-  // Get the settings ID from the selected company
-  const settingsId = selectedCompany?.settings?._id;
-  
-  if (!settingsId) {
-    Swal.fire('Validation', 'Company settings not found. Please contact support.', 'warning');
-    return;
-  }
+    // Get the settings ID from the selected company
+    const settingsId = selectedCompany?.settings?._id;
 
-  setIsSaving(true);
-  try {
-    await updateInterviewMutation.mutateAsync({
-      settingsId,  // Use settingsId
-      data: {
-        interviewSettings: {  // ✅ Wrap groups inside interviewSettings
-          groups: payloadGroups,
+    if (!settingsId) {
+      Swal.fire(
+        'Validation',
+        'Company settings not found. Please contact support.',
+        'warning'
+      );
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await updateInterviewMutation.mutateAsync({
+        settingsId, // Use settingsId
+        data: {
+          interviewSettings: {
+            // ✅ Wrap groups inside interviewSettings
+            groups: payloadGroups,
+          },
         },
-      },
-    });
+      });
 
-    Swal.fire({
-      title: 'Saved',
-      icon: 'success',
-      timer: 1200,
-      showConfirmButton: false,
-    });
-  } catch (error: any) {
-    Swal.fire(
-      'Save Failed',
-      error?.message || 'Failed to save interview settings.',
-      'error'
-    );
-  } finally {
-    setIsSaving(false);
-  }
-};
+      Swal.fire({
+        title: 'Saved',
+        icon: 'success',
+        timer: 1200,
+        showConfirmButton: false,
+      });
+    } catch (error: any) {
+      Swal.fire(
+        'Save Failed',
+        error?.message || 'Failed to save interview settings.',
+        'error'
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
   if (!canRead) {
     return (
       <div className="min-h-screen bg-slate-50 px-4 py-10 dark:bg-slate-950">
@@ -505,6 +509,17 @@ const handleSaveAll = async () => {
               }`}
             >
               <Layout className="size-4" /> Applicant Pages
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('job-offers')}
+              className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition ${
+                isOffersTab
+                  ? 'bg-brand-500 text-white'
+                  : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800'
+              }`}
+            >
+              <FileText className="size-4" /> Offer Templates
             </button>
           </div>
 
@@ -906,6 +921,8 @@ const handleSaveAll = async () => {
                 hideCompanySelector
                 embedded
               />
+            ) : isOffersTab ? (
+              <JobOffersTab companyId={selectedCompanyId} embedded />
             ) : null}
           </div>
         </div>

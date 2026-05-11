@@ -1,7 +1,7 @@
 // services/applicantsService.ts
-import axios from "../config/axios";
-import { getErrorMessage } from "../utils/errorHandler";
-import { jobPositionsService } from "./jobPositionsService";
+import axios from '../config/axios';
+import { getErrorMessage } from '../utils/errorHandler';
+import { jobPositionsService } from './jobPositionsService';
 import type {
   Applicant,
   CreateApplicantRequest,
@@ -16,7 +16,7 @@ import type {
   InterviewAnswer,
   RejectionInsights,
 } from '../types/applicants';
-import { ApiError } from "./companiesService";
+import { ApiError } from './companiesService';
 
 // Re-export types
 export type {
@@ -41,7 +41,10 @@ function normalizeInterviewQuestions(questions: any): InterviewAnswer[] {
   return questions.map((q: any) => ({
     question: String(q?.question || '').trim(),
     score: Number(q?.score ?? 0),
-    achievedScore: Math.max(0, Number.isFinite(Number(q?.achievedScore)) ? Number(q?.achievedScore) : 0),
+    achievedScore: Math.max(
+      0,
+      Number.isFinite(Number(q?.achievedScore)) ? Number(q?.achievedScore) : 0
+    ),
     notes: q?.notes ?? '',
   }));
 }
@@ -70,7 +73,9 @@ function extractApplicantFromPayload(payload: any, applicantId: string): any {
     }
 
     if (candidate?.applicant && typeof candidate.applicant === 'object') {
-      const nestedApplicantId = String(candidate.applicant?._id || candidate.applicant?.id || '');
+      const nestedApplicantId = String(
+        candidate.applicant?._id || candidate.applicant?.id || ''
+      );
       if (nestedApplicantId && nestedApplicantId === targetId) {
         return candidate.applicant;
       }
@@ -91,7 +96,7 @@ class ApplicantsService {
     try {
       const config = { params };
       let response;
-      
+
       if (method === 'get' || method === 'delete') {
         response = await axios[method](url, config);
       } else if (method === 'patch') {
@@ -99,7 +104,7 @@ class ApplicantsService {
       } else {
         response = await axios[method](url, data, config);
       }
-      
+
       return response.data?.data ?? response.data;
     } catch (error: any) {
       throw new ApiError(
@@ -113,32 +118,47 @@ class ApplicantsService {
   private extractApplicants(payload: any): Applicant[] {
     if (Array.isArray(payload)) return payload;
     if (payload && Array.isArray(payload.data)) return payload.data;
-    if (payload?.data && Array.isArray(payload.data.data)) return payload.data.data;
-    if (payload?.data && Array.isArray(payload.data.docs)) return payload.data.docs;
+    if (payload?.data && Array.isArray(payload.data.data))
+      return payload.data.data;
+    if (payload?.data && Array.isArray(payload.data.docs))
+      return payload.data.docs;
     return [];
   }
 
   private normalizeCompanyIds(companyId?: string[]): string[] {
     if (!companyId) return [];
-    return [...new Set(companyId.map(id => String(id || "").trim()).filter(Boolean))];
+    return [
+      ...new Set(
+        companyId.map((id) => String(id || '').trim()).filter(Boolean)
+      ),
+    ];
   }
 
   private toScheduleInterviewItem(
     applicantId: any,
     data: ScheduleInterviewRequest
   ): BulkScheduleInterviewItem {
-    const rawApplicantId = typeof applicantId === 'object'
-      ? applicantId?._id || applicantId?.id || ''
-      : applicantId;
+    const rawApplicantId =
+      typeof applicantId === 'object'
+        ? applicantId?._id || applicantId?.id || ''
+        : applicantId;
 
     const item: any = { applicantId: String(rawApplicantId || '').trim() };
 
     const allowedKeys: Array<keyof ScheduleInterviewRequest> = [
-      'scheduledAt', 'conductedBy', 'scheduledBy', 'description',
-      'location', 'videoLink', 'address', 'type', 'notes', 'status'
+      'scheduledAt',
+      'conductedBy',
+      'scheduledBy',
+      'description',
+      'location',
+      'videoLink',
+      'address',
+      'type',
+      'notes',
+      'status',
     ];
 
-    allowedKeys.forEach(key => {
+    allowedKeys.forEach((key) => {
       const value = (data as any)?.[key];
       if (value !== undefined) item[key] = value;
     });
@@ -154,27 +174,47 @@ class ApplicantsService {
     status?: string | string[];
     fields?: string | string[];
     departmentId?: string[];
+    skipPopulation?: boolean;
+    search?: string;
   }): Promise<Applicant[]> {
     const companyIds = this.normalizeCompanyIds(params?.companyId);
-    
-    const buildQueryParams = (options?: { companyId?: string; jobPositionId?: string }) => {
+
+    const buildQueryParams = (options?: {
+      companyId?: string;
+      jobPositionId?: string;
+    }) => {
       const queryParams: any = { deleted: false, PageCount: 'all' };
-      
+
       if (params?.status) {
-        queryParams.status = Array.isArray(params.status) ? params.status.join(",") : params.status;
+        queryParams.status = Array.isArray(params.status)
+          ? params.status.join(',')
+          : params.status;
       }
       if (params?.fields) {
-        queryParams.fields = Array.isArray(params.fields) ? params.fields.join(",") : params.fields;
+        queryParams.fields = Array.isArray(params.fields)
+          ? params.fields.join(',')
+          : params.fields;
       }
       if (options?.companyId) queryParams.companyId = options.companyId;
-      if (options?.jobPositionId) queryParams.jobPositionId = options.jobPositionId;
-      if (params?.departmentId?.length) queryParams.departmentId = params.departmentId.join(",");
-      
+      if (options?.jobPositionId)
+        queryParams.jobPositionId = options.jobPositionId;
+      if (params?.departmentId?.length)
+        queryParams.departmentId = params.departmentId.join(',');
+      if (params?.search) queryParams.search = params.search;
+      if (params?.skipPopulation) queryParams.skipPopulation = true;
       return queryParams;
     };
 
-    const fetchOne = async (options?: { companyId?: string; jobPositionId?: string }): Promise<Applicant[]> => {
-      const response = await this.request<any>('get', "/applicants", undefined, buildQueryParams(options));
+    const fetchOne = async (options?: {
+      companyId?: string;
+      jobPositionId?: string;
+    }): Promise<Applicant[]> => {
+      const response = await this.request<any>(
+        'get',
+        '/applicants',
+        undefined,
+        buildQueryParams(options)
+      );
       return this.extractApplicants(response);
     };
 
@@ -182,7 +222,10 @@ class ApplicantsService {
       ? Array.isArray(params.jobPositionId)
         ? params.jobPositionId
         : params.jobPositionId.includes(',')
-          ? params.jobPositionId.split(',').map(s => s.trim()).filter(Boolean)
+          ? params.jobPositionId
+              .split(',')
+              .map((s) => s.trim())
+              .filter(Boolean)
           : [params.jobPositionId.trim()]
       : [];
 
@@ -190,25 +233,35 @@ class ApplicantsService {
 
     if (companyIds.length > 0 && jobIds.length > 0) {
       const sets = await Promise.all(
-        companyIds.flatMap(cid =>
-          jobIds.map(jid => fetchOne({ companyId: cid, jobPositionId: jid }))
+        companyIds.flatMap((cid) =>
+          jobIds.map((jid) => fetchOne({ companyId: cid, jobPositionId: jid }))
         )
       );
       const combined = sets.flat();
       const uniqueMap = new Map<string, Applicant>();
-      combined.forEach(a => { if (a?._id) uniqueMap.set(a._id, a); });
+      combined.forEach((a) => {
+        if (a?._id) uniqueMap.set(a._id, a);
+      });
       allApplicants = Array.from(uniqueMap.values());
     } else if (companyIds.length > 0) {
-      const sets = await Promise.all(companyIds.map(cid => fetchOne({ companyId: cid })));
+      const sets = await Promise.all(
+        companyIds.map((cid) => fetchOne({ companyId: cid }))
+      );
       const combined = sets.flat();
       const uniqueMap = new Map<string, Applicant>();
-      combined.forEach(a => { if (a?._id) uniqueMap.set(a._id, a); });
+      combined.forEach((a) => {
+        if (a?._id) uniqueMap.set(a._id, a);
+      });
       allApplicants = Array.from(uniqueMap.values());
     } else if (jobIds.length > 0) {
-      const sets = await Promise.all(jobIds.map(jid => fetchOne({ jobPositionId: jid })));
+      const sets = await Promise.all(
+        jobIds.map((jid) => fetchOne({ jobPositionId: jid }))
+      );
       const combined = sets.flat();
       const uniqueMap = new Map<string, Applicant>();
-      combined.forEach(a => { if (a?._id) uniqueMap.set(a._id, a); });
+      combined.forEach((a) => {
+        if (a?._id) uniqueMap.set(a._id, a);
+      });
       allApplicants = Array.from(uniqueMap.values());
     } else {
       allApplicants = await fetchOne();
@@ -219,35 +272,51 @@ class ApplicantsService {
 
   async getApplicantById(id: string): Promise<Applicant> {
     const response = await this.request<any>('get', `/applicants/${id}`);
-    
+
     // Normalize job position data if present
     try {
-      if (response.jobPositionId && typeof response.jobPositionId === 'object') {
+      if (
+        response.jobPositionId &&
+        typeof response.jobPositionId === 'object'
+      ) {
         jobPositionsService.normalizeJobPosition(response.jobPositionId);
       }
-      if (response.jobSpecsResponses || response.jobSpecs || response.jobSpecsWithDetails) {
+      if (
+        response.jobSpecsResponses ||
+        response.jobSpecs ||
+        response.jobSpecsWithDetails
+      ) {
         jobPositionsService.normalizeJobPosition(response);
       }
     } catch (e) {
       // Ignore normalization errors
     }
-    
+
     return response.applicant as Applicant;
   }
 
   async createApplicant(data: CreateApplicantRequest): Promise<Applicant> {
-    return this.request<Applicant>('post', "/applicants", data);
+    return this.request<Applicant>('post', '/applicants', data);
   }
 
-  async updateApplicant(id: string, data: UpdateApplicantRequest): Promise<Applicant> {
+  async updateApplicant(
+    id: string,
+    data: UpdateApplicantRequest
+  ): Promise<Applicant> {
     return this.request<Applicant>('put', `/applicants/${id}`, data);
   }
 
-  async updateApplicantStatus(id: string, data: UpdateStatusRequest): Promise<Applicant> {
+  async updateApplicantStatus(
+    id: string,
+    data: UpdateStatusRequest
+  ): Promise<Applicant> {
     return this.request<Applicant>('put', `/applicants/${id}/status`, data);
   }
 
-  async scheduleInterview(applicantId: string, data: ScheduleInterviewRequest): Promise<Applicant> {
+  async scheduleInterview(
+    applicantId: string,
+    data: ScheduleInterviewRequest
+  ): Promise<Applicant> {
     const normalizedData = {
       ...data,
       questions: normalizeInterviewQuestions((data as any)?.questions),
@@ -257,22 +326,35 @@ class ApplicantsService {
     let response: any;
 
     try {
-      response = await this.request<any>('post', `/applicants/interviews`, [item]);
+      response = await this.request<any>('post', `/applicants/interviews`, [
+        item,
+      ]);
     } catch (error: any) {
       const status = Number(error?.response?.status || 0);
       if (![400, 404, 405, 422].includes(status)) throw error;
-      response = await this.request<any>('post', `/applicants/${applicantId}/interviews`, normalizedData);
+      response = await this.request<any>(
+        'post',
+        `/applicants/${applicantId}/interviews`,
+        normalizedData
+      );
     }
 
-    const extractedApplicant = extractApplicantFromPayload(response, applicantId);
-    if (extractedApplicant && typeof extractedApplicant === 'object') return extractedApplicant as Applicant;
-    if (Array.isArray(response) && response.length > 0) return response[0] as Applicant;
+    const extractedApplicant = extractApplicantFromPayload(
+      response,
+      applicantId
+    );
+    if (extractedApplicant && typeof extractedApplicant === 'object')
+      return extractedApplicant as Applicant;
+    if (Array.isArray(response) && response.length > 0)
+      return response[0] as Applicant;
     if (response && typeof response === 'object') return response as Applicant;
-    
+
     return { _id: applicantId } as Applicant;
   }
 
-  async scheduleBulkInterviews(payload: BulkScheduleInterviewRequest | BulkScheduleInterviewItem[]): Promise<any> {
+  async scheduleBulkInterviews(
+    payload: BulkScheduleInterviewRequest | BulkScheduleInterviewItem[]
+  ): Promise<any> {
     const sourceItems: any[] = Array.isArray(payload)
       ? payload
       : Array.isArray(payload?.interviews)
@@ -280,8 +362,10 @@ class ApplicantsService {
         : [];
 
     const interviews = sourceItems
-      .map(item => this.toScheduleInterviewItem(item?.applicantId, item || {}))
-      .filter(item => item.applicantId);
+      .map((item) =>
+        this.toScheduleInterviewItem(item?.applicantId, item || {})
+      )
+      .filter((item) => item.applicantId);
 
     if (interviews.length === 0) {
       throw new ApiError('At least one interview payload is required.');
@@ -297,11 +381,21 @@ class ApplicantsService {
   ): Promise<Applicant> {
     const payload: any = {};
     const allowedKeys: Array<keyof UpdateInterviewStatusRequest> = [
-      'scheduledAt', 'scheduledBy', 'startedAt', 'endedAt', 'conductedBy',
-      'description', 'location', 'videoLink', 'address', 'type', 'notes', 'status'
+      'scheduledAt',
+      'scheduledBy',
+      'startedAt',
+      'endedAt',
+      'conductedBy',
+      'description',
+      'location',
+      'videoLink',
+      'address',
+      'type',
+      'notes',
+      'status',
     ];
 
-    allowedKeys.forEach(key => {
+    allowedKeys.forEach((key) => {
       const value = data?.[key];
       if (value !== undefined) payload[key] = value;
     });
@@ -310,54 +404,90 @@ class ApplicantsService {
       payload.questions = normalizeInterviewQuestions(data.questions);
     }
 
-    return this.request<Applicant>('put', `/applicants/${applicantId}/interviews/${interviewId}`, payload);
+    return this.request<Applicant>(
+      'put',
+      `/applicants/${applicantId}/interviews/${interviewId}`,
+      payload
+    );
   }
 
   async batchUpdateStatus(
-    updates: Array<{ applicantId: string; status: string; notes?: string; reasons?: string[] }>
+    updates: Array<{
+      applicantId: string;
+      status: string;
+      notes?: string;
+      reasons?: string[];
+    }>
   ): Promise<any> {
-    return this.request<any>('put', '/applicants/batch-status', { items: updates });
+    return this.request<any>('put', '/applicants/batch-status', {
+      items: updates,
+    });
   }
 
-  async addComment(applicantId: string, data: AddCommentRequest): Promise<Applicant> {
-    return this.request<Applicant>('post', `/applicants/${applicantId}/comments`, data);
+  async addComment(
+    applicantId: string,
+    data: AddCommentRequest
+  ): Promise<Applicant> {
+    return this.request<Applicant>(
+      'post',
+      `/applicants/${applicantId}/comments`,
+      data
+    );
   }
 
-  async sendMessage(applicantId: string, data: SendMessageRequest): Promise<Applicant> {
-    return this.request<Applicant>('post', `/applicants/${applicantId}/messages`, data);
+  async sendMessage(
+    applicantId: string,
+    data: SendMessageRequest
+  ): Promise<Applicant> {
+    return this.request<Applicant>(
+      'post',
+      `/applicants/${applicantId}/messages`,
+      data
+    );
   }
 
   async deleteApplicant(applicantId: string): Promise<void> {
     await this.request<void>('delete', `/applicants/${applicantId}`);
   }
 
-  async getApplicantStatuses(params?: { companyId?: string[]; status?: string | string[] }): Promise<any> {
+  async getApplicantStatuses(params?: {
+    companyId?: string[];
+    status?: string | string[];
+  }): Promise<any> {
     const companyIds = this.normalizeCompanyIds(params?.companyId);
-    
+
     const fetchOne = async (singleCompanyId?: string): Promise<any> => {
       const queryParams: any = {};
       if (singleCompanyId) queryParams.companyId = singleCompanyId;
       if (params?.status) queryParams.status = params.status;
-      return this.request<any>('get', '/applicants/status-insights', undefined, queryParams);
+      return this.request<any>(
+        'get',
+        '/applicants/status-insights',
+        undefined,
+        queryParams
+      );
     };
 
     if (companyIds.length <= 1) {
       return fetchOne(companyIds[0]);
     }
 
-    const results = await Promise.all(companyIds.map(id => fetchOne(id)));
+    const results = await Promise.all(companyIds.map((id) => fetchOne(id)));
 
-    if (results.every(r => Array.isArray(r))) {
+    if (results.every((r) => Array.isArray(r))) {
       const unique = new Map<string, any>();
-      results.flat().forEach(item => { if (item?._id) unique.set(item._id, item); });
+      results.flat().forEach((item) => {
+        if (item?._id) unique.set(item._id, item);
+      });
       return Array.from(unique.values());
     }
 
     const aggregate: Record<string, number> = {};
-    results.forEach(obj => {
-      if (!obj || typeof obj !== "object") return;
+    results.forEach((obj) => {
+      if (!obj || typeof obj !== 'object') return;
       Object.entries(obj).forEach(([key, value]) => {
-        if (typeof value === "number") aggregate[key] = (aggregate[key] || 0) + value;
+        if (typeof value === 'number')
+          aggregate[key] = (aggregate[key] || 0) + value;
       });
     });
     return aggregate;
@@ -367,24 +497,35 @@ class ApplicantsService {
     await this.request<void>('patch', `/applicants/${applicantId}/seen`);
   }
 
-  async getRejectionInsights(params?: { companyId?: string[] }): Promise<RejectionInsights> {
+  async getRejectionInsights(params?: {
+    companyId?: string[];
+  }): Promise<RejectionInsights> {
     const companyIds = this.normalizeCompanyIds(params?.companyId);
 
     const fetchOne = async (companyId?: string): Promise<RejectionInsights> => {
       const queryParams: any = {};
       if (companyId) queryParams.companyId = companyId;
-      return this.request<RejectionInsights>('get', '/applicants/rejection-insights', undefined, queryParams);
+      return this.request<RejectionInsights>(
+        'get',
+        '/applicants/rejection-insights',
+        undefined,
+        queryParams
+      );
     };
 
     if (companyIds.length <= 1) {
       return fetchOne(companyIds[0]);
     }
 
-    const responses = await Promise.all(companyIds.map((companyId) => fetchOne(companyId)));
+    const responses = await Promise.all(
+      companyIds.map((companyId) => fetchOne(companyId))
+    );
     const countsByReason = new Map<string, number>();
 
     responses.forEach((response) => {
-      const items = Array.isArray(response) ? response : (response as any)?.data ?? [];
+      const items = Array.isArray(response)
+        ? response
+        : ((response as any)?.data ?? []);
 
       items.forEach((item: any) => {
         const reason = String(item?.reason ?? '').trim() || 'Unknown';
@@ -393,13 +534,21 @@ class ApplicantsService {
       });
     });
 
-    return Array.from(countsByReason.entries()).map(([reason, count]) => ({ reason, count }));
+    return Array.from(countsByReason.entries()).map(([reason, count]) => ({
+      reason,
+      count,
+    }));
   }
 
   async getApplicantsByPhone(phone: string): Promise<Applicant[]> {
     if (!phone || !String(phone).trim()) return [];
     const queryParams = { phone: String(phone).trim(), PageCount: 'all' };
-    const response = await this.request<any>('get', '/applicants', undefined, queryParams);
+    const response = await this.request<any>(
+      'get',
+      '/applicants',
+      undefined,
+      queryParams
+    );
     return this.extractApplicants(response);
   }
 }

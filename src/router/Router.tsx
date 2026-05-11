@@ -39,7 +39,7 @@ const Applicants = lazy(
   () => import('../pages/Recruiting/applicants/Table/ApplicantsTable')
 );
 const ApplicantDetails = lazy(
-  () => import('../pages/Recruiting/ApplicantPage/ApplicantDetails')
+  () => import('../pages/Recruiting/applicants/ApplicantPage/ApplicantData')
 );
 const ApplicantDynamicPage = lazy(
   () => import('../pages/Recruiting/applicants/Table/ApplicantDynamicPage')
@@ -49,6 +49,9 @@ const ApplicantData = lazy(
 );
 const MailPreview = lazy(
   () => import('../pages/Recruiting/applicants/MailPreview')
+);
+const JobOffersPage = lazy(
+  () => import('../pages/Recruiting/jobOffers/JobOffersPage')
 );
 
 // Saved Fields
@@ -181,6 +184,10 @@ export default function App() {
                 <Route
                   path={paths.applicants.mailPreview}
                   element={<MailPreview />}
+                />
+                <Route
+                  path={paths.jobs.offers}
+                  element={<JobOffersPage />}
                 />
               </Route>
 

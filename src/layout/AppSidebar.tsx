@@ -32,22 +32,20 @@ const AppSidebar: React.FC = () => {
   const location = useLocation();
   const { data: companies = [] } = useCompanies();
 
-
-
   // Get applicant pages from companies data (from /auth/me)
   const applicantPageSubItems = useMemo(() => {
     const seen = new Set<string>();
-    
+
     // Collect applicant pages from all companies the user has access to
     const allPages: any[] = [];
-    
+
     companies.forEach((company: any) => {
       const pages = company?.settings?.applicantPages ?? [];
       if (Array.isArray(pages)) {
         allPages.push(...pages);
       }
     });
-    
+
     return allPages
       .filter((p: any) => {
         if (seen.has(p.name)) return false;
@@ -130,6 +128,15 @@ const AppSidebar: React.FC = () => {
       name: 'Mail Preview',
       path: '/applicants/mail-preview',
     },
+    ...(hasPermission('Offer Management', 'read')
+      ? [
+          {
+            icon: <TaskIcon />,
+            name: 'Job Offers',
+            path: '/job-offers',
+          },
+        ]
+      : []),
     {
       icon: <TaskIcon />,
       name: 'Company Settings',

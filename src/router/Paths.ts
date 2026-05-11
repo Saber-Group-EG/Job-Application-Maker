@@ -29,6 +29,7 @@ export const paths = {
     root: '/jobs',
     create: '/create-job',
     preview: (jobId: string) => `/job/${jobId}`,
+    offers: '/job-offers',
   },
 
   applicants: {

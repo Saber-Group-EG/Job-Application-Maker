@@ -109,16 +109,6 @@ const MessageModal = ({
     return parts.length > 1 ? parts.slice(1).join('@') : '';
   };
 
-  useEffect(() => {
-    if (company) {
-      try {
-        console.debug('MessageModal - company structure:', JSON.stringify(company, null, 2));
-      } catch (e) {
-        /* ignore */
-      }
-    }
-  }, [company]);
-
   const getCompanyDomain = () => {
     if (!company) return '';
     if (company?.settings?.mailSettings?.companyDomain) return company.settings.mailSettings.companyDomain;

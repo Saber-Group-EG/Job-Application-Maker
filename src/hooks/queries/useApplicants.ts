@@ -22,9 +22,11 @@ export const applicantsKeys = {
   list: (params?: {
     companyId?: string[];
     jobPositionId?: string | string[];
+    search?: string;
     status?: string | string[];
     fields?: string | string[];
     departmentId?: string[];
+    skipPopulation?: boolean;
   }) => [...applicantsKeys.lists(), params] as const,
   detail: (id: string) => [...applicantsKeys.all, "detail", id] as const,
   rejectionInsights: (companyId?: string[]) => [...applicantsKeys.all, "rejection-insights", companyId] as const,
@@ -53,6 +55,8 @@ export function useApplicants(params?: {
   status?: string | string[];
   fields?: string | string[];
   enabled?: boolean;
+  search?: string;
+  skipPopulation?: boolean; // new param to skip population of related fields
 }) {
   const { user } = useAuth();
   const userCompanyIds = getUserCompanyIds(user);
@@ -64,14 +68,18 @@ export function useApplicants(params?: {
       jobPositionId: params?.jobPositionId,
       departmentId: params?.departmentId,
       status: params?.status,
+      search: params?.search,
       fields: params?.fields,
+      skipPopulation: params?.skipPopulation,
     }),
     queryFn: () => applicantsService.getAllApplicants({
       companyId: effectiveCompanyId,
       jobPositionId: params?.jobPositionId,
       departmentId: params?.departmentId,
       status: params?.status,
+      search: params?.search,
       fields: params?.fields,
+      skipPopulation: params?.skipPopulation,
     }),
     staleTime: 2 * 60 * 1000,
     enabled: params?.enabled ?? true,
