@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { CheckCircle2, ChevronDown, Loader2, X } from 'lucide-react';
 import { useDebounce } from '../../../hooks/useDebounce';
-import { useApplicants } from '../../../hooks/queries';
+import { useApplicants, useCompanies } from '../../../hooks/queries';
 
 type ApplicantOption = {
   _id: string;
@@ -12,12 +12,10 @@ type ApplicantOption = {
 export function ApplicantSelect({
   value,
   onChange,
-  companyId,
   inputCls,
 }: {
   value: string | null;
   onChange: (id: string | null) => void;
-  companyId: string;
   inputCls?: string;
 }) {
   const [search, setSearch] = useState('');
@@ -27,9 +25,10 @@ export function ApplicantSelect({
     useState<ApplicantOption | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const debouncedSearch = useDebounce(search, 500);
-
+  const { data: companiesData } = useCompanies();
+  const companyId = companiesData?.map((c) => c._id);
   const { data, isFetching } = useApplicants({
-    companyId: [companyId],
+    companyId: companyId,
     search: debouncedSearch,
     enabled: open && !!debouncedSearch.trim(),
     fields: '_id,fullName,email',
@@ -41,7 +40,7 @@ export function ApplicantSelect({
   // If editing an existing offer, value is set but selectedApplicant is null.
   // Try to resolve it from the current search results or fetch once.
   const { data: prefetchData } = useApplicants({
-    companyId: [companyId],
+    companyId: companyId,
     search: value ?? '',
     enabled: !!value && !selectedApplicant,
     fields: '_id,fullName,email',

@@ -1,17 +1,19 @@
-import { useState } from "react";
-import { JobOffer } from "../../../services/jobOffersService";
-import { useJobOfferTemplates } from "../../../hooks/queries/useJobOffers";
-import { ChevronDown, FileText } from "lucide-react";
+import { useState } from 'react';
+import { JobOffer } from '../../../services/jobOffersService';
+import { useJobOfferTemplates } from '../../../hooks/queries/useJobOffers';
+import { ChevronDown, FileText } from 'lucide-react';
+import { useCompanies } from '../../../hooks/queries';
 
 export function TemplateSelector({
-  companyId,
   onSelect,
 }: {
-  companyId: string;
   onSelect: (template: JobOffer) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const { data: templates = [], isLoading } = useJobOfferTemplates(companyId);
+  const { data } = useCompanies();
+  const companyId = data?.map((c) => c._id);
+  const { data: templatesData, isLoading } = useJobOfferTemplates(companyId);
+  const templates = templatesData?.data ?? [];
 
   if (templates.length === 0 && !isLoading) return null;
 

@@ -18,6 +18,7 @@ import {
   WorkType,
 } from '../../../services/jobOffersService';
 import {
+  useBulkCreateJobOffers,
   useCreateJobOffer,
   useUpdateJobOffer,
 } from '../../../hooks/queries/useJobOffers';
@@ -35,13 +36,17 @@ export type JobOfferModalProps = {
   isOpen: boolean;
   onClose: () => void;
   mode: ModalMode;
-  companyId: string;
+  companyId: string | string[];
   editing?: JobOffer | null;
-  /** Pre-selected applicant — for 'offer' mode */
-  applicantId?: string | null;
-  /** Pre-selected job position — for 'offer' mode */
+  applicantId?: string | null; // single pre-selected
   jobPositionId?: string | null;
   cloneFrom?: JobOffer | null;
+  applicantObjects?: {
+    _id: string;
+    fullName: string;
+    email?: string;
+    companyId: string;
+  }[]; // full objects of selected applicants (for bulk)
 };
 
 export type FormSectionItem = {
@@ -67,6 +72,8 @@ export type FormCommission = {
 
 export type FormState = {
   applicantId: string | null; // add this
+  applicantIds?: string[]; // bulk
+  isBulk?: boolean;
   position: string;
   workType: WorkType;
   workHours: string;
@@ -95,6 +102,8 @@ export const uid = () => `_${Math.random().toString(36).slice(2, 9)}`;
 const emptyForm = (): FormState => ({
   applicantId: null,
   position: '',
+  applicantIds: [],
+  isBulk: false,
   workType: 'full-time',
   workHours: '',
   salaryBasic: '',
@@ -190,12 +199,14 @@ export default function JobOfferModal({
   applicantId,
   jobPositionId,
   cloneFrom,
+  applicantObjects,
 }: JobOfferModalProps) {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [activeLang, setActiveLang] = useState<'en' | 'ar'>('en');
   const firstInputRef = useRef<HTMLInputElement>(null);
 
   const createMutation = useCreateJobOffer();
+  const bulkMutation = useBulkCreateJobOffers();
   const updateMutation = useUpdateJobOffer();
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
@@ -203,6 +214,8 @@ export default function JobOfferModal({
     setForm((prev) => ({
       ...offerToForm(template),
       applicantId: prev.applicantId, // keep whatever applicant was already selected
+      applicantIds: prev.applicantIds, // ← preserve bulk IDs
+      isBulk: prev.isBulk, // ← preserve bulk mode
     }));
   };
 
@@ -226,17 +239,25 @@ export default function JobOfferModal({
 
   useEffect(() => {
     if (isOpen) {
+      const ids = applicantObjects?.map((a) => a._id) ?? [];
+      const bulk = ids.length > 0;
+
       if (editing) {
         setForm(offerToForm(editing));
       } else if (cloneFrom) {
-        setForm({ ...offerToForm(cloneFrom), applicantId: null });
+        setForm({
+          ...offerToForm(cloneFrom),
+          applicantId: null,
+          applicantIds: [],
+          isBulk: bulk,
+        });
       } else {
-        setForm(emptyForm());
+        setForm({ ...emptyForm(), applicantIds: ids, isBulk: bulk });
       }
       setActiveLang('en');
       setTimeout(() => firstInputRef.current?.focus(), 80);
     }
-  }, [isOpen, editing, cloneFrom]);
+  }, [isOpen, editing, cloneFrom]); // ← applicantObjects intentionally omitted
 
   if (!isOpen) return null;
 
@@ -314,16 +335,11 @@ export default function JobOfferModal({
   const handleSubmit = async () => {
     if (!form.position.trim()) {
       Swal.fire('Validation', 'Position title is required.', 'warning');
-      firstInputRef.current?.focus();
       return;
     }
 
-    const payload = {
-      companyId,
+    const base = {
       isTemplate: mode === 'template',
-      ...(mode === 'offer' && (applicantId ?? form.applicantId)
-        ? { applicantId: applicantId ?? form.applicantId }
-        : {}),
       ...(mode === 'offer' && jobPositionId ? { jobPositionId } : {}),
       position: form.position.trim(),
       workType: form.workType,
@@ -348,13 +364,32 @@ export default function JobOfferModal({
 
     try {
       if (editing) {
-        await updateMutation.mutateAsync({ id: editing._id, payload });
+        await updateMutation.mutateAsync({ id: editing._id, payload: base });
+      } else if (
+        form.isBulk &&
+        form.applicantIds &&
+        form.applicantIds?.length > 0
+      ) {
+        await bulkMutation.mutateAsync({
+          ...base,
+          applicantIds: applicantObjects!.map(({ _id, companyId }) => ({
+            applicantId: _id,
+            companyId,
+          })),
+        });
       } else {
-        await createMutation.mutateAsync(payload);
+        const singleApplicantId = applicantId ?? form.applicantId;
+        await createMutation.mutateAsync({
+          ...base,
+          companyId: companyId as string,
+          ...(mode === 'offer' && singleApplicantId
+            ? { applicantId: singleApplicantId }
+            : {}),
+        });
       }
       onClose();
     } catch {
-      // errors handled inside mutation hooks via Swal
+      // handled in hooks
     }
   };
 
@@ -379,7 +414,7 @@ export default function JobOfferModal({
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+        className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm h-screen"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -427,19 +462,69 @@ export default function JobOfferModal({
           <div className="flex-1 space-y-6 overflow-y-auto px-6 py-6">
             {mode === 'offer' && (
               <TemplateSelector
-                companyId={companyId}
                 onSelect={applyTemplate}
               />
             )}
             {mode === 'offer' && !applicantId && (
               <div>
-                <Label>Applicant</Label>
-                <ApplicantSelect
-                  value={form.applicantId}
-                  onChange={(id) => set('applicantId', id)}
-                  companyId={companyId}
-                  inputCls={inputCls}
-                />
+                <Label>
+                  Applicant
+                  {form.isBulk
+                    ? `s (${form.applicantIds?.length} selected)`
+                    : ''}
+                </Label>
+                {form.isBulk ? (
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800">
+                    {/* Header */}
+                    <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2 dark:border-slate-700">
+                      <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                        {form.applicantIds?.length} applicant(s) selected
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setForm((prev) => ({
+                            ...prev,
+                            isBulk: false,
+                            applicantIds: [],
+                          }))
+                        }
+                        className="text-xs text-brand-600 hover:underline dark:text-brand-400"
+                      >
+                        Switch to single
+                      </button>
+                    </div>
+
+                    {/* Names list */}
+                    <ul className="max-h-36 divide-y divide-slate-100 overflow-y-auto dark:divide-slate-700/60">
+                      {(applicantObjects ?? []).map((a) => (
+                        <li
+                          key={a._id}
+                          className="flex items-center gap-2 px-3 py-2"
+                        >
+                          {/* Avatar circle */}
+                          <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-brand-500/10 text-[10px] font-bold text-brand-600 dark:text-brand-400">
+                            {a.fullName?.[0]?.toUpperCase() ?? '?'}
+                          </span>
+                          <span className="text-sm text-slate-700 dark:text-slate-300">
+                            {a.fullName}
+                          </span>
+                          {a.email && (
+                            <span className="ml-auto text-xs text-slate-400">
+                              {a.email}
+                            </span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <ApplicantSelect
+                    value={form.applicantId}
+                    onChange={(id) => set('applicantId', id)}
+                    inputCls={inputCls}
+                  />
+                )}
               </div>
             )}
             {/* ── SECTION: Core Info ── */}
