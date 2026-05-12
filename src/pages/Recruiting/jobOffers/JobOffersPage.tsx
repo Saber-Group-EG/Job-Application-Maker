@@ -32,6 +32,7 @@ import { jobOffersService } from '../../../services/jobOffersService';
 import type { JobOffer, OfferStatus } from '../../../services/jobOffersService';
 import Swal from '../../../utils/swal';
 import JobOfferModal from '../../../components/modals/JobOffersModal/JobOffersModal';
+import { useDebounce } from '../../../hooks/useDebounce';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -426,17 +427,18 @@ export default function JobOffersPage() {
 
   // ── Filters ────────────────────────────────────────────────────────────
   const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | OfferStatus>('all');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingOffer, setEditingOffer] = useState<JobOffer | null>(null);
-
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 500); // ← add this
   const queryParams = {
     companyId: companyFilter === 'all' ? companyId : [companyFilter],
     isTemplate: false as const,
     PageCount: LIMIT,
     page,
     ...(statusFilter !== 'all' ? { status: statusFilter } : {}),
+    ...(debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}), // ← add
   };
   // ── Data ───────────────────────────────────────────────────────────────
   const { data: offersData, isLoading, isFetching } = useJobOffers(queryParams);
@@ -459,8 +461,8 @@ export default function JobOffersPage() {
   // Reset page on filter change
   useEffect(() => {
     setPage(1);
-  }, [statusFilter, search, companyFilter]); // ← add companyFilter
-    
+  }, [statusFilter, debouncedSearch, companyFilter]); // ← add companyFilter
+
   // ── Mutations ──────────────────────────────────────────────────────────
   const deleteMutation = useDeleteJobOffer();
   const updateStatusMutation = useUpdateOfferStatus();
@@ -484,17 +486,7 @@ export default function JobOffersPage() {
   };
 
   // ── Client-side search filter ──────────────────────────────────────────
-  const visible = useMemo(() => {
-    if (!search.trim()) return offers;
-    const q = search.toLowerCase();
-    return offers.filter(
-      (o) =>
-        o.position.toLowerCase().includes(q) ||
-        (typeof o.applicantId === 'object' &&
-          o.applicantId?.fullName.toLowerCase().includes(q))
-    );
-  }, [offers, search]);
-
+  
   const selectedOffer = useMemo(
     () => offers.find((o) => o._id === selectedOfferId) ?? null,
     [offers, selectedOfferId]
@@ -621,7 +613,9 @@ export default function JobOffersPage() {
                   <option value="all">All Companies</option>
                   {companies.map((c) => (
                     <option key={c._id} value={c._id}>
-                      {typeof c.name === 'string' ? c.name : c.name?.en || c.name?.ar}
+                      {typeof c.name === 'string'
+                        ? c.name
+                        : c.name?.en || c.name?.ar}
                     </option>
                   ))}
                 </select>
@@ -652,7 +646,7 @@ export default function JobOffersPage() {
                     />
                   ))}
                 </div>
-              ) : visible.length === 0 ? (
+              ) : offers.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center py-20 text-center">
                   <div className="rounded-full bg-slate-100 p-4 dark:bg-slate-800">
                     <Briefcase className="h-8 w-8 text-slate-400" />
@@ -681,7 +675,7 @@ export default function JobOffersPage() {
                 <div
                   className={`divide-y divide-slate-100 dark:divide-slate-800 ${isFetching ? 'opacity-60' : ''}`}
                 >
-                  {visible.map((offer) => {
+                  {offers.map((offer) => {
                     const chip = STATUS_CHIP[offer.status];
                     const applicantName =
                       typeof offer.applicantId === 'object' &&
