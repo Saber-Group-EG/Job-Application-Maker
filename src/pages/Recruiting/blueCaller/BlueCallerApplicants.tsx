@@ -43,9 +43,9 @@ function getTailwindColorClass(company?: Company | null): {
 } {
   return {
     bgPrimary: 'bg-brand-500',
-    borderPrimary: 'border-brand-200',
+    borderPrimary: 'border-brand-100',
     textPrimary: 'text-brand-700',
-    bgLight: 'bg-brand-50',
+    bgLight: 'bg-gray-100',
     borderLight: 'border-brand-100',
     focusRing: 'focus:border-brand-500 focus:ring-brand-100',
     hoverBg: 'hover:bg-brand-600',
@@ -228,7 +228,7 @@ export default function BlueCallerApplicants() {
 
   return (
     <div
-      className={`min-h-screen ${themeColors.bgLight} px-4 py-6 text-gray-900 sm:px-6 lg:px-8`}
+      className={`min-h-screen bg-gray-100 px-4 py-6 text-gray-900 sm:px-6 lg:px-8`}
     >
       <PageMeta
         title="BlueCaller Applicants | Recruiting"

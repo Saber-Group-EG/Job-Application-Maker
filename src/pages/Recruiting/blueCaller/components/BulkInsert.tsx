@@ -807,43 +807,42 @@ export default function BulkInsert({ jobPositions, existingApplicants, themeColo
         </div>
 
         {/* Template Download Section */}
-        <div className={`rounded-2xl border ${themeColors.borderLight} ${themeColors.bgLight} p-4`}>
-          <h3 className="text-md font-semibold text-gray-900 mb-3">Download Template</h3>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Select Job Position</label>
-              <div className="relative">
-                <select
-                  value={selectedJobForTemplate}
-                  onChange={(e) => setSelectedJobForTemplate(e.target.value)}
-                  className={`w-full appearance-none rounded-xl border ${themeColors.borderPrimary} bg-white px-4 py-2 pr-10 text-sm shadow-sm outline-none transition ${themeColors.focusRing}`}
-                >
-                  <option value="">-- Select a job position --</option>
-                  {jobPositions.map((job) => (
-                    <option key={job._id} value={job._id}>
-                      {toStringValue(job.title) || job.jobCode || job._id}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={handleDownloadTemplate}
-              disabled={!selectedJobForTemplate}
-              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white shadow-lg transition ${
-                selectedJobForTemplate
-                  ? `${themeColors.bgPrimary} ${themeColors.hoverBg}`
-                  : 'bg-gray-300 cursor-not-allowed'
-              }`}
-              style={{ marginTop: 'auto', marginBottom: 'auto' }}
-            >
-              <Download className="h-4 w-4" />
-              Download Template
-            </button>
-          </div>
-        </div>
+       <div className={`rounded-2xl border ${themeColors.borderLight} ${themeColors.bgLight} p-4`}>
+  <h3 className="text-md font-semibold text-gray-900 mb-3">Download Template</h3>
+  <div className="flex flex-col sm:flex-row gap-3 items-end">
+    <div className="flex-1">
+      <label className="block text-sm font-medium text-gray-700 mb-1">Select Job Position</label>
+      <div className="relative">
+        <select
+          value={selectedJobForTemplate}
+          onChange={(e) => setSelectedJobForTemplate(e.target.value)}
+          className={`w-full appearance-none rounded-xl border ${themeColors.borderPrimary} bg-white px-4 py-2 pr-10 text-sm shadow-sm outline-none transition ${themeColors.focusRing}`}
+        >
+          <option value="">-- Select a job position --</option>
+          {jobPositions.map((job) => (
+            <option key={job._id} value={job._id}>
+              {toStringValue(job.title) || job.jobCode || job._id}
+            </option>
+          ))}
+        </select>
+        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+      </div>
+    </div>
+    <button
+      type="button"
+      onClick={handleDownloadTemplate}
+      disabled={!selectedJobForTemplate}
+      className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white shadow-lg transition ${
+        selectedJobForTemplate
+          ? `${themeColors.bgPrimary} ${themeColors.hoverBg}`
+          : 'bg-gray-300 cursor-not-allowed'
+      }`}
+    >
+      <Download className="h-4 w-4" />
+      Download Template
+    </button>
+  </div>
+</div>
 
         {/* Upload Section */}
         <div>
@@ -928,93 +927,95 @@ export default function BulkInsert({ jobPositions, existingApplicants, themeColo
       </section>
 
       <section className={`overflow-hidden rounded-3xl border ${themeColors.borderPrimary} bg-white shadow-xl flex flex-col`}>
-        <div className={`flex items-center justify-between border-b ${themeColors.borderLight} px-6 py-4 flex-shrink-0`}>
-          <div>
-            <h3 className="text-lg font-bold text-gray-900">Parsed Preview</h3>
-            <p className="text-sm text-gray-500">Inspect each row. Yellow rows have potential duplicates but can still be submitted.</p>
-          </div>
-          <div className={`rounded-full ${themeColors.bgLight} px-4 py-2 text-sm font-semibold ${themeColors.textPrimary}`}>
-            {bulkPreviewRows.length} rows × {allColumnHeaders.length} columns
-          </div>
-        </div>
+  <div className={`flex items-center justify-between border-b ${themeColors.borderLight} px-4 py-3 flex-shrink-0 flex-wrap gap-2`}>
+    <div>
+      <h3 className="text-base font-bold text-gray-900">Parsed Preview</h3>
+      <p className="text-xs text-gray-500">Yellow rows have potential duplicates but can still be submitted.</p>
+    </div>
+    <div className={`rounded-full ${themeColors.bgLight} px-3 py-1 text-xs font-semibold ${themeColors.textPrimary} whitespace-nowrap`}>
+      {bulkPreviewRows.length} rows × {allColumnHeaders.length} cols
+    </div>
+  </div>
 
-        <div className="overflow-auto flex-1" style={{ maxHeight: 'calc(100vh - 450px)', minHeight: '400px' }}>
-          <table className={`min-w-full divide-y ${themeColors.borderLight} text-left text-sm`}>
-            <thead className={`${themeColors.bgLight} text-gray-900 sticky top-0 z-10`}>
-              <tr>
-                <th className="px-4 py-3 font-semibold sticky left-0 bg-inherit z-20 shadow-sm" style={{ backgroundColor: '#f9fafb' }}>Row</th>
-                <th className="px-4 py-3 font-semibold sticky left-12 bg-inherit z-20 shadow-sm" style={{ backgroundColor: '#f9fafb' }}>Status</th>
-                <th className="px-4 py-3 font-semibold sticky left-24 bg-inherit z-20 shadow-sm" style={{ backgroundColor: '#f9fafb' }}>Issues</th>
+  <div className="overflow-auto flex-1" style={{ maxHeight: 'calc(100vh - 450px)', minHeight: '400px' }}>
+    <table className={`min-w-full divide-y ${themeColors.borderLight} text-left text-xs`}>
+      <thead className={`${themeColors.bgLight} text-gray-900 sticky top-0 z-10`}>
+        <tr>
+          <th className="px-2 py-2 font-semibold w-[50px]">#</th>
+          <th className="px-2 py-2 font-semibold w-[80px]">Status</th>
+          <th className="px-2 py-2 font-semibold w-[180px]">Issues</th>
+          {allColumnHeaders.map((header) => (
+            <th key={header} className="px-2 py-2 font-semibold max-w-[150px]">
+              <div className="truncate" title={header}>{header}</div>
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody className={`divide-y ${themeColors.borderLight} bg-white`}>
+        {bulkPreviewRows.length === 0 ? (
+          <tr>
+            <td className="px-2 py-8 text-center text-gray-500" colSpan={allColumnHeaders.length + 3}>
+              Upload an Excel file to preview applicant rows here.
+            </td>
+          </tr>
+        ) : (
+          bulkPreviewRows.map((row) => {
+            const rowStatus = getRowStatus(row);
+            const hasErrors = row.errors.length > 0;
+            const isDuplicate = !hasErrors && (row.hasDuplicate || row.warnings.length > 0);
+            
+            return (
+              <tr 
+                key={`${row.rowNumber}-${row.email}`} 
+                className={
+                  hasErrors ? 'bg-red-50/50' : 
+                  isDuplicate ? 'bg-amber-50/50' : 
+                  'bg-emerald-50/40'
+                }
+              >
+                <td className="px-2 py-2 font-medium text-gray-700 text-center">
+                  {row.rowNumber}
+                </td>
+                <td className="px-2 py-2">
+                  <span className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold whitespace-nowrap ${rowStatus.color}`}>
+                    {rowStatus.icon}
+                    {rowStatus.status}
+                  </span>
+                </td>
+                <td className="px-2 py-2">
+                  {hasErrors ? (
+                    <div className="text-[10px] text-red-600 truncate max-w-[160px]" title={row.errors.join(', ')}>
+                      {row.errors[0]}{row.errors.length > 1 ? ` +${row.errors.length - 1}` : ''}
+                    </div>
+                  ) : isDuplicate ? (
+                    <div className="text-[10px] text-amber-600 truncate max-w-[160px]" title={row.warnings.join(', ')}>
+                      ⚠️ {row.warnings[0]}{row.warnings.length > 1 ? ` +${row.warnings.length - 1}` : ''}
+                    </div>
+                  ) : (
+                    <span className="text-emerald-600 text-[10px] whitespace-nowrap">✓ Ready</span>
+                  )}
+                </td>
                 {allColumnHeaders.map((header) => (
-                  <th key={header} className="px-4 py-3 font-semibold min-w-[150px]">{header}</th>
+                  <td key={header} className="px-2 py-2 text-gray-700 max-w-[150px]">
+                    <div className="truncate" title={formatCellValue(row.allData?.[header])}>
+                      {formatCellValue(row.allData?.[header])}
+                    </div>
+                  </td>
                 ))}
               </tr>
-            </thead>
-            <tbody className={`divide-y ${themeColors.borderLight} bg-white`}>
-              {bulkPreviewRows.length === 0 ? (
-                <tr>
-                  <td className="px-4 py-8 text-center text-gray-500" colSpan={allColumnHeaders.length + 3}>
-                    Upload an Excel file to preview applicant rows here.
-                  </td>
-                </tr>
-              ) : (
-                bulkPreviewRows.map((row) => {
-                  const rowStatus = getRowStatus(row);
-                  const hasErrors = row.errors.length > 0;
-                  const isDuplicate = !hasErrors && (row.hasDuplicate || row.warnings.length > 0);
-                  
-                  return (
-                    <tr 
-                      key={`${row.rowNumber}-${row.email}`} 
-                      className={
-                        hasErrors ? 'bg-red-50/50' : 
-                        isDuplicate ? 'bg-amber-50/50' : 
-                        'bg-emerald-50/40'
-                      }
-                    >
-                      <td className="px-4 py-3 font-semibold text-gray-700 sticky left-0 bg-inherit z-10 whitespace-nowrap" style={{ backgroundColor: 'inherit' }}>
-                        {row.rowNumber}
-                      </td>
-                      <td className="px-4 py-3 sticky left-12 bg-inherit z-10" style={{ backgroundColor: 'inherit' }}>
-                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${rowStatus.color}`}>
-                          {rowStatus.icon}
-                          {rowStatus.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm sticky left-24 bg-inherit z-10 min-w-[200px] max-w-[300px]" style={{ backgroundColor: 'inherit' }}>
-                        {hasErrors ? (
-                          <ul className="space-y-0.5 text-xs text-red-600">
-                            {row.errors.slice(0, 2).map((error) => <li key={error}>• {error}</li>)}
-                            {row.errors.length > 2 && <li>• +{row.errors.length - 2} more</li>}
-                          </ul>
-                        ) : isDuplicate ? (
-                          <ul className="space-y-0.5 text-xs text-amber-600">
-                            {row.warnings.slice(0, 2).map((warning) => <li key={warning}>⚠️ {warning}</li>)}
-                            {row.warnings.length > 2 && <li>⚠️ +{row.warnings.length - 2} more warnings</li>}
-                          </ul>
-                        ) : (
-                          <span className="text-emerald-600 text-xs">✓ Ready to submit</span>
-                        )}
-                       </td>
-                      {allColumnHeaders.map((header) => (
-                        <td key={header} className="px-4 py-3 text-gray-700 whitespace-nowrap">
-                          {formatCellValue(row.allData?.[header])}
-                         </td>
-                      ))}
-                     </tr>
-                  );
-                })
-              )}
-            </tbody>
-           </table>
-        </div>
-        
-        {allColumnHeaders.length > 8 && (
-          <div className={`border-t ${themeColors.borderLight} px-4 py-2 text-center text-xs text-gray-400 flex-shrink-0`}>
-            <span className="inline-flex items-center gap-1">← Scroll horizontally to see all {allColumnHeaders.length} columns →</span>
-          </div>
+            );
+          })
         )}
-      </section>
+      </tbody>
+    </table>
+  </div>
+  
+  {allColumnHeaders.length > 6 && (
+    <div className={`border-t ${themeColors.borderLight} px-3 py-1.5 text-center text-[10px] text-gray-400 flex-shrink-0`}>
+      <span className="inline-flex items-center gap-1">← Scroll → {allColumnHeaders.length} columns total</span>
+    </div>
+  )}
+</section>
     </div>
   );
 }

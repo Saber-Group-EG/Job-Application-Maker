@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import axiosInstance from '../../../../config/axios';
 import Swal from '../../../../utils/swal';
+import { toPlainString } from '../../../../utils/strings';
 import type { Applicant } from '../../../../types/applicants';
 import type { JobPosition } from '../../../../types/jobPositions';
 
@@ -79,6 +80,18 @@ interface ManualInsertProps {
   onSuccess: () => void;
 }
 
+// Helper to get string value from title (handles object with en/ar)
+function getJobTitle(job: JobPosition): string {
+  const title = job.title;
+  if (!title) return job.jobCode || job._id;
+  if (typeof title === 'string') return title;
+  if (typeof title === 'object') {
+    // Return English version by default, fallback to Arabic
+    return (title as { en?: string; ar?: string }).en || (title as { ar?: string }).ar || job.jobCode || job._id;
+  }
+  return job.jobCode || job._id;
+}
+
 function isFieldVisible(jobPosition: JobPosition | null, fieldName: FieldConfigKey): boolean {
   if (!jobPosition?.fieldConfig) return true;
   const config = jobPosition.fieldConfig as Record<string, { visible?: boolean; required?: boolean }>;
@@ -107,15 +120,15 @@ function flattenCustomFields(jobPosition?: JobPosition | null): CustomFieldDefin
     const choiceRecord =
       choice && typeof choice === 'object' ? (choice as Record<string, unknown>) : {};
     return {
-      label: String(choiceRecord.label ?? choiceRecord.en ?? choiceRecord.value ?? choice),
-      value: String(choiceRecord.value ?? choiceRecord.en ?? choiceRecord.label ?? choice),
+      label: toPlainString(choiceRecord.label ?? choiceRecord.en ?? choiceRecord.value ?? choice),
+      value: toPlainString(choiceRecord.value ?? choiceRecord.en ?? choiceRecord.label ?? choice),
     };
   };
 
   (jobPosition?.customFields || []).forEach((field: unknown, index: number) => {
     if (!field) return;
     const fieldRecord = field as Record<string, unknown>;
-    const baseLabel = String(fieldRecord.label) || String(fieldRecord.fieldId || `Field ${index + 1}`);
+    const baseLabel = toPlainString(fieldRecord.label) || String(fieldRecord.fieldId || `Field ${index + 1}`);
     const inputType = String(fieldRecord.inputType || 'text');
 
     const baseDefinition: CustomFieldDefinition = {
@@ -142,7 +155,7 @@ function flattenCustomFields(jobPosition?: JobPosition | null): CustomFieldDefin
           const groupRecord = groupField as Record<string, unknown>;
           return {
             fieldId: String(groupRecord.fieldId || `${baseDefinition.fieldId}_group_${groupIndex}`),
-            label: String(groupRecord.label) || `Field ${groupIndex + 1}`,
+            label: toPlainString(groupRecord.label) || `Field ${groupIndex + 1}`,
             inputType: String(groupRecord.inputType || 'text'),
             isRequired: Boolean(groupRecord.isRequired),
             defaultValue: groupRecord.defaultValue ? String(groupRecord.defaultValue) : '',
@@ -894,8 +907,18 @@ export default function ManualInsert({
     phone: manualForm.phone,
   });
 
-  const jobTitle = selectedJobPosition ? String(selectedJobPosition.title) : '';
-  const jobDescription = selectedJobPosition ? String(selectedJobPosition.description) : '';
+  const jobTitle = selectedJobPosition ? getJobTitle(selectedJobPosition) : '';
+  // Get job description as string
+  const getJobDescription = (job: JobPosition | null): string => {
+    if (!job?.description) return '';
+    const desc = job.description;
+    if (typeof desc === 'string') return desc;
+    if (typeof desc === 'object') {
+      return (desc as { en?: string; ar?: string }).en || (desc as { ar?: string }).ar || '';
+    }
+    return '';
+  };
+  const jobDescription = getJobDescription(selectedJobPosition);
 
   return (
     <div className="grid gap-6 xl:grid-cols-[1.4fr_0.9fr]">
@@ -956,7 +979,7 @@ export default function ManualInsert({
               <select value={manualForm.jobPositionId} onChange={(e) => setManualForm((prev) => ({ ...prev, jobPositionId: e.target.value }))} className={`w-full appearance-none rounded-xl border ${themeColors.borderPrimary} bg-white px-4 py-3 pr-12 shadow-sm outline-none transition ${themeColors.focusRing}`}>
                 <option value="">Select job position</option>
                 {jobPositions.map((job) => (
-                  <option key={job._id} value={job._id}>{String(job.title) || job.jobCode || job._id}</option>
+                  <option key={job._id} value={job._id}>{getJobTitle(job)}</option>
                 ))}
               </select>
               <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -1064,7 +1087,14 @@ export default function ManualInsert({
             <div className="grid gap-3 md:grid-cols-2">
               {jobSpecDefinitions.map((spec: { jobSpecId?: string; spec?: unknown }, index: number) => {
                 const specId = String(spec?.jobSpecId || `spec_${index}`);
-                const label = String(spec?.spec) || `Job spec ${index + 1}`;
+                const specValue = spec?.spec;
+                let label = `Job spec ${index + 1}`;
+                if (specValue) {
+                  if (typeof specValue === 'string') label = specValue;
+                  else if (typeof specValue === 'object') {
+                    label = (specValue as { en?: string; ar?: string }).en || (specValue as { ar?: string }).ar || label;
+                  }
+                }
                 const answer = manualJobSpecValues[specId] ?? false;
                 return (
                   <label key={specId} className={`rounded-2xl border ${themeColors.borderLight} ${themeColors.bgLight} p-4 text-sm font-medium text-gray-700`}>
