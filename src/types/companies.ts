@@ -24,6 +24,7 @@ export type CompanySet = {
   statuses?: CompanyStatus[];
   _id?: string;
   company: string;
+  mailSettings?: MailSettings;
 };
 
 export interface Company {

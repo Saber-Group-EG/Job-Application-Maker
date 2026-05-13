@@ -11,10 +11,13 @@ import {
   Languages,
   StickyNote,
   Hash,
+  Mail,
+  Send,
 } from 'lucide-react';
 import {
   CommissionType,
   JobOffer,
+  OfferStatus,
   WorkType,
 } from '../../../services/jobOffersService';
 import {
@@ -27,6 +30,11 @@ import { ApplicantSelect } from './ApplicantSelection';
 import { TemplateSelector } from './TemplateSelector';
 import { SectionBlock } from './SectionBlock';
 import { CommissionRow } from './CommissionRow';
+import {
+  useJobOfferEmail,
+  EmailSettingsPanel,
+  type ApplicantObject,
+} from './EmailModule';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -37,16 +45,12 @@ export type JobOfferModalProps = {
   onClose: () => void;
   mode: ModalMode;
   companyId: string | string[];
+  company?: string;
   editing?: JobOffer | null;
-  applicantId?: string | null; // single pre-selected
+  applicantId?: string | null;
   jobPositionId?: string | null;
   cloneFrom?: JobOffer | null;
-  applicantObjects?: {
-    _id: string;
-    fullName: string;
-    email?: string;
-    companyId: string;
-  }[]; // full objects of selected applicants (for bulk)
+  applicantObjects?: ApplicantObject[];
 };
 
 export type FormSectionItem = {
@@ -71,8 +75,14 @@ export type FormCommission = {
 };
 
 export type FormState = {
-  applicantId: string | null; // add this
-  applicantIds?: string[]; // bulk
+  applicantId: string | null;
+  selectedApplicantObject?: {
+    _id: string;
+    fullName: string;
+    email: string;
+    jobPositionId?: { _id: string; companyId: { _id: string } } | null;
+  } | null;
+  applicantIds?: string[];
   isBulk?: boolean;
   position: string;
   workType: WorkType;
@@ -82,6 +92,8 @@ export type FormState = {
   commissions: FormCommission[];
   sections: FormSection[];
   notes: string;
+  sendAsEmail: boolean;
+  senderByCompany: Record<string, string>;
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -111,6 +123,9 @@ const emptyForm = (): FormState => ({
   commissions: [],
   sections: [],
   notes: '',
+  sendAsEmail: false,
+  senderByCompany: {},
+  selectedApplicantObject: null,
 });
 
 const offerToForm = (offer: JobOffer): FormState => ({
@@ -134,6 +149,9 @@ const offerToForm = (offer: JobOffer): FormState => ({
     displayOrder: idx,
   })),
   notes: offer.notes ?? '',
+  sendAsEmail: false,
+  senderByCompany: {},
+  selectedApplicantObject: offer.applicantId,
 });
 
 // ─── Small reusable atoms ─────────────────────────────────────────────────────
@@ -167,7 +185,7 @@ function SectionDivider({
   );
 }
 
-function Label({
+function ModalLabel({
   children,
   required,
 }: {
@@ -194,7 +212,7 @@ export default function JobOfferModal({
   isOpen,
   onClose,
   mode,
-  companyId,
+  company: propCompany,
   editing,
   applicantId,
   jobPositionId,
@@ -205,21 +223,46 @@ export default function JobOfferModal({
   const [activeLang, setActiveLang] = useState<'en' | 'ar'>('en');
   const firstInputRef = useRef<HTMLInputElement>(null);
 
+  // ── Mutations ──────────────────────────────────────────────────────────────
   const createMutation = useCreateJobOffer();
   const bulkMutation = useBulkCreateJobOffers();
   const updateMutation = useUpdateJobOffer();
-  const isSaving = createMutation.isPending || updateMutation.isPending;
 
+  // ── Email ──────────────────────────────────────────────────────────────────
+  const {
+    sendersByCompany,
+    groupedByCompany,
+    sendSingleOfferEmail,
+    sendBulkOfferEmail,
+    isPending: isEmailPending,
+  } = useJobOfferEmail({
+    propCompany,
+    form,
+    setForm,
+    applicantObjects,
+    jobPositionId,
+  });
+
+  const isSaving =
+    createMutation.isPending ||
+    updateMutation.isPending ||
+    bulkMutation.isPending ||
+    isEmailPending;
+
+  // ── Template apply ─────────────────────────────────────────────────────────
   const applyTemplate = (template: JobOffer) => {
     setForm((prev) => ({
       ...offerToForm(template),
-      applicantId: prev.applicantId, // keep whatever applicant was already selected
-      applicantIds: prev.applicantIds, // ← preserve bulk IDs
-      isBulk: prev.isBulk, // ← preserve bulk mode
+      applicantId: prev.applicantId,
+      applicantIds: prev.applicantIds,
+      selectedApplicantObject: prev.selectedApplicantObject,
+      isBulk: prev.isBulk,
+      sendAsEmail: prev.sendAsEmail,
+      senderByCompany: prev.senderByCompany,
     }));
   };
 
-  // Trap Escape key
+  // ── Keyboard + scroll lock ─────────────────────────────────────────────────
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (e: KeyboardEvent) => {
@@ -229,7 +272,6 @@ export default function JobOfferModal({
     return () => window.removeEventListener('keydown', onKey);
   }, [isOpen, onClose]);
 
-  // Prevent body scroll
   useEffect(() => {
     document.body.style.overflow = isOpen ? 'hidden' : '';
     return () => {
@@ -237,19 +279,22 @@ export default function JobOfferModal({
     };
   }, [isOpen]);
 
+  // ── Init form on open ──────────────────────────────────────────────────────
   useEffect(() => {
     if (isOpen) {
       const ids = applicantObjects?.map((a) => a._id) ?? [];
       const bulk = ids.length > 0;
 
       if (editing) {
-        setForm(offerToForm(editing));
+        setForm({ ...offerToForm(editing), senderByCompany: {} });
       } else if (cloneFrom) {
         setForm({
           ...offerToForm(cloneFrom),
           applicantId: null,
           applicantIds: [],
           isBulk: bulk,
+          sendAsEmail: false,
+          senderByCompany: {},
         });
       } else {
         setForm({ ...emptyForm(), applicantIds: ids, isBulk: bulk });
@@ -257,7 +302,7 @@ export default function JobOfferModal({
       setActiveLang('en');
       setTimeout(() => firstInputRef.current?.focus(), 80);
     }
-  }, [isOpen, editing, cloneFrom]); // ← applicantObjects intentionally omitted
+  }, [isOpen, editing, cloneFrom]);
 
   if (!isOpen) return null;
 
@@ -296,23 +341,25 @@ export default function JobOfferModal({
       form.sections.filter((s) => s._id !== id)
     );
 
-  const addSection = () => {
-    const newSection: FormSection = {
-      _id: uid(),
-      title: { en: '', ar: '' },
-      items: [],
-      displayOrder: form.sections.length,
-    };
-    set('sections', [...form.sections, newSection]);
-  };
+  const addSection = () =>
+    set('sections', [
+      ...form.sections,
+      {
+        _id: uid(),
+        title: { en: '', ar: '' },
+        items: [],
+        displayOrder: form.sections.length,
+      },
+    ]);
 
   const duplicateCommission = (id: string) => {
     const target = form.commissions.find((c) => c._id === id);
     if (!target) return;
-    const clone = { ...target, _id: uid() };
-    const idx = form.commissions.findIndex((c) => c._id === id);
     const next = [...form.commissions];
-    next.splice(idx + 1, 0, clone);
+    next.splice(next.findIndex((c) => c._id === id) + 1, 0, {
+      ...target,
+      _id: uid(),
+    });
     set('commissions', next);
   };
 
@@ -324,9 +371,8 @@ export default function JobOfferModal({
       _id: uid(),
       items: target.items.map((i) => ({ ...i, _id: uid() })),
     };
-    const idx = form.sections.findIndex((s) => s._id === id);
     const next = [...form.sections];
-    next.splice(idx + 1, 0, clone);
+    next.splice(next.findIndex((s) => s._id === id) + 1, 0, clone);
     set('sections', next);
   };
 
@@ -337,6 +383,24 @@ export default function JobOfferModal({
       Swal.fire('Validation', 'Position title is required.', 'warning');
       return;
     }
+
+    const willSendEmail = form.sendAsEmail && mode === 'offer';
+
+    if (willSendEmail) {
+      const missingSender = Object.keys(groupedByCompany).find(
+        (cid) => !form.senderByCompany[cid]
+      );
+      if (missingSender) {
+        Swal.fire(
+          'Validation',
+          'Please select a sender address for every company group before sending.',
+          'warning'
+        );
+        return;
+      }
+    }
+
+    const now = new Date();
 
     const base = {
       isTemplate: mode === 'template',
@@ -360,42 +424,53 @@ export default function JobOfferModal({
         items: items.map(({ _id: _i, ...item }) => item),
       })),
       notes: form.notes.trim() || null,
+      ...(willSendEmail
+        ? {
+            status: 'sent' as OfferStatus,
+            emailSent: true,
+            sentAt: now,
+            lastEmailSentAt: now,
+          }
+        : {}),
     };
 
     try {
       if (editing) {
         await updateMutation.mutateAsync({ id: editing._id, payload: base });
-      } else if (
-        form.isBulk &&
-        form.applicantIds &&
-        form.applicantIds?.length > 0
-      ) {
+        if (willSendEmail) await sendSingleOfferEmail();
+      } else if (form.isBulk && form.applicantIds?.length) {
         await bulkMutation.mutateAsync({
           ...base,
-          applicantIds: applicantObjects!.map(({ _id, companyId }) => ({
-            applicantId: _id,
-            companyId,
-          })),
+          applicantIds: applicantObjects!.map(
+            ({ _id, jobPositionId: cid }) => ({
+              applicantId: _id!,
+              companyId: cid?.companyId?._id!,
+            })
+          ),
         });
+        if (willSendEmail) await sendBulkOfferEmail();
       } else {
         const singleApplicantId = applicantId ?? form.applicantId;
         await createMutation.mutateAsync({
           ...base,
-          companyId: companyId as string,
+          companyId:
+            form.selectedApplicantObject?.jobPositionId?.companyId._id!,
           ...(mode === 'offer' && singleApplicantId
             ? { applicantId: singleApplicantId }
             : {}),
         });
+        if (willSendEmail) await sendSingleOfferEmail();
       }
       onClose();
     } catch {
-      // handled in hooks
+      // errors handled inside individual mutation hooks
     }
   };
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // ── Derived labels ─────────────────────────────────────────────────────────
 
   const isTemplate = mode === 'template';
+
   const title = editing
     ? isTemplate
       ? 'Edit Offer Template'
@@ -405,11 +480,16 @@ export default function JobOfferModal({
       : 'New Job Offer';
 
   const submitLabel = editing
-    ? 'Save Changes'
+    ? form.sendAsEmail && mode === 'offer'
+      ? 'Save & Resend'
+      : 'Save Changes'
     : isTemplate
       ? 'Create Template'
-      : 'Create Offer';
+      : form.sendAsEmail
+        ? 'Create & Send'
+        : 'Create Offer';
 
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <>
       {/* Backdrop */}
@@ -419,7 +499,6 @@ export default function JobOfferModal({
         aria-hidden="true"
       />
 
-      {/* Modal */}
       <div
         role="dialog"
         aria-modal="true"
@@ -431,7 +510,7 @@ export default function JobOfferModal({
           onClick={(e) => e.stopPropagation()}
           className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900"
         >
-          {/* ── Modal Header ── */}
+          {/* ── Header ── */}
           <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 px-6 py-5 dark:border-slate-800">
             <div className="flex items-center gap-3">
               <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400">
@@ -451,31 +530,27 @@ export default function JobOfferModal({
             <button
               type="button"
               onClick={onClose}
-              tabIndex={0}
               className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:border-slate-700 dark:hover:bg-slate-800"
             >
               <X className="size-4" />
             </button>
           </div>
 
-          {/* ── Scrollable Body ── */}
+          {/* ── Scrollable body ── */}
           <div className="flex-1 space-y-6 overflow-y-auto px-6 py-6">
-            {mode === 'offer' && (
-              <TemplateSelector
-                onSelect={applyTemplate}
-              />
-            )}
+            {mode === 'offer' && <TemplateSelector onSelect={applyTemplate} />}
+
+            {/* Applicant selector */}
             {mode === 'offer' && !applicantId && (
               <div>
-                <Label>
+                <ModalLabel>
                   Applicant
                   {form.isBulk
                     ? `s (${form.applicantIds?.length} selected)`
                     : ''}
-                </Label>
+                </ModalLabel>
                 {form.isBulk ? (
                   <div className="rounded-lg border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800">
-                    {/* Header */}
                     <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2 dark:border-slate-700">
                       <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                         {form.applicantIds?.length} applicant(s) selected
@@ -494,15 +569,12 @@ export default function JobOfferModal({
                         Switch to single
                       </button>
                     </div>
-
-                    {/* Names list */}
                     <ul className="max-h-36 divide-y divide-slate-100 overflow-y-auto dark:divide-slate-700/60">
                       {(applicantObjects ?? []).map((a) => (
                         <li
                           key={a._id}
                           className="flex items-center gap-2 px-3 py-2"
                         >
-                          {/* Avatar circle */}
                           <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-brand-500/10 text-[10px] font-bold text-brand-600 dark:text-brand-400">
                             {a.fullName?.[0]?.toUpperCase() ?? '?'}
                           </span>
@@ -521,41 +593,41 @@ export default function JobOfferModal({
                 ) : (
                   <ApplicantSelect
                     value={form.applicantId}
-                    onChange={(id) => set('applicantId', id)}
+                    onChange={(id, applicant) => {
+                      set('applicantId', id);
+                      set('selectedApplicantObject', applicant ?? null);
+                    }}
                     inputCls={inputCls}
                   />
                 )}
               </div>
             )}
-            {/* ── SECTION: Core Info ── */}
+
+            {/* ── Core Info ── */}
             <SectionDivider
               icon={Briefcase}
               title="Core Information"
               description="Position title, type, and working hours"
             />
 
-            {/* Position */}
             <div>
-              <Label required>Position Title</Label>
+              <ModalLabel required>Position Title</ModalLabel>
               <input
                 ref={firstInputRef}
                 className={inputCls}
                 value={form.position}
                 onChange={(e) => set('position', e.target.value)}
                 placeholder="e.g. Senior Sales Representative"
-                tabIndex={0}
               />
             </div>
 
-            {/* Work type + Work hours side by side */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Work Type</Label>
+                <ModalLabel>Work Type</ModalLabel>
                 <select
                   className={selectCls}
                   value={form.workType}
                   onChange={(e) => set('workType', e.target.value as WorkType)}
-                  tabIndex={0}
                 >
                   {WORK_TYPES.map((w) => (
                     <option key={w.value} value={w.value}>
@@ -565,7 +637,7 @@ export default function JobOfferModal({
                 </select>
               </div>
               <div>
-                <Label>Work Hours</Label>
+                <ModalLabel>Work Hours</ModalLabel>
                 <div className="relative">
                   <Clock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
                   <input
@@ -573,13 +645,12 @@ export default function JobOfferModal({
                     value={form.workHours}
                     onChange={(e) => set('workHours', e.target.value)}
                     placeholder="e.g. 8 flexible hours"
-                    tabIndex={0}
                   />
                 </div>
               </div>
             </div>
 
-            {/* ── SECTION: Salary ── */}
+            {/* ── Salary ── */}
             <SectionDivider
               icon={DollarSign}
               title="Salary"
@@ -588,7 +659,7 @@ export default function JobOfferModal({
 
             <div className="grid grid-cols-[1fr_120px] gap-4">
               <div>
-                <Label>Basic Salary</Label>
+                <ModalLabel>Basic Salary</ModalLabel>
                 <div className="relative">
                   <DollarSign className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
                   <input
@@ -603,17 +674,15 @@ export default function JobOfferModal({
                       )
                     }
                     placeholder="0"
-                    tabIndex={0}
                   />
                 </div>
               </div>
               <div>
-                <Label>Currency</Label>
+                <ModalLabel>Currency</ModalLabel>
                 <select
                   className={selectCls}
                   value={form.salaryCurrency}
                   onChange={(e) => set('salaryCurrency', e.target.value)}
-                  tabIndex={0}
                 >
                   {CURRENCIES.map((c) => (
                     <option key={c} value={c}>
@@ -624,7 +693,7 @@ export default function JobOfferModal({
               </div>
             </div>
 
-            {/* ── SECTION: Commissions ── */}
+            {/* ── Commissions ── */}
             <SectionDivider
               icon={Percent}
               title="Commission Tiers"
@@ -639,14 +708,12 @@ export default function JobOfferModal({
                   index={idx}
                   onChange={(patch) => patchCommission(c._id, patch)}
                   onRemove={() => removeCommission(c._id)}
-                  onDuplicate={() => duplicateCommission(c._id)} // ← add
+                  onDuplicate={() => duplicateCommission(c._id)}
                 />
               ))}
-
               <button
                 type="button"
                 onClick={addCommission}
-                tabIndex={0}
                 className="inline-flex items-center gap-2 rounded-lg border border-dashed border-slate-300 px-3 py-2 text-sm font-semibold text-slate-500 transition hover:border-brand-400 hover:text-brand-600 dark:border-slate-600 dark:text-slate-400 dark:hover:border-brand-500 dark:hover:text-brand-300"
               >
                 <Plus className="size-4" />
@@ -654,14 +721,13 @@ export default function JobOfferModal({
               </button>
             </div>
 
-            {/* ── SECTION: Sections ── */}
+            {/* ── Offer Sections ── */}
             <SectionDivider
               icon={Hash}
               title="Offer Sections"
               description="Custom bilingual content blocks (benefits, terms, etc.)"
             />
 
-            {/* Global lang toggle — only relevant for items column hint */}
             {form.sections.length > 0 && (
               <div className="flex items-center gap-2">
                 <span className="text-xs text-slate-500">
@@ -672,7 +738,6 @@ export default function JobOfferModal({
                     <button
                       key={lang}
                       type="button"
-                      tabIndex={0}
                       onClick={() => setActiveLang(lang)}
                       className={`flex items-center gap-1 px-3 py-1 text-xs font-semibold transition ${
                         activeLang === lang
@@ -701,15 +766,13 @@ export default function JobOfferModal({
                   activeLang={activeLang}
                   onChange={(patch) => patchSection(s._id, patch)}
                   onRemove={() => removeSection(s._id)}
-                  onDuplicate={() => duplicateSection(s._id)} // ← add
+                  onDuplicate={() => duplicateSection(s._id)}
                   inputCls={inputCls}
                 />
               ))}
-
               <button
                 type="button"
                 onClick={addSection}
-                tabIndex={0}
                 className="inline-flex items-center gap-2 rounded-lg border border-dashed border-slate-300 px-3 py-2 text-sm font-semibold text-slate-500 transition hover:border-brand-400 hover:text-brand-600 dark:border-slate-600 dark:text-slate-400 dark:hover:border-brand-500 dark:hover:text-brand-300"
               >
                 <Plus className="size-4" />
@@ -717,7 +780,7 @@ export default function JobOfferModal({
               </button>
             </div>
 
-            {/* ── SECTION: Notes ── */}
+            {/* ── Internal Notes ── */}
             <SectionDivider
               icon={StickyNote}
               title="Internal Notes"
@@ -730,37 +793,83 @@ export default function JobOfferModal({
               value={form.notes}
               onChange={(e) => set('notes', e.target.value)}
               placeholder="Any internal notes or context for this offer..."
-              tabIndex={0}
             />
 
-            {/* Bottom padding so last field isn't hidden behind footer */}
+            {/* ── Email Settings ── */}
+            {mode === 'offer' && form.sendAsEmail && (
+              <EmailSettingsPanel
+                form={form}
+                isBulk={!!form.isBulk}
+                sendersByCompany={sendersByCompany}
+                groupedByCompany={groupedByCompany}
+                onSenderChange={(senderByCompany) =>
+                  set('senderByCompany', senderByCompany)
+                }
+              />
+            )}
+
             <div className="h-2" />
           </div>
 
-          {/* ── Modal Footer ── */}
-          <div className="flex shrink-0 items-center justify-end gap-3 border-t border-slate-200 bg-slate-50/80 px-6 py-4 dark:border-slate-800 dark:bg-slate-900/80">
-            <button
-              type="button"
-              onClick={onClose}
-              tabIndex={0}
-              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={isSaving}
-              tabIndex={0}
-              className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-2 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isSaving ? (
-                <div className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-              ) : (
-                <FileText className="size-4" />
-              )}
-              {submitLabel}
-            </button>
+          {/* ── Footer ── */}
+          <div className="flex shrink-0 items-center justify-between gap-3 border-t border-slate-200 bg-slate-50/80 px-6 py-4 dark:border-slate-800 dark:bg-slate-900/80">
+            {mode === 'offer' ? (
+              <label className="flex cursor-pointer select-none items-center gap-2.5">
+                <div className="relative">
+                  <input
+                    type="checkbox"
+                    className="peer sr-only"
+                    checked={form.sendAsEmail}
+                    onChange={(e) => set('sendAsEmail', e.target.checked)}
+                  />
+                  <div className="h-5 w-9 rounded-full bg-slate-200 transition peer-checked:bg-brand-500 dark:bg-slate-700 peer-checked:dark:bg-brand-500" />
+                  <div className="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition peer-checked:translate-x-4" />
+                </div>
+                <Mail className="size-3.5 text-slate-400" />
+                <span className="text-sm font-medium text-slate-600 dark:text-slate-400">
+                  Send as email
+                </span>
+                {editing && (editing as any).lastEmailSentAt && (
+                  <span className="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                    Last sent{' '}
+                    {new Date(
+                      (editing as any).lastEmailSentAt
+                    ).toLocaleDateString(undefined, {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric',
+                    })}
+                  </span>
+                )}
+              </label>
+            ) : (
+              <div />
+            )}
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={isSaving}
+                className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-2 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isSaving ? (
+                  <div className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                ) : form.sendAsEmail && mode === 'offer' ? (
+                  <Send className="size-4" />
+                ) : (
+                  <FileText className="size-4" />
+                )}
+                {submitLabel}
+              </button>
+            </div>
           </div>
         </div>
       </div>

@@ -4,17 +4,14 @@ import {
   PlusCircle,
   FileText,
   DollarSign,
-  Clock,
   ChevronLeft,
   ChevronRight,
   Search,
   Briefcase,
   Copy,
   Trash2,
-  ArrowLeft,
   CheckCircle2,
   XCircle,
-  Clock3,
   Send,
   AlertCircle,
   Hash,
@@ -33,6 +30,9 @@ import type { JobOffer, OfferStatus } from '../../../services/jobOffersService';
 import Swal from '../../../utils/swal';
 import JobOfferModal from '../../../components/modals/JobOffersModal/JobOffersModal';
 import { useDebounce } from '../../../hooks/useDebounce';
+import { SidebarNavItem } from './SidebarNavItem';
+import { OfferDetail } from './OfferDetail';
+import { ResendModal } from './OffersActions';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -51,7 +51,7 @@ const STATUS_OPTIONS: Array<{
   { key: 'expired', label: 'Expired', icon: AlertCircle },
 ];
 
-const STATUS_CHIP: Record<
+export const STATUS_CHIP: Record<
   OfferStatus,
   { bg: string; text: string; dot: string }
 > = {
@@ -82,7 +82,7 @@ const STATUS_CHIP: Record<
   },
 };
 
-const WORK_TYPE_COLORS: Record<string, string> = {
+export const WORK_TYPE_COLORS: Record<string, string> = {
   'full-time':
     'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400',
   'part-time':
@@ -93,325 +93,12 @@ const WORK_TYPE_COLORS: Record<string, string> = {
     'bg-violet-100 text-violet-700 dark:bg-violet-500/10 dark:text-violet-400',
 };
 
-// ─── Sidebar Nav Item (mirrors MailPreview) ───────────────────────────────────
-
-function SidebarNavItem({
-  icon: Icon,
-  label,
-  count,
-  active,
-  onClick,
-}: {
-  icon: React.ElementType;
-  label: string;
-  count?: number;
-  active?: boolean;
-  onClick?: () => void;
-}) {
-  return (
-    <div
-      onClick={onClick}
-      className={`flex cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-sm transition-all ${
-        active
-          ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-400'
-          : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
-      }`}
-    >
-      <div className="flex items-center gap-3">
-        <Icon className="h-4 w-4" />
-        <span className="font-medium">{label}</span>
-      </div>
-      {count !== undefined && count > 0 && (
-        <span
-          className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-            active
-              ? 'bg-brand-200 text-brand-800 dark:bg-brand-500/20 dark:text-brand-300'
-              : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
-          }`}
-        >
-          {count}
-        </span>
-      )}
-    </div>
-  );
-}
-
-// ─── Detail Panel ─────────────────────────────────────────────────────────────
-
-function OfferDetail({
-  offer,
-  canWrite,
-  onBack,
-  onEdit,
-  onDelete,
-  onClone,
-  onStatusChange,
-}: {
-  offer: JobOffer;
-  canWrite: boolean;
-  onBack: () => void;
-  onEdit: (o: JobOffer) => void;
-  onDelete: (id: string) => void;
-  onClone: (offer: JobOffer) => void;
-  onStatusChange: (id: string, status: OfferStatus) => void;
-}) {
-  const chip = STATUS_CHIP[offer.status];
-  const applicantName =
-    typeof offer.applicantId === 'object' && offer.applicantId !== null
-      ? offer.applicantId.fullName
-      : '—';
-  const applicantEmail =
-    typeof offer.applicantId === 'object' && offer.applicantId !== null
-      ? offer.applicantId.email
-      : '—';
-
-  return (
-    <div className="flex-1 overflow-y-auto bg-white dark:bg-slate-900">
-      {/* Back button */}
-      <div className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-6 py-4 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-900/95">
-        <div className="flex items-center justify-between">
-          <button
-            onClick={onBack}
-            className="flex items-center gap-2 text-sm font-medium text-slate-600 transition hover:text-brand-600 dark:text-slate-400 dark:hover:text-brand-400"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to offers
-          </button>
-          {canWrite && (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => onEdit(offer)}
-                className="flex size-8 items-center justify-center rounded-lg border border-slate-200 text-slate-400 transition hover:border-brand-300 hover:bg-brand-50 hover:text-brand-600 dark:border-slate-700"
-                title="Edit"
-              >
-                <Pencil className="size-3.5" />
-              </button>
-              <button
-                onClick={() => onClone(offer)}
-                className="flex size-8 items-center justify-center rounded-lg border border-slate-200 text-slate-400 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-600 dark:border-slate-700"
-                title="Clone"
-              >
-                <Copy className="size-3.5" />
-              </button>
-              <button
-                onClick={() => onDelete(offer._id)}
-                className="flex size-8 items-center justify-center rounded-lg border border-slate-200 text-slate-400 transition hover:border-red-300 hover:bg-red-50 hover:text-red-600 dark:border-slate-700"
-                title="Delete"
-              >
-                <Trash2 className="size-3.5" />
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Offer Header */}
-      <div className="border-b border-slate-200 p-6 dark:border-slate-800">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-              {offer.position}
-            </h2>
-            <div className="mt-2 flex flex-wrap items-center gap-3">
-              <span
-                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${WORK_TYPE_COLORS[offer.workType]}`}
-              >
-                {offer.workType}
-              </span>
-              {offer.workHours && (
-                <span className="flex items-center gap-1 text-xs text-slate-500">
-                  <Clock className="size-3.5" />
-                  {offer.workHours}
-                </span>
-              )}
-              {offer.salary.basic != null && (
-                <span className="flex items-center gap-1 text-xs text-slate-500">
-                  <DollarSign className="size-3.5" />
-                  {offer.salary.basic.toLocaleString()} {offer.salary.currency}
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Status selector */}
-          <select
-            className={`rounded-full border-0 px-3 py-1 text-xs font-semibold outline-none ${chip.bg} ${chip.text} ${canWrite ? 'cursor-pointer' : 'cursor-default'}`}
-            value={offer.status}
-            disabled={!canWrite}
-            onChange={(e) =>
-              onStatusChange(offer._id, e.target.value as OfferStatus)
-            }
-          >
-            {(
-              [
-                'draft',
-                'sent',
-                'accepted',
-                'rejected',
-                'expired',
-              ] as OfferStatus[]
-            ).map((s) => (
-              <option key={s} value={s}>
-                {s.charAt(0).toUpperCase() + s.slice(1)}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Applicant info */}
-        <div className="mt-4 flex items-center justify-between">
-          <div>
-            <p className="text-sm font-semibold text-slate-900 dark:text-white">
-              {applicantName}
-            </p>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              {applicantEmail}
-            </p>
-          </div>
-          <div className="text-right text-xs text-slate-400">
-            <p>
-              Created by{' '}
-              <span className="font-medium text-slate-600 dark:text-slate-300">
-                {offer.createdBy?.fullName ?? '—'}
-              </span>
-            </p>
-            <p className="mt-0.5">
-              {new Date(offer.createdAt).toLocaleDateString('en-US', {
-                month: 'short',
-                day: '2-digit',
-                year: 'numeric',
-              })}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Commissions */}
-      {offer.commissions.length > 0 && (
-        <div className="border-b border-slate-200 p-6 dark:border-slate-800">
-          <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
-            <DollarSign className="h-4 w-4" />
-            Commission Tiers
-          </h3>
-          <div className="space-y-2">
-            {offer.commissions.map((c, i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-4 py-2.5 dark:border-slate-700 dark:bg-slate-800/40"
-              >
-                <div>
-                  <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
-                    {c.label}
-                  </p>
-                  {c.condition && (
-                    <p className="text-xs text-slate-400">{c.condition}</p>
-                  )}
-                </div>
-                <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                  {c.value}
-                  {c.type === 'percentage' ? '%' : ` ${offer.salary.currency}`}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Sections */}
-      {offer.sections.length > 0 && (
-        <div className="border-b border-slate-200 p-6 dark:border-slate-800">
-          <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
-            <FileText className="h-4 w-4" />
-            Offer Sections
-          </h3>
-          <div className="space-y-4">
-            {offer.sections
-              .slice()
-              .sort((a, b) => a.displayOrder - b.displayOrder)
-              .map((section, i) => (
-                <div key={i}>
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                    {section.title.en || section.title.ar}
-                  </p>
-                  <ul className="space-y-1">
-                    {section.items.map((item, j) => (
-                      <li
-                        key={j}
-                        className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-400"
-                      >
-                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-400" />
-                        {item.en || item.ar}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-          </div>
-        </div>
-      )}
-
-      {/* Notes */}
-      {offer.notes && (
-        <div className="border-b border-slate-200 p-6 dark:border-slate-800">
-          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
-            <Clock3 className="h-4 w-4" />
-            Internal Notes
-          </h3>
-          <p className="text-sm text-slate-600 dark:text-slate-400">
-            {offer.notes}
-          </p>
-        </div>
-      )}
-
-      {/* Timeline */}
-      <div className="p-6">
-        <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
-          <Clock3 className="h-4 w-4" />
-          Timeline
-        </h3>
-        <div className="space-y-4">
-          {[
-            { label: 'Created', date: offer.createdAt },
-            { label: 'Sent', date: offer.sentAt },
-            { label: 'Responded', date: offer.respondedAt },
-            { label: 'Expires', date: offer.expiresAt },
-          ]
-            .filter((e) => e.date)
-            .map((event, idx, arr) => (
-              <div key={idx} className="flex gap-3">
-                <div className="relative flex flex-col items-center">
-                  <div className="h-2 w-2 rounded-full bg-brand-500" />
-                  {idx !== arr.length - 1 && (
-                    <div className="absolute top-2 h-full w-px bg-slate-200 dark:bg-slate-700" />
-                  )}
-                </div>
-                <div className="pb-4">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                    {event.label}
-                  </p>
-                  <p className="text-sm text-slate-700 dark:text-slate-300">
-                    {new Date(event.date!).toLocaleString('en-US', {
-                      month: 'short',
-                      day: '2-digit',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </p>
-                </div>
-              </div>
-            ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function JobOffersPage() {
   const { hasPermission } = useAuth();
   const queryClient = useQueryClient();
-  const { data: companies = [] } = useCompanies();
+  const { data: companies = [] } = useCompanies(); // ← full objects, not just IDs
 
   const canWrite =
     hasPermission('Company Management', 'write') ||
@@ -419,11 +106,12 @@ export default function JobOffersPage() {
 
   const companyId: string[] = companies.map((c) => c._id);
 
-  // ── View state (mirrors MailPreview list/detail) ────────────────────────
+  // ── View state ─────────────────────────────────────────────────────────
   const [view, setView] = useState<'list' | 'detail'>('list');
   const [selectedOfferId, setSelectedOfferId] = useState<string | null>(null);
   const [cloneSource, setCloneSource] = useState<JobOffer | null>(null);
   const [companyFilter, setCompanyFilter] = useState<string>('all');
+  const [resendOpen, setResendOpen] = useState(false);
 
   // ── Filters ────────────────────────────────────────────────────────────
   const [page, setPage] = useState(1);
@@ -431,21 +119,24 @@ export default function JobOffersPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingOffer, setEditingOffer] = useState<JobOffer | null>(null);
   const [search, setSearch] = useState('');
-  const debouncedSearch = useDebounce(search, 500); // ← add this
+  const debouncedSearch = useDebounce(search, 500);
+
   const queryParams = {
     companyId: companyFilter === 'all' ? companyId : [companyFilter],
     isTemplate: false as const,
     PageCount: LIMIT,
     page,
     ...(statusFilter !== 'all' ? { status: statusFilter } : {}),
-    ...(debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}), // ← add
+    ...(debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}),
   };
+
   // ── Data ───────────────────────────────────────────────────────────────
   const { data: offersData, isLoading, isFetching } = useJobOffers(queryParams);
 
   const offers = offersData?.data ?? [];
   const total = offersData?.totalCount ?? 0;
   const totalPages = offersData?.totalPages ?? 1;
+
   // ── Prefetch next page ─────────────────────────────────────────────────
   useEffect(() => {
     if (page < totalPages) {
@@ -461,7 +152,7 @@ export default function JobOffersPage() {
   // Reset page on filter change
   useEffect(() => {
     setPage(1);
-  }, [statusFilter, debouncedSearch, companyFilter]); // ← add companyFilter
+  }, [statusFilter, debouncedSearch, companyFilter]);
 
   // ── Mutations ──────────────────────────────────────────────────────────
   const deleteMutation = useDeleteJobOffer();
@@ -485,8 +176,6 @@ export default function JobOffersPage() {
     }
   };
 
-  // ── Client-side search filter ──────────────────────────────────────────
-  
   const selectedOffer = useMemo(
     () => offers.find((o) => o._id === selectedOfferId) ?? null,
     [offers, selectedOfferId]
@@ -503,10 +192,9 @@ export default function JobOffersPage() {
   };
 
   const handleClone = (offer: JobOffer) => {
-    setEditingOffer(null); // not editing — creating new
-    setModalOpen(true);
-    // We need to pass prefilled values — use a separate state for this
+    setEditingOffer(null);
     setCloneSource(offer);
+    setModalOpen(true);
   };
 
   const handleBackToList = () => {
@@ -518,6 +206,21 @@ export default function JobOffersPage() {
     setEditingOffer(offer);
     setModalOpen(true);
   };
+
+  // ── Shared modal (used in both list & detail views) ────────────────────
+  const sharedModal = companyId.length > 0 && (
+    <JobOfferModal
+      isOpen={modalOpen}
+      onClose={() => {
+        setModalOpen(false);
+        setCloneSource(null);
+      }}
+      mode="offer"
+      companyId={companyId}
+      editing={editingOffer}
+      cloneFrom={cloneSource}
+    />
+  );
 
   // ── List View ──────────────────────────────────────────────────────────
   if (view === 'list') {
@@ -587,9 +290,7 @@ export default function JobOffersPage() {
           {/* Main content */}
           <div className="flex flex-1 flex-col">
             {/* Top bar */}
-            {/* Top bar */}
             <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-6 py-3 dark:border-slate-800 dark:bg-slate-900">
-              {/* Search */}
               <div className="relative max-w-sm flex-1">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <input
@@ -621,7 +322,6 @@ export default function JobOffersPage() {
                 </select>
               )}
 
-              {/* New Offer button */}
               {canWrite && (
                 <button
                   onClick={() => {
@@ -793,20 +493,7 @@ export default function JobOffersPage() {
           </div>
         </div>
 
-        {/* Modal */}
-        {companyId && (
-          <JobOfferModal
-            isOpen={modalOpen}
-            onClose={() => {
-              setModalOpen(false);
-              setCloneSource(null);
-            }}
-            mode="offer"
-            companyId={companyId}
-            editing={editingOffer}
-            cloneFrom={cloneSource}
-          />
-        )}
+        {sharedModal}
       </div>
     );
   }
@@ -815,7 +502,7 @@ export default function JobOffersPage() {
   if (view === 'detail' && selectedOffer) {
     return (
       <div className="flex h-full overflow-hidden bg-slate-50 dark:bg-slate-950">
-        {/* Sidebar (minimized in detail view — mirrors MailPreview) */}
+        {/* Sidebar */}
         <aside className="hidden w-72 flex-shrink-0 overflow-y-auto border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 lg:block">
           <div className="sticky top-0 p-4">
             <div className="mb-6 flex items-center gap-2">
@@ -842,6 +529,7 @@ export default function JobOffersPage() {
           </div>
         </aside>
 
+        {/* Detail panel — now receives full company objects */}
         <OfferDetail
           offer={selectedOffer}
           canWrite={canWrite}
@@ -850,26 +538,21 @@ export default function JobOffersPage() {
             setEditingOffer(o);
             setModalOpen(true);
           }}
+          setResendOpen={setResendOpen}
           onDelete={handleDelete}
-          onClone={(offer) => handleClone(offer)}
+          onClone={handleClone}
           onStatusChange={(id, status) =>
             updateStatusMutation.mutate({ id, status })
           }
         />
-
-        {companyId && (
-          <JobOfferModal
-            isOpen={modalOpen}
-            onClose={() => {
-              setModalOpen(false);
-              setCloneSource(null);
-            }}
-            mode="offer"
-            companyId={companyId}
-            editing={editingOffer}
-            cloneFrom={cloneSource} // ← add this
+        {resendOpen && (
+          <ResendModal
+            offer={selectedOffer}
+            companies={companies}
+            onClose={() => setResendOpen(false)}
           />
         )}
+        {sharedModal}
       </div>
     );
   }

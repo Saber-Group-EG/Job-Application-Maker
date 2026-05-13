@@ -15,7 +15,7 @@ export function ApplicantSelect({
   inputCls,
 }: {
   value: string | null;
-  onChange: (id: string | null) => void;
+  onChange: (id: string | null, applicant: ApplicantOption | null) => void;
   inputCls?: string;
 }) {
   const [search, setSearch] = useState('');
@@ -31,8 +31,8 @@ export function ApplicantSelect({
     companyId: companyId,
     search: debouncedSearch,
     enabled: open && !!debouncedSearch.trim(),
-    fields: '_id,fullName,email',
-    skipPopulation: true, // we only want raw applicant data, no need to populate related fields
+    fields: '_id,fullName,email,jobPositionId', // only fetch fields we need for display
+    skipPopulation: false, // we only want raw applicant data, no need to populate related fields
   });
 
   const applicants = (data ?? []) as ApplicantOption[];
@@ -74,7 +74,7 @@ export function ApplicantSelect({
   }, []);
 
   const handleSelect = (a: ApplicantOption) => {
-    onChange(a._id);
+    onChange(a._id, a); // pass full object up
     setSelectedApplicant(a); // ← cache immediately, no re-fetch needed
     setOpen(false);
     setSearch('');
@@ -82,7 +82,7 @@ export function ApplicantSelect({
 
   const handleClear = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onChange(null);
+    onChange(null, null);
     setSelectedApplicant(null);
   };
 

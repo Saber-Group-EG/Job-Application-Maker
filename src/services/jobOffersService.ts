@@ -56,8 +56,13 @@ export interface JobOffer {
     email: string;
     phone?: string;
     applicantNo?: string;
+    jobPositionId?: {
+      _id: string;
+      title: string;
+      jobCode?: string;
+      companyId: { _id: string };
+    } | null;
   } | null;
-  jobPositionId?: { _id: string; title: string; jobCode?: string } | null;
   isTemplate: boolean;
   position: string;
   workType: WorkType;
@@ -74,6 +79,7 @@ export interface JobOffer {
   deleted: boolean;
   createdAt: string;
   updatedAt: string;
+  lastEmailSentAt: string | null;
 }
 
 export interface PaginatedJobOffers {

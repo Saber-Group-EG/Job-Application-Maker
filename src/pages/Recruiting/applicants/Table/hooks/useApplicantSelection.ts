@@ -9,7 +9,11 @@ interface Applicant {
   fullName?: string;
   name?: string;
   firstName?: string;
-  jobPositionId: { _id?: string; id?: string, companyId: { _id: string; id?: string } };
+  jobPositionId: {
+    _id: string;
+    id?: string;
+    companyId: { _id: string; id?: string, name: { en: string; ar: string } };
+  };
   company?: string | { _id?: string; id?: string };
   companyObj?: string | { _id?: string; id?: string };
   status?: string;
@@ -50,7 +54,15 @@ interface UseApplicantSelectionReturn {
   selectedApplicantCompanyId: string | null;
   selectedApplicantCompany: any | null;
   selectedApplicantCount: number;
-  selectedApplicants: { _id: string; fullName: string; email?: string, companyId: string }[];
+  selectedApplicants: {
+    _id: string;
+    fullName: string;
+    email: string;
+    jobPositionId?: {
+      _id: string;
+      companyId: { _id: string; name: { en: string; ar: string } };
+    };
+  }[];
 }
 
 const extractId = (value: unknown): string | null => {
@@ -96,8 +108,8 @@ export function useApplicantSelection({
         return {
           _id: a._id,
           fullName: String(a.fullName).trim(),
-          email: typeof a.email === 'string' ? a.email.trim() : undefined,
-          companyId: a.jobPositionId.companyId._id, // ← add this
+          email: String(a.email).trim(),
+          jobPositionId: a.jobPositionId, // ← add this
         };
       });
   }, [selectedApplicantIds, applicants]);
