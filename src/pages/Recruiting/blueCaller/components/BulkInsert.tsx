@@ -675,7 +675,6 @@ export default function BulkInsert({ jobPositions, existingApplicants, themeColo
     const validatedRows = validateBulkRows(bulkRows);
     
     // Separate rows: those with errors (blocking) vs those with only warnings (including duplicates)
-    const rowsWithBlockingErrors = validatedRows.filter((row) => row.errors.length > 0);
     const rowsWithOnlyWarnings = validatedRows.filter((row) => row.errors.length === 0 && row.warnings.length > 0);
     const validRows = validatedRows.filter((row) => row.errors.length === 0);
     
@@ -765,7 +764,6 @@ export default function BulkInsert({ jobPositions, existingApplicants, themeColo
   };
 
   const bulkPreviewRows = validateBulkRows(bulkRows);
-  const selectedJob = jobPositions.find(job => job._id === selectedJobForTemplate);
 
   const formatCellValue = (value: unknown): string => {
     if (value === undefined || value === null) return '-';
