@@ -42,7 +42,7 @@ const WORK_TYPE_COLORS: Record<WorkType, string> = {
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Props = {
-  companyId?: string;
+  companyId: string;
   embedded?: boolean;
 };
 
@@ -159,7 +159,8 @@ export default function OfferTemplatesTab({
     hasPermission('Settings Management', 'write') ||
     hasPermission('Settings Management', 'create');
 
-  const { data: templates = [], isLoading } = useJobOfferTemplates(companyId);
+    const { data: templatesData, isLoading } = useJobOfferTemplates([companyId]);
+    const templates = templatesData?.data ?? [];
   const cloneMutation = useCloneJobOffer();
   const deleteMutation = useDeleteJobOffer();
 

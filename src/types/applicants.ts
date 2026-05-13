@@ -71,7 +71,7 @@ export type StatusHistory = {
 export type Applicant = {
   _id: string;
   companyId: string;
-  jobPositionId: string;
+  jobPositionId: { _id: string; title: string; jobCode?: string, companyId: { _id: string; name: { en: string; ar: string } } };
   departmentId: string;
   status: string;
   submittedAt: string;

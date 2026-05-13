@@ -922,7 +922,7 @@ export default function InterviewCompanySettingsPage() {
                 embedded
               />
             ) : isOffersTab ? (
-              <JobOffersTab companyId={selectedCompanyId} embedded />
+              <JobOffersTab companyId={selectedCompanyId!} embedded />
             ) : null}
           </div>
         </div>
