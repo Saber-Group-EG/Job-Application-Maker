@@ -26,6 +26,12 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({ userData }) => {
 
   const data = userData || defaultUserData;
 
+  const handleDownloadCV = () => {
+    // Add your download logic here
+    console.log('Downloading CV...');
+    // Example: window.open('/path-to-cv.pdf', '_blank');
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
       <div className="p-5">
@@ -58,9 +64,11 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({ userData }) => {
             Status
           </span>
         </div>
-          <div className="border-t border-gray-200 mb-5 mt-5"></div>
+        
+        <div className="border-t border-gray-200 mb-5 mt-5"></div>
+        
         {/* Details Content - Vertical */}
-        <div className="space-y-3">
+        <div className="space-y-4">
           {/* Phone */}
           <div>
             <div className="text-sm font-semibold text-gray-800 mb-0.5">
@@ -98,12 +106,44 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({ userData }) => {
             <div className="text-sm text-gray-400 leading-relaxed">{data.deliveryAddress}</div>
           </div>
 
-          {/* Expected Salary */}
+          {/* Expected Salary - Now matches the vertical layout */}
           <div>
-            <div className="text-sm font-semibold text-gray-800 mb-0.5">
+            <div className="text-sm font-semibold text-gray-800 mb-2">
               Expected Salary
             </div>
-            <div className="text-sm text-gray-400">$80,000 - $100,000</div>
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg">
+              <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="text-base font-bold text-green-700">$80,000 - $100,000</span>
+              <span className="text-xs text-green-600">/ year</span>
+            </div>
+          </div>
+
+          {/* Download CV - Now matches the vertical layout */}
+          <div>
+            <div className="text-sm font-semibold text-gray-800 mb-2">
+              Download CV
+            </div>
+            <button 
+              onClick={handleDownloadCV}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white text-sm font-medium rounded-lg transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
+              <svg 
+                className="w-4 h-4 transition-transform duration-200 group-hover:translate-y-0.5" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  strokeWidth={2} 
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" 
+                />
+              </svg>
+              <span>Download CV</span>
+            </button>
           </div>
 
           {/* Submitted At */}

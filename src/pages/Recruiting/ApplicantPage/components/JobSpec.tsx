@@ -212,14 +212,7 @@ const JobSpec: React.FC = () => {
         </div>
       )}
 
-      {isValid && achievedScore < totalWeight && achievedScore > 0 && (
-        <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center gap-2">
-          <AlertCircle className="h-4 w-4 text-yellow-600" />
-          <p className="text-sm text-yellow-700">
-            Candidate meets {achievedScore}% of requirements. Missing {totalWeight - achievedScore}% of criteria.
-          </p>
-        </div>
-      )}
+     
 
       {isValid && achievedScore === 0 && (
         <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">

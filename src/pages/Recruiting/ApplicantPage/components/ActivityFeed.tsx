@@ -138,7 +138,7 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities }) => {
                   {getIcon(activity.type)}
                 </div>
                 <span className="text-sm font-semibold text-gray-800">
-                  {activity.title}
+                  {activity.title} 
                 </span>
               </div>
               <span className="text-xs text-gray-400 whitespace-nowrap ml-4">
@@ -152,7 +152,7 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities }) => {
                 <User className="h-3.5 w-3.5 text-gray-500" />
               </div>
               <span className="text-xs font-medium text-gray-600">
-                {activity.user?.name || 'System'}
+                {activity.user?.name || 'System'} at {new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
             </div>
 
