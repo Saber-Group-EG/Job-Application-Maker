@@ -44,6 +44,9 @@ const ApplicantDetails = lazy(
 const ApplicantDynamicPage = lazy(
   () => import('../pages/Recruiting/applicants/Table/ApplicantDynamicPage')
 );
+const BlueCallerApplicants = lazy(
+  () => import('../pages/Recruiting/blueCaller/BlueCallerApplicants')
+);
 const ApplicantData = lazy(
   () => import('../pages/Recruiting/applicants/ApplicantPage/ApplicantData')
 );
@@ -165,6 +168,10 @@ export default function App() {
 
               {/* Applicants */}
               <Route path={paths.applicants.root} element={<Applicants />} />
+              <Route
+                path={paths.applicants.blueCaller}
+                element={<BlueCallerApplicants />}
+              />
               <Route
                 path={patterns.applicants.page}
                 element={<ApplicantDynamicPage />}
