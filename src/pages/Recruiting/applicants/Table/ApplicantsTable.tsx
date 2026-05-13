@@ -1353,8 +1353,15 @@ export default function Applicants({
   ]);
 
   const isTableLoading = Boolean(
-    isJobPositionsFetching || isApplicantsFetching || isCompaniesFetching || isFilterTransitioning || isApplicantsQueryFetching
-  );
+  isJobPositionsFetching ||
+  isApplicantsFetching ||
+  isCompaniesFetching ||
+  isFilterTransitioning ||
+  isApplicantsQueryFetching ||
+  !isApplicantsFetched ||
+  !isJobPositionsFetched ||
+  !isCompaniesFetched
+);
 
   const renderCellSkeleton = (
     variant: 'text' | 'circular' | 'rectangular' = 'text',
@@ -2240,6 +2247,7 @@ export default function Applicants({
     enableRowSelection: !isTableLoading,
     enablePagination: true,
     enableBatchRowSelection: false,
+    selectAllMode: 'all',
     enableBottomToolbar: true,
     enableTopToolbar: true,
     enableColumnFilters: true,
@@ -2273,7 +2281,9 @@ export default function Applicants({
     },
     state: {
       sorting,
-      pagination,
+       pagination: isTableLoading
+    ? { ...pagination, pageIndex: 0 }  // ← force page 0 during load
+    : pagination,
       columnFilters: isTableLoading ? [] : columnFilters,
       rowSelection,
       columnVisibility: layout.columnVisibility || {},
