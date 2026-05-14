@@ -177,10 +177,69 @@ function parseCustomFields(
     const fieldLabel = toStringValue(fieldRecord.label);
     const inputType = String(fieldRecord.inputType || 'text');
     
+    // Try top-level label or fieldId as the source cell
     let value = rawRow[fieldLabel];
     if (value === undefined) value = rawRow[fieldId];
-    if (value === undefined || value === null) return;
-    
+    if (value === undefined || value === null) {
+      // For group types, try reading subfield columns like "Group Label - SubLabel"
+      if (inputType === 'groupField' && Array.isArray(fieldRecord.groupFields)) {
+        const groupObj: Record<string, unknown> = {};
+        (fieldRecord.groupFields as unknown[]).forEach((subField: unknown) => {
+          const subRecord = subField as Record<string, unknown>;
+          const subLocKey = String(subRecord.fieldId || '');
+          const subLabel = toStringValue(subRecord.label);
+          const compositeLabel = `${fieldLabel} - ${subLabel}`;
+          let subVal = rawRow[compositeLabel];
+          if (subVal === undefined) subVal = rawRow[subLocKey];
+          if (subVal !== undefined && subVal !== null && subVal !== '') {
+            groupObj[subLocKey] = subVal;
+          }
+        });
+        if (Object.keys(groupObj).length > 0) customValues[fieldId] = groupObj;
+      }
+      // For repeatable groups, try parsing JSON from the group's column (if present)
+      if (inputType === 'repeatable_group' && Array.isArray(fieldRecord.groupFields)) {
+        if (value === undefined) {
+          // try top-level composite columns where each subfield is "Group - Sub"
+          const rowsArr: unknown[] = [];
+          const subFields = (fieldRecord.groupFields as unknown[]).map(sf => sf as Record<string, unknown>);
+          // If a single column with JSON exists under the group label or id, try parsing it
+          const jsonCandidate = rawRow[fieldLabel] ?? rawRow[fieldId];
+          if (typeof jsonCandidate === 'string' && jsonCandidate.trim()) {
+            try {
+              const parsed = JSON.parse(jsonCandidate);
+              if (Array.isArray(parsed)) {
+                customValues[fieldId] = parsed;
+                return;
+              }
+            } catch (e) {
+              // fallback to other heuristics below
+            }
+          }
+
+          // Heuristic: look for composite subfield columns and assemble a single-row repeatable entry
+          const assembled: Record<string, unknown> = {};
+          let foundAny = false;
+          subFields.forEach((subRecord) => {
+            const subLocKey = String(subRecord.fieldId || '');
+            const subLabel = toStringValue(subRecord.label);
+            const compositeLabel = `${fieldLabel} - ${subLabel}`;
+            let subVal = rawRow[compositeLabel];
+            if (subVal === undefined) subVal = rawRow[subLocKey];
+            if (subVal !== undefined && subVal !== null && subVal !== '') {
+              assembled[subLocKey] = subVal;
+              foundAny = true;
+            }
+          });
+          if (foundAny) {
+            rowsArr.push(assembled);
+            customValues[fieldId] = rowsArr;
+          }
+        }
+      }
+      return;
+    }
+
     if (inputType === 'checkbox') {
       const strValue = String(value).toLowerCase().trim();
       customValues[fieldId] = strValue === 'yes' || strValue === 'true' || strValue === '1';
@@ -192,6 +251,32 @@ function parseCustomFields(
     } else if (inputType === 'tags') {
       const strValue = String(value);
       customValues[fieldId] = strValue.split(',').map(tag => tag.trim()).filter(Boolean);
+    } else if (inputType === 'repeatable_group') {
+      // If the cell contains JSON array, parse it to an array of objects
+      if (Array.isArray(value)) {
+        customValues[fieldId] = value;
+      } else if (typeof value === 'string' && value.trim()) {
+        try {
+          const parsed = JSON.parse(value);
+          if (Array.isArray(parsed)) customValues[fieldId] = parsed;
+        } catch (e) {
+          // fallback: try splitting by "||" for rows and '|' for fields
+          const rows = String(value).split('||').map(r => r.trim()).filter(Boolean);
+          if (rows.length > 0) {
+            const subFields = (fieldRecord.groupFields as unknown[]).map(sf => sf as Record<string, unknown>);
+            const mapped = rows.map((rowStr) => {
+              const parts = rowStr.split('|').map(p => p.trim());
+              const obj: Record<string, unknown> = {};
+              parts.forEach((p, i) => {
+                const subKey = String(subFields[i]?.fieldId || `sub_${i}`);
+                if (p) obj[subKey] = p;
+              });
+              return obj;
+            }).filter(Boolean);
+            if (mapped.length > 0) customValues[fieldId] = mapped;
+          }
+        }
+      }
     } else {
       customValues[fieldId] = String(value).trim();
     }
@@ -500,7 +585,20 @@ function buildTemplateWorkbookForJob(jobPosition: JobPosition): XLSX.WorkBook {
   (jobPosition.customFields || []).forEach((field: unknown) => {
     const fieldRecord = field as Record<string, unknown>;
     const label = toStringValue(fieldRecord.label);
-    if (label && !customFieldHeaders.includes(label)) customFieldHeaders.push(label);
+    const inputType = String(fieldRecord.inputType || 'text');
+    if (label) {
+      if ((inputType === 'groupField' || inputType === 'repeatable_group') && Array.isArray(fieldRecord.groupFields)) {
+        // add subfield headers like "Group Label - Subfield Label"
+        (fieldRecord.groupFields as unknown[]).forEach((subField: unknown) => {
+          const subRecord = subField as Record<string, unknown>;
+          const subLabel = toStringValue(subRecord.label);
+          const composite = `${label} - ${subLabel}`;
+          if (!customFieldHeaders.includes(composite)) customFieldHeaders.push(composite);
+        });
+      } else {
+        if (!customFieldHeaders.includes(label)) customFieldHeaders.push(label);
+      }
+    }
   });
   
   (jobPosition.jobSpecsWithDetails || []).forEach((spec: { spec?: unknown }) => {
@@ -520,6 +618,18 @@ function buildTemplateWorkbookForJob(jobPosition: JobPosition): XLSX.WorkBook {
     '12000',
     toStringValue(jobPosition.title),
     ...customFieldHeaders.map((header) => {
+      // handle composite headers for group subfields: "Group - Sub"
+      if (header.includes(' - ')) {
+        const [groupLabel, subLabel] = header.split(' - ').map(s => s.trim());
+        const groupField = (jobPosition.customFields || []).find((f: unknown) => toStringValue((f as Record<string, unknown>).label) === groupLabel) as Record<string, unknown> | undefined;
+        const subField = (Array.isArray(groupField?.groupFields) ? groupField.groupFields : []).find((sf: unknown) => toStringValue((sf as Record<string, unknown>).label) === subLabel) as Record<string, unknown> | undefined;
+        const inputType = String(subField?.inputType || 'text');
+        if (inputType === 'checkbox') return 'Yes';
+        if (inputType === 'date') return '2023-01-01';
+        if (inputType === 'number') return '5';
+        if (inputType === 'tags') return 'tag1, tag2, tag3';
+        return `Example ${subLabel}`;
+      }
       const field = (jobPosition.customFields || []).find(
         (f: unknown) => toStringValue((f as Record<string, unknown>).label) === header
       ) as Record<string, unknown> | undefined;
@@ -732,7 +842,7 @@ export default function BulkInsert({ jobPositions, existingApplicants, themeColo
         didOpen: () => { Swal.showLoading(); },
       });
 
-      await axiosInstance.post('/applicants', payload);
+      await axiosInstance.post('/applicants/bulk', { applicants: payload });
 
       await Swal.fire({
         title: 'Batch submitted',
