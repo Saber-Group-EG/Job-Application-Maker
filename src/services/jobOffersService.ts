@@ -156,7 +156,6 @@ class JobOffersService {
       const response = await axios.get('/job-offers', {
         params: { deleted: false, sort: '-createdAt', ...params },
       });
-      // backend: { message, page, totalPages, pageCount, totalCount, data }
       const { data, page, totalPages, pageCount, totalCount } = response.data;
       return { data, page, totalPages, pageCount, totalCount };
     } catch (error: any) {
