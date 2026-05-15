@@ -146,6 +146,7 @@ class JobOffersService {
 
   async listOffers(params?: {
     companyId?: string[] | string;
+    applicantId?: string;
     isTemplate?: boolean;
     status?: OfferStatus;
     deleted?: boolean;
@@ -168,7 +169,9 @@ class JobOffersService {
   }
 
   async getOffer(id: string): Promise<JobOffer> {
-    return this.request<JobOffer>('get', `/job-offers/${id}`);
+    const result = await this.request<any>('get', `/job-offers/${id}`);
+    const resolved = result?.jobOffer ?? result?.data?.jobOffer ?? result?.data ?? result;
+    return resolved as JobOffer;
   }
 
   async createOffer(payload: CreateJobOfferPayload): Promise<JobOffer> {

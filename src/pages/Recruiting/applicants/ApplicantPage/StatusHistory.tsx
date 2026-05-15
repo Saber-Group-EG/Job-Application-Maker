@@ -1,9 +1,13 @@
-import { Fragment, useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom'; // Add this import
+import { Fragment, useState, useMemo, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import ComponentCard from '../../../../components/common/ComponentCard';
 import { useAuth } from '../../../../context/AuthContext';
 import { toPlainString } from '../../../../utils/strings';
 import { useApplicantsByPhone } from '../../../../hooks/queries/useApplicants';
+import { jobOffersService } from '../../../../services/jobOffersService';
+import { useJobOffer } from '../../../../hooks/queries/useJobOffers';
+import JobOfferPreview from '../../../../components/modals/JobOfferPreview/JobOfferPreview';
 
 type Props = {
   applicant: any;
@@ -58,6 +62,14 @@ const getReadableMessageText = (value?: string) => {
 
 const getStatusColor = (status: string) => {
   switch (status?.toLowerCase()) {
+    case 'draft':
+      return 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400';
+    case 'sent':
+      return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
+    case 'accepted':
+      return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+    case 'expired':
+      return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
     case 'pending':
       return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
     case 'interview':
@@ -76,8 +88,47 @@ const getStatusColor = (status: string) => {
 export default function StatusHistory({ applicant, loading = false }: Props) {
   const { user } = useAuth();
   const navigate = useNavigate(); // Add this for navigation
-  const [activityTab, setActivityTab] = useState<'all' | 'status' | 'actions' | 'interview' | 'previous'>('all');
+  const [activityTab, setActivityTab] = useState<'all' | 'status' | 'actions' | 'interview' | 'previous' | 'offers'>('all');
   const [expandedHistory, setExpandedHistory] = useState<string | null>(null);
+  const [selectedOfferId, setSelectedOfferId] = useState<string | null>(null);
+  const [selectedOfferLocal, setSelectedOfferLocal] = useState<any | null>(null);
+  const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
+  const modalLockRef = useRef(0);
+  const { data: selectedOfferDetail } = useJobOffer(selectedOfferId || '', {
+    enabled: !!selectedOfferId,
+  });
+
+  const applicantId = String(applicant?._id || '');
+  const { data: offersResponse, isLoading: isOffersLoading } = useQuery<any>({
+    queryKey: ['jobOffers', 'applicant', applicantId],
+    queryFn: () =>
+      jobOffersService.listOffers({ applicantId, PageCount: 'all' }),
+    enabled: !!applicantId && activityTab === 'offers',
+  });
+  const jobOffers: any[] = Array.isArray((offersResponse as any)?.data)
+    ? (offersResponse as any).data
+    : Array.isArray(offersResponse)
+      ? offersResponse
+      : [];
+
+  const normalizedDetail = useMemo(() => {
+    const detail = selectedOfferDetail as any;
+    if (!detail) return null;
+    return detail?.jobOffer ?? detail?.data?.jobOffer ?? detail?.data ?? detail;
+  }, [selectedOfferDetail]);
+
+  const effectiveOffer = (normalizedDetail ?? selectedOfferLocal) as any;
+  const safeOffer = effectiveOffer
+    ? {
+      ...effectiveOffer,
+      salary: effectiveOffer.salary ?? {
+        basic: null,
+        currency: effectiveOffer?.salary?.currency ?? 'EGP',
+      },
+      commissions: effectiveOffer.commissions ?? [],
+      sections: effectiveOffer.sections ?? [],
+    }
+    : null;
 
   // Fetch applicants with the same phone number
   const applicantPhone = useMemo(() => applicant?.phone || applicant?.phoneNumber || '', [applicant?.phone, applicant?.phoneNumber]);
@@ -156,6 +207,16 @@ export default function StatusHistory({ applicant, loading = false }: Props) {
               }`}
             >
               Previous Entries
+            </button>
+            <button
+              onClick={() => setActivityTab('offers')}
+              className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium transition ${
+                activityTab === 'offers'
+                  ? 'border-brand-500 text-brand-600 dark:text-brand-400'
+                  : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+              }`}
+            >
+              Job Offer History
             </button>
           </nav>
         </div>
@@ -282,6 +343,102 @@ export default function StatusHistory({ applicant, loading = false }: Props) {
                              </td>
                            </tr>
                         ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              }
+
+              if (activityTab === 'offers') {
+                if (isOffersLoading) {
+                  return (
+                    <div className="overflow-x-auto rounded-lg border border-stroke dark:border-strokedark">
+                      <table className="min-w-full">
+                        <thead className="bg-gray-50 dark:bg-gray-800/60">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Position</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Company</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Status</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Sent</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Responded</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
+                          {Array.from({ length: 3 }).map((_, i) => (
+                            <tr key={i}>
+                              <td className="px-4 py-3"><div className="h-4 w-32 rounded bg-gray-200 dark:bg-gray-700 animate-pulse" /></td>
+                              <td className="px-4 py-3"><div className="h-4 w-28 rounded bg-gray-200 dark:bg-gray-700 animate-pulse" /></td>
+                              <td className="px-4 py-3"><div className="h-4 w-20 rounded bg-gray-200 dark:bg-gray-700 animate-pulse" /></td>
+                              <td className="px-4 py-3"><div className="h-4 w-24 rounded bg-gray-200 dark:bg-gray-700 animate-pulse" /></td>
+                              <td className="px-4 py-3"><div className="h-4 w-24 rounded bg-gray-200 dark:bg-gray-700 animate-pulse" /></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                }
+
+                if (!jobOffers || jobOffers.length === 0) {
+                  return (
+                    <div className="rounded-lg border border-dashed border-stroke p-6 text-center text-sm text-gray-500 dark:border-strokedark dark:text-gray-400">
+                      No job offers found for this applicant.
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="overflow-x-auto rounded-lg border border-stroke dark:border-strokedark">
+                    <table className="min-w-full">
+                      <thead className="bg-gray-50 dark:bg-gray-800/60">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Position</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Company</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Status</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Sent</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Responded</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
+                        {jobOffers.map((offer: any, index: number) => {
+                          const offerId = offer?._id || offer?.id || null;
+                          const companyName =
+                            typeof offer?.companyId === 'string'
+                              ? 'Company'
+                              : (offer?.companyId?.name?.en || offer?.companyId?.name || 'N/A');
+
+                          return (
+                            <tr
+                              key={offerId || index}
+                              className="hover:bg-gray-50 dark:hover:bg-gray-800/30 cursor-pointer"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setSelectedOfferId(offerId);
+                                setSelectedOfferLocal(offer);
+                                modalLockRef.current = Date.now() + 800;
+                                setIsOfferModalOpen(true);
+                              }}
+                            >
+                              <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
+                                {offer?.position || offer?.jobPositionId?.title?.en || offer?.jobPositionId?.title || 'N/A'}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
+                                {companyName}
+                              </td>
+                              <td className="px-4 py-3 text-sm">
+                                <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${getStatusColor(offer?.status || 'draft')}`}>
+                                  {(offer?.status || 'draft').charAt(0).toUpperCase() + (offer?.status || 'draft').slice(1)}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                                {formatDate(offer?.sentAt) || '—'}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                                {formatDate(offer?.respondedAt) || '—'}
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -656,6 +813,16 @@ export default function StatusHistory({ applicant, loading = false }: Props) {
           )}
         </div>
       </ComponentCard>
+      <JobOfferPreview
+        isOpen={isOfferModalOpen}
+        onClose={() => {
+          if (Date.now() < modalLockRef.current) return;
+          setIsOfferModalOpen(false);
+          setSelectedOfferId(null);
+          setSelectedOfferLocal(null);
+        }}
+        offer={safeOffer}
+      />
     </div>
   );
 }
