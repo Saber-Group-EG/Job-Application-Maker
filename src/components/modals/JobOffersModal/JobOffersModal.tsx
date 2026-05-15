@@ -805,6 +805,7 @@ export default function JobOfferModal({
                 onSenderChange={(senderByCompany) =>
                   set('senderByCompany', senderByCompany)
                 }
+                propCompanyId={propCompany}
               />
             )}
 

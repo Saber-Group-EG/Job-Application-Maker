@@ -38,6 +38,7 @@ import InterviewScheduleModal from '../../../../components/modals/InterviewSched
 import CommentModal from '../../../../components/modals/commentmodal';
 import InterviewSettingsModal from '../../../../components/modals/InterviewSettingsModal';
 import StatusChangeModal from '../../../../components/modals/StatusChangeModal';
+import JobOffersModal from '../../../../components/modals/JobOffersModal/JobOffersModal';
 import StatusHistory from './StatusHistory';
 import CustomResponses from './CustomResponses';
 import Questions from './Questions';
@@ -311,6 +312,8 @@ const ApplicantData = () => {
 
   const [shouldFetchApplicantJobPosition, setShouldFetchApplicantJobPosition] =
   useState(true);
+
+  const [showJobOfferModal, setShowJobOfferModal] = useState(false);
 
  const {
   data: fetchedApplicantJobPosition,
@@ -3845,6 +3848,16 @@ setInterviewEditableCustomFields([
               </button>
             )}
 
+            {canManageApplicant && (
+              <button
+                onClick={() => setShowJobOfferModal(true)}
+                className="inline-flex items-center gap-1 sm:gap-2 rounded-lg bg-teal-600 px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold text-white hover:bg-teal-700"
+              >
+                <PlusIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Create</span> Offer
+              </button>
+            )}
+
             {canManageMessages && (
               <button
                 onClick={() => setShowMessageModal(true)}
@@ -6096,6 +6109,16 @@ setInterviewEditableCustomFields([
             jobPosCompany ||
             (applicant && (applicant.company || applicant.companyObj))
           }
+        />
+
+        <JobOffersModal
+          isOpen={showJobOfferModal}
+          onClose={() => setShowJobOfferModal(false)}
+          mode="offer"
+          companyId={resolvedCompanyId || jobPosCompanyId || applicantCompanyId || (preferredUserCompanies.length === 1 ? preferredUserCompanies[0]?._id : '')}
+          company={resolvedCompanyId || jobPosCompanyId || applicantCompanyId || (preferredUserCompanies.length === 1 ? preferredUserCompanies[0]?._id : '')}
+          applicantId={applicant?._id}
+          jobPositionId={resolvedJobPosId}
         />
 
         <CommentModal

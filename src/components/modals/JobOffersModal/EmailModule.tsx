@@ -4,7 +4,7 @@ import {
   useSendEmail,
   useSendBatchEmail,
 } from '../../../hooks/queries/useSendEmail';
-import { useCompanies } from '../../../hooks/queries';
+import { useCompanies, useCompany } from '../../../hooks/queries';
 import { Company } from '../../../types';
 import { FormState } from './JobOffersModal';
 
@@ -31,13 +31,28 @@ export function resolveSendersByCompany(
     list
       .filter((c) => c?._id)
       .map((c) => {
-        const mails = c.settings?.mailSettings?.availableMails ?? [];
-        const defaultMail = c.settings?.mailSettings?.defaultMail;
-        const contactEmail = c.contactEmail;
+        let mails: string[] = [];
+        const rawMails =
+          c.settings?.mailSettings?.availableMails ??
+          (c as any)?.mailSettings?.availableMails ??
+          (c as any)?.settings?.mailSettings?.availableMails ??
+          [];
+        if (typeof rawMails === 'string') mails = [rawMails];
+        else if (Array.isArray(rawMails)) mails = rawMails.filter(Boolean);
+
+        const defaultMail =
+          c.settings?.mailSettings?.defaultMail ??
+          (c as any)?.mailSettings?.defaultMail ??
+          (c as any)?.defaultMail ??
+          (c as any)?.settings?.mailSettings?.defaultMail ??
+          null;
+
+        const contactEmail =
+          c.contactEmail ?? (c as any)?.email ?? (c as any)?.settings?.contactEmail ?? null;
 
         const emails = [...mails, defaultMail, contactEmail]
-          .filter((e): e is string => !!e?.trim())
-          .map((e) => e.trim());
+          .filter((e): e is string => !!e && String(e).trim() !== '')
+          .map((e) => String(e).trim());
 
         return [c._id, [...new Set(emails)]];
       })
@@ -190,14 +205,55 @@ export function useJobOfferEmail({
   const sendEmailMutation = useSendEmail();
   const sendBatchEmailMutation = useSendBatchEmail();
 
-  const { data: companies } = useCompanies(
-    propCompany ? [propCompany] : undefined
-  );
+  const groupedForFetch = groupApplicantsByCompany(applicantObjects);
+  const companyIdsForFetch = propCompany
+    ? [propCompany]
+    : Object.keys(groupedForFetch).length
+    ? Object.keys(groupedForFetch)
+    : undefined;
+
+  const { data: companies } = useCompanies(companyIdsForFetch);
+
+  const singleCompanyQuery = useCompany(propCompany ?? '');
+  const singleCompany = singleCompanyQuery?.data ?? null;
+
+  const companiesUsed = companies && companies.length ? companies : singleCompany ? [singleCompany] : [];
 
   const sendersByCompany = useMemo(
-    () => resolveSendersByCompany(companies!),
-    [companies]
+    () => resolveSendersByCompany(companiesUsed as any),
+    [companiesUsed]
   );
+
+  // Fallback: extract company objects from applicantObjects or selected applicant
+  useEffect(() => {
+    if (Object.keys(sendersByCompany).length) return;
+    const extracted: any[] = [];
+
+    for (const a of applicantObjects ?? []) {
+      const comp =
+        (a as any).jobPositionId?.companyId || (a as any).jobPositionId?.company || null;
+      if (comp && (comp._id || comp.id)) extracted.push(comp);
+    }
+
+    const sel = form.selectedApplicantObject as any | undefined;
+    const selComp = sel?.jobPositionId?.companyId || sel?.jobPositionId?.company || null;
+    if (selComp && (selComp._id || selComp.id)) extracted.push(selComp);
+
+    if (extracted.length > 0) {
+      const resolved = resolveSendersByCompany(extracted as any);
+      setForm((prev) => {
+        const patched = { ...prev.senderByCompany };
+        let changed = false;
+        for (const [cid, senders] of Object.entries(resolved)) {
+          if (!patched[cid] && senders.length > 0) {
+            patched[cid] = senders[0];
+            changed = true;
+          }
+        }
+        return changed ? { ...prev, senderByCompany: patched } : prev;
+      });
+    }
+  }, [applicantObjects, form.selectedApplicantObject, sendersByCompany, setForm]);
 
   const groupedByCompany = useMemo(
     () => groupApplicantsByCompany(applicantObjects),
@@ -271,8 +327,10 @@ export function useJobOfferEmail({
     sendSingleOfferEmail,
     sendBulkOfferEmail,
     isPending,
+    companiesUsed,
   };
 }
+
 
 // ─── EmailSettingsPanel ───────────────────────────────────────────────────────
 
@@ -293,6 +351,7 @@ export function EmailSettingsPanel({
   sendersByCompany,
   groupedByCompany,
   onSenderChange,
+  propCompanyId,
 }: {
   form: FormState;
   isBulk: boolean;
@@ -302,6 +361,7 @@ export function EmailSettingsPanel({
     { name: string; applicants: ApplicantObject[] }
   >;
   onSenderChange: (senderByCompany: Record<string, string>) => void;
+  propCompanyId?: string | string[];
 }) {
   const setSender = (cid: string, value: string) =>
     onSenderChange({ ...form.senderByCompany, [cid]: value });
@@ -387,14 +447,19 @@ export function EmailSettingsPanel({
         <>
           <ModalLabel>Send From</ModalLabel>
           {(() => {
-            const cid =
-              form.selectedApplicantObject?.jobPositionId?.companyId?._id!;
-            const senders = sendersByCompany[cid] ?? [];
+            const cidFromForm = form.selectedApplicantObject?.jobPositionId?.companyId?._id;
+            const cidFromProp = Array.isArray(propCompanyId)
+              ? propCompanyId[0]
+              : propCompanyId;
+            const fallbackCid = Object.keys(sendersByCompany)[0];
+            const effectiveCid = (cidFromForm as any) || cidFromProp || fallbackCid || '';
+
+            const senders = sendersByCompany[effectiveCid] ?? [];
             return senders.length > 0 ? (
               <select
                 className={selectCls}
-                value={form.senderByCompany[cid] ?? ''}
-                onChange={(e) => setSender(cid, e.target.value)}
+                value={form.senderByCompany[effectiveCid] ?? ''}
+                onChange={(e) => setSender(effectiveCid, e.target.value)}
               >
                 {senders.map((addr) => (
                   <option key={addr} value={addr}>
