@@ -11,6 +11,10 @@ const inputCls =
 const selectCls =
   'w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100';
 
+// add textareaCls constant next to inputCls
+const textareaCls =
+  'w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-brand-400 resize-none';
+
 export function CommissionRow({
   comm,
   index,
@@ -97,8 +101,9 @@ export function CommissionRow({
 
       <div className="mt-3">
         <Label>Condition (optional)</Label>
-        <input
-          className={inputCls}
+        <textarea
+          className={textareaCls}
+          rows={2}
           value={comm.condition}
           onChange={(e) => onChange({ condition: e.target.value })}
           placeholder='e.g. "for deals under 15,000 EGP"'

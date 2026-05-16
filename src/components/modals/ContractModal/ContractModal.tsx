@@ -6,16 +6,10 @@ import {
   Clock,
   DollarSign,
   Plus,
-  Languages,
-  Globe,
   StickyNote,
   Hash,
   Gift,
   Calendar,
-  Copy,
-  Trash2,
-  ChevronDown,
-  ChevronUp,
 } from 'lucide-react';
 import { ContractType, JobContract } from '../../../services/contractsService';
 import {
@@ -24,9 +18,13 @@ import {
   useBulkCreateJobContracts,
 } from '../../../hooks/queries/useContracts';
 import Swal from '../../../utils/swal';
-import { ApplicantSelect } from '../JobOffersModal/ApplicantSelection';
+import { ApplicantSelect } from '../../form/ApplicantSelection';
 import { ContractTemplateSelector } from './ContractTemplateSelector';
 import { ApplicantObject } from '../JobOffersModal/EmailModule';
+import { SectionBlock } from '../../form/SectionBlock';
+import { BenefitRow } from './BenefitRow';
+import { SectionDivider } from '../../form/SectionDivider';
+import { ModalLabel } from '../../form/ModalLabel';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -155,281 +153,6 @@ const inputCls =
 const selectCls =
   'w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100';
 
-// ─── Small reusable atoms ─────────────────────────────────────────────────────
-
-function SectionDivider({
-  icon: Icon,
-  title,
-  description,
-}: {
-  icon: React.ElementType;
-  title: string;
-  description?: string;
-}) {
-  return (
-    <div className="flex items-center gap-3 pb-2 pt-4">
-      <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-500/10 text-brand-600 dark:text-brand-400">
-        <Icon className="size-4" />
-      </div>
-      <div className="flex-1">
-        <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
-          {title}
-        </p>
-        {description && (
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            {description}
-          </p>
-        )}
-      </div>
-      <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
-    </div>
-  );
-}
-
-function ModalLabel({
-  children,
-  required,
-}: {
-  children: React.ReactNode;
-  required?: boolean;
-}) {
-  return (
-    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.13em] text-slate-500 dark:text-slate-400">
-      {children}
-      {required && <span className="ml-1 text-red-500">*</span>}
-    </label>
-  );
-}
-
-// ─── Benefit Row ──────────────────────────────────────────────────────────────
-
-function BenefitRow({
-  benefit,
-  index,
-  onChange,
-  onRemove,
-  onDuplicate,
-}: {
-  benefit: FormBenefit;
-  index: number;
-  onChange: (patch: Partial<FormBenefit>) => void;
-  onRemove: () => void;
-  onDuplicate: () => void;
-}) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
-      <div className="mb-3 flex items-center justify-between">
-        <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
-          Benefit {index + 1}
-        </span>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={onDuplicate}
-            className="flex size-7 items-center justify-center rounded-lg text-slate-400 transition hover:bg-brand-100 hover:text-brand-600 dark:hover:bg-brand-500/10 dark:hover:text-brand-400"
-          >
-            <Copy className="size-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={onRemove}
-            className="flex size-7 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-500/10 dark:hover:text-red-400"
-          >
-            <Trash2 className="size-3.5" />
-          </button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_140px]">
-        <div>
-          <ModalLabel>Label (EN)</ModalLabel>
-          <input
-            className={inputCls}
-            value={benefit.labelEn}
-            onChange={(e) => onChange({ labelEn: e.target.value })}
-            placeholder="e.g. Health Insurance"
-          />
-        </div>
-        <div>
-          <ModalLabel>Label (AR)</ModalLabel>
-          <input
-            className={inputCls}
-            value={benefit.labelAr}
-            onChange={(e) => onChange({ labelAr: e.target.value })}
-            placeholder="التأمين الصحي"
-            dir="rtl"
-          />
-        </div>
-        <div>
-          <ModalLabel>Value</ModalLabel>
-          <input
-            className={inputCls}
-            value={benefit.value}
-            onChange={(e) => onChange({ value: e.target.value })}
-            placeholder="e.g. Full coverage"
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Section Block ────────────────────────────────────────────────────────────
-
-function SectionBlock({
-  section,
-  index,
-  activeLang,
-  onChange,
-  onRemove,
-  onDuplicate,
-}: {
-  section: FormSection;
-  index: number;
-  activeLang: 'en' | 'ar';
-  onChange: (patch: Partial<FormSection>) => void;
-  onRemove: () => void;
-  onDuplicate: () => void;
-}) {
-  const [collapsed, setCollapsed] = useState(false);
-
-  const patchItem = (itemId: string, patch: Partial<FormSectionItem>) => {
-    onChange({
-      items: section.items.map((i) =>
-        i._id === itemId ? { ...i, ...patch } : i
-      ),
-    });
-  };
-
-  const removeItem = (itemId: string) => {
-    onChange({ items: section.items.filter((i) => i._id !== itemId) });
-  };
-
-  const addItem = () => {
-    onChange({ items: [...section.items, { _id: uid(), en: '', ar: '' }] });
-  };
-
-  return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
-      {/* Section header */}
-      <div className="flex items-center gap-3 bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
-        <button
-          type="button"
-          onClick={() => setCollapsed((v) => !v)}
-          className="flex flex-1 items-center gap-2 text-left"
-        >
-          {collapsed ? (
-            <ChevronDown className="size-4 shrink-0 text-slate-400" />
-          ) : (
-            <ChevronUp className="size-4 shrink-0 text-slate-400" />
-          )}
-          <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-            {section.title.en || section.title.ar || `Section ${index + 1}`}
-          </span>
-          <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-500 dark:bg-slate-700 dark:text-slate-400">
-            {section.items.length} item{section.items.length !== 1 ? 's' : ''}
-          </span>
-        </button>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={onDuplicate}
-            className="flex size-7 items-center justify-center rounded-lg text-slate-400 transition hover:bg-brand-100 hover:text-brand-600 dark:hover:bg-brand-500/10 dark:hover:text-brand-400"
-          >
-            <Copy className="size-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={onRemove}
-            className="flex size-7 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-500/10 dark:hover:text-red-400"
-          >
-            <Trash2 className="size-3.5" />
-          </button>
-        </div>
-      </div>
-
-      {!collapsed && (
-        <div className="space-y-4 p-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <ModalLabel>Title (EN)</ModalLabel>
-              <input
-                className={inputCls}
-                value={section.title.en}
-                onChange={(e) =>
-                  onChange({ title: { ...section.title, en: e.target.value } })
-                }
-                placeholder="e.g. Terms & Conditions"
-              />
-            </div>
-            <div>
-              <ModalLabel>Title (AR)</ModalLabel>
-              <input
-                className={inputCls}
-                value={section.title.ar}
-                onChange={(e) =>
-                  onChange({ title: { ...section.title, ar: e.target.value } })
-                }
-                placeholder="الشروط والأحكام"
-                dir="rtl"
-              />
-            </div>
-          </div>
-
-          {section.items.length > 0 && (
-            <div className="space-y-2">
-              <ModalLabel>
-                Items ({activeLang === 'en' ? 'showing EN' : 'showing AR'})
-              </ModalLabel>
-              {section.items.map((item, itemIdx) => (
-                <div key={item._id} className="flex items-center gap-2">
-                  <span className="w-5 shrink-0 text-center text-[11px] font-bold text-slate-400">
-                    {itemIdx + 1}
-                  </span>
-                  <div className="grid flex-1 grid-cols-2 gap-2">
-                    <input
-                      className={inputCls}
-                      value={item.en}
-                      onChange={(e) =>
-                        patchItem(item._id, { en: e.target.value })
-                      }
-                      placeholder="Item text (EN)"
-                    />
-                    <input
-                      className={inputCls}
-                      value={item.ar}
-                      onChange={(e) =>
-                        patchItem(item._id, { ar: e.target.value })
-                      }
-                      placeholder="نص العنصر"
-                      dir="rtl"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => removeItem(item._id)}
-                    className="flex size-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-500/10 dark:hover:text-red-400"
-                  >
-                    <X className="size-3.5" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <button
-            type="button"
-            onClick={addItem}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-500 transition hover:border-brand-400 hover:text-brand-600 dark:border-slate-600 dark:text-slate-400 dark:hover:border-brand-500 dark:hover:text-brand-300"
-          >
-            <Plus className="size-3.5" /> Add Item
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ─── Main Modal ───────────────────────────────────────────────────────────────
 
 export default function JobContractModal({
@@ -445,7 +168,6 @@ export default function JobContractModal({
   applicantObjects,
 }: JobContractModalProps) {
   const [form, setForm] = useState<FormState>(emptyForm);
-  const [activeLang, setActiveLang] = useState<'en' | 'ar'>('en');
   const firstInputRef = useRef<HTMLInputElement>(null);
 
   const createMutation = useCreateJobContract();
@@ -513,7 +235,6 @@ export default function JobContractModal({
           ...(propApplicantId ? { applicantId: propApplicantId } : {}),
         });
       }
-      setActiveLang('en');
       setTimeout(() => firstInputRef.current?.focus(), 80);
     }
   }, [isOpen, editing, cloneFrom, applicantObjects, mode, propApplicantId]);
@@ -595,20 +316,11 @@ export default function JobContractModal({
       Swal.fire('Validation', 'Position title is required.', 'warning');
       return;
     }
-
-    if (!form.startDate && mode === 'contract' && !form.isBulk) {
-      Swal.fire('Validation', 'Start date is required.', 'warning');
-      return;
-    }
-
     const base = {
-      companyId:
-        propCompanyId ||
-        form.selectedApplicantObject?.jobPositionId?.companyId?._id!,
       isTemplate: mode === 'template',
       contractType: form.contractType,
       position: form.position.trim(),
-      startDate: form.startDate || new Date().toISOString(),
+      startDate: form.startDate,
       endDate: form.endDate || null,
       probationPeriod:
         form.probationPeriod === '' ? null : Number(form.probationPeriod),
@@ -631,27 +343,29 @@ export default function JobContractModal({
     try {
       if (editing) {
         await updateMutation.mutateAsync({ id: editing._id, payload: base });
-        if (form.isBulk && form.applicantIds?.length) {
-          await bulkMutation.mutateAsync({
-            ...base,
-            applicantIds: applicantObjects!.map(
-              ({ _id, jobPositionId: cid }) => ({
-                applicantId: _id!,
-                companyId: cid?.companyId?._id || propCompanyId!,
-              })
-            ),
-          });
-        } else {
-          const singleApplicantId = propApplicantId ?? form.applicantId;
-          await createMutation.mutateAsync({
-            ...base,
-            ...(mode === 'contract' && singleApplicantId
-              ? { applicantId: singleApplicantId }
-              : {}),
-            ...(mode === 'contract' && jobPositionId ? { jobPositionId } : {}),
-            ...(mode === 'contract' && offerId ? { offerId } : {}),
-          });
-        }
+      } else if (form.isBulk && form.applicantIds?.length) {
+        await bulkMutation.mutateAsync({
+          ...base,
+          applicantIds: applicantObjects!.map(
+            ({ _id, jobPositionId: cid }) => ({
+              applicantId: _id!,
+              companyId: cid?.companyId?._id || propCompanyId!,
+            })
+          ),
+        });
+      } else {
+        const singleApplicantId = propApplicantId ?? form.applicantId;
+        await createMutation.mutateAsync({
+          ...base,
+          companyId:
+            propCompanyId ||
+            form.selectedApplicantObject?.jobPositionId?.companyId?._id!,
+          ...(mode === 'contract' && singleApplicantId
+            ? { applicantId: singleApplicantId }
+            : {}),
+          ...(mode === 'contract' && jobPositionId ? { jobPositionId } : {}),
+          ...(mode === 'contract' && offerId ? { offerId } : {}),
+        });
       }
       onClose();
     } catch {
@@ -731,7 +445,7 @@ export default function JobContractModal({
             )}
 
             {/* Applicant selector */}
-            {mode === 'contract' && !propApplicantId && (
+            {mode === 'contract' && !propApplicantId && !editing && (
               <div>
                 <ModalLabel>
                   Applicant
@@ -968,42 +682,12 @@ export default function JobContractModal({
               description="Custom bilingual content blocks (terms, responsibilities, etc.)"
             />
 
-            {form.sections.length > 0 && (
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-500">
-                  Preview language:
-                </span>
-                <div className="inline-flex overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
-                  {(['en', 'ar'] as const).map((lang) => (
-                    <button
-                      key={lang}
-                      type="button"
-                      onClick={() => setActiveLang(lang)}
-                      className={`flex items-center gap-1 px-3 py-1 text-xs font-semibold transition ${
-                        activeLang === lang
-                          ? 'bg-brand-500 text-white'
-                          : 'text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
-                      }`}
-                    >
-                      {lang === 'en' ? (
-                        <Globe className="size-3" />
-                      ) : (
-                        <Languages className="size-3" />
-                      )}
-                      {lang.toUpperCase()}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
             <div className="space-y-3">
               {form.sections.map((s, idx) => (
                 <SectionBlock
                   key={s._id}
                   section={s}
                   index={idx}
-                  activeLang={activeLang}
                   onChange={(patch) => patchSection(s._id, patch)}
                   onRemove={() => removeSection(s._id)}
                   onDuplicate={() => duplicateSection(s._id)}

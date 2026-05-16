@@ -53,6 +53,9 @@ const MailPreview = lazy(
 const JobOffersPage = lazy(
   () => import('../pages/Recruiting/jobOffers/JobOffersPage')
 );
+const ContractPage = lazy(
+  () => import('../pages/Recruiting/jobContracts/ContractsPage')
+);
 
 // Saved Fields
 const SavedFields = lazy(
@@ -188,6 +191,10 @@ export default function App() {
                 <Route
                   path={paths.jobs.offers}
                   element={<JobOffersPage />}
+                />
+                <Route
+                  path={paths.jobs.contracts}
+                  element={<ContractPage />}
                 />
               </Route>
 

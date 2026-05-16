@@ -7,8 +7,6 @@ import {
   DollarSign,
   Percent,
   Plus,
-  Globe,
-  Languages,
   StickyNote,
   Hash,
   Mail,
@@ -26,15 +24,17 @@ import {
   useUpdateJobOffer,
 } from '../../../hooks/queries/useJobOffers';
 import Swal from '../../../utils/swal';
-import { ApplicantSelect } from './ApplicantSelection';
+import { ApplicantSelect } from '../../form/ApplicantSelection';
 import { TemplateSelector } from './TemplateSelector';
-import { SectionBlock } from './SectionBlock';
+import { SectionBlock } from '../../form/SectionBlock';
 import { CommissionRow } from './CommissionRow';
 import {
   useJobOfferEmail,
   EmailSettingsPanel,
   type ApplicantObject,
 } from './EmailModule';
+import { SectionDivider } from '../../form/SectionDivider';
+import { ModalLabel } from '../../form/ModalLabel';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -154,52 +154,6 @@ const offerToForm = (offer: JobOffer): FormState => ({
   selectedApplicantObject: offer.applicantId,
 });
 
-// ─── Small reusable atoms ─────────────────────────────────────────────────────
-
-function SectionDivider({
-  icon: Icon,
-  title,
-  description,
-}: {
-  icon: React.ElementType;
-  title: string;
-  description?: string;
-}) {
-  return (
-    <div className="flex items-center gap-3 pb-2 pt-4">
-      <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-500/10 text-brand-600 dark:text-brand-400">
-        <Icon className="size-4" />
-      </div>
-      <div className="flex-1">
-        <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
-          {title}
-        </p>
-        {description && (
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            {description}
-          </p>
-        )}
-      </div>
-      <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
-    </div>
-  );
-}
-
-function ModalLabel({
-  children,
-  required,
-}: {
-  children: React.ReactNode;
-  required?: boolean;
-}) {
-  return (
-    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.13em] text-slate-500 dark:text-slate-400">
-      {children}
-      {required && <span className="ml-1 text-red-500">*</span>}
-    </label>
-  );
-}
-
 const inputCls =
   'w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-brand-400';
 
@@ -220,7 +174,6 @@ export default function JobOfferModal({
   applicantObjects,
 }: JobOfferModalProps) {
   const [form, setForm] = useState<FormState>(emptyForm);
-  const [activeLang, setActiveLang] = useState<'en' | 'ar'>('en');
   const firstInputRef = useRef<HTMLInputElement>(null);
 
   // ── Mutations ──────────────────────────────────────────────────────────────
@@ -299,7 +252,6 @@ export default function JobOfferModal({
       } else {
         setForm({ ...emptyForm(), applicantIds: ids, isBulk: bulk });
       }
-      setActiveLang('en');
       setTimeout(() => firstInputRef.current?.focus(), 80);
     }
   }, [isOpen, editing, cloneFrom]);
@@ -541,7 +493,7 @@ export default function JobOfferModal({
             {mode === 'offer' && <TemplateSelector onSelect={applyTemplate} />}
 
             {/* Applicant selector */}
-            {mode === 'offer' && !applicantId && (
+            {mode === 'offer' && !applicantId && !editing && (
               <div>
                 <ModalLabel>
                   Applicant
@@ -728,46 +680,15 @@ export default function JobOfferModal({
               description="Custom bilingual content blocks (benefits, terms, etc.)"
             />
 
-            {form.sections.length > 0 && (
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-500">
-                  Preview language:
-                </span>
-                <div className="inline-flex overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
-                  {(['en', 'ar'] as const).map((lang) => (
-                    <button
-                      key={lang}
-                      type="button"
-                      onClick={() => setActiveLang(lang)}
-                      className={`flex items-center gap-1 px-3 py-1 text-xs font-semibold transition ${
-                        activeLang === lang
-                          ? 'bg-brand-500 text-white'
-                          : 'text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
-                      }`}
-                    >
-                      {lang === 'en' ? (
-                        <Globe className="size-3" />
-                      ) : (
-                        <Languages className="size-3" />
-                      )}
-                      {lang.toUpperCase()}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
             <div className="space-y-3">
               {form.sections.map((s, idx) => (
                 <SectionBlock
                   key={s._id}
                   section={s}
                   index={idx}
-                  activeLang={activeLang}
                   onChange={(patch) => patchSection(s._id, patch)}
                   onRemove={() => removeSection(s._id)}
                   onDuplicate={() => duplicateSection(s._id)}
-                  inputCls={inputCls}
                 />
               ))}
               <button
