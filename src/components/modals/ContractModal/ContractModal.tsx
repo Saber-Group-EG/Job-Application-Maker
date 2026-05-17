@@ -621,12 +621,15 @@ export default function JobContractModal({
                     type="number"
                     min={0}
                     value={form.salaryBasic}
-                    onChange={(e) =>
-                      set(
-                        'salaryBasic',
-                        e.target.value === '' ? '' : Number(e.target.value)
-                      )
-                    }
+                    onChange={(e) => {
+                      const val =
+                        e.target.value === '' ? '' : Number(e.target.value);
+                      if (val !== '' && val < 0) return;
+                      set('salaryBasic', val);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === '-' || e.key === 'e') e.preventDefault();
+                    }}
                     placeholder="0"
                   />
                 </div>
