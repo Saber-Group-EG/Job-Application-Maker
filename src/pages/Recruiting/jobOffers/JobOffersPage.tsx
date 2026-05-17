@@ -33,6 +33,9 @@ import { useDebounce } from '../../../hooks/useDebounce';
 import { SidebarNavItem } from '../../../components/common/SidebarNavItem';
 import { OfferDetail } from './OfferDetail';
 import { ResendModal } from './OffersActions';
+import { CreateJobContractPayload } from '../../../services/contractsService';
+import { offerToContractDefaults } from '../../../utils/OfferToContract';
+import JobContractModal from '../../../components/modals/ContractModal/ContractModal';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -101,8 +104,8 @@ export default function JobOffersPage() {
   const { data: companies = [] } = useCompanies(); // ← full objects, not just IDs
 
   const canWrite =
-    hasPermission('Company Management', 'write') ||
-    hasPermission('Settings Management', 'write');
+    hasPermission('Offer Management', 'write')
+  const canCreateContract = hasPermission('Contract Management', 'write');
 
   const companyId: string[] = companies.map((c) => c._id);
 
@@ -117,6 +120,9 @@ export default function JobOffersPage() {
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<'all' | OfferStatus>('all');
   const [modalOpen, setModalOpen] = useState(false);
+  const [contractModalOpen, setContractModalOpen] = useState(false);
+  const [contractDefaults, setContractDefaults] =
+    useState<Partial<CreateJobContractPayload> | null>(null);
   const [editingOffer, setEditingOffer] = useState<JobOffer | null>(null);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 500);
@@ -158,6 +164,11 @@ export default function JobOffersPage() {
   const deleteMutation = useDeleteJobOffer();
   const updateStatusMutation = useUpdateOfferStatus();
 
+  const handleConvertToContract = async (offer: JobOffer) => {
+    // Pre-fill the contract modal with offer data
+    setContractDefaults(offerToContractDefaults(offer));
+    setContractModalOpen(true);
+  };
   const handleDelete = async (id: string) => {
     const result = await Swal.fire({
       title: 'Delete Offer?',
@@ -219,6 +230,21 @@ export default function JobOffersPage() {
       companyId={companyId}
       editing={editingOffer}
       cloneFrom={cloneSource}
+    />
+  );
+  const contractModal = contractDefaults && (
+    <JobContractModal
+      isOpen={contractModalOpen}
+      onClose={() => {
+        setContractModalOpen(false);
+        setContractDefaults(null);
+      }}
+      mode="contract"
+      companyId={contractDefaults.companyId!}
+      applicantId={contractDefaults.applicantId}
+      jobPositionId={contractDefaults.jobPositionId}
+      offerId={contractDefaults.offerId}
+      defaults={contractDefaults} // ← new prop, see step 5
     />
   );
 
@@ -494,6 +520,7 @@ export default function JobOffersPage() {
         </div>
 
         {sharedModal}
+        {contractModal}
       </div>
     );
   }
@@ -544,6 +571,8 @@ export default function JobOffersPage() {
           onStatusChange={(id, status) =>
             updateStatusMutation.mutate({ id, status })
           }
+          onConvertToContract={handleConvertToContract}
+          canCreateContract={canCreateContract}
         />
         {resendOpen && (
           <ResendModal
@@ -553,6 +582,7 @@ export default function JobOffersPage() {
           />
         )}
         {sharedModal}
+        {contractModal}
       </div>
     );
   }

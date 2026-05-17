@@ -6,6 +6,7 @@ import {
   Clock3,
   Copy,
   DollarSign,
+  FileSignature,
   FileText,
   Pencil,
   Trash2,
@@ -23,16 +24,19 @@ export function OfferDetail({
   onClone,
   onStatusChange,
   setResendOpen,
+  onConvertToContract,
+  canCreateContract,
 }: {
   offer: JobOffer;
   canWrite: boolean;
-  /** Full company objects — forwarded to OfferActions for sender resolution */
   setResendOpen: (open: boolean) => void;
   onBack: () => void;
   onEdit: (o: JobOffer) => void;
   onDelete: (id: string) => void;
   onClone: (offer: JobOffer) => void;
   onStatusChange: (id: string, status: OfferStatus) => void;
+  onConvertToContract: (offer: JobOffer) => void;
+  canCreateContract: boolean;
 }) {
   const chip = STATUS_CHIP[offer.status];
   const applicantName =
@@ -57,13 +61,19 @@ export function OfferDetail({
             Back to offers
           </button>
 
-          {/* Action buttons */}
           <div className="flex items-center gap-2">
-            {/* Always-visible: resend email + download PDF */}
-            <OfferActions
-              offer={offer}
-              setResendOpen={setResendOpen}
-            />
+            {/* PDF + resend */}
+            <OfferActions offer={offer} setResendOpen={setResendOpen} />
+
+            {/* Convert to Contract — always visible, not write-gated
+                since viewing an offer and creating a contract are separate permissions */}
+            {canCreateContract && <button
+              onClick={() => onConvertToContract(offer)}
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-400 transition hover:border-brand-300 hover:bg-brand-50 hover:text-brand-600 dark:border-slate-700 dark:text-slate-400 dark:hover:border-brand-500/40 dark:hover:bg-brand-500/10 dark:hover:text-brand-400"
+              title="Convert to Contract"
+            >
+              <FileSignature className="size-3.5" />
+            </button>}
 
             {/* Write-gated: edit / clone / delete */}
             {canWrite && (
@@ -175,14 +185,14 @@ export function OfferDetail({
           </div>
         </div>
 
-        {/* Last-emailed badge */}
-        {(offer as any).lastEmailSentAt && (
+        {offer.lastEmailSentAt && (
           <p className="mt-3 text-xs text-slate-400 dark:text-slate-500">
             📧 Last emailed{' '}
-            {new Date((offer as any).lastEmailSentAt).toLocaleDateString(
-              undefined,
-              { day: 'numeric', month: 'short', year: 'numeric' }
-            )}
+            {new Date(offer.lastEmailSentAt!).toLocaleDateString(undefined, {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+            })}
           </p>
         )}
       </div>
@@ -274,10 +284,7 @@ export function OfferDetail({
           {[
             { label: 'Created', date: offer.createdAt },
             { label: 'Sent', date: offer.sentAt },
-            {
-              label: 'Last Emailed',
-              date: (offer as any).lastEmailSentAt,
-            },
+            { label: 'Last Emailed', date: offer.lastEmailSentAt },
             { label: 'Responded', date: offer.respondedAt },
             { label: 'Expires', date: offer.expiresAt },
           ]
