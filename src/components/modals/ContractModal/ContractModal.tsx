@@ -11,7 +11,11 @@ import {
   Gift,
   Calendar,
 } from 'lucide-react';
-import { ContractType, JobContract } from '../../../services/contractsService';
+import {
+  ContractType,
+  CreateJobContractPayload,
+  JobContract,
+} from '../../../services/contractsService';
 import {
   useCreateJobContract,
   useUpdateJobContract,
@@ -39,6 +43,7 @@ export type JobContractModalProps = {
   offerId?: string | null;
   cloneFrom?: JobContract | null;
   applicantObjects?: ApplicantObject[];
+  defaults?: Partial<CreateJobContractPayload> | null;
 };
 
 export type FormSectionItem = {
@@ -145,6 +150,41 @@ const contractToForm = (c: JobContract): FormState => ({
   selectedApplicantObject: c.applicantId,
 });
 
+function defaultsToForm(
+  defaults: Partial<CreateJobContractPayload>
+): Partial<FormState> {
+  return {
+    ...(defaults.contractType ? { contractType: defaults.contractType } : {}),
+    ...(defaults.position ? { position: defaults.position } : {}),
+    ...(defaults.startDate ? { startDate: defaults.startDate } : {}),
+    ...(defaults.endDate ? { endDate: defaults.endDate } : {}),
+    ...(defaults.probationPeriod != null
+      ? { probationPeriod: defaults.probationPeriod }
+      : {}),
+    ...(defaults.salary
+      ? {
+          salaryBasic: defaults.salary.basic ?? '',
+          salaryCurrency: defaults.salary.currency ?? 'EGP',
+        }
+      : {}),
+    ...(defaults.sections
+      ? {
+          sections: defaults.sections.map((s, idx) => ({
+            _id: uid(),
+            title: s.title,
+            items: (s.items ?? []).map((i) => ({
+              _id: uid(),
+              en: i.en,
+              ar: i.ar,
+            })),
+            displayOrder: idx,
+          })),
+        }
+      : {}),
+    ...(defaults.notes ? { notes: defaults.notes } : {}),
+    ...(defaults.applicantId ? { applicantId: defaults.applicantId } : {}),
+  };
+}
 // ─── Shared style constants ───────────────────────────────────────────────────
 
 const inputCls =
@@ -166,6 +206,7 @@ export default function JobContractModal({
   offerId,
   cloneFrom,
   applicantObjects,
+  defaults,
 }: JobContractModalProps) {
   const [form, setForm] = useState<FormState>(emptyForm);
   const firstInputRef = useRef<HTMLInputElement>(null);
@@ -208,7 +249,6 @@ export default function JobContractModal({
     };
   }, [isOpen]);
 
-  // Init form on open
   useEffect(() => {
     if (isOpen) {
       const ids = applicantObjects?.map((a) => a._id) ?? [];
@@ -227,6 +267,8 @@ export default function JobContractModal({
           startDate: '',
           endDate: '',
         });
+      } else if (defaults) {
+        setForm({ ...emptyForm(), ...defaultsToForm(defaults) });
       } else {
         setForm({
           ...emptyForm(),
@@ -237,7 +279,15 @@ export default function JobContractModal({
       }
       setTimeout(() => firstInputRef.current?.focus(), 80);
     }
-  }, [isOpen, editing, cloneFrom, applicantObjects, mode, propApplicantId]);
+  }, [
+    isOpen,
+    editing,
+    cloneFrom,
+    defaults,
+    applicantObjects,
+    mode,
+    propApplicantId,
+  ]);
 
   if (!isOpen) return null;
 

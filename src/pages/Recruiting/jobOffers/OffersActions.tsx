@@ -19,6 +19,7 @@ import {
 } from '../../../components/modals/JobOffersModal/EmailModule';
 import { useSendEmail } from '../../../hooks/queries/useSendEmail';
 import { useUpdateJobOffer } from '../../../hooks/queries/useJobOffers';
+import { useAuth } from '../../../context/AuthContext';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -539,7 +540,8 @@ export function OfferActions({
   setResendOpen: (open: boolean) => void;
 }) {
   const [pdfLoading, setPdfLoading] = useState(false);
-
+  const { hasPermission } = useAuth();
+  const canSendEmail = hasPermission('Mail Management', 'create');
   const handleDownloadPdf = async () => {
     setPdfLoading(true);
     try {
@@ -552,13 +554,15 @@ export function OfferActions({
   return (
     <>
       {/* Resend email */}
-      <button
-        onClick={() => setResendOpen(true)}
-        className="flex size-8 items-center justify-center rounded-lg border border-slate-200 text-slate-400 transition hover:border-brand-300 hover:bg-brand-50 hover:text-brand-600 dark:border-slate-700 dark:hover:border-brand-700 dark:hover:bg-brand-500/10 dark:hover:text-brand-400"
-        title="Resend offer email"
-      >
-        <Mail className="size-3.5" />
-      </button>
+      {canSendEmail && (
+        <button
+          onClick={() => setResendOpen(true)}
+          className="flex size-8 items-center justify-center rounded-lg border border-slate-200 text-slate-400 transition hover:border-brand-300 hover:bg-brand-50 hover:text-brand-600 dark:border-slate-700 dark:hover:border-brand-700 dark:hover:bg-brand-500/10 dark:hover:text-brand-400"
+          title="Resend offer email"
+        >
+          <Mail className="size-3.5" />
+        </button>
+      )}
 
       {/* Download PDF — triggers real file download, no print dialog */}
       <button
