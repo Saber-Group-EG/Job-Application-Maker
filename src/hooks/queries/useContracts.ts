@@ -80,17 +80,8 @@ export function useCreateJobContract() {
   return useMutation({
     mutationFn: (payload: CreateJobContractPayload) =>
       jobContractsService.createContract(payload),
-    onSuccess: (created) => {
-      queryClient.invalidateQueries({ queryKey: jobContractsKeys.lists() });
-      if (created.isTemplate) {
-        queryClient.invalidateQueries({
-          queryKey: jobContractsKeys.templates(
-            typeof created.companyId === 'string'
-              ? created.companyId
-              : created.companyId._id
-          ),
-        });
-      }
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: jobContractsKeys.all });
       showSuccess('Contract created successfully');
     },
     onError: (err: ApiError) =>
@@ -140,17 +131,8 @@ export function useCloneJobContract() {
 
   return useMutation({
     mutationFn: (id: string) => jobContractsService.cloneContract(id),
-    onSuccess: (cloned) => {
-      queryClient.invalidateQueries({ queryKey: jobContractsKeys.lists() });
-      if (cloned.isTemplate) {
-        queryClient.invalidateQueries({
-          queryKey: jobContractsKeys.templates(
-            typeof cloned.companyId === 'string'
-              ? cloned.companyId
-              : cloned.companyId._id
-          ),
-        });
-      }
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: jobContractsKeys.all });
       showSuccess('Contract cloned successfully');
     },
     onError: (err: ApiError) =>
