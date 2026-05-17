@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { CheckCircle2, ChevronDown, Loader2, X } from 'lucide-react';
-import { useDebounce } from '../../../hooks/useDebounce';
-import { useApplicants, useCompanies } from '../../../hooks/queries';
+import { useDebounce } from '../../hooks/useDebounce';
+import { useApplicants, useCompanies } from '../../hooks/queries';
 
 type ApplicantOption = {
   _id: string;
