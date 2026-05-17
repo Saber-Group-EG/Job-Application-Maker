@@ -348,7 +348,38 @@ export default function JobContractsPage() {
                 </button>
               )}
             </div>
-
+            {/* Mobile status filters — visible only below lg */}
+            <div className="flex gap-2 overflow-x-auto border-b border-slate-200 bg-white px-4 py-2 no-scrollbar dark:border-slate-800 dark:bg-slate-900 lg:hidden">
+              {STATUS_OPTIONS.map((opt) => {
+                const Icon = opt.icon;
+                const isActive = statusFilter === opt.key;
+                return (
+                  <button
+                    key={opt.key}
+                    onClick={() => setStatusFilter(opt.key)}
+                    className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                      isActive
+                        ? 'bg-brand-500 text-white'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    <Icon className="size-3" />
+                    {opt.label}
+                    {getStatusCount(opt.key) > 0 && (
+                      <span
+                        className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                          isActive
+                            ? 'bg-white/20 text-white'
+                            : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+                        }`}
+                      >
+                        {getStatusCount(opt.key)}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
             {/* Contract list */}
             <div className="flex-1 bg-white dark:bg-slate-900">
               {isLoading ? (
