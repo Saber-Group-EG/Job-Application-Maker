@@ -192,3 +192,84 @@ export type RejectionInsights = {
   reason: string;
   count: number;
 }[];
+
+// ---- Custom responses / applicant helpers ----
+import type { SavedField } from './users';
+
+export type UnknownRecord = Record<string, unknown>;
+
+export type CustomFieldLike = Partial<SavedField> & {
+  fieldId?: string;
+  label?: unknown;
+  displayOrder?: number;
+  order?: number;
+} & UnknownRecord;
+
+export type CustomResponseEntry = {
+  key: string;
+  label: string;
+  value: unknown;
+};
+
+export type ApplicantWithCustomResponses = Applicant & {
+  customFieldResponses?: UnknownRecord | null;
+  expectedSalary?: unknown;
+};
+
+export type ExpandedSectionItemIds = Record<string, Set<number>>;
+export type ExpandedGroupFieldIds = Record<string, Record<number, Set<string>>>;
+export type ExpandedTextByKey = Record<string, boolean>;
+
+export type PrimitiveValueModel = {
+  kind: 'primitive';
+  text: string;
+  isArabic: boolean;
+  multiline: boolean;
+  href?: string;
+};
+
+export type ArrayObjectItemModel = {
+  itemIndex: number;
+  summaryText: string;
+  summaryDisplay: string;
+  summaryIsArabic: boolean;
+  value: UnknownRecord;
+};
+
+export type ArrayObjectValueModel = {
+  kind: 'array-object';
+  items: ArrayObjectItemModel[];
+};
+
+export type ArrayPrimitiveValueModel = {
+  kind: 'array-primitive';
+  text: string;
+  isArabic: boolean;
+};
+
+export type ObjectValueModel = {
+  kind: 'object';
+  value: UnknownRecord;
+};
+
+export type EmptyValueModel = {
+  kind: 'empty';
+};
+
+export type NormalizedValueModel =
+  | EmptyValueModel
+  | PrimitiveValueModel
+  | ArrayPrimitiveValueModel
+  | ArrayObjectValueModel
+  | ObjectValueModel;
+
+export type ObjectFieldModel = {
+  fieldKey: string;
+  label: string;
+  displayText: string;
+  rowIsArabic: boolean;
+  canTruncate: boolean;
+  href?: string;
+  nestedObject?: UnknownRecord;
+  rawValue: unknown;
+};
