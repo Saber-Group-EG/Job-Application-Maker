@@ -1,115 +1,67 @@
-import { Fragment, useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import ComponentCard from '../../../../components/common/ComponentCard';
 import { useAuth } from '../../../../context/AuthContext';
-import { toPlainString } from '../../../../utils/strings';
 import { useApplicantsByPhone } from '../../../../hooks/queries/useApplicants';
-import { jobOffersService } from '../../../../services/jobOffersService';
+import { jobOffersService, type JobOffer, type PaginatedJobOffers } from '../../../../services/jobOffersService';
+import { jobContractsService, type JobContract, type PaginatedJobContracts } from '../../../../services/jobContractsService';
 import { useJobOffer } from '../../../../hooks/queries/useJobOffers';
 import JobOfferPreview from '../../../../components/modals/JobOfferPreview/JobOfferPreview';
+import ContractPreview from '../../../../components/modals/ContractPreview/ContractPreview';
+import StatusHistoryAllTab from './StatusHistoryTabs/StatusHistoryAllTab';
+import StatusHistoryStatusTab from './StatusHistoryTabs/StatusHistoryStatusTab';
+import StatusHistoryActionsTab from './StatusHistoryTabs/StatusHistoryActionsTab';
+import StatusHistoryInterviewTab from './StatusHistoryTabs/StatusHistoryInterviewTab';
+import StatusHistoryPreviousTab from './StatusHistoryTabs/StatusHistoryPreviousTab';
+import StatusHistoryOffersTab from './StatusHistoryTabs/StatusHistoryOffersTab';
+import StatusHistoryContractsTab from './StatusHistoryTabs/StatusHistoryContractsTab';
 
 type Props = {
   applicant: any;
   loading?: boolean;
 };
 
-// Local helpers (copied from ApplicantData originally)
-const formatDate = (dateString?: string) => {
-  if (!dateString) return '';
-  return new Date(dateString).toLocaleString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-};
-
-const formatDateOnly = (dateString?: string) => {
-  if (!dateString) return '';
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-};
-
-const getReadableMessageText = (value?: string) => {
-  if (!value) return '';
-
-  // Some messages are saved as escaped HTML (&lt;p&gt;...); decode first.
-  const rawValue = String(value);
-  const decoded = typeof document !== 'undefined'
-    ? (() => {
-      const textarea = document.createElement('textarea');
-      textarea.innerHTML = rawValue;
-      return textarea.value;
-    })()
-    : rawValue;
-
-  const withLineBreaks = decoded
-    .replace(/<\s*br\s*\/?>/gi, '\n')
-    .replace(/<\s*\/p\s*>\s*<\s*p\s*>/gi, '\n\n')
-    .replace(/<\s*\/div\s*>\s*<\s*div\s*>/gi, '\n\n')
-    .replace(/<[^>]*>/g, '');
-
-  return withLineBreaks
-    .replace(/\u00a0/g, ' ')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-};
-
-const getStatusColor = (status: string) => {
-  switch (status?.toLowerCase()) {
-    case 'draft':
-      return 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400';
-    case 'sent':
-      return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
-    case 'accepted':
-      return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
-    case 'expired':
-      return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
-    case 'pending':
-      return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
-    case 'interview':
-      return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
-    case 'interviewed':
-      return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400';
-    case 'approved':
-      return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
-    case 'rejected':
-      return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
-    default:
-      return 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400';
-  }
-};
-
 export default function StatusHistory({ applicant, loading = false }: Props) {
   const { user } = useAuth();
   const navigate = useNavigate(); // Add this for navigation
-  const [activityTab, setActivityTab] = useState<'all' | 'status' | 'actions' | 'interview' | 'previous' | 'offers'>('all');
+  const [activityTab, setActivityTab] = useState<'all' | 'status' | 'actions' | 'interview' | 'previous' | 'offers' | 'contracts'>('all');
   const [expandedHistory, setExpandedHistory] = useState<string | null>(null);
   const [selectedOfferId, setSelectedOfferId] = useState<string | null>(null);
-  const [selectedOfferLocal, setSelectedOfferLocal] = useState<any | null>(null);
+  const [selectedOfferLocal, setSelectedOfferLocal] = useState<JobOffer | null>(null);
   const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
   const modalLockRef = useRef(0);
+  const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
+  const [selectedContractLocal, setSelectedContractLocal] = useState<JobContract | null>(null);
+  const [isContractModalOpen, setIsContractModalOpen] = useState(false);
+  const contractModalLockRef = useRef(0);
   const { data: selectedOfferDetail } = useJobOffer(selectedOfferId || '', {
     enabled: !!selectedOfferId,
   });
 
   const applicantId = String(applicant?._id || '');
-  const { data: offersResponse, isLoading: isOffersLoading } = useQuery<any>({
+  const { data: offersResponse, isLoading: isOffersLoading } = useQuery<PaginatedJobOffers>({
     queryKey: ['jobOffers', 'applicant', applicantId],
     queryFn: () =>
       jobOffersService.listOffers({ applicantId, PageCount: 'all' }),
     enabled: !!applicantId && activityTab === 'offers',
   });
-  const jobOffers: any[] = Array.isArray((offersResponse as any)?.data)
-    ? (offersResponse as any).data
-    : Array.isArray(offersResponse)
-      ? offersResponse
-      : [];
+  const jobOffers = offersResponse?.data ?? [];
+
+  const { data: contractsResponse, isLoading: isContractsLoading } = useQuery<PaginatedJobContracts>({
+    queryKey: ['jobContracts', 'applicant', applicantId],
+    queryFn: () =>
+      jobContractsService.listContracts({ applicantId, PageCount: 'all' }),
+    enabled: !!applicantId && activityTab === 'contracts',
+  });
+
+  const jobContracts = contractsResponse?.data ?? [];
+
+  const { data: selectedContractDetail } = useQuery<JobContract>({
+    queryKey: ['jobContracts', 'detail', selectedContractId],
+    queryFn: () => jobContractsService.getContract(selectedContractId || ''),
+    enabled: !!selectedContractId,
+  });
 
   const normalizedDetail = useMemo(() => {
     const detail = selectedOfferDetail as any;
@@ -130,6 +82,14 @@ export default function StatusHistory({ applicant, loading = false }: Props) {
     }
     : null;
 
+  const normalizedContractDetail = useMemo(() => {
+    const detail = selectedContractDetail as any;
+    if (!detail) return null;
+    return detail?.jobContract ?? detail?.data?.jobContract ?? detail?.data ?? detail;
+  }, [selectedContractDetail]);
+
+  const effectiveContract = normalizedContractDetail ?? selectedContractLocal;
+
   // Fetch applicants with the same phone number
   const applicantPhone = useMemo(() => applicant?.phone || applicant?.phoneNumber || '', [applicant?.phone, applicant?.phoneNumber]);
   const { data: previousApplicants = [], isLoading: isPreviousLoading } = useApplicantsByPhone(applicantPhone, {
@@ -140,13 +100,77 @@ export default function StatusHistory({ applicant, loading = false }: Props) {
   const filteredPreviousApplicants = useMemo(() => {
     if (!previousApplicants || !Array.isArray(previousApplicants)) return [];
     const currentId = String(applicant?._id || '');
-    return previousApplicants.filter((a: any) => String(a?._id || '') !== currentId);
+    return previousApplicants.filter((a: { _id?: string }) => String(a?._id || '') !== currentId);
   }, [previousApplicants, applicant?._id]);
 
   const handlePreviousEntryClick = (applicantId: string) => {
     // Navigate to the applicant detail page
     // Adjust the path based on your actual route structure
     navigate(`/applicant-details/${applicantId}`);
+  };
+
+  const getRowId = (row?: { _id?: string; id?: string } | null) =>
+    row?._id || row?.id || null;
+
+  const handleOfferSelect = (offer: JobOffer) => {
+    const offerId = getRowId(offer);
+    setSelectedOfferId(offerId);
+    setSelectedOfferLocal(offer);
+    modalLockRef.current = Date.now() + 800;
+    setIsOfferModalOpen(true);
+  };
+
+  const handleContractSelect = (contract: JobContract) => {
+    const contractId = getRowId(contract);
+    setSelectedContractId(contractId);
+    setSelectedContractLocal(contract);
+    contractModalLockRef.current = Date.now() + 800;
+    setIsContractModalOpen(true);
+  };
+
+  const activityProps = {
+    applicant,
+    user,
+    expandedHistory,
+    setExpandedHistory,
+  };
+
+  const renderTabContent = () => {
+    switch (activityTab) {
+      case 'previous':
+        return (
+          <StatusHistoryPreviousTab
+            isLoading={isPreviousLoading}
+            applicants={filteredPreviousApplicants}
+            onSelectApplicant={handlePreviousEntryClick}
+          />
+        );
+      case 'offers':
+        return (
+          <StatusHistoryOffersTab
+            isLoading={isOffersLoading}
+            offers={jobOffers}
+            onSelectOffer={handleOfferSelect}
+          />
+        );
+      case 'contracts':
+        return (
+          <StatusHistoryContractsTab
+            isLoading={isContractsLoading}
+            contracts={jobContracts}
+            onSelectContract={handleContractSelect}
+          />
+        );
+      case 'status':
+        return <StatusHistoryStatusTab {...activityProps} />;
+      case 'actions':
+        return <StatusHistoryActionsTab {...activityProps} />;
+      case 'interview':
+        return <StatusHistoryInterviewTab {...activityProps} />;
+      case 'all':
+      default:
+        return <StatusHistoryAllTab {...activityProps} />;
+    }
   };
 
   return (
@@ -218,6 +242,16 @@ export default function StatusHistory({ applicant, loading = false }: Props) {
             >
               Job Offer History
             </button>
+            <button
+              onClick={() => setActivityTab('contracts')}
+              className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium transition ${
+                activityTab === 'contracts'
+                  ? 'border-brand-500 text-brand-600 dark:text-brand-400'
+                  : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+              }`}
+            >
+              Job Contract History
+            </button>
           </nav>
         </div>
 
@@ -250,566 +284,7 @@ export default function StatusHistory({ applicant, loading = false }: Props) {
               </table>
             </div>
           ) : (
-            (() => {
-              // Handle "Previous Entries" tab
-              if (activityTab === 'previous') {
-                if (isPreviousLoading) {
-                  return (
-                    <div className="overflow-x-auto rounded-lg border border-stroke dark:border-strokedark">
-                      <table className="min-w-full">
-                        <thead className="bg-gray-50 dark:bg-gray-800/60">
-                          <tr>
-                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Full Name</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Email</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Phone</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Status</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Applied Date</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
-                          {Array.from({ length: 3 }).map((_, i) => (
-                            <tr key={i}>
-                              <td className="px-4 py-3"><div className="h-4 w-32 rounded bg-gray-200 dark:bg-gray-700 animate-pulse" /></td>
-                              <td className="px-4 py-3"><div className="h-4 w-40 rounded bg-gray-200 dark:bg-gray-700 animate-pulse" /></td>
-                              <td className="px-4 py-3"><div className="h-4 w-28 rounded bg-gray-200 dark:bg-gray-700 animate-pulse" /></td>
-                              <td className="px-4 py-3"><div className="h-4 w-20 rounded bg-gray-200 dark:bg-gray-700 animate-pulse" /></td>
-                              <td className="px-4 py-3"><div className="h-4 w-24 rounded bg-gray-200 dark:bg-gray-700 animate-pulse" /></td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  );
-                }
-
-                if (!filteredPreviousApplicants || filteredPreviousApplicants.length === 0) {
-                  return (
-                    <div className="rounded-lg border border-dashed border-stroke p-6 text-center text-sm text-gray-500 dark:border-strokedark dark:text-gray-400">
-                      No previous entries found with the same phone number.
-                    </div>
-                  );
-                }
-
-                return (
-                  <div className="overflow-x-auto rounded-lg border border-stroke dark:border-strokedark">
-                    <table className="min-w-full">
-                      <thead className="bg-gray-50 dark:bg-gray-800/60">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Full Name</th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Email</th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Phone</th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Status</th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Applied Date</th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Job Position</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
-                        {filteredPreviousApplicants.map((prev: any, index: number) => (
-                          <tr 
-                            key={prev?._id || index} 
-                            className="hover:bg-gray-50 dark:hover:bg-gray-800/30 cursor-pointer transition-colors"
-                            onClick={() => handlePreviousEntryClick(prev?._id)}
-                          >
-                            <td className="px-4 py-3 text-sm text-brand-600 hover:underline dark:text-brand-400">
-                              {prev?.fullName || 'N/A'}
-                            </td>
-                            <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
-                              <a
-                                href={`mailto:${prev?.email}`}
-                                onClick={(e) => e.stopPropagation()}
-                                className="text-brand-600 hover:underline dark:text-brand-400"
-                              >
-                                {prev?.email || 'N/A'}
-                              </a>
-                            </td>
-                            <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
-                              {prev?.phone || 'N/A'}
-                            </td>
-                            <td className="px-4 py-3 text-sm">
-                              <span
-                                className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${getStatusColor(
-                                  prev?.status || 'pending'
-                                )}`}
-                              >
-                                {prev?.status ? prev.status.charAt(0).toUpperCase() + prev.status.slice(1) : 'Pending'}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                              {/* Fixed: Use submittedAt instead of createdAt/appliedAt */}
-                              {formatDateOnly(prev?.submittedAt) || formatDateOnly(prev?.createdAt) || formatDateOnly(prev?.appliedAt) || 'N/A'}
-                             </td>
-                            <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                              {prev?.jobPositionId?.title?.en || prev?.jobPositionId?.title || 'N/A'}
-                             </td>
-                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                );
-              }
-
-              if (activityTab === 'offers') {
-                if (isOffersLoading) {
-                  return (
-                    <div className="overflow-x-auto rounded-lg border border-stroke dark:border-strokedark">
-                      <table className="min-w-full">
-                        <thead className="bg-gray-50 dark:bg-gray-800/60">
-                          <tr>
-                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Position</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Company</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Status</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Sent</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Responded</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
-                          {Array.from({ length: 3 }).map((_, i) => (
-                            <tr key={i}>
-                              <td className="px-4 py-3"><div className="h-4 w-32 rounded bg-gray-200 dark:bg-gray-700 animate-pulse" /></td>
-                              <td className="px-4 py-3"><div className="h-4 w-28 rounded bg-gray-200 dark:bg-gray-700 animate-pulse" /></td>
-                              <td className="px-4 py-3"><div className="h-4 w-20 rounded bg-gray-200 dark:bg-gray-700 animate-pulse" /></td>
-                              <td className="px-4 py-3"><div className="h-4 w-24 rounded bg-gray-200 dark:bg-gray-700 animate-pulse" /></td>
-                              <td className="px-4 py-3"><div className="h-4 w-24 rounded bg-gray-200 dark:bg-gray-700 animate-pulse" /></td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  );
-                }
-
-                if (!jobOffers || jobOffers.length === 0) {
-                  return (
-                    <div className="rounded-lg border border-dashed border-stroke p-6 text-center text-sm text-gray-500 dark:border-strokedark dark:text-gray-400">
-                      No job offers found for this applicant.
-                    </div>
-                  );
-                }
-
-                return (
-                  <div className="overflow-x-auto rounded-lg border border-stroke dark:border-strokedark">
-                    <table className="min-w-full">
-                      <thead className="bg-gray-50 dark:bg-gray-800/60">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Position</th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Company</th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Status</th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Sent</th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Responded</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
-                        {jobOffers.map((offer: any, index: number) => {
-                          const offerId = offer?._id || offer?.id || null;
-                          const companyName =
-                            typeof offer?.companyId === 'string'
-                              ? 'Company'
-                              : (offer?.companyId?.name?.en || offer?.companyId?.name || 'N/A');
-
-                          return (
-                            <tr
-                              key={offerId || index}
-                              className="hover:bg-gray-50 dark:hover:bg-gray-800/30 cursor-pointer"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                setSelectedOfferId(offerId);
-                                setSelectedOfferLocal(offer);
-                                modalLockRef.current = Date.now() + 800;
-                                setIsOfferModalOpen(true);
-                              }}
-                            >
-                              <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
-                                {offer?.position || offer?.jobPositionId?.title?.en || offer?.jobPositionId?.title || 'N/A'}
-                              </td>
-                              <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
-                                {companyName}
-                              </td>
-                              <td className="px-4 py-3 text-sm">
-                                <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${getStatusColor(offer?.status || 'draft')}`}>
-                                  {(offer?.status || 'draft').charAt(0).toUpperCase() + (offer?.status || 'draft').slice(1)}
-                                </span>
-                              </td>
-                              <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                                {formatDate(offer?.sentAt) || '—'}
-                              </td>
-                              <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                                {formatDate(offer?.respondedAt) || '—'}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                );
-              }
-
-              // Handle other tabs (original logic)
-              const activities: Array<{
-                type: 'status' | 'message' | 'comment' | 'interview';
-                date: string;
-                data: any;
-              }> = [];
-
-              // Add status history
-              applicant?.statusHistory?.forEach((history: any) => {
-                activities.push({ type: 'status', date: history.changedAt, data: history });
-              });
-
-              // Add messages
-              applicant?.messages?.forEach((message: any) => {
-                activities.push({
-                  type: 'message',
-                  date: message.sentAt || message.createdAt || new Date().toISOString(),
-                  data: message,
-                });
-              });
-
-              // Add comments
-              applicant?.comments?.forEach((comment: any) => {
-                activities.push({
-                  type: 'comment',
-                  date: comment.commentedAt || comment.changedAt || comment.createdAt || new Date().toISOString(),
-                  data: comment,
-                });
-              });
-
-              // Add interviews
-              applicant?.interviews?.forEach((interview: any) => {
-                activities.push({
-                  type: 'interview',
-                  date: interview.scheduledAt || interview.createdAt || interview.issuedAt || new Date().toISOString(),
-                  data: interview,
-                });
-              });
-
-              // Sort by date (newest first)
-              activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-              // Filter activities based on selected tab
-              const filteredActivities = activities.filter((activity) => {
-                if (activityTab === 'all') return true;
-                if (activityTab === 'status') return activity.type === 'status';
-                if (activityTab === 'actions') return activity.type === 'message' || activity.type === 'comment';
-                if (activityTab === 'interview') return activity.type === 'interview';
-                return false;
-              });
-
-              if (filteredActivities.length === 0) {
-                return (
-                  <div className="rounded-lg border border-dashed border-stroke p-6 text-center text-sm text-gray-500 dark:border-strokedark dark:text-gray-400">
-                    No activity records found for this tab.
-                  </div>
-                );
-              }
-
-              const getChannels = (activity: any) => {
-                if (activity.type === 'status' || activity.type === 'interview') {
-                  return activity.data?.notifications?.channels;
-                }
-                return null;
-              };
-
-              const getActorName = (activity: any): string => {
-                if (activity.type === 'status') {
-                  const history = activity.data;
-                  let actorName: string | null = null;
-
-                  if (history.changedBy && typeof history.changedBy === 'string' && history.changedBy.toLowerCase() !== 'system') {
-                    actorName = history.changedBy;
-                  }
-
-                  if (!actorName && history.changedBy && typeof history.changedBy === 'object') {
-                    actorName = history.changedBy.fullName || history.changedBy.email || null;
-                  }
-
-                  if (!actorName) {
-                    const histTime = history.changedAt ? new Date(history.changedAt).getTime() : null;
-                    const withinWindow = (time?: string) => {
-                      if (!histTime || !time) return false;
-                      const t = new Date(time).getTime();
-                      return Math.abs(t - histTime) <= 2 * 60 * 1000;
-                    };
-
-                    if (!actorName && applicant?.messages) {
-                      const match = applicant.messages.find((m: any) => (withinWindow(m.sentAt) || withinWindow(m.createdAt)) && m.sentBy);
-                      if (match) {
-                        actorName = typeof match.sentBy === 'string' ? match.sentBy : (match.sentBy?.fullName || match.sentBy?.email || null);
-                      }
-                    }
-
-                    if (!actorName && applicant?.comments) {
-                      const match = applicant.comments.find((c: any) => (withinWindow(c.changedAt) || withinWindow(c.commentedAt) || withinWindow(c.createdAt)) && (c.changedBy || c.author));
-                      if (match) {
-                        actorName = typeof match.changedBy === 'string' ? match.changedBy : (match.changedBy?.fullName || match.changedBy?.email || match.author || null);
-                      }
-                    }
-
-                    if (!actorName && applicant?.interviews) {
-                      const match = applicant.interviews.find((iv: any) => (withinWindow(iv.scheduledAt) || withinWindow(iv.createdAt) || withinWindow(iv.issuedAt)) && iv.issuedBy);
-                      if (match) {
-                        actorName = typeof match.issuedBy === 'string' ? match.issuedBy : (match.issuedBy?.fullName || match.issuedBy?.email || null);
-                      }
-                    }
-                  }
-
-                  const currentUserLabel = user?.fullName || user?.email || 'Current User';
-                  return (
-                    actorName ||
-                    (typeof history.changedBy === 'string' && history.changedBy.toLowerCase() !== 'system'
-                      ? history.changedBy
-                      : (history.changedBy as any)?.fullName || (history.changedBy as any)?.email || currentUserLabel)
-                  );
-                }
-
-                if (activity.type === 'message') {
-                  const sentBy = activity.data?.sentBy;
-                  if (typeof sentBy === 'string') return sentBy;
-                  return sentBy?.fullName || sentBy?.email || 'Unknown';
-                }
-
-                if (activity.type === 'comment') {
-                  const comment = activity.data;
-                  const author = comment.commentedBy || comment.changedBy || comment.author || comment.createdBy;
-                  if (typeof author === 'string') return author;
-                  if (author && typeof author === 'object') {
-                    return author.fullName || (typeof author.name === 'object' ? toPlainString(author.name) : author.name) || author.email || author.username || 'User';
-                  }
-                  return 'Unknown';
-                }
-
-                if (activity.type === 'interview') {
-                  const issuedBy = activity.data?.issuedBy;
-                  if (typeof issuedBy === 'string') return issuedBy;
-                  return issuedBy?.fullName || issuedBy?.email || user?.fullName || user?.email || 'System';
-                }
-
-                return '-';
-              };
-
-              const getTypeBadge = (activity: any) => {
-                if (activity.type === 'status') {
-                  const status = activity.data?.status || 'status';
-                  return {
-                    label: status.charAt(0).toUpperCase() + status.slice(1),
-                    className: getStatusColor(status),
-                  };
-                }
-
-                if (activity.type === 'message') {
-                  return {
-                    label: 'Message',
-                    className: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-                  };
-                }
-
-                if (activity.type === 'comment') {
-                  return {
-                    label: 'Comment',
-                    className: 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400',
-                  };
-                }
-
-                const interviewStatus = String(activity.data?.status || '').toLowerCase();
-                if (interviewStatus === 'completed') {
-                  return {
-                    label: 'Interview (Completed)',
-                    className: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-                  };
-                }
-                if (interviewStatus === 'cancelled') {
-                  return {
-                    label: 'Interview (Cancelled)',
-                    className: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-                  };
-                }
-                if (interviewStatus === 'rescheduled') {
-                  return {
-                    label: 'Interview (Rescheduled)',
-                    className: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
-                  };
-                }
-                return {
-                  label: 'Interview',
-                  className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-                };
-              };
-
-              const getSummary = (activity: any): string => {
-                if (activity.type === 'status') {
-                  return activity.data?.notes || 'Status updated.';
-                }
-                if (activity.type === 'message') {
-                  const message = activity.data;
-                  const content = getReadableMessageText(message.content || message.body || message.message);
-                  return message.subject || content || 'Message sent.';
-                }
-                if (activity.type === 'comment') {
-                  return activity.data?.comment || activity.data?.text || 'Comment added.';
-                }
-                const interview = activity.data;
-                if (interview?.scheduledAt) {
-                  return `Scheduled for ${formatDate(interview.scheduledAt)}`;
-                }
-                return interview?.notes || interview?.comment || 'Interview activity.';
-              };
-
-              const renderDetails = (activity: any) => {
-                if (activity.type === 'status') {
-                  const history = activity.data;
-                  return (
-                    <div className="space-y-2">
-                      {history.notes ? (
-                        <p className="whitespace-pre-line text-sm text-gray-700 dark:text-gray-300">{history.notes}</p>
-                      ) : (
-                        <p className="text-sm text-gray-500 dark:text-gray-400">No additional notes.</p>
-                      )}
-                    </div>
-                  );
-                }
-
-                if (activity.type === 'message') {
-                  const message = activity.data;
-                  const messageContent = getReadableMessageText(message.content || message.body || message.message);
-                  return (
-                    <div className="space-y-2">
-                      {message.subject && (
-                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Subject: {message.subject}</p>
-                      )}
-                      {messageContent ? (
-                        <p className="whitespace-pre-line text-sm text-gray-700 dark:text-gray-300">{messageContent}</p>
-                      ) : (
-                        <p className="text-sm text-gray-500 dark:text-gray-400">No message body available.</p>
-                      )}
-                    </div>
-                  );
-                }
-
-                if (activity.type === 'comment') {
-                  const comment = activity.data;
-                  return (
-                    <p className="whitespace-pre-line text-sm text-gray-700 dark:text-gray-300">{comment.comment || comment.text || 'No comment text available.'}</p>
-                  );
-                }
-
-                const interview = activity.data;
-                return (
-                  <div className="grid grid-cols-1 gap-2 text-sm text-gray-700 dark:text-gray-300 md:grid-cols-2">
-                    {interview.scheduledAt && (
-                      <div>
-                        <span className="font-semibold text-gray-500 dark:text-gray-400">Scheduled:</span>{' '}
-                        {new Date(interview.scheduledAt).toLocaleString('en-US', {
-                          weekday: 'short',
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </div>
-                    )}
-                    {interview.type && (
-                      <div>
-                        <span className="font-semibold text-gray-500 dark:text-gray-400">Type:</span> {interview.type}
-                      </div>
-                    )}
-                    {interview.location && (
-                      <div>
-                        <span className="font-semibold text-gray-500 dark:text-gray-400">Location:</span> {interview.location}
-                      </div>
-                    )}
-                    {interview.videoLink && (
-                      <div>
-                        <span className="font-semibold text-gray-500 dark:text-gray-400">Video:</span>{' '}
-                        <a href={interview.videoLink} target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:underline dark:text-brand-400">
-                          {interview.videoLink}
-                        </a>
-                      </div>
-                    )}
-                    {(interview.notes || interview.comment) && (
-                      <div className="md:col-span-2">
-                        <span className="font-semibold text-gray-500 dark:text-gray-400">Notes:</span>{' '}
-                        <span className="whitespace-pre-line">{interview.notes || interview.comment}</span>
-                      </div>
-                    )}
-                  </div>
-                );
-              };
-
-              return (
-                <div className="overflow-x-auto rounded-lg border border-stroke dark:border-strokedark">
-                  <table className="min-w-full">
-                    <thead className="bg-gray-50 dark:bg-gray-800/60">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Type</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Date</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">By</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Summary</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Channels</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Details</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
-                      {filteredActivities.map((activity, index) => {
-                        const rowKey = `${activity.type}-${activity.data?._id || activity.date}-${index}`;
-                        const isExpanded = expandedHistory === rowKey;
-                        const typeBadge = getTypeBadge(activity);
-                        const channels = getChannels(activity);
-
-                        return (
-                          <Fragment key={rowKey}>
-                            <tr className="hover:bg-gray-50 dark:hover:bg-gray-800/30">
-                              <td className="px-4 py-3 align-top">
-                                <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${typeBadge.className}`}>
-                                  {typeBadge.label}
-                                </span>
-                              </td>
-                              <td className="px-4 py-3 align-top text-sm text-gray-600 dark:text-gray-400">
-                                {formatDate(activity.date)}
-                               </td>
-                              <td className="px-4 py-3 align-top text-sm text-gray-700 dark:text-gray-300">
-                                {getActorName(activity)}
-                               </td>
-                              <td className="px-4 py-3 align-top text-sm text-gray-700 dark:text-gray-300">
-                                <p className="max-w-[420px] truncate">{getSummary(activity)}</p>
-                               </td>
-                              <td className="px-4 py-3 align-top text-sm text-gray-600 dark:text-gray-400">
-                                {channels ? (
-                                  <div className="flex items-center gap-1">
-                                    <span title="Email" className={`${channels.email ? 'opacity-100' : 'opacity-30 grayscale'}`}>📧</span>
-                                    <span title="SMS" className={`${channels.sms ? 'opacity-100' : 'opacity-30 grayscale'}`}>💬</span>
-                                    <span title="WhatsApp" className={`${channels.whatsapp ? 'opacity-100' : 'opacity-30 grayscale'}`}>📱</span>
-                                  </div>
-                                ) : (
-                                  '-'
-                                )}
-                               </td>
-                              <td className="px-4 py-3 align-top">
-                                <button
-                                  type="button"
-                                  onClick={() => setExpandedHistory(isExpanded ? null : rowKey)}
-                                  className="text-xs font-semibold text-brand-600 hover:underline dark:text-brand-400"
-                                >
-                                  {isExpanded ? 'Hide' : 'View'}
-                                </button>
-                               </td>
-                             </tr>
-                            {isExpanded && (
-                              <tr className="bg-gray-50/60 dark:bg-gray-800/40">
-                                <td colSpan={6} className="px-4 py-4">
-                                  {renderDetails(activity)}
-                                 </td>
-                               </tr>
-                            )}
-                          </Fragment>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              );
-            })()
+            renderTabContent()
           )}
         </div>
       </ComponentCard>
@@ -822,6 +297,16 @@ export default function StatusHistory({ applicant, loading = false }: Props) {
           setSelectedOfferLocal(null);
         }}
         offer={safeOffer}
+      />
+      <ContractPreview
+        isOpen={isContractModalOpen}
+        onClose={() => {
+          if (Date.now() < contractModalLockRef.current) return;
+          setIsContractModalOpen(false);
+          setSelectedContractId(null);
+          setSelectedContractLocal(null);
+        }}
+        contract={effectiveContract}
       />
     </div>
   );
