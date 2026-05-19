@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import PersonalInfo from './components/PersonalInfo';
+import PersonalInfo from './components/ApplicantData/PersonalInfo';
 import ActivityFeed from './components/ActivityFeed';
-import CustomResponses from './components/CustomResponses';
-import JobSpec from './components/JobSpec';
-import InterviewQuestions from './components/InterviewQuestions';
+import CustomResponses from './components/ApplicantData/CustomResponses';
+import JobSpec from './components/ApplicantData/JobSpec';
+import InterviewQuestions from './components/InterviewData/InterviewQuestions';
 
 const ApplicantDetails: React.FC = () => {
   const [comment, setComment] = useState('');
