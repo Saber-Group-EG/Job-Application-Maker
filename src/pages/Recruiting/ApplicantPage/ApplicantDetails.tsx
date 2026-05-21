@@ -45,12 +45,17 @@ const ApplicantDetails: React.FC = () => {
 
   const handleDelete = () => {
     // Add your delete logic here
-    console.log('Delete clicked');
+
   };
 
   const handleEdit = () => {
     setIsEditing(!isEditing);
-    console.log('Edit clicked', !isEditing);
+
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+
   };
 
   return (
@@ -61,9 +66,9 @@ const ApplicantDetails: React.FC = () => {
         <div className="mb-6">
           <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
             <span>Home</span>
-            <span>›</span>
+            <span>-›</span>
             <span>eCommerce</span>
-            <span>›</span>
+            <span>-›</span>
             <span className="text-gray-800">Customers</span>
           </div>
           <div className="flex justify-between items-center">
@@ -79,6 +84,14 @@ const ApplicantDetails: React.FC = () => {
               >
                 {isEditing ? 'Save' : 'Edit'}
               </button>
+             {isEditing && (
+              <button 
+                onClick={handleCancel}
+                className="px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                Cancel
+              </button>
+             )}
               <button 
                 onClick={handleDelete}
                 className="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors"
@@ -118,7 +131,7 @@ const ApplicantDetails: React.FC = () => {
     {/* Top Row - Personal Info and Comment Section */}
     <div className="flex flex-col lg:flex-row gap-6 mb-6">
   {/* Personal Info Card */}
-  <div className="lg:w-80 flex-shrink-0 ml-20">
+  <div className="lg:w-80 flex-shrink-0 ">
     <PersonalInfo />
   </div>
 
@@ -145,7 +158,9 @@ const ApplicantDetails: React.FC = () => {
     </div>
 
     {/* Job Spec Section */}
+    <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
     <JobSpec />
+    </div>
   </div>
 </div>
 

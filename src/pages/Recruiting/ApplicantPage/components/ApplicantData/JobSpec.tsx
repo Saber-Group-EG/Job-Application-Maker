@@ -2,10 +2,10 @@ import React, { useMemo } from 'react';
 import { Layers, CheckCircle2, XCircle, AlertCircle, Percent } from 'lucide-react';
 
 const COLORS = [
-  { bg: 'bg-gradient-to-r from-[#FFF9E5] to-[#FFF5D6]', text: 'text-[#FBBF24]', border: 'border-[#FEF3C7]', iconBg: 'bg-[#FEF3C7]' },
-  { bg: 'bg-gradient-to-r from-[#EEFAF2] to-[#E6F7EC]', text: 'text-[#22C55E]', border: 'border-[#DCFCE7]', iconBg: 'bg-[#DCFCE7]' },
-  { bg: 'bg-gradient-to-r from-[#FFF0F1] to-[#FFE8EA]', text: 'text-[#F43F5E]', border: 'border-[#FFE4E6]', iconBg: 'bg-[#FFE4E6]' },
-  { bg: 'bg-gradient-to-r from-[#F5F3FF] to-[#EFEBFF]', text: 'text-[#7C3AED]', border: 'border-[#E9E4FF]', iconBg: 'bg-[#E9E4FF]' },
+  { bg: 'bg-white', text: 'text-[#FBBF24]', border: 'border-[#FEF3C7]', iconBg: 'bg-[#FEF3C7]' },
+  { bg: 'bg-white', text: 'text-[#22C55E]', border: 'border-[#DCFCE7]', iconBg: 'bg-[#DCFCE7]' },
+  { bg: 'bg-white', text: 'text-[#F43F5E]', border: 'border-[#FFE4E6]', iconBg: 'bg-[#FFE4E6]' },
+  { bg: 'bg-white', text: 'text-[#7C3AED]', border: 'border-[#E9E4FF]', iconBg: 'bg-[#E9E4FF]' },
 ];
 
 interface JobSpecItem {
