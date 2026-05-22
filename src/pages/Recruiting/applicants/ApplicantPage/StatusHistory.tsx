@@ -31,6 +31,18 @@ const formatDateOnly = (dateString?: string) => {
   });
 };
 
+const formatDurationFromDates = (start?: string | number, end?: string | number) => {
+  if (!start || !end) return '';
+  const s = new Date(start).getTime();
+  const e = new Date(end).getTime();
+  if (Number.isNaN(s) || Number.isNaN(e) || e < s) return '';
+  const totalSeconds = Math.floor((e - s) / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return [hours, minutes, seconds].map((v) => String(v).padStart(2, '0')).join(':');
+};
+
 const getReadableMessageText = (value?: string) => {
   if (!value) return '';
 
@@ -495,6 +507,10 @@ export default function StatusHistory({ applicant, loading = false }: Props) {
                 if (interview?.scheduledAt) {
                   return `Scheduled for ${formatDate(interview.scheduledAt)}`;
                 }
+                if (interview?.startedAt && interview?.endedAt) {
+                  const dur = formatDurationFromDates(interview.startedAt, interview.endedAt);
+                  return `${interview?.notes || 'Interview completed.'}${dur ? ` · Duration: ${dur}` : ''}`;
+                }
                 return interview?.notes || interview?.comment || 'Interview activity.';
               };
 
@@ -537,6 +553,7 @@ export default function StatusHistory({ applicant, loading = false }: Props) {
                 }
 
                 const interview = activity.data;
+                const duration = formatDurationFromDates(interview?.startedAt, interview?.endedAt);
                 return (
                   <div className="grid grid-cols-1 gap-2 text-sm text-gray-700 dark:text-gray-300 md:grid-cols-2">
                     {interview.scheduledAt && (
@@ -576,6 +593,12 @@ export default function StatusHistory({ applicant, loading = false }: Props) {
                         <span className="whitespace-pre-line">{interview.notes || interview.comment}</span>
                       </div>
                     )}
+                    {duration ? (
+                      <div>
+                        <span className="font-semibold text-gray-500 dark:text-gray-400">Duration:</span>{' '}
+                        <span>{duration}</span>
+                      </div>
+                    ) : null}
                   </div>
                 );
               };

@@ -922,6 +922,8 @@ const jobPositionDetail = rawJobPositionDetail?.jobPosition ?? rawJobPositionDet
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [selectedInterview, setSelectedInterview] = useState<any>(null);
   const [formResetKey, setFormResetKey] = useState(0);
+  const [interviewStartedAt, setInterviewStartedAt] = useState('');
+  const [interviewTimerTick, setInterviewTimerTick] = useState(0);
 
   const [interviewForm, setInterviewForm] = useState<{
     date: string;
@@ -2142,10 +2144,46 @@ const getAvailableCustomFieldsForInterview = () => {
   const [selectedQuestionGroupIds, setSelectedQuestionGroupIds] = useState<
     string[]
   >([]);
+  const [expandedQuestionGroupIds, setExpandedQuestionGroupIds] = useState<
+    string[]
+  >([]);
   const [interviewQuestionDrafts, setInterviewQuestionDrafts] = useState<
     InterviewQuestionDraft[]
   >([]);
   const lastResolvedInterviewIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!isInterviewEditMode || !interviewStartedAt) return;
+
+    const intervalId = window.setInterval(() => {
+      setInterviewTimerTick(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [isInterviewEditMode, interviewStartedAt]);
+
+  const clearInterviewTimer = () => {
+    setInterviewStartedAt('');
+    setInterviewTimerTick(0);
+  };
+
+  const formatInterviewDuration = (durationMs: number) => {
+    const safeMs = Math.max(0, Math.floor(durationMs || 0));
+    const totalSeconds = Math.floor(safeMs / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return [hours, minutes, seconds]
+      .map((value) => String(value).padStart(2, '0'))
+      .join(':');
+  };
+
+  const getInterviewTimerText = () => {
+    if (!interviewStartedAt) return '00:00:00';
+    const startedAtMs = new Date(interviewStartedAt).getTime();
+    const currentTick = interviewTimerTick || Date.now();
+    return formatInterviewDuration(currentTick - startedAtMs);
+  };
 
   useEffect(() => {
     if (!isInterviewEditMode) return;
@@ -2337,7 +2375,31 @@ const getAvailableCustomFieldsForInterview = () => {
     isApplicantJobPositionFetching,
   ]);
 
+  useEffect(() => {
+    if (!isInterviewEditMode) {
+      setExpandedQuestionGroupIds([]);
+      return;
+    }
+
+    const nextExpanded = selectedQuestionGroupIds.length
+      ? selectedQuestionGroupIds
+      : companyInterviewGroups.map((group) => group.id);
+
+    setExpandedQuestionGroupIds((prev) => {
+      const nextSet = new Set(nextExpanded);
+      const same =
+        prev.length === nextExpanded.length &&
+        prev.every((groupId) => nextSet.has(groupId));
+      if (same) return prev;
+      return nextExpanded;
+    });
+  }, [isInterviewEditMode, selectedQuestionGroupIds, companyInterviewGroups]);
+
   const openInterviewEditMode = () => {
+    if (isInterviewEditMode) {
+      handleInterviewEditCancel();
+      return;
+    }
     if (!canManageInterviews) return;
     if (!applicant) return;
     setShouldFetchApplicantJobPosition(true);
@@ -2445,6 +2507,9 @@ setInterviewEditableCustomFields([
       setSelectedQuestionGroupIds([]);
     }
     setInterviewQuestionDrafts([]);
+    const startedAt = new Date().toISOString();
+    setInterviewStartedAt(startedAt);
+    setInterviewTimerTick(Date.now());
 
     setIsInterviewEditMode(true);
     setIsEditOnlyMode(false);
@@ -2761,6 +2826,8 @@ setInterviewEditableCustomFields([
 
   const handleInterviewEditSave = async () => {
     if (!id || !applicant) return;
+    const interviewStartedAtValue = interviewStartedAt || new Date().toISOString();
+    const interviewEndedAtValue = new Date().toISOString();
 
     const expectedSalaryValue =
       interviewEditForm.expectedSalary.trim() === ''
@@ -2886,32 +2953,45 @@ setInterviewEditableCustomFields([
       await updateApplicantMutation.mutateAsync({ id, data: payload });
       applicantUpdated = true;
 
-      if (interviewQuestionsPayload.length > 0) {
-        if (interviewTargetMode === 'new') {
-          interviewIdToUpdate = await createInterviewForQuestionSave(
-            interviewQuestionsPayload
+      if (interviewTargetMode === 'new') {
+        interviewIdToUpdate = await createInterviewForQuestionSave(
+          interviewQuestionsPayload
+        );
+        if (!interviewIdToUpdate) {
+          throw new Error(
+            'Interview was created, but no interview id was returned. Please try again.'
           );
-          if (!interviewIdToUpdate) {
-            throw new Error(
-              'Interview was created, but no interview id was returned. Please try again.'
-            );
-          }
         }
+      }
 
+      if (interviewQuestionsPayload.length > 0) {
         if (!interviewIdToUpdate) {
           throw new Error(
             'Please select an interview target before saving questions.'
           );
         }
+      }
 
+      if (interviewIdToUpdate) {
         await updateInterviewMutation.mutateAsync({
           applicantId: id,
           interviewId: interviewIdToUpdate,
           data: {
+            startedAt: interviewStartedAtValue,
+            endedAt: interviewEndedAtValue,
+            status: 'completed',
             questions: interviewQuestionsPayload,
           } as any,
         });
       }
+
+      await updateStatusMutation.mutateAsync({
+        id,
+        data: {
+          status: 'interviewed',
+          notes: `Interview completed on ${new Date().toLocaleString()}`,
+        } as UpdateStatusRequest,
+      });
 
       setIsInterviewEditMode(false);
       setIsEditOnlyMode(false);
@@ -2920,6 +3000,7 @@ setInterviewEditableCustomFields([
       setSelectedQuestionGroupIds([]);
       setInterviewQuestionDrafts([]);
       setInterviewEditableCustomFields([]);
+      clearInterviewTimer();
 
       Swal.fire(
         'Saved',
@@ -2951,6 +3032,7 @@ setInterviewEditableCustomFields([
     setInterviewQuestionDrafts([]);
     setInterviewEditableCustomFields([]);
     setShouldFetchApplicantJobPosition(false);
+    clearInterviewTimer();
   };
 
   useEffect(() => {
@@ -3587,6 +3669,24 @@ setInterviewEditableCustomFields([
     });
   };
 
+  const printApplicantData = () => {
+    if (!applicant) return;
+
+    (async () => {
+      try {
+        const { generateApplicantPDF, downloadApplicantPDF } = await import('../../../../utils/applicantPdfGenerator');
+        const hasArabic = (v: any) => typeof v === 'string' && /[\u0600-\u06FF]/.test(v);
+        const lang: 'ar' | 'en' = [applicant?.fullName, applicant?.customResponses, applicant?.notes].some(hasArabic) ? 'ar' : 'en';
+        const html = await generateApplicantPDF({ applicant, lang });
+        const filename = `applicant_${String(applicant?.applicantNo || applicant?._id || 'detail')}.pdf`;
+        await downloadApplicantPDF(html, filename);
+      } catch (err) {
+        console.error('PDF generation failed', err);
+        Swal.fire('PDF Error', 'Failed to generate PDF. Please try again.', 'error');
+      }
+    })();
+  };
+
   const customFieldsForInterview = getAvailableCustomFieldsForInterview();
   const editableCustomFieldsForInterview =
     isInterviewEditMode || isEditOnlyMode
@@ -3594,6 +3694,32 @@ setInterviewEditableCustomFields([
         ? interviewEditableCustomFields
         : customFieldsForInterview
       : customFieldsForInterview;
+
+  const toggleQuestionGroupExpansion = (groupId: string) => {
+    setExpandedQuestionGroupIds((prev) =>
+      prev.includes(groupId)
+        ? prev.filter((id) => id !== groupId)
+        : [...prev, groupId]
+    );
+  };
+
+  const expandAllQuestionGroups = () => {
+    setExpandedQuestionGroupIds(
+      companyInterviewGroups.map((group) => String(group.id))
+    );
+  };
+
+  const collapseAllQuestionGroups = () => {
+    setExpandedQuestionGroupIds([]);
+  };
+
+  const isQuestionGroupComplete = (groupId: string) => {
+    const groupDrafts = interviewQuestionDrafts.filter(
+      (draft) => String(draft.groupId || '') === String(groupId)
+    );
+    if (groupDrafts.length === 0) return false;
+    return groupDrafts.every((draft) => String(draft.notes || '').trim().length > 0);
+  };
 
   if (loading) {
     return (
@@ -3758,19 +3884,48 @@ setInterviewEditableCustomFields([
             {canManageInterviews && (
               <button
                 onClick={openInterviewEditMode}
-                disabled={isInterviewEditMode || isEditOnlyMode}
-                className="inline-flex items-center gap-1 sm:gap-2 rounded-lg bg-amber-600 px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                disabled={isEditOnlyMode && !isInterviewEditMode}
+                className={`inline-flex items-center gap-1 sm:gap-2 rounded-lg px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold text-white transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
+                  isInterviewEditMode
+                    ? 'bg-slate-700 hover:bg-slate-800'
+                    : 'bg-amber-600 hover:bg-amber-700'
+                }`}
+                title={isInterviewEditMode ? 'Close interview mode' : 'Open interview mode'}
               >
                 <svg
                   className="h-3 w-3 sm:h-4 sm:w-4"
                   fill="currentColor"
                   viewBox="0 0 24 24"
                 >
-                  <path d="M8 5v14l11-7z" />
+                  {isInterviewEditMode ? (
+                    <path d="M6 6l12 12M18 6L6 18" />
+                  ) : (
+                    <path d="M8 5v14l11-7z" />
+                  )}
                 </svg>
-                Interview
+                {isInterviewEditMode ? 'Close Interview' : 'Interview'}
               </button>
             )}
+
+            <button
+              onClick={printApplicantData}
+              className="inline-flex items-center gap-1 sm:gap-2 rounded-lg bg-gray-700 px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold text-white hover:bg-gray-800"
+            >
+              <svg
+                className="h-3 w-3 sm:h-4 sm:w-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 9V2h12v7M6 18H5a2 2 0 01-2-2v-5a2 2 0 012-2h14a2 2 0 012 2v5a2 2 0 01-2 2h-1M6 14h12v8H6v-8z"
+                />
+              </svg>
+              Print
+            </button>
 
             {(isInterviewEditMode ? canManageInterviews : canManageApplicant) &&
               (isInterviewEditMode || isEditOnlyMode) && (
@@ -4755,19 +4910,19 @@ setInterviewEditableCustomFields([
             return '';
           };
 
-          const interviewResponseMap = new Map<string, boolean>();
-          if (isInterviewEditMode) {
+          const jobSpecResponseMap = new Map<string, boolean>();
+          if (isInterviewEditMode || isEditOnlyMode) {
             (interviewEditForm.jobSpecsResponses || []).forEach((r) => {
               if (!r?.jobSpecId) return;
-              interviewResponseMap.set(String(r.jobSpecId), Boolean(r.answer));
+              jobSpecResponseMap.set(String(r.jobSpecId), Boolean(r.answer));
             });
           }
 
           const getEffectiveAnswer = (specEntry: any, idx: number): boolean => {
-            if (isInterviewEditMode) {
+            if (isInterviewEditMode || isEditOnlyMode) {
               const specId = getSpecResponseId(specEntry);
-              if (specId && interviewResponseMap.has(specId)) {
-                return Boolean(interviewResponseMap.get(specId));
+              if (specId && jobSpecResponseMap.has(specId)) {
+                return Boolean(jobSpecResponseMap.get(specId));
               }
             }
             return getAnswer(specEntry, idx);
@@ -4871,7 +5026,7 @@ setInterviewEditableCustomFields([
                             Weight: {weight}
                           </div>
 
-                          {isInterviewEditMode ? (
+                          {(isInterviewEditMode || isEditOnlyMode) ? (
                             <button
                               type="button"
                               onClick={() => {
@@ -5621,11 +5776,11 @@ setInterviewEditableCustomFields([
 
               {/* Questions List */}
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                   <Label className="text-xs text-violet-700 dark:text-violet-300 font-bold uppercase">
                     Questions To Save In Interview
                   </Label>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200">
                       Score {interviewScoreSummary.achievedScore}/
                       {interviewScoreSummary.totalScore}
@@ -5643,333 +5798,759 @@ setInterviewEditableCustomFields([
                         No interview record
                       </span>
                     )}
+                    {interviewStartedAt ? (
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-700 dark:bg-slate-800 dark:text-slate-100">
+                        Timer {getInterviewTimerText()}
+                      </span>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={expandAllQuestionGroups}
+                      className="rounded-full border border-violet-200 bg-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-violet-700 hover:bg-violet-50 dark:border-violet-900/50 dark:bg-gray-900 dark:text-violet-200 dark:hover:bg-gray-800"
+                    >
+                      Expand all
+                    </button>
+                    <button
+                      type="button"
+                      onClick={collapseAllQuestionGroups}
+                      className="rounded-full border border-gray-200 bg-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+                    >
+                      Collapse all
+                    </button>
                   </div>
                 </div>
+
                 {interviewQuestionDrafts.length === 0 ? (
                   <div className="rounded-lg border border-dashed border-gray-300 px-3 py-3 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
                     No questions yet. Select one or more groups above.
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {interviewQuestionDrafts.map((item, idx) => (
-                      <div
-                        key={item.localId}
-                        className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900"
-                      >
-                        <div className="mb-3 flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-gray-500">
-                              Q{idx + 1}
-                            </span>
-                            {item.source === 'group' && item.groupName && (
-                              <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold text-violet-700 dark:bg-violet-900/40 dark:text-violet-200">
-                                {item.groupName}
-                              </span>
-                            )}
-                          </div>
-                          <label className="flex items-center gap-2 text-xs font-semibold text-gray-600 dark:text-gray-300">
-                            <input
-                              type="checkbox"
-                              checked={Boolean(item.includeInTotal)}
-                              onChange={(e) =>
-                                updateInterviewQuestionIncluded(
-                                  item.localId,
-                                  e.target.checked
-                                )
-                              }
-                            />
-                            Include in total
-                          </label>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-                          <div className="md:col-span-5">
-                            <Label className="mb-1 block text-[11px] font-semibold uppercase text-gray-500 dark:text-gray-400">
-                              Question
-                            </Label>
-                            <div className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
-                              {item.question || '-'}
-                            </div>
-                          </div>
-                          <div className="md:col-span-2">
-                            <Label className="mb-1 block text-[11px] font-semibold uppercase text-gray-500 dark:text-gray-400">
-                              Score
-                            </Label>
-                            <div className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
-                              {Number.isFinite(Number(item.score))
-                                ? Number(item.score)
-                                : 0}
-                            </div>
-                          </div>
-                          <div className="md:col-span-3">
-                            <Label className="mb-1 block text-[11px] font-semibold uppercase text-gray-500 dark:text-gray-400">
-                              Answer ({String(item.answerType || 'text')})
-                            </Label>
-                            {(() => {
-                              const atype = String(
-                                item.answerType || 'text'
-                              ).toLowerCase();
-                              if (atype === 'number') {
-                                return (
-                                  <input
-                                    type="number"
-                                    value={item.notes}
-                                    onChange={(e) =>
-                                      updateInterviewQuestionDraft(
-                                        item.localId,
-                                        'notes',
-                                        e.target.value
-                                      )
-                                    }
-                                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-violet-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
-                                    placeholder="Type numeric answer"
-                                  />
-                                );
-                              }
-                              if (atype === 'checkbox') {
-                                return (
-                                  <select
-                                    value={item.notes}
-                                    onChange={(e) =>
-                                      updateInterviewQuestionDraft(
-                                        item.localId,
-                                        'notes',
-                                        e.target.value
-                                      )
-                                    }
-                                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-violet-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                  <div className="space-y-4">
+                    {companyInterviewGroups
+                      .filter((group) =>
+                        selectedQuestionGroupIds.includes(group.id)
+                      )
+                      .map((group) => {
+                        const groupDrafts = interviewQuestionDrafts.filter(
+                          (draft) =>
+                            String(draft.groupId || '') === String(group.id)
+                        );
+                        const isExpanded = expandedQuestionGroupIds.includes(
+                          group.id
+                        );
+                        const completed = isQuestionGroupComplete(group.id);
+
+                        if (groupDrafts.length === 0) return null;
+
+                        return (
+                          <div
+                            key={group.id}
+                            className="overflow-hidden rounded-2xl border border-violet-200 bg-white shadow-sm dark:border-violet-900/50 dark:bg-gray-900"
+                          >
+                            <button
+                              type="button"
+                              onClick={() => toggleQuestionGroupExpansion(group.id)}
+                              className="flex w-full items-center justify-between gap-4 bg-gradient-to-r from-violet-600 to-fuchsia-600 px-5 py-4 text-left text-white"
+                            >
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-base font-bold truncate">
+                                    {group.name}
+                                  </span>
+                                  {completed ? (
+                                    <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                                      Completed
+                                    </span>
+                                  ) : null}
+                                </div>
+                                <p className="text-xs text-violet-100">
+                                  {groupDrafts.length} questions · click to{' '}
+                                  {isExpanded ? 'collapse' : 'expand'}
+                                </p>
+                              </div>
+                              <svg
+                                className={`h-5 w-5 shrink-0 transition-transform ${
+                                  isExpanded ? 'rotate-180' : ''
+                                }`}
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M19 9l-7 7-7-7"
+                                />
+                              </svg>
+                            </button>
+
+                            {isExpanded ? (
+                              <div className="space-y-3 p-4 sm:p-5">
+                                {groupDrafts.map((item, idx) => (
+                                  <div
+                                    key={item.localId}
+                                    className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900"
                                   >
-                                    <option value="">Select answer</option>
-                                    <option value="true">True</option>
-                                    <option value="false">False</option>
-                                  </select>
-                                );
-                              }
-                              if (atype === 'radio' || atype === 'dropdown') {
-                                const options = Array.isArray(item.choices)
-                                  ? item.choices
-                                  : [];
-                                return (
-                                  <select
-                                    value={item.notes}
-                                    onChange={(e) =>
-                                      updateInterviewQuestionDraft(
-                                        item.localId,
-                                        'notes',
-                                        e.target.value
-                                      )
-                                    }
-                                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-violet-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
-                                  >
-                                    <option value="">Select answer</option>
-                                    {options.map((opt) => (
-                                      <option key={opt} value={opt}>
-                                        {opt}
-                                      </option>
-                                    ))}
-                                  </select>
-                                );
-                              }
-                              if (atype === 'tags') {
-                                const key = `ivq_${item.localId}`;
-                                const currentArr = String(item.notes || '')
-                                  .split(',')
-                                  .map((v) => String(v || '').trim())
-                                  .filter(Boolean);
-                                return (
-                                  <>
-                                    <div className="mb-2">
-                                      <input
-                                        type="text"
-                                        value={tagInputBuffers[key] ?? ''}
-                                        onChange={(e) => {
-                                          const v = e.target.value;
-                                          setTagInputBuffers((prev) => ({
-                                            ...prev,
-                                            [key]: v,
-                                          }));
-                                          if (v.includes(',')) {
-                                            const next = v
-                                              .split(',')
-                                              .map((vv) => vv.trim())
-                                              .filter(Boolean);
-                                            const merged = mergeTags(
-                                              currentArr,
-                                              next
-                                            );
-                                            updateInterviewQuestionDraft(
+                                    <div className="mb-3 flex items-center justify-between gap-2">
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-xs font-bold text-gray-500">
+                                          Q{idx + 1}
+                                        </span>
+                                      </div>
+                                      <label className="flex items-center gap-2 text-xs font-semibold text-gray-600 dark:text-gray-300">
+                                        <input
+                                          type="checkbox"
+                                          checked={Boolean(item.includeInTotal)}
+                                          onChange={(e) =>
+                                            updateInterviewQuestionIncluded(
                                               item.localId,
-                                              'notes',
-                                              merged.join(', ')
-                                            );
-                                            setTagInputBuffers((prev) => ({
-                                              ...prev,
-                                              [key]: '',
-                                            }));
+                                              e.target.checked
+                                            )
                                           }
-                                        }}
-                                        onKeyDown={(e) => {
-                                          if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                            const buf = (
-                                              tagInputBuffers[key] ?? ''
-                                            ).toString();
-                                            if (!buf || !buf.trim()) {
-                                              setTagInputBuffers((prev) => ({
-                                                ...prev,
-                                                [key]: '',
-                                              }));
-                                              return;
-                                            }
-                                            const next = buf
+                                        />
+                                        Include in total
+                                      </label>
+                                    </div>
+                                    <div className="grid grid-cols-1 gap-3 md:grid-cols-12">
+                                      <div className="md:col-span-5">
+                                        <Label className="mb-1 block text-[11px] font-semibold uppercase text-gray-500 dark:text-gray-400">
+                                          Question
+                                        </Label>
+                                        <div className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
+                                          {item.question || '-'}
+                                        </div>
+                                      </div>
+                                      <div className="md:col-span-2">
+                                        <Label className="mb-1 block text-[11px] font-semibold uppercase text-gray-500 dark:text-gray-400">
+                                          Score
+                                        </Label>
+                                        <div className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
+                                          {Number.isFinite(Number(item.score))
+                                            ? Number(item.score)
+                                            : 0}
+                                        </div>
+                                      </div>
+                                      <div className="md:col-span-3">
+                                        <Label className="mb-1 block text-[11px] font-semibold uppercase text-gray-500 dark:text-gray-400">
+                                          Answer ({String(item.answerType || 'text')})
+                                        </Label>
+                                        {(() => {
+                                          const atype = String(
+                                            item.answerType || 'text'
+                                          ).toLowerCase();
+                                          if (atype === 'number') {
+                                            return (
+                                              <input
+                                                type="number"
+                                                value={item.notes}
+                                                onChange={(e) =>
+                                                  updateInterviewQuestionDraft(
+                                                    item.localId,
+                                                    'notes',
+                                                    e.target.value
+                                                  )
+                                                }
+                                                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-violet-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                                                placeholder="Type numeric answer"
+                                              />
+                                            );
+                                          }
+                                          if (atype === 'checkbox') {
+                                            return (
+                                              <select
+                                                value={item.notes}
+                                                onChange={(e) =>
+                                                  updateInterviewQuestionDraft(
+                                                    item.localId,
+                                                    'notes',
+                                                    e.target.value
+                                                  )
+                                                }
+                                                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-violet-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                                              >
+                                                <option value="">Select answer</option>
+                                                <option value="true">True</option>
+                                                <option value="false">False</option>
+                                              </select>
+                                            );
+                                          }
+                                          if (atype === 'radio' || atype === 'dropdown') {
+                                            const options = Array.isArray(item.choices)
+                                              ? item.choices
+                                              : [];
+                                            return (
+                                              <select
+                                                value={item.notes}
+                                                onChange={(e) =>
+                                                  updateInterviewQuestionDraft(
+                                                    item.localId,
+                                                    'notes',
+                                                    e.target.value
+                                                  )
+                                                }
+                                                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-violet-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                                              >
+                                                <option value="">Select answer</option>
+                                                {options.map((opt) => (
+                                                  <option key={opt} value={opt}>
+                                                    {opt}
+                                                  </option>
+                                                ))}
+                                              </select>
+                                            );
+                                          }
+                                          if (atype === 'tags') {
+                                            const key = `ivq_${item.localId}`;
+                                            const currentArr = String(item.notes || '')
                                               .split(',')
-                                              .map((vv) => vv.trim())
+                                              .map((v) => String(v || '').trim())
                                               .filter(Boolean);
-                                            if (next.length) {
-                                              const merged = mergeTags(
-                                                currentArr,
-                                                next
-                                              );
+                                            return (
+                                              <>
+                                                <div className="mb-2">
+                                                  <input
+                                                    type="text"
+                                                    value={tagInputBuffers[key] ?? ''}
+                                                    onChange={(e) => {
+                                                      const v = e.target.value;
+                                                      setTagInputBuffers((prev) => ({
+                                                        ...prev,
+                                                        [key]: v,
+                                                      }));
+                                                      if (v.includes(',')) {
+                                                        const next = v
+                                                          .split(',')
+                                                          .map((vv) => vv.trim())
+                                                          .filter(Boolean);
+                                                        const merged = mergeTags(
+                                                          currentArr,
+                                                          next
+                                                        );
+                                                        updateInterviewQuestionDraft(
+                                                          item.localId,
+                                                          'notes',
+                                                          merged.join(', ')
+                                                        );
+                                                        setTagInputBuffers((prev) => ({
+                                                          ...prev,
+                                                          [key]: '',
+                                                        }));
+                                                      }
+                                                    }}
+                                                    onKeyDown={(e) => {
+                                                      if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        const buf = (
+                                                          tagInputBuffers[key] ?? ''
+                                                        ).toString();
+                                                        if (!buf || !buf.trim()) {
+                                                          setTagInputBuffers((prev) => ({
+                                                            ...prev,
+                                                            [key]: '',
+                                                          }));
+                                                          return;
+                                                        }
+                                                        const next = buf
+                                                          .split(',')
+                                                          .map((vv) => vv.trim())
+                                                          .filter(Boolean);
+                                                        if (next.length) {
+                                                          const merged = mergeTags(
+                                                            currentArr,
+                                                            next
+                                                          );
+                                                          updateInterviewQuestionDraft(
+                                                            item.localId,
+                                                            'notes',
+                                                            merged.join(', ')
+                                                          );
+                                                        }
+                                                        setTagInputBuffers((prev) => ({
+                                                          ...prev,
+                                                          [key]: '',
+                                                        }));
+                                                      }
+                                                    }}
+                                                    onBlur={() => {
+                                                      const buf = (
+                                                        tagInputBuffers[key] ?? ''
+                                                      ).toString();
+                                                      if (buf && buf.trim()) {
+                                                        const next = buf
+                                                          .split(',')
+                                                          .map((vv) => vv.trim())
+                                                          .filter(Boolean);
+                                                        const merged = mergeTags(
+                                                          currentArr,
+                                                          next
+                                                        );
+                                                        updateInterviewQuestionDraft(
+                                                          item.localId,
+                                                          'notes',
+                                                          merged.join(', ')
+                                                        );
+                                                        setTagInputBuffers((prev) => ({
+                                                          ...prev,
+                                                          [key]: '',
+                                                        }));
+                                                      }
+                                                    }}
+                                                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-violet-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                                                    placeholder="tag1, tag2, tag3"
+                                                  />
+                                                </div>
+                                                <div className="flex flex-wrap gap-2">
+                                                  {currentArr.length > 0
+                                                    ? currentArr.map((tagVal) => {
+                                                        const text = String(tagVal);
+                                                        return (
+                                                          <div
+                                                            key={`${item.localId}_tag_${text}`}
+                                                            className="group flex items-center justify-center rounded-full border-[0.7px] border-transparent bg-gray-100 py-1 pl-2.5 pr-2 text-sm text-gray-800 hover:border-gray-200 dark:bg-gray-800 dark:text-white/90 dark:hover:border-gray-800"
+                                                          >
+                                                            <span className="flex-initial max-w-full">
+                                                              {text}
+                                                            </span>
+                                                            <button
+                                                              type="button"
+                                                              onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                const next =
+                                                                  currentArr.filter(
+                                                                    (t) =>
+                                                                      String(t) !==
+                                                                      String(tagVal)
+                                                                  );
+                                                                updateInterviewQuestionDraft(
+                                                                  item.localId,
+                                                                  'notes',
+                                                                  next.join(', ')
+                                                                );
+                                                              }}
+                                                              className="pl-2 text-gray-500 cursor-pointer group-hover:text-gray-400 dark:text-gray-400"
+                                                              aria-label={`Remove ${text}`}
+                                                            >
+                                                              <svg
+                                                                className="fill-current"
+                                                                width="14"
+                                                                height="14"
+                                                                viewBox="0 0 14 14"
+                                                                xmlns="http://www.w3.org/2000/svg"
+                                                              >
+                                                                <path
+                                                                  fillRule="evenodd"
+                                                                  clipRule="evenodd"
+                                                                  d="M3.40717 4.46881C3.11428 4.17591 3.11428 3.70104 3.40717 3.40815C3.70006 3.11525 4.17494 3.11525 4.46783 3.40815L6.99943 5.93975L9.53095 3.40822C9.82385 3.11533 10.2987 3.11533 10.5916 3.40822C10.8845 3.70112 10.8845 4.17599 10.5916 4.46888L8.06009 7.00041L10.5916 9.53193C10.8845 9.82482 10.8845 10.2997 10.5916 10.5926C10.2987 10.8855 9.82385 10.8855 9.53095 10.5926L6.99943 8.06107L4.46783 10.5927C4.17494 10.8856 3.70006 10.8856 3.40717 10.5927C3.11428 10.2998 3.11428 9.8249 3.40717 9.53201L5.93877 7.00041L3.40717 4.46881Z"
+                                                                />
+                                                              </svg>
+                                                            </button>
+                                                          </div>
+                                                        );
+                                                      })
+                                                    : null}
+                                                </div>
+                                              </>
+                                            );
+                                          }
+                                          return (
+                                            <input
+                                              type="text"
+                                              value={item.notes}
+                                              onChange={(e) =>
+                                                updateInterviewQuestionDraft(
+                                                  item.localId,
+                                                  'notes',
+                                                  e.target.value
+                                                )
+                                              }
+                                              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-violet-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                                              placeholder="Type answer"
+                                            />
+                                          );
+                                        })()}
+                                      </div>
+                                      <div className="md:col-span-2">
+                                        <Label className="mb-1 block text-[11px] font-semibold uppercase text-gray-500 dark:text-gray-400">
+                                          Achieved
+                                        </Label>
+                                        <div className="rounded-lg border border-gray-300 bg-gray-50 px-3 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
+                                          <input
+                                            type="range"
+                                            min={0}
+                                            max={Number(item.score || 0)}
+                                            step={1}
+                                            value={Number(item.achievedScore ?? 0)}
+                                            onChange={(e) =>
+                                              updateInterviewQuestionDraft(
+                                                item.localId,
+                                                'achievedScore',
+                                                e.target.value
+                                              )
+                                            }
+                                            onClick={(e) => e.stopPropagation()}
+                                            onMouseDown={(e) => e.stopPropagation()}
+                                            onFocus={(e) => e.stopPropagation()}
+                                            className="w-full accent-violet-600"
+                                          />
+                                          <div className="mt-2 flex items-center justify-between text-[11px] font-semibold text-gray-500 dark:text-gray-400">
+                                            <span>0</span>
+                                            <span>
+                                              {Number(item.achievedScore ?? 0)} /{' '}
+                                              {Number(item.score || 0)}
+                                            </span>
+                                            <span>{Number(item.score || 0)}</span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : null}
+                          </div>
+                        );
+                      })}
+
+                    {interviewQuestionDrafts.filter(
+                      (draft) => !String(draft.groupId || '')
+                    ).length > 0 ? (
+                      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+                        <div className="bg-gradient-to-r from-gray-700 to-slate-700 px-5 py-4 text-white">
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <p className="text-base font-bold">Interview Questions</p>
+                              <p className="text-xs text-gray-200">
+                                Questions without a group assignment
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="space-y-3 p-4 sm:p-5">
+                          {interviewQuestionDrafts
+                            .filter((draft) => !String(draft.groupId || ''))
+                            .map((item, idx) => (
+                              <div
+                                key={item.localId}
+                                className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900"
+                              >
+                                <div className="mb-3 flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-bold text-gray-500">
+                                      Q{idx + 1}
+                                    </span>
+                                  </div>
+                                  <label className="flex items-center gap-2 text-xs font-semibold text-gray-600 dark:text-gray-300">
+                                    <input
+                                      type="checkbox"
+                                      checked={Boolean(item.includeInTotal)}
+                                      onChange={(e) =>
+                                        updateInterviewQuestionIncluded(
+                                          item.localId,
+                                          e.target.checked
+                                        )
+                                      }
+                                    />
+                                    Include in total
+                                  </label>
+                                </div>
+                                <div className="grid grid-cols-1 gap-3 md:grid-cols-12">
+                                  <div className="md:col-span-5">
+                                    <Label className="mb-1 block text-[11px] font-semibold uppercase text-gray-500 dark:text-gray-400">
+                                      Question
+                                    </Label>
+                                    <div className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
+                                      {item.question || '-'}
+                                    </div>
+                                  </div>
+                                  <div className="md:col-span-2">
+                                    <Label className="mb-1 block text-[11px] font-semibold uppercase text-gray-500 dark:text-gray-400">
+                                      Score
+                                    </Label>
+                                    <div className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
+                                      {Number.isFinite(Number(item.score))
+                                        ? Number(item.score)
+                                        : 0}
+                                    </div>
+                                  </div>
+                                  <div className="md:col-span-3">
+                                    <Label className="mb-1 block text-[11px] font-semibold uppercase text-gray-500 dark:text-gray-400">
+                                      Answer ({String(item.answerType || 'text')})
+                                    </Label>
+                                    {(() => {
+                                      const atype = String(
+                                        item.answerType || 'text'
+                                      ).toLowerCase();
+                                      if (atype === 'number') {
+                                        return (
+                                          <input
+                                            type="number"
+                                            value={item.notes}
+                                            onChange={(e) =>
                                               updateInterviewQuestionDraft(
                                                 item.localId,
                                                 'notes',
-                                                merged.join(', ')
-                                              );
+                                                e.target.value
+                                              )
                                             }
-                                            setTagInputBuffers((prev) => ({
-                                              ...prev,
-                                              [key]: '',
-                                            }));
-                                          }
-                                        }}
-                                        onBlur={() => {
-                                          const buf = (
-                                            tagInputBuffers[key] ?? ''
-                                          ).toString();
-                                          if (buf && buf.trim()) {
-                                            const next = buf
-                                              .split(',')
-                                              .map((vv) => vv.trim())
-                                              .filter(Boolean);
-                                            const merged = mergeTags(
-                                              currentArr,
-                                              next
-                                            );
-                                            updateInterviewQuestionDraft(
-                                              item.localId,
-                                              'notes',
-                                              merged.join(', ')
-                                            );
-                                            setTagInputBuffers((prev) => ({
-                                              ...prev,
-                                              [key]: '',
-                                            }));
-                                          }
-                                        }}
-                                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-violet-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
-                                        placeholder="tag1, tag2, tag3"
-                                      />
-                                    </div>
-                                    <div className="flex flex-wrap gap-2">
-                                      {currentArr.length > 0
-                                        ? currentArr.map((tagVal) => {
-                                            const text = String(tagVal);
-                                            return (
-                                              <div
-                                                key={`${item.localId}_tag_${text}`}
-                                                className="group flex items-center justify-center rounded-full border-[0.7px] border-transparent bg-gray-100 py-1 pl-2.5 pr-2 text-sm text-gray-800 hover:border-gray-200 dark:bg-gray-800 dark:text-white/90 dark:hover:border-gray-800"
-                                              >
-                                                <span className="flex-initial max-w-full">
-                                                  {text}
-                                                </span>
-                                                <button
-                                                  type="button"
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    const next =
-                                                      currentArr.filter(
-                                                        (t) =>
-                                                          String(t) !==
-                                                          String(tagVal)
-                                                      );
+                                            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-violet-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                                            placeholder="Type numeric answer"
+                                          />
+                                        );
+                                      }
+                                      if (atype === 'checkbox') {
+                                        return (
+                                          <select
+                                            value={item.notes}
+                                            onChange={(e) =>
+                                              updateInterviewQuestionDraft(
+                                                item.localId,
+                                                'notes',
+                                                e.target.value
+                                              )
+                                            }
+                                            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-violet-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                                          >
+                                            <option value="">Select answer</option>
+                                            <option value="true">True</option>
+                                            <option value="false">False</option>
+                                          </select>
+                                        );
+                                      }
+                                      if (atype === 'radio' || atype === 'dropdown') {
+                                        const options = Array.isArray(item.choices)
+                                          ? item.choices
+                                          : [];
+                                        return (
+                                          <select
+                                            value={item.notes}
+                                            onChange={(e) =>
+                                              updateInterviewQuestionDraft(
+                                                item.localId,
+                                                'notes',
+                                                e.target.value
+                                              )
+                                            }
+                                            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-violet-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                                          >
+                                            <option value="">Select answer</option>
+                                            {options.map((opt) => (
+                                              <option key={opt} value={opt}>
+                                                {opt}
+                                              </option>
+                                            ))}
+                                          </select>
+                                        );
+                                      }
+                                      if (atype === 'tags') {
+                                        const key = `ivq_${item.localId}`;
+                                        const currentArr = String(item.notes || '')
+                                          .split(',')
+                                          .map((v) => String(v || '').trim())
+                                          .filter(Boolean);
+                                        return (
+                                          <>
+                                            <div className="mb-2">
+                                              <input
+                                                type="text"
+                                                value={tagInputBuffers[key] ?? ''}
+                                                onChange={(e) => {
+                                                  const v = e.target.value;
+                                                  setTagInputBuffers((prev) => ({
+                                                    ...prev,
+                                                    [key]: v,
+                                                  }));
+                                                  if (v.includes(',')) {
+                                                    const next = v
+                                                      .split(',')
+                                                      .map((vv) => vv.trim())
+                                                      .filter(Boolean);
+                                                    const merged = mergeTags(
+                                                      currentArr,
+                                                      next
+                                                    );
                                                     updateInterviewQuestionDraft(
                                                       item.localId,
                                                       'notes',
-                                                      next.join(', ')
+                                                      merged.join(', ')
                                                     );
-                                                  }}
-                                                  className="pl-2 text-gray-500 cursor-pointer group-hover:text-gray-400 dark:text-gray-400"
-                                                  aria-label={`Remove ${text}`}
-                                                >
-                                                  <svg
-                                                    className="fill-current"
-                                                    width="14"
-                                                    height="14"
-                                                    viewBox="0 0 14 14"
-                                                    xmlns="http://www.w3.org/2000/svg"
-                                                  >
-                                                    <path
-                                                      fillRule="evenodd"
-                                                      clipRule="evenodd"
-                                                      d="M3.40717 4.46881C3.11428 4.17591 3.11428 3.70104 3.40717 3.40815C3.70006 3.11525 4.17494 3.11525 4.46783 3.40815L6.99943 5.93975L9.53095 3.40822C9.82385 3.11533 10.2987 3.11533 10.5916 3.40822C10.8845 3.70112 10.8845 4.17599 10.5916 4.46888L8.06009 7.00041L10.5916 9.53193C10.8845 9.82482 10.8845 10.2997 10.5916 10.5926C10.2987 10.8855 9.82385 10.8855 9.53095 10.5926L6.99943 8.06107L4.46783 10.5927C4.17494 10.8856 3.70006 10.8856 3.40717 10.5927C3.11428 10.2998 3.11428 9.8249 3.40717 9.53201L5.93877 7.00041L3.40717 4.46881Z"
-                                                    />
-                                                  </svg>
-                                                </button>
-                                              </div>
-                                            );
-                                          })
-                                        : null}
+                                                    setTagInputBuffers((prev) => ({
+                                                      ...prev,
+                                                      [key]: '',
+                                                    }));
+                                                  }
+                                                }}
+                                                onKeyDown={(e) => {
+                                                  if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    const buf = (
+                                                      tagInputBuffers[key] ?? ''
+                                                    ).toString();
+                                                    if (!buf || !buf.trim()) {
+                                                      setTagInputBuffers((prev) => ({
+                                                        ...prev,
+                                                        [key]: '',
+                                                      }));
+                                                      return;
+                                                    }
+                                                    const next = buf
+                                                      .split(',')
+                                                      .map((vv) => vv.trim())
+                                                      .filter(Boolean);
+                                                    if (next.length) {
+                                                      const merged = mergeTags(
+                                                        currentArr,
+                                                        next
+                                                      );
+                                                      updateInterviewQuestionDraft(
+                                                        item.localId,
+                                                        'notes',
+                                                        merged.join(', ')
+                                                      );
+                                                    }
+                                                    setTagInputBuffers((prev) => ({
+                                                      ...prev,
+                                                      [key]: '',
+                                                    }));
+                                                  }
+                                                }}
+                                                onBlur={() => {
+                                                  const buf = (
+                                                    tagInputBuffers[key] ?? ''
+                                                  ).toString();
+                                                  if (buf && buf.trim()) {
+                                                    const next = buf
+                                                      .split(',')
+                                                      .map((vv) => vv.trim())
+                                                      .filter(Boolean);
+                                                    const merged = mergeTags(
+                                                      currentArr,
+                                                      next
+                                                    );
+                                                    updateInterviewQuestionDraft(
+                                                      item.localId,
+                                                      'notes',
+                                                      merged.join(', ')
+                                                    );
+                                                    setTagInputBuffers((prev) => ({
+                                                      ...prev,
+                                                      [key]: '',
+                                                    }));
+                                                  }
+                                                }}
+                                                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-violet-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                                                placeholder="tag1, tag2, tag3"
+                                              />
+                                            </div>
+                                            <div className="flex flex-wrap gap-2">
+                                              {currentArr.length > 0
+                                                ? currentArr.map((tagVal) => {
+                                                    const text = String(tagVal);
+                                                    return (
+                                                      <div
+                                                        key={`${item.localId}_tag_${text}`}
+                                                        className="group flex items-center justify-center rounded-full border-[0.7px] border-transparent bg-gray-100 py-1 pl-2.5 pr-2 text-sm text-gray-800 hover:border-gray-200 dark:bg-gray-800 dark:text-white/90 dark:hover:border-gray-800"
+                                                      >
+                                                        <span className="flex-initial max-w-full">
+                                                          {text}
+                                                        </span>
+                                                        <button
+                                                          type="button"
+                                                          onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            const next =
+                                                              currentArr.filter(
+                                                                (t) =>
+                                                                  String(t) !==
+                                                                  String(tagVal)
+                                                              );
+                                                            updateInterviewQuestionDraft(
+                                                              item.localId,
+                                                              'notes',
+                                                              next.join(', ')
+                                                            );
+                                                          }}
+                                                          className="pl-2 text-gray-500 cursor-pointer group-hover:text-gray-400 dark:text-gray-400"
+                                                          aria-label={`Remove ${text}`}
+                                                        >
+                                                          <svg
+                                                            className="fill-current"
+                                                            width="14"
+                                                            height="14"
+                                                            viewBox="0 0 14 14"
+                                                            xmlns="http://www.w3.org/2000/svg"
+                                                          >
+                                                            <path
+                                                              fillRule="evenodd"
+                                                              clipRule="evenodd"
+                                                              d="M3.40717 4.46881C3.11428 4.17591 3.11428 3.70104 3.40717 3.40815C3.70006 3.11525 4.17494 3.11525 4.46783 3.40815L6.99943 5.93975L9.53095 3.40822C9.82385 3.11533 10.2987 3.11533 10.5916 3.40822C10.8845 3.70112 10.8845 4.17599 10.5916 4.46888L8.06009 7.00041L10.5916 9.53193C10.8845 9.82482 10.8845 10.2997 10.5916 10.5926C10.2987 10.8855 9.82385 10.8855 9.53095 10.5926L6.99943 8.06107L4.46783 10.5927C4.17494 10.8856 3.70006 10.8856 3.40717 10.5927C3.11428 10.2998 3.11428 9.8249 3.40717 9.53201L5.93877 7.00041L3.40717 4.46881Z"
+                                                            />
+                                                          </svg>
+                                                        </button>
+                                                      </div>
+                                                    );
+                                                  })
+                                                : null}
+                                            </div>
+                                          </>
+                                        );
+                                      }
+                                      return (
+                                        <input
+                                          type="text"
+                                          value={item.notes}
+                                          onChange={(e) =>
+                                            updateInterviewQuestionDraft(
+                                              item.localId,
+                                              'notes',
+                                              e.target.value
+                                            )
+                                          }
+                                          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-violet-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                                          placeholder="Type answer"
+                                        />
+                                      );
+                                    })()}
+                                  </div>
+                                  <div className="md:col-span-2">
+                                    <Label className="mb-1 block text-[11px] font-semibold uppercase text-gray-500 dark:text-gray-400">
+                                      Achieved
+                                    </Label>
+                                    <div className="rounded-lg border border-gray-300 bg-gray-50 px-3 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
+                                      <input
+                                        type="range"
+                                        min={0}
+                                        max={Number(item.score || 0)}
+                                        step={1}
+                                        value={Number(item.achievedScore ?? 0)}
+                                        onChange={(e) =>
+                                          updateInterviewQuestionDraft(
+                                            item.localId,
+                                            'achievedScore',
+                                            e.target.value
+                                          )
+                                        }
+                                        onClick={(e) => e.stopPropagation()}
+                                        onMouseDown={(e) => e.stopPropagation()}
+                                        onFocus={(e) => e.stopPropagation()}
+                                        className="w-full accent-violet-600"
+                                      />
+                                      <div className="mt-2 flex items-center justify-between text-[11px] font-semibold text-gray-500 dark:text-gray-400">
+                                        <span>0</span>
+                                        <span>
+                                          {Number(item.achievedScore ?? 0)} /{' '}
+                                          {Number(item.score || 0)}
+                                        </span>
+                                        <span>{Number(item.score || 0)}</span>
+                                      </div>
                                     </div>
-                                  </>
-                                );
-                              }
-                              return (
-                                <input
-                                  type="text"
-                                  value={item.notes}
-                                  onChange={(e) =>
-                                    updateInterviewQuestionDraft(
-                                      item.localId,
-                                      'notes',
-                                      e.target.value
-                                    )
-                                  }
-                                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-violet-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
-                                  placeholder="Type answer"
-                                />
-                              );
-                            })()}
-                          </div>
-                          <div className="md:col-span-2">
-                            <Label className="mb-1 block text-[11px] font-semibold uppercase text-gray-500 dark:text-gray-400">
-                              Achieved
-                            </Label>
-                            <div
-                              className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <input
-                                type="number"
-                                min={0}
-                                max={Number(item.score || 0)}
-                                step={1}
-                                value={Number(item.achievedScore ?? 0)}
-                                onChange={(e) =>
-                                  updateInterviewQuestionDraft(
-                                    item.localId,
-                                    'achievedScore',
-                                    e.target.value
-                                  )
-                                }
-                                onClick={(e) => e.stopPropagation()}
-                                onMouseDown={(e) => e.stopPropagation()}
-                                onFocus={(e) => e.stopPropagation()}
-                                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-violet-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
-                              />
-                            </div>
-                          </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
                         </div>
                       </div>
-                    ))}
+                    ) : null}
                   </div>
                 )}
               </div>

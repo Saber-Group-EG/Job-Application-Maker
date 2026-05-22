@@ -17,6 +17,7 @@ type InterviewLike = {
 	questions?: InterviewQuestion[];
 	scheduledAt?: string | number;
 	startedAt?: string | number;
+	endedAt?: string | number;
 	issuedAt?: string | number;
 	createdAt?: string | number;
 };
@@ -31,6 +32,20 @@ const normalizeStatus = (value?: string) => String(value || '').trim().toLowerCa
 
 export default function Questions({ status, interviews = [], className = '' }: QuestionsProps) {
 	if (normalizeStatus(status) !== 'interviewed') return null;
+
+	const formatDurationFromDates = (start?: string | number, end?: string | number) => {
+		if (!start || !end) return '';
+		const s = new Date(start).getTime();
+		const e = new Date(end).getTime();
+		if (Number.isNaN(s) || Number.isNaN(e) || e < s) return '';
+		const totalSeconds = Math.floor((e - s) / 1000);
+		const hours = Math.floor(totalSeconds / 3600);
+		const minutes = Math.floor((totalSeconds % 3600) / 60);
+		const seconds = totalSeconds % 60;
+		return [hours, minutes, seconds]
+			.map((v) => String(v).padStart(2, '0'))
+			.join(':');
+	};
 
 	const interviewIds = useMemo(() => (Array.isArray(interviews) ? interviews.map((iv, i) => iv?._id ?? `idx_${i}`) : []), [interviews]);
 
@@ -83,6 +98,12 @@ export default function Questions({ status, interviews = [], className = '' }: Q
 					<p className="text-sm text-gray-900 dark:text-white mt-1">
 						Score: {achievedScore} / {totalScore} ({percentage}%)
 					</p>
+					{(() => {
+						const durationText = formatDurationFromDates(selectedInterview?.startedAt, selectedInterview?.endedAt);
+						return durationText ? (
+							<p className="text-sm text-gray-500 mt-1">Duration: {durationText}</p>
+						) : null;
+					})()}
 				</div>
 				</div>
 
