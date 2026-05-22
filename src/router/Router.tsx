@@ -38,11 +38,12 @@ const PreviewJob = lazy(() => import('../pages/Recruiting/jobs/PreviewJob'));
 const Applicants = lazy(
   () => import('../pages/Recruiting/applicants/Table/ApplicantsTable')
 );
-const ApplicantDetails = lazy(
-  () => import('../pages/Recruiting/applicants/ApplicantPage/ApplicantData')
-);
+
 const ApplicantDynamicPage = lazy(
   () => import('../pages/Recruiting/applicants/Table/ApplicantDynamicPage')
+);
+const ApplicantDetails = lazy(
+  () => import('../pages/Recruiting/ApplicantPage/ApplicantDetails')
 );
 const ApplicantData = lazy(
   () => import('../pages/Recruiting/applicants/ApplicantPage/ApplicantData')
