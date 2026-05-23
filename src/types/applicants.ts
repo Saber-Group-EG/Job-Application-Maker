@@ -83,6 +83,7 @@ export type Applicant = {
   phone: string;
   address?: string;
   profilePhoto?: string;
+  expectedSalary?: number;
   cvFilePath?: string;
   resume?: string;
   source?: string;

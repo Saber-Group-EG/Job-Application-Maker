@@ -14,9 +14,11 @@ export type ApplicantObject = {
   _id: string;
   fullName: string;
   email: string;
+  expectedSalary?: number;
   jobPositionId?: {
     _id: string;
-    companyId: { _id: string; name: { en: string; ar: string } } | null;
+    title?: { en?: string; ar?: string };
+    companyId: { _id: string; name: { en: string; ar: string } };
   } | null;
 };
 
@@ -264,7 +266,7 @@ export function useJobOfferEmail({
       ...(recipient.jobPositionId
         ? { jobPosition: recipient.jobPositionId._id }
         : {}),
-    } as any);
+    });
   };
 
   const sendBulkOfferEmail = async () => {

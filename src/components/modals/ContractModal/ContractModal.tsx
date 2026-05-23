@@ -149,7 +149,7 @@ const emptyForm = (): FormState => ({
 
 const contractToForm = (c: JobContract): FormState => {
   console.log('Contract to form', c);
-  return ({
+  return {
     applicantId: c.applicantId?._id || null,
     applicantIds: [],
     isBulk: false,
@@ -184,7 +184,7 @@ const contractToForm = (c: JobContract): FormState => {
     },
     senderByCompany: {},
     selectedApplicantObject: c.applicantId,
-  })
+  };
 };
 
 function defaultsToForm(
@@ -422,6 +422,19 @@ export default function JobContractModal({
     set('sections', next);
   };
 
+  const handlePrefillFromApplicant = (applicant: ApplicantObject) => {
+    setForm((prev) => ({
+      ...prev,
+      position: {
+        en: applicant.jobPositionId?.title?.en?.trim() || prev.position.en,
+        ar: applicant.jobPositionId?.title?.ar?.trim() || prev.position.ar,
+      },
+      salaryBasic: applicant.expectedSalary
+        ? Number(applicant.expectedSalary)
+        : prev.salaryBasic,
+    }));
+  };
+
   // Submit
   const handleSubmit = async () => {
     if (!form.position.en.trim() && !form.position.ar.trim()) {
@@ -622,6 +635,7 @@ export default function JobContractModal({
                       set('applicantId', id);
                       set('selectedApplicantObject', applicant ?? null);
                     }}
+                    onPrefill={handlePrefillFromApplicant}
                     inputCls={inputCls}
                   />
                 )}

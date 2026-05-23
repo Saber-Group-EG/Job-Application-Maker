@@ -379,6 +379,19 @@ export default function JobOfferModal({
     set('sections', next);
   };
 
+  const handlePrefillFromApplicant = (applicant: ApplicantObject) => {
+    setForm((prev) => ({
+      ...prev,
+      position: {
+        en: applicant.jobPositionId?.title?.en ?? prev.position.en,
+        ar: applicant.jobPositionId?.title?.ar ?? prev.position.ar,
+      },
+      salaryBasic: applicant.expectedSalary
+        ? Number(applicant.expectedSalary)
+        : prev.salaryBasic,
+    }));
+  };
+
   // ── Submit ─────────────────────────────────────────────────────────────────
 
   const handleSubmit = async () => {
@@ -629,6 +642,7 @@ export default function JobOfferModal({
                       set('applicantId', id);
                       set('selectedApplicantObject', applicant ?? null);
                     }}
+                    onPrefill={handlePrefillFromApplicant}
                     inputCls={inputCls}
                   />
                 )}
@@ -908,11 +922,11 @@ export default function JobOfferModal({
                 <span className="text-sm font-medium text-slate-600 dark:text-slate-400">
                   Send as email
                 </span>
-                {editing && (editing as any).lastEmailSentAt && (
+                {editing && editing.lastEmailSentAt && (
                   <span className="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
                     Last sent{' '}
                     {new Date(
-                      (editing as any).lastEmailSentAt
+                      editing.lastEmailSentAt
                     ).toLocaleDateString(undefined, {
                       day: 'numeric',
                       month: 'short',

@@ -68,7 +68,7 @@ export function ContractTemplateSelector({
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-slate-800 dark:text-slate-200">
-                    {t.position}
+                    {t.position.en || t.position.ar || 'Untitled Contract'}
                   </p>
                   <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-400">
                     <span>{t.contractType}</span>
