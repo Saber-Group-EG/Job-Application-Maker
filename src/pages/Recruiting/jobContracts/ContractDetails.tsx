@@ -105,7 +105,8 @@ export function ContractDetail({
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-              {contract.position}
+              {contract.position?.en}{' '}
+              {contract.position?.ar && ` / ${contract.position.ar}`}
             </h2>
             <div className="mt-2 flex flex-wrap items-center gap-3">
               <span
@@ -229,9 +230,9 @@ export function ContractDetail({
                 <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
                   {b.label.en || b.label.ar}
                 </p>
-                {b.value && (
+                {(b.value?.en || b.value?.ar) && (
                   <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">
-                    {b.value}
+                    {b.value?.en} {b.value?.ar && ` / ${b.value.ar}`} 
                   </span>
                 )}
               </div>
@@ -274,14 +275,25 @@ export function ContractDetail({
       )}
 
       {/* Notes */}
-      {contract.notes && (
+      {contract.notes?.en && (
         <div className="border-b border-slate-200 p-6 dark:border-slate-800">
           <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
             <Clock3 className="h-4 w-4" />
-            Internal Notes
+            Internal Notes (EN)
           </h3>
           <p className="text-sm text-slate-600 dark:text-slate-400">
-            {contract.notes}
+            {contract.notes.en}
+          </p>
+        </div>
+      )}
+      {contract.notes?.ar && (
+        <div className="border-b border-slate-200 p-6 dark:border-slate-800">
+          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
+            <Clock3 className="h-4 w-4" />
+            Internal Notes (AR)
+          </h3>
+          <p className="text-sm text-slate-600 dark:text-slate-400">
+            {contract.notes.ar}
           </p>
         </div>
       )}

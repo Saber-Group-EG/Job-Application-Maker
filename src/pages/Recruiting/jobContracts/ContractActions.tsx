@@ -7,13 +7,31 @@
  * No email — contracts are not sent via email in this module.
  */
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { FileDown, Loader2 } from 'lucide-react';
-import { JobContract } from '../../../services/contractsService';
+import {
+  JobContract,
+  BilingualField,
+} from '../../../services/contractsService';
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Pick the right language from a BilingualField, fallback to the other */
+function pick(
+  field: BilingualField | string | null | undefined,
+  lang: 'en' | 'ar'
+): string {
+  if (!field) return '';
+  if (typeof field === 'string') return field;
+  return (lang === 'ar' ? field.ar || field.en : field.en || field.ar) ?? '';
+}
 
 // ─── PDF generator ────────────────────────────────────────────────────────────
 
-async function downloadContractAsPdf(contract: JobContract): Promise<void> {
+async function downloadContractAsPdf(
+  contract: JobContract,
+  lang: 'en' | 'ar' = 'en'
+): Promise<void> {
   const { jsPDF } = await import('jspdf');
 
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
@@ -25,6 +43,8 @@ async function downloadContractAsPdf(contract: JobContract): Promise<void> {
 
   let y = margin;
 
+  const t = (en: string, ar: string) => (lang === 'ar' ? ar : en);
+
   // ── Brand accent bar ────────────────────────────────────────────────────
   doc.setFillColor(239, 68, 68);
   doc.rect(0, 0, pageW, 6, 'F');
@@ -34,11 +54,11 @@ async function downloadContractAsPdf(contract: JobContract): Promise<void> {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(20);
   doc.setTextColor(17, 24, 39);
-  doc.text('Job Contract', margin, (y += 14));
+  doc.text(t('Job Contract', 'عقد عمل'), margin, (y += 14));
 
   doc.setFontSize(13);
   doc.setTextColor(99, 102, 241);
-  doc.text(contract.position, margin, (y += 9));
+  doc.text(pick(contract.position, lang), margin, (y += 9));
 
   // ── Divider ──────────────────────────────────────────────────────────────
   doc.setDrawColor(226, 232, 240);
@@ -60,7 +80,7 @@ async function downloadContractAsPdf(contract: JobContract): Promise<void> {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
     doc.setTextColor(100, 116, 139);
-    doc.text('PREPARED FOR', margin, y);
+    doc.text(t('PREPARED FOR', 'مُعَدّ لـ'), margin, y);
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
@@ -80,7 +100,7 @@ async function downloadContractAsPdf(contract: JobContract): Promise<void> {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
   doc.setTextColor(17, 24, 39);
-  doc.text('Contract Details', margin, y);
+  doc.text(t('Contract Details', 'تفاصيل العقد'), margin, y);
   y += 4;
 
   const formatDate = (d: string | null | undefined) => {
@@ -93,23 +113,29 @@ async function downloadContractAsPdf(contract: JobContract): Promise<void> {
   };
 
   const details: [string, string][] = [
-    ['Contract Type', contract.contractType.replace('-', ' ')],
-    ['Start Date', formatDate(contract.startDate)],
+    [t('Contract Type', 'نوع العقد'), contract.contractType.replace('-', ' ')],
+    [t('Start Date', 'تاريخ البدء'), formatDate(contract.startDate)],
     ...(contract.endDate
-      ? ([['End Date', formatDate(contract.endDate)]] as [string, string][])
+      ? ([[t('End Date', 'تاريخ الانتهاء'), formatDate(contract.endDate)]] as [
+          string,
+          string,
+        ][])
       : []),
     ...(contract.probationPeriod != null
       ? ([
           [
-            'Probation',
-            `${contract.probationPeriod} month${contract.probationPeriod !== 1 ? 's' : ''}`,
+            t('Probation', 'فترة التجربة'),
+            `${contract.probationPeriod} ${t(
+              `month${contract.probationPeriod !== 1 ? 's' : ''}`,
+              'شهر'
+            )}`,
           ],
         ] as [string, string][])
       : []),
     ...(contract.salary.basic != null
       ? ([
           [
-            'Basic Salary',
+            t('Basic Salary', 'الراتب الأساسي'),
             `${contract.salary.basic.toLocaleString()} ${contract.salary.currency}`,
           ],
         ] as [string, string][])
@@ -147,7 +173,7 @@ async function downloadContractAsPdf(contract: JobContract): Promise<void> {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
     doc.setTextColor(17, 24, 39);
-    doc.text('Benefits', margin, y);
+    doc.text(t('Benefits', 'المزايا'), margin, y);
     y += 5;
 
     contract.benefits.forEach((b, i) => {
@@ -155,21 +181,23 @@ async function downloadContractAsPdf(contract: JobContract): Promise<void> {
         doc.addPage();
         y = margin;
       }
+
       const rowY = y + i * rowH;
       if (i % 2 === 0) {
         doc.setFillColor(248, 250, 252);
         doc.rect(margin, rowY, contentW, rowH, 'F');
       }
-      const label = b.label.en || b.label.ar;
+
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(9);
       doc.setTextColor(71, 85, 105);
-      doc.text(label, margin + 3, rowY + 5.5);
+      doc.text(pick(b.label, lang), margin + 3, rowY + 5.5);
 
-      if (b.value) {
+      const valueText = pick(b.value, lang);
+      if (valueText) {
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(17, 24, 39);
-        doc.text(b.value, pageW - margin - 3, rowY + 5.5, { align: 'right' });
+        doc.text(valueText, pageW - margin - 3, rowY + 5.5, { align: 'right' });
       }
     });
 
@@ -192,11 +220,7 @@ async function downloadContractAsPdf(contract: JobContract): Promise<void> {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
     doc.setTextColor(71, 85, 105);
-    doc.text(
-      (section.title.en || section.title.ar).toUpperCase(),
-      margin + 3,
-      y + 5
-    );
+    doc.text(pick(section.title, lang).toUpperCase(), margin + 3, y + 5);
     y += 10;
 
     for (const item of section.items) {
@@ -204,7 +228,9 @@ async function downloadContractAsPdf(contract: JobContract): Promise<void> {
         doc.addPage();
         y = margin;
       }
-      const text = item.en || item.ar;
+
+      const text =
+        (lang === 'ar' ? item.ar || item.en : item.en || item.ar) ?? '';
       const lines = doc.splitTextToSize(`• ${text}`, contentW - 6) as string[];
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
@@ -216,7 +242,8 @@ async function downloadContractAsPdf(contract: JobContract): Promise<void> {
   }
 
   // ── Notes ─────────────────────────────────────────────────────────────────
-  if (contract.notes) {
+  const notesText = pick(contract.notes, lang);
+  if (notesText) {
     if (y > pageH - 30) {
       doc.addPage();
       y = margin;
@@ -229,16 +256,13 @@ async function downloadContractAsPdf(contract: JobContract): Promise<void> {
     doc.setFont('helvetica', 'bolditalic');
     doc.setFontSize(8);
     doc.setTextColor(100, 116, 139);
-    doc.text('Internal Notes', margin + 3, y + 3.5);
+    doc.text(t('Internal Notes', 'ملاحظات داخلية'), margin + 3, y + 3.5);
     y += 7;
 
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(9);
     doc.setTextColor(71, 85, 105);
-    const noteLines = doc.splitTextToSize(
-      contract.notes,
-      contentW - 6
-    ) as string[];
+    const noteLines = doc.splitTextToSize(notesText, contentW - 6) as string[];
     doc.text(noteLines, margin + 3, y);
     y += noteLines.length * 5 + 5;
   }
@@ -261,39 +285,75 @@ async function downloadContractAsPdf(contract: JobContract): Promise<void> {
   }
 
   // ── Save ──────────────────────────────────────────────────────────────────
-  const safeName = contract.position.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+  const positionSlug = pick(contract.position, lang)
+    .replace(/[^a-z0-9]/gi, '_')
+    .toLowerCase();
   const applicantSlug = applicantName
     ? `_${applicantName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}`
     : '';
-  doc.save(`job_contract_${safeName}${applicantSlug}.pdf`);
+  doc.save(`job_contract_${positionSlug}${applicantSlug}.pdf`);
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function ContractActions({ contract }: { contract: JobContract }) {
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfPopoverOpen, setPdfPopoverOpen] = useState(false);
+  const popoverRef = useRef<HTMLDivElement>(null);
 
-  const handleDownloadPdf = async () => {
+  useEffect(() => {
+    if (!pdfPopoverOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (!popoverRef.current?.contains(e.target as Node)) {
+        setPdfPopoverOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [pdfPopoverOpen]);
+
+  const handleDownloadPdf = async (lang: 'en' | 'ar') => {
+    setPdfPopoverOpen(false);
     setPdfLoading(true);
     try {
-      await downloadContractAsPdf(contract);
+      await downloadContractAsPdf(contract, lang);
     } finally {
       setPdfLoading(false);
     }
   };
 
   return (
-    <button
-      onClick={handleDownloadPdf}
-      disabled={pdfLoading}
-      className="flex size-8 items-center justify-center rounded-lg border border-slate-200 text-slate-400 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-600 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:hover:border-emerald-700 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-400"
-      title="Download as PDF"
-    >
-      {pdfLoading ? (
-        <Loader2 className="size-3.5 animate-spin" />
-      ) : (
-        <FileDown className="size-3.5" />
+    <div className="relative" ref={popoverRef}>
+      <button
+        onClick={() => setPdfPopoverOpen((v) => !v)}
+        disabled={pdfLoading}
+        className="flex size-8 items-center justify-center rounded-lg border border-slate-200 text-slate-400 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-600 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:hover:border-emerald-700 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-400"
+        title="Download as PDF"
+      >
+        {pdfLoading ? (
+          <Loader2 className="size-3.5 animate-spin" />
+        ) : (
+          <FileDown className="size-3.5" />
+        )}
+      </button>
+
+      {pdfPopoverOpen && (
+        <div className="absolute right-0 top-full z-50 mt-2 min-w-max w-44 rounded-xl border border-slate-200 bg-white p-2 shadow-lg dark:border-slate-700 dark:bg-slate-900">
+          <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+            PDF Language
+          </p>
+          {(['en', 'ar'] as const).map((lang) => (
+            <button
+              key={lang}
+              type="button"
+              onClick={() => handleDownloadPdf(lang)}
+              className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+            >
+              <span>{lang === 'en' ? 'English' : 'Arabic'}</span>
+            </button>
+          ))}
+        </div>
       )}
-    </button>
+    </div>
   );
 }

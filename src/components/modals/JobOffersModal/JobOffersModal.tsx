@@ -68,12 +68,21 @@ export type FormSection = {
 
 export type FormCommission = {
   _id: string;
-  label: string;
-  value: number | '';
-  type: CommissionType;
-  condition: string;
-};
 
+  label: {
+    en: string;
+    ar: string;
+  };
+
+  value: number | '';
+
+  type: CommissionType;
+
+  condition: {
+    en: string;
+    ar: string;
+  };
+};
 export type FormState = {
   applicantId: string | null;
   selectedApplicantObject?: {
@@ -84,16 +93,27 @@ export type FormState = {
   } | null;
   applicantIds?: string[];
   isBulk?: boolean;
-  position: string;
+  position: {
+    en: string;
+    ar: string;
+  };
+
+  notes: {
+    en: string;
+    ar: string;
+  };
   workType: WorkType;
-  workHours: string;
+  workHours: {
+    en: string;
+    ar: string;
+  };
   salaryBasic: number | '';
   salaryCurrency: string;
   commissions: FormCommission[];
   sections: FormSection[];
-  notes: string;
   sendAsEmail: boolean;
   senderByCompany: Record<string, string>;
+  emailLang: 'en' | 'ar';
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -113,34 +133,56 @@ export const uid = () => `_${Math.random().toString(36).slice(2, 9)}`;
 
 const emptyForm = (): FormState => ({
   applicantId: null,
-  position: '',
+  position: {
+    en: '',
+    ar: '',
+  },
   applicantIds: [],
   isBulk: false,
   workType: 'full-time',
-  workHours: '',
+  workHours: {
+    en: '',
+    ar: '',
+  },
   salaryBasic: '',
   salaryCurrency: 'EGP',
   commissions: [],
   sections: [],
-  notes: '',
+  notes: {
+    en: '',
+    ar: '',
+  },
   sendAsEmail: false,
   senderByCompany: {},
   selectedApplicantObject: null,
+  emailLang: 'en',
 });
 
 const offerToForm = (offer: JobOffer): FormState => ({
   applicantId: offer.applicantId?._id || null,
-  position: offer.position,
+  position: {
+    en: offer.position?.en ?? '',
+    ar: offer.position?.ar ?? '',
+  },
   workType: offer.workType,
-  workHours: offer.workHours ?? '',
+  workHours: {
+    en: offer.workHours?.en ?? '',
+    ar: offer.workHours?.ar ?? '',
+  },
   salaryBasic: offer.salary.basic ?? '',
   salaryCurrency: offer.salary.currency ?? 'EGP',
   commissions: offer.commissions.map((c) => ({
     _id: uid(),
-    label: c.label,
+    label: {
+      en: c.label.en ?? '',
+      ar: c.label.ar ?? '',
+    },
     value: c.value,
     type: c.type,
-    condition: c.condition ?? '',
+    condition: {
+      en: c.condition?.en ?? '',
+      ar: c.condition?.ar ?? '',
+    },
   })),
   sections: offer.sections.map((s, idx) => ({
     _id: uid(),
@@ -148,10 +190,13 @@ const offerToForm = (offer: JobOffer): FormState => ({
     items: s.items.map((i) => ({ _id: uid(), en: i.en, ar: i.ar })),
     displayOrder: idx,
   })),
-  notes: offer.notes ?? '',
+  notes: offer.notes
+    ? { en: offer.notes.en ?? '', ar: offer.notes.ar ?? '' }
+    : { en: '', ar: '' },
   sendAsEmail: false,
   senderByCompany: {},
   selectedApplicantObject: offer.applicantId,
+  emailLang: 'en',
 });
 
 const inputCls =
@@ -278,7 +323,13 @@ export default function JobOfferModal({
   const addCommission = () =>
     set('commissions', [
       ...form.commissions,
-      { _id: uid(), label: '', value: '', type: 'fixed', condition: '' },
+      {
+        _id: uid(),
+        label: { en: '', ar: '' },
+        value: '',
+        type: 'fixed',
+        condition: { en: '', ar: '' },
+      },
     ]);
 
   const patchSection = (id: string, patch: Partial<FormSection>) =>
@@ -331,7 +382,7 @@ export default function JobOfferModal({
   // ── Submit ─────────────────────────────────────────────────────────────────
 
   const handleSubmit = async () => {
-    if (!form.position.trim()) {
+    if (!form.position.en.trim() && !form.position.ar.trim()) {
       Swal.fire('Validation', 'Position title is required.', 'warning');
       return;
     }
@@ -357,25 +408,54 @@ export default function JobOfferModal({
     const base = {
       isTemplate: mode === 'template',
       ...(mode === 'offer' && jobPositionId ? { jobPositionId } : {}),
-      position: form.position.trim(),
+      position: {
+        en: form.position.en.trim(),
+        ar: form.position.ar.trim(),
+      },
       workType: form.workType,
-      workHours: form.workHours.trim() || null,
+      workHours: {
+        en: form.workHours.en.trim() ?? '',
+        ar: form.workHours.ar.trim() ?? '',
+      },
       salary: {
         basic: form.salaryBasic === '' ? null : Number(form.salaryBasic),
         currency: form.salaryCurrency || 'EGP',
       },
-      commissions: form.commissions.map(({ _id, ...c }) => ({
-        label: c.label,
-        value: Number(c.value) || 0,
-        type: c.type,
-        condition: c.condition.trim() || null,
-      })),
+      commissions: form.commissions.map(({ _id, ...c }) => {
+        const conditionEn = c.condition.en.trim();
+        const conditionAr = c.condition.ar.trim();
+
+        return {
+          label: {
+            en: c.label.en.trim(),
+            ar: c.label.ar.trim(),
+          },
+
+          value: Number(c.value) || 0,
+
+          type: c.type,
+
+          condition:
+            !conditionEn && !conditionAr
+              ? null
+              : {
+                  en: conditionEn,
+                  ar: conditionAr,
+                },
+        };
+      }),
       sections: form.sections.map(({ _id, items, ...s }, idx) => ({
         title: s.title,
         displayOrder: idx,
         items: items.map(({ _id: _i, ...item }) => item),
       })),
-      notes: form.notes.trim() || null,
+      notes:
+        !form.notes.en.trim() && !form.notes.ar.trim()
+          ? null
+          : {
+              en: form.notes.en.trim(),
+              ar: form.notes.ar.trim(),
+            },
       ...(willSendEmail
         ? {
             status: 'sent' as OfferStatus,
@@ -562,41 +642,89 @@ export default function JobOfferModal({
               description="Position title, type, and working hours"
             />
 
-            <div>
-              <ModalLabel required>Position Title</ModalLabel>
-              <input
-                ref={firstInputRef}
-                className={inputCls}
-                value={form.position}
-                onChange={(e) => set('position', e.target.value)}
-                placeholder="e.g. Senior Sales Representative"
-              />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <ModalLabel required>Position Title (EN)</ModalLabel>
+
+                <input
+                  ref={firstInputRef}
+                  className={inputCls}
+                  value={form.position.en}
+                  onChange={(e) =>
+                    set('position', {
+                      ...form.position,
+                      en: e.target.value,
+                    })
+                  }
+                  placeholder="e.g. Senior Sales Representative"
+                />
+              </div>
+
+              <div>
+                <ModalLabel required>Position Title (AR)</ModalLabel>
+
+                <input
+                  className={inputCls}
+                  dir="rtl"
+                  value={form.position.ar}
+                  onChange={(e) =>
+                    set('position', {
+                      ...form.position,
+                      ar: e.target.value,
+                    })
+                  }
+                  placeholder="مندوب مبيعات أول"
+                />
+              </div>
             </div>
 
+            <div>
+              <ModalLabel>Work Type</ModalLabel>
+              <select
+                className={selectCls}
+                value={form.workType}
+                onChange={(e) => set('workType', e.target.value as WorkType)}
+              >
+                {WORK_TYPES.map((w) => (
+                  <option key={w.value} value={w.value}>
+                    {w.label}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <ModalLabel>Work Type</ModalLabel>
-                <select
-                  className={selectCls}
-                  value={form.workType}
-                  onChange={(e) => set('workType', e.target.value as WorkType)}
-                >
-                  {WORK_TYPES.map((w) => (
-                    <option key={w.value} value={w.value}>
-                      {w.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
               <div>
                 <ModalLabel>Work Hours</ModalLabel>
                 <div className="relative">
                   <Clock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
                   <input
                     className={`${inputCls} pl-9`}
-                    value={form.workHours}
-                    onChange={(e) => set('workHours', e.target.value)}
+                    value={form.workHours.en}
+                    onChange={(e) =>
+                      set('workHours', {
+                        ...form.workHours,
+                        en: e.target.value,
+                      })
+                    }
                     placeholder="e.g. 8 flexible hours"
+                  />
+                </div>
+              </div>
+              <div>
+                <ModalLabel>Work Hours (AR)</ModalLabel>
+                <div className="relative">
+                  <Clock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                  <input
+                    className={`${inputCls} pl-9`}
+                    dir="rtl"
+                    value={form.workHours.ar}
+                    onChange={(e) =>
+                      set('workHours', {
+                        ...form.workHours,
+                        ar: e.target.value,
+                      })
+                    }
+                    placeholder="e.g. 8 ساعات مرنة"
                   />
                 </div>
               </div>
@@ -708,13 +836,42 @@ export default function JobOfferModal({
               description="Only visible to your team"
             />
 
-            <textarea
-              className={`${inputCls} resize-none`}
-              rows={3}
-              value={form.notes}
-              onChange={(e) => set('notes', e.target.value)}
-              placeholder="Any internal notes or context for this offer..."
-            />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <ModalLabel>Notes (EN)</ModalLabel>
+
+                <textarea
+                  className={`${inputCls} resize-none`}
+                  rows={4}
+                  value={form.notes.en}
+                  onChange={(e) =>
+                    set('notes', {
+                      ...form.notes,
+                      en: e.target.value,
+                    })
+                  }
+                  placeholder="Any internal notes..."
+                />
+              </div>
+
+              <div>
+                <ModalLabel>Notes (AR)</ModalLabel>
+
+                <textarea
+                  className={`${inputCls} resize-none`}
+                  dir="rtl"
+                  rows={4}
+                  value={form.notes.ar}
+                  onChange={(e) =>
+                    set('notes', {
+                      ...form.notes,
+                      ar: e.target.value,
+                    })
+                  }
+                  placeholder="أي ملاحظات داخلية..."
+                />
+              </div>
+            </div>
 
             {/* ── Email Settings ── */}
             {mode === 'offer' && form.sendAsEmail && (
@@ -726,6 +883,7 @@ export default function JobOfferModal({
                 onSenderChange={(senderByCompany) =>
                   set('senderByCompany', senderByCompany)
                 }
+                onLangChange={(lang) => set('emailLang', lang)} // ← add this
               />
             )}
 

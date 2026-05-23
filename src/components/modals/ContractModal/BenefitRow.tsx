@@ -67,15 +67,45 @@ export function BenefitRow({
           />
         </div>
       </div>
-      <div className="mt-3">
-        <ModalLabel>Value</ModalLabel>
-        <textarea
-          className={textareaCls}
-          rows={3}
-          value={benefit.value}
-          onChange={(e) => onChange({ value: e.target.value })}
-          placeholder="e.g. Full coverage"
-        />
+      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div>
+          <ModalLabel>Value (EN)</ModalLabel>
+
+          <textarea
+            className={textareaCls}
+            rows={3}
+            value={benefit.value.en}
+            onChange={(e) =>
+              onChange({
+                value: {
+                  ...benefit.value,
+                  en: e.target.value,
+                },
+              })
+            }
+            placeholder="e.g. Full coverage"
+          />
+        </div>
+
+        <div>
+          <ModalLabel>Value (AR)</ModalLabel>
+
+          <textarea
+            className={textareaCls}
+            dir="rtl"
+            rows={3}
+            value={benefit.value.ar}
+            onChange={(e) =>
+              onChange({
+                value: {
+                  ...benefit.value,
+                  ar: e.target.value,
+                },
+              })
+            }
+            placeholder="تغطية كاملة"
+          />
+        </div>
       </div>
     </div>
   );
