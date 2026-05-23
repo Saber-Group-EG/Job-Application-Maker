@@ -29,6 +29,14 @@ import { SectionBlock } from '../../form/SectionBlock';
 import { BenefitRow } from './BenefitRow';
 import { SectionDivider } from '../../form/SectionDivider';
 import { ModalLabel } from '../../form/ModalLabel';
+import {
+  BulkOverrideMap,
+  BulkSalaryReview,
+  resolveApplicantSalary,
+  resolveApplicantPosition,
+  seedBulkOverrideMap,
+} from '../JobOffersModal/BulkSalaryReview';
+import { ChevronDown } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -100,6 +108,7 @@ export type FormState = {
   };
 
   senderByCompany: Record<string, string>;
+  bulkOverrideMap: BulkOverrideMap;
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -145,6 +154,7 @@ const emptyForm = (): FormState => ({
   sections: [],
   senderByCompany: {},
   selectedApplicantObject: null,
+  bulkOverrideMap: {},
 });
 
 const contractToForm = (c: JobContract): FormState => {
@@ -184,6 +194,7 @@ const contractToForm = (c: JobContract): FormState => {
     },
     senderByCompany: {},
     selectedApplicantObject: c.applicantId,
+    bulkOverrideMap: {},
   };
 };
 
@@ -263,6 +274,8 @@ export default function JobContractModal({
   defaults,
 }: JobContractModalProps) {
   const [form, setForm] = useState<FormState>(emptyForm);
+  const [showSalaryReview, setShowSalaryReview] = useState(false);
+
   const firstInputRef = useRef<HTMLInputElement>(null);
 
   const createMutation = useCreateJobContract();
@@ -328,6 +341,9 @@ export default function JobContractModal({
           ...emptyForm(),
           applicantIds: ids,
           isBulk: bulk,
+          bulkOverrideMap: bulk
+            ? seedBulkOverrideMap(applicantObjects ?? [])
+            : {},
           ...(propApplicantId ? { applicantId: propApplicantId } : {}),
         });
       }
@@ -437,7 +453,7 @@ export default function JobContractModal({
 
   // Submit
   const handleSubmit = async () => {
-    if (!form.position.en.trim() && !form.position.ar.trim()) {
+    if (!form.isBulk && !form.position.en.trim() && !form.position.ar.trim()) {
       Swal.fire('Validation', 'Position title is required.', 'warning');
       return;
     }
@@ -480,12 +496,32 @@ export default function JobContractModal({
       } else if (form.isBulk && form.applicantIds?.length) {
         await bulkMutation.mutateAsync({
           ...base,
-          applicantIds: applicantObjects!.map(
-            ({ _id, jobPositionId: cid }) => ({
-              applicantId: _id!,
-              companyId: cid?.companyId?._id || propCompanyId!,
-            })
-          ),
+          applicantIds: applicantObjects!.map((a) => {
+            const override = form.bulkOverrideMap[a._id];
+            const resolvedSalary = override
+              ? resolveApplicantSalary(a, override)
+              : null;
+            const finalSalary =
+              resolvedSalary != null
+                ? resolvedSalary
+                : form.salaryBasic !== ''
+                  ? Number(form.salaryBasic)
+                  : null;
+            const resolvedPosition = override
+              ? resolveApplicantPosition(a, override, form.position)
+              : form.position;
+            return {
+              applicantId: a._id!,
+              companyId: a.jobPositionId?.companyId?._id || propCompanyId!,
+              salary: {
+                basic: finalSalary,
+                currency: form.salaryCurrency || 'EGP',
+              },
+              ...(resolvedPosition.en || resolvedPosition.ar
+                ? { position: resolvedPosition }
+                : {}),
+            };
+          }),
         });
       } else {
         const singleApplicantId = propApplicantId ?? form.applicantId;
@@ -607,6 +643,7 @@ export default function JobContractModal({
                         Switch to single
                       </button>
                     </div>
+
                     <ul className="max-h-36 divide-y divide-slate-100 overflow-y-auto dark:divide-slate-700/60">
                       {(applicantObjects ?? []).map((a) => (
                         <li
@@ -627,6 +664,33 @@ export default function JobContractModal({
                         </li>
                       ))}
                     </ul>
+
+                    {/* Salary review toggle */}
+                    <div className="border-t border-slate-200 px-3 py-2 dark:border-slate-700">
+                      <button
+                        type="button"
+                        onClick={() => setShowSalaryReview((v) => !v)}
+                        className="flex w-full items-center justify-between text-xs font-semibold text-brand-600 hover:text-brand-700 dark:text-brand-400"
+                      >
+                        <span>Configure individual salaries & positions</span>
+                        <ChevronDown
+                          className={`size-3.5 transition-transform ${showSalaryReview ? 'rotate-180' : ''}`}
+                        />
+                      </button>
+                    </div>
+
+                    {showSalaryReview && (
+                      <div className="border-t border-slate-200 p-3 dark:border-slate-700 max-h-96 overflow-y-auto">
+                        <BulkSalaryReview
+                          applicants={applicantObjects ?? []}
+                          overrideMap={form.bulkOverrideMap}
+                          currency={form.salaryCurrency}
+                          formPosition={form.position}
+                          formSalary={form.salaryBasic}
+                          onChange={(map) => set('bulkOverrideMap', map)}
+                        />
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <ApplicantSelect

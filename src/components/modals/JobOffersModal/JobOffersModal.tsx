@@ -11,6 +11,7 @@ import {
   Hash,
   Mail,
   Send,
+  ChevronDown,
 } from 'lucide-react';
 import {
   CommissionType,
@@ -35,6 +36,13 @@ import {
 } from './EmailModule';
 import { SectionDivider } from '../../form/SectionDivider';
 import { ModalLabel } from '../../form/ModalLabel';
+import {
+  BulkOverrideMap,
+  BulkSalaryReview,
+  resolveApplicantSalary,
+  resolveApplicantPosition,
+  seedBulkOverrideMap,
+} from './BulkSalaryReview';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -114,6 +122,7 @@ export type FormState = {
   sendAsEmail: boolean;
   senderByCompany: Record<string, string>;
   emailLang: 'en' | 'ar';
+  bulkOverrideMap: BulkOverrideMap;
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -156,6 +165,7 @@ const emptyForm = (): FormState => ({
   senderByCompany: {},
   selectedApplicantObject: null,
   emailLang: 'en',
+  bulkOverrideMap: {},
 });
 
 const offerToForm = (offer: JobOffer): FormState => ({
@@ -197,6 +207,7 @@ const offerToForm = (offer: JobOffer): FormState => ({
   senderByCompany: {},
   selectedApplicantObject: offer.applicantId,
   emailLang: 'en',
+  bulkOverrideMap: {},
 });
 
 const inputCls =
@@ -219,8 +230,9 @@ export default function JobOfferModal({
   applicantObjects,
 }: JobOfferModalProps) {
   const [form, setForm] = useState<FormState>(emptyForm);
-  const firstInputRef = useRef<HTMLInputElement>(null);
+  const [showSalaryReview, setShowSalaryReview] = useState(false);
 
+  const firstInputRef = useRef<HTMLInputElement>(null);
   // ── Mutations ──────────────────────────────────────────────────────────────
   const createMutation = useCreateJobOffer();
   const bulkMutation = useBulkCreateJobOffers();
@@ -295,7 +307,14 @@ export default function JobOfferModal({
           senderByCompany: {},
         });
       } else {
-        setForm({ ...emptyForm(), applicantIds: ids, isBulk: bulk });
+        setForm({
+          ...emptyForm(),
+          applicantIds: ids,
+          isBulk: bulk,
+          bulkOverrideMap: bulk
+            ? seedBulkOverrideMap(applicantObjects ?? [])
+            : {},
+        });
       }
       setTimeout(() => firstInputRef.current?.focus(), 80);
     }
@@ -395,11 +414,10 @@ export default function JobOfferModal({
   // ── Submit ─────────────────────────────────────────────────────────────────
 
   const handleSubmit = async () => {
-    if (!form.position.en.trim() && !form.position.ar.trim()) {
+    if (!form.isBulk && !form.position.en.trim() && !form.position.ar.trim()) {
       Swal.fire('Validation', 'Position title is required.', 'warning');
       return;
     }
-
     const willSendEmail = form.sendAsEmail && mode === 'offer';
 
     if (willSendEmail) {
@@ -462,13 +480,10 @@ export default function JobOfferModal({
         displayOrder: idx,
         items: items.map(({ _id: _i, ...item }) => item),
       })),
-      notes:
-        !form.notes.en.trim() && !form.notes.ar.trim()
-          ? null
-          : {
-              en: form.notes.en.trim(),
-              ar: form.notes.ar.trim(),
-            },
+      notes: {
+        en: form.notes.en.trim(),
+        ar: form.notes.ar.trim(),
+      },
       ...(willSendEmail
         ? {
             status: 'sent' as OfferStatus,
@@ -486,12 +501,34 @@ export default function JobOfferModal({
       } else if (form.isBulk && form.applicantIds?.length) {
         await bulkMutation.mutateAsync({
           ...base,
-          applicantIds: applicantObjects!.map(
-            ({ _id, jobPositionId: cid }) => ({
-              applicantId: _id!,
-              companyId: cid?.companyId?._id!,
-            })
-          ),
+          // In handleSubmit, change the applicantIds map:
+          applicantIds: applicantObjects!.map((a) => {
+            const override = form.bulkOverrideMap[a._id];
+            const resolvedSalary = override
+              ? resolveApplicantSalary(a, override)
+              : null;
+            // fall back to form salary if source is 'form' or unresolved
+            const finalSalary =
+              resolvedSalary != null
+                ? resolvedSalary
+                : form.salaryBasic !== ''
+                  ? Number(form.salaryBasic)
+                  : null;
+            const resolvedPosition = override
+              ? resolveApplicantPosition(a, override, form.position)
+              : form.position;
+            return {
+              applicantId: a._id!,
+              companyId: a.jobPositionId?.companyId?._id!,
+              salary: {
+                basic: finalSalary,
+                currency: form.salaryCurrency || 'EGP',
+              },
+              ...(resolvedPosition.en || resolvedPosition.ar
+                ? { position: resolvedPosition }
+                : {}),
+            };
+          }),
         });
         if (willSendEmail) await sendBulkOfferEmail();
       } else {
@@ -596,6 +633,7 @@ export default function JobOfferModal({
                 </ModalLabel>
                 {form.isBulk ? (
                   <div className="rounded-lg border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800">
+                    {/* Header */}
                     <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2 dark:border-slate-700">
                       <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                         {form.applicantIds?.length} applicant(s) selected
@@ -614,6 +652,8 @@ export default function JobOfferModal({
                         Switch to single
                       </button>
                     </div>
+
+                    {/* Applicant list */}
                     <ul className="max-h-36 divide-y divide-slate-100 overflow-y-auto dark:divide-slate-700/60">
                       {(applicantObjects ?? []).map((a) => (
                         <li
@@ -634,6 +674,34 @@ export default function JobOfferModal({
                         </li>
                       ))}
                     </ul>
+
+                    {/* Salary review toggle */}
+                    <div className="border-t border-slate-200 px-3 py-2 dark:border-slate-700">
+                      <button
+                        type="button"
+                        onClick={() => setShowSalaryReview((v) => !v)}
+                        className="flex w-full items-center justify-between text-xs font-semibold text-brand-600 hover:text-brand-700 dark:text-brand-400"
+                      >
+                        <span>Configure individual salaries</span>
+                        <ChevronDown
+                          className={`size-3.5 transition-transform ${showSalaryReview ? 'rotate-180' : ''}`}
+                        />
+                      </button>
+                    </div>
+
+                    {/* Review panel */}
+                    {showSalaryReview && (
+                      <div className="border-t border-slate-200 p-3 dark:border-slate-700 max-h-96 overflow-y-auto">
+                        <BulkSalaryReview
+                          applicants={applicantObjects ?? []}
+                          overrideMap={form.bulkOverrideMap}
+                          currency={form.salaryCurrency}
+                          formPosition={form.position}
+                          onChange={(map) => set('bulkOverrideMap', map)}
+                          formSalary={form.salaryBasic}
+                        />
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <ApplicantSelect
@@ -764,7 +832,9 @@ export default function JobOfferModal({
                     onChange={(e) =>
                       set(
                         'salaryBasic',
-                        e.target.value === '' ? '' : Number(e.target.value)
+                        e.target.value === ''
+                          ? ''
+                          : Math.round(Number(e.target.value))
                       )
                     }
                     placeholder="0"
@@ -925,13 +995,14 @@ export default function JobOfferModal({
                 {editing && editing.lastEmailSentAt && (
                   <span className="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
                     Last sent{' '}
-                    {new Date(
-                      editing.lastEmailSentAt
-                    ).toLocaleDateString(undefined, {
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric',
-                    })}
+                    {new Date(editing.lastEmailSentAt).toLocaleDateString(
+                      undefined,
+                      {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                      }
+                    )}
                   </span>
                 )}
               </label>

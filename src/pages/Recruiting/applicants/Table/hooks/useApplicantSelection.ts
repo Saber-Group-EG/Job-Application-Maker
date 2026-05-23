@@ -58,6 +58,7 @@ interface UseApplicantSelectionReturn {
     _id: string;
     fullName: string;
     email: string;
+    expectedSalary?: number;
     jobPositionId?: {
       _id: string;
       companyId: { _id: string; name: { en: string; ar: string } };
@@ -109,6 +110,7 @@ export function useApplicantSelection({
           _id: a._id,
           fullName: String(a.fullName).trim(),
           email: String(a.email).trim(),
+          expectedSalary: a.expectedSalary,
           jobPositionId: a.jobPositionId, // ← add this
         };
       });
