@@ -73,6 +73,10 @@ export function buildOfferHtml(
   const isAr = lang === 'ar';
   const dir = isAr ? 'rtl' : 'ltr';
 
+  const positionLabel = isAr
+    ? form.position.ar || form.position.en
+    : form.position.en || form.position.ar;
+
   const labels = {
     greeting: isAr
       ? `عزيزي ${recipientName}،`
@@ -88,13 +92,21 @@ export function buildOfferHtml(
     closing: isAr
       ? 'يرجى المراجعة والرد في أقرب وقت ممكن.'
       : 'Please review and respond at your earliest convenience.',
-    title: isAr ? `عرض عمل – ${form.position}` : `Job Offer – ${form.position}`,
+    title: isAr ? `عرض عمل – ${positionLabel}` : `Job Offer – ${positionLabel}`,
   };
 
   const getTitle = (t: { en: string; ar: string }) =>
     isAr ? t.ar || t.en : t.en || t.ar;
   const getItem = (i: { en: string; ar: string }) =>
     isAr ? i.ar || i.en : i.en || i.ar;
+
+  const workHoursValue = isAr
+    ? form.workHours.ar || form.workHours.en
+    : form.workHours.en || form.workHours.ar;
+
+  const notesValue = isAr
+    ? form.notes.ar || form.notes.en
+    : form.notes.en || form.notes.ar;
 
   return `
 <!DOCTYPE html>
@@ -117,23 +129,23 @@ export function buildOfferHtml(
       <table style="width:100%;border-collapse:collapse;margin:0 0 24px;font-size:14px">
         <tr>
           <td style="padding:10px 12px;font-weight:600;background:#f8fafc;border:1px solid #e2e8f0;width:40%">${labels.position}</td>
-          <td style="padding:10px 12px;border:1px solid #e2e8f0">${form.position}</td>
+          <td style="padding:10px 12px;border:1px solid #e2e8f0">${positionLabel}</td>
         </tr>
         <tr>
           <td style="padding:10px 12px;font-weight:600;background:#f8fafc;border:1px solid #e2e8f0">${labels.workType}</td>
           <td style="padding:10px 12px;border:1px solid #e2e8f0">${form.workType}</td>
         </tr>
         ${
-          form.workHours
+          workHoursValue
             ? `
         <tr>
           <td style="padding:10px 12px;font-weight:600;background:#f8fafc;border:1px solid #e2e8f0">${labels.workHours}</td>
-          <td style="padding:10px 12px;border:1px solid #e2e8f0">${form.workHours}</td>
+          <td style="padding:10px 12px;border:1px solid #e2e8f0">${workHoursValue}</td>
         </tr>`
             : ''
         }
         ${
-          form.salaryBasic
+          form.salaryBasic !== '' && form.salaryBasic != null
             ? `
         <tr>
           <td style="padding:10px 12px;font-weight:600;background:#f8fafc;border:1px solid #e2e8f0">${labels.basicSalary}</td>
@@ -151,14 +163,20 @@ export function buildOfferHtml(
         <h3 style="font-size:16px;font-weight:700;margin:0 0 12px;color:#111827">${labels.commission}</h3>
         <ul style="margin:0 0 24px;padding-${isAr ? 'right' : 'left'}:20px;font-size:14px;line-height:1.8;color:#374151">
           ${form.commissions
-            .map(
-              (c) => `
+            .map((c) => {
+              const commLabel = isAr
+                ? c.label.ar || c.label.en
+                : c.label.en || c.label.ar;
+              const commCondition = isAr
+                ? c.condition?.ar || c.condition?.en
+                : c.condition?.en || c.condition?.ar;
+              return `
             <li>
-              <strong>${c.label}:</strong>
+              <strong>${commLabel}:</strong>
               ${c.value}${c.type === 'percentage' ? '%' : ` ${form.salaryCurrency}`}
-              ${c.condition ? `<span style="color:#6b7280"> (${c.condition})</span>` : ''}
-            </li>`
-            )
+              ${commCondition ? `<span style="color:#6b7280"> (${commCondition})</span>` : ''}
+            </li>`;
+            })
             .join('')}
         </ul>`
           : ''
@@ -175,10 +193,10 @@ export function buildOfferHtml(
         .join('')}
 
       ${
-        form.notes
+        notesValue
           ? `
         <p style="margin:24px 0 0;padding:12px 16px;background:#f8fafc;border-${isAr ? 'right' : 'left'}:3px solid #cbd5e1;font-size:13px;color:#64748b;font-style:italic">
-          ${form.notes}
+          ${notesValue}
         </p>`
           : ''
       }
@@ -252,12 +270,13 @@ export function useJobOfferEmail({
     const cid = recipient.jobPositionId?.companyId._id!;
     const rawSender =
       form.senderByCompany[cid] || sendersByCompany[cid]?.[0] || '';
+    const positionLabel = form.position.en || form.position.ar;
     await sendEmailMutation.mutateAsync({
       company: cid,
       applicant: recipient._id,
       to: recipient.email,
       from: cleanFrom(rawSender),
-      subject: `Job Offer – ${form.position}`,
+      subject: `Job Offer – ${positionLabel}`,
       html: buildOfferHtml(
         form,
         recipient.fullName ?? 'Applicant',
@@ -271,6 +290,7 @@ export function useJobOfferEmail({
 
   const sendBulkOfferEmail = async () => {
     if (!applicantObjects?.length) return;
+    const positionLabel = form.position.en || form.position.ar;
     await Promise.all(
       Object.entries(groupedByCompany).map(([cid, { applicants }]) => {
         const rawSender =
@@ -281,7 +301,7 @@ export function useJobOfferEmail({
           .map((a) => ({
             to: a.email!,
             from,
-            subject: `Job Offer – ${form.position}`,
+            subject: `Job Offer – ${positionLabel}`,
             html: buildOfferHtml(form, a.fullName, form.emailLang),
             applicant: a._id,
             ...(a.jobPositionId
