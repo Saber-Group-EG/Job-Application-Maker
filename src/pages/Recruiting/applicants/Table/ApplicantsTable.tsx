@@ -721,12 +721,6 @@ export default function Applicants({
   }, []);
 
   const isLaptopViewport = viewportWidth <= 1440;
-  const isNarrowDesktopViewport = viewportWidth <= 1024;
-  const tableMinWidth = isNarrowDesktopViewport
-    ? 820
-    : isLaptopViewport
-      ? 980
-      : 1160;
   const selectColumnWidth = isLaptopViewport ? 36 : 48;
 
   const columnSizeConfig = useMemo(
@@ -741,7 +735,7 @@ export default function Applicants({
       jobPositionId: isLaptopViewport ? 118 : 160,
       expectedSalary: isLaptopViewport ? 104 : 140,
       sscore: isLaptopViewport ? 72 : 96,
-      status: isLaptopViewport ? 84 : 105,
+      status: isLaptopViewport ? 150 : 170,
       submittedAt: isLaptopViewport ? 88 : 110,
       actions: isLaptopViewport ? 58 : 90,
     }),
@@ -1679,12 +1673,12 @@ export default function Applicants({
           />
         ),
         filterFn: (row: any, columnId: string, filterValue: any) => {
-          if (!filterValue) return true;
-          const vals = Array.isArray(filterValue) ? filterValue : [filterValue];
-          if (!vals.length) return true;
-          const cell = String(row.getValue(columnId) ?? '');
-          return vals.includes(cell);
-        },
+  if (!filterValue) return true;
+  const vals = Array.isArray(filterValue) ? filterValue : [filterValue];
+  if (!vals.length) return true;
+  const cell = String(row.getValue(columnId) ?? '').toLowerCase().trim();
+  return vals.some((v) => String(v ?? '').toLowerCase().trim() === cell);
+},
         Cell: ({ row }: { row: { original: any } }) => {
           if (isTableLoading) return renderCellSkeleton('text');
           const raw =
@@ -1907,33 +1901,33 @@ export default function Applicants({
         },
         size: columnSizeConfig.status,
         enableColumnFilter: false,
-        Cell: ({ row }: { row: { original: any } }) => {
-          if (isTableLoading) return renderCellSkeleton('text', '80px');
+   Cell: ({ row }: { row: { original: any } }) => {
+  if (isTableLoading) return renderCellSkeleton('text', '80px');
 
-          // Get the company ID from the applicant
-          const applicantCompanyId = getApplicantCompanyId(
-            row.original,
-            jobPositionMap
-          );
+  const applicantCompanyId = getApplicantCompanyId(
+    row.original,
+    jobPositionMap
+  );
 
-          return (
-            <a
-              href={getApplicantHref(row)}
-              className="text-inherit no-underline hover:no-underline"
-              onClick={(e) => handleApplicantLinkClick(e, row)}
-              onAuxClick={handleApplicantLinkAuxClick}
-            >
-              <StatusCell
-                status={row.original.status}
-                showTooltip
-                selectedCompanyFilter={selectedCompanyFilter}
-                companyId={applicantCompanyId}
-                allCompanies={allCompaniesRaw}
-                applicant={row.original}
-              />
-            </a>
-          );
-        },
+  return (
+    <a
+      href={getApplicantHref(row)}
+      className="text-inherit no-underline hover:no-underline"
+      title={row.original.status ?? ''}
+      onClick={(e) => handleApplicantLinkClick(e, row)}
+      onAuxClick={handleApplicantLinkAuxClick}
+    >
+      <StatusCell
+        status={row.original.status}
+        showTooltip
+        selectedCompanyFilter={selectedCompanyFilter}
+        companyId={applicantCompanyId}
+        allCompanies={allCompaniesRaw}
+        applicant={row.original}
+      />
+    </a>
+  );
+},
       },
       {
         id: 'rejectionReasons',
@@ -2257,7 +2251,7 @@ export default function Applicants({
     enableFullScreenToggle: false,
     enableColumnActions: false,
     enableColumnResizing: true,
-    layoutMode: 'grid',
+layoutMode: 'grid',
     manualPagination: false,
     manualFiltering: false,
     manualSorting: false,
@@ -2266,6 +2260,7 @@ export default function Applicants({
       pagination,
       columnFilters: isTableLoading ? [] : columnFilters,
       columnVisibility: layout.columnVisibility || {},
+      columnSizing: layout.columnSizing || {},
       density: 'compact',
       columnOrder:
         Array.isArray(layout.columnOrder) && layout.columnOrder.length
@@ -2287,6 +2282,7 @@ export default function Applicants({
       columnFilters: isTableLoading ? [] : columnFilters,
       rowSelection,
       columnVisibility: layout.columnVisibility || {},
+      columnSizing: layout.columnSizing || {},
     },
     onSortingChange: setSorting,
     onPaginationChange: setPagination,
@@ -2386,29 +2382,36 @@ export default function Applicants({
       sx: {
         backgroundColor: isDarkMode ? '#24303F' : '#FFFFFF',
         backgroundImage: 'none',
+        width: '100%',           // ← add
+    overflow: 'hidden',      // ← add: clips the paper at its container edge
+    boxShadow: 'none', 
       },
     },
-    muiTableProps: {
-      sx: {
-        backgroundColor: isDarkMode ? '#24303F' : '#FFFFFF',
-        tableLayout: 'auto',
-        width: '100%',
-        minWidth: `${tableMinWidth}px`,
-        fontFamily: "'Cairo', Outfit, system-ui",
-        fontSize: '0.82rem',
-      },
-    },
-    muiTableContainerProps: { sx: { maxWidth: '100%', overflowX: 'auto' } },
-    muiTableBodyCellProps: {
+   muiTableProps: {
+  sx: {
+    backgroundColor: isDarkMode ? '#24303F' : '#FFFFFF',
+    width: '100%',
+    fontFamily: "'Cairo', Outfit, system-ui",
+    fontSize: '0.82rem',
+  },
+},
+muiTableContainerProps: { 
+  sx: { 
+    maxWidth: '100%', 
+    overflowX: 'auto',
+    width: '100%', 
+    minWidth: 0,       // ← add this
+  } 
+},    muiTableBodyCellProps: {
       sx: {
         backgroundColor: isDarkMode ? '#24303F' : '#FFFFFF',
         color: isDarkMode ? '#E4E7EC' : '#101828',
         borderColor: isDarkMode ? '#344054' : '#E4E7EC',
-        display: 'flex',
-        alignItems: 'center',
+        verticalAlign: 'middle',
+        overflow: 'hidden',
+        whiteSpace: 'nowrap',
         fontSize: isLaptopViewport ? '0.76rem' : '0.8rem',
         padding: isLaptopViewport ? '5px 6px' : '6px 8px',
-        whiteSpace: 'nowrap',
       },
     },
     muiTableHeadCellProps: {
@@ -2468,11 +2471,8 @@ export default function Applicants({
           </div>
         }
       />
-      <div className="grid gap-6">
-        <ComponentCard
-          title="Job Applicants"
-          desc="View and manage all applicants"
-        >
+      <div className="grid gap-6 min-w-0">   
+  <ComponentCard title="Job Applicants" desc="View and manage all applicants">
           <>
             {error && (
               <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg">
@@ -2553,9 +2553,17 @@ export default function Applicants({
               </div>
             )}
 
-            <div className="w-full overflow-x-auto custom-scrollbar">
-              <MaterialReactTable table={table} />
-            </div>
+<div
+  className="w-full custom-scrollbar"
+  style={{
+    overflowX: 'auto',
+    overflowY: 'visible',
+    maxWidth: '100%',
+    minWidth: 0,          // ← critical in flex/grid contexts
+  }}
+>
+  <MaterialReactTable table={table} />
+</div>
 
             <BulkMessageModal
               isOpen={showBulkModal}
