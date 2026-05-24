@@ -16,36 +16,117 @@ import StatusHistoryInterviewTab from './StatusHistoryTabs/StatusHistoryIntervie
 import StatusHistoryPreviousTab from './StatusHistoryTabs/StatusHistoryPreviousTab';
 import StatusHistoryOffersTab from './StatusHistoryTabs/StatusHistoryOffersTab';
 import StatusHistoryContractsTab from './StatusHistoryTabs/StatusHistoryContractsTab';
+import type { Applicant } from '../../../../types/applicants';
 
 type Props = {
-  applicant: any;
+  applicant: Applicant;
   loading?: boolean;
 };
 
+type ActivityTab = 'all' | 'status' | 'actions' | 'interview' | 'previous' | 'offers' | 'contracts';
+
+// Type guard to check if an object is a JobOffer
+function isJobOffer(obj: unknown): obj is JobOffer {
+  if (!obj || typeof obj !== 'object') return false;
+  const candidate = obj as Record<string, unknown>;
+  return (
+    '_id' in candidate &&
+    'companyId' in candidate &&
+    'isTemplate' in candidate &&
+    'position' in candidate
+  );
+}
+
+// Type guard to check if an object is a JobContract
+function isJobContract(obj: unknown): obj is JobContract {
+  if (!obj || typeof obj !== 'object') return false;
+  const candidate = obj as Record<string, unknown>;
+  return (
+    '_id' in candidate &&
+    'companyId' in candidate &&
+    'applicantId' in candidate &&
+    'jobOfferId' in candidate
+  );
+}
+
+// Helper function to safely extract nested data
+function extractJobOffer(data: unknown): JobOffer | null {
+  if (!data || typeof data !== 'object') return null;
+  
+  const obj = data as Record<string, unknown>;
+  
+  // Try different possible response structures
+  if ('jobOffer' in obj && obj.jobOffer && isJobOffer(obj.jobOffer)) {
+    return obj.jobOffer;
+  }
+  if ('data' in obj && obj.data && typeof obj.data === 'object') {
+    const dataObj = obj.data as Record<string, unknown>;
+    if ('jobOffer' in dataObj && dataObj.jobOffer && isJobOffer(dataObj.jobOffer)) {
+      return dataObj.jobOffer;
+    }
+    if (isJobOffer(dataObj)) {
+      return dataObj;
+    }
+  }
+  if (isJobOffer(obj)) {
+    return obj;
+  }
+  
+  return null;
+}
+
+function extractJobContract(data: unknown): JobContract | null {
+  if (!data || typeof data !== 'object') return null;
+  
+  const obj = data as Record<string, unknown>;
+  
+  // Try different possible response structures
+  if ('jobContract' in obj && obj.jobContract && isJobContract(obj.jobContract)) {
+    return obj.jobContract;
+  }
+  if ('data' in obj && obj.data && typeof obj.data === 'object') {
+    const dataObj = obj.data as Record<string, unknown>;
+    if ('jobContract' in dataObj && dataObj.jobContract && isJobContract(dataObj.jobContract)) {
+      return dataObj.jobContract;
+    }
+    if (isJobContract(dataObj)) {
+      return dataObj;
+    }
+  }
+  if (isJobContract(obj)) {
+    return obj;
+  }
+  
+  return null;
+}
+
 export default function StatusHistory({ applicant, loading = false }: Props) {
   const { user } = useAuth();
-  const navigate = useNavigate(); // Add this for navigation
-  const [activityTab, setActivityTab] = useState<'all' | 'status' | 'actions' | 'interview' | 'previous' | 'offers' | 'contracts'>('all');
+  const navigate = useNavigate();
+  const [activityTab, setActivityTab] = useState<ActivityTab>('all');
   const [expandedHistory, setExpandedHistory] = useState<string | null>(null);
   const [selectedOfferId, setSelectedOfferId] = useState<string | null>(null);
   const [selectedOfferLocal, setSelectedOfferLocal] = useState<JobOffer | null>(null);
   const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
-  const modalLockRef = useRef(0);
+  const modalLockRef = useRef<number>(0);
   const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
   const [selectedContractLocal, setSelectedContractLocal] = useState<JobContract | null>(null);
   const [isContractModalOpen, setIsContractModalOpen] = useState(false);
-  const contractModalLockRef = useRef(0);
+  const contractModalLockRef = useRef<number>(0);
+  
   const { data: selectedOfferDetail } = useJobOffer(selectedOfferId || '', {
     enabled: !!selectedOfferId,
   });
 
   const applicantId = String(applicant?._id || '');
+  
   const { data: offersResponse, isLoading: isOffersLoading } = useQuery<PaginatedJobOffers>({
     queryKey: ['jobOffers', 'applicant', applicantId],
     queryFn: () =>
       jobOffersService.listOffers({ applicantId, PageCount: 'all' }),
     enabled: !!applicantId && activityTab === 'offers',
   });
+  
   const jobOffers = offersResponse?.data ?? [];
 
   const { data: contractsResponse, isLoading: isContractsLoading } = useQuery<PaginatedJobContracts>({
@@ -63,54 +144,34 @@ export default function StatusHistory({ applicant, loading = false }: Props) {
     enabled: !!selectedContractId,
   });
 
-  const normalizedDetail = useMemo(() => {
-    const detail = selectedOfferDetail as any;
-    if (!detail) return null;
-    return detail?.jobOffer ?? detail?.data?.jobOffer ?? detail?.data ?? detail;
-  }, [selectedOfferDetail]);
+  const normalizedDetail = useMemo(() => extractJobOffer(selectedOfferDetail), [selectedOfferDetail]);
+  const effectiveOffer = normalizedDetail ?? selectedOfferLocal;
+  
+  const safeOffer = effectiveOffer;
 
-  const effectiveOffer = (normalizedDetail ?? selectedOfferLocal) as any;
-  const safeOffer = effectiveOffer
-    ? {
-      ...effectiveOffer,
-      salary: effectiveOffer.salary ?? {
-        basic: null,
-        currency: effectiveOffer?.salary?.currency ?? 'EGP',
-      },
-      commissions: effectiveOffer.commissions ?? [],
-      sections: effectiveOffer.sections ?? [],
-    }
-    : null;
-
-  const normalizedContractDetail = useMemo(() => {
-    const detail = selectedContractDetail as any;
-    if (!detail) return null;
-    return detail?.jobContract ?? detail?.data?.jobContract ?? detail?.data ?? detail;
-  }, [selectedContractDetail]);
-
+  const normalizedContractDetail = useMemo(() => extractJobContract(selectedContractDetail), [selectedContractDetail]);
   const effectiveContract = normalizedContractDetail ?? selectedContractLocal;
 
-  // Fetch applicants with the same phone number
-  const applicantPhone = useMemo(() => applicant?.phone || applicant?.phoneNumber || '', [applicant?.phone, applicant?.phoneNumber]);
+  const applicantPhone = useMemo(() => applicant?.phone || '', [applicant?.phone]);
+  
   const { data: previousApplicants = [], isLoading: isPreviousLoading } = useApplicantsByPhone(applicantPhone, {
     enabled: !!applicantPhone && activityTab === 'previous',
   });
 
-  // Filter out current applicant and get unique list
   const filteredPreviousApplicants = useMemo(() => {
     if (!previousApplicants || !Array.isArray(previousApplicants)) return [];
     const currentId = String(applicant?._id || '');
-    return previousApplicants.filter((a: { _id?: string }) => String(a?._id || '') !== currentId);
+    return previousApplicants.filter((applicantItem: Applicant) => String(applicantItem?._id || '') !== currentId);
   }, [previousApplicants, applicant?._id]);
 
   const handlePreviousEntryClick = (applicantId: string) => {
-    // Navigate to the applicant detail page
-    // Adjust the path based on your actual route structure
     navigate(`/applicant-details/${applicantId}`);
   };
 
-  const getRowId = (row?: { _id?: string; id?: string } | null) =>
-    row?._id || row?.id || null;
+  const getRowId = (row: { _id?: string; id?: string } | null | undefined): string | null => {
+    if (!row) return null;
+    return row._id || row.id || null;
+  };
 
   const handleOfferSelect = (offer: JobOffer) => {
     const offerId = getRowId(offer);
@@ -270,8 +331,8 @@ export default function StatusHistory({ applicant, loading = false }: Props) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
-                  {Array.from({ length: 4 }).map((_, i) => (
-                    <tr key={i}>
+                  {Array.from({ length: 4 }).map((_, index) => (
+                    <tr key={index}>
                       <td className="px-4 py-3"><div className="h-4 w-20 rounded bg-gray-200 dark:bg-gray-700 animate-pulse" /></td>
                       <td className="px-4 py-3"><div className="h-4 w-28 rounded bg-gray-200 dark:bg-gray-700 animate-pulse" /></td>
                       <td className="px-4 py-3"><div className="h-4 w-24 rounded bg-gray-200 dark:bg-gray-700 animate-pulse" /></td>
