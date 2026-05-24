@@ -10,6 +10,7 @@ import {
   Hash,
   Gift,
   Calendar,
+  Layers,
 } from 'lucide-react';
 import {
   ContractType,
@@ -37,6 +38,7 @@ import {
   seedBulkOverrideMap,
 } from '../JobOffersModal/BulkSalaryReview';
 import { ChevronDown } from 'lucide-react';
+import SectionTemplatePicker from '../../form/SectionTemplatePicker';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -275,6 +277,7 @@ export default function JobContractModal({
 }: JobContractModalProps) {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [showSalaryReview, setShowSalaryReview] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const firstInputRef = useRef<HTMLInputElement>(null);
 
@@ -919,14 +922,32 @@ export default function JobContractModal({
                   onDuplicate={() => duplicateSection(s._id)}
                 />
               ))}
-              <button
-                type="button"
-                onClick={addSection}
-                className="inline-flex items-center gap-2 rounded-lg border border-dashed border-slate-300 px-3 py-2 text-sm font-semibold text-slate-500 transition hover:border-brand-400 hover:text-brand-600 dark:border-slate-600 dark:text-slate-400 dark:hover:border-brand-500 dark:hover:text-brand-300"
-              >
-                <Plus className="size-4" />
-                Add Section
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={addSection}
+                  className="inline-flex items-center gap-2 rounded-lg border border-dashed border-slate-300 px-3 py-2 text-sm font-semibold text-slate-500 transition hover:border-brand-400 hover:text-brand-600 dark:border-slate-600 dark:text-slate-400 dark:hover:border-brand-500 dark:hover:text-brand-300"
+                >
+                  <Plus className="size-4" />
+                  Add Section
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPickerOpen(true)}
+                  className="inline-flex items-center gap-2 rounded-lg border border-dashed border-indigo-300 px-3 py-2 text-sm font-semibold text-indigo-500 transition hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-600 dark:border-indigo-500/40 dark:text-indigo-400 dark:hover:border-indigo-400 dark:hover:bg-indigo-500/10"
+                >
+                  <Layers className="size-4" />
+                  From Templates
+                </button>
+              </div>
+              <SectionTemplatePicker
+                isOpen={pickerOpen}
+                onClose={() => setPickerOpen(false)}
+                docType={'contract'}
+                onInsert={(section) =>
+                  set('sections', [...form.sections, section])
+                }
+              />
             </div>
 
             {/* Internal Notes */}
