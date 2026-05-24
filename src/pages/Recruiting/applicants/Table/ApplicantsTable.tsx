@@ -1,4 +1,4 @@
-// Applicants.tsx - Complete working version
+// Applicants.tsx - Complete working version with no horizontal scroll
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import { useNavigate } from 'react-router';
@@ -259,11 +259,8 @@ export default function Applicants({
   );
 
   const effectiveOnlyStatus = useMemo((): string | string[] | undefined => {
-    // Priority: explicit prop -> route param -> query param
     if (onlyStatus) return onlyStatus;
     if (params.status) return params.status;
-    // urlParams is defined below; include it via closure (safe because
-    // urlParams depends on location.search and will update when query changes)
     const searchParams = new URLSearchParams(location.search);
     const qStatus = searchParams.get('status');
     if (qStatus) return qStatus;
@@ -277,7 +274,6 @@ export default function Applicants({
     );
   }, [user?.roleId?.name]);
 
-  // Get persisted table state
   const persistedTableState = useMemo(() => {
     try {
       const rawLocal = localStorage.getItem('applicants_table_state');
@@ -287,9 +283,8 @@ export default function Applicants({
     } catch (e) {
       return null;
     }
-  }, []); // Empty dependency array - only runs once on mount
+  }, []);
 
-  // URL params
   const urlParams = useMemo(() => {
     const searchParams = new URLSearchParams(location.search);
     return {
@@ -305,7 +300,6 @@ export default function Applicants({
     [user]
   );
 
-  // Data fetching
   const companyId = useMemo(() => {
     if (companyIdOverride !== undefined) return companyIdOverride as any;
     if (!user) return undefined;
@@ -318,7 +312,6 @@ export default function Applicants({
     return userCompanyId?.length ? userCompanyId : undefined;
   }, [companyIdOverride, user]);
 
-  // Extract department IDs from user companies
   const departmentIds = useMemo(() => {
     if (!user?.companies || !Array.isArray(user.companies)) return undefined;
     const allDepts = user.companies
@@ -347,32 +340,32 @@ export default function Applicants({
     ) as string[];
   }, [user, isSuperAdmin]);
 
-  // React Query hooks
   const {
-  data: jobPositions = [],
-  isFetching: isJobPositionsFetching,
-  isFetched: isJobPositionsFetched,
-  refetch: refetchJobPositions,
-} = useJobPositions(
-  companyId as any,  // companyId
-  false,             // deleted
-  departmentIds as any, // departmentId
-  { enabled: true }  // options
-);
+    data: jobPositions = [],
+    isFetching: isJobPositionsFetching,
+    isFetched: isJobPositionsFetched,
+    refetch: refetchJobPositions,
+  } = useJobPositions(
+    companyId as any,
+    false,
+    departmentIds as any,
+    { enabled: true }
+  );
+  
   const {
-  data: applicants = [],
-  error,
-  refetch: refetchApplicants,
-  isFetching: isApplicantsFetching,
-  isFetched: isApplicantsFetched,
-} = useApplicants({
-  companyId: companyId as any,
-  jobPositionId: undefined,
-  departmentId: departmentIds as any,
-  status: effectiveOnlyStatus,
-  enabled: true,
-});
-  // Check the query state directly to detect ongoing fetches for this key
+    data: applicants = [],
+    error,
+    refetch: refetchApplicants,
+    isFetching: isApplicantsFetching,
+    isFetched: isApplicantsFetched,
+  } = useApplicants({
+    companyId: companyId as any,
+    jobPositionId: undefined,
+    departmentId: departmentIds as any,
+    status: effectiveOnlyStatus,
+    enabled: true,
+  });
+  
   const applicantsQueryKey = applicantsKeys.list({
     companyId: companyId as any,
     jobPositionId: undefined,
@@ -381,6 +374,7 @@ export default function Applicants({
   });
   const applicantsQueryState = queryClient.getQueryState(applicantsQueryKey as any);
   const isApplicantsQueryFetching = applicantsQueryState?.fetchStatus === 'fetching';
+  
   const {
     data: allCompaniesRaw = [],
     refetch: refetchCompanies,
@@ -394,7 +388,6 @@ export default function Applicants({
     return [] as string[];
   }, [isSuperAdmin, assignedCompanyIds]);
 
-  // Mail count
   const { data: mailApiResponse } = useQuery<ApiMailResponse>({
     queryKey: ['mail-logs', queryCompanyIds.join(',')],
     queryFn: async () => {
@@ -443,7 +436,6 @@ export default function Applicants({
     return map;
   }, [mailApiResponse]);
 
-  // Table state
   const {
     rowSelection,
     setRowSelection,
@@ -463,7 +455,6 @@ export default function Applicants({
     persistedState: persistedTableState,
   });
 
-  // Apply URL filters
   useEffect(() => {
     if (urlParams.status) {
       setColumnFilters((prev: any) => {
@@ -482,7 +473,6 @@ export default function Applicants({
     }
   }, [urlParams.status, urlParams.company, setColumnFilters]);
 
-  // Job position map
   const jobPositionMap = useMemo(() => {
     const map: Record<string, any> = {};
     const getIdValue = (v: any) =>
@@ -502,7 +492,6 @@ export default function Applicants({
     return map;
   }, [jobPositions]);
 
-  // Company map
   const companyMap = useMemo(() => {
     const map: Record<string, any> = {};
     allCompaniesRaw.forEach((company: any) => {
@@ -514,7 +503,6 @@ export default function Applicants({
     return map;
   }, [allCompaniesRaw]);
 
-  // Gender options
   const genderOptions = useMemo(() => {
     const s = new Set<string>();
     const rows = Array.isArray(applicants) ? applicants : [];
@@ -538,7 +526,6 @@ export default function Applicants({
     return ordered.map((g) => ({ id: g, title: g }));
   }, [applicants, isSuperAdmin]);
 
-  // Job options for filter
   const jobOptions = useMemo(() => {
     const getIdValue = (v: any) =>
       typeof v === 'string' ? v : (v?._id ?? v?.id);
@@ -552,7 +539,6 @@ export default function Applicants({
       .filter((x) => x.id && x.title);
   }, [jobPositions]);
 
-  // Company options for filter
   const companyOptions = useMemo(() => {
     return allCompaniesRaw
       .map((c: any) => {
@@ -563,13 +549,11 @@ export default function Applicants({
       .filter((x) => x.id && x.title);
   }, [allCompaniesRaw]);
 
-  // Field to job IDs mapping
   const fieldToJobIds = useMemo(
     () => buildFieldToJobIds(jobPositions),
     [jobPositions]
   );
 
-  // Applicant filters — spread the options object so the hook receives its expected positional/named args
   const selectedCompanyFilterValue = useMemo(():
     | string[]
     | string
@@ -578,8 +562,6 @@ export default function Applicants({
     const companyFilter = columnFilters.find((f: any) => f.id === 'companyId');
     if (!companyFilter?.value) return undefined;
     const value = companyFilter.value;
-
-    // Handle different possible value types
     if (Array.isArray(value)) {
       return value as string[];
     }
@@ -596,7 +578,6 @@ export default function Applicants({
     filteredApplicants,
     duplicatesOnlyEnabled,
     statusFilterOptions,
-    getStatusColor,
     selectedCompanyFilter,
   } = useApplicantFilters({
     applicants,
@@ -611,7 +592,6 @@ export default function Applicants({
     allCompaniesRaw,
   });
 
-  // Applicant selection
   const {
     selectedApplicantIds,
     selectedApplicantRecipients,
@@ -625,7 +605,6 @@ export default function Applicants({
     allCompaniesRaw,
   });
 
-  // Get job IDs for selected applicants
   const selectedApplicantJobIds = useMemo(() => {
     const jobIds = new Set<string>();
     const ids = new Set(selectedApplicantIds);
@@ -634,7 +613,6 @@ export default function Applicants({
       const applicantId = typeof applicant._id === 'string' ? applicant._id : applicant._id?._id || applicant.id;
       if (!ids.has(applicantId)) return;
       
-      // Extract job ID from various possible locations
       const jobId = 
         (typeof applicant.jobPositionId === 'string' ? applicant.jobPositionId : applicant.jobPositionId?._id) ||
         applicant.job?._id ||
@@ -648,7 +626,6 @@ export default function Applicants({
     return Array.from(jobIds);
   }, [selectedApplicantIds, applicants]);
 
-  // Bulk actions
   const {
     isDeleting,
     isProcessing,
@@ -709,7 +686,6 @@ export default function Applicants({
     onClearSelection: () => setRowSelection({}),
   });
 
-  // Viewport detection
   const [viewportWidth, setViewportWidth] = useState<number>(() =>
     typeof window !== 'undefined' ? window.innerWidth : 1920
   );
@@ -742,8 +718,6 @@ export default function Applicants({
     [isLaptopViewport]
   );
 
-  // Helper functions for navigation
-  // Helper functions for navigation
   const getApplicantHref = useCallback((row: any) => {
     const orig: any = row?.original ?? row;
     const navId = String(orig?._id || orig?.id || row?.id || '');
@@ -760,7 +734,6 @@ export default function Applicants({
     filteredApplicants: [],
   });
 
-  // ✅ THIS IS THE CRITICAL LINE - update ref on every render
   currentFiltersRef.current = {
     columnFilters,
     customFilters,
@@ -776,10 +749,8 @@ export default function Applicants({
       e.preventDefault();
       e.stopPropagation();
 
-      // Use values from ref to ensure we have the latest
       const currentFilters = currentFiltersRef.current;
 
-      // Navigate with the current state
       navigate(getApplicantHref(row), {
         state: {
           applicant: row.original,
@@ -822,7 +793,6 @@ export default function Applicants({
     } catch (e) {
       return false;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const [isFilterTransitioning, setIsFilterTransitioning] = useState(
@@ -867,24 +837,6 @@ export default function Applicants({
   const [elapsed, setElapsed] = useState<string | null>(null);
 
   useEffect(() => {
-    // When filters change, clear the navigation state to force fresh data
-    if (columnFilters.length > 0 || customFilters.length > 0) {
-      // Clear the navigation state from location
-      if (location.state?.returnToApplicants) {
-        window.history.replaceState({}, document.title);
-      }
-
-      // Also clear any stored session data
-      try {
-        sessionStorage.removeItem('applicants_current_state');
-        sessionStorage.removeItem('applicants_table_state_backup');
-        sessionStorage.removeItem('applicants_filtered_list');
-      } catch (e) {}
-    }
-  }, [columnFilters, customFilters, location.state]);
-  // In the useEffect that restores table state, add a check to ensure data is loaded first
-
-  useEffect(() => {
     if (
       !lastRefetch &&
       (isJobPositionsFetched || isApplicantsFetched || isCompaniesFetched)
@@ -923,7 +875,6 @@ export default function Applicants({
     return () => clearInterval(id);
   }, [lastRefetch]);
 
-  // Helper functions for columns
   const getExpectedSalaryDisplay = useCallback((applicant: any): string => {
     const toText = (value: any): string => {
       if (value === null || value === undefined) return '';
@@ -1347,15 +1298,15 @@ export default function Applicants({
   ]);
 
   const isTableLoading = Boolean(
-  isJobPositionsFetching ||
-  isApplicantsFetching ||
-  isCompaniesFetching ||
-  isFilterTransitioning ||
-  isApplicantsQueryFetching ||
-  !isApplicantsFetched ||
-  !isJobPositionsFetched ||
-  !isCompaniesFetched
-);
+    isJobPositionsFetching ||
+    isApplicantsFetching ||
+    isCompaniesFetching ||
+    isFilterTransitioning ||
+    isApplicantsQueryFetching ||
+    !isApplicantsFetched ||
+    !isJobPositionsFetched ||
+    !isCompaniesFetched
+  );
 
   const renderCellSkeleton = (
     variant: 'text' | 'circular' | 'rectangular' = 'text',
@@ -1382,11 +1333,9 @@ export default function Applicants({
     );
   };
 
-  // Add this function near your other helper functions (before the columns definition)
   const extractRejectionReasons = useCallback(
     (applicant: Applicant): string[] => {
       try {
-        // Check status history
         const history = applicant?.statusHistory;
         if (Array.isArray(history)) {
           const rejected = history.filter(
@@ -1419,25 +1368,36 @@ export default function Applicants({
     []
   );
 
-  // Add this memo for rejection reasons options (add it near your other useMemo hooks)
   const rejectionReasonsOptions = useMemo(() => {
     const reasonsSet = new Set<string>();
-
-    // Extract rejection reasons from filteredApplicants
     (filteredApplicants || []).forEach((applicant: any) => {
       const reasons = extractRejectionReasons(applicant);
       reasons.forEach((reason: string) => {
         if (reason) reasonsSet.add(reason);
       });
     });
-
-    // Convert to array and sort alphabetically
     return Array.from(reasonsSet)
       .sort()
       .map((reason) => ({ id: reason, title: reason }));
   }, [filteredApplicants, extractRejectionReasons]);
 
-  // Build complete columns for the table
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    const checkDarkMode = () => {
+      const darkMode = document.documentElement.classList.contains('dark');
+      setIsDarkMode(darkMode);
+    };
+    checkDarkMode();
+    const observer = new MutationObserver(checkDarkMode);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class'],
+    });
+    return () => observer.disconnect();
+  }, []);
+
+  // Build columns
   const columns = useMemo<MRT_ColumnDef<any>[]>(
     () => [
       {
@@ -1673,12 +1633,12 @@ export default function Applicants({
           />
         ),
         filterFn: (row: any, columnId: string, filterValue: any) => {
-  if (!filterValue) return true;
-  const vals = Array.isArray(filterValue) ? filterValue : [filterValue];
-  if (!vals.length) return true;
-  const cell = String(row.getValue(columnId) ?? '').toLowerCase().trim();
-  return vals.some((v) => String(v ?? '').toLowerCase().trim() === cell);
-},
+          if (!filterValue) return true;
+          const vals = Array.isArray(filterValue) ? filterValue : [filterValue];
+          if (!vals.length) return true;
+          const cell = String(row.getValue(columnId) ?? '').toLowerCase().trim();
+          return vals.some((v) => String(v ?? '').toLowerCase().trim() === cell);
+        },
         Cell: ({ row }: { row: { original: any } }) => {
           if (isTableLoading) return renderCellSkeleton('text');
           const raw =
@@ -1901,33 +1861,33 @@ export default function Applicants({
         },
         size: columnSizeConfig.status,
         enableColumnFilter: false,
-   Cell: ({ row }: { row: { original: any } }) => {
-  if (isTableLoading) return renderCellSkeleton('text', '80px');
+        Cell: ({ row }: { row: { original: any } }) => {
+          if (isTableLoading) return renderCellSkeleton('text', '80px');
 
-  const applicantCompanyId = getApplicantCompanyId(
-    row.original,
-    jobPositionMap
-  );
+          const applicantCompanyId = getApplicantCompanyId(
+            row.original,
+            jobPositionMap
+          );
 
-  return (
-    <a
-      href={getApplicantHref(row)}
-      className="text-inherit no-underline hover:no-underline"
-      title={row.original.status ?? ''}
-      onClick={(e) => handleApplicantLinkClick(e, row)}
-      onAuxClick={handleApplicantLinkAuxClick}
-    >
-      <StatusCell
-        status={row.original.status}
-        showTooltip
-        selectedCompanyFilter={selectedCompanyFilter}
-        companyId={applicantCompanyId}
-        allCompanies={allCompaniesRaw}
-        applicant={row.original}
-      />
-    </a>
-  );
-},
+          return (
+            <a
+              href={getApplicantHref(row)}
+              className="text-inherit no-underline hover:no-underline"
+              title={row.original.status ?? ''}
+              onClick={(e) => handleApplicantLinkClick(e, row)}
+              onAuxClick={handleApplicantLinkAuxClick}
+            >
+              <StatusCell
+                status={row.original.status}
+                showTooltip
+                selectedCompanyFilter={selectedCompanyFilter}
+                companyId={applicantCompanyId}
+                allCompanies={allCompaniesRaw}
+                applicant={row.original}
+              />
+            </a>
+          );
+        },
       },
       {
         id: 'rejectionReasons',
@@ -1953,7 +1913,6 @@ export default function Applicants({
 
           const applicantReasons = row.getValue(columnId) as string[];
 
-          // Check if any of the applicant's reasons match any selected filter
           return selectedReasons.some((selectedReason) =>
             applicantReasons.some(
               (applicantReason) =>
@@ -2128,7 +2087,6 @@ export default function Applicants({
       jobOptions,
       statusFilterOptions,
       effectiveOnlyStatus,
-      getStatusColor,
       formatDate,
       getExpectedSalaryDisplay,
       getApplicantSScore,
@@ -2139,23 +2097,6 @@ export default function Applicants({
       currentUserId,
     ]
   );
-
-  // MUI Theme
-  const [isDarkMode, setIsDarkMode] = useState(false);
-
-  useEffect(() => {
-    const checkDarkMode = () => {
-      const darkMode = document.documentElement.classList.contains('dark');
-      setIsDarkMode(darkMode);
-    };
-    checkDarkMode();
-    const observer = new MutationObserver(checkDarkMode);
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['class'],
-    });
-    return () => observer.disconnect();
-  }, []);
 
   const muiTheme = useMemo(
     () =>
@@ -2251,7 +2192,7 @@ export default function Applicants({
     enableFullScreenToggle: false,
     enableColumnActions: false,
     enableColumnResizing: true,
-layoutMode: 'grid',
+    layoutMode: 'grid',
     manualPagination: false,
     manualFiltering: false,
     manualSorting: false,
@@ -2276,9 +2217,9 @@ layoutMode: 'grid',
     },
     state: {
       sorting,
-       pagination: isTableLoading
-    ? { ...pagination, pageIndex: 0 }  // ← force page 0 during load
-    : pagination,
+      pagination: isTableLoading
+        ? { ...pagination, pageIndex: 0 }
+        : pagination,
       columnFilters: isTableLoading ? [] : columnFilters,
       rowSelection,
       columnVisibility: layout.columnVisibility || {},
@@ -2382,27 +2323,41 @@ layoutMode: 'grid',
       sx: {
         backgroundColor: isDarkMode ? '#24303F' : '#FFFFFF',
         backgroundImage: 'none',
-        width: '100%',           // ← add
-    overflow: 'hidden',      // ← add: clips the paper at its container edge
-    boxShadow: 'none', 
+
+        overflow: 'hidden',
+        boxShadow: 'none',
+        margin: 0,
       },
+    },
+    muiTableContainerProps: { 
+      sx: { 
+        overflowX: 'auto',
+        width: '100%',
+        minWidth: 0,
+        '&::-webkit-scrollbar': {
+          height: '8px',
+        },
+        '&::-webkit-scrollbar-track': {
+          background: isDarkMode ? '#1C2434' : '#F1F5F9',
+          borderRadius: '4px',
+        },
+        '&::-webkit-scrollbar-thumb': {
+          background: isDarkMode ? '#475569' : '#CBD5E1',
+          borderRadius: '4px',
+        },
+        '&::-webkit-scrollbar-thumb:hover': {
+          background: isDarkMode ? '#64748B' : '#94A3B8',
+        },
+      } 
     },
    muiTableProps: {
   sx: {
     backgroundColor: isDarkMode ? '#24303F' : '#FFFFFF',
-    width: '100%',
     fontFamily: "'Cairo', Outfit, system-ui",
     fontSize: '0.82rem',
   },
 },
-muiTableContainerProps: { 
-  sx: { 
-    maxWidth: '100%', 
-    overflowX: 'auto',
-    width: '100%', 
-    minWidth: 0,       // ← add this
-  } 
-},    muiTableBodyCellProps: {
+    muiTableBodyCellProps: {
       sx: {
         backgroundColor: isDarkMode ? '#24303F' : '#FFFFFF',
         color: isDarkMode ? '#E4E7EC' : '#101828',
@@ -2436,327 +2391,323 @@ muiTableContainerProps: {
 
   return (
     <ThemeProvider theme={muiTheme}>
-      <PageMeta title="Applicants" description="Manage job applicants" />
-      <PageBreadcrumb
-        pageTitle="Applicants"
-        actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={async () => {
-                const promises: Promise<any>[] = [];
-                if (isJobPositionsFetched) promises.push(refetchJobPositions());
-                if (isApplicantsFetched) promises.push(refetchApplicants());
-                if (isCompaniesFetched) promises.push(refetchCompanies());
-                if (promises.length === 0) return;
-                await Promise.all(promises);
-                if (mountedRef.current) setLastRefetch(new Date());
-              }}
-              disabled={
-                isJobPositionsFetching ||
+        <div className="w-full min-w-0">
+        <PageMeta title="Applicants" description="Manage job applicants" />
+        <PageBreadcrumb
+          pageTitle="Applicants"
+          actions={
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  const promises: Promise<any>[] = [];
+                  if (isJobPositionsFetched) promises.push(refetchJobPositions());
+                  if (isApplicantsFetched) promises.push(refetchApplicants());
+                  if (isCompaniesFetched) promises.push(refetchCompanies());
+                  if (promises.length === 0) return;
+                  await Promise.all(promises);
+                  if (mountedRef.current) setLastRefetch(new Date());
+                }}
+                disabled={
+                  isJobPositionsFetching ||
+                  isApplicantsFetching ||
+                  isCompaniesFetching
+                }
+                className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-3 py-1 text-sm font-semibold text-white shadow-sm hover:bg-brand-600 disabled:opacity-50"
+              >
+                {isJobPositionsFetching ||
                 isApplicantsFetching ||
                 isCompaniesFetching
-              }
-              className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-3 py-1 text-sm font-semibold text-white shadow-sm hover:bg-brand-600 disabled:opacity-50"
-            >
-              {isJobPositionsFetching ||
-              isApplicantsFetching ||
-              isCompaniesFetching
-                ? 'Updating Data'
-                : 'Update Data'}
-            </button>
-            <div className="text-sm text-gray-500">
-              {elapsed ? `Last Update: ${elapsed}` : 'Not updated yet'}
+                  ? 'Updating Data'
+                  : 'Update Data'}
+              </button>
+              <div className="text-sm text-gray-500">
+                {elapsed ? `Last Update: ${elapsed}` : 'Not updated yet'}
+              </div>
             </div>
-          </div>
-        }
-      />
-      <div className="grid gap-6 min-w-0">   
-  <ComponentCard title="Job Applicants" desc="View and manage all applicants">
-          <>
-            {error && (
-              <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg">
-                {String(error)}
-              </div>
-            )}
+          }
+        />
+<div className="w-full min-w-0">
+  <div className="grid gap-6 min-w-0">
+            <ComponentCard title="Job Applicants" desc="View and manage all applicants"  className="overflow-hidden">
+              <>
+                {error && (
+                  <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg">
+                    {String(error)}
+                  </div>
+                )}
 
-            {selectedApplicantCount > 0 && (
-              <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-lg bg-brand-50 px-4 py-3 dark:bg-brand-900/20">
-                <span className="text-sm font-medium text-brand-700 dark:text-brand-300">
-                  {selectedApplicantCount} applicant(s) selected
-                </span>
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setBulkStatusForm({ status: '', reasons: [], notes: '' });
-                      setBulkStatusError('');
-                      setShowBulkStatusModal(true);
-                    }}
-                    disabled={isProcessing || selectedApplicantCount === 0}
-                    className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:opacity-50"
-                  >
-                    {isProcessing ? 'Changing...' : 'Change Status'}
-                  </button>
-                  <button
-                    onClick={handleExportToExcel}
-                    disabled={isExporting || selectedApplicantCount === 0}
-                    className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-50"
-                  >
-                    <svg
-                      className="h-4 w-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"
-                      />
-                    </svg>
-                    {isExporting
-                      ? 'Exporting...'
-                      : `Export (${selectedApplicantCount})`}
-                  </button>
-                  <button
-                    onClick={() => setShowBulkModal(true)}
-                    disabled={
-                      isProcessing || selectedApplicantRecipients.length === 0
-                    }
-                    className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
-                  >
-                    {`Send Mail (${selectedApplicantRecipients.length})`}
-                  </button>
-                  <button
-                    onClick={openBulkInterviewModal}
-                    disabled={
-                      isSubmittingBulkInterview ||
-                      selectedApplicantsForInterview.length === 0
-                    }
-                    className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-700 disabled:opacity-50"
-                  >
-                    {isSubmittingBulkInterview
-                      ? 'Scheduling...'
-                      : `Schedule Interviews (${selectedApplicantsForInterview.length})`}
-                  </button>
-                  <button
-                    onClick={handleBulkDelete}
-                    disabled={isDeleting}
-                    className="inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-600 disabled:opacity-50"
-                  >
-                    <TrashBinIcon className="h-4 w-4" />
-                    {isDeleting ? 'Deleting...' : 'Delete'}
-                  </button>
-                </div>
-              </div>
-            )}
+                {selectedApplicantCount > 0 && (
+                  <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-lg bg-brand-50 px-4 py-3 dark:bg-brand-900/20">
+                    <span className="text-sm font-medium text-brand-700 dark:text-brand-300">
+                      {selectedApplicantCount} applicant(s) selected
+                    </span>
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBulkStatusForm({ status: '', reasons: [], notes: '' });
+                          setBulkStatusError('');
+                          setShowBulkStatusModal(true);
+                        }}
+                        disabled={isProcessing || selectedApplicantCount === 0}
+                        className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:opacity-50"
+                      >
+                        {isProcessing ? 'Changing...' : 'Change Status'}
+                      </button>
+                      <button
+                        onClick={handleExportToExcel}
+                        disabled={isExporting || selectedApplicantCount === 0}
+                        className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-50"
+                      >
+                        <svg
+                          className="h-4 w-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"
+                          />
+                        </svg>
+                        {isExporting
+                          ? 'Exporting...'
+                          : `Export (${selectedApplicantCount})`}
+                      </button>
+                      <button
+                        onClick={() => setShowBulkModal(true)}
+                        disabled={
+                          isProcessing || selectedApplicantRecipients.length === 0
+                        }
+                        className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
+                      >
+                        {`Send Mail (${selectedApplicantRecipients.length})`}
+                      </button>
+                      <button
+                        onClick={openBulkInterviewModal}
+                        disabled={
+                          isSubmittingBulkInterview ||
+                          selectedApplicantsForInterview.length === 0
+                        }
+                        className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-700 disabled:opacity-50"
+                      >
+                        {isSubmittingBulkInterview
+                          ? 'Scheduling...'
+                          : `Schedule Interviews (${selectedApplicantsForInterview.length})`}
+                      </button>
+                      <button
+                        onClick={handleBulkDelete}
+                        disabled={isDeleting}
+                        className="inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-600 disabled:opacity-50"
+                      >
+                        <TrashBinIcon className="h-4 w-4" />
+                        {isDeleting ? 'Deleting...' : 'Delete'}
+                      </button>
+                    </div>
+                  </div>
+                )}
 
-<div
-  className="w-full custom-scrollbar"
-  style={{
-    overflowX: 'auto',
-    overflowY: 'visible',
-    maxWidth: '100%',
-    minWidth: 0,          // ← critical in flex/grid contexts
-  }}
->
-  <MaterialReactTable table={table} />
+<div className="-mx-4 sm:-mx-6">
+    <MaterialReactTable table={table} />
 </div>
 
-            <BulkMessageModal
-              isOpen={showBulkModal}
-              onClose={() => setShowBulkModal(false)}
-              recipients={selectedApplicantRecipients}
-              companyId={selectedApplicantCompanyId}
-              company={selectedApplicantCompany}
-              onSuccess={() => {
-                setRowSelection({});
-                setShowBulkModal(false);
-              }}
-            />
+                <BulkMessageModal
+                  isOpen={showBulkModal}
+                  onClose={() => setShowBulkModal(false)}
+                  recipients={selectedApplicantRecipients}
+                  companyId={selectedApplicantCompanyId}
+                  company={selectedApplicantCompany}
+                  onSuccess={() => {
+                    setRowSelection({});
+                    setShowBulkModal(false);
+                  }}
+                />
 
-            <StatusChangeModal
-              isOpen={showBulkStatusModal}
-              onClose={() => {
-                setShowBulkStatusModal(false);
-                setBulkStatusError('');
-              }}
-              statusForm={bulkStatusForm}
-              setStatusForm={setBulkStatusForm}
-              statusError={bulkStatusError}
-              setStatusError={setBulkStatusError}
-              handleStatusChange={handleBulkStatusChange}
-              isSubmittingStatus={isSubmittingBulkStatus}
-              companyId={selectedApplicantCompanyId ?? undefined}
-              companySettings={selectedApplicantCompany}
-              jobIds={selectedApplicantJobIds}
-              jobs={jobPositions}
-            />
+                <StatusChangeModal
+                  isOpen={showBulkStatusModal}
+                  onClose={() => {
+                    setShowBulkStatusModal(false);
+                    setBulkStatusError('');
+                  }}
+                  statusForm={bulkStatusForm}
+                  setStatusForm={setBulkStatusForm}
+                  statusError={bulkStatusError}
+                  setStatusError={setBulkStatusError}
+                  handleStatusChange={handleBulkStatusChange}
+                  isSubmittingStatus={isSubmittingBulkStatus}
+                  companyId={selectedApplicantCompanyId ?? undefined}
+                  companySettings={selectedApplicantCompany}
+                  jobIds={selectedApplicantJobIds}
+                  jobs={jobPositions}
+                />
 
-            <InterviewScheduleModal
-              isOpen={showBulkInterviewModal}
-              onClose={() => {
-                setShowBulkInterviewModal(false);
-                setBulkInterviewError('');
-                resetBulkInterviewModal();
-              }}
-              formResetKey={bulkFormResetKey}
-              interviewForm={bulkInterviewForm}
-              setInterviewForm={setBulkInterviewForm}
-              interviewError={bulkInterviewError}
-              setInterviewError={setBulkInterviewError}
-              handleInterviewSubmit={handleBulkInterviewSubmit}
-              fillCompanyAddress={fillBulkCompanyAddress}
-              notificationChannels={bulkNotificationChannels}
-              setNotificationChannels={setBulkNotificationChannels}
-              emailOption={bulkEmailOption}
-              setEmailOption={setBulkEmailOption}
-              customEmail={bulkCustomEmail}
-              setCustomEmail={setBulkCustomEmail}
-              phoneOption={bulkPhoneOption}
-              setPhoneOption={setBulkPhoneOption}
-              customPhone={bulkCustomPhone}
-              setCustomPhone={setBulkCustomPhone}
-              messageTemplate={bulkMessageTemplate}
-              setMessageTemplate={setBulkMessageTemplate}
-              interviewEmailSubject={bulkInterviewEmailSubject}
-              setInterviewEmailSubject={setBulkInterviewEmailSubject}
-              isSubmittingInterview={isSubmittingBulkInterview}
-              setShowPreviewModal={setShowBulkPreviewFallbackModal}
-              setPreviewHtml={setBulkPreviewHtml}
-              buildInterviewEmailHtml={({ rawMessage }: any) =>
-                `<html><body>${rawMessage}</body></html>`
-              }
-              getJobTitle={() => ({ en: '' })}
-              companyData={selectedApplicantCompany || null}
-              applicant={{
-                fullName: '{{candidateName}}',
-                company:
-                  selectedApplicantCompany ||
-                  (selectedApplicantCompanyId
-                    ? { _id: selectedApplicantCompanyId }
-                    : null),
-                companyObj:
-                  selectedApplicantCompany ||
-                  (selectedApplicantCompanyId
-                    ? { _id: selectedApplicantCompanyId }
-                    : null),
-              }}
-              bulkMode
-              bulkCount={selectedApplicantsForInterview.length}
-              intervalMinutes={bulkInterviewIntervalMinutes}
-              setIntervalMinutes={setBulkInterviewIntervalMinutes}
-              onPreview={handlePreviewBulkInterviews}
-              recipients={selectedApplicantsForInterview} // ADD THIS - passes the selected applicants
-              jobTitleById={jobPositionMap} // ADD THIS - passes the job title mapping
-            />
+                <InterviewScheduleModal
+                  isOpen={showBulkInterviewModal}
+                  onClose={() => {
+                    setShowBulkInterviewModal(false);
+                    setBulkInterviewError('');
+                    resetBulkInterviewModal();
+                  }}
+                  formResetKey={bulkFormResetKey}
+                  interviewForm={bulkInterviewForm}
+                  setInterviewForm={setBulkInterviewForm}
+                  interviewError={bulkInterviewError}
+                  setInterviewError={setBulkInterviewError}
+                  handleInterviewSubmit={handleBulkInterviewSubmit}
+                  fillCompanyAddress={fillBulkCompanyAddress}
+                  notificationChannels={bulkNotificationChannels}
+                  setNotificationChannels={setBulkNotificationChannels}
+                  emailOption={bulkEmailOption}
+                  setEmailOption={setBulkEmailOption}
+                  customEmail={bulkCustomEmail}
+                  setCustomEmail={setBulkCustomEmail}
+                  phoneOption={bulkPhoneOption}
+                  setPhoneOption={setBulkPhoneOption}
+                  customPhone={bulkCustomPhone}
+                  setCustomPhone={setBulkCustomPhone}
+                  messageTemplate={bulkMessageTemplate}
+                  setMessageTemplate={setBulkMessageTemplate}
+                  interviewEmailSubject={bulkInterviewEmailSubject}
+                  setInterviewEmailSubject={setBulkInterviewEmailSubject}
+                  isSubmittingInterview={isSubmittingBulkInterview}
+                  setShowPreviewModal={setShowBulkPreviewFallbackModal}
+                  setPreviewHtml={setBulkPreviewHtml}
+                  buildInterviewEmailHtml={({ rawMessage }: any) =>
+                    `<html><body>${rawMessage}</body></html>`
+                  }
+                  getJobTitle={() => ({ en: '' })}
+                  companyData={selectedApplicantCompany || null}
+                  applicant={{
+                    fullName: '{{candidateName}}',
+                    company:
+                      selectedApplicantCompany ||
+                      (selectedApplicantCompanyId
+                        ? { _id: selectedApplicantCompanyId }
+                        : null),
+                    companyObj:
+                      selectedApplicantCompany ||
+                      (selectedApplicantCompanyId
+                        ? { _id: selectedApplicantCompanyId }
+                        : null),
+                  }}
+                  bulkMode
+                  bulkCount={selectedApplicantsForInterview.length}
+                  intervalMinutes={bulkInterviewIntervalMinutes}
+                  setIntervalMinutes={setBulkInterviewIntervalMinutes}
+                  onPreview={handlePreviewBulkInterviews}
+                  recipients={selectedApplicantsForInterview}
+                  jobTitleById={jobPositionMap}
+                />
 
-            <Modal
-              isOpen={showBulkInterviewPreviewModal}
-              onClose={() => setShowBulkInterviewPreviewModal(false)}
-              className="max-w-5xl p-6"
-            >
-              <div className="space-y-4">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                  Interview Email Preview ({bulkInterviewPreviewItems.length})
-                </h2>
-                <div className="max-h-[70vh] space-y-4 overflow-auto pr-1">
-                  {bulkInterviewPreviewItems.map((item, index) => (
+                <Modal
+                  isOpen={showBulkInterviewPreviewModal}
+                  onClose={() => setShowBulkInterviewPreviewModal(false)}
+                  className="max-w-5xl p-6"
+                >
+                  <div className="space-y-4">
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                      Interview Email Preview ({bulkInterviewPreviewItems.length})
+                    </h2>
+                    <div className="max-h-[70vh] space-y-4 overflow-auto pr-1">
+                      {bulkInterviewPreviewItems.map((item, index) => (
+                        <div
+                          key={`${item.applicantId}-${index}`}
+                          className="rounded-lg border border-gray-200 p-3 dark:border-gray-700"
+                        >
+                          <div className="mb-2 text-sm font-semibold text-gray-800 dark:text-white/90">
+                            Applicant #{item.applicantNo} - {item.applicantName}
+                          </div>
+                          <div className="mb-3 text-xs text-gray-600 dark:text-gray-300">
+                            <span className="mr-4">
+                              To: {item.to || 'No email'}
+                            </span>
+                            <span>Scheduled: {item.scheduledLabel}</span>
+                          </div>
+                          <iframe
+                            srcDoc={item.html}
+                            title={`Interview Preview ${item.applicantId}`}
+                            className="min-h-[360px] w-full rounded border-none bg-white"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => setShowBulkInterviewPreviewModal(false)}
+                        className="rounded-lg border border-stroke px-4 py-2 hover:bg-gray-100"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                </Modal>
+
+                <Modal
+                  isOpen={showBulkPreviewFallbackModal}
+                  onClose={() => setShowBulkPreviewFallbackModal(false)}
+                  className="max-w-3xl p-6"
+                >
+                  <div className="space-y-3">
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                      Preview
+                    </h2>
                     <div
-                      key={`${item.applicantId}-${index}`}
-                      className="rounded-lg border border-gray-200 p-3 dark:border-gray-700"
+                      className="border rounded p-2 bg-white dark:bg-gray-800"
+                      style={{ maxHeight: '70vh', overflow: 'auto' }}
                     >
-                      <div className="mb-2 text-sm font-semibold text-gray-800 dark:text-white/90">
-                        Applicant #{item.applicantNo} - {item.applicantName}
-                      </div>
-                      <div className="mb-3 text-xs text-gray-600 dark:text-gray-300">
-                        <span className="mr-4">
-                          To: {item.to || 'No email'}
-                        </span>
-                        <span>Scheduled: {item.scheduledLabel}</span>
-                      </div>
                       <iframe
-                        srcDoc={item.html}
-                        title={`Interview Preview ${item.applicantId}`}
-                        className="min-h-[360px] w-full rounded border-none bg-white"
+                        srcDoc={bulkPreviewHtml}
+                        title="Bulk Interview Preview"
+                        className="w-full min-h-[480px] rounded border-none"
                       />
                     </div>
-                  ))}
-                </div>
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    onClick={() => setShowBulkInterviewPreviewModal(false)}
-                    className="rounded-lg border border-stroke px-4 py-2 hover:bg-gray-100"
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-            </Modal>
-
-            <Modal
-              isOpen={showBulkPreviewFallbackModal}
-              onClose={() => setShowBulkPreviewFallbackModal(false)}
-              className="max-w-3xl p-6"
-            >
-              <div className="space-y-3">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                  Preview
-                </h2>
-                <div
-                  className="border rounded p-2 bg-white dark:bg-gray-800"
-                  style={{ maxHeight: '70vh', overflow: 'auto' }}
-                >
-                  <iframe
-                    srcDoc={bulkPreviewHtml}
-                    title="Bulk Interview Preview"
-                    className="w-full min-h-[480px] rounded border-none"
-                  />
-                </div>
-              </div>
-            </Modal>
-          </>
-        </ComponentCard>
-      </div>
-
-      {previewPhoto && (
-        <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm"
-          onClick={() => setPreviewPhoto(null)}
-        >
-          <div className="relative max-h-[90vh] max-w-[90vw] p-4">
-            <button
-              onClick={() => setPreviewPhoto(null)}
-              className="absolute -top-2 -right-2 flex h-8 w-8 items-center justify-center rounded-full bg-white text-gray-700 shadow-lg hover:bg-gray-100"
-            >
-              ✕
-            </button>
-            <img
-              src={previewPhoto}
-              alt="Applicant photo preview"
-              className="max-h-[85vh] max-w-full rounded-lg shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            />
+                  </div>
+                </Modal>
+              </>
+            </ComponentCard>
           </div>
         </div>
-      )}
 
-      <CustomFilterModal
-        open={customFilterOpen}
-        onClose={() => setCustomFilterOpen(false)}
-        jobPositions={jobPositions}
-        applicants={applicants}
-        jobPositionMap={jobPositionMap}
-        companies={allCompaniesRaw}
-        customFilters={customFilters}
-        setCustomFilters={setCustomFilters}
-        columnFilters={columnFilters}
-        setColumnFilters={setColumnFilters}
-        genderOptions={genderOptions}
-      />
+        {previewPhoto && (
+          <div
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm"
+            onClick={() => setPreviewPhoto(null)}
+          >
+            <div className="relative max-h-[90vh] max-w-[90vw] p-4">
+              <button
+                onClick={() => setPreviewPhoto(null)}
+                className="absolute -top-2 -right-2 flex h-8 w-8 items-center justify-center rounded-full bg-white text-gray-700 shadow-lg hover:bg-gray-100"
+              >
+                ✕
+              </button>
+              <img
+                src={previewPhoto}
+                alt="Applicant photo preview"
+                className="max-h-[85vh] max-w-full rounded-lg shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+          </div>
+        )}
+
+        <CustomFilterModal
+          open={customFilterOpen}
+          onClose={() => setCustomFilterOpen(false)}
+          jobPositions={jobPositions}
+          applicants={applicants}
+          jobPositionMap={jobPositionMap}
+          companies={allCompaniesRaw}
+          customFilters={customFilters}
+          setCustomFilters={setCustomFilters}
+          columnFilters={columnFilters}
+          setColumnFilters={setColumnFilters}
+          genderOptions={genderOptions}
+        />
+      </div>
     </ThemeProvider>
   );
 }
