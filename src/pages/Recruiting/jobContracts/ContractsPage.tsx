@@ -445,7 +445,7 @@ export default function JobContractsPage() {
                               />
                             </div>
                             <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
-                              {contract.position}
+                              {contract.position?.en} {contract.position?.ar && ` / ${contract.position.ar}`}
                             </p>
                             <div className="mt-1.5 flex items-center gap-3">
                               <span

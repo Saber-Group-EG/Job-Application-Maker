@@ -14,9 +14,11 @@ export type ApplicantObject = {
   _id: string;
   fullName: string;
   email: string;
+  expectedSalary?: number;
   jobPositionId?: {
     _id: string;
-    companyId: { _id: string; name: { en: string; ar: string } } | null;
+    title?: { en?: string; ar?: string };
+    companyId: { _id: string; name: { en: string; ar: string } };
   } | null;
 };
 
@@ -63,52 +65,90 @@ export function groupApplicantsByCompany(
 
 // ─── HTML builder ─────────────────────────────────────────────────────────────
 
-export function buildOfferHtml(form: FormState, recipientName: string): string {
+export function buildOfferHtml(
+  form: FormState,
+  recipientName: string,
+  lang: 'en' | 'ar' = 'en'
+): string {
+  const isAr = lang === 'ar';
+  const dir = isAr ? 'rtl' : 'ltr';
+
+  const positionLabel = isAr
+    ? form.position.ar || form.position.en
+    : form.position.en || form.position.ar;
+
+  const labels = {
+    greeting: isAr
+      ? `عزيزي ${recipientName}،`
+      : `Dear <strong>${recipientName}</strong>,`,
+    intro: isAr
+      ? 'يسعدنا تقديم عرض العمل التالي لك. يرجى مراجعة التفاصيل أدناه.'
+      : 'We are pleased to extend the following job offer to you. Please review the details below.',
+    position: isAr ? 'المسمى الوظيفي' : 'Position',
+    workType: isAr ? 'نوع العمل' : 'Work Type',
+    workHours: isAr ? 'ساعات العمل' : 'Work Hours',
+    basicSalary: isAr ? 'الراتب الأساسي' : 'Basic Salary',
+    commission: isAr ? 'هيكل العمولات' : 'Commission Structure',
+    closing: isAr
+      ? 'يرجى المراجعة والرد في أقرب وقت ممكن.'
+      : 'Please review and respond at your earliest convenience.',
+    title: isAr ? `عرض عمل – ${positionLabel}` : `Job Offer – ${positionLabel}`,
+  };
+
+  const getTitle = (t: { en: string; ar: string }) =>
+    isAr ? t.ar || t.en : t.en || t.ar;
+  const getItem = (i: { en: string; ar: string }) =>
+    isAr ? i.ar || i.en : i.en || i.ar;
+
+  const workHoursValue = isAr
+    ? form.workHours.ar || form.workHours.en
+    : form.workHours.en || form.workHours.ar;
+
+  const notesValue = isAr
+    ? form.notes.ar || form.notes.en
+    : form.notes.en || form.notes.ar;
+
   return `
 <!DOCTYPE html>
-<html>
+<html dir="${dir}" lang="${lang}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
-<body style="font-family:Arial,sans-serif;padding:20px;margin:0;background:#f5f5f5">
+<body style="font-family:Arial,sans-serif;padding:20px;margin:0;background:#f5f5f5;direction:${dir}">
   <div style="max-width:620px;margin:0 auto;background:#fff;border-radius:8px;overflow:hidden">
 
     <div style="background:#fff;border-bottom:1px solid #e5e7eb;padding:24px 30px">
-      <h1 style="color:#111827;margin:0;font-size:22px;font-weight:700">
-        Job Offer – ${form.position}
-      </h1>
+      <h1 style="color:#111827;margin:0;font-size:22px;font-weight:700">${labels.title}</h1>
     </div>
 
     <div style="padding:30px">
-      <p style="margin:0 0 20px;font-size:15px;color:#374151">Dear <strong>${recipientName}</strong>,</p>
-      <p style="margin:0 0 24px;font-size:14px;color:#6b7280">
-        We are pleased to extend the following job offer to you. Please review the details below.
-      </p>
+      <p style="margin:0 0 20px;font-size:15px;color:#374151">${labels.greeting}</p>
+      <p style="margin:0 0 24px;font-size:14px;color:#6b7280">${labels.intro}</p>
 
       <table style="width:100%;border-collapse:collapse;margin:0 0 24px;font-size:14px">
         <tr>
-          <td style="padding:10px 12px;font-weight:600;background:#f8fafc;border:1px solid #e2e8f0;width:40%">Position</td>
-          <td style="padding:10px 12px;border:1px solid #e2e8f0">${form.position}</td>
+          <td style="padding:10px 12px;font-weight:600;background:#f8fafc;border:1px solid #e2e8f0;width:40%">${labels.position}</td>
+          <td style="padding:10px 12px;border:1px solid #e2e8f0">${positionLabel}</td>
         </tr>
         <tr>
-          <td style="padding:10px 12px;font-weight:600;background:#f8fafc;border:1px solid #e2e8f0">Work Type</td>
+          <td style="padding:10px 12px;font-weight:600;background:#f8fafc;border:1px solid #e2e8f0">${labels.workType}</td>
           <td style="padding:10px 12px;border:1px solid #e2e8f0">${form.workType}</td>
         </tr>
         ${
-          form.workHours
+          workHoursValue
             ? `
         <tr>
-          <td style="padding:10px 12px;font-weight:600;background:#f8fafc;border:1px solid #e2e8f0">Work Hours</td>
-          <td style="padding:10px 12px;border:1px solid #e2e8f0">${form.workHours}</td>
+          <td style="padding:10px 12px;font-weight:600;background:#f8fafc;border:1px solid #e2e8f0">${labels.workHours}</td>
+          <td style="padding:10px 12px;border:1px solid #e2e8f0">${workHoursValue}</td>
         </tr>`
             : ''
         }
         ${
-          form.salaryBasic
+          form.salaryBasic !== '' && form.salaryBasic != null
             ? `
         <tr>
-          <td style="padding:10px 12px;font-weight:600;background:#f8fafc;border:1px solid #e2e8f0">Basic Salary</td>
+          <td style="padding:10px 12px;font-weight:600;background:#f8fafc;border:1px solid #e2e8f0">${labels.basicSalary}</td>
           <td style="padding:10px 12px;border:1px solid #e2e8f0">
             ${Number(form.salaryBasic).toLocaleString()} ${form.salaryCurrency}
           </td>
@@ -120,17 +160,23 @@ export function buildOfferHtml(form: FormState, recipientName: string): string {
       ${
         form.commissions.length > 0
           ? `
-        <h3 style="font-size:16px;font-weight:700;margin:0 0 12px;color:#111827">Commission Structure</h3>
-        <ul style="margin:0 0 24px;padding-left:20px;font-size:14px;line-height:1.8;color:#374151">
+        <h3 style="font-size:16px;font-weight:700;margin:0 0 12px;color:#111827">${labels.commission}</h3>
+        <ul style="margin:0 0 24px;padding-${isAr ? 'right' : 'left'}:20px;font-size:14px;line-height:1.8;color:#374151">
           ${form.commissions
-            .map(
-              (c) => `
+            .map((c) => {
+              const commLabel = isAr
+                ? c.label.ar || c.label.en
+                : c.label.en || c.label.ar;
+              const commCondition = isAr
+                ? c.condition?.ar || c.condition?.en
+                : c.condition?.en || c.condition?.ar;
+              return `
             <li>
-              <strong>${c.label}:</strong>
+              <strong>${commLabel}:</strong>
               ${c.value}${c.type === 'percentage' ? '%' : ` ${form.salaryCurrency}`}
-              ${c.condition ? `<span style="color:#6b7280"> (${c.condition})</span>` : ''}
-            </li>`
-            )
+              ${commCondition ? `<span style="color:#6b7280"> (${commCondition})</span>` : ''}
+            </li>`;
+            })
             .join('')}
         </ul>`
           : ''
@@ -139,25 +185,23 @@ export function buildOfferHtml(form: FormState, recipientName: string): string {
       ${form.sections
         .map(
           (s) => `
-        <h3 style="font-size:16px;font-weight:700;margin:0 0 10px;color:#111827">${s.title.en}</h3>
-        <ul style="margin:0 0 20px;padding-left:20px;font-size:14px;line-height:1.8;color:#374151">
-          ${s.items.map((i) => `<li>${i.en}</li>`).join('')}
+        <h3 style="font-size:16px;font-weight:700;margin:0 0 10px;color:#111827">${getTitle(s.title)}</h3>
+        <ul style="margin:0 0 20px;padding-${isAr ? 'right' : 'left'}:20px;font-size:14px;line-height:1.8;color:#374151">
+          ${s.items.map((i) => `<li>${getItem(i)}</li>`).join('')}
         </ul>`
         )
         .join('')}
 
       ${
-        form.notes
+        notesValue
           ? `
-        <p style="margin:24px 0 0;padding:12px 16px;background:#f8fafc;border-left:3px solid #cbd5e1;font-size:13px;color:#64748b;font-style:italic">
-          ${form.notes}
+        <p style="margin:24px 0 0;padding:12px 16px;background:#f8fafc;border-${isAr ? 'right' : 'left'}:3px solid #cbd5e1;font-size:13px;color:#64748b;font-style:italic">
+          ${notesValue}
         </p>`
           : ''
       }
 
-      <p style="margin:32px 0 0;font-size:14px;color:#374151">
-        Please review and respond at your earliest convenience.
-      </p>
+      <p style="margin:32px 0 0;font-size:14px;color:#374151">${labels.closing}</p>
     </div>
   </div>
 </body>
@@ -224,31 +268,41 @@ export function useJobOfferEmail({
     const recipient = form.selectedApplicantObject;
     if (!recipient?.email) return;
     const cid = recipient.jobPositionId?.companyId._id!;
+    const rawSender =
+      form.senderByCompany[cid] || sendersByCompany[cid]?.[0] || '';
+    const positionLabel = form.position.en || form.position.ar;
     await sendEmailMutation.mutateAsync({
       company: cid,
       applicant: recipient._id,
       to: recipient.email,
-      from: cleanFrom(form.senderByCompany[cid] ?? ''),
-      subject: `Job Offer – ${form.position}`,
-      html: buildOfferHtml(form, recipient.fullName ?? 'Applicant'),
+      from: cleanFrom(rawSender),
+      subject: `Job Offer – ${positionLabel}`,
+      html: buildOfferHtml(
+        form,
+        recipient.fullName ?? 'Applicant',
+        form.emailLang
+      ),
       ...(recipient.jobPositionId
         ? { jobPosition: recipient.jobPositionId._id }
         : {}),
-    } as any);
+    });
   };
 
   const sendBulkOfferEmail = async () => {
     if (!applicantObjects?.length) return;
+    const positionLabel = form.position.en || form.position.ar;
     await Promise.all(
       Object.entries(groupedByCompany).map(([cid, { applicants }]) => {
-        const from = cleanFrom(form.senderByCompany[cid] ?? '');
+        const rawSender =
+          form.senderByCompany[cid] || sendersByCompany[cid]?.[0] || '';
+        const from = cleanFrom(rawSender);
         const batch = applicants
           .filter((a) => !!a.email)
           .map((a) => ({
             to: a.email!,
             from,
-            subject: `Job Offer – ${form.position}`,
-            html: buildOfferHtml(form, a.fullName),
+            subject: `Job Offer – ${positionLabel}`,
+            html: buildOfferHtml(form, a.fullName, form.emailLang),
             applicant: a._id,
             ...(a.jobPositionId
               ? { jobPosition: a.jobPositionId._id }
@@ -293,6 +347,7 @@ export function EmailSettingsPanel({
   sendersByCompany,
   groupedByCompany,
   onSenderChange,
+  onLangChange,
 }: {
   form: FormState;
   isBulk: boolean;
@@ -302,6 +357,7 @@ export function EmailSettingsPanel({
     { name: string; applicants: ApplicantObject[] }
   >;
   onSenderChange: (senderByCompany: Record<string, string>) => void;
+  onLangChange: (lang: 'en' | 'ar') => void;
 }) {
   const setSender = (cid: string, value: string) =>
     onSenderChange({ ...form.senderByCompany, [cid]: value });
@@ -314,7 +370,26 @@ export function EmailSettingsPanel({
           Email Settings
         </span>
       </div>
-
+      <div className="mb-4">
+        <ModalLabel>Email Language</ModalLabel>
+        <div className="flex gap-2">
+          {(['en', 'ar'] as const).map((lang) => (
+            <button
+              key={lang}
+              type="button"
+              onClick={() => onLangChange(lang)}
+              className={`flex-1 rounded-lg border py-2 text-sm font-semibold transition
+                ${
+                  form.emailLang === lang
+                    ? 'border-brand-500 bg-brand-500 text-white'
+                    : 'border-slate-200 bg-white text-slate-600 hover:border-brand-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                }`}
+            >
+              {lang === 'en' ? 'English' : 'Arabic'}
+            </button>
+          ))}
+        </div>
+      </div>
       {isBulk ? (
         <div className="space-y-3">
           {Object.entries(groupedByCompany).map(

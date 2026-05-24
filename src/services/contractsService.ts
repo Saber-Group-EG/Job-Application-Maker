@@ -15,14 +15,14 @@ export type ContractStatus =
   | 'expired';
 
 export interface BilingualField {
-  en: string;
-  ar: string;
+  en: string | null;
+  ar: string | null;
 }
 
 export interface Benefit {
   _id?: string;
   label: BilingualField;
-  value: string | null;
+  value: BilingualField | null;
 }
 
 export interface ContractSectionItem {
@@ -61,7 +61,7 @@ export interface JobContract {
   } | null;
   isTemplate: boolean;
   contractType: ContractType;
-  position: string;
+  position: BilingualField;
   startDate: string;
   endDate: string | null;
   probationPeriod: number | null;
@@ -72,7 +72,7 @@ export interface JobContract {
   sentAt: string | null;
   signedAt: string | null;
   expiresAt: string | null;
-  notes: string | null;
+  notes: BilingualField | null;
   createdBy: { _id: string; fullName: string; email: string };
   deleted: boolean;
   createdAt: string;
@@ -94,14 +94,14 @@ export type CreateJobContractPayload = {
   offerId?: string | null;
   isTemplate?: boolean;
   contractType: ContractType;
-  position: string;
+  position: BilingualField;
   startDate: string;
   endDate?: string | null;
   probationPeriod?: number | null;
   salary?: { basic?: number | null; currency?: string };
   benefits?: Omit<Benefit, '_id'>[];
   sections?: Omit<ContractSection, '_id'>[];
-  notes?: string | null;
+  notes?: BilingualField | null;
   expiresAt?: string | null;
 };
 
