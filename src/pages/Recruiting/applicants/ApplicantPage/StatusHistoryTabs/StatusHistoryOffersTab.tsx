@@ -68,7 +68,8 @@ export default function StatusHistoryOffersTab({
         </thead>
         <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
           {offers.map((offer, index) => {
-            const offerId = offer?._id || offer?.id || null;
+            const offerId = offer?._id || null;
+
             const companyName =
               typeof offer?.companyId === 'string'
                 ? offer?.companyId

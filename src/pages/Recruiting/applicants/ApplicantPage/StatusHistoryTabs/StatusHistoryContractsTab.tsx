@@ -64,7 +64,7 @@ export default function StatusHistoryContractsTab({
         </thead>
         <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
           {contracts.map((contract, index) => {
-            const contractId = contract?._id || contract?.id || null;
+            const contractId = contract?._id || null;
             const companyName =
               typeof contract?.companyId === 'string'
                 ? contract?.companyId

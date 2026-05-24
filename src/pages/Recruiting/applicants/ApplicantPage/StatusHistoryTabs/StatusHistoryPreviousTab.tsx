@@ -2,7 +2,7 @@ import type { Applicant } from '../../../../../types/applicants';
 import { toPlainString } from '../../../../../utils/strings';
 import { formatDateOnly, getStatusColor } from './statusHistoryUtils';
 
-type PreviousApplicant = Partial<Applicant> & { _id?: string };
+type PreviousApplicant = Partial<Applicant> & { _id?: string, appliedAt?: string };
 
 type Props = {
   isLoading: boolean;
