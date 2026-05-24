@@ -1018,12 +1018,28 @@ export default function ManualInsert({
           )}
 
           {isFieldVisible(selectedJobPosition, 'expectedSalary') && (
-            <div>
-              <label className="text-sm font-semibold text-gray-700">Expected Salary {isFieldRequired(selectedJobPosition, 'expectedSalary') ? '*' : ''}</label>
-              <input type="number" value={manualForm.expectedSalary} onChange={(e) => setManualForm((prev) => ({ ...prev, expectedSalary: e.target.value }))} className={`mt-1 w-full rounded-xl border ${themeColors.borderPrimary} bg-white px-4 py-3 shadow-sm outline-none transition ${themeColors.focusRing}`} placeholder="4000" />
-              {renderFieldError('expectedSalary')}
-            </div>
-          )}
+  <div>
+    <label className="text-sm font-semibold text-gray-700">Expected Salary {isFieldRequired(selectedJobPosition, 'expectedSalary') ? '*' : ''}</label>
+    <input 
+      type="number" 
+      value={manualForm.expectedSalary} 
+      onChange={(e) => {
+        const value = e.target.value;
+        // Allow empty string or convert negative to positive
+        if (value === '' || parseFloat(value) >= 0) {
+          setManualForm((prev) => ({ ...prev, expectedSalary: value }));
+        } else if (parseFloat(value) < 0) {
+          setManualForm((prev) => ({ ...prev, expectedSalary: '0' }));
+        }
+      }} 
+      className={`mt-1 w-full rounded-xl border ${themeColors.borderPrimary} bg-white px-4 py-3 shadow-sm outline-none transition ${themeColors.focusRing}`} 
+      placeholder="4000" 
+      min="0"
+      step="1"
+    />
+    {renderFieldError('expectedSalary')}
+  </div>
+)}
 
           {(isFieldVisible(selectedJobPosition, 'profilePhoto') || isFieldVisible(selectedJobPosition, 'cvFilePath')) && (
             <div className={`grid gap-3 md:col-span-2 ${isFieldVisible(selectedJobPosition, 'profilePhoto') && isFieldVisible(selectedJobPosition, 'cvFilePath') ? 'sm:grid-cols-2' : ''}`}>
