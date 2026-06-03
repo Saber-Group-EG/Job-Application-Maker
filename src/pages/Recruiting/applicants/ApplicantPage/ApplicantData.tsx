@@ -1,4 +1,4 @@
-// Core React imports
+﻿// Core React imports
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useStatusSettings } from '../../../../hooks/useStatusSettings';
 // UI helpers and third-party utilities
@@ -41,6 +41,8 @@ import StatusChangeModal from '../../../../components/modals/StatusChangeModal';
 import StatusHistory from './StatusHistory';
 import CustomResponses from './CustomResponses';
 import Questions from './Questions';
+import { buildJobSpecItems } from '../../ApplicantPage/ApplicantDetails';
+import JobSpec from '../../ApplicantPage/components/ApplicantData/JobSpec';
 import { MenuItem } from '@mui/material';
 import { Menu } from '@mui/material';
 // Simple Quill editor integration (dynamic import to avoid react-quill)
@@ -317,6 +319,7 @@ const ApplicantData = () => {
   isFetching: isApplicantJobPositionFetching,
 } = useJobPosition(applicantJobPositionId, {
   enabled: !!applicantJobPositionId,  // always fetch when ID exists
+  useInitialData: false,  // bypass stale list cache to ensure jobSpecs (with weights) are present
 });
 
   const resolvedJobPosId = useMemo(() => {
@@ -701,10 +704,10 @@ const jobPositionDetail = rawJobPositionDetail?.jobPosition ?? rawJobPositionDet
       (applicant as any).birthdate ||
       applicant.customResponses?.birthdate ||
       applicant.customResponses?.birthDate ||
-      applicant.customResponses?.['تاريخ_الميلاد'] ||
-      applicant.customResponses?.['تاريخ الميلاد'] ||
-      (applicant as any)['تاريخ_الميلاد'] ||
-      (applicant as any)['تاريخ الميلاد'] ||
+      applicant.customResponses?.['ØªØ§Ø±ÙŠØ®_Ø§Ù„Ù…ÙŠÙ„Ø§Ø¯'] ||
+      applicant.customResponses?.['ØªØ§Ø±ÙŠØ® Ø§Ù„Ù…ÙŠÙ„Ø§Ø¯'] ||
+      (applicant as any)['ØªØ§Ø±ÙŠØ®_Ø§Ù„Ù…ÙŠÙ„Ø§Ø¯'] ||
+      (applicant as any)['ØªØ§Ø±ÙŠØ® Ø§Ù„Ù…ÙŠÙ„Ø§Ø¯'] ||
       null
     );
   };
@@ -714,9 +717,9 @@ const jobPositionDetail = rawJobPositionDetail?.jobPosition ?? rawJobPositionDet
     return (
       applicant.gender ||
       applicant.customResponses?.gender ||
-      applicant.customResponses?.['النوع'] ||
+      applicant.customResponses?.['Ø§Ù„Ù†ÙˆØ¹'] ||
       applicant.customResponses?.['gender'] ||
-      (applicant as any)['النوع'] ||
+      (applicant as any)['Ø§Ù„Ù†ÙˆØ¹'] ||
       null
     );
   };
@@ -726,8 +729,8 @@ const jobPositionDetail = rawJobPositionDetail?.jobPosition ?? rawJobPositionDet
     const s = String(raw).trim();
     if (!s) return '';
     const lower = s.toLowerCase();
-    const arabicMale = ['ذكر', 'ذَكر', 'ذكرً'];
-    const arabicFemale = ['انثى', 'أنثى', 'انثي', 'انسه', 'أنسه', 'انثا'];
+    const arabicMale = ['Ø°ÙƒØ±', 'Ø°ÙŽÙƒØ±', 'Ø°ÙƒØ±Ù‹'];
+    const arabicFemale = ['Ø§Ù†Ø«Ù‰', 'Ø£Ù†Ø«Ù‰', 'Ø§Ù†Ø«ÙŠ', 'Ø§Ù†Ø³Ù‡', 'Ø£Ù†Ø³Ù‡', 'Ø§Ù†Ø«Ø§'];
     if (arabicMale.includes(s) || arabicMale.includes(lower)) return 'Male';
     if (arabicFemale.includes(s) || arabicFemale.includes(lower))
       return 'Female';
@@ -2640,6 +2643,7 @@ setInterviewEditableCustomFields([
     });
   };
 
+  // @ts-ignore - kept for future interview edit mode toggle in JobSpec
   const updateInterviewJobSpecAnswer = (jobSpecId: string, answer: boolean) => {
     if (!jobSpecId) return;
     setInterviewEditForm((prev) => {
@@ -3015,14 +3019,14 @@ setInterviewEditableCustomFields([
         ''
       );
       out = out.replace(
-        /<p[^>]*>\s*(?:Interview Details|•|\-|\*)[\s\S]*?<\/p>/gi,
+        /<p[^>]*>\s*(?:Interview Details|â€¢|\-|\*)[\s\S]*?<\/p>/gi,
         ''
       );
       out = out.replace(/(<(p|div|li|span)[^>]*>)\s*(?:&gt;|>)+\s*/gi, '$1');
     } else {
       out = out.replace(/Interview Details[\s\S]*?(?=\n\s*\n|$)/i, '');
       out = out.replace(
-        /(^|\n)\s*[•\-*]\s*(Date|Time|Type|Location|Link):.*(?=\n|$)/gi,
+        /(^|\n)\s*[â€¢\-*]\s*(Date|Time|Type|Location|Link):.*(?=\n|$)/gi,
         ''
       );
     }
@@ -3645,7 +3649,7 @@ setInterviewEditableCustomFields([
               onClick={() => navigate('/applicants')}
               className="text-sm font-medium text-primary hover:text-primary/80"
             >
-              ← Back to Applicants
+              â† Back to Applicants
             </button>
 
             {/* Previous/Next Pagination */}
@@ -4618,363 +4622,44 @@ setInterviewEditableCustomFields([
 
         {/* Job Specs With Details */}
         {(() => {
-          const specs: any[] = (() => {
-            if (jobPositionDetail) {
-              if (
-                Array.isArray((jobPositionDetail as any).jobSpecsWithDetails) &&
-                (jobPositionDetail as any).jobSpecsWithDetails.length
-              ) {
-                return (jobPositionDetail as any).jobSpecsWithDetails;
-              }
-              if (
-                Array.isArray((jobPositionDetail as any).jobSpecs) &&
-                (jobPositionDetail as any).jobSpecs.length
-              ) {
-                return (jobPositionDetail as any).jobSpecs;
-              }
-            }
-            const getSpecsFromPopulatedJobPos = (src: any) => {
-              if (!src) return [];
-              const jp =
-                typeof src.jobPositionId === 'object'
-                  ? src.jobPositionId
-                  : src.jobPosition;
-              if (!jp) return [];
-              if (
-                Array.isArray(jp.jobSpecsWithDetails) &&
-                jp.jobSpecsWithDetails.length
-              )
-                return jp.jobSpecsWithDetails;
-              if (Array.isArray(jp.jobSpecs) && jp.jobSpecs.length)
-                return jp.jobSpecs;
-              return [];
-            };
-            const popFromFetched = getSpecsFromPopulatedJobPos(
-              fetchedApplicant as any
-            );
-            if (popFromFetched.length) return popFromFetched;
-            const popFromState = getSpecsFromPopulatedJobPos(
-              stateApplicant as any
-            );
-            if (popFromState.length) return popFromState;
-            try {
-              const _appSrc = (fetchedApplicant ?? stateApplicant) as any;
-              let resolvedId: string | undefined;
-              if (_appSrc) {
-                if (typeof _appSrc.jobPositionId === 'string')
-                  resolvedId = _appSrc.jobPositionId;
-                else if (
-                  typeof _appSrc.jobPositionId === 'object' &&
-                  _appSrc.jobPositionId?._id
-                )
-                  resolvedId = _appSrc.jobPositionId._id;
-              }
-              if (resolvedId && Array.isArray(jobPositions)) {
-                const found = jobPositions.find(
-                  (j: any) => String(j._id) === String(resolvedId)
-                );
-                if (found) {
-                  if (
-                    Array.isArray((found as any).jobSpecsWithDetails) &&
-                    (found as any).jobSpecsWithDetails.length
-                  )
-                    return (found as any).jobSpecsWithDetails;
-                  if (
-                    Array.isArray((found as any).jobSpecs) &&
-                    (found as any).jobSpecs.length
-                  )
-                    return (found as any).jobSpecs;
-                }
-              }
-            } catch (e) {}
-            return [];
+          const jobSpecItems = buildJobSpecItems(
+            (fetchedApplicant ?? stateApplicant ?? applicant) as any,
+            fetchedApplicantJobPosition,
+          );
+          if (jobSpecItems.length === 0) return null;
+          const jpRaw: any = (() => {
+            const raw = fetchedApplicantJobPosition as any;
+            if (raw) return raw?.jobPosition ?? raw;
+            return null;
           })();
-
-          const appSrc = (fetchedApplicant ??
-            stateApplicant ??
-            applicant) as any;
-          const appSpecs: any[] = (() => {
-            if (
-              Array.isArray(appSrc?.jobSpecsWithDetails) &&
-              appSrc.jobSpecsWithDetails.length
-            )
-              return appSrc.jobSpecsWithDetails;
-            if (Array.isArray(appSrc?.jobSpecs) && appSrc.jobSpecs.length)
-              return appSrc.jobSpecs;
-            if (typeof appSrc?.jobPositionId === 'object') {
-              const jp = appSrc.jobPositionId;
-              if (
-                Array.isArray(jp?.jobSpecsWithDetails) &&
-                jp.jobSpecsWithDetails.length
-              )
-                return jp.jobSpecsWithDetails;
-              if (Array.isArray(jp?.jobSpecs) && jp.jobSpecs.length)
-                return jp.jobSpecs;
-            }
-            return [];
-          })();
-
-          const applicantAnswerMap: Record<string, boolean> = {};
-          for (const s of appSpecs) {
-            if (!s) continue;
-            const ids = [s._id, s.id, s.jobSpecId]
-              .filter(Boolean)
-              .map((x: any) =>
-                typeof x === 'object' ? (x._id ?? x.id ?? String(x)) : String(x)
-              );
-            for (const id of ids) {
-              applicantAnswerMap[id] =
-                typeof s.answer === 'boolean' ? s.answer : Boolean(s.answer);
-            }
-          }
-
-          const getAnswer = (specEntry: any, idx: number): boolean => {
-            if (!specEntry) return false;
-            const specId = String(specEntry._id ?? specEntry.id ?? '');
-            if (specId && applicantAnswerMap[specId] !== undefined) {
-              return applicantAnswerMap[specId];
-            }
-            if (appSpecs[idx] !== undefined) {
-              const a = appSpecs[idx].answer;
-              return typeof a === 'boolean' ? a : Boolean(a);
-            }
-            return false;
-          };
-
-          const getSpecResponseId = (specEntry: any): string => {
-            const direct = normalizeSpecId(
-              specEntry?.jobSpecId ?? specEntry?._id ?? specEntry?.id
-            );
-            if (direct) return direct;
-            if (
-              specEntry?.jobSpecId &&
-              typeof specEntry.jobSpecId === 'object'
-            ) {
-              return normalizeSpecId(specEntry.jobSpecId);
-            }
-            return '';
-          };
-
-          const interviewResponseMap = new Map<string, boolean>();
-          if (isInterviewEditMode) {
-            (interviewEditForm.jobSpecsResponses || []).forEach((r) => {
-              if (!r?.jobSpecId) return;
-              interviewResponseMap.set(String(r.jobSpecId), Boolean(r.answer));
-            });
-          }
-
-          const getEffectiveAnswer = (specEntry: any, idx: number): boolean => {
-            if (isInterviewEditMode) {
-              const specId = getSpecResponseId(specEntry);
-              if (specId && interviewResponseMap.has(specId)) {
-                return Boolean(interviewResponseMap.get(specId));
-              }
-            }
-            return getAnswer(specEntry, idx);
-          };
-
-          if (!specs || specs.length === 0) return null;
-
           return (
-            <div className="mt-8 mb-8 relative overflow-hidden rounded-2xl bg-white shadow-xl">
-              <div className="absolute inset-0 bg-linear-to-br from-indigo-500/5 via-purple-500/5 to-blue-500/5" />
-              <div className="absolute -top-24 -right-24 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl" />
-              <div className="relative p-8">
-                <div className="mb-6 flex items-start gap-4">
-                  <div className="shrink-0 p-3 bg-linear-to-br from-indigo-500 to-indigo-600 rounded-2xl shadow-lg">
-                    <svg
-                      className="w-7 h-7 text-white"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-2xl font-extrabold bg-linear-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-                      Job Specifications
-                    </h3>
-                    <p className="text-sm text-gray-500 mt-1">
-                      Required skills and qualifications assessment
-                    </p>
-                  </div>
+            <div className="mt-8 mb-8">
+              <div className="mb-4 flex items-start gap-4">
+                <div className="shrink-0 p-3 bg-linear-to-br from-indigo-500 to-indigo-600 rounded-2xl shadow-lg">
+                  <svg
+                    className="w-7 h-7 text-white"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                  </svg>
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  {specs.map((s: any, idx: number) => {
-                    const specText: string = (() => {
-                      const appSpec = appSpecs[idx];
-                      if (appSpec?.spec) {
-                        if (typeof appSpec.spec === 'string')
-                          return appSpec.spec;
-                        if (typeof appSpec.spec === 'object') {
-                          return (
-                            appSpec.spec.en ??
-                            appSpec.spec.ar ??
-                            appSpec.spec.value ??
-                            ''
-                          );
-                        }
-                      }
-                      if (typeof s.spec === 'string') return s.spec;
-                      if (s.spec && typeof s.spec === 'object') {
-                        return s.spec.en ?? s.spec.ar ?? s.spec.value ?? '';
-                      }
-                      return '';
-                    })();
-                    const weight: number =
-                      typeof s.weight === 'number'
-                        ? s.weight
-                        : Number(s.weight ?? 0);
-                    const specResponseId = getSpecResponseId(s);
-                    const answered: boolean = getEffectiveAnswer(s, idx);
-
-                    return (
-                      <div
-                        key={s.jobSpecId || s._id || idx}
-                        className="group relative pl-5 pr-5 py-5 bg-white/60 backdrop-blur-sm rounded-xl border-l-4 border-indigo-500 hover:bg-white transition-all duration-200 hover:shadow-lg flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p
-                            className={`text-base font-bold text-gray-900 ${isArabic(specText) ? 'text-right' : 'text-left'}`}
-                          >
-                            {specText || '(no spec)'}
-                          </p>
-                          {s.description && (
-                            <p
-                              className={`mt-1 text-sm text-gray-500 ${isArabic(s.description) ? 'text-right' : 'text-left'}`}
-                            >
-                              {String(s.description)}
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-3 shrink-0">
-                          <div className="inline-flex items-center px-3 py-1 rounded-full bg-indigo-50 text-xs font-bold text-indigo-700 border border-indigo-100">
-                            <svg
-                              className="w-3.5 h-3.5 mr-1.5"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth={2.5}
-                            >
-                              <circle cx="12" cy="12" r="9" />
-                              <line x1="12" y1="8" x2="12" y2="16" />
-                              <line x1="8" y1="12" x2="16" y2="12" />
-                            </svg>
-                            Weight: {weight}
-                          </div>
-
-                          {isInterviewEditMode ? (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (!specResponseId) return;
-                                updateInterviewJobSpecAnswer(
-                                  specResponseId,
-                                  !answered
-                                );
-                              }}
-                              disabled={!specResponseId}
-                              className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border transition-colors ${
-                                answered
-                                  ? 'bg-green-50 text-green-700 border-green-100'
-                                  : 'bg-gray-50 text-gray-500 border-gray-200'
-                              } ${specResponseId ? 'hover:opacity-90' : 'opacity-50 cursor-not-allowed'}`}
-                            >
-                              {answered ? (
-                                <>
-                                  <svg
-                                    className="w-3.5 h-3.5 mr-1.5 text-green-600"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth={3}
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      d="M5 13l4 4L19 7"
-                                    />
-                                  </svg>
-                                  <span>Met</span>
-                                </>
-                              ) : (
-                                <>
-                                  <svg
-                                    className="w-3.5 h-3.5 mr-1.5 text-gray-400"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth={3}
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      d="M6 18L18 6M6 6l12 12"
-                                    />
-                                  </svg>
-                                  <span>Not met</span>
-                                </>
-                              )}
-                            </button>
-                          ) : (
-                            <div
-                              className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border transition-colors ${
-                                answered
-                                  ? 'bg-green-50 text-green-700 border-green-100'
-                                  : 'bg-gray-50 text-gray-500 border-gray-200'
-                              }`}
-                            >
-                              {answered ? (
-                                <>
-                                  <svg
-                                    className="w-3.5 h-3.5 mr-1.5 text-green-600"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth={3}
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      d="M5 13l4 4L19 7"
-                                    />
-                                  </svg>
-                                  <span>Met</span>
-                                </>
-                              ) : (
-                                <>
-                                  <svg
-                                    className="w-3.5 h-3.5 mr-1.5 text-gray-400"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth={3}
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      d="M6 18L18 6M6 6l12 12"
-                                    />
-                                  </svg>
-                                  <span>Not met</span>
-                                </>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
+                <div className="flex-1">
+                  <h3 className="text-2xl font-extrabold bg-linear-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
+                    Job Specifications
+                  </h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Required skills and qualifications assessment
+                  </p>
                 </div>
               </div>
+              <JobSpec specs={jobSpecItems} jobPosition={jpRaw} />
             </div>
           );
         })()}

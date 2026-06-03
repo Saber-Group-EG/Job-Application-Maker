@@ -67,7 +67,10 @@ export function useJobPositions(
 }
 
 // Get job position by ID
-export function useJobPosition(id: string, options?: { enabled?: boolean }) {
+export function useJobPosition(
+  id: string,
+  options?: { enabled?: boolean; useInitialData?: boolean }
+) {
   const queryClient = useQueryClient();
 
   return useQuery({
@@ -75,11 +78,13 @@ export function useJobPosition(id: string, options?: { enabled?: boolean }) {
     queryFn: () => jobPositionsService.getJobPositionById(id),
     enabled: options?.enabled ?? !!id,
     staleTime: 5 * 60 * 1000,
-    initialData: () => {
-      // Try to find from cached list
-      const cached = queryClient.getQueryData<JobPosition[]>(jobPositionsKeys.list());
-      return cached?.find(job => job._id === id);
-    },
+    initialData: options?.useInitialData === false
+      ? undefined
+      : () => {
+          // Try to find from cached list
+          const cached = queryClient.getQueryData<JobPosition[]>(jobPositionsKeys.list());
+          return cached?.find(job => job._id === id);
+        },
   });
 }
 

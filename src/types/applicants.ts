@@ -239,6 +239,11 @@ export interface JobSpecItem {
 
 export interface JobSpecProps {
   specs?: JobSpecItem[];
+  jobPosition?: {
+    jobSpecs?: any[];
+    jobSpecsWithDetails?: any[];
+    [key: string]: any;
+  } | null;
 }
 
 export type JobSpecLike = {

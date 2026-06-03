@@ -122,6 +122,7 @@ class JobOffersService {
 
   async listOffers(params?: {
     companyId?: string;
+    applicantId?: string;
     isTemplate?: boolean;
     status?: OfferStatus;
     deleted?: boolean;

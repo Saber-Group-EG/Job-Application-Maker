@@ -5,6 +5,7 @@ import ActivityFeed from './components/ActivityFeed';
 import CustomResponses from './components/ApplicantData/CustomResponses';
 import JobSpec from './components/ApplicantData/JobSpec';
 import InterviewQuestions from './components/InterviewData/InterviewQuestions';
+import History from './components/history/History';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import Swal from '../../../utils/swal';
 import {
@@ -13,10 +14,12 @@ import {
   useUpdateApplicantStatus,
   useAddComment,
   useDeleteApplicant,
+  useJobPosition,
 } from '../../../hooks/queries';
 import {
   toPlainString,
 } from '../../../utils/strings';
+import { jobPositionsService } from '../../../services/jobPositionsService';
 import type {
   Applicant,
   ResponseSection,
@@ -299,7 +302,20 @@ const buildCustomResponseSections = (applicant: Applicant | null | undefined): R
   ];
 };
 
-const buildJobSpecItems = (applicant: Applicant | null | undefined): JobSpecItem[] => {
+export const normalizeSpecId = (value: unknown): string => {
+  if (!value) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'object') {
+    const obj = value as { _id?: string; id?: string };
+    return obj?._id || obj?.id || '';
+  }
+  return '';
+};
+
+export const buildJobSpecItems = (
+  applicant: Applicant | null | undefined,
+  fetchedJobPosition?: unknown,
+): JobSpecItem[] => {
   if (!applicant) return [];
 
   const applicantLike = applicant as unknown as {
@@ -314,31 +330,122 @@ const buildJobSpecItems = (applicant: Applicant | null | undefined): JobSpecItem
       ? applicantLike.jobPositionId
       : applicantLike.jobPosition;
 
-  const availableSpecs: JobSpecLike[] = Array.isArray(applicantLike.jobSpecsWithDetails) && applicantLike.jobSpecsWithDetails.length > 0
+  if (populatedJobPos && typeof populatedJobPos === 'object') {
+    jobPositionsService.normalizeJobPosition(populatedJobPos);
+  }
+  jobPositionsService.normalizeJobPosition(applicantLike);
+
+  const detailFromFetched = (() => {
+    if (!fetchedJobPosition) return null;
+    const raw = fetchedJobPosition as { jobPosition?: JobSpecLike } & JobSpecLike;
+    return raw?.jobPosition ?? raw;
+  })();
+  if (detailFromFetched && typeof detailFromFetched === 'object') {
+    jobPositionsService.normalizeJobPosition(detailFromFetched);
+  }
+
+  const fetchedSpecs: JobSpecLike[] = Array.isArray(
+    (detailFromFetched as { jobSpecsWithDetails?: JobSpecLike[] } | undefined)?.jobSpecsWithDetails
+  )
+    ? (detailFromFetched as { jobSpecsWithDetails: JobSpecLike[] }).jobSpecsWithDetails
+    : [];
+
+  const applicantSpecs: JobSpecLike[] = Array.isArray(applicantLike.jobSpecsWithDetails)
     ? applicantLike.jobSpecsWithDetails
-    : Array.isArray(
-        (populatedJobPos as { jobSpecsWithDetails?: JobSpecLike[] } | undefined)?.jobSpecsWithDetails
-      )
-      ? (populatedJobPos as { jobSpecsWithDetails: JobSpecLike[] }).jobSpecsWithDetails
-      : Array.isArray((populatedJobPos as { jobSpecs?: JobSpecLike[] } | undefined)?.jobSpecs)
-        ? (populatedJobPos as { jobSpecs: JobSpecLike[] }).jobSpecs
-        : [];
+    : [];
+
+  // Source of truth: job position's specs (for spec text + IDs).
+  // Applicant specs used only for answers (matched by index since
+  // applicant.jobSpecsWithDetails.jobSpecId does NOT match jobPosition.jobSpecs._id).
+  const candidateSpecs: JobSpecLike[] =
+    fetchedSpecs.length > 0
+      ? fetchedSpecs
+      : Array.isArray(
+          (populatedJobPos as { jobSpecsWithDetails?: JobSpecLike[] } | undefined)?.jobSpecsWithDetails
+        ) && (populatedJobPos as { jobSpecsWithDetails: JobSpecLike[] }).jobSpecsWithDetails.length > 0
+        ? (populatedJobPos as { jobSpecsWithDetails: JobSpecLike[] }).jobSpecsWithDetails
+        : Array.isArray((populatedJobPos as { jobSpecs?: JobSpecLike[] } | undefined)?.jobSpecs)
+          ? (populatedJobPos as { jobSpecs: JobSpecLike[] }).jobSpecs
+          : applicantSpecs;
 
   const answerMap = new Map<string, boolean>();
   if (Array.isArray(applicantLike.jobSpecsResponses)) {
     applicantLike.jobSpecsResponses.forEach((r) => {
-      const specId = String(r?.jobSpecId || r?._id || r?.id || '').trim();
-      if (specId) answerMap.set(specId, Boolean(r?.answer));
+      const rawId = (r as { jobSpecId?: unknown; _id?: unknown; id?: unknown })?.jobSpecId
+        ?? (r as { _id?: unknown })?._id
+        ?? (r as { id?: unknown })?.id;
+      const specId = normalizeSpecId(rawId);
+      if (specId && !answerMap.has(specId)) {
+        answerMap.set(
+          specId,
+          typeof r?.answer === 'boolean' ? r.answer : Boolean(r?.answer),
+        );
+      }
+    });
+  }
+  if (Array.isArray(applicantLike.jobSpecsWithDetails)) {
+    applicantLike.jobSpecsWithDetails.forEach((s) => {
+      const rawId = s?.jobSpecId ?? s?._id ?? s?.id;
+      const specId = normalizeSpecId(rawId);
+      if (specId && !answerMap.has(specId)) {
+        answerMap.set(
+          specId,
+          typeof s?.answer === 'boolean' ? s.answer : Boolean(s?.answer),
+        );
+      }
     });
   }
 
-  return availableSpecs.map((s, index) => {
-    const specId = String(s?.jobSpecId || s?._id || s?.id || `spec_${index}`);
+  const collectWeights = (source: JobSpecLike[] | undefined) => {
+    if (!Array.isArray(source)) return;
+    source.forEach((s) => {
+      const specId = normalizeSpecId(s?.jobSpecId ?? s?._id ?? s?.id);
+      if (specId && !weightMap.has(specId)) {
+        weightMap.set(specId, Number(s?.weight ?? 0));
+      }
+    });
+  };
+
+  const weightMap = new Map<string, number>();
+  collectWeights(fetchedSpecs);
+  collectWeights(
+    Array.isArray(applicantLike.jobSpecsWithDetails) ? applicantLike.jobSpecsWithDetails : undefined,
+  );
+  collectWeights(
+    Array.isArray(
+      (populatedJobPos as { jobSpecsWithDetails?: JobSpecLike[] } | undefined)?.jobSpecsWithDetails
+    )
+      ? (populatedJobPos as { jobSpecsWithDetails: JobSpecLike[] }).jobSpecsWithDetails
+      : undefined,
+  );
+
+  // Build answer list indexed by position so we can match by index
+  // (applicant.jobSpecsWithDetails.jobSpecId does NOT match jobPosition.jobSpecs._id)
+  const applicantAnswersByIndex: boolean[] = [];
+  if (Array.isArray(applicantLike.jobSpecsWithDetails)) {
+    applicantLike.jobSpecsWithDetails.forEach((s) => {
+      applicantAnswersByIndex.push(
+        typeof s?.answer === 'boolean' ? s.answer : Boolean(s?.answer),
+      );
+    });
+  }
+
+  return candidateSpecs.map((s, index) => {
+    const specId =
+      normalizeSpecId(s?.jobSpecId ?? s?._id ?? s?.id) || `spec_${index}`;
+    const weight = weightMap.has(specId)
+      ? weightMap.get(specId)!
+      : Number(s?.weight ?? 0);
+    // Try answer lookup by specId first, then fall back to index
+    const answer =
+      answerMap.get(specId) ??
+      applicantAnswersByIndex[index] ??
+      false;
     return {
       _id: String(s?._id || `${specId}_${index}`),
       id: specId,
       jobSpecId: specId,
-      answer: answerMap.has(specId) ? answerMap.get(specId)! : Boolean(s?.answer),
+      answer,
       spec: {
         en: toPlainString(
           (typeof s?.spec === 'object' && s?.spec !== null ? s.spec.en : s?.spec) ??
@@ -348,7 +455,7 @@ const buildJobSpecItems = (applicant: Applicant | null | undefined): JobSpecItem
             'Specification'
         ),
       },
-      weight: Number(s?.weight ?? 0),
+      weight,
     };
   });
 };
@@ -363,8 +470,24 @@ const ApplicantDetails: React.FC = () => {
   const addComment = useAddComment();
   const deleteApplicant = useDeleteApplicant();
 
+  const applicantJobPositionId = useMemo(() => {
+    if (!applicant) return '';
+    const jpId = (applicant as unknown as { jobPositionId?: unknown }).jobPositionId;
+    if (typeof jpId === 'string') return jpId;
+    if (jpId && typeof jpId === 'object') {
+      const obj = jpId as { _id?: string; id?: string };
+      return obj?._id || obj?.id || '';
+    }
+    return '';
+  }, [applicant]);
+
+  const { data: fetchedJobPosition } = useJobPosition(applicantJobPositionId, {
+    enabled: !!applicantJobPositionId,
+    useInitialData: false,  // bypass stale list cache to ensure jobSpecs (with weights) are present
+  });
+
   const [comment, setComment] = useState('');
-  const [activeTab, setActiveTab] = useState<'details' | 'interview'>('details');
+  const [activeTab, setActiveTab] = useState<'details' | 'interview' | 'history'>('details');
   const [isEditing, setIsEditing] = useState(false);
   const [editedApplicant, setEditedApplicant] = useState<Partial<Applicant> | null>(null);
   const [editedSections, setEditedSections] = useState<ResponseSection[]>([]);
@@ -388,7 +511,10 @@ const ApplicantDetails: React.FC = () => {
     () => (isEditing ? editedSections : buildCustomResponseSections(applicant)),
     [isEditing, editedSections, applicant]
   );
-  const jobSpecItems = useMemo<JobSpecItem[]>(() => buildJobSpecItems(applicant), [applicant]);
+  const jobSpecItems = useMemo<JobSpecItem[]>(
+    () => buildJobSpecItems(applicant, fetchedJobPosition),
+    [applicant, fetchedJobPosition],
+  );
 
   const handleAddComment = async () => {
     if (!comment.trim() || !id) return;
@@ -581,6 +707,16 @@ const ApplicantDetails: React.FC = () => {
           >
             Interview Questions
           </button>
+          <button
+            onClick={() => setActiveTab('history')}
+            className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
+              activeTab === 'history'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            History
+          </button>
         </div>
 
         {activeTab === 'details' ? (
@@ -616,7 +752,7 @@ const ApplicantDetails: React.FC = () => {
                   </div>
                 </div>
                 <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
-                  <JobSpec specs={jobSpecItems} />
+                  <JobSpec specs={jobSpecItems} jobPosition={fetchedJobPosition} />
                 </div>
               </div>
             </div>
@@ -631,9 +767,13 @@ const ApplicantDetails: React.FC = () => {
               <ActivityFeed activities={activities} />
             </div>
           </>
-        ) : (
+        ) : activeTab === 'interview' ? (
           <div className="mb-6">
             <InterviewQuestions applicantId={id} />
+          </div>
+        ) : (
+          <div className="mb-6">
+            <History applicant={applicant} loading={isLoading} />
           </div>
         )}
       </div>

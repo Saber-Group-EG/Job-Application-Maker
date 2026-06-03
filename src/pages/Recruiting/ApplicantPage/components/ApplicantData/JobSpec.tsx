@@ -9,8 +9,74 @@ const COLORS = [
   { bg: 'bg-white', text: 'text-[#7C3AED]', border: 'border-[#E9E4FF]', iconBg: 'bg-[#E9E4FF]' },
 ];
 
-const JobSpec: React.FC<JobSpecProps> = ({ specs: providedSpecs }) => {
-  const specs: JobSpecItem[] = useMemo(() => providedSpecs ?? [], [providedSpecs]);
+const normalizeId = (value: unknown): string => {
+  if (!value) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'object') {
+    const obj = value as { _id?: string; id?: string };
+    return obj?._id || obj?.id || '';
+  }
+  return '';
+};
+
+const getSpecText = (item: any): string => {
+  if (!item) return '';
+  if (typeof item.spec === 'string') return item.spec.trim().toLowerCase();
+  if (item.spec && typeof item.spec === 'object') {
+    return String(item.spec.en ?? item.spec.value ?? '').trim().toLowerCase();
+  }
+  return String(item.title ?? item.label ?? item.name ?? '').trim().toLowerCase();
+};
+
+const JobSpec: React.FC<JobSpecProps> = ({ specs: providedSpecs, jobPosition }) => {
+  // ── Build weight map from jobPosition ONLY (ignores item.weight) ──
+  // Keyed by spec TEXT (not ID) because applicant.jobSpecsWithDetails.jobSpecId
+  // does NOT match jobPosition.jobSpecs._id in the API payload.
+  const weightMap = useMemo(() => {
+    const map = new Map<string, number>();
+    if (!jobPosition) return map;
+
+    const jpRaw: any = (jobPosition as any).jobPosition ?? jobPosition;
+    const jpSpecs: any[] = (() => {
+      if (Array.isArray(jpRaw?.jobSpecsWithDetails) && jpRaw.jobSpecsWithDetails.length)
+        return jpRaw.jobSpecsWithDetails;
+      if (Array.isArray(jpRaw?.jobSpecs) && jpRaw.jobSpecs.length) return jpRaw.jobSpecs;
+      return [];
+    })();
+
+    for (const jp of jpSpecs) {
+      if (!jp) continue;
+      const w = typeof jp.weight === 'number' ? jp.weight : Number(jp.weight ?? 0);
+      // Index by spec text (primary)
+      const text = getSpecText(jp);
+      if (text && !map.has(text)) map.set(text, w);
+      // Also index by IDs as a fallback
+      const ids = [jp._id, jp.id, jp.jobSpecId]
+        .map((x: any) => normalizeId(x))
+        .filter(Boolean);
+      for (const id of ids) {
+        if (!map.has(id)) map.set(id, w);
+      }
+    }
+    return map;
+  }, [jobPosition]);
+
+  // ── Build specs with weights looked up from jobPosition (NOT from item.weight) ──
+  const specs: JobSpecItem[] = useMemo(() => {
+    if (!providedSpecs) return [];
+    return providedSpecs.map((item) => {
+      // Try spec-text lookup first (handles ID mismatch between applicant
+      // jobSpecsWithDetails.jobSpecId and jobPosition.jobSpecs._id)
+      const text = getSpecText(item);
+      let weight = text ? (weightMap.get(text) ?? -1) : -1;
+      if (weight < 0) {
+        // Fall back to ID lookup
+        const itemId = normalizeId(item._id) || normalizeId(item.id) || normalizeId(item.jobSpecId);
+        weight = itemId ? (weightMap.get(itemId) ?? 0) : 0;
+      }
+      return { ...item, weight };
+    });
+  }, [providedSpecs, weightMap]);
 
   // Validate that total weight equals 100%
   const { totalWeight, isValid, achievedScore } = useMemo(() => {
@@ -177,7 +243,7 @@ const JobSpec: React.FC<JobSpecProps> = ({ specs: providedSpecs }) => {
 
       {isValid && achievedScore === 0 && (
         <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
-          <XCircle className="h-4 w-4 text-red-600" />
+          <XCircle className="h-4 w-4 text-red-500" />
           <p className="text-sm text-red-700">
             Candidate does not meet any requirements.
           </p>
