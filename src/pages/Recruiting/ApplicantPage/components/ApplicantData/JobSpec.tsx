@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { Layers, CheckCircle2, XCircle, AlertCircle, Percent } from 'lucide-react';
+import type { JobSpecItem, JobSpecProps } from '../../../../../types/applicants';
 
 const COLORS = [
   { bg: 'bg-white', text: 'text-[#FBBF24]', border: 'border-[#FEF3C7]', iconBg: 'bg-[#FEF3C7]' },
@@ -8,75 +9,23 @@ const COLORS = [
   { bg: 'bg-white', text: 'text-[#7C3AED]', border: 'border-[#E9E4FF]', iconBg: 'bg-[#E9E4FF]' },
 ];
 
-interface JobSpecItem {
-  jobSpecId: string;
-  answer: boolean;
-  _id: string;
-  id: string;
-  spec: {
-    en: string;
-  };
-  weight: number;
-}
-
-const JobSpec: React.FC = () => {
-  const specs: JobSpecItem[] = [
-    {
-      jobSpecId: "6a00eb698d136d63562aebc3",
-      answer: true,
-      _id: "6a02085077d59248e46d6c3b",
-      id: "6a02085077d59248e46d6c3b",
-      spec: {
-        en: "From tanta"
-      },
-      weight: 30
-    },
-    {
-      jobSpecId: "6a00eb698d136d63562aebc4",
-      answer: true,
-      _id: "6a02085077d59248e46d6c3c",
-      id: "6a02085077d59248e46d6c3c",
-      spec: {
-        en: "Own laptop"
-      },
-      weight: 30
-    },
-    {
-      jobSpecId: "6a00eb698d136d63562aebc5",
-      answer: false, // Changed to false for demonstration
-      _id: "6a02085077d59248e46d6c3d",
-      id: "6a02085077d59248e46d6c3d",
-      spec: {
-        en: "Full-time availability (not currently a student)"
-      },
-      weight: 20
-    },
-    {
-      jobSpecId: "6a00eb698d136d63562aebc6",
-      answer: true,
-      _id: "6a02085077d59248e46d6c3e",
-      id: "6a02085077d59248e46d6c3e",
-      spec: {
-        en: "1–2 years of experience in graphic design"
-      },
-      weight: 20
-    }
-  ];
+const JobSpec: React.FC<JobSpecProps> = ({ specs: providedSpecs }) => {
+  const specs: JobSpecItem[] = useMemo(() => providedSpecs ?? [], [providedSpecs]);
 
   // Validate that total weight equals 100%
-  const { totalWeight, isValid, achievedScore} = useMemo(() => {
+  const { totalWeight, isValid, achievedScore } = useMemo(() => {
     const total = specs.reduce((sum, item) => sum + item.weight, 0);
     const isValidWeight = total === 100;
-    
+
     // Calculate achieved score based on answers (if answer is false, weight contribution is 0)
     const achieved = specs.reduce((sum, item) => {
       return sum + (item.answer ? item.weight : 0);
     }, 0);
-    
-    const achievedPercentage = (achieved / total) * 100;
-    
-    return { 
-      totalWeight: total, 
+
+    const achievedPercentage = total > 0 ? (achieved / total) * 100 : 0;
+
+    return {
+      totalWeight: total,
       isValid: isValidWeight,
       achievedScore: achieved,
       totalAchievedPercentage: achievedPercentage
@@ -92,6 +41,18 @@ const JobSpec: React.FC = () => {
       </p>
     </div>
   );
+
+  if (specs.length === 0) {
+    return (
+      <div className="bg-white rounded-xl border border-gray-200 p-6 text-center">
+        <Layers className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+        <h3 className="text-sm font-semibold text-gray-700">No job specifications</h3>
+        <p className="text-xs text-gray-400 mt-1">
+          This job position has no specifications configured yet.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -144,7 +105,7 @@ const JobSpec: React.FC = () => {
       <div className="flex flex-col gap-3">
         {specs.map((item, index) => {
           const color = COLORS[index % COLORS.length];
-          const isMet = item.answer;
+          const isMet = item.answer === true;
           const earnedWeight = isMet ? item.weight : 0;
           
           return (

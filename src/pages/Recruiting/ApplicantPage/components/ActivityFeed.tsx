@@ -10,24 +10,7 @@ import {
   Bell,
   Star
 } from 'lucide-react';
-
-interface Activity {
-  id: string;
-  type: 'comment' | 'task' | 'status_change' | 'document' | 'application' | 'email' | 'notification';
-  title: string;
-  description?: string;
-  timestamp: string;
-  user?: {
-    name: string;
-    avatar?: string;
-  };
-  comment?: string;
-  status?: string;
-}
-
-interface ActivityFeedProps {
-  activities?: Activity[];
-}
+import type { Activity, ActivityFeedProps } from '../../../../types/applicants';
 
 const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities }) => {
   const defaultActivities: Activity[] = [
@@ -101,6 +84,10 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities }) => {
         return <Mail className="h-4 w-4 text-red-500" />;
       case 'notification':
         return <Bell className="h-4 w-4 text-yellow-500" />;
+      case 'message':
+        return <Mail className="h-4 w-4 text-red-500" />;
+      case 'interview':
+        return <MessageSquare className="h-4 w-4 text-blue-500" />;
       default:
         return <Star className="h-4 w-4 text-gray-500" />;
     }
@@ -191,7 +178,7 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities }) => {
               </div>
             )}
 
-            {activity.type === 'email' && activity.description && (
+            {(activity.type === 'email' || activity.type === 'message') && activity.description && (
               <div className="ml-8">
                 <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
                   <Mail className="h-4 w-4 text-red-500 flex-shrink-0" />
@@ -201,7 +188,7 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities }) => {
             )}
 
             {/* Show description for other types that have it */}
-            {!['comment', 'status_change', 'task', 'document', 'email'].includes(activity.type) && activity.description && (
+            {!['comment', 'status_change', 'task', 'document', 'email', 'message', 'interview'].includes(activity.type) && activity.description && (
               <div className="ml-8">
                 <p className="text-sm text-gray-600">{activity.description}</p>
               </div>

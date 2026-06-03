@@ -170,7 +170,10 @@ export default function App() {
                 path={patterns.applicants.page}
                 element={<ApplicantDynamicPage />}
               />
-              <Route path={paths.applicants.new} element={<ApplicantDetails />} />
+              <Route
+                path={patterns.applicants.new}
+                element={<ApplicantDetails />}
+              />
               <Route
                 path={patterns.applicants.details}
                 element={<ApplicantData />} />

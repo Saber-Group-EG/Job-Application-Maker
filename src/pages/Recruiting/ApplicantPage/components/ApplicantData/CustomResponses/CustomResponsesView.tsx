@@ -1,16 +1,8 @@
 // ApplicantData/CustomResponse/CustomResponsesView.tsx
 import React from 'react';
 import { ChevronRight } from 'lucide-react';
-import { QuestionRouter, type QuestionHandlers } from './QuestionItems';
-import type { ResponseSection } from '../../../../../../types/applicants';
-
-interface CustomResponsesViewProps {
-  sections: ResponseSection[];
-  expandedSectionIds: Set<string>;
-  openDropdownId: string | null;
-  onToggleSection: (sectionId: string) => void;
-  handlers: QuestionHandlers;
-}
+import { QuestionRouter } from './QuestionItems';
+import type { CustomResponsesViewProps } from '../../../../../../types/applicants';
 
 export const CustomResponsesView: React.FC<CustomResponsesViewProps> = ({
   sections,

@@ -34,7 +34,7 @@ export const paths = {
 
   applicants: {
     root: '/applicants',
-    new: '/newpage/new',
+    new: (id: string) => `/newpage/${id}`,
     mobile: '/applicants/mobile',
     mailPreview: '/applicants/mail-preview',
     page: (pageName: string) => `/applicants/page/${pageName}`,
@@ -84,6 +84,7 @@ export const patterns = {
 
   applicants: {
     page: 'applicants/page/:pageName',
+    new: 'newpage/:id',
     details: 'applicant-details/:id',
   },
 

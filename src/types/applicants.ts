@@ -2,6 +2,8 @@
 // NOTE: In the actual project these types already live in types/applicants.ts
 // and are not redeclared here. This file shows what was added there.
 
+import type { ComponentType } from 'react';
+
 export type Interview = {
   _id?: string;
   issuedBy?: string;
@@ -74,6 +76,7 @@ export type Applicant = {
   lastName?: string;
   gender?: string;
   email: string;
+  expectedSalary?: string;
   phone: string;
   address?: string;
   profilePhoto?: string;
@@ -101,6 +104,7 @@ export type CreateApplicantRequest = {
   source?: string;
   address?: string;
   customResponses?: Record<string, any>;
+  expectedSalary?: string;
 };
 
 export type UpdateApplicantRequest = {
@@ -171,6 +175,185 @@ export type SendMessageRequest = {
 };
 
 export type RejectionInsights = { reason: string; count: number }[];
+
+// ─── Activity / ActivityFeed ──────────────────────────────────────────────────
+
+export interface Activity {
+  id: string;
+  type: 'comment' | 'task' | 'status_change' | 'document' | 'application' | 'email' | 'notification' | 'message' | 'interview';
+  title: string;
+  description?: string;
+  timestamp: string;
+  user?: { name: string; avatar?: string };
+  comment?: string;
+  status?: string;
+}
+
+export interface ActivityItem {
+  id: string;
+  type: 'comment' | 'status_change' | 'message' | 'interview' | 'application';
+  title: string;
+  description?: string;
+  timestamp: string;
+  user?: { name: string; avatar?: string };
+  comment?: string;
+  status?: string;
+  messageChannel?: string;
+  interviewStatus?: string;
+}
+
+export type ActivityLike = Partial<Comment & StatusHistory & Message & Interview> & {
+  _id?: string;
+  id?: string;
+  createdAt?: string;
+  author?: string;
+  changedBy?: string;
+  sentBy?: string;
+  issuedBy?: string;
+  changedAt?: string;
+  sentAt?: string;
+  scheduledAt?: string;
+  status?: string;
+  notes?: string;
+  type?: string;
+  content?: string;
+  subject?: string;
+  comment?: string;
+  text?: string;
+};
+
+export interface ActivityFeedProps {
+  activities?: Activity[];
+}
+
+// ─── JobSpec ──────────────────────────────────────────────────────────────────
+
+export interface JobSpecItem {
+  jobSpecId: string;
+  answer: boolean;
+  _id: string;
+  id: string;
+  spec: { en: string };
+  weight: number;
+}
+
+export interface JobSpecProps {
+  specs?: JobSpecItem[];
+}
+
+export type JobSpecLike = {
+  _id?: string;
+  jobSpecId?: string;
+  id?: string;
+  answer?: boolean;
+  weight?: number;
+  spec?: { en?: string } | string;
+  title?: string;
+  label?: string;
+  name?: string;
+};
+
+export type JobSpecResponseLike = {
+  jobSpecId?: string;
+  _id?: string;
+  id?: string;
+  answer?: boolean;
+};
+
+// ─── PersonalInfo ─────────────────────────────────────────────────────────────
+
+export interface PersonalInfoProps {
+  applicant: Applicant;
+  isEditing?: boolean;
+  editedApplicant?: Partial<Applicant> | null;
+  onChange?: (next: Partial<Applicant>) => void;
+  onStatusChange?: (status: string) => void;
+}
+
+export type ApplicantView = Omit<Applicant, 'companyId' | 'jobPositionId'> & {
+  cvFilePath?: string;
+  resume?: string;
+  submittedAt?: string;
+  createdAt?: string;
+  companyId?: string | { _id: string };
+  jobPositionId?: string | { _id: string; title?: string };
+};
+
+// ─── InterviewQuestions ───────────────────────────────────────────────────────
+
+export interface InterviewQuestionsProps {
+  applicantId?: string;
+}
+
+export interface InterviewQuestionData {
+  question: string;
+  score: number;
+  answerType: string;
+  choices: string[];
+  _id: string;
+  id: string;
+  description?: string;
+  achievedScore?: number;
+}
+
+export interface InterviewGroupData {
+  name: string;
+  icon: ComponentType<{ className?: string }>;
+  color: string;
+  _id: string;
+  questions: InterviewQuestionData[];
+}
+
+export interface InterviewData {
+  groups: InterviewGroupData[];
+}
+
+// ─── CustomResponses (component props) ───────────────────────────────────────
+
+export interface CustomResponsesProps {
+  isEditable?: boolean;
+  sections?: ResponseSection[];
+  onSectionsChange?: (sections: ResponseSection[]) => void;
+}
+
+export interface CustomResponsesContainerProps {
+  isEditable?: boolean;
+  sections: ResponseSection[];
+  onSectionsChange?: (sections: ResponseSection[]) => void;
+}
+
+export interface CustomResponsesViewProps {
+  sections: ResponseSection[];
+  expandedSectionIds: Set<string>;
+  openDropdownId: string | null;
+  onToggleSection: (sectionId: string) => void;
+  handlers: QuestionHandlers;
+}
+
+export interface QuestionRouterProps {
+  question: Question;
+  handlers: QuestionHandlers;
+  isSubQuestion?: boolean;
+}
+
+export interface QuestionHandlers {
+  isEditable: boolean;
+  openDropdownId: string | null;
+  expandedGroupIds: Set<string>;
+  dropdownRefs: import('react').MutableRefObject<Map<string, HTMLDivElement>>;
+  onToggleDropdown: (id: string) => void;
+  onToggleGroup: (id: string) => void;
+  onTextChange: (id: string, value: string) => void;
+  onUrlChange: (id: string, value: string) => void;
+  onNumberChange: (id: string, value: number) => void;
+  onEmailChange: (id: string, value: string) => void;
+  onDateChange: (id: string, value: string) => void;
+  onCheckboxChange: (id: string, checked: boolean) => void;
+  onRadioChange: (id: string, value: string) => void;
+  onDropdownSelect: (id: string, value: string) => void;
+  onTextareaChange: (id: string, value: string) => void;
+  onTagsChange: (id: string, values: string[]) => void;
+}
 
 // ─── CustomResponses Question Types ──────────────────────────────────────────
 

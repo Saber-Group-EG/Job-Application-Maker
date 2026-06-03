@@ -1,7 +1,6 @@
 // ApplicantData/CustomResponse/QuestionItems/QuestionRouter.tsx
 import React from 'react';
-import type { Question } from '../../../../../../../types/applicants';
-import type { QuestionHandlers } from './types';
+import type { QuestionRouterProps } from '../../../../../../../types/applicants';
 import { TextItem } from './TextItem';
 import { NumberItem } from './NumberItem';
 import { EmailItem } from './EmailItem';
@@ -12,15 +11,11 @@ import { RadioItem } from './RadioItem';
 import { DropdownItem } from './DropdownItem';
 import { TagsItem } from './TagsItem';
 import { GroupItem } from './GroupItem';
-
-interface QuestionRouterProps {
-  question: Question;
-  handlers: QuestionHandlers;
-  isSubQuestion?: boolean;
-}
+import { TextareaItem } from './TextareaItem';
 
 const componentMap: Record<string, React.ComponentType<any>> = {
   text: TextItem,
+  textarea: TextareaItem,
   number: NumberItem,
   email: EmailItem,
   date: DateItem,

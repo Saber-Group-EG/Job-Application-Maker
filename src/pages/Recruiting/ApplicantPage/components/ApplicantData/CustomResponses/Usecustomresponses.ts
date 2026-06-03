@@ -48,14 +48,75 @@ export interface UseCustomResponsesReturn {
   updateTags: (id: string, values: string[]) => void;
 }
 
-export function useCustomResponses(): UseCustomResponsesReturn {
-  const [sections, setSections] = useState<ResponseSection[]>(INITIAL_SECTIONS);
-  const [expandedSectionIds, setExpandedSectionIds] = useState<Set<string>>(
-    new Set(['personal_info', 'skills', 'experience']),
+export interface UseCustomResponsesOptions {
+  sections?: ResponseSection[];
+  initialSections?: ResponseSection[];
+  onSectionsChange?: (sections: ResponseSection[]) => void;
+  defaultExpandedSectionIds?: string[];
+}
+
+export function useCustomResponses(
+  options: UseCustomResponsesOptions = {}
+): UseCustomResponsesReturn {
+  const [internalSections, setInternalSections] = useState<ResponseSection[]>(
+    options.initialSections ?? INITIAL_SECTIONS
   );
-  const [expandedGroupIds, setExpandedGroupIds] = useState<Set<string>>(new Set());
+  const initialExpanded = (() => {
+    if (options.defaultExpandedSectionIds) return options.defaultExpandedSectionIds;
+    if (options.sections && options.sections.length > 0) {
+      return options.sections.map((s) => s.id);
+    }
+    return ['personal_info', 'skills', 'experience'];
+  })();
+  const collectGroupIds = (secs: ResponseSection[]): string[] => {
+    const ids: string[] = [];
+    secs.forEach((s) => {
+      s.questions.forEach((q) => {
+        if (q.type === 'group') ids.push(q.groupId);
+      });
+    });
+    return ids;
+  };
+  const [expandedSectionIds, setExpandedSectionIds] = useState<Set<string>>(
+    new Set(initialExpanded)
+  );
+  const [expandedGroupIds, setExpandedGroupIds] = useState<Set<string>>(
+    new Set(options.sections ? collectGroupIds(options.sections) : [])
+  );
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const dropdownRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  const sections = options.sections ?? internalSections;
+
+  useEffect(() => {
+    setExpandedSectionIds((prev) => {
+      const next = new Set(prev);
+      let changed = false;
+      sections.forEach((s) => {
+        if (!next.has(s.id)) {
+          next.add(s.id);
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+    setExpandedGroupIds((prev) => {
+      const next = new Set(prev);
+      let changed = false;
+      collectGroupIds(sections).forEach((id) => {
+        if (!next.has(id)) {
+          next.add(id);
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, [sections]);
+
+  useEffect(() => {
+    if (options.sections) return;
+    if (options.initialSections) setInternalSections(options.initialSections);
+  }, [options.sections, options.initialSections]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -79,10 +140,21 @@ export function useCustomResponses(): UseCustomResponsesReturn {
   const toggleGroup    = useCallback(toggle(setExpandedGroupIds), []);
   const toggleDropdown = useCallback((id: string) => setOpenDropdownId((prev) => (prev === id ? null : id)), []);
 
+  const updateSections = useCallback(
+    (updater: (prev: ResponseSection[]) => ResponseSection[]) => {
+      if (options.onSectionsChange) {
+        options.onSectionsChange(updater(sections));
+        return;
+      }
+      setInternalSections(updater);
+    },
+    [options.onSectionsChange, sections]
+  );
+
   const updateQuestion = useCallback(
     (id: string, updater: (q: LeafQuestion) => LeafQuestion) =>
-      setSections((prev) => applyToSections(prev, id, updater)),
-    [],
+      updateSections((prev) => applyToSections(prev, id, updater)),
+    [updateSections]
   );
 
   const updateTextValue   = useCallback((id: string, value: string)    => updateQuestion(id, (q) => ({ ...q, value }  as LeafQuestion)), [updateQuestion]);
