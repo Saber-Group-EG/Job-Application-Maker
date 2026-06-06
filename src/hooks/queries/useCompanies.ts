@@ -92,6 +92,8 @@ export function useCompanies(companyIds?: string[], options?: { enabled?: boolea
     },
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
     enabled: options?.enabled ?? true,
     // Add this to ensure the query doesn't get stuck in loading state
     retry: 1,
@@ -106,6 +108,9 @@ export function useCompany(id: string, options?: { enabled?: boolean }) {
     queryFn: () => companiesService.getCompanyById(id),
     enabled: options?.enabled ?? !!id,
     staleTime: 5 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
     initialData: () => {
       const cached = queryClient.getQueryData<Company[]>(companiesKeys.list());
       return cached?.find(c => c._id === id);

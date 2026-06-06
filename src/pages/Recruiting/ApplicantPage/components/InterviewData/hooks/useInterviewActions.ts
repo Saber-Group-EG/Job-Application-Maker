@@ -135,6 +135,12 @@ export const useInterviewActions = ({
         totalScore: computeTotalScore(finalQuestions),
         achievedScore: computeAchievedScore(finalQuestions),
       };
+      // Forward the locally-captured startedAt (written into the React Query
+      // cache by handleStart). The server never received it at start time —
+      // it's only persisted here, when the interview is ended.
+      if (interview?.startedAt) {
+        payload.startedAt = interview.startedAt;
+      }
       try {
         await mutation.mutateAsync({
           applicantId,
@@ -147,7 +153,7 @@ export const useInterviewActions = ({
         return false;
       }
     },
-    [applicantId, interviewId, mutation]
+    [applicantId, interviewId, mutation, interview?.startedAt]
   );
 
   /**

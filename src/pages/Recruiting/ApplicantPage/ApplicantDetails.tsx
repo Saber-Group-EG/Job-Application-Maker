@@ -20,6 +20,8 @@ import {
   useCompanies,
   useScheduleInterview,
   useUpdateInterviewStatus,
+  useSendEmail,
+  useSendMessage,
 } from '../../../hooks/queries';
 import { resolveCompanyAddress } from '../../../utils/companyAddress';
 import type {
@@ -56,6 +58,8 @@ const ApplicantDetails: React.FC = () => {
   const deleteApplicant = useDeleteApplicant();
   const scheduleInterviewMutation = useScheduleInterview();
   const updateInterviewStatusMutation = useUpdateInterviewStatus();
+  const sendEmailMutation = useSendEmail();
+  const sendMessageMutation = useSendMessage();
 
   const applicantJobPositionId = useMemo(() => {
     if (!applicant) return '';
@@ -83,12 +87,41 @@ const ApplicantDetails: React.FC = () => {
     enabled: !!applicantJobPositionId,
     useInitialData: false,  // bypass stale list cache to ensure jobSpecs (with weights) are present
   });
+
+  // The applicant's `companyId` is sometimes empty in the API response, but the
+  // job position always carries the company reference. Match the main branch's
+  // `jobPosCompanyId` resolution so we can still find the company for the
+  // `/mail` payload.
+  const jobPosCompanyId = useMemo(() => {
+    const fromApplicant = (() => {
+      if (!applicant) return '';
+      const jpId = (applicant as unknown as { jobPositionId?: unknown }).jobPositionId;
+      if (jpId && typeof jpId === 'object') {
+        const cId = (jpId as { companyId?: unknown }).companyId;
+        if (typeof cId === 'string' && cId) return cId;
+        if (cId && typeof cId === 'object') {
+          const obj = cId as { _id?: string; id?: string };
+          return obj?._id || obj?.id || '';
+        }
+      }
+      return '';
+    })();
+    if (fromApplicant) return fromApplicant;
+    const jp = fetchedJobPosition as { companyId?: unknown } | null | undefined;
+    const cId = jp?.companyId;
+    if (typeof cId === 'string' && cId) return cId;
+    if (cId && typeof cId === 'object') {
+      const obj = cId as { _id?: string; id?: string };
+      return obj?._id || obj?.id || '';
+    }
+    return '';
+  }, [applicant, fetchedJobPosition]);
   const jobCustomFields = useMemo<unknown[]>(
     () => extractCustomFieldsFromJobPosition(fetchedJobPosition),
     [fetchedJobPosition],
   );
-  const { data: fetchedCompany, isLoading: isCompanyLoading, isFetching: isCompanyFetching} = useCompany(applicantCompanyId, {
-    enabled: !!applicantCompanyId,
+  const { data: fetchedCompany, isLoading: isCompanyLoading, isFetching: isCompanyFetching} = useCompany(jobPosCompanyId || applicantCompanyId, {
+    enabled: !!(jobPosCompanyId || applicantCompanyId),
   });
 
   // Also load the list (super admin has empty user.companies, so useCompanies() calls the list endpoint).
@@ -121,8 +154,27 @@ const ApplicantDetails: React.FC = () => {
     if (!merged.addresses && list.addresses) {
       merged.addresses = list.addresses;
     }
-    if (!merged.settings && list.settings) {
+    // Settings (incl. email templates) — prefer detail if it has any
+    // mailSettings/emailTemplates, else fall back to the list (the list
+    // endpoint usually carries the full settings object).
+    const detailHasMailSettings =
+      detail.settings?.mailSettings &&
+      (Array.isArray(detail.settings.mailSettings.emailTemplates) ||
+        detail.settings.mailSettings.defaultMail ||
+        Array.isArray(detail.settings.mailSettings.availableMails) ||
+        detail.settings.mailSettings.companyDomain);
+    const listHasMailSettings =
+      list.settings?.mailSettings &&
+      (Array.isArray(list.settings.mailSettings.emailTemplates) ||
+        list.settings.mailSettings.defaultMail ||
+        Array.isArray(list.settings.mailSettings.availableMails) ||
+        list.settings.mailSettings.companyDomain);
+    if (detailHasMailSettings) {
+      merged.settings = detail.settings;
+    } else if (listHasMailSettings) {
       merged.settings = list.settings;
+    } else if (!merged.settings || Object.keys(merged.settings || {}).length === 0) {
+      if (list.settings) merged.settings = list.settings;
     }
     if (!merged.location && list.location) {
       merged.location = list.location;
@@ -140,6 +192,17 @@ const ApplicantDetails: React.FC = () => {
   const [commentForm, setCommentForm] = useState({ text: '' });
   const [commentError, setCommentError] = useState('');
   const [activeTab, setActiveTab] = useState<'details' | 'interview' | 'history'>('details');
+  const [visitedTabs, setVisitedTabs] = useState<Set<'details' | 'interview' | 'history'>>(
+    () => new Set(['details']),
+  );
+  useEffect(() => {
+    setVisitedTabs((prev) => {
+      if (prev.has(activeTab)) return prev;
+      const next = new Set(prev);
+      next.add(activeTab);
+      return next;
+    });
+  }, [activeTab]);
   const [isEditing, setIsEditing] = useState(false);
   const [editedApplicant, setEditedApplicant] = useState<Partial<Applicant> | null>(null);
   const [editedSections, setEditedSections] = useState<ResponseSection[]>([]);
@@ -326,6 +389,16 @@ const ApplicantDetails: React.FC = () => {
   const handleScheduleInterviewSubmit = async () => {
     if (!id || !applicant) return;
     setIsSubmittingInterview(true);
+
+    // Snapshot the email-related state BEFORE we reset the form below — we
+    // still need these values to send the email after the schedule succeeds.
+    const emailSnapshot = {
+      channels: { ...notificationChannels },
+      subject: interviewEmailSubject,
+      template: messageTemplate,
+      customEmail,
+    };
+
     try {
       let scheduledAt: string | undefined;
       if (interviewForm.date && interviewForm.time) {
@@ -346,6 +419,17 @@ const ApplicantDetails: React.FC = () => {
         notes: interviewForm.comment || undefined,
         conductedBy: interviewForm.conductedBy || undefined,
         status: 'scheduled',
+        notifications: {
+          channels: {
+            email: emailSnapshot.channels.email,
+            sms: emailSnapshot.channels.sms,
+            whatsapp: emailSnapshot.channels.whatsapp,
+          },
+          emailOption,
+          customEmail: emailSnapshot.customEmail || undefined,
+          phoneOption,
+          customPhone: customPhone || undefined,
+        },
       };
 
       const result = await scheduleInterviewMutation.mutateAsync({ id, data: interviewData });
@@ -380,6 +464,133 @@ const ApplicantDetails: React.FC = () => {
       setActiveTab('interview');
       if (created && (created._id || created.id)) {
         setAutoSelectInterviewId(String(created._id || created.id));
+      }
+
+      // Fire-and-track the email send AFTER the schedule succeeds. We do NOT
+      // throw on failure — the interview is already scheduled; we just
+      // surface a non-blocking error message.
+      if (emailSnapshot.channels.email) {
+        try {
+          const toEmail = (applicant as { email?: string }).email;
+          if (!toEmail) {
+            await Swal.fire({
+              title: 'Email Skipped',
+              text: 'Interview scheduled, but the applicant has no email address on file, so no notification email was sent.',
+              icon: 'warning',
+              confirmButtonColor: '#3085d6',
+            });
+            return;
+          }
+
+          const c = companyWithAddress as
+            | (Record<string, unknown> & {
+                settings?: { mailSettings?: { defaultMail?: string; availableMails?: string[] } };
+                mailSettings?: { defaultMail?: string; availableMails?: string[] };
+                contactEmail?: string;
+                email?: string;
+                availableMails?: string[];
+              })
+            | null;
+          const mailSettings = c?.settings?.mailSettings || c?.mailSettings || null;
+          const availableMails: string[] = [
+            ...(mailSettings?.availableMails || []),
+            ...(c?.availableMails || []),
+          ].filter((m): m is string => typeof m === 'string' && m.trim().length > 0);
+          const firstAvailable = availableMails[0];
+          const mailDefault =
+            mailSettings?.defaultMail || c?.contactEmail || c?.email || firstAvailable || '';
+          const fromEmail = (emailSnapshot.customEmail || mailDefault || '').trim();
+          if (!fromEmail) {
+            await Swal.fire({
+              title: 'Email Skipped',
+              text: 'Interview scheduled, but no sender email is configured for this company. To send notification emails, please select a sender in the Schedule Interview modal or configure the company default email in Mail Settings.',
+              icon: 'warning',
+              confirmButtonColor: '#3085d6',
+            });
+            return;
+          }
+
+          const jobTitle = getJobTitle().en || '';
+          const applicantName = (applicant as { fullName?: string }).fullName || 'Candidate';
+
+          const emailHtml = buildInterviewEmailHtml({
+            subject: emailSnapshot.subject || 'Interview Invitation',
+            jobTitle,
+            rawMessage: emailSnapshot.template || '',
+            applicantName,
+          });
+
+          const processedSubject = (emailSnapshot.subject || 'Interview Invitation')
+            .replace(/\{\{\s*candidateName\s*\}\}/gi, applicantName)
+            .replace(/\{\{\s*(?:position|jobTitle)\s*\}\}/gi, jobTitle);
+
+          const resolveJobPositionId = (value: unknown): string | undefined => {
+            if (!value) return undefined;
+            if (Array.isArray(value)) {
+              for (const item of value) {
+                const resolved = resolveJobPositionId(item);
+                if (resolved) return resolved;
+              }
+              return undefined;
+            }
+            if (typeof value === 'string') return value;
+            if (typeof value === 'object') {
+              const obj = value as { _id?: string; id?: string };
+              if (typeof obj._id === 'string') return obj._id;
+              if (typeof obj.id === 'string') return obj.id;
+            }
+            return undefined;
+          };
+
+          const jobPositionId =
+            resolveJobPositionId((applicant as { jobPositionId?: unknown }).jobPositionId) ||
+            resolveJobPositionId((applicant as { jobPosition?: unknown }).jobPosition);
+
+          const resolvedCompanyId =
+            (companyWithAddress as { _id?: string } | null)?._id ||
+            jobPosCompanyId ||
+            applicantCompanyId ||
+            (() => {
+              const cId = (applicant as { companyId?: unknown }).companyId;
+              if (typeof cId === 'string') return cId;
+              if (cId && typeof cId === 'object') {
+                const obj = cId as { _id?: string; id?: string };
+                return obj?._id || obj?.id || '';
+              }
+              return undefined;
+            })() ||
+            undefined;
+
+          await sendEmailMutation.mutateAsync({
+            company: resolvedCompanyId,
+            jobPosition: jobPositionId,
+            applicant: applicant._id,
+            to: toEmail,
+            from: fromEmail,
+            subject: processedSubject,
+            html: emailHtml,
+          });
+
+          // Best-effort: log the email to the applicant's message history.
+          try {
+            await sendMessageMutation.mutateAsync({
+              id,
+              data: { type: 'email', content: emailSnapshot.template || '' },
+            });
+          } catch {
+            // History logging is non-critical; ignore.
+          }
+        } catch (mailErr) {
+          // The interview is already scheduled — only the email failed.
+          const msg = getErrorMessage(mailErr);
+          await Swal.fire({
+            title: 'Interview Scheduled',
+            text: `The interview was scheduled, but the notification email failed: ${msg}`,
+            icon: 'warning',
+            confirmButtonColor: '#3085d6',
+          });
+          setInterviewError(`Interview scheduled, but email failed: ${msg}`);
+        }
       }
     } catch (err) {
       const msg = getErrorMessage(err);
@@ -609,13 +820,21 @@ const ApplicantDetails: React.FC = () => {
     }
   };
 
-  const isPageLoading =
-    isApplicantLoading ||
-    isApplicantFetching ||
-    (!!applicantJobPositionId && (isJobPositionLoading || isJobPositionFetching)) ||
-    (!!applicantCompanyId && (isCompanyLoading || isCompanyFetching));
+  // Only block the whole page on the *initial* load (no cached data yet).
+  // `isLoading` is true only when there is no cached data AND a fetch is in
+  // flight. Background revalidation (`isFetching`) is intentionally ignored
+  // so navigating back / switching tabs shows cached data instantly.
+  const isInitialPageLoad =
+    (isApplicantLoading && !applicant) ||
+    (!!applicantJobPositionId && isJobPositionLoading && !fetchedJobPosition) ||
+    (!!applicantCompanyId && isCompanyLoading && !fetchedCompany);
 
-  if (isPageLoading) {
+  // Silence unused-variable warnings for fetching flags we deliberately ignore.
+  void isApplicantFetching;
+  void isJobPositionFetching;
+  void isCompanyFetching;
+
+  if (isInitialPageLoad) {
     return (
       <div className="bg-gray-50 min-h-screen flex items-center justify-center">
         <LoadingSpinner />
@@ -662,6 +881,12 @@ const ApplicantDetails: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900">
             {applicant.fullName || 'Applicant Details'}
           </h1>
+          {interviewError && (
+            <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-200">
+              {interviewError}
+              <button type="button" onClick={() => setInterviewError('')} className="ml-3 text-red-500 hover:text-red-700 dark:hover:text-red-300">✕</button>
+            </div>
+          )}
         </div>
 
         <div className="mb-6">
@@ -714,68 +939,76 @@ const ApplicantDetails: React.FC = () => {
           </button>
         </div>
 
-        {activeTab === 'details' ? (
-          <>
-            <div className="flex flex-col lg:flex-row gap-6 mb-6">
-              <div className="lg:w-80 flex-shrink-0">
-                <PersonalInfo
-                  applicant={applicant}
-                  isEditing={isEditing}
-                  editedApplicant={editedApplicant}
-                  onChange={setEditedApplicant}
-                />
-              </div>
-              <div className="flex-1 space-y-6">
-                <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-5">
-                  <h3 className="text-sm font-semibold text-gray-800 mb-3">Add Comment</h3>
-                  <div className="flex gap-3">
-                    <textarea
-                      value={comment}
-                      onChange={(e) => setComment(e.target.value)}
-                      placeholder="Write a comment..."
-                      className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 resize-none"
-                      rows={3}
-                    />
-                    <button
-                      onClick={handleAddComment}
-                      disabled={addComment.isPending || !comment.trim()}
-                      className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap h-fit disabled:opacity-50"
-                    >
-                      {addComment.isPending ? 'Adding...' : 'Add Comment'}
-                    </button>
-                  </div>
-                </div>
-                <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
-                  <JobSpec
-                    specs={jobSpecItems}
-                    jobPosition={fetchedJobPosition}
-                    editable={isEditing}
-                    onSpecChange={handleSpecAnswerChange}
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="mb-6">
-              <CustomResponses
-                isEditable={isEditing}
-                sections={sections}
-                onSectionsChange={setEditedSections}
+        {/*
+          Tabs stay mounted after their first visit so React Query cache hits
+          remain warm, local component state (selected interview, picker
+          selections, sub-tab, comment draft) is preserved across tab
+          switches, and no re-mount-driven fetches are triggered.
+        */}
+        <div hidden={activeTab !== 'details'}>
+          <div className="flex flex-col lg:flex-row gap-6 mb-6">
+            <div className="lg:w-80 flex-shrink-0">
+              <PersonalInfo
+                applicant={applicant}
+                isEditing={isEditing}
+                editedApplicant={editedApplicant}
+                onChange={setEditedApplicant}
               />
             </div>
-            <div className="w-full">
-              <ActivityFeed activities={activities} />
+            <div className="flex-1 space-y-6">
+              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-5">
+                <h3 className="text-sm font-semibold text-gray-800 mb-3">Add Comment</h3>
+                <div className="flex gap-3">
+                  <textarea
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    placeholder="Write a comment..."
+                    className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 resize-none"
+                    rows={3}
+                  />
+                  <button
+                    onClick={handleAddComment}
+                    disabled={addComment.isPending || !comment.trim()}
+                    className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap h-fit disabled:opacity-50"
+                  >
+                    {addComment.isPending ? 'Adding...' : 'Add Comment'}
+                  </button>
+                </div>
+              </div>
+              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+                <JobSpec
+                  specs={jobSpecItems}
+                  jobPosition={fetchedJobPosition}
+                  editable={isEditing}
+                  onSpecChange={handleSpecAnswerChange}
+                />
+              </div>
             </div>
-          </>
-        ) : activeTab === 'interview' ? (
+          </div>
           <div className="mb-6">
+            <CustomResponses
+              isEditable={isEditing}
+              sections={sections}
+              onSectionsChange={setEditedSections}
+            />
+          </div>
+          <div className="w-full">
+            <ActivityFeed activities={activities} />
+          </div>
+        </div>
+
+        {visitedTabs.has('interview') && (
+          <div hidden={activeTab !== 'interview'} className="mb-6">
             <InterviewQuestions
               applicantId={id}
               onRequestScheduleInterview={() => setShowScheduleModal(true)}
               autoSelectInterviewId={autoSelectInterviewId}
             />
           </div>
-        ) : (
-          <div className="mb-6">
+        )}
+
+        {visitedTabs.has('history') && (
+          <div hidden={activeTab !== 'history'} className="mb-6">
             <History applicant={applicant} loading={isApplicantLoading} />
           </div>
         )}

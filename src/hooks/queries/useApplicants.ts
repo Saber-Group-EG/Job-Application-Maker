@@ -47,6 +47,120 @@ function getUserCompanyIds(user: any): string[] | undefined {
   return merged.length > 0 ? merged : undefined;
 }
 
+/**
+ * Safely merge a mutation response into the cached applicant.
+ *
+ * Many of our endpoints (schedule interview, add comment, send message)
+ * return a STRIPPED applicant — or only the newly-created sub-document
+ * (an interview / comment object) instead of the full applicant. Blindly
+ * overwriting the cache with that response would wipe `phone`, `email`,
+ * `customResponses`, `fullName`, etc.
+ *
+ * This helper:
+ *  - Reads the previously-cached applicant.
+ *  - If the response looks like a full applicant (matching `_id` and at
+ *    least one identifying field), shallow-merges only the response keys
+ *    that have a real value on top of the previous applicant. Non-empty
+ *    previous arrays are NOT overwritten by empty response arrays.
+ *  - If the response is just a new sub-document (interview, comment),
+ *    appends it to the appropriate array on the previous applicant.
+ *  - If there is no previous cache, falls back to writing the response.
+ */
+function mergeApplicantResponseIntoCache(
+  queryClient: ReturnType<typeof useQueryClient>,
+  id: string,
+  response: unknown,
+  options: { appendKey?: 'interviews' | 'comments' | 'activities' } = {},
+): void {
+  const previous = queryClient.getQueryData<Applicant | undefined>(
+    applicantsKeys.detail(id),
+  );
+
+  if (!response || typeof response !== 'object') {
+    if (!previous) {
+      return;
+    }
+    return;
+  }
+
+  const resp = response as Record<string, unknown>;
+  const respId = String((resp._id as string | undefined) || (resp.id as string | undefined) || '');
+
+  const looksLikeFullApplicant =
+    respId === id &&
+    (resp.fullName !== undefined ||
+      resp.firstName !== undefined ||
+      resp.email !== undefined ||
+      resp.phone !== undefined ||
+      resp.status !== undefined ||
+      Array.isArray(resp.customResponses));
+
+  if (!previous) {
+    queryClient.setQueryData(applicantsKeys.detail(id), response);
+    return;
+  }
+
+  if (looksLikeFullApplicant) {
+    const merged: Record<string, unknown> = { ...(previous as unknown as Record<string, unknown>) };
+    for (const key of Object.keys(resp)) {
+      const value = resp[key];
+      if (value === undefined) continue;
+      const prevValue = (previous as unknown as Record<string, unknown>)[key];
+      if (
+        Array.isArray(value) &&
+        value.length === 0 &&
+        Array.isArray(prevValue) &&
+        (prevValue as unknown[]).length > 0
+      ) {
+        continue;
+      }
+      merged[key] = value;
+    }
+    queryClient.setQueryData(applicantsKeys.detail(id), merged as Applicant);
+    return;
+  }
+
+  // Response is not a full applicant. If the caller told us which array to
+  // append into, do that; otherwise fall back to merging an `interviews`
+  // array if the response carries one.
+  const appendKey = options.appendKey;
+  const respHasInterviewsArray = Array.isArray(resp.interviews);
+
+  if (appendKey) {
+    const existing = Array.isArray((previous as unknown as Record<string, unknown>)[appendKey])
+      ? ((previous as unknown as Record<string, unknown>)[appendKey] as unknown[])
+      : [];
+    queryClient.setQueryData(applicantsKeys.detail(id), {
+      ...(previous as object),
+      [appendKey]: [...existing, response],
+    } as Applicant);
+    return;
+  }
+
+  if (respHasInterviewsArray) {
+    const existingInterviews = Array.isArray((previous as Applicant).interviews)
+      ? (previous as Applicant).interviews
+      : [];
+    const byId = new Map<string, unknown>();
+    (existingInterviews || []).forEach((iv) => {
+      const k = String((iv as { _id?: string; id?: string })?._id || (iv as { _id?: string; id?: string })?.id || '');
+      if (k) byId.set(k, iv);
+    });
+    (resp.interviews as unknown[]).forEach((iv) => {
+      const k = String((iv as { _id?: string; id?: string })?._id || (iv as { _id?: string; id?: string })?.id || '');
+      if (k) byId.set(k, { ...(byId.get(k) as object | undefined), ...(iv as object) });
+    });
+    queryClient.setQueryData(applicantsKeys.detail(id), {
+      ...(previous as object),
+      interviews: Array.from(byId.values()),
+    } as Applicant);
+    return;
+  }
+
+  // Last resort: don't touch the cache (avoid wiping good data with a
+  // shape we don't understand).
+}
+
 // Get all applicants
 export function useApplicants(params?: {
   companyId?: string[];
@@ -296,8 +410,10 @@ export function useScheduleInterview() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: ScheduleInterviewRequest }) =>
       applicantsService.scheduleInterview(id, data),
-    onSuccess: (updatedApplicant, { id }) => {
-      queryClient.setQueryData(applicantsKeys.detail(id), updatedApplicant);
+    onSuccess: (response, { id }) => {
+      mergeApplicantResponseIntoCache(queryClient, id, response, {
+        appendKey: 'interviews',
+      });
       showSuccessToast("Interview scheduled successfully");
     },
     onError: (error: ApiError) => {
@@ -395,8 +511,10 @@ export function useAddComment() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: AddCommentRequest }) =>
       applicantsService.addComment(id, data),
-    onSuccess: (updatedApplicant, { id }) => {
-      queryClient.setQueryData(applicantsKeys.detail(id), updatedApplicant);
+    onSuccess: (response, { id }) => {
+      mergeApplicantResponseIntoCache(queryClient, id, response, {
+        appendKey: 'comments',
+      });
       showSuccessToast("Comment added");
     },
     onError: (error: ApiError) => {
@@ -412,8 +530,8 @@ export function useSendMessage() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: SendMessageRequest }) =>
       applicantsService.sendMessage(id, data),
-    onSuccess: (updatedApplicant, { id }) => {
-      queryClient.setQueryData(applicantsKeys.detail(id), updatedApplicant);
+    onSuccess: (response, { id }) => {
+      mergeApplicantResponseIntoCache(queryClient, id, response);
       showSuccessToast("Message sent successfully");
     },
     onError: (error: ApiError) => {
@@ -425,12 +543,15 @@ export function useSendMessage() {
 export function useRejectionInsights(params?: { companyId?: string[]; enabled?: boolean }) {
   const { user } = useAuth();
   const userCompanyIds = getUserCompanyIds(user);
-  const effectiveCompanyId = params?.companyId?.length ? params.companyId : userCompanyIds; 
+  const effectiveCompanyId = params?.companyId?.length ? params.companyId : userCompanyIds;
 
   return useQuery({
     queryKey: applicantsKeys.rejectionInsights(effectiveCompanyId),
     queryFn: () => applicantsService.getRejectionInsights({ companyId: effectiveCompanyId }),
     staleTime: 2 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
     enabled: params?.enabled ?? true,
     retry: false,
   });
@@ -442,6 +563,9 @@ export function useApplicantsByPhone(phone?: string, options?: { enabled?: boole
     queryKey: applicantsKeys.byPhone(phone || ''),
     queryFn: () => applicantsService.getApplicantsByPhone(phone || ''),
     staleTime: 2 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
     enabled: !!phone && (options?.enabled ?? true),
     retry: false,
   });

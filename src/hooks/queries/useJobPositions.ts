@@ -56,13 +56,16 @@ export function useJobPositions(
 
   return useQuery({
     queryKey: jobPositionsKeys.list(effectiveCompanyId, departmentId),
-    queryFn: () => jobPositionsService.getAllJobPositions({ 
-      companyId: effectiveCompanyId, 
-      deleted, 
-      departmentId 
+    queryFn: () => jobPositionsService.getAllJobPositions({
+      companyId: effectiveCompanyId,
+      deleted,
+      departmentId
     }),
     enabled: options?.enabled ?? true,
     staleTime: 5 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 }
 
@@ -78,6 +81,9 @@ export function useJobPosition(
     queryFn: () => jobPositionsService.getJobPositionById(id),
     enabled: options?.enabled ?? !!id,
     staleTime: 5 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
     initialData: options?.useInitialData === false
       ? undefined
       : () => {

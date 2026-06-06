@@ -172,6 +172,10 @@ export default function History({ applicant, loading = false }: Props) {
         PageCount: 'all',
       }),
     enabled: !!applicantId,
+    staleTime: Infinity,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   const { data: contractsResponse, isLoading: isContractsLoading } = useQuery<PaginatedJobContracts>({
@@ -183,6 +187,10 @@ export default function History({ applicant, loading = false }: Props) {
         PageCount: 'all',
       }),
     enabled: !!applicantId,
+    staleTime: Infinity,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   const jobContracts = useMemo(
@@ -194,6 +202,10 @@ export default function History({ applicant, loading = false }: Props) {
     queryKey: ['jobContracts', 'detail', selectedContractId],
     queryFn: () => jobContractsService.getContract(selectedContractId || ''),
     enabled: !!selectedContractId,
+    staleTime: Infinity,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   const { data: previousApplicants = [], isLoading: isPreviousLoading } = useApplicantsByPhone(applicantPhone, {

@@ -1,0 +1,684 @@
+import React, { useMemo } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router';
+import {
+  ArrowLeft,
+  Building2,
+  Calendar,
+  CheckCircle2,
+  Clock4,
+  ExternalLink,
+  FileText,
+  Inbox,
+  Library,
+  MapPin,
+  StickyNote,
+  User as UserIcon,
+  Video,
+  XCircle,
+} from 'lucide-react';
+import PageBreadCrumb from '../../../components/common/PageBreadCrumb';
+import PageMeta from '../../../components/common/PageMeta';
+import LoadingSpinner from '../../../components/common/LoadingSpinner';
+import { useApplicant } from '../../../hooks/queries/useApplicants';
+import type {
+  Interview,
+  InterviewAnswer,
+} from '../../../types/applicants';
+import { paths } from '../../../router/Paths';
+import {
+  formatDate,
+  formatDateOnly,
+  getStatusColor,
+} from './components/history/historyUtils';
+
+type CompletedInterview = Interview & { id?: string };
+
+type GroupedQuestions = {
+  key: string;
+  name: string;
+  source: 'company' | 'user' | 'ungrouped';
+  questions: InterviewAnswer[];
+};
+
+const calcDurationMs = (startedAt?: string, endedAt?: string): number | null => {
+  if (!startedAt || !endedAt) return null;
+  const start = new Date(startedAt).getTime();
+  const end = new Date(endedAt).getTime();
+  if (Number.isNaN(start) || Number.isNaN(end) || end < start) return null;
+  return end - start;
+};
+
+const formatDuration = (ms: number | null): string => {
+  if (ms === null) return '—';
+  const totalSeconds = Math.floor(ms / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  if (hours > 0) return `${pad(hours)}h ${pad(minutes)}m ${pad(seconds)}s`;
+  if (minutes > 0) return `${pad(minutes)}m ${pad(seconds)}s`;
+  return `${pad(seconds)}s`;
+};
+
+const getInterviewTypeIcon = (type?: string) => {
+  const t = String(type || '').toLowerCase();
+  if (t.includes('video')) return Video;
+  if (t.includes('in-person') || t.includes('in_person') || t.includes('onsite')) {
+    return MapPin;
+  }
+  return Clock4;
+};
+
+const groupQuestions = (
+  questions: InterviewAnswer[] | undefined,
+): GroupedQuestions[] => {
+  if (!questions || !Array.isArray(questions) || questions.length === 0) return [];
+  const map = new Map<string, GroupedQuestions>();
+  questions.forEach((q, index) => {
+    const key = q?.groupKey || `__ungrouped_${index}`;
+    const name = q?.groupName || 'Questions';
+    const source: GroupedQuestions['source'] = q?.groupSource || 'ungrouped';
+    const existing = map.get(key);
+    if (existing) {
+      existing.questions.push(q);
+    } else {
+      map.set(key, { key, name, source, questions: [q] });
+    }
+  });
+  return Array.from(map.values());
+};
+
+const toUserLabel = (value: unknown): string => {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'object') {
+    const obj = value as Record<string, unknown>;
+    const name = obj.fullName || obj.name || obj.email;
+    if (typeof name === 'string' && name.trim()) return name;
+    const id = obj._id || obj.id;
+    if (typeof id === 'string') return id;
+  }
+  return '';
+};
+
+const getAnswerDisplay = (q: InterviewAnswer): {
+  type: 'choice' | 'text' | 'empty';
+  text: string;
+  selectedChoice?: string;
+} => {
+  const noteText = (q?.notes ?? '').toString().trim();
+  if (noteText) return { type: 'text', text: noteText };
+  return { type: 'empty', text: 'No answer recorded' };
+};
+
+const InfoTile: React.FC<{
+  icon: React.ReactNode;
+  label: string;
+  value: React.ReactNode;
+  accent?: 'blue' | 'green' | 'purple' | 'amber' | 'red' | 'gray';
+}> = ({ icon, label, value, accent = 'gray' }) => {
+  const accentMap: Record<string, string> = {
+    blue: 'bg-blue-50 text-blue-600',
+    green: 'bg-emerald-50 text-emerald-600',
+    purple: 'bg-purple-50 text-purple-600',
+    amber: 'bg-amber-50 text-amber-600',
+    red: 'bg-red-50 text-red-600',
+    gray: 'bg-gray-100 text-gray-500',
+  };
+  return (
+    <div className="flex items-start gap-3 rounded-xl border border-gray-100 bg-white p-4">
+      <span className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg ${accentMap[accent]}`}>
+        {icon}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+          {label}
+        </p>
+        <div className="mt-0.5 text-sm font-medium text-gray-800 break-words">
+          {value || <span className="text-gray-300">—</span>}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const QuestionDisplay: React.FC<{ question: InterviewAnswer; index: number }> = ({
+  question,
+  index,
+}) => {
+  const score = Number(question?.score || 0);
+  const achieved = Number(question?.achievedScore || 0);
+  const pct = score > 0 ? Math.round((achieved / score) * 100) : 0;
+  const choices = Array.isArray(question?.choices) ? question!.choices : [];
+  const answer = getAnswerDisplay(question);
+  const answerType = String(question?.answerType || 'text');
+
+  return (
+    <div className="rounded-xl border border-gray-100 bg-white p-5">
+      <div className="flex items-start gap-4">
+        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-blue-50 text-sm font-semibold text-blue-600">
+          {index + 1}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-gray-800">
+            {question?.question || '(Untitled question)'}
+          </p>
+          <div className="mt-1.5 flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-gray-600">
+              {answerType}
+            </span>
+            {score > 0 && (
+              <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700">
+                Max score: {score}
+              </span>
+            )}
+          </div>
+        </div>
+        {score > 0 && (
+          <div className="text-right">
+            <p className="text-base font-bold text-emerald-600 tabular-nums">
+              {achieved}
+              <span className="text-xs text-gray-400"> / {score}</span>
+            </p>
+            <p className="text-[10px] uppercase tracking-wider text-gray-400">
+              {pct}% performance
+            </p>
+          </div>
+        )}
+      </div>
+
+      {choices.length > 0 && (
+        <div className="mt-4">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+            Choices
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {choices.map((choice, i) => {
+              const value = String(choice ?? '');
+              if (!value) return null;
+              const isSelected =
+                answer.type === 'text' && answer.text === value;
+              return (
+                <span
+                  key={`${value}_${i}`}
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium ${
+                    isSelected
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'bg-gray-100 text-gray-600'
+                  }`}
+                >
+                  {isSelected && <CheckCircle2 className="h-3 w-3" />}
+                  {value}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-4 rounded-lg border border-gray-100 bg-gray-50/60 p-3">
+        <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+          Candidate's answer
+        </p>
+        {answer.type === 'text' ? (
+          <p className="whitespace-pre-wrap text-sm text-gray-800">{answer.text}</p>
+        ) : (
+          <p className="text-sm italic text-gray-400">{answer.text}</p>
+        )}
+      </div>
+
+      {score > 0 && (
+        <div className="mt-3 space-y-1.5">
+          <div className="flex justify-between text-[11px] font-medium text-gray-500">
+            <span>Performance</span>
+            <span className="tabular-nums">{pct}%</span>
+          </div>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-blue-500 to-purple-500"
+              style={{ width: `${Math.min(100, Math.max(0, pct))}%` }}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const CompletedInterviewDetails: React.FC = () => {
+  const { id: applicantId, interviewId } = useParams<{
+    id: string;
+    interviewId: string;
+  }>();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const passedInterview = (location.state as { interview?: CompletedInterview } | null)
+    ?.interview;
+
+  const { data: applicant, isLoading, isError, error } = useApplicant(applicantId || '');
+
+  const interview = useMemo<CompletedInterview | null>(() => {
+    if (!applicant && !passedInterview) return null;
+    if (passedInterview) {
+      const pid = String(passedInterview._id || passedInterview.id || '');
+      if (!interviewId || pid === String(interviewId)) return passedInterview;
+    }
+    if (!applicant?.interviews) return null;
+    const list = applicant.interviews as CompletedInterview[];
+    return (
+      list.find(
+        (iv) =>
+          String(iv?._id || iv?.id || '') === String(interviewId || ''),
+      ) || null
+    );
+  }, [applicant, passedInterview, interviewId]);
+
+  const groupedQuestions = useMemo(
+    () => groupQuestions(interview?.questions),
+    [interview],
+  );
+
+  const totalScore = useMemo(
+    () =>
+      (interview?.questions || []).reduce(
+        (sum, q) => sum + Number(q?.score || 0),
+        0,
+      ),
+    [interview],
+  );
+  const achievedScore = useMemo(
+    () =>
+      Math.round(
+        (interview?.questions || []).reduce(
+          (sum, q) => sum + Number(q?.achievedScore || 0),
+          0,
+        ),
+      ),
+    [interview],
+  );
+  const performance =
+    totalScore > 0 ? Math.round((achievedScore / totalScore) * 100) : 0;
+  const answeredCount = (interview?.questions || []).filter((q) => {
+    const notes = (q?.notes ?? '').toString().trim();
+    return notes.length > 0;
+  }).length;
+  const completion =
+    (interview?.questions || []).length > 0
+      ? Math.round((answeredCount / (interview?.questions || []).length) * 100)
+      : 0;
+  const duration = calcDurationMs(interview?.startedAt, interview?.endedAt);
+
+  const handleBack = () => {
+    if (applicantId) {
+      navigate(paths.applicants.details(applicantId));
+    } else {
+      navigate(-1);
+    }
+  };
+
+  if (isLoading && !passedInterview) {
+    return (
+      <div className="bg-gray-50 min-h-screen flex items-center justify-center">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
+  if (isError && !passedInterview) {
+    return (
+      <div className="bg-gray-50 min-h-screen p-6">
+        <div className="max-w-3xl mx-auto bg-white rounded-lg shadow-sm border border-gray-100 p-8 text-center">
+          <h2 className="text-lg font-semibold text-gray-800 mb-2">
+            Interview not found
+          </h2>
+          <p className="text-sm text-gray-500 mb-4">
+            {(error as { message?: string } | null | undefined)?.message ||
+              'We could not load this interview.'}
+          </p>
+          <button
+            onClick={handleBack}
+            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
+          >
+            Back to applicant
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!interview) {
+    return (
+      <div className="bg-gray-50 min-h-screen p-6">
+        <div className="max-w-3xl mx-auto bg-white rounded-lg shadow-sm border border-gray-100 p-8 text-center">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
+            <XCircle className="h-6 w-6 text-gray-400" />
+          </div>
+          <h2 className="text-lg font-semibold text-gray-800 mb-2">
+            Interview not found
+          </h2>
+          <p className="text-sm text-gray-500 mb-4">
+            The interview you are looking for does not exist or has been removed.
+          </p>
+          <button
+            onClick={handleBack}
+            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
+          >
+            Back to applicant
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const status = String(interview.status || 'completed').toLowerCase();
+  const TypeIcon = getInterviewTypeIcon(interview.type);
+  const typeLabel = interview.type
+    ? String(interview.type)
+        .replace(/_/g, ' ')
+        .replace(/-/g, ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase())
+    : 'Interview';
+  const conductedByLabel = toUserLabel(interview.conductedBy);
+  const interviewerLabels = Array.isArray(interview.interviewers)
+    ? interview.interviewers.map((i) => toUserLabel(i)).filter(Boolean)
+    : [];
+
+  return (
+    <div className="bg-gray-50 min-h-screen p-6">
+      <div className="max-w-6xl mx-auto space-y-6 pb-12">
+        <PageMeta
+          title={`${typeLabel} | Interview Details`}
+          description="Completed interview details"
+        />
+
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <PageBreadCrumb pageTitle="Completed Interview Details" />
+          <button
+            type="button"
+            onClick={handleBack}
+            className="inline-flex items-center gap-2 self-start rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to applicant
+          </button>
+        </div>
+
+        <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+          <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/20 text-white">
+                  <TypeIcon className="h-6 w-6" />
+                </span>
+                <div>
+                  <h1 className="text-xl font-bold text-white">
+                    {typeLabel} Interview
+                  </h1>
+                  <p className="text-sm text-white/80">
+                    {applicant?.fullName || 'Applicant'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold capitalize ${getStatusColor(
+                    status,
+                  )}`}
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  {status}
+                </span>
+                {interview.scheduledAt && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-xs text-white">
+                    <Calendar className="h-3.5 w-3.5" />
+                    {formatDateOnly(interview.scheduledAt)}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-px bg-gray-100 md:grid-cols-4">
+            <div className="bg-white p-4 text-center">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                Total Score
+              </p>
+              <p className="mt-1 text-2xl font-bold text-gray-900 tabular-nums">
+                {totalScore}
+              </p>
+            </div>
+            <div className="bg-white p-4 text-center">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                Achieved
+              </p>
+              <p className="mt-1 text-2xl font-bold text-emerald-600 tabular-nums">
+                {achievedScore}
+              </p>
+            </div>
+            <div className="bg-white p-4 text-center">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                Performance
+              </p>
+              <p className="mt-1 text-2xl font-bold text-purple-600 tabular-nums">
+                {performance}%
+              </p>
+            </div>
+            <div className="bg-white p-4 text-center">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                Completion
+              </p>
+              <p className="mt-1 text-2xl font-bold text-amber-600 tabular-nums">
+                {completion}%
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <section>
+          <h2 className="mb-3 text-sm font-semibold text-gray-700">
+            Interview Information
+          </h2>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <InfoTile
+              icon={<Clock4 className="h-4 w-4" />}
+              label="Type"
+              value={typeLabel}
+              accent="blue"
+            />
+            <InfoTile
+              icon={<Calendar className="h-4 w-4" />}
+              label="Scheduled At"
+              value={formatDate(interview.scheduledAt)}
+              accent="purple"
+            />
+            <InfoTile
+              icon={<Calendar className="h-4 w-4" />}
+              label="Started At"
+              value={formatDate(interview.startedAt)}
+              accent="green"
+            />
+            <InfoTile
+              icon={<Calendar className="h-4 w-4" />}
+              label="Ended At"
+              value={formatDate(interview.endedAt)}
+              accent="amber"
+            />
+            <InfoTile
+              icon={<Clock4 className="h-4 w-4" />}
+              label="Duration"
+              value={formatDuration(duration)}
+              accent="blue"
+            />
+            <InfoTile
+              icon={<FileText className="h-4 w-4" />}
+              label="Status"
+              value={
+                <span className="capitalize">{interview.status || 'completed'}</span>
+              }
+              accent="green"
+            />
+            {conductedByLabel && (
+              <InfoTile
+                icon={<UserIcon className="h-4 w-4" />}
+                label="Conducted By"
+                value={conductedByLabel}
+                accent="purple"
+              />
+            )}
+            {interview.videoLink && (
+              <InfoTile
+                icon={<Video className="h-4 w-4" />}
+                label="Video Link"
+                value={
+                  <a
+                    href={interview.videoLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline"
+                  >
+                    Open link
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                }
+                accent="blue"
+              />
+            )}
+            {interviewerLabels.length > 0 && (
+              <InfoTile
+                icon={<UserIcon className="h-4 w-4" />}
+                label="Interviewers"
+                value={
+                  <div className="flex flex-wrap gap-1.5">
+                    {interviewerLabels.map((name, i) => (
+                      <span
+                        key={`${name}_${i}`}
+                        className="inline-flex items-center rounded-full bg-purple-50 px-2.5 py-0.5 text-xs font-medium text-purple-700"
+                      >
+                        {name}
+                      </span>
+                    ))}
+                  </div>
+                }
+                accent="purple"
+              />
+            )}
+          </div>
+
+          {interview.notes && (
+            <div className="mt-3 rounded-xl border border-gray-100 bg-white p-5">
+              <div className="mb-2 flex items-center gap-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-md bg-amber-50 text-amber-600">
+                  <StickyNote className="h-3.5 w-3.5" />
+                </span>
+                <h3 className="text-sm font-semibold text-gray-800">
+                  Interviewer Notes
+                </h3>
+              </div>
+              <p className="whitespace-pre-wrap text-sm text-gray-700">
+                {interview.notes}
+              </p>
+            </div>
+          )}
+        </section>
+
+        <section>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-gray-700">
+              Questions &amp; Answers
+            </h2>
+            <span className="text-xs text-gray-400">
+              {(interview.questions || []).length} question
+              {(interview.questions || []).length === 1 ? '' : 's'}
+            </span>
+          </div>
+
+          {groupedQuestions.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-gray-200 bg-white px-6 py-12 text-center">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100">
+                <Inbox className="h-5 w-5 text-gray-400" />
+              </div>
+              <p className="text-sm font-medium text-gray-700">
+                No questions recorded
+              </p>
+              <p className="text-xs text-gray-400">
+                This interview does not have any questions attached to it.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-5">
+              {groupedQuestions.map((group) => {
+                const SourceIcon =
+                  group.source === 'company'
+                    ? Building2
+                    : group.source === 'user'
+                    ? Library
+                    : FileText;
+                const accentClass =
+                  group.source === 'company'
+                    ? 'bg-blue-50 text-blue-600'
+                    : group.source === 'user'
+                    ? 'bg-purple-50 text-purple-600'
+                    : 'bg-gray-100 text-gray-500';
+                const groupTotal = group.questions.reduce(
+                  (sum, q) => sum + Number(q?.score || 0),
+                  0,
+                );
+                const groupAchieved = Math.round(
+                  group.questions.reduce(
+                    (sum, q) => sum + Number(q?.achievedScore || 0),
+                    0,
+                  ),
+                );
+                return (
+                  <div
+                    key={group.key}
+                    className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm"
+                  >
+                    <div className="flex items-center justify-between gap-3 border-b border-gray-100 bg-gray-50/60 px-5 py-3">
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={`flex h-8 w-8 items-center justify-center rounded-md ${accentClass}`}
+                        >
+                          <SourceIcon className="h-4 w-4" />
+                        </span>
+                        <div>
+                          <p className="text-sm font-semibold text-gray-800">
+                            {group.name}
+                          </p>
+                          <p className="text-[11px] uppercase tracking-wider text-gray-400">
+                            {group.source === 'company'
+                              ? 'Company Library'
+                              : group.source === 'user'
+                              ? 'My Library'
+                              : 'Questions'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                          Group Score
+                        </p>
+                        <p className="text-sm font-bold text-gray-800 tabular-nums">
+                          {groupAchieved}
+                          <span className="text-gray-400"> / {groupTotal}</span>
+                        </p>
+                      </div>
+                    </div>
+                    <div className="space-y-3 p-5">
+                      {group.questions.map((q, i) => (
+                        <QuestionDisplay key={q?._id || q?.id || i} question={q} index={i} />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      </div>
+    </div>
+  );
+};
+
+export default CompletedInterviewDetails;

@@ -164,6 +164,13 @@ export type ScheduleInterviewRequest = {
   interviewers?: string[];
   status?: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
   questions?: InterviewAnswer[];
+  notifications?: {
+    channels?: { email?: boolean; sms?: boolean; whatsapp?: boolean };
+    emailOption?: string;
+    customEmail?: string;
+    phoneOption?: string;
+    customPhone?: string;
+  };
 };
 
 export type BulkScheduleInterviewItem = ScheduleInterviewRequest & { applicantId: string };

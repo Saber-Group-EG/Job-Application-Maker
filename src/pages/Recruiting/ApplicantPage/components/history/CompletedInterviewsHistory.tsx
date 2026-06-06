@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router';
 import {
   CheckCircle2,
   Clock4,
+  Eye,
   Inbox,
   Pencil,
   Trash2,
@@ -9,6 +11,7 @@ import {
 } from 'lucide-react';
 import { Modal } from '../../../../../components/ui/modal';
 import { toPlainString } from '../../../../../utils/strings';
+import { paths } from '../../../../../router/Paths';
 import { formatDate, getStatusColor } from './historyUtils';
 import type { Interview } from '../../../../../types/applicants';
 
@@ -65,10 +68,19 @@ export default function CompletedInterviewsHistory({
   onEdit,
   onDelete,
 }: Props) {
+  const navigate = useNavigate();
   const [editingInterview, setEditingInterview] = useState<CompletedInterview | null>(null);
   const [editNotes, setEditNotes] = useState('');
   const [editStatus, setEditStatus] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleViewInterview = (interview: CompletedInterview) => {
+    const interviewId = String(interview?._id || interview?.id || '');
+    if (!applicantId || !interviewId) return;
+    navigate(paths.applicants.completedInterview(applicantId, interviewId), {
+      state: { interview },
+    });
+  };
 
   const sortedInterviews = useMemo(() => {
     if (!interviews || !Array.isArray(interviews)) return [];
@@ -206,7 +218,11 @@ export default function CompletedInterviewsHistory({
                 const typeLabel = toPlainString(interview?.type) || 'N/A';
 
                 return (
-                  <tr key={interviewId} className="transition-colors hover:bg-blue-50/40">
+                  <tr
+                    key={interviewId}
+                    className="cursor-pointer transition-colors hover:bg-blue-50/40"
+                    onClick={() => handleViewInterview(interview)}
+                  >
                     <td className={BODY_CELL_PRIMARY}>
                       <div className="flex items-center gap-2.5">
                         <span className="flex h-7 w-7 items-center justify-center rounded-md bg-purple-50 text-purple-600">
@@ -257,7 +273,18 @@ export default function CompletedInterviewsHistory({
                       </span>
                     </td>
                     <td className={BODY_CELL_SECONDARY}>
-                      <div className="flex items-center gap-1.5">
+                      <div
+                        className="flex items-center gap-1.5"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => handleViewInterview(interview)}
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-emerald-600 transition-colors hover:bg-emerald-50"
+                          title="View interview details"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                        </button>
                         <button
                           type="button"
                           onClick={() => openEditModal(interview)}
