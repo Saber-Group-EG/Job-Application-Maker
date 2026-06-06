@@ -67,7 +67,7 @@ function TemplateCard({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-bold text-slate-900 dark:text-slate-100">
-            {offer.position}
+            {offer.position.en || offer.position.ar || 'Untitled Offer'}
           </p>
           <span
             className={`mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${WORK_TYPE_COLORS[offer.workType]}`}
@@ -118,10 +118,10 @@ function TemplateCard({
             </span>
           </div>
         )}
-        {offer.workHours && (
+        {offer.workHours && (offer.workHours.en || offer.workHours.ar) && (
           <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
             <Clock className="size-3.5 shrink-0" />
-            <span>{offer.workHours}</span>
+            <span>{offer.workHours.en || offer.workHours.ar}</span>
           </div>
         )}
         {offer.commissions.length > 0 && (

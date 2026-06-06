@@ -71,7 +71,7 @@ function TemplateCard({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-bold text-slate-900 dark:text-slate-100">
-            {contract.position}
+            {contract.position?.en || contract.position?.ar || 'Untitled Contract'}
           </p>
           <span
             className={`mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${CONTRACT_TYPE_COLORS[contract.contractType]}`}
