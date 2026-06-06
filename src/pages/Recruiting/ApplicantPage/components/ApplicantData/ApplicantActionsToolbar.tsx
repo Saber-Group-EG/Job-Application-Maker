@@ -7,7 +7,6 @@ import {
   ChevronDown,
   Edit3,
   Mail,
-  MessageSquarePlus,
   MoreVertical,
   Settings2,
   Trash2,
@@ -63,7 +62,6 @@ export default function ApplicantActionsToolbar({
   onChangeStatus,
   onScheduleInterview,
   onSendMessage,
-  onAddComment,
   onOpenInterviewSettings,
   onDelete,
   allApplicants = [],
@@ -227,18 +225,7 @@ export default function ApplicantActionsToolbar({
                 role="menu"
                 className="absolute right-0 mt-2 w-56 rounded-lg border border-gray-200 bg-white shadow-lg z-30 overflow-hidden"
               >
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    setMoreOpen(false);
-                    onAddComment();
-                  }}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                >
-                  <MessageSquarePlus className="h-4 w-4 text-gray-500" />
-                  Add Comment
-                </button>
+              
                 <button
                   type="button"
                   role="menuitem"

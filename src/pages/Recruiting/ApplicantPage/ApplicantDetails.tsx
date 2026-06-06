@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import PersonalInfo from './components/ApplicantData/PersonalInfo';
 import ActivityFeed from './components/ActivityFeed';
@@ -46,6 +46,60 @@ import {
 import { buildActivities } from './utils/activityUtils';
 import { buildJobSpecItems } from './utils/jobSpecUtils';
 import type { JobSpecItem } from '../../../types/applicants';
+
+// Resolve a possibly-string-or-object id field (companyId, jobPositionId) into
+// a plain string. Handles arrays by returning the first resolvable id.
+const resolveId = (value: unknown): string | undefined => {
+  if (!value) return undefined;
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const resolved = resolveId(item);
+      if (resolved) return resolved;
+    }
+    return undefined;
+  }
+  if (typeof value === 'string') return value;
+  if (typeof value === 'object') {
+    const obj = value as { _id?: string; id?: string };
+    if (typeof obj._id === 'string') return obj._id;
+    if (typeof obj.id === 'string') return obj.id;
+  }
+  return undefined;
+};
+
+// Resolve the sender ("from") email for a company. The modal may have already
+// picked one (customEmail) — use that; otherwise fall back to the company's
+// default mail, contact email, or the first available sender.
+const resolveSenderEmail = (
+  company:
+    | (Record<string, unknown> & {
+        settings?: { mailSettings?: { defaultMail?: string; availableMails?: string[] } };
+        mailSettings?: { defaultMail?: string; availableMails?: string[] };
+        contactEmail?: string;
+        email?: string;
+        availableMails?: string[];
+      })
+    | null,
+  customEmail: string,
+): string => {
+  const mailSettings = company?.settings?.mailSettings || company?.mailSettings || null;
+  const availableMails: string[] = [
+    ...(mailSettings?.availableMails || []),
+    ...(company?.availableMails || []),
+  ].filter((m): m is string => typeof m === 'string' && m.trim().length > 0);
+  const firstAvailable = availableMails[0];
+  const mailDefault =
+    mailSettings?.defaultMail || company?.contactEmail || company?.email || firstAvailable || '';
+  return (customEmail || mailDefault || '').trim();
+};
+
+const escapeHtml = (s: string): string =>
+  String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 
 const ApplicantDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -281,7 +335,7 @@ const ApplicantDetails: React.FC = () => {
     setShowInterviewSettingsModal(true);
   };
 
-  const getJobTitle = (): { en: string } => {
+  const getJobTitle = useCallback((): { en: string } => {
     if (!applicant) return { en: '' };
     const jobPos =
       fetchedJobPosition ||
@@ -296,7 +350,7 @@ const ApplicantDetails: React.FC = () => {
       }
     }
     return { en: '' };
-  };
+  }, [applicant, fetchedJobPosition]);
 
   const fillCompanyAddress = (): boolean => {
     try {
@@ -312,15 +366,7 @@ const ApplicantDetails: React.FC = () => {
     }
   };
 
-  const escapeHtml = (s: string): string =>
-    String(s)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-
-  const buildInterviewEmailHtml = (opts: {
+  const buildInterviewEmailHtml = useCallback((opts: {
     subject: string;
     jobTitle: string;
     rawMessage: string;
@@ -384,7 +430,97 @@ const ApplicantDetails: React.FC = () => {
   </div>
 </body>
 </html>`;
-  };
+  }, []);
+
+  const sendInterviewNotification = useCallback(
+    async (snapshot: {
+      subject: string;
+      template: string;
+      customEmail: string;
+    }) => {
+      if (!applicant || !id) return;
+
+      const toEmail = (applicant as { email?: string }).email;
+      if (!toEmail) {
+        await Swal.fire({
+          title: 'Email Skipped',
+          text: 'Interview scheduled, but the applicant has no email address on file, so no notification email was sent.',
+          icon: 'warning',
+          confirmButtonColor: '#3085d6',
+        });
+        return;
+      }
+
+      const fromEmail = resolveSenderEmail(companyWithAddress as never, snapshot.customEmail);
+      if (!fromEmail) {
+        await Swal.fire({
+          title: 'Email Skipped',
+          text: 'Interview scheduled, but no sender email is configured for this company. To send notification emails, please select a sender in the Schedule Interview modal or configure the company default email in Mail Settings.',
+          icon: 'warning',
+          confirmButtonColor: '#3085d6',
+        });
+        return;
+      }
+
+      const jobTitle = getJobTitle().en || '';
+      const applicantName = (applicant as { fullName?: string }).fullName || 'Candidate';
+
+      const subjectBase = snapshot.subject || 'Interview Invitation';
+      const processedSubject = subjectBase
+        .replace(/\{\{\s*candidateName\s*\}\}/gi, applicantName)
+        .replace(/\{\{\s*(?:position|jobTitle)\s*\}\}/gi, jobTitle);
+
+      const emailHtml = buildInterviewEmailHtml({
+        subject: subjectBase,
+        jobTitle,
+        rawMessage: snapshot.template || '',
+        applicantName,
+      });
+
+      const jobPositionId =
+        resolveId((applicant as { jobPositionId?: unknown }).jobPositionId) ||
+        resolveId((applicant as { jobPosition?: unknown }).jobPosition);
+
+      const resolvedCompanyId =
+        (companyWithAddress as { _id?: string } | null)?._id ||
+        jobPosCompanyId ||
+        applicantCompanyId ||
+        resolveId((applicant as { companyId?: unknown }).companyId);
+
+      try {
+        await sendEmailMutation.mutateAsync({
+          company: resolvedCompanyId,
+          jobPosition: jobPositionId,
+          applicant: applicant._id,
+          to: toEmail,
+          from: fromEmail,
+          subject: processedSubject,
+          html: emailHtml,
+        });
+
+        // Best-effort: log the email to the applicant's message history.
+        try {
+          await sendMessageMutation.mutateAsync({
+            id,
+            data: { type: 'email', content: snapshot.template || '' },
+          });
+        } catch {
+          // History logging is non-critical; ignore.
+        }
+      } catch (mailErr) {
+        // The interview is already scheduled — only the email failed.
+        const msg = getErrorMessage(mailErr);
+        await Swal.fire({
+          title: 'Interview Scheduled',
+          text: `The interview was scheduled, but the notification email failed: ${msg}`,
+          icon: 'warning',
+          confirmButtonColor: '#3085d6',
+        });
+        setInterviewError(`Interview scheduled, but email failed: ${msg}`);
+      }
+    },
+    [applicant, id, companyWithAddress, jobPosCompanyId, applicantCompanyId, getJobTitle, buildInterviewEmailHtml, sendEmailMutation, sendMessageMutation],
+  );
 
   const handleScheduleInterviewSubmit = async () => {
     if (!id || !applicant) return;
@@ -393,7 +529,6 @@ const ApplicantDetails: React.FC = () => {
     // Snapshot the email-related state BEFORE we reset the form below — we
     // still need these values to send the email after the schedule succeeds.
     const emailSnapshot = {
-      channels: { ...notificationChannels },
       subject: interviewEmailSubject,
       template: messageTemplate,
       customEmail,
@@ -421,12 +556,12 @@ const ApplicantDetails: React.FC = () => {
         status: 'scheduled',
         notifications: {
           channels: {
-            email: emailSnapshot.channels.email,
-            sms: emailSnapshot.channels.sms,
-            whatsapp: emailSnapshot.channels.whatsapp,
+            email: notificationChannels.email,
+            sms: notificationChannels.sms,
+            whatsapp: notificationChannels.whatsapp,
           },
           emailOption,
-          customEmail: emailSnapshot.customEmail || undefined,
+          customEmail: customEmail || undefined,
           phoneOption,
           customPhone: customPhone || undefined,
         },
@@ -466,131 +601,8 @@ const ApplicantDetails: React.FC = () => {
         setAutoSelectInterviewId(String(created._id || created.id));
       }
 
-      // Fire-and-track the email send AFTER the schedule succeeds. We do NOT
-      // throw on failure — the interview is already scheduled; we just
-      // surface a non-blocking error message.
-      if (emailSnapshot.channels.email) {
-        try {
-          const toEmail = (applicant as { email?: string }).email;
-          if (!toEmail) {
-            await Swal.fire({
-              title: 'Email Skipped',
-              text: 'Interview scheduled, but the applicant has no email address on file, so no notification email was sent.',
-              icon: 'warning',
-              confirmButtonColor: '#3085d6',
-            });
-            return;
-          }
-
-          const c = companyWithAddress as
-            | (Record<string, unknown> & {
-                settings?: { mailSettings?: { defaultMail?: string; availableMails?: string[] } };
-                mailSettings?: { defaultMail?: string; availableMails?: string[] };
-                contactEmail?: string;
-                email?: string;
-                availableMails?: string[];
-              })
-            | null;
-          const mailSettings = c?.settings?.mailSettings || c?.mailSettings || null;
-          const availableMails: string[] = [
-            ...(mailSettings?.availableMails || []),
-            ...(c?.availableMails || []),
-          ].filter((m): m is string => typeof m === 'string' && m.trim().length > 0);
-          const firstAvailable = availableMails[0];
-          const mailDefault =
-            mailSettings?.defaultMail || c?.contactEmail || c?.email || firstAvailable || '';
-          const fromEmail = (emailSnapshot.customEmail || mailDefault || '').trim();
-          if (!fromEmail) {
-            await Swal.fire({
-              title: 'Email Skipped',
-              text: 'Interview scheduled, but no sender email is configured for this company. To send notification emails, please select a sender in the Schedule Interview modal or configure the company default email in Mail Settings.',
-              icon: 'warning',
-              confirmButtonColor: '#3085d6',
-            });
-            return;
-          }
-
-          const jobTitle = getJobTitle().en || '';
-          const applicantName = (applicant as { fullName?: string }).fullName || 'Candidate';
-
-          const emailHtml = buildInterviewEmailHtml({
-            subject: emailSnapshot.subject || 'Interview Invitation',
-            jobTitle,
-            rawMessage: emailSnapshot.template || '',
-            applicantName,
-          });
-
-          const processedSubject = (emailSnapshot.subject || 'Interview Invitation')
-            .replace(/\{\{\s*candidateName\s*\}\}/gi, applicantName)
-            .replace(/\{\{\s*(?:position|jobTitle)\s*\}\}/gi, jobTitle);
-
-          const resolveJobPositionId = (value: unknown): string | undefined => {
-            if (!value) return undefined;
-            if (Array.isArray(value)) {
-              for (const item of value) {
-                const resolved = resolveJobPositionId(item);
-                if (resolved) return resolved;
-              }
-              return undefined;
-            }
-            if (typeof value === 'string') return value;
-            if (typeof value === 'object') {
-              const obj = value as { _id?: string; id?: string };
-              if (typeof obj._id === 'string') return obj._id;
-              if (typeof obj.id === 'string') return obj.id;
-            }
-            return undefined;
-          };
-
-          const jobPositionId =
-            resolveJobPositionId((applicant as { jobPositionId?: unknown }).jobPositionId) ||
-            resolveJobPositionId((applicant as { jobPosition?: unknown }).jobPosition);
-
-          const resolvedCompanyId =
-            (companyWithAddress as { _id?: string } | null)?._id ||
-            jobPosCompanyId ||
-            applicantCompanyId ||
-            (() => {
-              const cId = (applicant as { companyId?: unknown }).companyId;
-              if (typeof cId === 'string') return cId;
-              if (cId && typeof cId === 'object') {
-                const obj = cId as { _id?: string; id?: string };
-                return obj?._id || obj?.id || '';
-              }
-              return undefined;
-            })() ||
-            undefined;
-
-          await sendEmailMutation.mutateAsync({
-            company: resolvedCompanyId,
-            jobPosition: jobPositionId,
-            applicant: applicant._id,
-            to: toEmail,
-            from: fromEmail,
-            subject: processedSubject,
-            html: emailHtml,
-          });
-
-          // Best-effort: log the email to the applicant's message history.
-          try {
-            await sendMessageMutation.mutateAsync({
-              id,
-              data: { type: 'email', content: emailSnapshot.template || '' },
-            });
-          } catch {
-            // History logging is non-critical; ignore.
-          }
-        } catch (mailErr) {
-          // The interview is already scheduled — only the email failed.
-          const msg = getErrorMessage(mailErr);
-          await Swal.fire({
-            title: 'Interview Scheduled',
-            text: `The interview was scheduled, but the notification email failed: ${msg}`,
-            icon: 'warning',
-            confirmButtonColor: '#3085d6',
-          });
-          setInterviewError(`Interview scheduled, but email failed: ${msg}`);
-        }
+      if (notificationChannels.email) {
+        await sendInterviewNotification(emailSnapshot);
       }
     } catch (err) {
       const msg = getErrorMessage(err);
@@ -881,12 +893,6 @@ const ApplicantDetails: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900">
             {applicant.fullName || 'Applicant Details'}
           </h1>
-          {interviewError && (
-            <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-200">
-              {interviewError}
-              <button type="button" onClick={() => setInterviewError('')} className="ml-3 text-red-500 hover:text-red-700 dark:hover:text-red-300">✕</button>
-            </div>
-          )}
         </div>
 
         <div className="mb-6">
