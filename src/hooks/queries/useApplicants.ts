@@ -82,6 +82,9 @@ export function useApplicants(params?: {
       skipPopulation: params?.skipPopulation,
     }),
     staleTime: 2 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
     enabled: params?.enabled ?? true,
   });
 }
@@ -98,9 +101,11 @@ export function useApplicant(id: string, options?: {
     queryKey: applicantsKeys.detail(id),
     queryFn: () => applicantsService.getApplicantById(id),
     enabled: !!id && (options?.enabled ?? true),
-    staleTime: options?.staleTime ?? 30 * 1000,
+    staleTime: options?.staleTime ?? 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
     initialData: options?.initialData ?? (() => {
-      // Try to find from cached list
       const cached = queryClient.getQueryData<Applicant[]>(applicantsKeys.list());
       return cached?.find(a => a._id === id);
     }),
@@ -124,6 +129,9 @@ export function useApplicantStatuses(params?: {
       status: params?.jobPositionId,
     }),
     staleTime: 2 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
     enabled: params?.enabled ?? true,
   });
 }
@@ -169,15 +177,31 @@ export function useUpdateApplicant() {
     mutationFn: ({ id, data }: { id: string; data: UpdateApplicantRequest }) =>
       applicantsService.updateApplicant(id, data),
     onSuccess: (updatedApplicant, { id }) => {
-      // Update detail cache
-      queryClient.setQueryData(applicantsKeys.detail(id), updatedApplicant);
-      
-      // Update list cache
-      queryClient.setQueryData<Applicant[]>(applicantsKeys.list(), (old) => {
-        if (!old) return [updatedApplicant];
-        return old.map(applicant => applicant._id === id ? updatedApplicant : applicant);
-      });
-      
+      // If the response is a full applicant object, update the cache directly.
+      // Otherwise, invalidate the cache so the latest data is fetched.
+      const looksLikeApplicant =
+        updatedApplicant &&
+        typeof updatedApplicant === 'object' &&
+        (updatedApplicant as Partial<Applicant>)._id &&
+        ((updatedApplicant as Partial<Applicant>).fullName !== undefined ||
+          (updatedApplicant as Partial<Applicant>).firstName !== undefined ||
+          (updatedApplicant as Partial<Applicant>).email !== undefined ||
+          (updatedApplicant as Partial<Applicant>).phone !== undefined ||
+          (updatedApplicant as Partial<Applicant>).status !== undefined);
+
+      if (looksLikeApplicant) {
+        queryClient.setQueryData(applicantsKeys.detail(id), updatedApplicant);
+        queryClient.setQueryData<Applicant[]>(applicantsKeys.list(), (old) => {
+          if (!old) return [updatedApplicant as Applicant];
+          return old.map((applicant) =>
+            applicant._id === id ? (updatedApplicant as Applicant) : applicant
+          );
+        });
+      } else {
+        queryClient.invalidateQueries({ queryKey: applicantsKeys.detail(id) });
+        queryClient.invalidateQueries({ queryKey: applicantsKeys.lists() });
+      }
+
       showSuccessToast("Applicant updated successfully");
     },
     onError: (error: ApiError) => {
@@ -210,15 +234,29 @@ export function useUpdateApplicantStatus() {
     mutationFn: ({ id, data }: { id: string; data: UpdateStatusRequest }) =>
       applicantsService.updateApplicantStatus(id, data),
     onSuccess: (updatedApplicant, { id }) => {
-      // Update detail cache
-      queryClient.setQueryData(applicantsKeys.detail(id), updatedApplicant);
-      
-      // Update list cache
-      queryClient.setQueryData<Applicant[]>(applicantsKeys.list(), (old) => {
-        if (!old) return [updatedApplicant];
-        return old.map(applicant => applicant._id === id ? updatedApplicant : applicant);
-      });
-      
+      const looksLikeApplicant =
+        updatedApplicant &&
+        typeof updatedApplicant === 'object' &&
+        (updatedApplicant as Partial<Applicant>)._id &&
+        ((updatedApplicant as Partial<Applicant>).fullName !== undefined ||
+          (updatedApplicant as Partial<Applicant>).firstName !== undefined ||
+          (updatedApplicant as Partial<Applicant>).email !== undefined ||
+          (updatedApplicant as Partial<Applicant>).phone !== undefined ||
+          (updatedApplicant as Partial<Applicant>).status !== undefined);
+
+      if (looksLikeApplicant) {
+        queryClient.setQueryData(applicantsKeys.detail(id), updatedApplicant);
+        queryClient.setQueryData<Applicant[]>(applicantsKeys.list(), (old) => {
+          if (!old) return [updatedApplicant as Applicant];
+          return old.map((applicant) =>
+            applicant._id === id ? (updatedApplicant as Applicant) : applicant
+          );
+        });
+      } else {
+        queryClient.invalidateQueries({ queryKey: applicantsKeys.detail(id) });
+        queryClient.invalidateQueries({ queryKey: applicantsKeys.lists() });
+      }
+
       showSuccessToast("Status updated successfully");
     },
     onError: (error: ApiError) => {
@@ -295,12 +333,57 @@ export function useUpdateInterviewStatus() {
       interviewId: string;
       data: UpdateInterviewStatusRequest;
     }) => applicantsService.updateInterviewStatus(applicantId, interviewId, data),
+    onMutate: async ({ applicantId, interviewId, data }) => {
+      await queryClient.cancelQueries({ queryKey: applicantsKeys.detail(applicantId) });
+      const previousApplicant = queryClient.getQueryData<Applicant | undefined>(
+        applicantsKeys.detail(applicantId),
+      );
+      if (previousApplicant && Array.isArray(previousApplicant.interviews)) {
+        const nextInterviews = previousApplicant.interviews.map((iv) => {
+          if ((iv?._id || iv?.id) !== interviewId) return iv;
+          return { ...iv, ...data };
+        });
+        queryClient.setQueryData(applicantsKeys.detail(applicantId), {
+          ...previousApplicant,
+          interviews: nextInterviews,
+        });
+      }
+      return { previousApplicant };
+    },
+    onSuccess: (_updatedApplicant, _variables) => {
+      // The optimistic update from onMutate is the source of truth.
+      // Do NOT overwrite the cache with the server response — it strips
+      // questions/groupKey/groupName/groupSource on round-trips, which
+      // would wipe out the user's in-progress answers and re-trigger the
+      // question picker view.
+    },
+    onError: (error: ApiError, _variables, context) => {
+      if ((context as { previousApplicant?: unknown } | undefined)?.previousApplicant) {
+        const previous = (context as { previousApplicant: unknown }).previousApplicant;
+        const { applicantId } = _variables;
+        queryClient.setQueryData(applicantsKeys.detail(applicantId), previous);
+      }
+      showErrorToast(error.message, "Failed to update interview status");
+    },
+  });
+}
+
+// Delete interview
+export function useDeleteInterview() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ applicantId, interviewId }: {
+      applicantId: string;
+      interviewId: string;
+    }) => applicantsService.deleteInterview(applicantId, interviewId),
     onSuccess: (updatedApplicant, { applicantId }) => {
       queryClient.setQueryData(applicantsKeys.detail(applicantId), updatedApplicant);
-      showSuccessToast("Interview status updated");
+      queryClient.invalidateQueries({ queryKey: applicantsKeys.detail(applicantId) });
+      showSuccessToast("Interview deleted successfully");
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, "Failed to update interview status");
+      showErrorToast(error.message, "Failed to delete interview");
     },
   });
 }

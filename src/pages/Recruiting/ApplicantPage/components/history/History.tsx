@@ -1,8 +1,9 @@
 import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Briefcase,
+  CheckCircle2,
   FileSignature,
   History as HistoryIcon,
 } from 'lucide-react';
@@ -18,11 +19,19 @@ import {
   type PaginatedJobContracts,
 } from '../../../../../services/jobContractsService';
 import { useJobOffer } from '../../../../../hooks/queries/useJobOffers';
-import { useApplicantsByPhone } from '../../../../../hooks/queries/useApplicants';
-import type { Applicant } from '../../../../../types/applicants';
+import {
+  applicantsKeys,
+  useApplicantsByPhone,
+  useDeleteInterview,
+  useUpdateInterviewStatus,
+} from '../../../../../hooks/queries/useApplicants';
+import type { Applicant, Interview } from '../../../../../types/applicants';
+import Swal from '../../../../../utils/swal';
+import { paths } from '../../../../../router/Paths';
 import JobOfferHistory from './JobOfferHistory';
 import ContractHistory from './ContractHistory';
 import PreviousEntriesHistory from './PreviousEntriesHistory';
+import CompletedInterviewsHistory from './CompletedInterviewsHistory';
 
 type Props = {
   applicant: Applicant;
@@ -33,7 +42,11 @@ type OfferRow = JobOffer & {
   jobPositionId?: { title?: unknown };
 };
 
-type HistorySubTab = 'previous' | 'offers' | 'contracts';
+type CompletedInterview = Interview & {
+  id?: string;
+};
+
+type HistorySubTab = 'previous' | 'offers' | 'contracts' | 'interviews';
 
 type TabConfig = {
   key: HistorySubTab;
@@ -43,8 +56,9 @@ type TabConfig = {
 
 const SUB_TABS: TabConfig[] = [
   { key: 'previous', label: 'Previous Entries', icon: HistoryIcon },
+  { key: 'interviews', label: 'Completed Interviews', icon: CheckCircle2 },
   { key: 'offers', label: 'Job Offers', icon: Briefcase },
-  { key: 'contracts', label: 'Job Contracts', icon: FileSignature },
+  { key: 'contracts', label: 'Job Contracts', icon: FileSignature }
 ];
 
 function isJobOffer(obj: unknown): obj is JobOffer {
@@ -112,10 +126,26 @@ const getRowId = (row: { _id?: string; id?: string } | null | undefined): string
   return row._id || row.id || null;
 };
 
+const getCompanyId = (value: unknown): string => {
+  if (!value) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'object') {
+    const obj = value as Record<string, unknown>;
+    const id = obj._id ?? obj.id;
+    return id ? String(id) : '';
+  }
+  return '';
+};
+
 export default function History({ applicant, loading = false }: Props) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const applicantId = String(applicant?._id || '');
   const applicantPhone = useMemo(() => applicant?.phone || '', [applicant?.phone]);
+  const applicantCompanyId = useMemo(
+    () => getCompanyId(applicant?.companyId),
+    [applicant?.companyId],
+  );
 
   const [activeSubTab, setActiveSubTab] = useState<HistorySubTab>('previous');
 
@@ -134,20 +164,31 @@ export default function History({ applicant, loading = false }: Props) {
   });
 
   const { data: offers = [], isLoading: isOffersLoading } = useQuery<JobOffer[]>({
-    queryKey: ['jobOffers', 'applicant', applicantId],
+    queryKey: ['jobOffers', 'applicant', applicantId, applicantCompanyId],
     queryFn: () =>
-      jobOffersService.listOffers({ applicantId, PageCount: 'all' }),
+      jobOffersService.listOffers({
+        applicantId,
+        companyId: applicantCompanyId || undefined,
+        PageCount: 'all',
+      }),
     enabled: !!applicantId,
   });
 
   const { data: contractsResponse, isLoading: isContractsLoading } = useQuery<PaginatedJobContracts>({
-    queryKey: ['jobContracts', 'applicant', applicantId],
+    queryKey: ['jobContracts', 'applicant', applicantId, applicantCompanyId],
     queryFn: () =>
-      jobContractsService.listContracts({ applicantId, PageCount: 'all' }),
+      jobContractsService.listContracts({
+        applicantId,
+        companyId: applicantCompanyId || undefined,
+        PageCount: 'all',
+      }),
     enabled: !!applicantId,
   });
 
-  const jobContracts = contractsResponse?.data ?? [];
+  const jobContracts = useMemo(
+    () => contractsResponse?.data ?? [],
+    [contractsResponse],
+  );
 
   const { data: selectedContractDetail } = useQuery<JobContract>({
     queryKey: ['jobContracts', 'detail', selectedContractId],
@@ -159,13 +200,57 @@ export default function History({ applicant, loading = false }: Props) {
     enabled: !!applicantPhone,
   });
 
+  const updateInterviewMutation = useUpdateInterviewStatus();
+  const deleteInterviewMutation = useDeleteInterview();
+
   const filteredPreviousApplicants = useMemo(() => {
     if (!previousApplicants || !Array.isArray(previousApplicants)) return [];
     const currentId = String(applicant?._id || '');
-    return previousApplicants.filter(
-      (applicantItem: Applicant) => String(applicantItem?._id || '') !== currentId,
+    const filtered = previousApplicants.filter(
+      (applicantItem: Applicant) =>
+        String(applicantItem?._id || '') !== currentId &&
+        (!applicantCompanyId ||
+          getCompanyId(applicantItem?.companyId) === applicantCompanyId),
     );
-  }, [previousApplicants, applicant?._id]);
+    const getEntryTimestamp = (item: Applicant): number => {
+      const raw =
+        (item as { submittedAt?: string; createdAt?: string; appliedAt?: string })
+          .submittedAt ||
+        (item as { submittedAt?: string; createdAt?: string; appliedAt?: string })
+          .createdAt ||
+        (item as { submittedAt?: string; createdAt?: string; appliedAt?: string })
+          .appliedAt;
+      const time = raw ? new Date(raw).getTime() : 0;
+      return Number.isNaN(time) ? 0 : time;
+    };
+    return [...filtered].sort(
+      (a, b) => getEntryTimestamp(b) - getEntryTimestamp(a),
+    );
+  }, [previousApplicants, applicant?._id, applicantCompanyId]);
+
+  const filteredOffers = useMemo(() => {
+    if (!offers || !Array.isArray(offers)) return [];
+    if (!applicantCompanyId) return offers;
+    return offers.filter(
+      (offer) => getCompanyId(offer?.companyId) === applicantCompanyId,
+    );
+  }, [offers, applicantCompanyId]);
+
+  const filteredContracts = useMemo(() => {
+    if (!jobContracts || !Array.isArray(jobContracts)) return [];
+    if (!applicantCompanyId) return jobContracts;
+    return jobContracts.filter(
+      (contract) => getCompanyId(contract?.companyId) === applicantCompanyId,
+    );
+  }, [jobContracts, applicantCompanyId]);
+
+  const completedInterviews = useMemo<CompletedInterview[]>(() => {
+    const list = (applicant?.interviews || []) as CompletedInterview[];
+    return list.filter(
+      (interview) =>
+        String(interview?.status || '').toLowerCase() === 'completed',
+    );
+  }, [applicant?.interviews]);
 
   const normalizedOfferDetail = useMemo(() => extractJobOffer(selectedOfferDetail), [selectedOfferDetail]);
   const effectiveOffer = normalizedOfferDetail ?? selectedOfferLocal;
@@ -177,7 +262,7 @@ export default function History({ applicant, loading = false }: Props) {
   const effectiveContract = normalizedContractDetail ?? selectedContractLocal;
 
   const handlePreviousEntryClick = (applicantId: string) => {
-    navigate(`/applicant-details/${applicantId}`);
+    navigate(paths.applicants.details(applicantId));
   };
 
   const handleOfferSelect = (offer: JobOffer) => {
@@ -194,6 +279,57 @@ export default function History({ applicant, loading = false }: Props) {
     setSelectedContractLocal(contract);
     contractModalLockRef.current = Date.now() + 800;
     setIsContractModalOpen(true);
+  };
+
+  const invalidateApplicant = () => {
+    if (!applicantId) return;
+    queryClient.invalidateQueries({ queryKey: applicantsKeys.detail(applicantId) });
+  };
+
+  const handleEditInterview = async (interview: CompletedInterview) => {
+    const interviewId = String(interview?._id || interview?.id || '');
+    if (!applicantId || !interviewId) return;
+    const allowedStatuses = ['scheduled', 'in_progress', 'completed', 'cancelled'] as const;
+    type AllowedStatus = (typeof allowedStatuses)[number];
+    const status: AllowedStatus | undefined = allowedStatuses.includes(
+      interview.status as AllowedStatus,
+    )
+      ? (interview.status as AllowedStatus)
+      : undefined;
+    try {
+      await updateInterviewMutation.mutateAsync({
+        applicantId,
+        interviewId,
+        data: {
+          ...(status ? { status } : {}),
+          notes: interview.notes,
+        },
+      });
+      invalidateApplicant();
+    } catch (error) {
+      void error;
+    }
+  };
+
+  const handleDeleteInterview = async (interview: CompletedInterview) => {
+    const interviewId = String(interview?._id || interview?.id || '');
+    if (!applicantId || !interviewId) return;
+    const result = await Swal.fire({
+      title: 'Delete interview?',
+      text: 'This action cannot be undone.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Delete',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#dc2626',
+    });
+    if (!result.isConfirmed) return;
+    try {
+      await deleteInterviewMutation.mutateAsync({ applicantId, interviewId });
+      invalidateApplicant();
+    } catch (error) {
+      void error;
+    }
   };
 
   const renderSubTabContent = () => {
@@ -214,7 +350,7 @@ export default function History({ applicant, loading = false }: Props) {
         return (
           <JobOfferHistory
             isLoading={isOffersLoading}
-            offers={offers as OfferRow[]}
+            offers={filteredOffers as OfferRow[]}
             onSelectOffer={handleOfferSelect}
           />
         );
@@ -222,8 +358,18 @@ export default function History({ applicant, loading = false }: Props) {
         return (
           <ContractHistory
             isLoading={isContractsLoading}
-            contracts={jobContracts}
+            contracts={filteredContracts}
             onSelectContract={handleContractSelect}
+          />
+        );
+      case 'interviews':
+        return (
+          <CompletedInterviewsHistory
+            isLoading={false}
+            interviews={completedInterviews}
+            applicantId={applicantId}
+            onEdit={handleEditInterview}
+            onDelete={handleDeleteInterview}
           />
         );
       default:

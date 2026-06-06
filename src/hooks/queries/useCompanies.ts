@@ -34,14 +34,8 @@ export const emailTemplatesKeys = {
 
 // ===== Helpers =====
 function getUserCompanyIds(user: any): string[] | undefined {
-  const roleName = user?.roleId?.name?.toLowerCase?.();
-  
-  if (roleName === 'admin' || roleName === 'super admin') {
-    return undefined;
-  }
-
-  const fromCompanies = user?.companies?.map((c: any) => 
-    typeof c?.companyId === 'string' ? c.companyId : c?.companyId?._id
+  const fromCompanies = user?.companies?.map((c: any) =>
+    typeof c?.companyId === 'string' ? c?.companyId : c?.companyId?._id
   ).filter(Boolean) ?? [];
 
   const fromAssigned = user?.assignedcompanyId?.filter(Boolean) ?? [];
@@ -63,36 +57,37 @@ function getCompanyFromUser(user: any, companyId: string): any | undefined {
 export function useCompanies(companyIds?: string[], options?: { enabled?: boolean }) {
   const { user } = useAuth();
   const userCompanyIds = getUserCompanyIds(user);
-  const effectiveIds = companyIds?.length ? companyIds : userCompanyIds;
-
+  const explicitIds = companyIds?.length ? companyIds : undefined;
+  const effectiveIds = explicitIds ?? userCompanyIds;
+  const useListEndpoint = !effectiveIds?.length;
 
   return useQuery({
-    // Fix: Make the query key unique for each combination of IDs
-    queryKey: companiesKeys.list(effectiveIds ? [...effectiveIds].sort() : []),
+    // Always use the same canonical list key so useCompany's initialData/select can find it
+    queryKey: companiesKeys.list(),
     queryFn: async () => {
-      if (!effectiveIds?.length) {
-        // Admin case - fetch all companies
+      if (useListEndpoint) {
+        // No known IDs (e.g., super admin) - use list endpoint (also has full address)
         const companies = await companiesService.getAllCompanies();
         return companies;
       }
-      
+
       if (effectiveIds.length === 1) {
-        // Single company case
+        // Single company case - use detail endpoint
         const company = await companiesService.getCompanyById(effectiveIds[0]);
         return company ? [company] : [];
       }
-      
-      // Multiple companies case - fetch all in parallel
-      const companiesPromises = effectiveIds.map(id => 
+
+      // Multiple companies case - fetch all in parallel via detail endpoint
+      const companiesPromises = effectiveIds.map(id =>
         companiesService.getCompanyById(id).catch(error => {
           console.error(`Failed to fetch company ${id}:`, error);
           return null;
         })
       );
-      
+
       const results = await Promise.all(companiesPromises);
       const validCompanies = results.filter(company => company !== null);
-      
+
       return validCompanies;
     },
     staleTime: 5 * 60 * 1000,
@@ -114,6 +109,32 @@ export function useCompany(id: string, options?: { enabled?: boolean }) {
     initialData: () => {
       const cached = queryClient.getQueryData<Company[]>(companiesKeys.list());
       return cached?.find(c => c._id === id);
+    },
+    select: (company) => {
+      if (!company) return company;
+      const fromList = queryClient.getQueryData<Company[]>(companiesKeys.list())?.find(c => c._id === id);
+      if (!fromList) return company;
+      const merged: any = { ...company };
+      const listCompany: any = fromList;
+      if ((!merged.address || (Array.isArray(merged.address) && merged.address.length === 0)) && listCompany.address) {
+        merged.address = listCompany.address;
+      }
+      if ((!merged.addresses || (Array.isArray(merged.addresses) && merged.addresses.length === 0)) && listCompany.addresses) {
+        merged.addresses = listCompany.addresses;
+      }
+      if (!merged.settings && listCompany.settings) {
+        merged.settings = listCompany.settings;
+      }
+      if (!merged.location && listCompany.location) {
+        merged.location = listCompany.location;
+      }
+      if ((!merged.locations || (Array.isArray(merged.locations) && merged.locations.length === 0)) && listCompany.locations) {
+        merged.locations = listCompany.locations;
+      }
+      if (!merged.officeAddress && listCompany.officeAddress) {
+        merged.officeAddress = listCompany.officeAddress;
+      }
+      return merged;
     },
   });
 }

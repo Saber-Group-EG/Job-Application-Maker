@@ -6,12 +6,23 @@ import type { ComponentType } from 'react';
 
 export type Interview = {
   _id?: string;
+  id?: string;
   issuedBy?: string;
   scheduledAt?: string;
+  startedAt?: string;
+  endedAt?: string;
+  scheduledBy?: string | { _id?: string; fullName?: string; id?: string };
+  conductedBy?: string;
+  status?: 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | string;
+  type?: string;
   videoLink?: string;
   notes?: string;
   interviewers?: string[];
-  type?: string;
+  questions?: InterviewAnswer[];
+  totalScore?: number;
+  achievedScore?: number;
+  createdAt?: string;
+  updatedAt?: string;
   notifications?: {
     channels: { email: boolean; sms: boolean; whatsapp: boolean };
     emailOption?: 'company' | 'user' | 'custom';
@@ -22,12 +33,17 @@ export type Interview = {
 };
 
 export type InterviewAnswer = {
+  _id?: string;
+  id?: string;
   question: string;
   score: number;
   achievedScore?: number;
   notes?: string | null;
   answerType?: string;
   choices?: string[];
+  groupKey?: string;
+  groupName?: string;
+  groupSource?: 'company' | 'user';
 };
 
 export type Message = {
@@ -41,11 +57,14 @@ export type Message = {
 
 export type Comment = {
   _id?: string;
-  changedBy: string;
-  changedAt: string;
+  commentedBy?: string | { _id?: string; fullName?: string; name?: string; email?: string };
+  commentedAt?: string;
+  changedBy?: string | { _id?: string; fullName?: string; name?: string; email?: string };
+  changedAt?: string;
   comment: string;
   text?: string;
   author?: string;
+  isInternal?: boolean;
 };
 
 export type StatusHistory = {
@@ -84,6 +103,8 @@ export type Applicant = {
   resume?: string;
   source?: string;
   customResponses?: Record<string, any>;
+  jobSpecsResponses?: Array<{ jobSpecId: string; answer: boolean }>;
+  jobSpecsWithDetails?: any[];
   interviews?: Interview[];
   messages?: Message[];
   comments?: Comment[];
@@ -244,6 +265,8 @@ export interface JobSpecProps {
     jobSpecsWithDetails?: any[];
     [key: string]: any;
   } | null;
+  editable?: boolean;
+  onSpecChange?: (id: string, answer: boolean) => void;
 }
 
 export type JobSpecLike = {
@@ -272,7 +295,6 @@ export interface PersonalInfoProps {
   isEditing?: boolean;
   editedApplicant?: Partial<Applicant> | null;
   onChange?: (next: Partial<Applicant>) => void;
-  onStatusChange?: (status: string) => void;
 }
 
 export type ApplicantView = Omit<Applicant, 'companyId' | 'jobPositionId'> & {
@@ -288,6 +310,8 @@ export type ApplicantView = Omit<Applicant, 'companyId' | 'jobPositionId'> & {
 
 export interface InterviewQuestionsProps {
   applicantId?: string;
+  onRequestScheduleInterview?: () => void;
+  autoSelectInterviewId?: string | null;
 }
 
 export interface InterviewQuestionData {

@@ -6,6 +6,7 @@ import CustomResponses from './components/ApplicantData/CustomResponses';
 import JobSpec from './components/ApplicantData/JobSpec';
 import InterviewQuestions from './components/InterviewData/InterviewQuestions';
 import History from './components/history/History';
+import ApplicantActionsToolbar from './components/ApplicantData/ApplicantActionsToolbar';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import Swal from '../../../utils/swal';
 import {
@@ -15,460 +16,46 @@ import {
   useAddComment,
   useDeleteApplicant,
   useJobPosition,
+  useCompany,
+  useCompanies,
+  useScheduleInterview,
+  useUpdateInterviewStatus,
 } from '../../../hooks/queries';
-import {
-  toPlainString,
-} from '../../../utils/strings';
-import { jobPositionsService } from '../../../services/jobPositionsService';
+import { resolveCompanyAddress } from '../../../utils/companyAddress';
 import type {
   Applicant,
   ResponseSection,
-  Comment,
-  StatusHistory,
-  Message,
   Interview,
-  ActivityItem,
-  ActivityLike,
-  JobSpecLike,
-  JobSpecResponseLike,
-  JobSpecItem,
   Activity,
-  Question,
-  LeafQuestion,
+  ScheduleInterviewRequest,
 } from '../../../types/applicants';
+import StatusChangeModal from '../../../components/modals/StatusChangeModal';
+import CommentModal from '../../../components/modals/commentmodal';
+import MessageModal from '../../../components/modals/MessageModal';
+import InterviewSettingsModal from '../../../components/modals/InterviewSettingsModal';
+import InterviewScheduleModal from '../../../components/modals/InterviewScheduleModal';
+import { Modal } from '../../../components/ui/modal';
 import { paths } from '../../../router/Paths';
-
-const resolveActorName = (actor: unknown): string => {
-  if (actor === null || actor === undefined) return 'System';
-  if (typeof actor === 'string') return actor || 'System';
-  if (typeof actor === 'object') {
-    const obj = actor as { fullName?: string; name?: string; email?: string; firstName?: string; lastName?: string };
-    if (obj.fullName) return String(obj.fullName);
-    if (obj.name) return String(obj.name);
-    if (obj.email) return String(obj.email);
-    if (obj.firstName || obj.lastName) return `${obj.firstName ?? ''} ${obj.lastName ?? ''}`.trim() || 'System';
-  }
-  return 'System';
-};
-
-const toActivity = (entry: ActivityLike | null | undefined): ActivityItem | null => {
-  if (!entry) return null;
-  const id = String(
-    entry._id ||
-      entry.id ||
-      `${entry.changedAt || entry.sentAt || entry.scheduledAt || ''}_${Math.random()}`
-  );
-  const timestamp = String(
-    entry.changedAt ||
-      entry.sentAt ||
-      entry.scheduledAt ||
-      entry.createdAt ||
-      new Date().toISOString()
-  );
-  const userName = resolveActorName(
-    entry.changedBy ?? entry.sentBy ?? entry.issuedBy ?? entry.author
-  );
-  return { id, timestamp, user: { name: userName } } as ActivityItem;
-};
-
-const buildActivities = (applicant: Applicant | null | undefined): ActivityItem[] => {
-  if (!applicant) return [];
-
-  const items: ActivityItem[] = [];
-
-  (applicant.statusHistory || []).forEach((entry: StatusHistory) => {
-    const base = toActivity(entry);
-    if (!base) return;
-    items.push({
-      ...base,
-      type: 'status_change',
-      title: 'Application status changed',
-      status: entry.status,
-    });
-  });
-
-  (applicant.comments || []).forEach((entry: Comment) => {
-    const base = toActivity(entry);
-    if (!base) return;
-    const text = entry.comment || entry.text || '';
-    items.push({
-      ...base,
-      type: 'comment',
-      title: 'Comment added',
-      comment: text,
-    });
-  });
-
-  (applicant.messages || []).forEach((entry: Message) => {
-    const base = toActivity(entry);
-    if (!base) return;
-    items.push({
-      ...base,
-      type: 'message',
-      title: `${(entry.type || 'internal').toUpperCase()} message`,
-      messageChannel: entry.type,
-      description: entry.content ?? entry.subject,
-    });
-  });
-
-  (applicant.interviews || []).forEach((entry: Interview) => {
-    const base = toActivity(entry as unknown as ActivityLike);
-    if (!base) return;
-    const status = (entry as { status?: string }).status || 'scheduled';
-    items.push({
-      ...base,
-      type: 'interview',
-      title: `Interview ${status}`,
-      interviewStatus: status,
-      description: entry.notes,
-    });
-  });
-
-  items.push({
-    id: `app_${applicant._id}`,
-    type: 'application',
-    title: 'Application submitted',
-    timestamp: applicant.submittedAt || applicant.createdAt || new Date().toISOString(),
-    user: { name: applicant.fullName || 'Applicant' },
-  });
-
-  items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  return items;
-};
-
-const stringifyValue = (value: unknown): string => {
-  if (value === null || value === undefined) return '';
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-  try {
-    return JSON.stringify(value, null, 2);
-  } catch {
-    return toPlainString(value);
-  }
-};
-
-const humanizeKey = (key: string): string =>
-  String(key)
-    .replace(/[_-]+/g, ' ')
-    .replace(/\b\w/g, (c) => c.toUpperCase());
-
-const isStructuredAnswer = (value: unknown): value is { type?: string; answer?: unknown; value?: unknown } => {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-  const obj = value as Record<string, unknown>;
-  if (typeof obj.type !== 'string') return false;
-  return 'answer' in obj || 'value' in obj;
-};
-
-const isGroupLikeArray = (value: unknown): value is Record<string, unknown>[] =>
-  Array.isArray(value) &&
-  value.length > 0 &&
-  value.every((item) => item && typeof item === 'object' && !Array.isArray(item));
-
-const inferQuestionType = (key: string, value: unknown): string => {
-  if (isStructuredAnswer(value)) {
-    const t = (value as { type?: string }).type;
-    if (t) return t;
-  }
-  if (typeof value === 'number') return 'number';
-  if (typeof value === 'boolean') return 'checkbox';
-  if (Array.isArray(value)) return 'tags';
-
-  const lower = key.toLowerCase();
-  if (/(_at$|^.*_date$|date$|dob$|birth)/.test(lower)) return 'date';
-  if (lower.includes('email')) return 'email';
-  if (lower.includes('url') || lower.includes('link') || lower.includes('website')) return 'url';
-  if (
-    lower.includes('salary') ||
-    lower.includes('number') ||
-    lower.includes('count') ||
-    lower.includes('amount') ||
-    lower.includes('score')
-  )
-    return 'number';
-  if (
-    lower.includes('description') ||
-    lower.includes('notes') ||
-    lower.includes('responsibilit') ||
-    lower.includes('reason') ||
-    lower.includes('address')
-  )
-    return 'textarea';
-  return 'text';
-};
-
-const extractAnswer = (value: unknown): string => {
-  if (value === null || value === undefined) return '';
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-  if (isStructuredAnswer(value)) {
-    const a = (value as { answer?: unknown; value?: unknown }).answer;
-    if (a !== undefined) return stringifyValue(a);
-    const v = (value as { value?: unknown }).value;
-    if (v !== undefined) return stringifyValue(v);
-  }
-  return stringifyValue(value);
-};
-
-const buildLeafQuestion = (id: string, key: string, value: unknown): LeafQuestion => {
-  const type = inferQuestionType(key, value);
-  const text = humanizeKey(key);
-  const answer = extractAnswer(value);
-
-  switch (type) {
-    case 'textarea':
-      return { id, type: 'textarea', text, value: answer, rows: 3 };
-    case 'email':
-      return { id, type: 'email', text, value: answer };
-    case 'date':
-      return { id, type: 'date', text, value: answer };
-    case 'url':
-      return { id, type: 'url', text, value: answer };
-    case 'number': {
-      const num = Number(answer);
-      return { id, type: 'number', text, value: Number.isFinite(num) ? num : 0 };
-    }
-    case 'checkbox':
-      return { id, type: 'checkbox', text, checked: answer === 'true' || answer === '1' };
-    case 'radio':
-      return { id, type: 'radio', text, options: [], selectedValue: answer };
-    case 'dropdown':
-      return { id, type: 'dropdown', text, options: [], selectedValue: answer };
-    case 'tags': {
-      const values = Array.isArray(value)
-        ? value.map((v) => String(v)).filter(Boolean)
-        : answer
-          ? answer.split(',').map((v) => v.trim()).filter(Boolean)
-          : [];
-      return { id, type: 'tags', text, values };
-    }
-    case 'text':
-    default:
-      return { id, type: 'text', text, value: answer };
-  }
-};
-
-const buildCustomResponseSections = (applicant: Applicant | null | undefined): ResponseSection[] => {
-  if (!applicant) return [];
-
-  const raw: Record<string, unknown> =
-    (applicant.customResponses && typeof applicant.customResponses === 'object'
-      ? (applicant.customResponses as Record<string, unknown>)
-      : {}) || {};
-
-  const questions: Question[] = [];
-
-  Object.entries(raw).forEach(([key, value]) => {
-    if (value === null || value === undefined) return;
-    if (typeof value === 'string' && !value.trim()) return;
-    if (Array.isArray(value) && value.length === 0) return;
-
-    if (isGroupLikeArray(value)) {
-      value.forEach((item, index) => {
-        const groupId = `${key}_${index}`;
-        const subEntries = Object.entries(item).filter(([, v]) => {
-          if (v === null || v === undefined) return false;
-          if (typeof v === 'string' && !v.trim()) return false;
-          if (Array.isArray(v) && v.length === 0) return false;
-          return true;
-        });
-        if (subEntries.length === 0) return;
-        const subQuestions: LeafQuestion[] = subEntries.map(([subKey, subValue]) =>
-          buildLeafQuestion(`${groupId}_${subKey}`, subKey, subValue)
-        );
-        questions.push({
-          id: groupId,
-          type: 'group',
-          text: `Entry ${index + 1}`,
-          groupId,
-          groupName: `${humanizeKey(key)} #${index + 1}`,
-          questions: subQuestions,
-        });
-      });
-      return;
-    }
-
-    questions.push(buildLeafQuestion(key, key, value));
-  });
-
-  if (questions.length === 0) return [];
-
-  return [
-    {
-      id: 'applicant_responses',
-      title: 'Application Responses',
-      description: 'Custom field responses submitted with the application',
-      questions,
-    },
-  ];
-};
-
-export const normalizeSpecId = (value: unknown): string => {
-  if (!value) return '';
-  if (typeof value === 'string') return value;
-  if (typeof value === 'object') {
-    const obj = value as { _id?: string; id?: string };
-    return obj?._id || obj?.id || '';
-  }
-  return '';
-};
-
-export const buildJobSpecItems = (
-  applicant: Applicant | null | undefined,
-  fetchedJobPosition?: unknown,
-): JobSpecItem[] => {
-  if (!applicant) return [];
-
-  const applicantLike = applicant as unknown as {
-    jobPositionId?: JobSpecLike | string;
-    jobPosition?: JobSpecLike;
-    jobSpecsResponses?: JobSpecResponseLike[];
-    jobSpecsWithDetails?: JobSpecLike[];
-  };
-
-  const populatedJobPos: JobSpecLike | undefined =
-    typeof applicantLike.jobPositionId === 'object'
-      ? applicantLike.jobPositionId
-      : applicantLike.jobPosition;
-
-  if (populatedJobPos && typeof populatedJobPos === 'object') {
-    jobPositionsService.normalizeJobPosition(populatedJobPos);
-  }
-  jobPositionsService.normalizeJobPosition(applicantLike);
-
-  const detailFromFetched = (() => {
-    if (!fetchedJobPosition) return null;
-    const raw = fetchedJobPosition as { jobPosition?: JobSpecLike } & JobSpecLike;
-    return raw?.jobPosition ?? raw;
-  })();
-  if (detailFromFetched && typeof detailFromFetched === 'object') {
-    jobPositionsService.normalizeJobPosition(detailFromFetched);
-  }
-
-  const fetchedSpecs: JobSpecLike[] = Array.isArray(
-    (detailFromFetched as { jobSpecsWithDetails?: JobSpecLike[] } | undefined)?.jobSpecsWithDetails
-  )
-    ? (detailFromFetched as { jobSpecsWithDetails: JobSpecLike[] }).jobSpecsWithDetails
-    : [];
-
-  const applicantSpecs: JobSpecLike[] = Array.isArray(applicantLike.jobSpecsWithDetails)
-    ? applicantLike.jobSpecsWithDetails
-    : [];
-
-  // Source of truth: job position's specs (for spec text + IDs).
-  // Applicant specs used only for answers (matched by index since
-  // applicant.jobSpecsWithDetails.jobSpecId does NOT match jobPosition.jobSpecs._id).
-  const candidateSpecs: JobSpecLike[] =
-    fetchedSpecs.length > 0
-      ? fetchedSpecs
-      : Array.isArray(
-          (populatedJobPos as { jobSpecsWithDetails?: JobSpecLike[] } | undefined)?.jobSpecsWithDetails
-        ) && (populatedJobPos as { jobSpecsWithDetails: JobSpecLike[] }).jobSpecsWithDetails.length > 0
-        ? (populatedJobPos as { jobSpecsWithDetails: JobSpecLike[] }).jobSpecsWithDetails
-        : Array.isArray((populatedJobPos as { jobSpecs?: JobSpecLike[] } | undefined)?.jobSpecs)
-          ? (populatedJobPos as { jobSpecs: JobSpecLike[] }).jobSpecs
-          : applicantSpecs;
-
-  const answerMap = new Map<string, boolean>();
-  if (Array.isArray(applicantLike.jobSpecsResponses)) {
-    applicantLike.jobSpecsResponses.forEach((r) => {
-      const rawId = (r as { jobSpecId?: unknown; _id?: unknown; id?: unknown })?.jobSpecId
-        ?? (r as { _id?: unknown })?._id
-        ?? (r as { id?: unknown })?.id;
-      const specId = normalizeSpecId(rawId);
-      if (specId && !answerMap.has(specId)) {
-        answerMap.set(
-          specId,
-          typeof r?.answer === 'boolean' ? r.answer : Boolean(r?.answer),
-        );
-      }
-    });
-  }
-  if (Array.isArray(applicantLike.jobSpecsWithDetails)) {
-    applicantLike.jobSpecsWithDetails.forEach((s) => {
-      const rawId = s?.jobSpecId ?? s?._id ?? s?.id;
-      const specId = normalizeSpecId(rawId);
-      if (specId && !answerMap.has(specId)) {
-        answerMap.set(
-          specId,
-          typeof s?.answer === 'boolean' ? s.answer : Boolean(s?.answer),
-        );
-      }
-    });
-  }
-
-  const collectWeights = (source: JobSpecLike[] | undefined) => {
-    if (!Array.isArray(source)) return;
-    source.forEach((s) => {
-      const specId = normalizeSpecId(s?.jobSpecId ?? s?._id ?? s?.id);
-      if (specId && !weightMap.has(specId)) {
-        weightMap.set(specId, Number(s?.weight ?? 0));
-      }
-    });
-  };
-
-  const weightMap = new Map<string, number>();
-  collectWeights(fetchedSpecs);
-  collectWeights(
-    Array.isArray(applicantLike.jobSpecsWithDetails) ? applicantLike.jobSpecsWithDetails : undefined,
-  );
-  collectWeights(
-    Array.isArray(
-      (populatedJobPos as { jobSpecsWithDetails?: JobSpecLike[] } | undefined)?.jobSpecsWithDetails
-    )
-      ? (populatedJobPos as { jobSpecsWithDetails: JobSpecLike[] }).jobSpecsWithDetails
-      : undefined,
-  );
-
-  // Build answer list indexed by position so we can match by index
-  // (applicant.jobSpecsWithDetails.jobSpecId does NOT match jobPosition.jobSpecs._id)
-  const applicantAnswersByIndex: boolean[] = [];
-  if (Array.isArray(applicantLike.jobSpecsWithDetails)) {
-    applicantLike.jobSpecsWithDetails.forEach((s) => {
-      applicantAnswersByIndex.push(
-        typeof s?.answer === 'boolean' ? s.answer : Boolean(s?.answer),
-      );
-    });
-  }
-
-  return candidateSpecs.map((s, index) => {
-    const specId =
-      normalizeSpecId(s?.jobSpecId ?? s?._id ?? s?.id) || `spec_${index}`;
-    const weight = weightMap.has(specId)
-      ? weightMap.get(specId)!
-      : Number(s?.weight ?? 0);
-    // Try answer lookup by specId first, then fall back to index
-    const answer =
-      answerMap.get(specId) ??
-      applicantAnswersByIndex[index] ??
-      false;
-    return {
-      _id: String(s?._id || `${specId}_${index}`),
-      id: specId,
-      jobSpecId: specId,
-      answer,
-      spec: {
-        en: toPlainString(
-          (typeof s?.spec === 'object' && s?.spec !== null ? s.spec.en : s?.spec) ??
-            s?.title ??
-            s?.label ??
-            s?.name ??
-            'Specification'
-        ),
-      },
-      weight,
-    };
-  });
-};
+import { getErrorMessage } from '../../../utils/errorHandler';
+import {
+  buildCustomResponseSections,
+  extractCustomFieldsFromJobPosition,
+} from './utils/customResponseUtils';
+import { buildActivities } from './utils/activityUtils';
+import { buildJobSpecItems } from './utils/jobSpecUtils';
+import type { JobSpecItem } from '../../../types/applicants';
 
 const ApplicantDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  const { data: applicant, isLoading, isError, error, refetch } = useApplicant(id || '');
+  const { data: applicant, isLoading: isApplicantLoading, isFetching: isApplicantFetching, isError, error, refetch } = useApplicant(id || '');
   const updateApplicant = useUpdateApplicant();
   const updateStatus = useUpdateApplicantStatus();
   const addComment = useAddComment();
   const deleteApplicant = useDeleteApplicant();
+  const scheduleInterviewMutation = useScheduleInterview();
+  const updateInterviewStatusMutation = useUpdateInterviewStatus();
 
   const applicantJobPositionId = useMemo(() => {
     if (!applicant) return '';
@@ -481,16 +68,369 @@ const ApplicantDetails: React.FC = () => {
     return '';
   }, [applicant]);
 
-  const { data: fetchedJobPosition } = useJobPosition(applicantJobPositionId, {
+  const applicantCompanyId = useMemo(() => {
+    if (!applicant) return '';
+    const cId = (applicant as unknown as { companyId?: unknown }).companyId;
+    if (typeof cId === 'string') return cId;
+    if (cId && typeof cId === 'object') {
+      const obj = cId as { _id?: string; id?: string };
+      return obj?._id || obj?.id || '';
+    }
+    return '';
+  }, [applicant]);
+
+  const { data: fetchedJobPosition, isLoading: isJobPositionLoading, isFetching: isJobPositionFetching } = useJobPosition(applicantJobPositionId, {
     enabled: !!applicantJobPositionId,
     useInitialData: false,  // bypass stale list cache to ensure jobSpecs (with weights) are present
   });
+  const jobCustomFields = useMemo<unknown[]>(
+    () => extractCustomFieldsFromJobPosition(fetchedJobPosition),
+    [fetchedJobPosition],
+  );
+  const { data: fetchedCompany, isLoading: isCompanyLoading, isFetching: isCompanyFetching} = useCompany(applicantCompanyId, {
+    enabled: !!applicantCompanyId,
+  });
+
+  // Also load the list (super admin has empty user.companies, so useCompanies() calls the list endpoint).
+  // The list response carries the full `address` array, which the detail endpoint omits.
+  const { data: companiesList = [] } = useCompanies();
+  const companyFromList = useMemo(() => {
+    if (!applicantCompanyId) return null;
+    return companiesList.find((c: any) => c?._id === applicantCompanyId) ?? null;
+  }, [companiesList, applicantCompanyId]);
+
+  const companyWithAddress = useMemo(() => {
+    if (!fetchedCompany && !companyFromList) return null;
+    const detail: any = fetchedCompany || {};
+    const list: any = companyFromList || {};
+    const merged: any = { ...list, ...detail };
+
+    // Address: prefer detail if non-empty, else fall back to list
+    const detailHasAddress = Array.isArray(detail.address) && detail.address.length > 0;
+    const listHasAddress = Array.isArray(list.address) && list.address.length > 0;
+    if (detailHasAddress) {
+      merged.address = detail.address;
+    } else if (listHasAddress) {
+      merged.address = list.address;
+    } else if (detail.address !== undefined) {
+      merged.address = detail.address;
+    } else if (list.address !== undefined) {
+      merged.address = list.address;
+    }
+
+    if (!merged.addresses && list.addresses) {
+      merged.addresses = list.addresses;
+    }
+    if (!merged.settings && list.settings) {
+      merged.settings = list.settings;
+    }
+    if (!merged.location && list.location) {
+      merged.location = list.location;
+    }
+    if (!merged.locations && list.locations) {
+      merged.locations = list.locations;
+    }
+    if (!merged.officeAddress && list.officeAddress) {
+      merged.officeAddress = list.officeAddress;
+    }
+    return merged;
+  }, [fetchedCompany, companyFromList]);
 
   const [comment, setComment] = useState('');
+  const [commentForm, setCommentForm] = useState({ text: '' });
+  const [commentError, setCommentError] = useState('');
   const [activeTab, setActiveTab] = useState<'details' | 'interview' | 'history'>('details');
   const [isEditing, setIsEditing] = useState(false);
   const [editedApplicant, setEditedApplicant] = useState<Partial<Applicant> | null>(null);
   const [editedSections, setEditedSections] = useState<ResponseSection[]>([]);
+  const [editedSpecAnswers, setEditedSpecAnswers] = useState<Record<string, boolean>>({});
+
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [statusForm, setStatusForm] = useState<{ status: string; notes?: string; reasons?: string[] }>({
+    status: '',
+    notes: '',
+    reasons: [],
+  });
+  const [statusError, setStatusError] = useState('');
+  const [showCommentModal, setShowCommentModal] = useState(false);
+  const [showMessageModal, setShowMessageModal] = useState(false);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showInterviewSettingsModal, setShowInterviewSettingsModal] = useState(false);
+  const [selectedInterview, setSelectedInterview] = useState<Interview | null>(null);
+  const [autoSelectInterviewId, setAutoSelectInterviewId] = useState<string | null>(null);
+
+  const [formResetKey, setFormResetKey] = useState(0);
+  const [interviewForm, setInterviewForm] = useState<{
+    date: string;
+    time: string;
+    description: string;
+    comment: string;
+    location: string;
+    link: string;
+    type: 'phone' | 'video' | 'in-person';
+    conductedBy?: string;
+  }>({
+    date: '',
+    time: '',
+    description: '',
+    comment: '',
+    location: '',
+    link: '',
+    type: 'phone',
+  });
+  const [interviewError, setInterviewError] = useState('');
+  const [isSubmittingInterview, setIsSubmittingInterview] = useState(false);
+  const [notificationChannels, setNotificationChannels] = useState({
+    email: true,
+    sms: false,
+    whatsapp: false,
+  });
+  const [emailOption, setEmailOption] = useState<'company' | 'user' | 'custom' | 'new'>(
+    'company'
+  );
+  const [customEmail, setCustomEmail] = useState('');
+  const [phoneOption, setPhoneOption] = useState<
+    'company' | 'user' | 'whatsapp' | 'custom'
+  >('company');
+  const [customPhone, setCustomPhone] = useState('');
+  const [messageTemplate, setMessageTemplate] = useState('');
+  const [interviewEmailSubject, setInterviewEmailSubject] = useState('Interview Invitation');
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState('');
+
+  useEffect(() => {
+    if (showStatusModal && applicant) {
+      setStatusForm({
+        status: applicant.status || '',
+        notes: '',
+        reasons: [],
+      });
+      setStatusError('');
+    }
+  }, [showStatusModal, applicant]);
+
+  const openInterviewSettings = () => {
+    if (applicant?.interviews && applicant.interviews.length > 0) {
+      setSelectedInterview(applicant.interviews[0] || null);
+    } else {
+      setSelectedInterview(null);
+    }
+    setShowInterviewSettingsModal(true);
+  };
+
+  const getJobTitle = (): { en: string } => {
+    if (!applicant) return { en: '' };
+    const jobPos =
+      fetchedJobPosition ||
+      (typeof applicant.jobPositionId === 'object'
+        ? (applicant.jobPositionId as unknown as { _id?: string; title?: unknown })
+        : null);
+    if (jobPos && (jobPos as { title?: unknown }).title) {
+      const title = (jobPos as { title?: unknown }).title;
+      if (typeof title === 'string') return { en: title };
+      if (typeof title === 'object' && (title as { en?: string })?.en) {
+        return { en: (title as { en?: string }).en || '' };
+      }
+    }
+    return { en: '' };
+  };
+
+  const fillCompanyAddress = (): boolean => {
+    try {
+      const resolved = resolveCompanyAddress(companyWithAddress);
+      if (resolved && resolved.trim()) {
+        setInterviewForm((prev) => ({ ...prev, location: resolved.trim() }));
+        return true;
+      }
+      return false;
+    } catch (e) {
+      void e;
+      return false;
+    }
+  };
+
+  const escapeHtml = (s: string): string =>
+    String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+
+  const buildInterviewEmailHtml = (opts: {
+    subject: string;
+    jobTitle: string;
+    rawMessage: string;
+    applicantName?: string;
+  }): string => {
+    const { subject, rawMessage, applicantName, jobTitle } = opts;
+    const replacements: Record<string, string> = {
+      '{{candidateName}}': applicantName || 'Candidate',
+      '{{jobTitle}}': jobTitle || '',
+    };
+    const tokens = Object.keys(replacements);
+    let processedSubject = subject;
+    let processedBody = rawMessage || '';
+    tokens.forEach((token) => {
+      const value = replacements[token];
+      const variants = [
+        token,
+        token.toLowerCase(),
+        token.charAt(0).toUpperCase() + token.slice(1).toLowerCase(),
+        token.toLowerCase().replace(/\s/g, ''),
+      ];
+      variants.forEach((v) => {
+        const regex = new RegExp(v.replace(/[{}]/g, '\\$&'), 'gi');
+        processedSubject = processedSubject.replace(regex, value);
+        processedBody = processedBody.replace(regex, value);
+      });
+    });
+
+    const urlRegex = /(https?:\/\/[^\s<]+|www\.[^\s<]+)/gi;
+    processedBody = processedBody.replace(urlRegex, (url) => {
+      const href = url.toLowerCase().startsWith('http') ? url : `https://${url}`;
+      return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" style="color:#3b82f6;text-decoration:underline;">${escapeHtml(url)}</a>`;
+    });
+
+    const sanitized = processedBody;
+    const hasHtml = sanitized.indexOf('<') !== -1;
+    const bodyHtml = hasHtml
+      ? sanitized
+      : sanitized
+          .split(/\r?\n/)
+          .map((p) => p.trim())
+          .filter((p) => p.length > 0)
+          .map((p) => `<p style="margin:0 0 12px;color:#444;">${escapeHtml(p)}</p>`)
+          .join('');
+
+    return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${escapeHtml(processedSubject)}</title>
+</head>
+<body style="font-family: Arial, sans-serif; padding: 20px; margin: 0; background-color: #f5f5f5;">
+  <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden;">
+    <div style="background-color: #ffffff; border-bottom: 1px solid #e5e7eb; padding: 24px 30px; text-align: center;">
+      <h1 style="color: #111827; margin: 0; font-size: 22px; font-weight: 700;">${escapeHtml(processedSubject)}</h1>
+    </div>
+    <div style="padding: 30px;">
+      <div style="font-size: 16px; line-height: 1.6; color: #444;">${bodyHtml}</div>
+    </div>
+  </div>
+</body>
+</html>`;
+  };
+
+  const handleScheduleInterviewSubmit = async () => {
+    if (!id || !applicant) return;
+    setIsSubmittingInterview(true);
+    try {
+      let scheduledAt: string | undefined;
+      if (interviewForm.date && interviewForm.time) {
+        const [year, month, day] = interviewForm.date.split('-').map(Number);
+        const [hours, minutes] = interviewForm.time.split(':').map(Number);
+        const pad = (n: number) => String(n).padStart(2, '0');
+        scheduledAt = `${year}-${pad(month)}-${pad(day)}T${pad(hours)}:${pad(minutes)}:00`;
+      } else if (interviewForm.date) {
+        scheduledAt = `${interviewForm.date}T00:00:00`;
+      }
+
+      const interviewData: ScheduleInterviewRequest = {
+        scheduledAt,
+        description: interviewForm.description || undefined,
+        type: interviewForm.type || undefined,
+        location: interviewForm.location || undefined,
+        videoLink: interviewForm.link || undefined,
+        notes: interviewForm.comment || undefined,
+        conductedBy: interviewForm.conductedBy || undefined,
+        status: 'scheduled',
+      };
+
+      const result = await scheduleInterviewMutation.mutateAsync({ id, data: interviewData });
+      const updatedApplicant = result as { interviews?: Interview[] } | undefined;
+      const created = (updatedApplicant?.interviews || [])
+        .slice()
+        .sort((a, b) => {
+          const aTime = new Date(a.createdAt || a.scheduledAt || 0).getTime();
+          const bTime = new Date(b.createdAt || b.scheduledAt || 0).getTime();
+          return bTime - aTime;
+        })[0];
+
+      setInterviewForm({
+        date: '',
+        time: '',
+        description: '',
+        comment: '',
+        location: '',
+        link: '',
+        type: 'phone',
+      });
+      setNotificationChannels({ email: true, sms: false, whatsapp: false });
+      setEmailOption('company');
+      setCustomEmail('');
+      setPhoneOption('company');
+      setCustomPhone('');
+      setMessageTemplate('');
+      setInterviewEmailSubject('Interview Invitation');
+      setFormResetKey((prev) => prev + 1);
+      setShowScheduleModal(false);
+
+      setActiveTab('interview');
+      if (created && (created._id || created.id)) {
+        setAutoSelectInterviewId(String(created._id || created.id));
+      }
+    } catch (err) {
+      const msg = getErrorMessage(err);
+      setInterviewError(msg);
+    } finally {
+      setIsSubmittingInterview(false);
+    }
+  };
+
+  const handleStatusSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id || !statusForm.status) {
+      setStatusError('Please select a status before submitting.');
+      return;
+    }
+    try {
+      const payload: { status: string; notes?: string; reasons?: string[] } = {
+        status: statusForm.status,
+      };
+      if (statusForm.notes && statusForm.notes.trim()) payload.notes = statusForm.notes.trim();
+      if (statusForm.status === 'rejected' && statusForm.reasons && statusForm.reasons.length) {
+        payload.reasons = statusForm.reasons;
+      }
+      await updateStatus.mutateAsync({ id, data: payload });
+      setShowStatusModal(false);
+    } catch {
+      // toast handled by mutation
+    }
+  };
+
+  const handleCommentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!commentForm.text.trim() || !id) {
+      setCommentError('Please enter a comment.');
+      return;
+    }
+    try {
+      await addComment.mutateAsync({ id, data: { comment: commentForm.text.trim() } });
+      setCommentForm({ text: '' });
+      setCommentError('');
+      setShowCommentModal(false);
+    } catch {
+      // toast handled by mutation
+    }
+  };
+
+  const openCommentModal = () => {
+    setCommentForm({ text: comment || '' });
+    setCommentError('');
+    setShowCommentModal(true);
+  };
 
   useEffect(() => {
     if (applicant) {
@@ -502,19 +442,34 @@ const ApplicantDetails: React.FC = () => {
         phone: applicant.phone,
         address: applicant.address,
       });
-      setEditedSections(buildCustomResponseSections(applicant));
+      setEditedSections(buildCustomResponseSections(applicant, jobCustomFields));
+      const specs = buildJobSpecItems(applicant, fetchedJobPosition);
+      const initial: Record<string, boolean> = {};
+      specs.forEach((s) => {
+        initial[s.id] = s.answer;
+      });
+      setEditedSpecAnswers(initial);
     }
-  }, [applicant]);
+  }, [applicant, jobCustomFields, fetchedJobPosition]);
 
   const activities = useMemo<Activity[]>(() => buildActivities(applicant), [applicant]);
   const sections = useMemo<ResponseSection[]>(
-    () => (isEditing ? editedSections : buildCustomResponseSections(applicant)),
-    [isEditing, editedSections, applicant]
+    () => (isEditing ? editedSections : buildCustomResponseSections(applicant, jobCustomFields)),
+    [isEditing, editedSections, applicant, jobCustomFields]
   );
-  const jobSpecItems = useMemo<JobSpecItem[]>(
-    () => buildJobSpecItems(applicant, fetchedJobPosition),
-    [applicant, fetchedJobPosition],
-  );
+  const jobSpecItems = useMemo<JobSpecItem[]>(() => {
+    const base = buildJobSpecItems(applicant, fetchedJobPosition);
+    if (!isEditing) return base;
+    return base.map((item) =>
+      Object.prototype.hasOwnProperty.call(editedSpecAnswers, item.id)
+        ? { ...item, answer: editedSpecAnswers[item.id] }
+        : item,
+    );
+  }, [applicant, fetchedJobPosition, isEditing, editedSpecAnswers]);
+
+  const handleSpecAnswerChange = (specId: string, answer: boolean) => {
+    setEditedSpecAnswers((prev) => ({ ...prev, [specId]: answer }));
+  };
 
   const handleAddComment = async () => {
     if (!comment.trim() || !id) return;
@@ -548,16 +503,64 @@ const ApplicantDetails: React.FC = () => {
       if (Object.keys(editedApplicant || {}).length > 0) {
         Object.assign(payload, editedApplicant);
       }
+
+      const readLeafValue = (q: { type?: string; value?: unknown; selectedValue?: unknown; checked?: unknown; values?: unknown }): unknown => {
+        switch (q.type) {
+          case 'dropdown':
+          case 'radio':
+            return q.selectedValue ?? '';
+          case 'checkbox':
+            return Boolean(q.checked);
+          case 'tags':
+            return Array.isArray(q.values) ? q.values : [];
+          default:
+            return q.value ?? '';
+        }
+      };
+
       const customResponses: Record<string, unknown> = {};
       editedSections.forEach((section) => {
+        const groups = new Map<string, Record<string, unknown>[]>();
         section.questions.forEach((q) => {
-          if (q?.id) customResponses[q.id] = (q as { value?: unknown }).value ?? '';
+          if (!q) return;
+          if (q.type === 'group' && 'groupId' in q && typeof (q as { groupId?: string }).groupId === 'string') {
+            const group = q as { groupId: string; questions?: Array<{ id: string; type?: string; value?: unknown; selectedValue?: unknown; checked?: unknown; values?: unknown }> };
+            const groupKey = group.groupId.replace(/_\d+$/, '');
+            const entry: Record<string, unknown> = {};
+            (group.questions || []).forEach((sq) => {
+              const subKey = sq.id.startsWith(group.groupId + '_')
+                ? sq.id.slice(group.groupId.length + 1)
+                : sq.id;
+              entry[subKey] = readLeafValue(sq);
+            });
+            const arr = groups.get(groupKey) ?? [];
+            arr.push(entry);
+            groups.set(groupKey, arr);
+            return;
+          }
+          const leaf = q as { id: string; type?: string; value?: unknown; selectedValue?: unknown; checked?: unknown; values?: unknown };
+          if (!leaf.id) return;
+          customResponses[leaf.id] = readLeafValue(leaf);
+        });
+        groups.forEach((entries, key) => {
+          customResponses[key] = entries.length === 1 ? entries[0] : entries;
         });
       });
       if (Object.keys(customResponses).length > 0) {
         payload.customResponses = customResponses;
       }
+
+      const jobSpecsResponses = Object.entries(editedSpecAnswers).map(([jobSpecId, answer]) => ({
+        jobSpecId,
+        answer,
+      }));
+      if (jobSpecsResponses.length > 0) {
+        payload.jobSpecsResponses = jobSpecsResponses;
+      }
+
       await updateApplicant.mutateAsync({ id, data: payload as Parameters<typeof updateApplicant.mutateAsync>[0]['data'] });
+      setEditedApplicant(null);
+      setEditedSpecAnswers({});
       setIsEditing(false);
     } catch {
       // toast handled by mutation
@@ -575,7 +578,13 @@ const ApplicantDetails: React.FC = () => {
         phone: applicant.phone,
         address: applicant.address,
       });
-      setEditedSections(buildCustomResponseSections(applicant));
+      setEditedSections(buildCustomResponseSections(applicant, jobCustomFields));
+      const specs = buildJobSpecItems(applicant, fetchedJobPosition);
+      const reset: Record<string, boolean> = {};
+      specs.forEach((s) => {
+        reset[s.id] = s.answer;
+      });
+      setEditedSpecAnswers(reset);
     }
   };
 
@@ -600,16 +609,13 @@ const ApplicantDetails: React.FC = () => {
     }
   };
 
-  const handleStatusChange = async (newStatus: string) => {
-    if (!id || !applicant || applicant.status === newStatus) return;
-    try {
-      await updateStatus.mutateAsync({ id, data: { status: newStatus } });
-    } catch {
-      // toast handled by mutation
-    }
-  };
+  const isPageLoading =
+    isApplicantLoading ||
+    isApplicantFetching ||
+    (!!applicantJobPositionId && (isJobPositionLoading || isJobPositionFetching)) ||
+    (!!applicantCompanyId && (isCompanyLoading || isCompanyFetching));
 
-  if (isLoading) {
+  if (isPageLoading) {
     return (
       <div className="bg-gray-50 min-h-screen flex items-center justify-center">
         <LoadingSpinner />
@@ -647,43 +653,32 @@ const ApplicantDetails: React.FC = () => {
   return (
     <div className="bg-gray-50 min-h-screen p-6">
       <div className="max-w-8xl mx-auto">
-        <div className="mb-6">
+        <div className="mb-4">
           <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
             <span>Applicants</span>
             <span>-›</span>
             <span className="text-gray-800">{applicant.fullName || 'Applicant Details'}</span>
           </div>
-          <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-gray-900">
-              {applicant.fullName || 'Applicant Details'}
-            </h1>
-            <div className="flex gap-3">
-              <button
-                onClick={handleEdit}
-                disabled={updateApplicant.isPending}
-                className={`px-4 py-2 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 ${
-                  isEditing ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'
-                }`}
-              >
-                {isEditing ? (updateApplicant.isPending ? 'Saving...' : 'Save') : 'Edit'}
-              </button>
-              {isEditing && (
-                <button
-                  onClick={handleCancel}
-                  className="px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors"
-                >
-                  Cancel
-                </button>
-              )}
-              <button
-                onClick={handleDelete}
-                disabled={deleteApplicant.isPending}
-                className="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
-              >
-                {deleteApplicant.isPending ? 'Deleting...' : 'Delete'}
-              </button>
-            </div>
-          </div>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {applicant.fullName || 'Applicant Details'}
+          </h1>
+        </div>
+
+        <div className="mb-6">
+          <ApplicantActionsToolbar
+            applicant={applicant}
+            isEditing={isEditing}
+            isSubmitting={updateApplicant.isPending}
+            isDeleting={deleteApplicant.isPending}
+            onEdit={handleEdit}
+            onCancelEdit={handleCancel}
+            onChangeStatus={() => setShowStatusModal(true)}
+            onScheduleInterview={() => setShowScheduleModal(true)}
+            onSendMessage={() => setShowMessageModal(true)}
+            onAddComment={openCommentModal}
+            onOpenInterviewSettings={openInterviewSettings}
+            onDelete={handleDelete}
+          />
         </div>
 
         <div className="flex border-b border-gray-200 mb-6">
@@ -728,7 +723,6 @@ const ApplicantDetails: React.FC = () => {
                   isEditing={isEditing}
                   editedApplicant={editedApplicant}
                   onChange={setEditedApplicant}
-                  onStatusChange={handleStatusChange}
                 />
               </div>
               <div className="flex-1 space-y-6">
@@ -752,7 +746,12 @@ const ApplicantDetails: React.FC = () => {
                   </div>
                 </div>
                 <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
-                  <JobSpec specs={jobSpecItems} jobPosition={fetchedJobPosition} />
+                  <JobSpec
+                    specs={jobSpecItems}
+                    jobPosition={fetchedJobPosition}
+                    editable={isEditing}
+                    onSpecChange={handleSpecAnswerChange}
+                  />
                 </div>
               </div>
             </div>
@@ -769,14 +768,141 @@ const ApplicantDetails: React.FC = () => {
           </>
         ) : activeTab === 'interview' ? (
           <div className="mb-6">
-            <InterviewQuestions applicantId={id} />
+            <InterviewQuestions
+              applicantId={id}
+              onRequestScheduleInterview={() => setShowScheduleModal(true)}
+              autoSelectInterviewId={autoSelectInterviewId}
+            />
           </div>
         ) : (
           <div className="mb-6">
-            <History applicant={applicant} loading={isLoading} />
+            <History applicant={applicant} loading={isApplicantLoading} />
           </div>
         )}
       </div>
+
+      <StatusChangeModal
+        isOpen={showStatusModal}
+        onClose={() => {
+          if (updateStatus.isPending) return;
+          setShowStatusModal(false);
+          setStatusError('');
+        }}
+        statusForm={statusForm}
+        setStatusForm={setStatusForm}
+        statusError={statusError}
+        setStatusError={setStatusError}
+        handleStatusChange={handleStatusSubmit}
+        isSubmittingStatus={updateStatus.isPending}
+        companyId={applicantCompanyId}
+        companySettings={companyWithAddress}
+        jobIds={applicantJobPositionId ? [applicantJobPositionId] : []}
+        jobs={fetchedJobPosition ? [fetchedJobPosition] : []}
+      />
+
+      <CommentModal
+        isOpen={showCommentModal}
+        onClose={() => {
+          if (addComment.isPending) return;
+          setShowCommentModal(false);
+          setCommentError('');
+        }}
+        commentForm={commentForm}
+        setCommentForm={setCommentForm}
+        commentError={commentError}
+        setCommentError={setCommentError}
+        handleCommentSubmit={handleCommentSubmit}
+        isSubmittingComment={addComment.isPending}
+      />
+
+      <MessageModal
+        isOpen={showMessageModal}
+        onClose={() => setShowMessageModal(false)}
+        applicant={applicant}
+        id={id || ''}
+        company={companyWithAddress}
+      />
+
+      <InterviewScheduleModal
+        isOpen={showScheduleModal}
+        onClose={() => {
+          if (isSubmittingInterview) return;
+          setShowScheduleModal(false);
+        }}
+        formResetKey={formResetKey}
+        interviewForm={interviewForm}
+        setInterviewForm={setInterviewForm}
+        interviewError={interviewError}
+        setInterviewError={setInterviewError}
+        handleInterviewSubmit={handleScheduleInterviewSubmit}
+        fillCompanyAddress={fillCompanyAddress}
+        notificationChannels={notificationChannels}
+        setNotificationChannels={setNotificationChannels}
+        emailOption={emailOption}
+        setEmailOption={setEmailOption}
+        customEmail={customEmail}
+        setCustomEmail={setCustomEmail}
+        phoneOption={phoneOption}
+        setPhoneOption={setPhoneOption}
+        customPhone={customPhone}
+        setCustomPhone={setCustomPhone}
+        messageTemplate={messageTemplate}
+        setMessageTemplate={setMessageTemplate}
+        interviewEmailSubject={interviewEmailSubject}
+        setInterviewEmailSubject={setInterviewEmailSubject}
+        isSubmittingInterview={isSubmittingInterview}
+        setIsSubmittingInterview={setIsSubmittingInterview}
+        setShowPreviewModal={setShowPreviewModal}
+        setPreviewHtml={setPreviewHtml}
+        buildInterviewEmailHtml={buildInterviewEmailHtml}
+        getJobTitle={getJobTitle}
+        applicant={applicant}
+        companyData={companyWithAddress}
+      />
+
+      <Modal
+        isOpen={showPreviewModal}
+        onClose={() => {
+          setShowPreviewModal(false);
+          setPreviewHtml('');
+        }}
+        className="max-w-2xl p-6"
+      >
+        <div className="space-y-4">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Email Preview</h2>
+          <div
+            className="border rounded p-4 bg-white dark:bg-gray-800"
+            style={{ maxHeight: '70vh', overflow: 'auto' }}
+          >
+            <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
+          </div>
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => {
+                setShowPreviewModal(false);
+                setPreviewHtml('');
+              }}
+              className="rounded-lg bg-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-300"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <InterviewSettingsModal
+        isOpen={showInterviewSettingsModal}
+        onClose={() => {
+          setShowInterviewSettingsModal(false);
+          setSelectedInterview(null);
+        }}
+        applicant={applicant}
+        selectedInterview={selectedInterview}
+        setSelectedInterview={setSelectedInterview}
+        setShowInterviewSettingsModal={setShowInterviewSettingsModal}
+        updateInterviewMutation={updateInterviewStatusMutation}
+      />
     </div>
   );
 };

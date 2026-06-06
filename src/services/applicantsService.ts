@@ -426,6 +426,16 @@ class ApplicantsService {
     );
   }
 
+  async deleteInterview(
+    applicantId: string,
+    interviewId: string
+  ): Promise<Applicant> {
+    return this.request<Applicant>(
+      'delete',
+      `/applicants/${applicantId}/interviews/${interviewId}`
+    );
+  }
+
   async batchUpdateStatus(
     updates: Array<{
       applicantId: string;

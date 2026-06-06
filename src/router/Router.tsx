@@ -45,9 +45,6 @@ const ApplicantDynamicPage = lazy(
 const ApplicantDetails = lazy(
   () => import('../pages/Recruiting/ApplicantPage/ApplicantDetails')
 );
-const ApplicantData = lazy(
-  () => import('../pages/Recruiting/applicants/ApplicantPage/ApplicantData')
-);
 const MailPreview = lazy(
   () => import('../pages/Recruiting/applicants/MailPreview')
 );
@@ -171,12 +168,8 @@ export default function App() {
                 element={<ApplicantDynamicPage />}
               />
               <Route
-                path={patterns.applicants.new}
-                element={<ApplicantDetails />}
-              />
-              <Route
                 path={patterns.applicants.details}
-                element={<ApplicantData />} />
+                element={<ApplicantDetails />} />
               <Route
                 element={
                   <PermissionProtectedRoute

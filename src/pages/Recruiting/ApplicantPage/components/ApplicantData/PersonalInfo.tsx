@@ -1,6 +1,5 @@
 import React from 'react';
 import type { Applicant, ApplicantView, PersonalInfoProps } from '../../../../../types/applicants';
-import { useStatusSettings } from '../../../../../hooks/useStatusSettings';
 import { toPlainString } from '../../../../../utils/strings';
 
 const buildResumeUrl = (raw?: string): string | null => {
@@ -32,7 +31,6 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
   isEditing = false,
   editedApplicant,
   onChange,
-  onStatusChange,
 }) => {
   const data: ApplicantView = {
     ...(applicant as ApplicantView),
@@ -46,12 +44,6 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
   );
   const resumeUrl = buildResumeUrl(data.cvFilePath || data.resume);
   const submittedAt = data.submittedAt || data.createdAt;
-  const { statusOptions: statusChoices } = useStatusSettings(
-    typeof data.companyId === 'string' ? data.companyId : data.companyId?._id ?? undefined
-  );
-  const statusOptions = statusChoices
-    .map((s: { value?: string; label?: string }) => s.value || s.label)
-    .filter(Boolean) as string[];
 
   const handleField =
     (field: keyof Applicant) =>
@@ -98,23 +90,9 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
 
         <div className="flex justify-between items-center mb-3">
           <span className="text-sm font-semibold text-gray-800">Details</span>
-          {isEditing && onStatusChange ? (
-            <select
-              value={data.status || ''}
-              onChange={(e) => onStatusChange(e.target.value)}
-              className="text-xs font-medium rounded-full bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-400"
-            >
-              {(statusOptions.length > 0 ? statusOptions : [data.status || 'new']).map((s: string) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700">
-              {data.status || 'Status'}
-            </span>
-          )}
+          <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700">
+            {data.status || 'Status'}
+          </span>
         </div>
 
         <div className="border-t border-gray-200 mb-5 mt-5" />

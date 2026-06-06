@@ -1,10 +1,10 @@
 import React from 'react';
-import { 
-  MessageSquare, 
-  User, 
-  CheckCircle, 
-  Clock, 
-  FileText, 
+import {
+  MessageSquare,
+  User,
+  CheckCircle,
+  Clock,
+  FileText,
   Briefcase,
   Mail,
   Bell,
@@ -13,60 +13,7 @@ import {
 import type { Activity, ActivityFeedProps } from '../../../../types/applicants';
 
 const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities }) => {
-  const defaultActivities: Activity[] = [
-    {
-      id: '1',
-      type: 'comment',
-      title: 'New comment added',
-      timestamp: new Date().toISOString(),
-      user: {
-        name: 'Sarah Johnson',
-      },
-      comment: 'The candidate has excellent experience in React and TypeScript. Moving to technical interview phase.',
-    },
-    {
-      id: '2',
-      type: 'status_change',
-      title: 'Application status changed',
-      timestamp: new Date(Date.now() - 86400000).toISOString(),
-      user: {
-        name: 'Michael Chen',
-      },
-      status: 'Under Review → Technical Interview',
-    },
-    {
-      id: '3',
-      type: 'task',
-      title: 'New task assigned',
-      timestamp: new Date(Date.now() - 172800000).toISOString(),
-      user: {
-        name: 'Emma Watson',
-      },
-      description: 'Review portfolio and GitHub repositories',
-    },
-    {
-      id: '4',
-      type: 'document',
-      title: 'Document uploaded',
-      timestamp: new Date(Date.now() - 259200000).toISOString(),
-      user: {
-        name: 'Max Smith',
-      },
-      description: 'Resume_2024.pdf',
-    },
-    {
-      id: '5',
-      type: 'email',
-      title: 'Email sent to candidate',
-      timestamp: new Date(Date.now() - 345600000).toISOString(),
-      user: {
-        name: 'David Miller',
-      },
-      description: 'Interview invitation for Senior Frontend Developer position',
-    },
-  ];
-
-  const data = activities || defaultActivities;
+  const data: Activity[] = Array.isArray(activities) ? activities : [];
 
   const getIcon = (type: Activity['type']) => {
     switch (type) {
@@ -116,7 +63,13 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities }) => {
       </div>
 
       <div className="divide-y divide-gray-100">
-        {data.map((activity) => (
+        {data.length === 0 ? (
+          <div className="p-8 text-center">
+            <Clock className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+            <p className="text-sm text-gray-500">No activity yet.</p>
+            <p className="text-xs text-gray-400 mt-1">Comments, status changes, and other updates will appear here.</p>
+          </div>
+        ) : data.map((activity) => (
           <div key={activity.id} className="p-5 hover:bg-gray-50 transition-colors">
             {/* Header with icon, title, and timestamp */}
             <div className="flex items-start justify-between mb-3">

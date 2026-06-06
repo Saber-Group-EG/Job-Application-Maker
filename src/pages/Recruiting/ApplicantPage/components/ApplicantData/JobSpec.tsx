@@ -2,12 +2,10 @@ import React, { useMemo } from 'react';
 import { Layers, CheckCircle2, XCircle, AlertCircle, Percent } from 'lucide-react';
 import type { JobSpecItem, JobSpecProps } from '../../../../../types/applicants';
 
-const COLORS = [
-  { bg: 'bg-white', text: 'text-[#FBBF24]', border: 'border-[#FEF3C7]', iconBg: 'bg-[#FEF3C7]' },
-  { bg: 'bg-white', text: 'text-[#22C55E]', border: 'border-[#DCFCE7]', iconBg: 'bg-[#DCFCE7]' },
-  { bg: 'bg-white', text: 'text-[#F43F5E]', border: 'border-[#FFE4E6]', iconBg: 'bg-[#FFE4E6]' },
-  { bg: 'bg-white', text: 'text-[#7C3AED]', border: 'border-[#E9E4FF]', iconBg: 'bg-[#E9E4FF]' },
-];
+const COLORS = {
+  met: { bg: 'bg-white', text: 'text-[#22C55E]', border: 'border-[#DCFCE7]', iconBg: 'bg-[#DCFCE7]' },
+  notMet: { bg: 'bg-white', text: 'text-[#F43F5E]', border: 'border-[#FFE4E6]', iconBg: 'bg-[#FFE4E6]' },
+} as const;
 
 const normalizeId = (value: unknown): string => {
   if (!value) return '';
@@ -28,7 +26,7 @@ const getSpecText = (item: any): string => {
   return String(item.title ?? item.label ?? item.name ?? '').trim().toLowerCase();
 };
 
-const JobSpec: React.FC<JobSpecProps> = ({ specs: providedSpecs, jobPosition }) => {
+const JobSpec: React.FC<JobSpecProps> = ({ specs: providedSpecs, jobPosition, editable = false, onSpecChange }) => {
   // ── Build weight map from jobPosition ONLY (ignores item.weight) ──
   // Keyed by spec TEXT (not ID) because applicant.jobSpecsWithDetails.jobSpecId
   // does NOT match jobPosition.jobSpecs._id in the API payload.
@@ -169,9 +167,9 @@ const JobSpec: React.FC<JobSpecProps> = ({ specs: providedSpecs, jobPosition }) 
 
       {/* Job Specifications List */}
       <div className="flex flex-col gap-3">
-        {specs.map((item, index) => {
-          const color = COLORS[index % COLORS.length];
+        {specs.map((item) => {
           const isMet = item.answer === true;
+          const color = isMet ? COLORS.met : COLORS.notMet;
           const earnedWeight = isMet ? item.weight : 0;
           
           return (
@@ -188,7 +186,34 @@ const JobSpec: React.FC<JobSpecProps> = ({ specs: providedSpecs, jobPosition }) 
                     <h4 className="text-base font-semibold text-gray-800">{item.spec.en}</h4>
                     <div className="flex items-center gap-3 mt-1">
                       <span className="text-xs font-medium text-gray-500">Weight: {item.weight}%</span>
-                      {isMet ? (
+                      {editable ? (
+                        <div className="inline-flex items-center gap-1 bg-gray-100 rounded-full p-0.5">
+                          <button
+                            type="button"
+                            onClick={() => onSpecChange?.(item.id, true)}
+                            className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full transition-colors ${
+                              isMet
+                                ? 'bg-white text-green-600 shadow-sm'
+                                : 'text-gray-500 hover:text-gray-700'
+                            }`}
+                          >
+                            <CheckCircle2 className="h-3 w-3" />
+                            Met
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onSpecChange?.(item.id, false)}
+                            className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full transition-colors ${
+                              !isMet
+                                ? 'bg-white text-red-600 shadow-sm'
+                                : 'text-gray-500 hover:text-gray-700'
+                            }`}
+                          >
+                            <XCircle className="h-3 w-3" />
+                            Not Met
+                          </button>
+                        </div>
+                      ) : isMet ? (
                         <span className="inline-flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
                           <CheckCircle2 className="h-3 w-3" />
                           Met

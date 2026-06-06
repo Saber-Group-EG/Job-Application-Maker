@@ -89,7 +89,6 @@ export default function JobOfferHistory({
               <th className={TABLE_HEAD_CLASS}>Company</th>
               <th className={TABLE_HEAD_CLASS}>Status</th>
               <th className={TABLE_HEAD_CLASS}>Sent</th>
-              <th className={TABLE_HEAD_CLASS}>Responded</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50 bg-white">
