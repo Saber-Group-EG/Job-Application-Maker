@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import type { InterviewAnswer } from '../../../../../types/applicants';
+import { useMemo } from 'react';
+import type { InterviewAnswer } from '../../../../../../types/applicants';
 
 export type QuestionRowProps = {
   question: InterviewAnswer;

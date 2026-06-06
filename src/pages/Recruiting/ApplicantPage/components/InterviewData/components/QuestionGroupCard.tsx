@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Building2, ChevronDown, ChevronUp, Library, XCircle } from 'lucide-react';
 import { QuestionRow } from './QuestionRow';
-import type { InterviewAnswer } from '../../../../../types/applicants';
+import type { InterviewAnswer } from '../../../../../../types/applicants';
 import { computeTotalScore, getQuestionId } from '../utils/interviewUtils';
 
 export type QuestionGroupCardProps = {

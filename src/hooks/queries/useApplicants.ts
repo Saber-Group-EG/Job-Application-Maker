@@ -133,7 +133,7 @@ function mergeApplicantResponseIntoCache(
     queryClient.setQueryData(applicantsKeys.detail(id), {
       ...(previous as object),
       [appendKey]: [...existing, response],
-    } as Applicant);
+    } as unknown as Applicant);
     return;
   }
 

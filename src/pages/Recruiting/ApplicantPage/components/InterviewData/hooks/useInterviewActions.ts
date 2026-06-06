@@ -5,6 +5,7 @@ import type {
   Applicant,
   Interview,
   InterviewAnswer,
+  UpdateInterviewStatusRequest,
 } from '../../../../../../types/applicants';
 import { computeAchievedScore, computeTotalScore } from '../utils/interviewUtils';
 
@@ -26,8 +27,8 @@ const extractInterview = (payload: unknown, interviewId: string): Interview | un
       (iv) => (iv?._id || iv?.id) === interviewId
     );
   }
-  if (candidate && (candidate._id || candidate.id)) {
-    return candidate as Interview;
+  if (candidate && (candidate._id || (candidate as Partial<Interview>).id)) {
+    return candidate as unknown as Interview;
   }
   return undefined;
 };
@@ -82,7 +83,7 @@ export const useInterviewActions = ({
         const response = await mutation.mutateAsync({
           applicantId,
           interviewId,
-          data: payload as Partial<Interview>,
+          data: payload as UpdateInterviewStatusRequest,
         });
         const responseInterview = extractInterview(response, interviewId);
         onQuestionsPersisted?.(responseInterview?.questions);
@@ -145,7 +146,7 @@ export const useInterviewActions = ({
         await mutation.mutateAsync({
           applicantId,
           interviewId,
-          data: payload as Partial<Interview>,
+          data: payload as UpdateInterviewStatusRequest,
         });
         return true;
       } catch (e) {
@@ -175,7 +176,7 @@ export const useInterviewActions = ({
               totalScore: computeTotalScore(questions),
               achievedScore: computeAchievedScore(questions),
               status: 'in_progress',
-            } as Partial<Interview>,
+            } as UpdateInterviewStatusRequest,
           });
           setFieldSaveStatus('saved');
         } catch (e) {

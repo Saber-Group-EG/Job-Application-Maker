@@ -57,7 +57,7 @@ export const useGroupMeta = (applicantId: string, interviewId: string) => {
       if (!Array.isArray(savedQuestions)) return;
       const additions: GroupMetaMap = {};
       built.forEach((q, idx) => {
-        const saved = savedQuestions[idx] as unknown as { _id?: string; id?: string } | undefined;
+        const saved = savedQuestions[idx];
         const qId = saved ? getQuestionId(saved) : '';
         if (!qId || !q.groupKey) return;
         additions[qId] = {

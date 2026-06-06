@@ -17,8 +17,12 @@ export type PoolGroup = {
 };
 
 type RawGroup = {
+  _id?: string;
+  id?: string;
   name?: string;
   questions?: Array<{
+    _id?: string;
+    id?: string;
     question?: string;
     score?: number;
     answerType?: string;

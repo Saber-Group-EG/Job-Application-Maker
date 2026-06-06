@@ -63,7 +63,7 @@ const buildActivities = (applicant: Applicant | null | undefined): ActivityItem[
   });
 
   (applicant.comments || []).forEach((entry: Comment) => {
-    const base = toActivity(entry);
+    const base = toActivity(entry as unknown as ActivityLike);
     if (!base) return;
     const text = entry.comment || entry.text || '';
     items.push({
