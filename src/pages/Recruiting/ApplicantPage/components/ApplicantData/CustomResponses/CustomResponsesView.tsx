@@ -13,10 +13,7 @@ export const CustomResponsesView: React.FC<CustomResponsesViewProps> = ({
 }) => {
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-100 relative z-[100]">
-      <div className="p-5 border-b border-gray-100">
-        <h3 className="text-sm font-semibold text-gray-800">Custom Responses</h3>
-        <p className="text-xs text-gray-400 mt-0.5">Questionnaire responses from applicant</p>
-      </div>
+
 
       <div className="flex flex-col">
         {sections.map((section) => {

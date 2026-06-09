@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import type { Applicant, Interview, Message, Comment, StatusHistory, ResponseSection, JobSpecItem } from '../types/applicants';
+import type { Applicant, ResponseSection, JobSpecItem } from '../types/applicants';
 import { toPlainString } from './strings';
 
 const esc = (s: string): string =>
@@ -215,16 +215,6 @@ export async function generateApplicantPdf(
     pages.push({ html: buildTableHtml(`Comments (${applicant.comments.length})`, ['Author', 'Comment', 'Date'], rows), label: 'comments' });
   }
 
-  if (applicant.statusHistory?.length) {
-    const stCol: Record<string, [string, string]> = { new: ['#dbeafe', '#1e40af'], screening: ['#e0e7ff', '#3730a3'], interview: ['#fef3c7', '#92400e'], offered: ['#dcfce7', '#166534'], hired: ['#bbf7d0', '#14532d'], rejected: ['#fee2e2', '#991b1b'] };
-    const rows = applicant.statusHistory.map(sh => {
-      const [bg, fg] = stCol[sh.status?.toLowerCase() || ''] || ['#f3f4f6', '#374151'];
-      const reasons = sh.reasons?.length ? `<br/><span style="font-size:9px;color:#6b7280;">Reasons: ${sh.reasons.map(esc).join(', ')}</span>` : '';
-      const notes = sh.notes ? `<br/><span style="font-size:9px;color:#6b7280;">${esc(sh.notes)}</span>` : '';
-      return `<tr><td style="padding:5px 8px;border-bottom:1px solid #e5e7eb;">${badge(sh.status, bg, fg)}</td><td style="padding:5px 8px;color:#374151;border-bottom:1px solid #e5e7eb;font-size:11px;">${esc(sh.changedBy || '—')}</td><td style="padding:5px 8px;color:#6b7280;border-bottom:1px solid #e5e7eb;font-size:10px;white-space:nowrap;">${formatDate(sh.changedAt)}</td><td style="padding:5px 8px;color:#374151;border-bottom:1px solid #e5e7eb;font-size:10px;">${reasons}${notes}</td></tr>`;
-    }).join('');
-    pages.push({ html: buildTableHtml('Status History', ['Status', 'By', 'Date', 'Details'], rows), label: 'statusHistory' });
-  }
 
   const pdf = new jsPDF('p', 'mm', 'a4');
   const pageW = pdf.internal.pageSize.getWidth() - 20;

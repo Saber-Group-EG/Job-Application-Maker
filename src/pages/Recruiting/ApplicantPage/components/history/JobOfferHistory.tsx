@@ -139,11 +139,7 @@ export default function JobOfferHistory({
                       <span className="text-gray-300">—</span>
                     )}
                   </td>
-                  <td className={BODY_CELL_SECONDARY}>
-                    {formatDate(offer?.respondedAt || undefined) || (
-                      <span className="text-gray-300">—</span>
-                    )}
-                  </td>
+
                 </tr>
               );
             })}
