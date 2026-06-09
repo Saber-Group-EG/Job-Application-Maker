@@ -39,6 +39,7 @@ import InterviewScheduleModal from '../../../components/modals/InterviewSchedule
 import { Modal } from '../../../components/ui/modal';
 import { paths } from '../../../router/Paths';
 import { getErrorMessage } from '../../../utils/errorHandler';
+import { generateApplicantPdf } from '../../../utils/applicantPdfGenerator';
 import {
   buildCustomResponseSections,
   extractCustomFieldsFromJobPosition,
@@ -832,6 +833,30 @@ const ApplicantDetails: React.FC = () => {
     }
   };
 
+  const handlePrint = useCallback(async () => {
+    if (!applicant) return;
+    Swal.fire({
+      title: 'Generating PDF',
+      text: 'Please wait while the applicant profile is being generated...',
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      showConfirmButton: false,
+      didOpen: () => Swal.showLoading(),
+    });
+    try {
+      await generateApplicantPdf(applicant, sections, jobSpecItems, fetchedJobPosition, companyWithAddress);
+      Swal.close();
+    } catch {
+      Swal.close();
+      await Swal.fire({
+        title: 'Error',
+        text: 'Failed to generate the PDF. Please try again.',
+        icon: 'error',
+        confirmButtonColor: '#3085d6',
+      });
+    }
+  }, [applicant, sections, jobSpecItems, fetchedJobPosition, companyWithAddress]);
+
   // Only block the whole page on the *initial* load (no cached data yet).
   // `isLoading` is true only when there is no cached data AND a fetch is in
   // flight. Background revalidation (`isFetching`) is intentionally ignored
@@ -909,6 +934,7 @@ const ApplicantDetails: React.FC = () => {
             onAddComment={openCommentModal}
             onOpenInterviewSettings={openInterviewSettings}
             onDelete={handleDelete}
+            onPrint={handlePrint}
           />
         </div>
 

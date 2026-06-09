@@ -8,6 +8,7 @@ import {
   Edit3,
   Mail,
   MoreVertical,
+  Printer,
   Settings2,
   Trash2,
 } from 'lucide-react';
@@ -28,6 +29,7 @@ type ToolbarProps = {
   onAddComment: () => void;
   onOpenInterviewSettings: () => void;
   onDelete: () => void;
+  onPrint: () => void;
   allApplicants?: Applicant[];
 };
 
@@ -64,6 +66,7 @@ export default function ApplicantActionsToolbar({
   onSendMessage,
   onOpenInterviewSettings,
   onDelete,
+  onPrint,
   allApplicants = [],
 }: ToolbarProps) {
   const navigate = useNavigate();
@@ -237,6 +240,18 @@ export default function ApplicantActionsToolbar({
                 >
                   <Settings2 className="h-4 w-4 text-gray-500" />
                   Interview Settings
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMoreOpen(false);
+                    onPrint();
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  <Printer className="h-4 w-4 text-gray-500" />
+                  Print Applicant
                 </button>
                 <div className="my-1 border-t border-gray-100" />
                 <button
