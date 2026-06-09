@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   MessageSquare,
   User,
@@ -8,12 +8,15 @@ import {
   Briefcase,
   Mail,
   Bell,
-  Star
+  Star,
+  X,
+  Eye
 } from 'lucide-react';
 import type { Activity, ActivityFeedProps } from '../../../../types/applicants';
 
 const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities }) => {
   const data: Activity[] = Array.isArray(activities) ? activities : [];
+  const [previewHtml, setPreviewHtml] = useState<string | null>(null);
 
   const getIcon = (type: Activity['type']) => {
     switch (type) {
@@ -133,9 +136,23 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities }) => {
 
             {(activity.type === 'email' || activity.type === 'message') && activity.description && (
               <div className="ml-8">
-                <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-                  <Mail className="h-4 w-4 text-red-500 flex-shrink-0" />
-                  <span className="text-sm text-gray-700">{activity.description}</span>
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Mail className="h-4 w-4 text-red-500 flex-shrink-0" />
+                    <span className="text-xs font-medium text-gray-500 uppercase">{activity.type}</span>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-2">
+                    {activity.type === 'email' ? 'Email sent' : 'Message sent'}
+                    {activity.title?.includes('message') && activity.title && ` — ${activity.title}`}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewHtml(activity.description!)}
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 hover:underline"
+                  >
+                    <Eye className="h-3.5 w-3.5" />
+                    Preview
+                  </button>
                 </div>
               </div>
             )}
@@ -149,6 +166,34 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities }) => {
           </div>
         ))}
       </div>
+
+      {/* Email / Message preview modal */}
+      {previewHtml && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="relative w-full max-w-3xl max-h-[90vh] bg-white rounded-xl shadow-2xl flex flex-col overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 shrink-0">
+              <h3 className="text-base font-semibold text-gray-800">
+                Email Preview
+              </h3>
+              <button
+                type="button"
+                onClick={() => setPreviewHtml(null)}
+                className="p-1 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            {/* Body — renders the styled HTML */}
+            <div className="flex-1 overflow-auto p-6 bg-white">
+              <div
+                className="prose prose-sm max-w-none"
+                dangerouslySetInnerHTML={{ __html: previewHtml }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

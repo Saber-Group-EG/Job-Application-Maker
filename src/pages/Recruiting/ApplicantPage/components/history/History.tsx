@@ -137,14 +137,26 @@ const getCompanyId = (value: unknown): string => {
   return '';
 };
 
+function getApplicantCompanyId(applicantItem: Record<string, unknown>): string {
+  const fromDirect = getCompanyId(applicantItem?.companyId);
+  if (fromDirect) return fromDirect;
+  const jpId = applicantItem?.jobPositionId;
+  if (jpId && typeof jpId === 'object') {
+    const cId = (jpId as Record<string, unknown>).companyId;
+    const resolved = typeof cId === 'string' ? cId : getCompanyId(cId);
+    if (resolved) return resolved;
+  }
+  return '';
+}
+
 export default function History({ applicant, loading = false }: Props) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const applicantId = String(applicant?._id || '');
   const applicantPhone = useMemo(() => applicant?.phone || '', [applicant?.phone]);
   const applicantCompanyId = useMemo(
-    () => getCompanyId(applicant?.companyId),
-    [applicant?.companyId],
+    () => getApplicantCompanyId((applicant as unknown as Record<string, unknown>) || {}),
+    [applicant],
   );
 
   const [activeSubTab, setActiveSubTab] = useState<HistorySubTab>('previous');
@@ -210,6 +222,7 @@ export default function History({ applicant, loading = false }: Props) {
 
   const { data: previousApplicants = [], isLoading: isPreviousLoading } = useApplicantsByPhone(applicantPhone, {
     enabled: !!applicantPhone,
+    companyId: applicantCompanyId || undefined,
   });
 
   const updateInterviewMutation = useUpdateInterviewStatus();
@@ -222,7 +235,7 @@ export default function History({ applicant, loading = false }: Props) {
       (applicantItem: Applicant) =>
         String(applicantItem?._id || '') !== currentId &&
         (!applicantCompanyId ||
-          getCompanyId(applicantItem?.companyId) === applicantCompanyId),
+          getApplicantCompanyId(applicantItem as unknown as Record<string, unknown>) === applicantCompanyId),
     );
     const getEntryTimestamp = (item: Applicant): number => {
       const raw =

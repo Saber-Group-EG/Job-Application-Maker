@@ -39,15 +39,6 @@ const baseButtonClass =
 const secondaryButtonClass =
   'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200';
 
-const statusButtonClass =
-  'bg-emerald-600 text-white hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-300';
-
-const scheduleButtonClass =
-  'bg-indigo-600 text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-300';
-
-const messageButtonClass =
-  'bg-purple-600 text-white hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-300';
-
 const editButtonClass =
   'bg-amber-500 text-white hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-300';
 
@@ -94,10 +85,6 @@ export default function ApplicantActionsToolbar({
     if (!id) return;
     navigate(paths.applicants.details(id));
   };
-
-  const statusLabel = applicant?.status
-    ? applicant.status.charAt(0).toUpperCase() + applicant.status.slice(1)
-    : 'Status';
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
@@ -148,8 +135,8 @@ export default function ApplicantActionsToolbar({
 
         {/* Right: action groups */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Group 1: Edit / Save / Cancel */}
-          {isEditing ? (
+          {/* When editing: show Save/Cancel inline */}
+          {isEditing && (
             <>
               <button
                 type="button"
@@ -168,54 +155,14 @@ export default function ApplicantActionsToolbar({
                 Cancel
               </button>
             </>
-          ) : (
-            <button
-              type="button"
-              onClick={onEdit}
-              className={`${baseButtonClass} ${editButtonClass}`}
-            >
-              <Edit3 className="h-3.5 w-3.5" />
-              Edit
-            </button>
           )}
 
-          {/* Group 2: Status */}
-          <button
-            type="button"
-            onClick={onChangeStatus}
-            className={`${baseButtonClass} ${statusButtonClass}`}
-            title="Change applicant status"
-          >
-            <CheckSquare className="h-3.5 w-3.5" />
-            {statusLabel}
-          </button>
-
-          {/* Group 3: Schedule Interview */}
-          <button
-            type="button"
-            onClick={onScheduleInterview}
-            className={`${baseButtonClass} ${scheduleButtonClass}`}
-          >
-            <CalendarPlus className="h-3.5 w-3.5" />
-            Schedule Interview
-          </button>
-
-          {/* Group 4: Send Message */}
-          <button
-            type="button"
-            onClick={onSendMessage}
-            className={`${baseButtonClass} ${messageButtonClass}`}
-          >
-            <Mail className="h-3.5 w-3.5" />
-            Send Message
-          </button>
-
-          {/* Dropdown: More */}
+          {/* Dropdown: More — contains Edit + all secondary actions */}
           <div className="relative" ref={moreRef}>
             <button
               type="button"
               onClick={() => setMoreOpen((v) => !v)}
-              className={`${baseButtonClass} ${secondaryButtonClass}`}
+              className={`${baseButtonClass} ${secondaryButtonClass} ${moreOpen ? 'min-w-[160px]' : 'min-w-[120px]'} justify-center`}
               aria-haspopup="menu"
               aria-expanded={moreOpen}
             >
@@ -226,9 +173,60 @@ export default function ApplicantActionsToolbar({
             {moreOpen && (
               <div
                 role="menu"
-                className="absolute right-0 mt-2 w-56 rounded-lg border border-gray-200 bg-white shadow-lg z-30 overflow-hidden"
+                className="absolute right-0 mt-2 w-64 rounded-lg border border-gray-200 bg-white shadow-lg z-30 overflow-hidden"
               >
-              
+                {/* Edit — inside the dropdown (when not editing) */}
+                {!isEditing && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMoreOpen(false);
+                      onEdit();
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-sm text-amber-700 hover:bg-amber-50 font-medium"
+                  >
+                    <Edit3 className="h-4 w-4" />
+                    Edit
+                  </button>
+                )}
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMoreOpen(false);
+                    onChangeStatus();
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  <CheckSquare className="h-4 w-4 text-gray-500" />
+                  Change Status
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMoreOpen(false);
+                    onScheduleInterview();
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  <CalendarPlus className="h-4 w-4 text-gray-500" />
+                  Schedule Interview
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMoreOpen(false);
+                    onSendMessage();
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  <Mail className="h-4 w-4 text-gray-500" />
+                  Send Message
+                </button>
+                <div className="my-1 border-t border-gray-100" />
                 <button
                   type="button"
                   role="menuitem"

@@ -302,6 +302,7 @@ export interface PersonalInfoProps {
   isEditing?: boolean;
   editedApplicant?: Partial<Applicant> | null;
   onChange?: (next: Partial<Applicant>) => void;
+  onChangeStatus?: () => void;
 }
 
 export type ApplicantView = Omit<Applicant, 'companyId' | 'jobPositionId'> & {

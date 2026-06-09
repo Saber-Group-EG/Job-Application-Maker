@@ -985,6 +985,7 @@ const ApplicantDetails: React.FC = () => {
                 isEditing={isEditing}
                 editedApplicant={editedApplicant}
                 onChange={setEditedApplicant}
+                onChangeStatus={() => setShowStatusModal(true)}
               />
             </div>
             <div className="flex-1 space-y-6">

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { Applicant, ApplicantView, PersonalInfoProps } from '../../../../../types/applicants';
 import { toPlainString } from '../../../../../utils/strings';
 
@@ -31,7 +31,10 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
   isEditing = false,
   editedApplicant,
   onChange,
+  onChangeStatus,
 }) => {
+  const [photoPreviewOpen, setPhotoPreviewOpen] = useState(false);
+
   const data: ApplicantView = {
     ...(applicant as ApplicantView),
     ...(editedApplicant || {}),
@@ -57,11 +60,40 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
       <div className="p-5">
         <div className="flex flex-col items-center text-center mb-5">
           {data.profilePhoto ? (
-            <img
-              src={data.profilePhoto}
-              alt={fullName}
-              className="w-32 h-32 rounded-full object-cover mb-3 shadow-md"
-            />
+            <>
+              <button
+                type="button"
+                onClick={() => setPhotoPreviewOpen(true)}
+                className="focus:outline-none"
+              >
+                <img
+                  src={data.profilePhoto}
+                  alt={fullName}
+                  className="w-32 h-32 rounded-full object-cover mb-3 shadow-md cursor-pointer hover:opacity-90 transition-opacity"
+                />
+              </button>
+              {photoPreviewOpen && (
+                <div
+                  className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+                  onClick={() => setPhotoPreviewOpen(false)}
+                >
+                  <div className="relative max-w-[90vw] max-h-[90vh]">
+                    <img
+                      src={data.profilePhoto}
+                      alt={fullName}
+                      className="max-w-full max-h-[85vh] rounded-lg shadow-2xl"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setPhotoPreviewOpen(false)}
+                      className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-white shadow-md flex items-center justify-center text-gray-600 hover:text-gray-900 text-lg font-bold"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           ) : (
             <div className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mb-3 shadow-md">
               <span className="text-white text-2xl font-bold">{getInitials(fullName)}</span>
@@ -90,9 +122,13 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
 
         <div className="flex justify-between items-center mb-3">
           <span className="text-sm font-semibold text-gray-800">Details</span>
-          <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700">
+          <button
+            type="button"
+            onClick={onChangeStatus}
+            className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
+          >
             {data.status || 'Status'}
-          </span>
+          </button>
         </div>
 
         <div className="border-t border-gray-200 mb-5 mt-5" />
