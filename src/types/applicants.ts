@@ -303,6 +303,9 @@ export interface PersonalInfoProps {
   editedApplicant?: Partial<Applicant> | null;
   onChange?: (next: Partial<Applicant>) => void;
   onChangeStatus?: () => void;
+  onScheduleInterview?: () => void;
+  onSendMessage?: () => void;
+  onPrint?: () => void;
 }
 
 export type ApplicantView = Omit<Applicant, 'companyId' | 'jobPositionId'> & {

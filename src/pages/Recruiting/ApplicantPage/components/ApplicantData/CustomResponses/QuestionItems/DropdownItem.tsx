@@ -18,10 +18,11 @@ export const DropdownItem: React.FC<{
         else handlers.dropdownRefs.current.delete(question.id);
       }}
     >
+      {question.text.toLowerCase() !== 'answer' && (
       <label className="block text-sm font-medium text-gray-700 mb-1">
         {question.text}
         {question.required && <span className="text-red-500 ml-1">*</span>}
-      </label>
+      </label>)}
       <button
         type="button"
         onClick={() => handlers.isEditable && handlers.onToggleDropdown(question.id)}
@@ -29,7 +30,7 @@ export const DropdownItem: React.FC<{
         className={`w-full flex items-center justify-between px-3 py-2 text-sm border border-gray-200 rounded-lg transition-all duration-200 focus:outline-none ${
           handlers.isEditable
             ? 'bg-white hover:border-gray-300 hover:bg-gray-50 focus:border-blue-400 focus:ring-1 focus:ring-blue-400 cursor-pointer'
-            : 'bg-gray-50 cursor-not-allowed opacity-75'
+            : 'bg-gray-50 cursor-default opacity-75'
         }`}
       >
         <span className={question.selectedValue ? 'text-gray-700' : 'text-gray-400'}>

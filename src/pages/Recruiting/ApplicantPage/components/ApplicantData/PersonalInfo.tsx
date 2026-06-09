@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Calendar, Mail, Printer } from 'lucide-react';
 import type { Applicant, ApplicantView, PersonalInfoProps } from '../../../../../types/applicants';
 import { toPlainString } from '../../../../../utils/strings';
 
@@ -32,6 +33,9 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
   editedApplicant,
   onChange,
   onChangeStatus,
+  onScheduleInterview,
+  onSendMessage,
+  onPrint,
 }) => {
   const [photoPreviewOpen, setPhotoPreviewOpen] = useState(false);
 
@@ -58,7 +62,7 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
       <div className="p-5">
-        <div className="flex flex-col items-center text-center mb-5">
+        <div className="flex flex-col items-center text-center mb-5 mt-8">
           {data.profilePhoto ? (
             <>
               <button
@@ -112,13 +116,41 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
             <h2 className="text-lg font-bold text-gray-800 mb-0.5">{fullName}</h2>
           )}
 
-          <p className="text-xs text-gray-500 mb-2">
+          <p className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors">
             {(typeof data.jobPositionId === 'object'
               ? toPlainString(data.jobPositionId?.title)
               : null) || 'Position Applied For'}
           </p>
-         
-        </div>
+
+          <div className="flex items-center justify-center gap-3 mt-3">
+            <button
+              type="button"
+              title="Schedule Interview"
+              onClick={onScheduleInterview}
+              className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+            >
+              <Calendar className="w-4 h-4" />
+            </button>
+           
+            <button
+              type="button"
+              title="Send Message"
+              onClick={onSendMessage}
+              className="flex items-center justify-center w-8 h-8 rounded-full bg-purple-50 text-purple-600 hover:bg-purple-100 transition-colors"
+            >
+              <Mail className="w-4 h-4" />
+            </button>
+
+            <button
+              type="button"
+              title="Print"
+              onClick={onPrint}
+              className="flex items-center justify-center w-8 h-8 rounded-full bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors"
+            >
+              <Printer className="w-4 h-4" />
+            </button>
+          </div>
+         </div>
 
         <div className="flex justify-between items-center mb-3">
           <span className="text-sm font-semibold text-gray-800">Details</span>
@@ -135,7 +167,7 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
 
         <div className="space-y-4">
           <div>
-            <div className="text-sm font-semibold text-gray-800 mb-0.5">Phone</div>
+            <div className="text-sm font-semibold text-gray-800 -mb-1">Phone</div>
             {isEditing ? (
               <input
                 type="tel"
@@ -154,7 +186,7 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
           </div>
 
           <div>
-            <div className="text-sm font-semibold text-gray-800 mb-0.5">Email</div>
+            <div className="text-sm font-semibold text-gray-800 -mb-1">Email</div>
             {isEditing ? (
               <input
                 type="email"
@@ -173,7 +205,7 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
           </div>
 
           <div>
-            <div className="text-sm font-semibold text-gray-800 mb-0.5">Gender</div>
+            <div className="text-sm font-semibold text-gray-800 -mb-1">Gender</div>
             {isEditing ? (
               <select
                 value={data.gender || ''}
@@ -190,7 +222,7 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
           </div>
 
           <div>
-            <div className="text-sm font-semibold text-gray-800 mb-0.5">Address</div>
+            <div className="text-sm font-semibold text-gray-800 -mb-1">Address</div>
             {isEditing ? (
               <textarea
                 value={data.address || ''}
@@ -203,7 +235,7 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
             )}
           </div>
 
-          <div className="text-sm font-semibold text-gray-800 mb-2">Expected Salary</div>
+          <div className="text-sm font-semibold text-gray-800 -mb-0.5">Expected Salary</div>
           {isEditing ? (
             <input
               type="text"
@@ -216,7 +248,7 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
           )}
 
           <div>
-            <div className="text-sm font-semibold text-gray-800 mb-2">Resume / CV</div>
+            <div className="text-sm font-semibold text-gray-800 mb-1">Resume / CV</div>
             {resumeUrl ? (
               <a
                 href={resumeUrl}
@@ -246,7 +278,7 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
           </div>
 
           <div>
-            <div className="text-sm font-semibold text-gray-800 mb-0.5">Submitted At</div>
+            <div className="text-sm font-semibold text-gray-800 -mb-1">Submitted At</div>
             <div className="text-sm text-gray-600">{formatDate(submittedAt)}</div>
           </div>
         </div>

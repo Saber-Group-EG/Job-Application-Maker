@@ -24,7 +24,7 @@ export const GroupItem: React.FC<{
         </div>
         <ChevronRight className={`h-4 w-4 text-gray-400 transition-transform duration-300 ${isExpanded ? 'rotate-90' : ''}`} />
       </button>
-      <div className={`transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[2000px] opacity-100 overflow-visible' : 'max-h-0 opacity-0 overflow-hidden'}`}>
+      <div className={`transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[9999px] opacity-100 overflow-visible' : 'max-h-0 opacity-0 overflow-hidden'}`}>
         <div className="p-4">
           {question.questions.map((sq) => (
             <QuestionRouter key={sq.id} question={sq} handlers={handlers} isSubQuestion />

@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Layers, CheckCircle2, XCircle, AlertCircle, Percent } from 'lucide-react';
+import { Layers, CheckCircle2, XCircle, Percent } from 'lucide-react';
 import type { JobSpecItem, JobSpecProps } from '../../../../../types/applicants';
 
 const COLORS = {
@@ -97,14 +97,7 @@ const JobSpec: React.FC<JobSpecProps> = ({ specs: providedSpecs, jobPosition, ed
   }, [specs]);
 
   // Warning message if total weight is not 100%
-  const weightWarning = !isValid && (
-    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
-      <AlertCircle className="h-4 w-4 text-red-500" />
-      <p className="text-sm text-red-700">
-        Warning: Total weight is {totalWeight}%. It should be exactly 100% for proper evaluation.
-      </p>
-    </div>
-  );
+
 
   if (specs.length === 0) {
     return (
@@ -162,8 +155,7 @@ const JobSpec: React.FC<JobSpecProps> = ({ specs: providedSpecs, jobPosition, ed
         </div>
       </div>
 
-      {/* Weight Warning */}
-      {weightWarning}
+
 
       {/* Job Specifications List */}
       <div className="flex flex-col gap-3">
