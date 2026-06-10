@@ -3,17 +3,13 @@ import { useLocation, useNavigate, useParams } from 'react-router';
 import {
   ArrowLeft,
   Award,
-  Building2,
   Calendar,
   CheckCircle2,
   Clock,
   Clock4,
   ExternalLink,
-  FileText,
   Inbox,
-  Library,
   StickyNote,
-
   Target,
   User as UserIcon,
   Video,
@@ -34,12 +30,7 @@ import {
 
 type CompletedInterview = Interview & { id?: string };
 
-type GroupedQuestions = {
-  key: string;
-  name: string;
-  source: 'company' | 'user' | 'ungrouped';
-  questions: InterviewAnswer[];
-};
+
 
 const calcDurationMs = (startedAt?: string, endedAt?: string): number | null => {
   if (!startedAt || !endedAt) return null;
@@ -63,28 +54,11 @@ const formatDuration = (ms: number | null): string => {
 
 
 
-const groupQuestions = (
+const flattenQuestions = (
   questions: InterviewAnswer[] | undefined,
-): { grouped: GroupedQuestions[]; free: InterviewAnswer[] } => {
-  if (!questions || !Array.isArray(questions) || questions.length === 0) return { grouped: [], free: [] };
-  const map = new Map<string, GroupedQuestions>();
-  const free: InterviewAnswer[] = [];
-  questions.forEach((q, index) => {
-    if (q?.groupKey === '__free__') {
-      free.push(q);
-      return;
-    }
-    const key = q?.groupKey || `__ungrouped_${index}`;
-    const name = q?.groupName || 'Questions';
-    const source: GroupedQuestions['source'] = q?.groupSource || 'ungrouped';
-    const existing = map.get(key);
-    if (existing) {
-      existing.questions.push(q);
-    } else {
-      map.set(key, { key, name, source, questions: [q] });
-    }
-  });
-  return { grouped: Array.from(map.values()), free };
+): InterviewAnswer[] => {
+  if (!questions || !Array.isArray(questions)) return [];
+  return questions;
 };
 
 const toUserLabel = (value: unknown): string => {
@@ -260,8 +234,8 @@ const CompletedInterviewDetails: React.FC = () => {
     );
   }, [applicant, passedInterview, interviewId]);
 
-  const { grouped: groupedQuestions, free: freeQuestions } = useMemo(
-    () => groupQuestions(interview?.questions),
+  const flatQuestions = useMemo(
+    () => flattenQuestions(interview?.questions),
     [interview],
   );
 
@@ -558,7 +532,7 @@ const CompletedInterviewDetails: React.FC = () => {
             </span>
           </div>
 
-          {groupedQuestions.length === 0 && freeQuestions.length === 0 ? (
+          {flatQuestions.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-gray-200 bg-white px-6 py-12 text-center">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100">
                 <Inbox className="h-5 w-5 text-gray-400" />
@@ -571,85 +545,10 @@ const CompletedInterviewDetails: React.FC = () => {
               </p>
             </div>
           ) : (
-            <div className="space-y-5">
-              {groupedQuestions.map((group) => {
-                const SourceIcon =
-                  group.source === 'company'
-                    ? Building2
-                    : group.source === 'user'
-                    ? Library
-                    : FileText;
-                const accentClass =
-                  group.source === 'company'
-                    ? 'bg-blue-50 text-blue-600'
-                    : group.source === 'user'
-                    ? 'bg-purple-50 text-purple-600'
-                    : 'bg-gray-100 text-gray-500';
-                const groupTotal = group.questions.reduce(
-                  (sum, q) => sum + Number(q?.score || 0),
-                  0,
-                );
-                const groupAchieved = Math.round(
-                  group.questions.reduce(
-                    (sum, q) => sum + Number(q?.achievedScore || 0),
-                    0,
-                  ),
-                );
-                return (
-                  <div
-                    key={group.key}
-                    className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm"
-                  >
-                    <div className="flex items-center justify-between gap-3 border-b border-gray-100 bg-gray-50/60 px-5 py-3">
-                      <div className="flex items-center gap-3">
-                        <span
-                          className={`flex h-8 w-8 items-center justify-center rounded-md ${accentClass}`}
-                        >
-                          <SourceIcon className="h-4 w-4" />
-                        </span>
-                        <div>
-                          <p className="text-sm font-semibold text-gray-800">
-                            {group.name}
-                          </p>
-                          <p className="text-[11px] uppercase tracking-wider text-gray-400">
-                            {group.source === 'company'
-                              ? 'Company Library'
-                              : group.source === 'user'
-                              ? 'My Library'
-                              : 'Questions'}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-                          Group Score
-                        </p>
-                        <p className="text-sm font-bold text-gray-800 tabular-nums">
-                          {groupAchieved}
-                          <span className="text-gray-400"> / {groupTotal}</span>
-                        </p>
-                      </div>
-                    </div>
-                    <div className="space-y-3 p-5">
-                      {group.questions.map((q, i) => (
-                        <QuestionDisplay key={q?._id || q?.id || i} question={q} index={i} />
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-              {freeQuestions.length > 0 && (
-                <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
-                  <div className="border-b border-gray-100 bg-gray-50/60 px-5 py-3">
-                    <p className="text-sm font-semibold text-gray-800">Custom Questions</p>
-                  </div>
-                  <div className="space-y-3 p-5">
-                    {freeQuestions.map((q, i) => (
-                      <QuestionDisplay key={q?._id || q?.id || i} question={q} index={i} />
-                    ))}
-                  </div>
-                </div>
-              )}
+            <div className="space-y-3">
+              {flatQuestions.map((q, i) => (
+                <QuestionDisplay key={q?._id || q?.id || i} question={q} index={i} />
+              ))}
             </div>
           )}
         </section>
