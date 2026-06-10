@@ -116,13 +116,13 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
             <h2 className="text-lg font-bold text-gray-800 mb-0.5">{fullName}</h2>
           )}
 
-          <p className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors">
+          <p className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors mt-2">
             {(typeof data.jobPositionId === 'object'
               ? toPlainString(data.jobPositionId?.title)
               : null) || 'Position Applied For'}
           </p>
 
-          <div className="flex items-center justify-center gap-3 mt-3">
+          <div className="flex items-center justify-center gap-3 mt-3 mb-3">
             <button
               type="button"
               title="Schedule Interview"

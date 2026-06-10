@@ -133,18 +133,12 @@ const QuestionDisplay: React.FC<{ question: InterviewAnswer; index: number }> = 
           {index + 1}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-gray-800">
+          <p className="text-sm font-medium text-gray-800 mt-1.5">
             {question?.question || '(Untitled question)'}
           </p>
           <div className="mt-1.5 flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-gray-600">
-              {answerType}
-            </span>
-            {score > 0 && (
-              <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700">
-                Max score: {score}
-              </span>
-            )}
+          
+            
           </div>
         </div>
         {score > 0 && (
@@ -153,9 +147,7 @@ const QuestionDisplay: React.FC<{ question: InterviewAnswer; index: number }> = 
               {achieved}
               <span className="text-xs text-gray-400"> / {score}</span>
             </p>
-            <p className="text-[10px] uppercase tracking-wider text-gray-400">
-              {pct}% performance
-            </p>
+
           </div>
         )}
       </div>
@@ -189,12 +181,12 @@ const QuestionDisplay: React.FC<{ question: InterviewAnswer; index: number }> = 
         </div>
       )}
 
-      <div className="mt-4 rounded-lg border border-gray-100 bg-gray-50/60 p-3">
-        <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+      <div className="mt-1.5  rounded-lg border border-gray-100 bg-gray-50/60 p-3">
+        <p className=" text-[11px] font-semibold uppercase tracking-wider text-gray-400">
           Candidate's answer
         </p>
         {answer.type === 'text' ? (
-          <p className="whitespace-pre-wrap text-sm text-gray-800">{answer.text}</p>
+          <p className="whitespace-pre-wrap  text-sm text-gray-800">{answer.text}</p>
         ) : (
           <p className="text-sm italic text-gray-400">{answer.text}</p>
         )}

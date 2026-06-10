@@ -82,7 +82,7 @@ const buildActivities = (applicant: Applicant | null | undefined): ActivityItem[
     items.push({
       ...base,
       type: 'message',
-      title: `${(entry.type || 'internal').toUpperCase()} message`,
+      title: `${(entry.type || 'internal').charAt(0).toUpperCase() + (entry.type || 'internal').slice(1)} message`,
       messageChannel: entry.type,
       description: entry.content ?? entry.subject,
     });

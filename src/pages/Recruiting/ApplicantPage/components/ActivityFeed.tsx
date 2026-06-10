@@ -9,8 +9,8 @@ import {
   Mail,
   Bell,
   Star,
-  Eye
 } from 'lucide-react';
+
 import { Modal } from '../../../../components/ui/modal';
 import type { Activity, ActivityFeedProps, Interview } from '../../../../types/applicants';
 
@@ -37,23 +37,23 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, mailRecords = [
   const getIcon = (type: Activity['type']) => {
     switch (type) {
       case 'comment':
-        return <MessageSquare className="h-4 w-4 text-blue-500" />;
+        return <MessageSquare className="h-4 w-4 text-gray-500" />;
       case 'task':
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
+        return <CheckCircle className="h-4 w-4 text-gray-500" />;
       case 'status_change':
-        return <Clock className="h-4 w-4 text-orange-500" />;
+        return <Clock className="h-4 w-4 text-gray-500" />;
       case 'document':
-        return <FileText className="h-4 w-4 text-purple-500" />;
+        return <FileText className="h-4 w-4 text-gray-500" />;
       case 'application':
-        return <Briefcase className="h-4 w-4 text-indigo-500" />;
+        return <Briefcase className="h-4 w-4 text-gray-500" />;
       case 'email':
-        return <Mail className="h-4 w-4 text-red-500" />;
+        return <Mail className="h-4 w-4 text-gray-500" />;
       case 'notification':
-        return <Bell className="h-4 w-4 text-yellow-500" />;
+        return <Bell className="h-4 w-4 text-gray-500" />;
       case 'message':
-        return <Mail className="h-4 w-4 text-red-500" />;
+        return <Mail className="h-4 w-4 text-gray-500" />;
       case 'interview':
-        return <MessageSquare className="h-4 w-4 text-blue-500" />;
+        return <MessageSquare className="h-4 w-4 text-gray-500" />;
       default:
         return <Star className="h-4 w-4 text-gray-500" />;
     }
@@ -159,102 +159,116 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, mailRecords = [
         <p className="text-sm text-gray-400 mt-0.5">Recent updates and comments</p>
       </div>
 
-      <div className="divide-y divide-gray-100">
-        {data.length === 0 ? (
-          <div className="p-8 text-center">
-            <Clock className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-            <p className="text-sm text-gray-500">No activity yet.</p>
-            <p className="text-xs text-gray-400 mt-1">Comments, status changes, and other updates will appear here.</p>
-          </div>
-        ) : data.map((activity) => (
-          <div key={activity.id} className="p-5 hover:bg-gray-50 transition-colors">
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <div className="flex-shrink-0">
-                  {getIcon(activity.type)}
-                </div>
-                <span className="text-sm font-semibold text-gray-800">
-                  {activity.title} 
-                </span>
-              </div>
-              <span className="text-xs text-gray-400 whitespace-nowrap ml-4">
-                {formatDate(activity.timestamp)}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
-                <User className="h-3.5 w-3.5 text-gray-500" />
-              </div>
-              <span className="text-xs font-medium text-gray-600">
-                {activity.user?.name || 'System'} at {new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </span>
-            </div>
-
-            {activity.type === 'comment' && activity.comment && (
-              <div className="ml-8 pl-3 border-l-2 border-blue-200">
-                <p className="text-sm text-gray-700 leading-relaxed">
-                  {activity.comment}
-                </p>
-              </div>
-            )}
-
-            {activity.type === 'status_change' && activity.status && (
-              <div className="ml-8">
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-700 text-xs font-medium rounded-md">
-                  {activity.status}
-                </span>
-              </div>
-            )}
-
-            {activity.type === 'task' && activity.description && (
-              <div className="ml-8">
-                <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-100">
-                  <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
-                  <span className="text-sm text-gray-700">{activity.description}</span>
-                </div>
-              </div>
-            )}
-
-            {activity.type === 'document' && activity.description && (
-              <div className="ml-8">
-                <div className="flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-purple-500" />
-                  <span className="text-sm text-gray-700 font-medium">{activity.description}</span>
-                </div>
-              </div>
-            )}
-
-            {(activity.type === 'email' || activity.type === 'message') && activity.description && (
-              <div className="ml-8">
-                <div className="p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Mail className="h-4 w-4 text-red-500 flex-shrink-0" />
-                    <span className="text-xs font-medium text-gray-500 uppercase">{activity.type}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPreviewHtml(renderEmailContent(activity));
-                      setShowPreview(true);
-                    }}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
-                  >
-                    <Eye className="h-3.5 w-3.5" />
-                    Preview Email
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {!['comment', 'status_change', 'task', 'document', 'email', 'message', 'interview'].includes(activity.type) && activity.description && (
-              <div className="ml-8">
-                <p className="text-sm text-gray-600">{activity.description}</p>
-              </div>
-            )}
-          </div>
-        ))}
+      <div className="space-y-0">
+  {data.length === 0 ? (
+    <div className="p-8 text-center">
+      <Clock className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+      <p className="text-sm text-gray-500">No activity yet.</p>
+      <p className="text-xs text-gray-400 mt-1">Comments, status changes, and other updates will appear here.</p>
+    </div>
+  ) : data.map((activity, index) => (
+    <div 
+      key={activity.id} 
+      className={`relative p-5 hover:bg-gray-50 transition-colors ${
+        index !== data.length - 1 ? 'border-l-2 border-dashed border-gray-300' : ''
+      }`}
+      style={{ 
+        marginLeft: '28px',
+        borderLeftColor: '#e5e7eb'
+      }}
+    >
+      {/* Icon positioned absolutely */}
+      <div
+        className="absolute"
+        style={{ left: '-15px', top: '28px' }}
+        onClick={() => {
+          if ((activity.type === 'email' || activity.type === 'message') && activity.description) {
+            setPreviewHtml(renderEmailContent(activity));
+            setShowPreview(true);
+          }
+        }}
+        role={activity.type === 'email' || activity.type === 'message' ? 'button' : undefined}
+      >
+        <div className="w-7 h-7 rounded-full bg-white border-2 border-gray-300 shadow-sm flex items-center justify-center"
+          style={activity.type === 'email' || activity.type === 'message' ? { cursor: 'pointer' } : undefined}
+        >
+          {getIcon(activity.type)}
+        </div>
       </div>
+      
+      <div className="flex items-start justify-between">
+        <div className="flex items-center gap-2">
+          <span
+            className="text-sm font-semibold text-gray-800"
+            style={(activity.type === 'email' || activity.type === 'message') && activity.description ? { cursor: 'pointer' } : undefined}
+            onClick={() => {
+              if ((activity.type === 'email' || activity.type === 'message') && activity.description) {
+                setPreviewHtml(renderEmailContent(activity));
+                setShowPreview(true);
+              }
+            }}
+          >
+            {activity.title} 
+          </span>
+        </div>
+        <span className="text-xs text-gray-400 whitespace-nowrap ml-4">
+          {formatDate(activity.timestamp)}
+        </span>
+      </div>
+
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-xs font-medium text-gray-600">
+          Updated at {new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} by
+        </span>
+        <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
+          <User className="h-3.5 w-3.5 text-gray-500" />
+        </div>
+      </div>
+
+      {/* Rest of your content remains the same */}
+      {activity.type === 'comment' && activity.comment && (
+        <div className="pl-3 border-l-2 border-blue-200">
+          <p className="text-sm text-gray-700 leading-relaxed">
+            {activity.comment}
+          </p>
+        </div>
+      )}
+
+      {activity.type === 'status_change' && activity.status && (
+        <div>
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-700 text-xs font-medium rounded-md">
+            {activity.status}
+          </span>
+        </div>
+      )}
+
+      {activity.type === 'task' && activity.description && (
+        <div>
+          <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-100">
+            <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+            <span className="text-sm text-gray-700">{activity.description}</span>
+          </div>
+        </div>
+      )}
+
+      {activity.type === 'document' && activity.description && (
+        <div>
+          <div className="flex items-center gap-2">
+            <FileText className="h-4 w-4 text-purple-500" />
+            <span className="text-sm text-gray-700 font-medium">{activity.description}</span>
+          </div>
+        </div>
+      )}
+
+      {!['comment', 'status_change', 'task', 'document', 'email', 'message', 'interview'].includes(activity.type) && activity.description && (
+        <div>
+          <p className="text-sm text-gray-600">{activity.description}</p>
+        </div>
+      )}
+      {index !== data.length - 1 && <div className="border-t-2 border-gray-200 mx-8 my-2" />}
+    </div>
+  ))}
+</div>
 
       <Modal
         isOpen={showPreview}

@@ -332,14 +332,6 @@ export const AssessmentView = ({
         <h3 className="text-slate-800 text-lg font-bold">Interview Assessment</h3>
         <p className="text-slate-500 text-sm mt-0.5">Candidate performance evaluation</p>
       </div>
-      <div className="text-right">
-        <div className="text-slate-800 text-2xl font-bold tabular-nums">
-          {visibleTotals.totalScore > 0
-            ? ((visibleTotals.achieved / visibleTotals.totalScore) * 100).toFixed(1)
-            : 0}%
-        </div>
-        <div className="text-slate-500 text-xs">{visibleTotals.achieved} / {visibleTotals.totalScore}</div>
-      </div>
     </div>
     <InterviewStatsBar
       totalScore={visibleTotals.totalScore}
