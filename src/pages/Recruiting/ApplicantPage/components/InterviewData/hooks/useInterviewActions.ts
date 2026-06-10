@@ -75,7 +75,7 @@ export const useInterviewActions = ({
       };
       if (startAfter) {
         payload.startedAt = new Date().toISOString();
-        payload.status = 'in_progress';
+        payload.status = 'Progressing';
       }
 
       setIsPickerSaving(true);

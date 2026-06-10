@@ -119,6 +119,84 @@ const formatTime12Hour = (value: string): string => {
   return raw;
 };
 
+// Collect every scrollable ancestor so we can listen to all of them
+const getAllScrollParents = (el: HTMLElement | null): Array<HTMLElement | Window> => {
+  const parents: Array<HTMLElement | Window> = [];
+  let current = el?.parentElement ?? null;
+  while (current) {
+    const { overflowY } = getComputedStyle(current);
+    if ((overflowY === 'auto' || overflowY === 'scroll') && current.scrollHeight > current.clientHeight) {
+      parents.push(current);
+    }
+    current = current.parentElement;
+  }
+  parents.push(window);
+  return parents;
+};
+
+const Stickysidebar: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const placeholderRef = React.useRef<HTMLDivElement>(null);
+  const sidebarRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const placeholder = placeholderRef.current;
+    const sidebar = sidebarRef.current;
+    if (!placeholder || !sidebar) return;
+
+    const TOP_OFFSET = 24;
+
+    const update = () => {
+      if (placeholder.offsetParent === null) return;
+      const rect = placeholder.getBoundingClientRect();
+      const sidebarHeight = sidebar.offsetHeight;
+      const windowHeight = window.innerHeight;
+
+      if (rect.top <= TOP_OFFSET) {
+        const width = placeholder.offsetWidth;
+        const left = rect.left;
+        const maxTop = windowHeight - sidebarHeight - 16;
+        const top = Math.min(TOP_OFFSET, maxTop);
+        sidebar.style.position = 'fixed';
+        sidebar.style.top = `${top}px`;
+        sidebar.style.left = `${left}px`;
+        sidebar.style.width = `${width}px`;
+        sidebar.style.zIndex = '20';
+        placeholder.style.minHeight = `${sidebarHeight}px`;
+      } else {
+        sidebar.style.position = '';
+        sidebar.style.top = '';
+        sidebar.style.left = '';
+        sidebar.style.width = '';
+        sidebar.style.zIndex = '';
+        placeholder.style.minHeight = '';
+      }
+    };
+
+    const scrollParents = getAllScrollParents(placeholder);
+    scrollParents.forEach(p => p.addEventListener('scroll', update, { passive: true }));
+    window.addEventListener('resize', update, { passive: true });
+
+    const ro = new ResizeObserver(update);
+    ro.observe(placeholder);
+
+    update();
+
+    return () => {
+      scrollParents.forEach(p => p.removeEventListener('scroll', update));
+      window.removeEventListener('resize', update);
+      ro.disconnect();
+    };
+  }, []);
+
+  return (
+    <div ref={placeholderRef} className="lg:w-80 flex-shrink-0 self-start">
+      <div ref={sidebarRef} className="space-y-4 w-full">
+        {children}
+      </div>
+    </div>
+  );
+};
+
 const ApplicantDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -971,7 +1049,7 @@ const ApplicantDetails: React.FC = () => {
   }
 
   return (
-    <div className="bg-gray-50 min-h-screen p-6">
+    <div className="bg-gray-50 p-6">
       <div className="max-w-8xl mx-auto">
         <div className="mb-4">
   <div className="flex items-center justify-between">
@@ -1012,42 +1090,12 @@ const ApplicantDetails: React.FC = () => {
 
    
 
-        <div hidden={activeTab === 'details'} className="flex border-b border-gray-200 mb-6">
-          <button
-            onClick={() => setActiveTab('details')}
-            className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
-              activeTab === 'details'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Details
-          </button>
-          <button
-            onClick={() => setActiveTab('interview')}
-            className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
-              activeTab === 'interview'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Interview Questions
-          </button>
-          <button
-            onClick={() => setActiveTab('history')}
-            className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
-              activeTab === 'history'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            History
-          </button>
-        </div>
+
 
         <div hidden={activeTab !== 'details'}>
-          <div className="flex flex-col lg:flex-row gap-6 mb-6">
-            <div className="lg:w-80 flex-shrink-0 space-y-4">
+          <div className="flex flex-col lg:flex-row gap-6 mb-6 items-start">
+            {/* ── Left sidebar — fixed positioning via JS scroll listener ── */}
+            <Stickysidebar>
               <PersonalInfo
                 applicant={applicant}
                 isEditing={isEditing}
@@ -1072,40 +1120,48 @@ const ApplicantDetails: React.FC = () => {
                   Send Contract
                 </button>
               </div>
-            </div>
+            </Stickysidebar>
        
             
             <div className="flex-1 space-y-6">
-               <div className="flex border-b border-gray-200 mb-6">
+               <div className="flex items-center justify-between border-b border-gray-200 mb-6">
+          <div className="flex">
+            <button
+              onClick={() => setActiveTab('details')}
+              className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
+                activeTab === 'details'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Details
+            </button>
+            <button
+              onClick={() => setActiveTab('interview')}
+              className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
+                activeTab === 'interview'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Interview Questions
+            </button>
+            <button
+              onClick={() => setActiveTab('history')}
+              className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
+                activeTab === 'history'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              History
+            </button>
+          </div>
           <button
-            onClick={() => setActiveTab('details')}
-            className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
-              activeTab === 'details'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
+            onClick={() => setShowStatusModal(true)}
+            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
           >
-            Details
-          </button>
-          <button
-            onClick={() => setActiveTab('interview')}
-            className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
-              activeTab === 'interview'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Interview Questions
-          </button>
-          <button
-            onClick={() => setActiveTab('history')}
-            className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
-              activeTab === 'history'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            History
+            Change Status
           </button>
         </div>
         <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6 transition-all duration-200">
@@ -1152,6 +1208,9 @@ const ApplicantDetails: React.FC = () => {
                   onSpecChange={handleSpecAnswerChange}
                 />
               </div>
+              <div className="bg-white rounded-lg shadow-sm border border-gray-100">
+                <ActivityFeed activities={activities} mailRecords={applicantMailRecords} interviews={applicant?.interviews} />
+              </div>
             </div>
           </div>
           <div className="mb-6">
@@ -1161,24 +1220,157 @@ const ApplicantDetails: React.FC = () => {
               onSectionsChange={setEditedSections}
             />
           </div>
-          <div className="w-full mb-6">
-            <ActivityFeed activities={activities} mailRecords={applicantMailRecords} interviews={applicant?.interviews} />
-          </div>
         </div>
 
         {visitedTabs.has('interview') && (
-          <div hidden={activeTab !== 'interview'} className="mb-6">
-            <InterviewQuestions
-              applicantId={id}
-              onRequestScheduleInterview={() => setShowScheduleModal(true)}
-              autoSelectInterviewId={autoSelectInterviewId}
-            />
+          <div hidden={activeTab !== 'interview'}>
+            <div className="flex flex-col lg:flex-row gap-6 mb-6 items-start">
+              <Stickysidebar>
+                <PersonalInfo
+                  applicant={applicant}
+                  isEditing={false}
+                  onChangeStatus={() => setShowStatusModal(true)}
+                  onScheduleInterview={() => setShowScheduleModal(true)}
+                  onSendMessage={() => setShowMessageModal(true)}
+                  onPrint={handlePrint}
+                />
+                <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 space-y-3">
+                  <button
+                    type="button"
+                    className="w-full px-4 py-2.5 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    Send Job Offer
+                  </button>
+                  <button
+                    type="button"
+                    className="w-full px-4 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Send Contract
+                  </button>
+                </div>
+              </Stickysidebar>
+              <div className="flex-1 space-y-6">
+                <div className="flex items-center justify-between border-b border-gray-200 mb-6">
+                  <div className="flex">
+                    <button
+                      onClick={() => setActiveTab('details')}
+                      className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
+                        activeTab === 'details'
+                          ? 'border-blue-600 text-blue-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      Details
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('interview')}
+                      className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
+                        activeTab === 'interview'
+                          ? 'border-blue-600 text-blue-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      Interview Questions
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('history')}
+                      className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
+                        activeTab === 'history'
+                          ? 'border-blue-600 text-blue-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      History
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => setShowStatusModal(true)}
+                    className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Change Status
+                  </button>
+                </div>
+                <InterviewQuestions
+                  applicantId={id}
+                  onRequestScheduleInterview={() => setShowScheduleModal(true)}
+                  autoSelectInterviewId={autoSelectInterviewId}
+                />
+              </div>
+            </div>
           </div>
         )}
 
         {visitedTabs.has('history') && (
-          <div hidden={activeTab !== 'history'} className="mb-6">
-            <History applicant={applicant} loading={isApplicantLoading} />
+          <div hidden={activeTab !== 'history'}>
+            <div className="flex flex-col lg:flex-row gap-6 mb-6 items-start">
+              <Stickysidebar>
+                <PersonalInfo
+                  applicant={applicant}
+                  isEditing={false}
+                  onChangeStatus={() => setShowStatusModal(true)}
+                  onScheduleInterview={() => setShowScheduleModal(true)}
+                  onSendMessage={() => setShowMessageModal(true)}
+                  onPrint={handlePrint}
+                />
+                <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 space-y-3">
+                  <button
+                    type="button"
+                    className="w-full px-4 py-2.5 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    Send Job Offer
+                  </button>
+                  <button
+                    type="button"
+                    className="w-full px-4 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Send Contract
+                  </button>
+                </div>
+              </Stickysidebar>
+              <div className="flex-1 space-y-6">
+                <div className="flex items-center justify-between border-b border-gray-200 mb-6">
+                  <div className="flex">
+                    <button
+                      onClick={() => setActiveTab('details')}
+                      className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
+                        activeTab === 'details'
+                          ? 'border-blue-600 text-blue-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      Details
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('interview')}
+                      className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
+                        activeTab === 'interview'
+                          ? 'border-blue-600 text-blue-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      Interview Questions
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('history')}
+                      className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
+                        activeTab === 'history'
+                          ? 'border-blue-600 text-blue-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      History
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => setShowStatusModal(true)}
+                    className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Change Status
+                  </button>
+                </div>
+                <History applicant={applicant} loading={isApplicantLoading} />
+              </div>
+            </div>
           </div>
         )}
       </div>

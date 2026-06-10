@@ -85,6 +85,7 @@ const buildActivities = (applicant: Applicant | null | undefined): ActivityItem[
       title: `${(entry.type || 'internal').charAt(0).toUpperCase() + (entry.type || 'internal').slice(1)} message`,
       messageChannel: entry.type,
       description: entry.content ?? entry.subject,
+      subject: entry.subject,
     });
   });
 
@@ -98,6 +99,9 @@ const buildActivities = (applicant: Applicant | null | undefined): ActivityItem[
       title: `Interview ${status}`,
       interviewStatus: status,
       description: entry.notes,
+      scheduledAt: entry.scheduledAt,
+      endedAt: entry.endedAt,
+      conductedBy: entry.conductedBy ? (typeof entry.conductedBy === 'string' ? entry.conductedBy : resolveActorName(entry.conductedBy)) : undefined,
     });
   });
 

@@ -9,6 +9,7 @@ import {
   Mail,
   Bell,
   Star,
+  ChevronDown,
 } from 'lucide-react';
 
 import { Modal } from '../../../../components/ui/modal';
@@ -16,6 +17,7 @@ import type { Activity, ActivityFeedProps, Interview } from '../../../../types/a
 
 const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, mailRecords = [], interviews = [] }) => {
   const data: Activity[] = Array.isArray(activities) ? activities : [];
+  const [isExpanded, setIsExpanded] = useState(true);
   const [previewHtml, setPreviewHtml] = useState('');
   const [showPreview, setShowPreview] = useState(false);
 
@@ -144,6 +146,26 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, mailRecords = [
     return styledHtml;
   };
 
+  const findMailSubject = (activityTimestamp: string): string | null => {
+    const mailHtml = findMailHtml(activityTimestamp);
+    if (!mailHtml) return null;
+    const match = mailHtml.match(/<h1[^>]*>([^<]+)<\/h1>/);
+    return match ? match[1].trim() : null;
+  };
+
+  const getActivitySubject = (activity: Activity): string | null => {
+    if (activity.subject) return activity.subject;
+    return findMailSubject(activity.timestamp);
+  };
+
+  const getDisplayTitle = (activity: Activity): string => {
+    if ((activity.type === 'email' || activity.type === 'message')) {
+      const s = getActivitySubject(activity);
+      if (s) return `${activity.title} (${s})`;
+    }
+    return activity.title;
+  };
+
   const renderEmailContent = (activity: Activity): string => {
     const mailHtml = findMailHtml(activity.timestamp);
     const html = decodeHtmlEntities(mailHtml || activity.description || '');
@@ -155,10 +177,23 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, mailRecords = [
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
       <div className="p-5 border-b border-gray-100">
-        <h3 className="text-base font-semibold text-gray-800">Activity Feed</h3>
-        <p className="text-sm text-gray-400 mt-0.5">Recent updates and comments</p>
+        <button
+          onClick={() => setIsExpanded((prev) => !prev)}
+          className="w-full flex items-center justify-between text-left"
+        >
+          <div>
+            <h3 className="text-base font-semibold text-gray-800">Activity Feed</h3>
+            <p className="text-sm text-gray-400 mt-0.5">Recent updates and comments</p>
+          </div>
+          <ChevronDown
+            className={`h-5 w-5 text-gray-400 transition-transform duration-200 ${
+              isExpanded ? '' : '-rotate-90'
+            }`}
+          />
+        </button>
       </div>
 
+      {isExpanded && (
       <div className="space-y-0">
   {data.length === 0 ? (
     <div className="p-8 text-center">
@@ -197,9 +232,9 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, mailRecords = [
       </div>
       
       <div className="flex items-start justify-between">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <span
-            className="text-sm font-semibold text-gray-800"
+            className="text-sm font-semibold text-gray-800 capitalize"
             style={(activity.type === 'email' || activity.type === 'message') && activity.description ? { cursor: 'pointer' } : undefined}
             onClick={() => {
               if ((activity.type === 'email' || activity.type === 'message') && activity.description) {
@@ -208,8 +243,21 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, mailRecords = [
               }
             }}
           >
-            {activity.title} 
+            {getDisplayTitle(activity)}
           </span>
+          {activity.type === 'interview' && activity.scheduledAt && (
+            <span className="text-xs text-gray-400 ml-1">
+              {new Date(activity.scheduledAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+            </span>
+          )}
+          {activity.type === 'interview' && activity.interviewStatus === 'completed' && activity.endedAt && (
+            <span className="text-xs text-gray-500">
+              Ended {new Date(activity.endedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+            </span>
+          )}
+          {activity.type === 'interview' && activity.interviewStatus === 'completed' && activity.conductedBy && (
+            <span className="text-xs text-gray-500">by {activity.conductedBy}</span>
+          )}
         </div>
         <span className="text-xs text-gray-400 whitespace-nowrap ml-4">
           {formatDate(activity.timestamp)}
@@ -218,11 +266,23 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, mailRecords = [
 
       <div className="flex items-center gap-2 mb-3">
         <span className="text-xs font-medium text-gray-600">
-          Updated at {new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} by
+          {activity.type === 'comment' && `Commented at ${new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} by`}
+          {activity.type === 'status_change' && `Status changed at ${new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} by`}
+          {activity.type === 'interview' && activity.interviewStatus === 'completed' && `Interview completed at ${new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} by`}
+          {activity.type === 'interview' && activity.interviewStatus !== 'completed' && `Interview scheduled at ${new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} by`}
+          {(activity.type === 'email' || activity.type === 'message') && `Sent at ${new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} by`}
+          {activity.type === 'application' && `Submitted at ${new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} by`}
+          {activity.type === 'task' && `Task at ${new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} by`}
+          {!['comment', 'status_change', 'interview', 'email', 'message', 'application', 'task'].includes(activity.type) && `Updated at ${new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} by`}
         </span>
         <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
           <User className="h-3.5 w-3.5 text-gray-500" />
         </div>
+        {activity.user?.name && (
+          <span className="text-xs font-medium text-gray-600">
+            {activity.user.name.split(' ')[0]}
+          </span>
+        )}
       </div>
 
       {/* Rest of your content remains the same */}
@@ -269,6 +329,7 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, mailRecords = [
     </div>
   ))}
 </div>
+      )}
 
       <Modal
         isOpen={showPreview}

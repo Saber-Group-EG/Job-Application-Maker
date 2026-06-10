@@ -13,7 +13,7 @@ export type Interview = {
   endedAt?: string;
   scheduledBy?: string | { _id?: string; fullName?: string; id?: string };
   conductedBy?: string;
-  status?: 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | string;
+  status?: 'scheduled' | 'Progressing' | 'completed' | 'cancelled' | string;
   type?: string;
   videoLink?: string;
   notes?: string;
@@ -162,7 +162,7 @@ export type ScheduleInterviewRequest = {
   type?: string | null;
   notes?: string;
   interviewers?: string[];
-  status?: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+  status?: 'scheduled' | 'Progressing' | 'completed' | 'cancelled';
   questions?: InterviewAnswer[];
   notifications?: {
     channels?: { email?: boolean; sms?: boolean; whatsapp?: boolean };
@@ -189,7 +189,7 @@ export type UpdateInterviewStatusRequest = {
   address?: string | null;
   type?: string | null;
   notes?: string | null;
-  status?: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+  status?: 'scheduled' | 'Progressing' | 'completed' | 'cancelled';
   questions?: InterviewAnswer[];
 };
 
@@ -215,6 +215,11 @@ export interface Activity {
   user?: { name: string; avatar?: string };
   comment?: string;
   status?: string;
+  subject?: string;
+  scheduledAt?: string;
+  endedAt?: string;
+  conductedBy?: string;
+  interviewStatus?: string;
 }
 
 export interface ActivityItem {
@@ -228,6 +233,10 @@ export interface ActivityItem {
   status?: string;
   messageChannel?: string;
   interviewStatus?: string;
+  subject?: string;
+  scheduledAt?: string;
+  endedAt?: string;
+  conductedBy?: string;
 }
 
 export type ActivityLike = Partial<Comment & StatusHistory & Message & Interview> & {

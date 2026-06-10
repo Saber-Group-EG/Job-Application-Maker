@@ -335,7 +335,7 @@ export default function CompletedInterviewsHistory({
               >
                 <option value="completed">Completed</option>
                 <option value="scheduled">Scheduled</option>
-                <option value="in_progress">In progress</option>
+                <option value="Progressing">In progress</option>
                 <option value="cancelled">Cancelled</option>
               </select>
             </div>

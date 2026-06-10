@@ -314,7 +314,7 @@ export default function History({ applicant, loading = false }: Props) {
   const handleEditInterview = async (interview: CompletedInterview) => {
     const interviewId = String(interview?._id || interview?.id || '');
     if (!applicantId || !interviewId) return;
-    const allowedStatuses = ['scheduled', 'in_progress', 'completed', 'cancelled'] as const;
+    const allowedStatuses = ['scheduled', 'Progressing', 'completed', 'cancelled'] as const;
     type AllowedStatus = (typeof allowedStatuses)[number];
     const status: AllowedStatus | undefined = allowedStatuses.includes(
       interview.status as AllowedStatus,

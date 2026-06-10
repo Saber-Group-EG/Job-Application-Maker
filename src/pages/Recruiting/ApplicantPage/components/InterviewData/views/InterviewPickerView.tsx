@@ -10,7 +10,7 @@ export type InterviewPickerViewProps = {
 const statusClasses = (status: string): string => {
   const s = String(status || '').toLowerCase();
   if (s === 'completed') return 'bg-emerald-100 text-emerald-700';
-  if (s === 'in_progress') return 'bg-amber-100 text-amber-700';
+  if (s === 'Progressing') return 'bg-amber-100 text-amber-700';
   if (s === 'cancelled') return 'bg-red-100 text-red-700';
   return 'bg-slate-100 text-slate-700';
 };

@@ -188,7 +188,7 @@ export async function generateApplicantPdf(
   }
 
   if (applicant.interviews?.length) {
-    const stCol: Record<string, [string, string]> = { scheduled: ['#dbeafe', '#1e40af'], in_progress: ['#fef3c7', '#92400e'], completed: ['#dcfce7', '#166534'], cancelled: ['#fee2e2', '#991b1b'] };
+    const stCol: Record<string, [string, string]> = { scheduled: ['#dbeafe', '#1e40af'], Progressing: ['#fef3c7', '#92400e'], completed: ['#dcfce7', '#166534'], cancelled: ['#fee2e2', '#991b1b'] };
     const rows = applicant.interviews.map(iv => {
       const [bg, fg] = stCol[iv.status || 'scheduled'] || ['#f3f4f6', '#374151'];
       return `<tr><td style="padding:5px 8px;color:#111827;border-bottom:1px solid #e5e7eb;font-size:11px;">${formatDate(iv.scheduledAt || iv.createdAt)}</td><td style="padding:5px 8px;border-bottom:1px solid #e5e7eb;">${badge((iv.status || 'scheduled').replace('_', ' '), bg, fg)}</td><td style="padding:5px 8px;color:#374151;border-bottom:1px solid #e5e7eb;font-size:11px;">${iv.type || '—'}</td><td style="padding:5px 8px;color:#374151;border-bottom:1px solid #e5e7eb;text-align:center;font-size:11px;">${iv.achievedScore ?? '—'}/${iv.totalScore ?? '—'}</td></tr>`;

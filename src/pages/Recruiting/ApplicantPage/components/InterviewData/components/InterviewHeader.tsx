@@ -52,7 +52,7 @@ export const InterviewHeader = ({
     if (status === 'completed' || isEnded) {
       return { label: 'Completed', classes: 'bg-emerald-500/20 text-emerald-50' };
     }
-    if (status === 'in_progress' || isStarted) {
+    if (status === 'Progressing' || isStarted) {
       return { label: 'In progress', classes: 'bg-amber-400/20 text-amber-50' };
     }
     return { label: 'Scheduled', classes: 'bg-white/15 text-white' };
