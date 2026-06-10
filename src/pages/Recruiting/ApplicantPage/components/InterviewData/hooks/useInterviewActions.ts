@@ -40,7 +40,7 @@ export const useInterviewActions = ({
 }: UseInterviewActionsOptions) => {
   const mutation = useUpdateInterviewStatus();
   const [isPickerSaving, setIsPickerSaving] = useState(false);
-  const [fieldSaveStatus, setFieldSaveStatus] = useState<FieldSaveStatus>('idle');
+  const [fieldSaveStatus] = useState<FieldSaveStatus>('idle');
   const debounceRef = useRef<number | null>(null);
 
   const interviewId = String(interview?._id || interview?.id || '');

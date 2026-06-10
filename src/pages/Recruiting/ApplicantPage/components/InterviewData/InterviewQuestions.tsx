@@ -255,6 +255,7 @@ const InterviewQuestions = ({
     if (!hasPending) return;
     const updated = buildUpdatedQuestions();
     let cleared = false;
+    void cleared; 
     saveInFlightRef.current = true;
     try {
       const ok = await actions.savePickedGroups(updated, false, true);
