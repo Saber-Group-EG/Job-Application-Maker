@@ -3,7 +3,6 @@ import {
   AlertCircle,
   ArrowLeft,
   CheckCircle2,
-  Edit3,
   FileText,
   Play,
   Save,
@@ -21,13 +20,11 @@ export type InterviewHeaderProps = {
   answered: number;
   total: number;
   fieldSaveStatus: FieldSaveStatus;
-  canEditQuestions: boolean;
   canStart: boolean;
   canEnd: boolean;
   canSaveProgress: boolean;
   isMutating: boolean;
   onBack: () => void;
-  onEditQuestions: () => void;
   onStart: () => void;
   onEnd: () => void;
   onSaveProgress: () => void;
@@ -41,13 +38,11 @@ export const InterviewHeader = ({
   answered,
   total,
   fieldSaveStatus,
-  canEditQuestions,
   canStart,
   canEnd,
   canSaveProgress,
   isMutating,
   onBack,
-  onEditQuestions,
   onStart,
   onEnd,
   onSaveProgress,
@@ -114,17 +109,6 @@ export const InterviewHeader = ({
               <AlertCircle className="h-3 w-3" />
               Save failed
             </div>
-          )}
-          {canEditQuestions && (
-            <button
-              type="button"
-              onClick={onEditQuestions}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white text-blue-700 text-xs font-semibold hover:bg-blue-50 transition-colors shadow-sm"
-              title="Add or remove question groups"
-            >
-              <Edit3 className="h-3.5 w-3.5" />
-              Edit Questions
-            </button>
           )}
           {false && canSaveProgress && (
             <button

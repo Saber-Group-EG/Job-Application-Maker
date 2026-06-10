@@ -15,7 +15,6 @@ export type InterviewViewName =
   | 'selection'
   | 'interview-picker'
   | 'question-picker'
-  | 'manage-questions'
   | 'assessment';
 
 type ExistingInterview = Interview;

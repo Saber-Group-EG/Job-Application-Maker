@@ -59,12 +59,14 @@ export const useGroupMeta = (applicantId: string, interviewId: string) => {
       built.forEach((q, idx) => {
         const saved = savedQuestions[idx];
         const qId = saved ? getQuestionId(saved) : '';
-        if (!qId || !q.groupKey) return;
-        additions[qId] = {
+        if (!q.groupKey) return;
+        const meta = {
           key: q.groupKey,
           name: q.groupName || 'Group',
           source: q.groupSource || 'company',
         };
+        if (qId) additions[qId] = meta;
+        additions[`__idx_${idx}`] = meta;
       });
       if (Object.keys(additions).length === 0) return;
       setMetaAndPersist((prev) => ({ ...prev, ...additions }));
@@ -81,17 +83,26 @@ export const useGroupMeta = (applicantId: string, interviewId: string) => {
     (questions: InterviewAnswer[]) => {
       const stored = readStoredMeta(applicantId, interviewId);
       const additions: GroupMetaMap = {};
-      questions.forEach((q) => {
+      questions.forEach((q, idx) => {
         const qId = getQuestionId(q);
-        if (!qId) return;
-        if (q.groupKey) {
-          additions[qId] = {
-            key: q.groupKey,
-            name: q.groupName || 'Group',
-            source: q.groupSource || 'company',
-          };
-        } else if (stored[qId]) {
-          additions[qId] = stored[qId];
+        if (qId) {
+          if (q.groupKey) {
+            additions[qId] = {
+              key: q.groupKey,
+              name: q.groupName || 'Group',
+              source: q.groupSource || 'company',
+            };
+          } else if (stored[qId]) {
+            additions[qId] = stored[qId];
+          }
+        }
+        // Fallback: match by index when server stripped IDs
+        const idxKey = `__idx_${idx}`;
+        if (stored[idxKey]) {
+          const targetKey = qId || idxKey;
+          if (!additions[targetKey]) {
+            additions[targetKey] = stored[idxKey];
+          }
         }
       });
       if (Object.keys(additions).length > 0) {

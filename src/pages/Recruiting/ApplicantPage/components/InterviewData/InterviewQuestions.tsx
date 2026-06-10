@@ -12,8 +12,8 @@ import { useInterviewTimer } from './hooks/useInterviewTimer';
 import { applicantsKeys } from '../../../../../hooks/queries/useApplicants';
 import { getInterviewId } from './utils/interviewUtils';
 import { AssessmentView } from './views/AssessmentView';
+import type { NewCustomQuestion } from './views/AssessmentView';
 import { InterviewPickerView } from './views/InterviewPickerView';
-import { ManageQuestionsView } from './views/ManageQuestionsView';
 import { QuestionPickerView } from './views/QuestionPickerView';
 import { SelectionView } from './views/SelectionView';
 import type { PoolGroup } from './hooks/useQuestionPool';
@@ -57,8 +57,13 @@ const InterviewQuestions = ({
 
   // Picker local state
   const [pickerSelectedKeys, setPickerSelectedKeys] = useState<string[]>([]);
-  const [manageAddKeys, setManageAddKeys] = useState<string[]>([]);
-  const [manageRemoveKeys, setManageRemoveKeys] = useState<string[]>([]);
+  const [pendingAddGroups, setPendingAddGroups] = useState<string[]>([]);
+  const [newCustomQuestions, setNewCustomQuestions] = useState<NewCustomQuestion[]>([]);
+  const [pendingRemoveIds, setPendingRemoveIds] = useState<string[]>([]);
+  const [pendingRemoveGroups, setPendingRemoveGroups] = useState<string[]>([]);
+  const saveInFlightRef = useRef(false);
+  const pendingGenRef = useRef(0);
+
 
   // When entering the question picker, pre-select the currently attached
   // groups so the user can confirm their existing setup.
@@ -74,25 +79,16 @@ const InterviewQuestions = ({
     setPickerSelectedKeys(Array.from(new Set(attached)));
   }, [state.view, state.flatExistingQuestions, state.groupMeta.meta]);
 
-  // Reset manage pending state when entering manage view
-  useEffect(() => {
-    if (state.view === 'manage-questions') {
-      setManageAddKeys([]);
-      setManageRemoveKeys([]);
-    }
-  }, [state.view]);
-
   // ---- Derived flags ---------------------------------------------------
   const selectedInterview = state.selectedInterview;
   const isStarted = Boolean(selectedInterview?.startedAt);
   const isEnded = Boolean(selectedInterview?.endedAt);
   const isInteractive = isStarted && !isEnded;
-  const canEditQuestions = Boolean(selectedInterview) && !isEnded;
   const canStart = Boolean(selectedInterview) && !isStarted && !isEnded;
   const canEnd = Boolean(selectedInterview) && isStarted && !isEnded;
   const canSaveProgress = isInteractive;
 
-  // ---- Pool grouping for manage view -----------------------------------
+  // ---- Pool grouping ---------------------------------------------------
   const attachedGroupKeys = useMemo(() => {
     const set = new Set<string>();
     state.flatExistingQuestions.forEach((q) => {
@@ -104,15 +100,11 @@ const InterviewQuestions = ({
     return set;
   }, [state.flatExistingQuestions, state.groupMeta.meta]);
 
-  const attachedGroups: PoolGroup[] = useMemo(() => {
-    return state.questionPool.filter((g) => attachedGroupKeys.has(g.key));
-  }, [state.questionPool, attachedGroupKeys]);
-
   const availableGroups: PoolGroup[] = useMemo(() => {
     return state.questionPool.filter(
-      (g) => !attachedGroupKeys.has(g.key) || manageAddKeys.includes(g.key)
+      (g) => !attachedGroupKeys.has(g.key) || pendingRemoveGroups.includes(g.key)
     );
-  }, [state.questionPool, attachedGroupKeys, manageAddKeys]);
+  }, [state.questionPool, attachedGroupKeys, pendingRemoveGroups]);
 
   // ---- Question payload builders --------------------------------------
   const buildQuestionsFromGroups = useCallback(
@@ -142,27 +134,66 @@ const InterviewQuestions = ({
     [state.questionPool]
   );
 
-  const buildMergedPayload = useCallback((): InterviewAnswer[] => {
-    // Start with the existing questions, drop any group marked for removal,
-    // append any new groups being added.
-    const finalKeys = new Set<string>();
-    state.flatExistingQuestions.forEach((q) => {
+  const buildUpdatedQuestions = useCallback((): InterviewAnswer[] => {
+    const deletedSet = new Set(pendingRemoveIds);
+    const removedGroupsSet = new Set(pendingRemoveGroups);
+    // Filter out deleted existing questions and questions in removed groups
+    const existing = state.flatExistingQuestions.filter((q) => {
       const qId = String(q?.id || q?._id || '');
+      if (deletedSet.has(qId)) return false;
       const meta = (qId && state.groupMeta.meta[qId]) || null;
-      const key = meta?.key || q?.groupKey;
-      if (!key) return;
-      if (manageRemoveKeys.includes(key)) return;
-      finalKeys.add(key);
+      const gKey = meta?.key || q?.groupKey || '';
+      if (removedGroupsSet.has(gKey)) return false;
+      return true;
     });
-    manageAddKeys.forEach((k) => finalKeys.add(k));
-    return buildQuestionsFromGroups(Array.from(finalKeys));
-  }, [
-    state.flatExistingQuestions,
-    state.groupMeta.meta,
-    manageAddKeys,
-    manageRemoveKeys,
-    buildQuestionsFromGroups,
-  ]);
+    // Add questions from pending groups
+    pendingAddGroups.forEach((key) => {
+      const group = state.questionPool.find((g) => g.key === key);
+      if (!group) return;
+      group.questions.forEach((q) => {
+        existing.push({
+          _id: q._id,
+          id: q.id,
+          question: q.question,
+          score: q.score,
+          achievedScore: 0,
+          notes: '',
+          answerType: q.answerType,
+          choices: q.choices,
+          groupKey: group.key,
+          groupName: group.name,
+          groupSource: group.source,
+        });
+      });
+    });
+    // Add new custom questions — no group, they render as standalone rows
+    if (newCustomQuestions.length > 0) {
+      const customPrefix = `free_${Date.now()}`;
+      newCustomQuestions.forEach((q, idx) => {
+        const renderId = `new_custom_${idx}`;
+        const percent = Number(state.achievedPercentages[renderId] || 0);
+        const achieved = Math.round((q.score * percent) / 100);
+        const notesValue = state.answers[renderId];
+        const notes =
+          notesValue === undefined || notesValue === null
+            ? ''
+            : typeof notesValue === 'string'
+            ? notesValue
+            : String(notesValue);
+        existing.push({
+          id: `${customPrefix}_${idx}`,
+          question: q.question,
+          score: q.score,
+          achievedScore: achieved,
+          notes,
+          answerType: q.answerType,
+          choices: q.choices,
+          groupKey: '__free__',
+        });
+      });
+    }
+    return existing;
+  }, [state.flatExistingQuestions, state.questionPool, state.achievedPercentages, state.answers, state.groupMeta.meta, pendingAddGroups, newCustomQuestions, pendingRemoveIds, pendingRemoveGroups]);
 
   // ---- Handlers --------------------------------------------------------
   const togglePickerKey = useCallback((key: string) => {
@@ -171,17 +202,75 @@ const InterviewQuestions = ({
     );
   }, []);
 
-  const toggleManageAdd = useCallback((key: string) => {
-    setManageAddKeys((prev) =>
-      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+  const handleAddGroup = useCallback((key: string) => {
+    pendingGenRef.current++;
+    setPendingAddGroups((prev) => [...prev, key]);
+    setPendingRemoveGroups((prev) => prev.filter((k) => k !== key));
+    // Clear answers/percentages for questions in the re-added group
+    state.flatExistingQuestions.forEach((q) => {
+      const qId = String(q?.id || q?._id || '');
+      const meta = (qId && state.groupMeta.meta[qId]) || null;
+      const gKey = meta?.key || q?.groupKey;
+      if (gKey === key && qId) {
+        state.updateField(qId, { percentage: 0, answer: '' });
+      }
+    });
+  }, [state.flatExistingQuestions, state.groupMeta.meta, state.updateField]);
+
+  const handleCreateQuestion = useCallback((q: NewCustomQuestion) => {
+    pendingGenRef.current++;
+    setNewCustomQuestions((prev) => [...prev, q]);
+  }, []);
+
+  const handleRemoveGroup = useCallback((groupKey: string) => {
+    pendingGenRef.current++;
+    setPendingAddGroups((prev) => prev.filter((k) => k !== groupKey));
+    setPendingRemoveGroups((prev) =>
+      prev.includes(groupKey) ? prev : [...prev, groupKey]
     );
   }, []);
 
-  const toggleManageRemove = useCallback((key: string) => {
-    setManageRemoveKeys((prev) =>
-      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+  const handleDeleteQuestion = useCallback((questionId: string) => {
+    pendingGenRef.current++;
+    // Check if it's a custom pending question
+    const customIdx = newCustomQuestions.findIndex(
+      (_, i) => `new_custom_${i}` === questionId
     );
-  }, []);
+    if (customIdx !== -1) {
+      setNewCustomQuestions((prev) => prev.filter((_, i) => i !== customIdx));
+    } else {
+      setPendingRemoveIds((prev) => [...prev, questionId]);
+    }
+  }, [newCustomQuestions]);
+
+  const triggerBackgroundSave = useCallback(async () => {
+    if (!state.selectedInterview) return;
+    if (saveInFlightRef.current) return;
+    const gen = pendingGenRef.current;
+    const hasPending =
+      pendingAddGroups.length > 0 ||
+      pendingRemoveGroups.length > 0 ||
+      pendingRemoveIds.length > 0 ||
+      newCustomQuestions.length > 0;
+    if (!hasPending) return;
+    const updated = buildUpdatedQuestions();
+    let cleared = false;
+    saveInFlightRef.current = true;
+    try {
+      const ok = await actions.savePickedGroups(updated, false, true);
+      if (ok && gen === pendingGenRef.current) {
+        setPendingAddGroups([]);
+        setNewCustomQuestions([]);
+        setPendingRemoveIds([]);
+        setPendingRemoveGroups([]);
+        cleared = true;
+      }
+    } catch {
+      // silent background failure
+    } finally {
+      saveInFlightRef.current = false;
+    }
+  }, [state, buildUpdatedQuestions, pendingAddGroups, pendingRemoveGroups, pendingRemoveIds, newCustomQuestions, actions]);
 
   const handleSaveQuestions = useCallback(async () => {
     if (!state.selectedInterview) return;
@@ -261,18 +350,6 @@ const InterviewQuestions = ({
     // The score/notes are kept in local state and persisted on End.
   }, []);
 
-  const handleApplyManage = useCallback(async () => {
-    if (!state.selectedInterview) return;
-    const next = buildMergedPayload();
-    if (next.length === 0) return;
-    const ok = await actions.savePickedGroups(next, false);
-    if (ok) {
-      setManageAddKeys([]);
-      setManageRemoveKeys([]);
-      state.setView('assessment');
-    }
-  }, [state, buildMergedPayload, actions]);
-
   const handleQuestionChange = useCallback(
     (questionId: string, patch: { percentage?: number; answer?: unknown }) => {
       // Local state only — no auto-save. All data is persisted on End Interview.
@@ -280,6 +357,19 @@ const InterviewQuestions = ({
     },
     [state]
   );
+
+  // ---- Background auto-save --------------------------------------------
+  const triggerSaveRef = useRef(triggerBackgroundSave);
+  triggerSaveRef.current = triggerBackgroundSave;
+  useEffect(() => {
+    const hasPending =
+      pendingAddGroups.length > 0 ||
+      pendingRemoveGroups.length > 0 ||
+      pendingRemoveIds.length > 0 ||
+      newCustomQuestions.length > 0;
+    if (!hasPending || isEnded) return;
+    triggerSaveRef.current();
+  }, [pendingAddGroups, pendingRemoveGroups, pendingRemoveIds, newCustomQuestions, isEnded]);
 
   // ---- Render ----------------------------------------------------------
   if (state.view === 'selection') {
@@ -333,22 +423,6 @@ const InterviewQuestions = ({
     );
   }
 
-  if (state.view === 'manage-questions' && state.selectedInterview) {
-    return (
-      <ManageQuestionsView
-        attachedGroups={attachedGroups}
-        availableGroups={availableGroups}
-        pendingAddKeys={manageAddKeys}
-        pendingRemoveKeys={manageRemoveKeys}
-        onTogglePendingAdd={toggleManageAdd}
-        onTogglePendingRemove={toggleManageRemove}
-        onBack={() => state.setView('assessment')}
-        onApply={handleApplyManage}
-        isApplying={actions.isMutating}
-      />
-    );
-  }
-
   if (state.view === 'assessment' && state.selectedInterview) {
     return (
       <AssessmentView
@@ -364,10 +438,18 @@ const InterviewQuestions = ({
         isEnded={isEnded}
         fieldSaveStatus={actions.fieldSaveStatus}
         isMutating={actions.isMutating}
-        canEditQuestions={canEditQuestions}
         canStart={canStart}
         canEnd={canEnd}
         canSaveProgress={canSaveProgress}
+        availableGroups={availableGroups}
+        pendingAddGroups={pendingAddGroups}
+        pendingRemoveIds={pendingRemoveIds}
+        newCustomQuestions={newCustomQuestions}
+        onAddGroup={handleAddGroup}
+        onCreateQuestion={handleCreateQuestion}
+        onDeleteQuestion={handleDeleteQuestion}
+        onRemoveGroup={handleRemoveGroup}
+        pendingRemoveGroups={pendingRemoveGroups}
         onBack={() => {
           if (state.scheduledInterviews.length > 1) {
             state.setSelectedInterviewId(null);
@@ -377,7 +459,6 @@ const InterviewQuestions = ({
             state.setView('selection');
           }
         }}
-        onEditQuestions={() => state.setView('manage-questions')}
         onStart={handleStart}
         onEnd={handleEnd}
         onSaveProgress={handleSaveProgress}

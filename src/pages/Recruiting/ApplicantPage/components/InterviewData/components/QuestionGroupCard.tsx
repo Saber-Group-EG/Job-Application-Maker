@@ -20,6 +20,7 @@ export type QuestionGroupCardProps = {
     patch: { percentage?: number; answer?: unknown }
   ) => void;
   onRemove?: () => void;
+  onDeleteQuestion?: (questionId: string) => void;
 };
 
 export const QuestionGroupCard = ({
@@ -35,6 +36,7 @@ export const QuestionGroupCard = ({
   onToggle,
   onQuestionChange,
   onRemove,
+  onDeleteQuestion,
 }: QuestionGroupCardProps) => {
   const SourceIcon = source === 'company' ? Building2 : Library;
   const totalScore = useMemo(() => computeTotalScore(questions), [questions]);
@@ -142,14 +144,16 @@ export const QuestionGroupCard = ({
           {questions.map((q) => {
             const qId = getQuestionId(q);
             return (
-              <QuestionRow
-                key={qId || `${groupKey}_${q?.question}`}
-                question={q}
-                isInteractive={isInteractive}
-                percentage={Number((qId && percentages[qId]) || 0)}
-                answer={qId ? answers[qId] : undefined}
-                onChange={(patch) => onQuestionChange(qId, patch)}
-              />
+              <div key={qId || `${groupKey}_${q?.question}`}>
+                <QuestionRow
+                  question={q}
+                  isInteractive={isInteractive}
+                  percentage={Number((qId && percentages[qId]) || 0)}
+                  answer={qId ? answers[qId] : undefined}
+                  onChange={(patch) => onQuestionChange(qId, patch)}
+                  onDelete={onDeleteQuestion}
+                />
+              </div>
             );
           })}
         </div>

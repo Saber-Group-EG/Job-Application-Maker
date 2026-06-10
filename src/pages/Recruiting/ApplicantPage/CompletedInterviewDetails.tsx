@@ -2,16 +2,19 @@ import React, { useMemo } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import {
   ArrowLeft,
+  Award,
   Building2,
   Calendar,
   CheckCircle2,
+  Clock,
   Clock4,
   ExternalLink,
   FileText,
   Inbox,
   Library,
-  MapPin,
   StickyNote,
+
+  Target,
   User as UserIcon,
   Video,
   XCircle,
@@ -27,8 +30,6 @@ import type {
 import { paths } from '../../../router/Paths';
 import {
   formatDate,
-  formatDateOnly,
-  getStatusColor,
 } from './components/history/historyUtils';
 
 type CompletedInterview = Interview & { id?: string };
@@ -60,21 +61,19 @@ const formatDuration = (ms: number | null): string => {
   return `${pad(seconds)}s`;
 };
 
-const getInterviewTypeIcon = (type?: string) => {
-  const t = String(type || '').toLowerCase();
-  if (t.includes('video')) return Video;
-  if (t.includes('in-person') || t.includes('in_person') || t.includes('onsite')) {
-    return MapPin;
-  }
-  return Clock4;
-};
+
 
 const groupQuestions = (
   questions: InterviewAnswer[] | undefined,
-): GroupedQuestions[] => {
-  if (!questions || !Array.isArray(questions) || questions.length === 0) return [];
+): { grouped: GroupedQuestions[]; free: InterviewAnswer[] } => {
+  if (!questions || !Array.isArray(questions) || questions.length === 0) return { grouped: [], free: [] };
   const map = new Map<string, GroupedQuestions>();
+  const free: InterviewAnswer[] = [];
   questions.forEach((q, index) => {
+    if (q?.groupKey === '__free__') {
+      free.push(q);
+      return;
+    }
     const key = q?.groupKey || `__ungrouped_${index}`;
     const name = q?.groupName || 'Questions';
     const source: GroupedQuestions['source'] = q?.groupSource || 'ungrouped';
@@ -85,7 +84,7 @@ const groupQuestions = (
       map.set(key, { key, name, source, questions: [q] });
     }
   });
-  return Array.from(map.values());
+  return { grouped: Array.from(map.values()), free };
 };
 
 const toUserLabel = (value: unknown): string => {
@@ -227,20 +226,7 @@ const QuestionDisplay: React.FC<{ question: InterviewAnswer; index: number }> = 
         )}
       </div>
 
-      {score > 0 && (
-        <div className="mt-3 space-y-1.5">
-          <div className="flex justify-between text-[11px] font-medium text-gray-500">
-            <span>Performance</span>
-            <span className="tabular-nums">{pct}%</span>
-          </div>
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-blue-500 to-purple-500"
-              style={{ width: `${Math.min(100, Math.max(0, pct))}%` }}
-            />
-          </div>
-        </div>
-      )}
+      
     </div>
   );
 };
@@ -274,7 +260,7 @@ const CompletedInterviewDetails: React.FC = () => {
     );
   }, [applicant, passedInterview, interviewId]);
 
-  const groupedQuestions = useMemo(
+  const { grouped: groupedQuestions, free: freeQuestions } = useMemo(
     () => groupQuestions(interview?.questions),
     [interview],
   );
@@ -372,7 +358,6 @@ const CompletedInterviewDetails: React.FC = () => {
   }
 
   const status = String(interview.status || 'completed').toLowerCase();
-  const TypeIcon = getInterviewTypeIcon(interview.type);
   const typeLabel = interview.type
     ? String(interview.type)
         .replace(/_/g, ' ')
@@ -405,71 +390,58 @@ const CompletedInterviewDetails: React.FC = () => {
         </div>
 
         <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
-          <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-5">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-3">
-                <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/20 text-white">
-                  <TypeIcon className="h-6 w-6" />
-                </span>
-                <div>
-                  <h1 className="text-xl font-bold text-white">
-                    {typeLabel} Interview
-                  </h1>
-                  <p className="text-sm text-white/80">
-                    {applicant?.fullName || 'Applicant'}
-                  </p>
-                </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span
-                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold capitalize ${getStatusColor(
-                    status,
-                  )}`}
-                >
+          <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-5 py-4">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <button
+                type="button"
+                onClick={handleBack}
+                className="inline-flex items-center gap-1.5 text-white/90 hover:text-white text-sm font-medium group"
+              >
+                <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
+                Back
+              </button>
+              <div className="flex items-center gap-2 flex-wrap">
+
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${status === 'completed' ? 'bg-emerald-500/20 text-emerald-50' : 'bg-white/15 text-white'}`}>
                   <CheckCircle2 className="h-3.5 w-3.5" />
-                  {status}
+                  {status === 'completed' ? 'Completed' : status}
                 </span>
-                {interview.scheduledAt && (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-xs text-white">
-                    <Calendar className="h-3.5 w-3.5" />
-                    {formatDateOnly(interview.scheduledAt)}
-                  </span>
-                )}
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-px bg-gray-100 md:grid-cols-4">
+          <div className="grid grid-cols-2 gap-px bg-gray-100 md:grid-cols-3">
             <div className="bg-white p-4 text-center">
+              <Target className="h-4 w-4 text-blue-500 mx-auto mb-1" />
               <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-                Total Score
+                Score
               </p>
-              <p className="mt-1 text-2xl font-bold text-gray-900 tabular-nums">
-                {totalScore}
-              </p>
-            </div>
-            <div className="bg-white p-4 text-center">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-                Achieved
-              </p>
-              <p className="mt-1 text-2xl font-bold text-emerald-600 tabular-nums">
-                {achievedScore}
-              </p>
-            </div>
-            <div className="bg-white p-4 text-center">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-                Performance
-              </p>
-              <p className="mt-1 text-2xl font-bold text-purple-600 tabular-nums">
+              <p className="mt-1 text-lg font-bold text-purple-600 tabular-nums">
                 {performance}%
               </p>
+              <p className="text-xs text-gray-400 tabular-nums">
+                {achievedScore} / {totalScore}
+              </p>
             </div>
             <div className="bg-white p-4 text-center">
+              <Clock className="h-4 w-4 text-purple-500 mx-auto mb-1" />
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                Duration
+              </p>
+              <p className="mt-1 text-lg font-bold text-gray-900 tabular-nums">
+                {formatDuration(duration)}
+              </p>
+            </div>
+            <div className="bg-white p-4 text-center">
+              <Award className="h-4 w-4 text-emerald-500 mx-auto mb-1" />
               <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
                 Completion
               </p>
-              <p className="mt-1 text-2xl font-bold text-amber-600 tabular-nums">
+              <p className="mt-1 text-lg font-bold text-amber-600 tabular-nums">
                 {completion}%
+              </p>
+              <p className="text-xs text-gray-400 tabular-nums">
+                {answeredCount} / {interview?.questions?.length || 0}
               </p>
             </div>
           </div>
@@ -510,14 +482,7 @@ const CompletedInterviewDetails: React.FC = () => {
               value={formatDuration(duration)}
               accent="blue"
             />
-            <InfoTile
-              icon={<FileText className="h-4 w-4" />}
-              label="Status"
-              value={
-                <span className="capitalize">{interview.status || 'completed'}</span>
-              }
-              accent="green"
-            />
+        
             {conductedByLabel && (
               <InfoTile
                 icon={<UserIcon className="h-4 w-4" />}
@@ -593,7 +558,7 @@ const CompletedInterviewDetails: React.FC = () => {
             </span>
           </div>
 
-          {groupedQuestions.length === 0 ? (
+          {groupedQuestions.length === 0 && freeQuestions.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-gray-200 bg-white px-6 py-12 text-center">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100">
                 <Inbox className="h-5 w-5 text-gray-400" />
@@ -673,6 +638,18 @@ const CompletedInterviewDetails: React.FC = () => {
                   </div>
                 );
               })}
+              {freeQuestions.length > 0 && (
+                <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+                  <div className="border-b border-gray-100 bg-gray-50/60 px-5 py-3">
+                    <p className="text-sm font-semibold text-gray-800">Custom Questions</p>
+                  </div>
+                  <div className="space-y-3 p-5">
+                    {freeQuestions.map((q, i) => (
+                      <QuestionDisplay key={q?._id || q?.id || i} question={q} index={i} />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </section>

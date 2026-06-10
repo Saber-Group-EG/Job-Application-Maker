@@ -57,9 +57,9 @@ export const useInterviewActions = ({
    * Returns true on success, false on failure.
    */
   const savePickedGroups = useCallback(
-    async (builtQuestions: BuildQuestionsArg, startAfter: boolean): Promise<boolean> => {
+    async (builtQuestions: BuildQuestionsArg, startAfter: boolean, allowEmpty?: boolean): Promise<boolean> => {
       if (!applicantId || !interviewId) return false;
-      if (builtQuestions.length === 0) {
+      if (builtQuestions.length === 0 && !allowEmpty) {
         await Swal.fire({
           icon: 'warning',
           title: 'No questions built',
@@ -157,42 +157,10 @@ export const useInterviewActions = ({
     [applicantId, interviewId, mutation, interview?.startedAt]
   );
 
-  /**
-   * Debounced auto-save for in-progress field edits. 600ms after the last
-   * call, sends the questions + status='in_progress' to the backend.
-   */
-  const scheduleFieldAutoSave = useCallback(
-    (questions: InterviewAnswer[]) => {
-      if (!applicantId || !interviewId) return;
-      clearDebounce();
-      setFieldSaveStatus('saving');
-      debounceRef.current = window.setTimeout(async () => {
-        try {
-          await mutation.mutateAsync({
-            applicantId,
-            interviewId,
-            data: {
-              questions,
-              totalScore: computeTotalScore(questions),
-              achievedScore: computeAchievedScore(questions),
-              status: 'in_progress',
-            } as UpdateInterviewStatusRequest,
-          });
-          setFieldSaveStatus('saved');
-        } catch (e) {
-          void e;
-          setFieldSaveStatus('error');
-        }
-      }, 600);
-    },
-    [applicantId, interviewId, clearDebounce, mutation]
-  );
-
   return {
     savePickedGroups,
     startInterview,
     endInterview,
-    scheduleFieldAutoSave,
     isPickerSaving,
     fieldSaveStatus,
     isMutating: mutation.isPending,

@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
+import { Trash2 } from 'lucide-react';
 import type { InterviewAnswer } from '../../../../../../types/applicants';
+import { getQuestionId } from '../utils/interviewUtils';
 
 export type QuestionRowProps = {
   question: InterviewAnswer;
@@ -7,6 +9,7 @@ export type QuestionRowProps = {
   percentage: number;
   answer: unknown;
   onChange: (patch: { percentage?: number; answer?: unknown }) => void;
+  onDelete?: (questionId: string) => void;
 };
 
 export const QuestionRow = ({
@@ -15,7 +18,9 @@ export const QuestionRow = ({
   percentage,
   answer,
   onChange,
+  onDelete,
 }: QuestionRowProps) => {
+  const qId = getQuestionId(question);
   const answerType = String(question?.answerType || 'text');
   const score = Number(question?.score || 0);
   const currentAchieved = useMemo(
@@ -26,6 +31,7 @@ export const QuestionRow = ({
   const answerText =
     typeof answer === 'string' ? answer : Array.isArray(answer) ? answer.join(', ') : '';
   const selectedChoice = typeof answer === 'string' ? answer : '';
+  const isChecked = answer === true;
 
   return (
     <div className="bg-white p-4 border border-gray-100 rounded-lg shadow-sm space-y-4">
@@ -52,7 +58,18 @@ export const QuestionRow = ({
       </div>
 
       <div className="space-y-3">
-        {choices.length > 0 ? (
+        {answerType === 'checkbox' ? (
+          <label className="flex items-center gap-2.5 cursor-pointer group">
+            <input
+              type="checkbox"
+              checked={isChecked}
+              disabled={!isInteractive}
+              onChange={() => onChange({ answer: !isChecked })}
+              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
+            />
+            <span className="text-sm text-gray-700 group-hover:text-gray-900">True / Yes</span>
+          </label>
+        ) : choices.length > 0 ? (
           <div className="flex flex-wrap gap-2">
             {choices.map((choice) => {
               const value = String(choice ?? '');
@@ -101,10 +118,26 @@ export const QuestionRow = ({
             value={Number(percentage || 0)}
             disabled={!isInteractive}
             onChange={(e) => onChange({ percentage: Number(e.target.value) })}
-            className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600 disabled:opacity-60 disabled:cursor-not-allowed"
+            style={{
+              background: `linear-gradient(to right, #3b82f6 ${percentage}%, #e5e7eb ${percentage}%)`,
+            }}
+            className="w-full h-1.5 bg-gray-200 rounded-lg cursor-pointer accent-blue-600 disabled:opacity-60 disabled:cursor-not-allowed"
           />
         </div>
       )}
+
+      <div className="flex justify-end -mb-1">
+        {onDelete && qId && (
+          <button
+            type="button"
+            onClick={() => onDelete(qId)}
+            className="p-1 rounded-md text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+            title="Delete this question"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
     </div>
   );
 };
