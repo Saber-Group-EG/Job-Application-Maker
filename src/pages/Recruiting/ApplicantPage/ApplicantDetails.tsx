@@ -145,7 +145,20 @@ const Stickysidebar: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
     const TOP_OFFSET = 24;
 
+    const resetPosition = () => {
+      sidebar.style.position = '';
+      sidebar.style.top = '';
+      sidebar.style.left = '';
+      sidebar.style.width = '';
+      sidebar.style.zIndex = '';
+      placeholder.style.minHeight = '';
+    };
+
     const update = () => {
+      if (window.innerWidth < 1024) {
+        resetPosition();
+        return;
+      }
       if (placeholder.offsetParent === null) return;
       const rect = placeholder.getBoundingClientRect();
       const sidebarHeight = sidebar.offsetHeight;
@@ -1159,7 +1172,7 @@ const ApplicantDetails: React.FC = () => {
           </div>
           <button
             onClick={() => setShowStatusModal(true)}
-            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+            className="hidden lg:inline-flex px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
           >
             Change Status
           </button>
@@ -1285,7 +1298,7 @@ const ApplicantDetails: React.FC = () => {
                   </div>
                   <button
                     onClick={() => setShowStatusModal(true)}
-                    className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                    className="hidden lg:inline-flex px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
                   >
                     Change Status
                   </button>
@@ -1363,7 +1376,7 @@ const ApplicantDetails: React.FC = () => {
                   </div>
                   <button
                     onClick={() => setShowStatusModal(true)}
-                    className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                    className="hidden lg:inline-flex px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
                   >
                     Change Status
                   </button>

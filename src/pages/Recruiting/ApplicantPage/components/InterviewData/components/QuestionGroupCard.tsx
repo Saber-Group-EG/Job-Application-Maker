@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Building2, ChevronDown, ChevronUp, Library, XCircle } from 'lucide-react';
+import { Building2, ChevronDown, ChevronUp, Library, Trash2 } from 'lucide-react';
 import { QuestionRow } from './QuestionRow';
 import type { InterviewAnswer } from '../../../../../../types/applicants';
 import { computeTotalScore, getQuestionId } from '../utils/interviewUtils';
@@ -126,7 +126,7 @@ export const QuestionGroupCard = ({
               className="p-1.5 rounded-md text-red-500 hover:bg-red-50 transition-colors"
               title="Remove this group from the interview"
             >
-              <XCircle className="h-4 w-4" />
+              <Trash2 className="h-4 w-4" />
             </button>
           )}
           <button
