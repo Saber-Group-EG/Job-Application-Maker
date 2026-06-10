@@ -321,7 +321,7 @@ const InterviewQuestions = ({
             ...prev,
             interviews: prev.interviews.map((iv) =>
               getInterviewId(iv) === interviewId
-                ? { ...iv, startedAt: startedAtIso, status: 'Progressing' }
+                ? { ...iv, startedAt: startedAtIso, status: 'in_progress' }
                 : iv
             ),
           };

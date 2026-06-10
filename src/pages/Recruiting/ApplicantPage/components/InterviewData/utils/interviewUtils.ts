@@ -14,7 +14,7 @@ export const isScheduled = (
   interview: Pick<Interview, 'status'> | null | undefined
 ): boolean => {
   const status = String(interview?.status || '').toLowerCase();
-  return status === 'scheduled' || status === 'Progressing';
+  return status === 'scheduled' || status === 'in_progress';
 };
 
 export const isInProgress = (

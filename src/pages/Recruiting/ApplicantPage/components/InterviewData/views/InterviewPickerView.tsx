@@ -7,10 +7,16 @@ export type InterviewPickerViewProps = {
   onPick: (interview: Interview) => void;
 };
 
+const statusLabel = (status: string): string => {
+  const s = String(status || '').toLowerCase();
+  if (s === 'in_progress') return 'Progressing';
+  return s;
+};
+
 const statusClasses = (status: string): string => {
   const s = String(status || '').toLowerCase();
   if (s === 'completed') return 'bg-emerald-100 text-emerald-700';
-  if (s === 'Progressing') return 'bg-amber-100 text-amber-700';
+  if (s === 'in_progress') return 'bg-amber-100 text-amber-700';
   if (s === 'cancelled') return 'bg-red-100 text-red-700';
   return 'bg-slate-100 text-slate-700';
 };
@@ -94,7 +100,7 @@ export const InterviewPickerView = ({
                   <span
                     className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${statusClasses(status)}`}
                   >
-                    {status}
+                    {statusLabel(status)}
                   </span>
                 </div>
                 <div className="grid grid-cols-3 gap-2 mb-3">

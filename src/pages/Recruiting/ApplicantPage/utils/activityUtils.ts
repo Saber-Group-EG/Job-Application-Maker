@@ -93,10 +93,11 @@ const buildActivities = (applicant: Applicant | null | undefined): ActivityItem[
     const base = toActivity(entry as unknown as ActivityLike);
     if (!base) return;
     const status = (entry as { status?: string }).status || 'scheduled';
+    const statusLabel = status === 'in_progress' ? 'Progressing' : status;
     items.push({
       ...base,
       type: 'interview',
-      title: `Interview ${status}`,
+      title: `Interview ${statusLabel}`,
       interviewStatus: status,
       description: entry.notes,
       scheduledAt: entry.scheduledAt,

@@ -15,7 +15,7 @@ import { paths } from '../../router/Paths';
 
 const STATUS_STYLES: Record<string, { dot: string; badge: string; label: string }> = {
   scheduled:   { dot: 'bg-blue-500',   badge: 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',   label: 'Scheduled'   },
-  Progressing: { dot: 'bg-amber-500',  badge: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300', label: 'In Progress' },
+  in_progress: { dot: 'bg-amber-500',  badge: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300', label: 'In Progress' },
   completed:   { dot: 'bg-green-500',  badge: 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300', label: 'Completed'   },
   cancelled:   { dot: 'bg-red-400',    badge: 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-300',         label: 'Cancelled'   },
 };
