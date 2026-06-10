@@ -121,10 +121,8 @@ const QuestionDisplay: React.FC<{ question: InterviewAnswer; index: number }> = 
 }) => {
   const score = Number(question?.score || 0);
   const achieved = Number(question?.achievedScore || 0);
-  const pct = score > 0 ? Math.round((achieved / score) * 100) : 0;
   const choices = Array.isArray(question?.choices) ? question!.choices : [];
   const answer = getAnswerDisplay(question);
-  const answerType = String(question?.answerType || 'text');
 
   return (
     <div className="rounded-xl border border-gray-100 bg-white p-5">
@@ -376,41 +374,47 @@ const CompletedInterviewDetails: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-px bg-gray-100 md:grid-cols-3">
-            <div className="bg-white p-4 text-center">
-              <Target className="h-4 w-4 text-blue-500 mx-auto mb-1" />
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-                Score
-              </p>
-              <p className="mt-1 text-lg font-bold text-purple-600 tabular-nums">
-                {performance}%
-              </p>
-              <p className="text-xs text-gray-400 tabular-nums">
-                {achievedScore} / {totalScore}
-              </p>
-            </div>
-            <div className="bg-white p-4 text-center">
-              <Clock className="h-4 w-4 text-purple-500 mx-auto mb-1" />
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-                Duration
-              </p>
-              <p className="mt-1 text-lg font-bold text-gray-900 tabular-nums">
-                {formatDuration(duration)}
-              </p>
-            </div>
-            <div className="bg-white p-4 text-center">
-              <Award className="h-4 w-4 text-emerald-500 mx-auto mb-1" />
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-                Completion
-              </p>
-              <p className="mt-1 text-lg font-bold text-amber-600 tabular-nums">
-                {completion}%
-              </p>
-              <p className="text-xs text-gray-400 tabular-nums">
-                {answeredCount} / {interview?.questions?.length || 0}
-              </p>
-            </div>
-          </div>
+            <div className="grid grid-cols-2 gap-px bg-gray-100 md:grid-cols-4">
+  <div className="bg-white p-4 text-center">
+    <Target className="h-4 w-4 text-blue-500 mx-auto mb-1" />
+    
+    <div className="flex items-baseline justify-center gap-2">
+      <p className="text-xl font-bold text-purple-600 tabular-nums">
+        {performance}%
+      </p>
+      <p className="px-2 py-0.5 text-xs font-medium rounded-full bg-purple-100 text-gray-700 hover:bg-blue-200 transition-colors">
+        {achievedScore} / {totalScore}
+      </p>
+    </div>
+  </div>
+  
+  <div className="bg-white p-4 text-center">
+    <Clock className="h-4 w-4 text-purple-500 mx-auto mb-1" />
+    <p className="text-lg font-bold tabular-nums">
+      {formatDuration(duration)}
+    </p>
+  </div>
+  
+  <div className="bg-white p-4 text-center">
+    <Award className="h-4 w-4 text-emerald-500 mx-auto mb-1" />
+    
+    <div className="flex items-baseline justify-center gap-2">
+      <p className="text-lg font-bold text-amber-600 tabular-nums">
+        {completion}%
+      </p>
+      <p className="px-2 py-0.5 text-xs font-medium rounded-full bg-amber-100 text-gray-700 hover:bg-blue-200 transition-colors">
+        {answeredCount} / {interview?.questions?.length || 0}
+      </p>
+    </div>
+  </div>
+
+  <div className="bg-white p-4 text-center">
+    <Clock className="h-4 w-4 text-gray-500 mx-auto mb-1" />
+    <p className="text-sm font-semibold text-gray-800 tabular-nums">
+      {interview?.startedAt ? new Date(interview.startedAt).toLocaleString() : 'N/A'}
+    </p>
+  </div>
+</div>
         </div>
 
         <section>
@@ -442,12 +446,7 @@ const CompletedInterviewDetails: React.FC = () => {
               value={formatDate(interview.endedAt)}
               accent="amber"
             />
-            <InfoTile
-              icon={<Clock4 className="h-4 w-4" />}
-              label="Duration"
-              value={formatDuration(duration)}
-              accent="blue"
-            />
+           
         
             {conductedByLabel && (
               <InfoTile

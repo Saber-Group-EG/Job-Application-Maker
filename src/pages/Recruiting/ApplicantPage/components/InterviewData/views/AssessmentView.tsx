@@ -94,7 +94,7 @@ const CreateQuestionForm = ({
     setChoicesText('');
   };
 
-  const showChoices = form.answerType === 'radio' || form.answerType === 'checkbox' || form.answerType === 'dropdown';
+  const showChoices = form.answerType === 'radio' ||  form.answerType === 'dropdown';
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3">
@@ -392,6 +392,13 @@ export const AssessmentView = ({
       )}
     </div>
 
+    {/* Create Custom Question */}
+    {!isEnded && (
+      <div className="px-5 pb-6 border-t border-slate-100 pt-5">
+        <CreateQuestionForm onAdd={onCreateQuestion} />
+      </div>
+    )}
+
     {/* Available Question Groups */}
     {availableWithoutPending.length > 0 && !isEnded && (
       <div className="px-5 pb-6 border-t border-slate-100 pt-5">
@@ -428,13 +435,6 @@ export const AssessmentView = ({
             );
           })}
         </div>
-      </div>
-    )}
-
-    {/* Create Custom Question */}
-    {!isEnded && (
-      <div className="px-5 pb-6 border-t border-slate-100 pt-5">
-        <CreateQuestionForm onAdd={onCreateQuestion} />
       </div>
     )}
 

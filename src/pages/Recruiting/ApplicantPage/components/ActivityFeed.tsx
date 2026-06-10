@@ -180,7 +180,7 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, mailRecords = [
       {/* Icon positioned absolutely */}
       <div
         className="absolute"
-        style={{ left: '-15px', top: '28px' }}
+        style={{ left: '-15px', top: '17px' }}
         onClick={() => {
           if ((activity.type === 'email' || activity.type === 'message') && activity.description) {
             setPreviewHtml(renderEmailContent(activity));
