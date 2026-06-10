@@ -1,5 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router';
+import { useQuery } from '@tanstack/react-query';
+import axiosInstance from '../../../config/axios';
 import PersonalInfo from './components/ApplicantData/PersonalInfo';
 import ActivityFeed from './components/ActivityFeed';
 import CustomResponses from './components/ApplicantData/CustomResponses';
@@ -100,6 +102,22 @@ const escapeHtml = (s: string): string =>
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+
+const formatTime12Hour = (value: string): string => {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const hhmmMatch = raw.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (hhmmMatch) {
+    const hours = Number(hhmmMatch[1]);
+    const minutes = Number(hhmmMatch[2]);
+    if (!Number.isNaN(hours) && !Number.isNaN(minutes) && hours >= 0 && hours < 24 && minutes >= 0 && minutes < 60) {
+      const period = hours >= 12 ? 'PM' : 'AM';
+      const hour12 = hours % 12 === 0 ? 12 : hours % 12;
+      return `${hour12}:${String(minutes).padStart(2, '0')} ${period}`;
+    }
+  }
+  return raw;
+};
 
 const ApplicantDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -362,11 +380,21 @@ const ApplicantDetails: React.FC = () => {
     jobTitle: string;
     rawMessage: string;
     applicantName?: string;
+    interviewDate?: string;
+    interviewTime?: string;
+    interviewType?: string;
+    interviewLocation?: string;
+    interviewAddress?: string;
   }): string => {
-    const { subject, rawMessage, applicantName, jobTitle } = opts;
+    const { subject, rawMessage, applicantName, jobTitle, interviewDate, interviewTime, interviewType, interviewLocation, interviewAddress } = opts;
     const replacements: Record<string, string> = {
       '{{candidateName}}': applicantName || 'Candidate',
       '{{jobTitle}}': jobTitle || '',
+      '{{InterviewDate}}': interviewDate || '',
+      '{{interviewTime}}': interviewTime || '',
+      '{{interviewType}}': interviewType || '',
+      '{{location}}': interviewLocation || '',
+      '{{address}}': interviewAddress || '',
     };
     const tokens = Object.keys(replacements);
     let processedSubject = subject;
@@ -428,6 +456,11 @@ const ApplicantDetails: React.FC = () => {
       subject: string;
       template: string;
       customEmail: string;
+      interviewDate?: string;
+      interviewTime?: string;
+      interviewType?: string;
+      interviewLocation?: string;
+      interviewAddress?: string;
     }) => {
       if (!applicant || !id) return;
 
@@ -456,16 +489,35 @@ const ApplicantDetails: React.FC = () => {
       const jobTitle = getJobTitle().en || '';
       const applicantName = (applicant as { fullName?: string }).fullName || 'Candidate';
 
+      const interviewDate = snapshot.interviewDate || '';
+      const interviewTime = snapshot.interviewTime || '';
+      const interviewType = snapshot.interviewType || '';
+      const interviewLocation = snapshot.interviewLocation || '';
+      const interviewAddress = snapshot.interviewAddress || '';
+
+      const typeLabel = interviewType === 'in-person' ? 'In-person' :
+                        interviewType.charAt(0).toUpperCase() + interviewType.slice(1);
+
       const subjectBase = snapshot.subject || 'Interview Invitation';
       const processedSubject = subjectBase
         .replace(/\{\{\s*candidateName\s*\}\}/gi, applicantName)
-        .replace(/\{\{\s*(?:position|jobTitle)\s*\}\}/gi, jobTitle);
+        .replace(/\{\{\s*(?:position|jobTitle)\s*\}\}/gi, jobTitle)
+        .replace(/\{\{\s*InterviewDate\s*\}\}/gi, interviewDate)
+        .replace(/\{\{\s*interviewTime\s*\}\}/gi, interviewTime)
+        .replace(/\{\{\s*interviewType\s*\}\}/gi, typeLabel)
+        .replace(/\{\{\s*location\s*\}\}/gi, interviewLocation)
+        .replace(/\{\{\s*address\s*\}\}/gi, interviewAddress);
 
       const emailHtml = buildInterviewEmailHtml({
         subject: subjectBase,
         jobTitle,
         rawMessage: snapshot.template || '',
         applicantName,
+        interviewDate,
+        interviewTime,
+        interviewType: typeLabel,
+        interviewLocation,
+        interviewAddress,
       });
 
       const jobPositionId =
@@ -523,6 +575,11 @@ const ApplicantDetails: React.FC = () => {
       subject: interviewEmailSubject,
       template: messageTemplate,
       customEmail,
+      interviewDate: interviewForm.date || '',
+      interviewTime: interviewForm.time ? formatTime12Hour(interviewForm.time) : '',
+      interviewType: interviewForm.type || 'phone',
+      interviewLocation: interviewForm.link || '',
+      interviewAddress: interviewForm.location || '',
     };
 
     try {
@@ -659,6 +716,29 @@ const ApplicantDetails: React.FC = () => {
       setEditedSpecAnswers(initial);
     }
   }, [applicant, jobCustomFields, fetchedJobPosition]);
+
+  const companyIdForMail = jobPosCompanyId || applicantCompanyId;
+  const { data: mailApiResponse } = useQuery({
+    queryKey: ['mail-logs', companyIdForMail || 'none'],
+    queryFn: async () => {
+      if (!companyIdForMail) return { data: [] };
+      const res = await axiosInstance.get('/mail', { params: { PageCount: 'all', company: companyIdForMail } });
+      return res.data as { data: Array<{ createdAt: string; html: string; applicant: string | { _id: string } | null }> };
+    },
+    enabled: !!companyIdForMail,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const applicantMailRecords = useMemo(() => {
+    if (!mailApiResponse?.data || !applicant?._id) return [];
+    const applicantId = applicant._id;
+    return mailApiResponse.data
+      .filter((mail) => {
+        const mailApplicantId = typeof mail.applicant === 'string' ? mail.applicant : mail.applicant?._id;
+        return mailApplicantId === applicantId;
+      })
+      .map((mail) => ({ createdAt: mail.createdAt, html: mail.html }));
+  }, [mailApiResponse, applicant]);
 
   const activities = useMemo<Activity[]>(() => buildActivities(applicant), [applicant]);
   const sections = useMemo<ResponseSection[]>(
@@ -1028,25 +1108,42 @@ const ApplicantDetails: React.FC = () => {
             History
           </button>
         </div>
-         <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-5">
-            <h3 className="text-sm font-semibold text-gray-800 mb-3">Add Comment</h3>
-            <div className="flex gap-3">
-              <textarea
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                placeholder="Write a comment..."
-                className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 resize-none"
-                rows={3}
-              />
-              <button
-                onClick={handleAddComment}
-                disabled={addComment.isPending || !comment.trim()}
-                className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap h-fit disabled:opacity-50"
-              >
-                {addComment.isPending ? 'Adding...' : 'Add Comment'}
-              </button>
-            </div>
-          </div>  
+        <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6 transition-all duration-200">
+  {/* Header with title and button on the same row */}
+  <div className="flex items-center justify-between mb-4">
+    <h3 className="text-base font-semibold text-gray-900 flex items-center gap-2">
+      <span className="w-1 h-5 bg-blue-500 rounded-full"></span>
+      Add Comment
+    </h3>
+    
+    <button
+      onClick={handleAddComment}
+      disabled={addComment.isPending || !comment.trim()}
+      className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white text-sm font-semibold rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-sm"
+    >
+      {addComment.isPending ? (
+        <span className="flex items-center gap-2">
+          <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          Adding...
+        </span>
+      ) : (
+        'Add Comment'
+      )}
+    </button>
+  </div>
+  
+  {/* Textarea below, taking full width */}
+  <textarea
+    value={comment}
+    onChange={(e) => setComment(e.target.value)}
+    placeholder="Write a thoughtful comment..."
+    className="w-full px-4 py-3 text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 resize-none transition-all duration-200 placeholder:text-gray-400"
+    rows={3}
+  />
+</div> 
               <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
                 <JobSpec
                   specs={jobSpecItems}
@@ -1065,7 +1162,7 @@ const ApplicantDetails: React.FC = () => {
             />
           </div>
           <div className="w-full mb-6">
-            <ActivityFeed activities={activities} />
+            <ActivityFeed activities={activities} mailRecords={applicantMailRecords} interviews={applicant?.interviews} />
           </div>
         </div>
 

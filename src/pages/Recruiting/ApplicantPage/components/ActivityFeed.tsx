@@ -9,14 +9,30 @@ import {
   Mail,
   Bell,
   Star,
-  X,
   Eye
 } from 'lucide-react';
-import type { Activity, ActivityFeedProps } from '../../../../types/applicants';
+import { Modal } from '../../../../components/ui/modal';
+import type { Activity, ActivityFeedProps, Interview } from '../../../../types/applicants';
 
-const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities }) => {
+const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, mailRecords = [], interviews = [] }) => {
   const data: Activity[] = Array.isArray(activities) ? activities : [];
-  const [previewHtml, setPreviewHtml] = useState<string | null>(null);
+  const [previewHtml, setPreviewHtml] = useState('');
+  const [showPreview, setShowPreview] = useState(false);
+
+  const findMailHtml = (activityTimestamp: string): string | null => {
+    if (mailRecords.length === 0) return null;
+    const activityTime = new Date(activityTimestamp).getTime();
+    let closest: string | null = null;
+    let closestDiff = Infinity;
+    for (const mail of mailRecords) {
+      const diff = Math.abs(new Date(mail.createdAt).getTime() - activityTime);
+      if (diff < closestDiff && diff < 3600000) {
+        closestDiff = diff;
+        closest = mail.html;
+      }
+    }
+    return closest;
+  };
 
   const getIcon = (type: Activity['type']) => {
     switch (type) {
@@ -47,15 +63,93 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities }) => {
     const date = new Date(dateString);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
+    const absDiffMs = Math.abs(diffMs);
+    const diffMins = Math.floor(absDiffMs / 60000);
+    const diffHours = Math.floor(absDiffMs / 3600000);
+    const diffDays = Math.floor(absDiffMs / 86400000);
 
+    if (diffMs < 0) return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     if (diffMins < 1) return 'Just now';
     if (diffMins < 60) return `${diffMins} min ago`;
     if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
     if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  const findMatchingInterview = (activityTimestamp: string): Interview | null => {
+    if (interviews.length === 0) return null;
+    const activityTime = new Date(activityTimestamp).getTime();
+    let closest: Interview | null = null;
+    let closestDiff = Infinity;
+    for (const interview of interviews) {
+      if (!interview.scheduledAt) continue;
+      const diff = Math.abs(new Date(interview.scheduledAt).getTime() - activityTime);
+      if (diff < closestDiff && diff < 86400000) {
+        closestDiff = diff;
+        closest = interview;
+      }
+    }
+    return closest;
+  };
+
+  const substituteInterviewVars = (html: string, interview: Interview): string => {
+    let result = html;
+
+    const interviewType = interview.type || '';
+    result = result.replace(/\{\{interviewType\}\}/gi, interviewType);
+
+    if (interview.scheduledAt) {
+      const d = new Date(interview.scheduledAt);
+      const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const timeStr = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      result = result.replace(/\{\{InterviewDate\}\}/g, dateStr);
+      result = result.replace(/\{\{interviewDate\}\}/gi, dateStr);
+      result = result.replace(/\{\{interviewTime\}\}/gi, timeStr);
+    }
+
+    const address = (interview as any).address || '';
+    result = result.replace(/\{\{address\}\}/gi, address);
+
+    const location = interview.videoLink || (interview as any).location || '';
+    result = result.replace(/\{\{location\}\}/gi, location);
+
+    return result;
+  };
+
+  const decodeHtmlEntities = (html: string) => {
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = html;
+    return textarea.value;
+  };
+
+  const cleanAndFixHtml = (html: string) => {
+    if (!html) return '';
+    let cleaned = decodeHtmlEntities(html);
+    cleaned = cleaned.replace(/<span class="ql-ui"[^>]*>[\s\S]*?<\/span>/g, '');
+    cleaned = cleaned.replace(/contenteditable="false"/g, '');
+    cleaned = cleaned.replace(/<\/li><li data-list="bullet">/g, '</li><li>');
+    cleaned = cleaned.replace(/<li data-list="bullet">/g, '<li style="margin-left: 1rem; margin-bottom: 0.25rem;">');
+    cleaned = cleaned.replace(/<li data-list="ordered">/g, '<li style="margin-left: 1rem; margin-bottom: 0.25rem;">');
+    cleaned = cleaned.replace(/<\/li><\/li>/g, '</li>');
+    cleaned = cleaned.replace(/<p><ol>/g, '<ol style="margin-top: 0.5rem; margin-bottom: 0.5rem; padding-left: 1.5rem;">');
+    cleaned = cleaned.replace(/<\/ol><\/p>/g, '</ol>');
+    cleaned = cleaned.replace(/<\/p><p>/g, '</p><p>');
+    const styledHtml = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333;">
+        <div style="max-width: 600px; margin: 0 auto;">
+          ${cleaned}
+        </div>
+      </div>
+    `;
+    return styledHtml;
+  };
+
+  const renderEmailContent = (activity: Activity): string => {
+    const mailHtml = findMailHtml(activity.timestamp);
+    const html = decodeHtmlEntities(mailHtml || activity.description || '');
+    const interview = findMatchingInterview(activity.timestamp);
+    const finalHtml = interview ? substituteInterviewVars(html, interview) : html;
+    return cleanAndFixHtml(finalHtml);
   };
 
   return (
@@ -74,7 +168,6 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities }) => {
           </div>
         ) : data.map((activity) => (
           <div key={activity.id} className="p-5 hover:bg-gray-50 transition-colors">
-            {/* Header with icon, title, and timestamp */}
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-2">
                 <div className="flex-shrink-0">
@@ -89,7 +182,6 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities }) => {
               </span>
             </div>
 
-            {/* User info line */}
             <div className="flex items-center gap-2 mb-3">
               <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
                 <User className="h-3.5 w-3.5 text-gray-500" />
@@ -99,7 +191,6 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities }) => {
               </span>
             </div>
 
-            {/* Main content based on activity type */}
             {activity.type === 'comment' && activity.comment && (
               <div className="ml-8 pl-3 border-l-2 border-blue-200">
                 <p className="text-sm text-gray-700 leading-relaxed">
@@ -141,23 +232,21 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities }) => {
                     <Mail className="h-4 w-4 text-red-500 flex-shrink-0" />
                     <span className="text-xs font-medium text-gray-500 uppercase">{activity.type}</span>
                   </div>
-                  <p className="text-sm text-gray-600 mb-2">
-                    {activity.type === 'email' ? 'Email sent' : 'Message sent'}
-                    {activity.title?.includes('message') && activity.title && ` — ${activity.title}`}
-                  </p>
                   <button
                     type="button"
-                    onClick={() => setPreviewHtml(activity.description!)}
-                    className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 hover:underline"
+                    onClick={() => {
+                      setPreviewHtml(renderEmailContent(activity));
+                      setShowPreview(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
                   >
                     <Eye className="h-3.5 w-3.5" />
-                    Preview
+                    Preview Email
                   </button>
                 </div>
               </div>
             )}
 
-            {/* Show description for other types that have it */}
             {!['comment', 'status_change', 'task', 'document', 'email', 'message', 'interview'].includes(activity.type) && activity.description && (
               <div className="ml-8">
                 <p className="text-sm text-gray-600">{activity.description}</p>
@@ -167,33 +256,39 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities }) => {
         ))}
       </div>
 
-      {/* Email / Message preview modal */}
-      {previewHtml && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="relative w-full max-w-3xl max-h-[90vh] bg-white rounded-xl shadow-2xl flex flex-col overflow-hidden">
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 shrink-0">
-              <h3 className="text-base font-semibold text-gray-800">
-                Email Preview
-              </h3>
-              <button
-                type="button"
-                onClick={() => setPreviewHtml(null)}
-                className="p-1 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            {/* Body — renders the styled HTML */}
-            <div className="flex-1 overflow-auto p-6 bg-white">
-              <div
-                className="prose prose-sm max-w-none"
-                dangerouslySetInnerHTML={{ __html: previewHtml }}
-              />
-            </div>
+      <Modal
+        isOpen={showPreview}
+        onClose={() => {
+          setShowPreview(false);
+          setPreviewHtml('');
+        }}
+        className="max-w-3xl p-6"
+      >
+        <div className="space-y-4">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Email Preview</h2>
+          <div
+            className="border rounded p-4 bg-white dark:bg-gray-800"
+            style={{ maxHeight: '75vh', overflow: 'auto' }}
+          >
+            <div
+              className="prose prose-sm max-w-none"
+              dangerouslySetInnerHTML={{ __html: previewHtml }}
+            />
+          </div>
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => {
+                setShowPreview(false);
+                setPreviewHtml('');
+              }}
+              className="rounded-lg bg-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+            >
+              Close
+            </button>
           </div>
         </div>
-      )}
+      </Modal>
     </div>
   );
 };

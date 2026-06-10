@@ -32,8 +32,8 @@ const toActivity = (entry: ActivityLike | null | undefined): ActivityItem | null
     entry.commentedAt ||
       entry.changedAt ||
       entry.sentAt ||
-      entry.scheduledAt ||
       entry.createdAt ||
+      entry.scheduledAt ||
       new Date().toISOString()
   );
   const userName = resolveActorName(
@@ -41,7 +41,9 @@ const toActivity = (entry: ActivityLike | null | undefined): ActivityItem | null
       entry.commentedBy ??
       entry.sentBy ??
       entry.issuedBy ??
-      entry.author
+      entry.author ??
+      (entry as any).conductedBy ??
+      (entry as any).scheduledBy
   );
   return { id, timestamp, user: { name: userName } } as ActivityItem;
 };

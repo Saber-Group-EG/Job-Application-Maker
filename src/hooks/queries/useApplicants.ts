@@ -93,7 +93,8 @@ function mergeApplicantResponseIntoCache(
       resp.email !== undefined ||
       resp.phone !== undefined ||
       resp.status !== undefined ||
-      Array.isArray(resp.customResponses));
+      Array.isArray(resp.customResponses) ||
+      Array.isArray(resp.interviews));
 
   if (!previous) {
     queryClient.setQueryData(applicantsKeys.detail(id), response);

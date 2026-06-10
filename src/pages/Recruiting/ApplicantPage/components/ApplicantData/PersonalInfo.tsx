@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, Mail, Printer } from 'lucide-react';
+import { CalenderIcon, ChatIcon, DownloadIcon } from '../../../../../icons';
 import type { Applicant, ApplicantView, PersonalInfoProps } from '../../../../../types/applicants';
 import { toPlainString } from '../../../../../utils/strings';
 
@@ -129,7 +129,7 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
               onClick={onScheduleInterview}
               className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
             >
-              <Calendar className="w-4 h-4" />
+              <CalenderIcon className="w-4 h-4" />
             </button>
            
             <button
@@ -138,7 +138,7 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
               onClick={onSendMessage}
               className="flex items-center justify-center w-8 h-8 rounded-full bg-purple-50 text-purple-600 hover:bg-purple-100 transition-colors"
             >
-              <Mail className="w-4 h-4" />
+              <ChatIcon className="w-4 h-4" />
             </button>
 
             <button
@@ -147,7 +147,7 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
               onClick={onPrint}
               className="flex items-center justify-center w-8 h-8 rounded-full bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors"
             >
-              <Printer className="w-4 h-4" />
+              <DownloadIcon className="w-4 h-4" />
             </button>
           </div>
          </div>

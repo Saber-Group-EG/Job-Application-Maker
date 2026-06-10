@@ -252,6 +252,8 @@ export type ActivityLike = Partial<Comment & StatusHistory & Message & Interview
 
 export interface ActivityFeedProps {
   activities?: Activity[];
+  mailRecords?: Array<{ createdAt: string; html: string }>;
+  interviews?: Interview[];
 }
 
 // ─── JobSpec ──────────────────────────────────────────────────────────────────

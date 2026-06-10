@@ -804,17 +804,23 @@ export default function Jobs() {
                       </div>
                     </div>
 
-                    <div className="space-y-2.5">
+                    <div className="space-y-3 pt-1">
                       <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-                        <Building2Icon className="size-4 text-brand-500" />
+                        <div className="rounded-lg bg-brand-50 p-1.5 dark:bg-brand-500/10">
+                          <Building2Icon className="size-4 text-brand-500" />
+                        </div>
                         <span className="font-medium truncate">{getTranslation(job.companyId?.name) || "Global Corp"}</span>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-slate-500">
-                        <MapPinIcon className="size-4" />
+                        <div className="rounded-lg bg-slate-100 p-1.5 dark:bg-slate-700/50">
+                          <MapPinIcon className="size-4" />
+                        </div>
                         <span>{job.workArrangement || "Remote / Office"}</span>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-slate-500">
-                        <CalendarIcon className="size-4" />
+                        <div className="rounded-lg bg-slate-100 p-1.5 dark:bg-slate-700/50">
+                          <CalendarIcon className="size-4" />
+                        </div>
                         <span>Created {formatDate(job.createdAt)}</span>
                       </div>
                     </div>
