@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import {
   CheckCircle2,
@@ -9,7 +9,6 @@ import {
   Trash2,
   Video,
 } from 'lucide-react';
-import { Modal } from '../../../../../components/ui/modal';
 import { toPlainString } from '../../../../../utils/strings';
 import { paths } from '../../../../../router/Paths';
 import { formatDate, getStatusColor } from './historyUtils';
@@ -23,7 +22,6 @@ type Props = {
   isLoading: boolean;
   interviews: CompletedInterview[];
   applicantId: string;
-  onEdit: (interview: CompletedInterview) => Promise<void> | void;
   onDelete: (interview: CompletedInterview) => Promise<void> | void;
 };
 
@@ -44,7 +42,7 @@ const calcDurationMs = (startedAt?: string, endedAt?: string): number | null => 
 };
 
 const formatDuration = (ms: number | null): string => {
-  if (ms === null) return '—';
+  if (ms === null) return '\u2014';
   const totalSeconds = Math.floor(ms / 1000);
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -65,20 +63,23 @@ export default function CompletedInterviewsHistory({
   isLoading,
   interviews,
   applicantId,
-  onEdit,
   onDelete,
 }: Props) {
   const navigate = useNavigate();
-  const [editingInterview, setEditingInterview] = useState<CompletedInterview | null>(null);
-  const [editNotes, setEditNotes] = useState('');
-  const [editStatus, setEditStatus] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleViewInterview = (interview: CompletedInterview) => {
     const interviewId = String(interview?._id || interview?.id || '');
     if (!applicantId || !interviewId) return;
     navigate(paths.applicants.completedInterview(applicantId, interviewId), {
       state: { interview },
+    });
+  };
+
+  const handleEditInterview = (interview: CompletedInterview) => {
+    const interviewId = String(interview?._id || interview?.id || '');
+    if (!applicantId || !interviewId) return;
+    navigate(paths.applicants.completedInterview(applicantId, interviewId), {
+      state: { interview, mode: 'edit' },
     });
   };
 
@@ -94,36 +95,6 @@ export default function CompletedInterviewsHistory({
       return bTime - aTime;
     });
   }, [interviews]);
-
-  const openEditModal = (interview: CompletedInterview) => {
-    setEditingInterview(interview);
-    setEditNotes(interview.notes || '');
-    setEditStatus(interview.status || 'completed');
-  };
-
-  const closeEditModal = () => {
-    if (isSubmitting) return;
-    setEditingInterview(null);
-    setEditNotes('');
-    setEditStatus('');
-  };
-
-  const handleEditSubmit = async () => {
-    if (!editingInterview) return;
-    const interviewId = editingInterview._id || editingInterview.id;
-    if (!interviewId || !applicantId) return;
-    setIsSubmitting(true);
-    try {
-      await onEdit({
-        ...editingInterview,
-        notes: editNotes,
-        status: editStatus,
-      });
-      closeEditModal();
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   if (isLoading) {
     return (
@@ -191,190 +162,123 @@ export default function CompletedInterviewsHistory({
   }
 
   return (
-    <>
-      <div className="overflow-hidden rounded-xl border border-gray-100">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-100">
-            <thead className="bg-gray-50/80">
-              <tr>
-                <th className={TABLE_HEAD_CLASS}>Type</th>
-                <th className={TABLE_HEAD_CLASS}>Scheduled</th>
-                <th className={TABLE_HEAD_CLASS}>Started</th>
-                <th className={TABLE_HEAD_CLASS}>Ended</th>
-                <th className={TABLE_HEAD_CLASS}>Duration</th>
-                <th className={TABLE_HEAD_CLASS}>Score</th>
-                <th className={TABLE_HEAD_CLASS}>Status</th>
-                <th className={TABLE_HEAD_CLASS}>Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50 bg-white">
-              {sortedInterviews.map((interview, index) => {
-                const interviewId = interview?._id || interview?.id || `iv_${index}`;
-                const status = interview?.status || 'completed';
-                const duration = calcDurationMs(interview?.startedAt, interview?.endedAt);
-                const totalScore = Number(interview?.totalScore ?? 0);
-                const achievedScore = Number(interview?.achievedScore ?? 0);
-                const TypeIcon = getInterviewTypeIcon(interview?.type);
-                const typeLabel = toPlainString(interview?.type) || 'N/A';
+    <div className="overflow-hidden rounded-xl border border-gray-100">
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-100">
+          <thead className="bg-gray-50/80">
+            <tr>
+              <th className={TABLE_HEAD_CLASS}>Type</th>
+              <th className={TABLE_HEAD_CLASS}>Scheduled</th>
+              <th className={TABLE_HEAD_CLASS}>Started</th>
+              <th className={TABLE_HEAD_CLASS}>Ended</th>
+              <th className={TABLE_HEAD_CLASS}>Duration</th>
+              <th className={TABLE_HEAD_CLASS}>Score</th>
+              <th className={TABLE_HEAD_CLASS}>Status</th>
+              <th className={TABLE_HEAD_CLASS}>Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50 bg-white">
+            {sortedInterviews.map((interview, index) => {
+              const interviewId = interview?._id || interview?.id || `iv_${index}`;
+              const status = interview?.status || 'completed';
+              const duration = calcDurationMs(interview?.startedAt, interview?.endedAt);
+              const totalScore = Number(interview?.totalScore ?? 0);
+              const achievedScore = Number(interview?.achievedScore ?? 0);
+              const TypeIcon = getInterviewTypeIcon(interview?.type);
+              const typeLabel = toPlainString(interview?.type) || 'N/A';
 
-                return (
-                  <tr
-                    key={interviewId}
-                    className="cursor-pointer transition-colors hover:bg-blue-50/40"
-                    onClick={() => handleViewInterview(interview)}
-                  >
-                    <td className={BODY_CELL_PRIMARY}>
-                      <div className="flex items-center gap-2.5">
-                        <span className="flex h-7 w-7 items-center justify-center rounded-md bg-purple-50 text-purple-600">
-                          <TypeIcon className="h-3.5 w-3.5" />
-                        </span>
-                        <span className="truncate capitalize">{typeLabel}</span>
-                      </div>
-                    </td>
-                    <td className={BODY_CELL_SECONDARY}>
-                      {formatDate(interview?.scheduledAt) || (
-                        <span className="text-gray-300">—</span>
-                      )}
-                    </td>
-                    <td className={BODY_CELL_SECONDARY}>
-                      {formatDate(interview?.startedAt) || (
-                        <span className="text-gray-300">—</span>
-                      )}
-                    </td>
-                    <td className={BODY_CELL_SECONDARY}>
-                      {formatDate(interview?.endedAt) || (
-                        <span className="text-gray-300">—</span>
-                      )}
-                    </td>
-                    <td className={BODY_CELL_SECONDARY}>
-                      <span className="inline-flex items-center gap-1.5">
-                        <Clock4 className="h-3.5 w-3.5 text-gray-400" />
-                        <span>{formatDuration(duration)}</span>
+              return (
+                <tr
+                  key={interviewId}
+                  className="cursor-pointer transition-colors hover:bg-blue-50/40"
+                  onClick={() => handleViewInterview(interview)}
+                >
+                  <td className={BODY_CELL_PRIMARY}>
+                    <div className="flex items-center gap-2.5">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-md bg-purple-50 text-purple-600">
+                        <TypeIcon className="h-3.5 w-3.5" />
                       </span>
-                    </td>
-                    <td className={BODY_CELL_SECONDARY}>
-                      {totalScore > 0 ? (
-                        <span className="font-medium text-gray-800">
-                          {achievedScore}
-                          <span className="text-gray-400"> / {totalScore}</span>
-                        </span>
-                      ) : (
-                        <span className="text-gray-300">—</span>
-                      )}
-                    </td>
-                    <td className={BODY_CELL_SECONDARY}>
-                      <span
-                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${getStatusColor(
-                          status,
-                        )}`}
-                      >
-                        <CheckCircle2 className="h-3 w-3" />
-                        {status}
+                      <span className="truncate capitalize">{typeLabel}</span>
+                    </div>
+                  </td>
+                  <td className={BODY_CELL_SECONDARY}>
+                    {formatDate(interview?.scheduledAt) || (
+                      <span className="text-gray-300">\u2014</span>
+                    )}
+                  </td>
+                  <td className={BODY_CELL_SECONDARY}>
+                    {formatDate(interview?.startedAt) || (
+                      <span className="text-gray-300">\u2014</span>
+                    )}
+                  </td>
+                  <td className={BODY_CELL_SECONDARY}>
+                    {formatDate(interview?.endedAt) || (
+                      <span className="text-gray-300">\u2014</span>
+                    )}
+                  </td>
+                  <td className={BODY_CELL_SECONDARY}>
+                    <span className="inline-flex items-center gap-1.5">
+                      <Clock4 className="h-3.5 w-3.5 text-gray-400" />
+                      <span>{formatDuration(duration)}</span>
+                    </span>
+                  </td>
+                  <td className={BODY_CELL_SECONDARY}>
+                    {totalScore > 0 ? (
+                      <span className="font-medium text-gray-800">
+                        {achievedScore}
+                        <span className="text-gray-400"> / {totalScore}</span>
                       </span>
-                    </td>
-                    <td className={BODY_CELL_SECONDARY}>
-                      <div
-                        className="flex items-center gap-1.5"
-                        onClick={(e) => e.stopPropagation()}
+                    ) : (
+                      <span className="text-gray-300">\u2014</span>
+                    )}
+                  </td>
+                  <td className={BODY_CELL_SECONDARY}>
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${getStatusColor(
+                        status,
+                      )}`}
+                    >
+                      <CheckCircle2 className="h-3 w-3" />
+                      {status}
+                    </span>
+                  </td>
+                  <td className={BODY_CELL_SECONDARY}>
+                    <div
+                      className="flex items-center gap-1.5"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => handleViewInterview(interview)}
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-md text-emerald-600 transition-colors hover:bg-emerald-50"
+                        title="View interview details"
                       >
-                        <button
-                          type="button"
-                          onClick={() => handleViewInterview(interview)}
-                          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-emerald-600 transition-colors hover:bg-emerald-50"
-                          title="View interview details"
-                        >
-                          <Eye className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => openEditModal(interview)}
-                          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-blue-600 transition-colors hover:bg-blue-50"
-                          title="Edit interview"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onDelete(interview)}
-                          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-red-600 transition-colors hover:bg-red-50"
-                          title="Delete interview"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                        <Eye className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleEditInterview(interview)}
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-md text-blue-600 transition-colors hover:bg-blue-50"
+                        title="Edit interview"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onDelete(interview)}
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-md text-red-600 transition-colors hover:bg-red-50"
+                        title="Delete interview"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
-
-      <Modal
-        isOpen={!!editingInterview}
-        onClose={closeEditModal}
-        className="max-w-lg mx-auto"
-      >
-        <div className="p-2">
-          <h3 className="text-lg font-semibold text-gray-800">Edit interview</h3>
-          <p className="text-sm text-gray-500 mt-1">
-            Update the status or notes for this completed interview.
-          </p>
-
-          <div className="mt-5 space-y-4">
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">
-                Status
-              </label>
-              <select
-                value={editStatus}
-                onChange={(e) => setEditStatus(e.target.value)}
-                disabled={isSubmitting}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              >
-                <option value="completed">Completed</option>
-                <option value="scheduled">Scheduled</option>
-                <option value="in_progress">In progress</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">
-                Notes
-              </label>
-              <textarea
-                value={editNotes}
-                onChange={(e) => setEditNotes(e.target.value)}
-                disabled={isSubmitting}
-                rows={5}
-                placeholder="Add interview notes..."
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-
-          <div className="mt-6 flex items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={closeEditModal}
-              disabled={isSubmitting}
-              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleEditSubmit}
-              disabled={isSubmitting}
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 disabled:opacity-50"
-            >
-              {isSubmitting ? 'Saving...' : 'Save changes'}
-            </button>
-          </div>
-        </div>
-      </Modal>
-    </>
+    </div>
   );
 }

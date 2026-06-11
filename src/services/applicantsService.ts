@@ -408,6 +408,7 @@ class ApplicantsService {
       'type',
       'notes',
       'status',
+      'interviewers',
     ];
 
     allowedKeys.forEach((key) => {

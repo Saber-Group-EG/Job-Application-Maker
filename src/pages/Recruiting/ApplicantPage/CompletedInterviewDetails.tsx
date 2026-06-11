@@ -1,5 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft,
   Award,
@@ -9,6 +10,7 @@ import {
   Clock4,
   ExternalLink,
   Inbox,
+  Save,
   StickyNote,
   Target,
   User as UserIcon,
@@ -18,10 +20,12 @@ import {
 import PageBreadCrumb from '../../../components/common/PageBreadCrumb';
 import PageMeta from '../../../components/common/PageMeta';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
-import { useApplicant } from '../../../hooks/queries/useApplicants';
+import { useApplicant, useUpdateInterviewStatus, applicantsKeys } from '../../../hooks/queries/useApplicants';
+import Swal from '../../../utils/swal';
 import type {
   Interview,
   InterviewAnswer,
+  UpdateInterviewStatusRequest,
 } from '../../../types/applicants';
 import { paths } from '../../../router/Paths';
 import {
@@ -29,8 +33,6 @@ import {
 } from './components/history/historyUtils';
 
 type CompletedInterview = Interview & { id?: string };
-
-
 
 const calcDurationMs = (startedAt?: string, endedAt?: string): number | null => {
   if (!startedAt || !endedAt) return null;
@@ -41,7 +43,7 @@ const calcDurationMs = (startedAt?: string, endedAt?: string): number | null => 
 };
 
 const formatDuration = (ms: number | null): string => {
-  if (ms === null) return '—';
+  if (ms === null) return '\u2014';
   const totalSeconds = Math.floor(ms / 1000);
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -51,8 +53,6 @@ const formatDuration = (ms: number | null): string => {
   if (minutes > 0) return `${pad(minutes)}m ${pad(seconds)}s`;
   return `${pad(seconds)}s`;
 };
-
-
 
 const flattenQuestions = (
   questions: InterviewAnswer[] | undefined,
@@ -108,21 +108,29 @@ const InfoTile: React.FC<{
           {label}
         </p>
         <div className="mt-0.5 text-sm font-medium text-gray-800 break-words">
-          {value || <span className="text-gray-300">—</span>}
+          {value || <span className="text-gray-300">\u2014</span>}
         </div>
       </div>
     </div>
   );
 };
 
-const QuestionDisplay: React.FC<{ question: InterviewAnswer; index: number }> = ({
-  question,
-  index,
-}) => {
+const QuestionDisplay: React.FC<{
+  question: InterviewAnswer;
+  index: number;
+  editable?: boolean;
+  onChange?: (updated: InterviewAnswer) => void;
+}> = ({ question, index, editable, onChange }) => {
   const score = Number(question?.score || 0);
   const achieved = Number(question?.achievedScore || 0);
+  const percentage = score > 0 ? Math.round((achieved / score) * 100) : 0;
   const choices = Array.isArray(question?.choices) ? question!.choices : [];
   const answer = getAnswerDisplay(question);
+
+  const handleChange = (field: 'score' | 'achievedScore' | 'notes', value: string | number) => {
+    if (!onChange) return;
+    onChange({ ...question, [field]: value });
+  };
 
   return (
     <div className="rounded-xl border border-gray-100 bg-white p-5">
@@ -135,8 +143,6 @@ const QuestionDisplay: React.FC<{ question: InterviewAnswer; index: number }> = 
             {question?.question || '(Untitled question)'}
           </p>
           <div className="mt-1.5 flex flex-wrap items-center gap-2">
-          
-            
           </div>
         </div>
         {score > 0 && (
@@ -145,7 +151,6 @@ const QuestionDisplay: React.FC<{ question: InterviewAnswer; index: number }> = 
               {achieved}
               <span className="text-xs text-gray-400"> / {score}</span>
             </p>
-
           </div>
         )}
       </div>
@@ -179,21 +184,59 @@ const QuestionDisplay: React.FC<{ question: InterviewAnswer; index: number }> = 
         </div>
       )}
 
-      <div className="mt-1.5  rounded-lg border border-gray-100 bg-gray-50/60 p-3">
-        <p className=" text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+      <div className="mt-1.5 rounded-lg border border-gray-100 bg-gray-50/60 p-3">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
           Candidate's answer
         </p>
-        {answer.type === 'text' ? (
-          <p className="whitespace-pre-wrap  text-sm text-gray-800">{answer.text}</p>
+        {editable ? (
+          <textarea
+            value={question?.notes ?? ''}
+            onChange={e => handleChange('notes', e.target.value)}
+            className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            rows={3}
+            placeholder="Edit answer notes..."
+          />
+        ) : answer.type === 'text' ? (
+          <p className="whitespace-pre-wrap text-sm text-gray-800">{answer.text}</p>
         ) : (
           <p className="text-sm italic text-gray-400">{answer.text}</p>
         )}
       </div>
 
-      
+      {editable && score > 0 && (
+        <div className="mt-3 space-y-2 pt-3 border-t border-gray-100">
+          <div className="flex justify-between text-[10px] text-gray-500 font-medium">
+            <span>Performance Weight</span>
+            <span>{percentage}%</span>
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={1}
+            value={percentage}
+            onChange={e => {
+              const newPct = Number(e.target.value);
+              const newAchieved = Math.round((score * newPct) / 100);
+              handleChange('achievedScore', newAchieved);
+            }}
+            style={{
+              background: `linear-gradient(to right, #3b82f6 ${percentage}%, #e5e7eb ${percentage}%)`,
+            }}
+            className="w-full h-1.5 bg-gray-200 rounded-lg cursor-pointer accent-blue-600"
+          />
+        </div>
+      )}
     </div>
   );
 };
+
+const STATUS_OPTIONS = [
+  { value: 'completed', label: 'Completed' },
+  { value: 'scheduled', label: 'Scheduled' },
+  { value: 'in_progress', label: 'In Progress' },
+  { value: 'cancelled', label: 'Cancelled' },
+];
 
 const CompletedInterviewDetails: React.FC = () => {
   const { id: applicantId, interviewId } = useParams<{
@@ -202,9 +245,11 @@ const CompletedInterviewDetails: React.FC = () => {
   }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
 
-  const passedInterview = (location.state as { interview?: CompletedInterview } | null)
+  const passedInterview = (location.state as { interview?: CompletedInterview; mode?: string } | null)
     ?.interview;
+  const isEditing = (location.state as { mode?: string } | null)?.mode === 'edit';
 
   const { data: applicant, isLoading, isError, error } = useApplicant(applicantId || '');
 
@@ -224,38 +269,106 @@ const CompletedInterviewDetails: React.FC = () => {
     );
   }, [applicant, passedInterview, interviewId]);
 
-  const flatQuestions = useMemo(
-    () => flattenQuestions(interview?.questions),
-    [interview],
+  const [editForm, setEditForm] = useState({
+    status: 'completed',
+    questions: [] as InterviewAnswer[],
+  });
+
+  const [isSaving, setIsSaving] = useState(false);
+  const updateInterviewMutation = useUpdateInterviewStatus();
+
+  useEffect(() => {
+    if (interview && isEditing) {
+      setEditForm({
+        status: interview.status || 'completed',
+        questions: interview.questions ? interview.questions.map(q => ({ ...q })) : [],
+      });
+    }
+  }, [interview, isEditing]);
+
+  const handleSave = async () => {
+    if (!applicantId || !interviewId || !interview) return;
+    setIsSaving(true);
+    try {
+      const data: UpdateInterviewStatusRequest = {
+        scheduledAt: interview.scheduledAt,
+        startedAt: interview.startedAt,
+        endedAt: interview.endedAt,
+        status: editForm.status as UpdateInterviewStatusRequest['status'],
+        questions: editForm.questions,
+      };
+      await updateInterviewMutation.mutateAsync({
+        applicantId,
+        interviewId,
+        data,
+      });
+      queryClient.invalidateQueries({ queryKey: applicantsKeys.detail(applicantId) });
+      await Swal.fire({
+        title: 'Success',
+        text: 'Interview updated successfully.',
+        icon: 'success',
+        timer: 1500,
+        showConfirmButton: false,
+      });
+      navigate(paths.applicants.details(applicantId));
+    } catch (error) {
+      await Swal.fire({
+        title: 'Error',
+        text: 'Failed to update interview.',
+        icon: 'error',
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancel = () => {
+    if (applicantId) {
+      navigate(paths.applicants.details(applicantId));
+    } else {
+      navigate(-1);
+    }
+  };
+
+  const handleQuestionChange = (index: number, updated: InterviewAnswer) => {
+    setEditForm(prev => ({
+      ...prev,
+      questions: prev.questions.map((q, i) => i === index ? updated : q),
+    }));
+  };
+
+  const effectiveQuestions = useMemo(
+    () => isEditing ? editForm.questions : flattenQuestions(interview?.questions),
+    [isEditing, editForm.questions, interview],
   );
 
   const totalScore = useMemo(
     () =>
-      (interview?.questions || []).reduce(
+      effectiveQuestions.reduce(
         (sum, q) => sum + Number(q?.score || 0),
         0,
       ),
-    [interview],
+    [effectiveQuestions],
   );
   const achievedScore = useMemo(
     () =>
       Math.round(
-        (interview?.questions || []).reduce(
+        effectiveQuestions.reduce(
           (sum, q) => sum + Number(q?.achievedScore || 0),
           0,
         ),
       ),
-    [interview],
+    [effectiveQuestions],
   );
   const performance =
     totalScore > 0 ? Math.round((achievedScore / totalScore) * 100) : 0;
-  const answeredCount = (interview?.questions || []).filter((q) => {
+  const answeredCount = effectiveQuestions.filter((q) => {
     const notes = (q?.notes ?? '').toString().trim();
     return notes.length > 0;
   }).length;
   const completion =
-    (interview?.questions || []).length > 0
-      ? Math.round((answeredCount / (interview?.questions || []).length) * 100)
+    effectiveQuestions.length > 0
+      ? Math.round((answeredCount / effectiveQuestions.length) * 100)
       : 0;
   const duration = calcDurationMs(interview?.startedAt, interview?.endedAt);
 
@@ -342,79 +455,123 @@ const CompletedInterviewDetails: React.FC = () => {
         />
 
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <PageBreadCrumb pageTitle="Completed Interview Details" />
-          <button
-            type="button"
-            onClick={handleBack}
-            className="inline-flex items-center gap-2 self-start rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to applicant
-          </button>
+          <PageBreadCrumb pageTitle={isEditing ? 'Edit Interview' : 'Completed Interview Details'} />
+          <div className="flex items-center gap-2">
+            {isEditing ? (
+              <>
+                <button
+                  type="button"
+                  onClick={handleCancel}
+                  disabled={isSaving}
+                  className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 disabled:opacity-50"
+                >
+                  <Save className="h-4 w-4" />
+                  {isSaving ? 'Saving...' : 'Save Edits'}
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={handleBack}
+                className="inline-flex items-center gap-2 self-start rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back to applicant
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
           <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-5 py-4">
             <div className="flex items-center justify-between gap-3 flex-wrap">
-              <button
-                type="button"
-                onClick={handleBack}
-                className="inline-flex items-center gap-1.5 text-white/90 hover:text-white text-sm font-medium group"
-              >
-                <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
-                Back
-              </button>
+              {isEditing ? (
+                <button
+                  type="button"
+                  onClick={handleCancel}
+                  className="inline-flex items-center gap-1.5 text-white/90 hover:text-white text-sm font-medium group"
+                >
+                  <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
+                  Back
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleBack}
+                  className="inline-flex items-center gap-1.5 text-white/90 hover:text-white text-sm font-medium group"
+                >
+                  <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
+                  Back
+                </button>
+              )}
               <div className="flex items-center gap-2 flex-wrap">
-
-                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${status === 'completed' ? 'bg-emerald-500/20 text-emerald-50' : 'bg-white/15 text-white'}`}>
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  {status === 'completed' ? 'Completed' : status}
-                </span>
+                {isEditing ? (
+                  <select
+                    value={editForm.status}
+                    onChange={e => setEditForm(f => ({ ...f, status: e.target.value }))}
+                    className="rounded-lg border border-white/30 bg-white/15 px-3 py-1.5 text-xs font-semibold text-white focus:border-white/50 focus:outline-none focus:ring-1 focus:ring-white/50"
+                  >
+                    {STATUS_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value} className="text-gray-800">{opt.label}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${status === 'completed' ? 'bg-emerald-500/20 text-emerald-50' : 'bg-white/15 text-white'}`}>
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    {status === 'completed' ? 'Completed' : status}
+                  </span>
+                )}
               </div>
             </div>
           </div>
 
-            <div className="grid grid-cols-2 gap-px bg-gray-100 md:grid-cols-4">
-  <div className="bg-white p-4 text-center">
-    <Target className="h-4 w-4 text-blue-500 mx-auto mb-1" />
-    
-    <div className="flex items-baseline justify-center gap-2">
-      <p className="text-xl font-bold text-purple-600 tabular-nums">
-        {performance}%
-      </p>
-      <p className="px-2 py-0.5 text-xs font-medium rounded-full bg-purple-100 text-gray-700 hover:bg-blue-200 transition-colors">
-        {achievedScore} / {totalScore}
-      </p>
-    </div>
-  </div>
-  
-  <div className="bg-white p-4 text-center">
-    <Clock className="h-4 w-4 text-purple-500 mx-auto mb-1" />
-    <p className="text-lg font-bold tabular-nums">
-      {formatDuration(duration)}
-    </p>
-  </div>
-  
-  <div className="bg-white p-4 text-center">
-    <Award className="h-4 w-4 text-emerald-500 mx-auto mb-1" />
-    
-    <div className="flex items-baseline justify-center gap-2">
-      <p className="text-lg font-bold text-amber-600 tabular-nums">
-        {completion}%
-      </p>
-      <p className="px-2 py-0.5 text-xs font-medium rounded-full bg-amber-100 text-gray-700 hover:bg-blue-200 transition-colors">
-        {answeredCount} / {interview?.questions?.length || 0}
-      </p>
-    </div>
-  </div>
+          <div className="grid grid-cols-2 gap-px bg-gray-100 md:grid-cols-4">
+            <div className="bg-white p-4 text-center">
+              <Target className="h-4 w-4 text-blue-500 mx-auto mb-1" />
+              <div className="flex items-baseline justify-center gap-2">
+                <p className="text-xl font-bold text-purple-600 tabular-nums">
+                  {performance}%
+                </p>
+                <p className="px-2 py-0.5 text-xs font-medium rounded-full bg-purple-100 text-gray-700 hover:bg-blue-200 transition-colors">
+                  {achievedScore} / {totalScore}
+                </p>
+              </div>
+            </div>
 
-  <div className="bg-white p-4 text-center">
-    <Clock className="h-4 w-4 text-gray-500 mx-auto mb-1" />
-    <p className="text-sm font-semibold text-gray-800 tabular-nums">
-      {interview?.startedAt ? new Date(interview.startedAt).toLocaleString() : 'N/A'}
-    </p>
-  </div>
-</div>
+            <div className="bg-white p-4 text-center">
+              <Clock className="h-4 w-4 text-purple-500 mx-auto mb-1" />
+              <p className="text-lg font-bold tabular-nums">
+                {formatDuration(duration)}
+              </p>
+            </div>
+
+            <div className="bg-white p-4 text-center">
+              <Award className="h-4 w-4 text-emerald-500 mx-auto mb-1" />
+              <div className="flex items-baseline justify-center gap-2">
+                <p className="text-lg font-bold text-amber-600 tabular-nums">
+                  {completion}%
+                </p>
+                <p className="px-2 py-0.5 text-xs font-medium rounded-full bg-amber-100 text-gray-700 hover:bg-blue-200 transition-colors">
+                  {answeredCount} / {effectiveQuestions.length}
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-white p-4 text-center">
+              <Clock className="h-4 w-4 text-gray-500 mx-auto mb-1" />
+              <p className="text-sm font-semibold text-gray-800 tabular-nums">
+                {interview?.startedAt ? new Date(interview.startedAt).toLocaleString() : 'N/A'}
+              </p>
+            </div>
+          </div>
         </div>
 
         <section>
@@ -446,8 +603,6 @@ const CompletedInterviewDetails: React.FC = () => {
               value={formatDate(interview.endedAt)}
               accent="amber"
             />
-           
-        
             {conductedByLabel && (
               <InfoTile
                 icon={<UserIcon className="h-4 w-4" />}
@@ -495,21 +650,19 @@ const CompletedInterviewDetails: React.FC = () => {
             )}
           </div>
 
-          {interview.notes && (
-            <div className="mt-3 rounded-xl border border-gray-100 bg-white p-5">
-              <div className="mb-2 flex items-center gap-2">
-                <span className="flex h-7 w-7 items-center justify-center rounded-md bg-amber-50 text-amber-600">
-                  <StickyNote className="h-3.5 w-3.5" />
-                </span>
-                <h3 className="text-sm font-semibold text-gray-800">
-                  Interviewer Notes
-                </h3>
-              </div>
-              <p className="whitespace-pre-wrap text-sm text-gray-700">
-                {interview.notes}
-              </p>
+          <div className="mt-3 rounded-xl border border-gray-100 bg-white p-5">
+            <div className="mb-2 flex items-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded-md bg-amber-50 text-amber-600">
+                <StickyNote className="h-3.5 w-3.5" />
+              </span>
+              <h3 className="text-sm font-semibold text-gray-800">
+                Interviewer Notes
+              </h3>
             </div>
-          )}
+            <p className="whitespace-pre-wrap text-sm text-gray-700">
+              {interview.notes || 'No notes recorded.'}
+            </p>
+          </div>
         </section>
 
         <section>
@@ -518,12 +671,12 @@ const CompletedInterviewDetails: React.FC = () => {
               Questions &amp; Answers
             </h2>
             <span className="text-xs text-gray-400">
-              {(interview.questions || []).length} question
-              {(interview.questions || []).length === 1 ? '' : 's'}
+              {effectiveQuestions.length} question
+              {effectiveQuestions.length === 1 ? '' : 's'}
             </span>
           </div>
 
-          {flatQuestions.length === 0 ? (
+          {effectiveQuestions.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-gray-200 bg-white px-6 py-12 text-center">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100">
                 <Inbox className="h-5 w-5 text-gray-400" />
@@ -537,8 +690,14 @@ const CompletedInterviewDetails: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-3">
-              {flatQuestions.map((q, i) => (
-                <QuestionDisplay key={q?._id || q?.id || i} question={q} index={i} />
+              {effectiveQuestions.map((q, i) => (
+                <QuestionDisplay
+                  key={q?._id || q?.id || i}
+                  question={q}
+                  index={i}
+                  editable={isEditing}
+                  onChange={isEditing ? (updated) => handleQuestionChange(i, updated) : undefined}
+                />
               ))}
             </div>
           )}

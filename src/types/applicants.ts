@@ -190,6 +190,7 @@ export type UpdateInterviewStatusRequest = {
   type?: string | null;
   notes?: string | null;
   status?: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+  interviewers?: string[];
   questions?: InterviewAnswer[];
 };
 

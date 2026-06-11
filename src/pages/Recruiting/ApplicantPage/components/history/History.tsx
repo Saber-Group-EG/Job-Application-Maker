@@ -23,7 +23,6 @@ import {
   applicantsKeys,
   useApplicantsByPhone,
   useDeleteInterview,
-  useUpdateInterviewStatus,
 } from '../../../../../hooks/queries/useApplicants';
 import type { Applicant, Interview } from '../../../../../types/applicants';
 import Swal from '../../../../../utils/swal';
@@ -225,7 +224,6 @@ export default function History({ applicant, loading = false }: Props) {
     companyId: applicantCompanyId || undefined,
   });
 
-  const updateInterviewMutation = useUpdateInterviewStatus();
   const deleteInterviewMutation = useDeleteInterview();
 
   const filteredPreviousApplicants = useMemo(() => {
@@ -311,31 +309,6 @@ export default function History({ applicant, loading = false }: Props) {
     queryClient.invalidateQueries({ queryKey: applicantsKeys.detail(applicantId) });
   };
 
-  const handleEditInterview = async (interview: CompletedInterview) => {
-    const interviewId = String(interview?._id || interview?.id || '');
-    if (!applicantId || !interviewId) return;
-    const allowedStatuses = ['scheduled', 'in_progress', 'completed', 'cancelled'] as const;
-    type AllowedStatus = (typeof allowedStatuses)[number];
-    const status: AllowedStatus | undefined = allowedStatuses.includes(
-      interview.status as AllowedStatus,
-    )
-      ? (interview.status as AllowedStatus)
-      : undefined;
-    try {
-      await updateInterviewMutation.mutateAsync({
-        applicantId,
-        interviewId,
-        data: {
-          ...(status ? { status } : {}),
-          notes: interview.notes,
-        },
-      });
-      invalidateApplicant();
-    } catch (error) {
-      void error;
-    }
-  };
-
   const handleDeleteInterview = async (interview: CompletedInterview) => {
     const interviewId = String(interview?._id || interview?.id || '');
     if (!applicantId || !interviewId) return;
@@ -393,7 +366,6 @@ export default function History({ applicant, loading = false }: Props) {
             isLoading={false}
             interviews={completedInterviews}
             applicantId={applicantId}
-            onEdit={handleEditInterview}
             onDelete={handleDeleteInterview}
           />
         );
