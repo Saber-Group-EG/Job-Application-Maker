@@ -11,6 +11,10 @@ const inputCls =
 const selectCls =
   'w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100';
 
+// add textareaCls constant next to inputCls
+const textareaCls =
+  'w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-brand-400 resize-none';
+
 export function CommissionRow({
   comm,
   index,
@@ -52,16 +56,47 @@ export function CommissionRow({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_110px_110px]">
-        <div>
-          <Label>Label</Label>
-          <input
-            className={inputCls}
-            value={comm.label}
-            onChange={(e) => onChange({ label: e.target.value })}
-            placeholder="e.g. Base Commission"
-            tabIndex={0}
-          />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1.6fr_110px_110px]">
+        {' '}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:col-span-1">
+          <div>
+            <Label>Label (EN)</Label>
+
+            <input
+              className={inputCls}
+              value={comm.label.en}
+              onChange={(e) =>
+                onChange({
+                  label: {
+                    ...comm.label,
+                    en: e.target.value,
+                  },
+                })
+              }
+              placeholder="e.g. Base Commission"
+              tabIndex={0}
+            />
+          </div>
+
+          <div>
+            <Label>Label (AR)</Label>
+
+            <input
+              className={inputCls}
+              dir="rtl"
+              value={comm.label.ar}
+              onChange={(e) =>
+                onChange({
+                  label: {
+                    ...comm.label,
+                    ar: e.target.value,
+                  },
+                })
+              }
+              placeholder="العمولة الأساسية"
+              tabIndex={0}
+            />
+          </div>
         </div>
         <div>
           <Label>Value</Label>
@@ -95,15 +130,47 @@ export function CommissionRow({
         </div>
       </div>
 
-      <div className="mt-3">
-        <Label>Condition (optional)</Label>
-        <input
-          className={inputCls}
-          value={comm.condition}
-          onChange={(e) => onChange({ condition: e.target.value })}
-          placeholder='e.g. "for deals under 15,000 EGP"'
-          tabIndex={0}
-        />
+      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div>
+          <Label>Condition (EN)</Label>
+
+          <textarea
+            className={textareaCls}
+            rows={2}
+            value={comm.condition.en}
+            onChange={(e) =>
+              onChange({
+                condition: {
+                  ...comm.condition,
+                  en: e.target.value,
+                },
+              })
+            }
+            placeholder='e.g. "for deals under 15,000 EGP"'
+            tabIndex={0}
+          />
+        </div>
+
+        <div>
+          <Label>Condition (AR)</Label>
+
+          <textarea
+            className={textareaCls}
+            dir="rtl"
+            rows={2}
+            value={comm.condition.ar}
+            onChange={(e) =>
+              onChange({
+                condition: {
+                  ...comm.condition,
+                  ar: e.target.value,
+                },
+              })
+            }
+            placeholder="للصفقات الأقل من ١٥٬٠٠٠ جنيه"
+            tabIndex={0}
+          />
+        </div>
       </div>
     </div>
   );

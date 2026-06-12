@@ -1,28 +1,25 @@
 import { useEffect, useRef, useState } from 'react';
-import { CheckCircle2, ChevronDown, Loader2, X } from 'lucide-react';
-import { useDebounce } from '../../../hooks/useDebounce';
-import { useApplicants, useCompanies } from '../../../hooks/queries';
-
-type ApplicantOption = {
-  _id: string;
-  fullName: string;
-  email: string;
-};
+import { CheckCircle2, ChevronDown, Loader2, Wand2, X } from 'lucide-react';
+import { useDebounce } from '../../hooks/useDebounce';
+import { useApplicants, useCompanies } from '../../hooks/queries';
+import { ApplicantObject } from '../modals/JobOffersModal/EmailModule';
 
 export function ApplicantSelect({
   value,
   onChange,
   inputCls,
+  onPrefill,
 }: {
   value: string | null;
-  onChange: (id: string | null, applicant: ApplicantOption | null) => void;
+  onChange: (id: string | null, applicant: ApplicantObject | null) => void;
   inputCls?: string;
+  onPrefill?: (applicant: ApplicantObject) => void; // ← new
 }) {
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
   // ── cache the selected applicant object so we can display it without re-fetching
   const [selectedApplicant, setSelectedApplicant] =
-    useState<ApplicantOption | null>(null);
+    useState<ApplicantObject | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const debouncedSearch = useDebounce(search, 500);
   const { data: companiesData } = useCompanies();
@@ -31,11 +28,11 @@ export function ApplicantSelect({
     companyId: companyId,
     search: debouncedSearch,
     enabled: open && !!debouncedSearch.trim(),
-    fields: '_id,fullName,email,jobPositionId', // only fetch fields we need for display
+    fields: '_id,fullName,email,jobPositionId,expectedSalary', // only fetch fields we need for display
     skipPopulation: false, // we only want raw applicant data, no need to populate related fields
   });
 
-  const applicants = (data ?? []) as ApplicantOption[];
+  const applicants = (data ?? []) as ApplicantObject[];
 
   // If editing an existing offer, value is set but selectedApplicant is null.
   // Try to resolve it from the current search results or fetch once.
@@ -50,7 +47,7 @@ export function ApplicantSelect({
   // Once prefetch resolves, hydrate selectedApplicant from it
   useEffect(() => {
     if (value && !selectedApplicant && prefetchData) {
-      const match = (prefetchData as ApplicantOption[]).find(
+      const match = (prefetchData as ApplicantObject[]).find(
         (a) => a._id === value
       );
       if (match) setSelectedApplicant(match);
@@ -73,7 +70,7 @@ export function ApplicantSelect({
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const handleSelect = (a: ApplicantOption) => {
+  const handleSelect = (a: ApplicantObject) => {
     onChange(a._id, a); // pass full object up
     setSelectedApplicant(a); // ← cache immediately, no re-fetch needed
     setOpen(false);
@@ -105,6 +102,21 @@ export function ApplicantSelect({
             <span className="shrink-0 text-xs text-slate-400">
               {selectedApplicant.email}
             </span>
+            {/* Prefill button */}
+            {onPrefill && (
+              <span
+                role="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onPrefill(selectedApplicant);
+                }}
+                title="Pre-fill form from applicant data"
+                className="ml-1 flex shrink-0 items-center gap-1 rounded-md border border-brand-200 bg-brand-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand-600 transition hover:bg-brand-100 dark:border-brand-700 dark:bg-brand-500/10 dark:text-brand-400 dark:hover:bg-brand-500/20"
+              >
+                <Wand2 className="size-2.5" />
+                Prefill
+              </span>
+            )}
           </div>
         ) : (
           <span className="text-slate-400">Select applicant...</span>
