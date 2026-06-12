@@ -203,6 +203,19 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
               </a>
             )}
           </div>
+          <div>
+            <div className="text-sm font-semibold text-gray-800 -mb-1">Date of Birth</div>
+            {isEditing ? (
+              <input
+                type="date"
+                value={data.birthDate ? data.birthDate.split('T')[0] : ''}
+                onChange={handleField('birthDate')}
+                className="w-full text-sm border-b border-gray-200 focus:border-blue-400 focus:outline-none"
+              />
+            ) : (
+              <div className="text-sm text-gray-600">{formatDate(data.birthDate)}</div>
+            )}
+          </div>
 
           <div>
             <div className="text-sm font-semibold text-gray-800 -mb-1">Gender</div>

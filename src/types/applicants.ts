@@ -98,6 +98,7 @@ export type Applicant = {
   expectedSalary?: string;
   phone: string;
   address?: string;
+  birthDate?: string;
   profilePhoto?: string;
   cvFilePath?: string;
   resume?: string;
@@ -124,6 +125,7 @@ export type CreateApplicantRequest = {
   resume?: string;
   source?: string;
   address?: string;
+  birthDate?: string;
   customResponses?: Record<string, any>;
   expectedSalary?: string;
 };
@@ -134,6 +136,7 @@ export type UpdateApplicantRequest = {
   email?: string;
   phone?: string;
   address?: string;
+  birthDate?: string;
   resume?: string;
   customResponses?: Record<string, any>;
 };
