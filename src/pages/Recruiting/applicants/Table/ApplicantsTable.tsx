@@ -897,12 +897,19 @@ export default function Applicants({
       if (Array.isArray(value))
         return value.map(toText).filter(Boolean).join(', ');
       if (typeof value === 'object') {
+        const answerValue = (value as any)?.Answer ?? (value as any)?.answer;
+        if (answerValue !== undefined) {
+          const nested = toText(answerValue);
+          if (nested) return nested;
+        }
         const candidateKeys = [
           'expectedSalary',
           'salary',
           'amount',
           'value',
           'val',
+          'answer',
+          'Answer',
           'label',
           'name',
           'title',
