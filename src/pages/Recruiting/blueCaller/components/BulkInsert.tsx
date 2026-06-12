@@ -163,6 +163,9 @@ function checkExistingApplicant(
 
 // ─── Parse custom fields from Excel ───────────────────────────────────────────
 
+// components/BulkInsert.tsx
+// Update the parseCustomFields function
+
 function parseCustomFields(
   rawRow: Record<string, unknown>,
   jobPosition: JobPosition | null
@@ -177,69 +180,128 @@ function parseCustomFields(
     const fieldLabel = toStringValue(fieldRecord.label);
     const inputType = String(fieldRecord.inputType || 'text');
     
-    // Try top-level label or fieldId as the source cell
-    let value = rawRow[fieldLabel];
-    if (value === undefined) value = rawRow[fieldId];
-    if (value === undefined || value === null) {
-      // For group types, try reading subfield columns like "Group Label - SubLabel"
-      if (inputType === 'groupField' && Array.isArray(fieldRecord.groupFields)) {
-        const groupObj: Record<string, unknown> = {};
-        (fieldRecord.groupFields as unknown[]).forEach((subField: unknown) => {
-          const subRecord = subField as Record<string, unknown>;
-          const subLocKey = String(subRecord.fieldId || '');
-          const subLabel = toStringValue(subRecord.label);
-          const compositeLabel = `${fieldLabel} - ${subLabel}`;
-          let subVal = rawRow[compositeLabel];
-          if (subVal === undefined) subVal = rawRow[subLocKey];
-          if (subVal !== undefined && subVal !== null && subVal !== '') {
-            groupObj[subLocKey] = subVal;
-          }
-        });
-        if (Object.keys(groupObj).length > 0) customValues[fieldId] = groupObj;
-      }
-      // For repeatable groups, try parsing JSON from the group's column (if present)
-      if (inputType === 'repeatable_group' && Array.isArray(fieldRecord.groupFields)) {
-        if (value === undefined) {
-          // try top-level composite columns where each subfield is "Group - Sub"
-          const rowsArr: unknown[] = [];
-          const subFields = (fieldRecord.groupFields as unknown[]).map(sf => sf as Record<string, unknown>);
-          // If a single column with JSON exists under the group label or id, try parsing it
-          const jsonCandidate = rawRow[fieldLabel] ?? rawRow[fieldId];
-          if (typeof jsonCandidate === 'string' && jsonCandidate.trim()) {
-            try {
-              const parsed = JSON.parse(jsonCandidate);
-              if (Array.isArray(parsed)) {
-                customValues[fieldId] = parsed;
-                return;
-              }
-            } catch (e) {
-              // fallback to other heuristics below
-            }
-          }
-
-          // Heuristic: look for composite subfield columns and assemble a single-row repeatable entry
-          const assembled: Record<string, unknown> = {};
-          let foundAny = false;
-          subFields.forEach((subRecord) => {
-            const subLocKey = String(subRecord.fieldId || '');
-            const subLabel = toStringValue(subRecord.label);
-            const compositeLabel = `${fieldLabel} - ${subLabel}`;
-            let subVal = rawRow[compositeLabel];
-            if (subVal === undefined) subVal = rawRow[subLocKey];
-            if (subVal !== undefined && subVal !== null && subVal !== '') {
-              assembled[subLocKey] = subVal;
-              foundAny = true;
-            }
-          });
-          if (foundAny) {
-            rowsArr.push(assembled);
-            customValues[fieldId] = rowsArr;
+    // Handle repeatable_group with multiple numbered columns
+    if (inputType === 'repeatable_group' && Array.isArray(fieldRecord.groupFields)) {
+      const rows: Record<string, unknown>[] = [];
+      const subFields = (fieldRecord.groupFields as unknown[]).map(sf => sf as Record<string, unknown>);
+      
+      // Find all numbered occurrences (max up to 20 entries)
+      let maxIndex = 0;
+      for (let i = 1; i <= 20; i++) {
+        let hasAnyField = false;
+        for (const subField of subFields) {
+          const subLabel = toStringValue(subField.label);
+          const numberedLabel = i === 1 ? `${fieldLabel} - ${subLabel}` : `${fieldLabel} ${i} - ${subLabel}`;
+          if (rawRow[numberedLabel] !== undefined && rawRow[numberedLabel] !== null && rawRow[numberedLabel] !== '') {
+            hasAnyField = true;
+            break;
           }
         }
+        if (hasAnyField) {
+          maxIndex = i;
+        } else {
+          break;
+        }
+      }
+      
+      // Parse each numbered occurrence
+      for (let idx = 1; idx <= maxIndex; idx++) {
+        const row: Record<string, unknown> = {};
+        let hasValue = false;
+        
+        for (const subField of subFields) {
+          const subLocKey = String(subField.fieldId || '');
+          const subLabel = toStringValue(subField.label);
+          const subInputType = String(subField.inputType || 'text');
+          
+          // Column naming convention:
+          // First occurrence: "Group Label - Subfield Label"
+          // Subsequent: "Group Label N - Subfield Label"
+          const columnName = idx === 1 
+            ? `${fieldLabel} - ${subLabel}`
+            : `${fieldLabel} ${idx} - ${subLabel}`;
+          
+          let value = rawRow[columnName];
+          if (value === undefined) value = rawRow[`${fieldLabel} ${idx} ${subLabel}`];
+          if (value === undefined) value = rawRow[`${fieldId}_${idx}_${subLocKey}`];
+          
+          if (value !== undefined && value !== null && value !== '') {
+            hasValue = true;
+            
+            // Parse based on input type
+            if (subInputType === 'checkbox') {
+              const strValue = String(value).toLowerCase().trim();
+              row[subLocKey] = strValue === 'yes' || strValue === 'true' || strValue === '1';
+            } else if (subInputType === 'number') {
+              const num = Number(value);
+              if (!isNaN(num)) row[subLocKey] = num;
+            } else if (subInputType === 'date') {
+              row[subLocKey] = parseExcelDate(value);
+            } else if (subInputType === 'tags') {
+              const strValue = String(value);
+              row[subLocKey] = strValue.split(',').map(tag => tag.trim()).filter(Boolean);
+            } else {
+              row[subLocKey] = String(value).trim();
+            }
+          }
+        }
+        
+        if (hasValue) {
+          rows.push(row);
+        }
+      }
+      
+      if (rows.length > 0) {
+        customValues[fieldId] = rows;
       }
       return;
     }
-
+    
+    // Handle groupField (single group)
+    if (inputType === 'groupField' && Array.isArray(fieldRecord.groupFields)) {
+      const groupObj: Record<string, unknown> = {};
+      const subFields = (fieldRecord.groupFields as unknown[]).map(sf => sf as Record<string, unknown>);
+      
+      for (const subField of subFields) {
+        const subLocKey = String(subField.fieldId || '');
+        const subLabel = toStringValue(subField.label);
+        const subInputType = String(subField.inputType || 'text');
+        
+        // Column naming: "Group Label - Subfield Label"
+        const columnName = `${fieldLabel} - ${subLabel}`;
+        let value = rawRow[columnName];
+        if (value === undefined) value = rawRow[subLabel];
+        if (value === undefined) value = rawRow[subLocKey];
+        
+        if (value !== undefined && value !== null && value !== '') {
+          if (subInputType === 'checkbox') {
+            const strValue = String(value).toLowerCase().trim();
+            groupObj[subLocKey] = strValue === 'yes' || strValue === 'true' || strValue === '1';
+          } else if (subInputType === 'number') {
+            const num = Number(value);
+            if (!isNaN(num)) groupObj[subLocKey] = num;
+          } else if (subInputType === 'date') {
+            groupObj[subLocKey] = parseExcelDate(value);
+          } else if (subInputType === 'tags') {
+            const strValue = String(value);
+            groupObj[subLocKey] = strValue.split(',').map(tag => tag.trim()).filter(Boolean);
+          } else {
+            groupObj[subLocKey] = String(value).trim();
+          }
+        }
+      }
+      
+      if (Object.keys(groupObj).length > 0) {
+        customValues[fieldId] = groupObj;
+      }
+      return;
+    }
+    
+    // Regular fields (non-group)
+    let value = rawRow[fieldLabel];
+    if (value === undefined) value = rawRow[fieldId];
+    if (value === undefined || value === null) return;
+    
     if (inputType === 'checkbox') {
       const strValue = String(value).toLowerCase().trim();
       customValues[fieldId] = strValue === 'yes' || strValue === 'true' || strValue === '1';
@@ -251,32 +313,6 @@ function parseCustomFields(
     } else if (inputType === 'tags') {
       const strValue = String(value);
       customValues[fieldId] = strValue.split(',').map(tag => tag.trim()).filter(Boolean);
-    } else if (inputType === 'repeatable_group') {
-      // If the cell contains JSON array, parse it to an array of objects
-      if (Array.isArray(value)) {
-        customValues[fieldId] = value;
-      } else if (typeof value === 'string' && value.trim()) {
-        try {
-          const parsed = JSON.parse(value);
-          if (Array.isArray(parsed)) customValues[fieldId] = parsed;
-        } catch (e) {
-          // fallback: try splitting by "||" for rows and '|' for fields
-          const rows = String(value).split('||').map(r => r.trim()).filter(Boolean);
-          if (rows.length > 0) {
-            const subFields = (fieldRecord.groupFields as unknown[]).map(sf => sf as Record<string, unknown>);
-            const mapped = rows.map((rowStr) => {
-              const parts = rowStr.split('|').map(p => p.trim());
-              const obj: Record<string, unknown> = {};
-              parts.forEach((p, i) => {
-                const subKey = String(subFields[i]?.fieldId || `sub_${i}`);
-                if (p) obj[subKey] = p;
-              });
-              return obj;
-            }).filter(Boolean);
-            if (mapped.length > 0) customValues[fieldId] = mapped;
-          }
-        }
-      }
     } else {
       customValues[fieldId] = String(value).trim();
     }
@@ -586,17 +622,34 @@ function buildTemplateWorkbookForJob(jobPosition: JobPosition): XLSX.WorkBook {
     const fieldRecord = field as Record<string, unknown>;
     const label = toStringValue(fieldRecord.label);
     const inputType = String(fieldRecord.inputType || 'text');
+    
     if (label) {
-      if ((inputType === 'groupField' || inputType === 'repeatable_group') && Array.isArray(fieldRecord.groupFields)) {
-        // add subfield headers like "Group Label - Subfield Label"
+      if (inputType === 'repeatable_group' && Array.isArray(fieldRecord.groupFields)) {
+        // Generate 3 example rows for repeatable groups
+        const subFields = fieldRecord.groupFields as unknown[];
+        const maxExamples = 3; // Show 3 example rows in template
+        
+        for (let exampleNum = 1; exampleNum <= maxExamples; exampleNum++) {
+          subFields.forEach((subField: unknown) => {
+            const subRecord = subField as Record<string, unknown>;
+            const subLabel = toStringValue(subRecord.label);
+            // Format: "Group Label N - Subfield Label"
+            const composite = exampleNum === 1 
+              ? `${label} - ${subLabel}`
+              : `${label} ${exampleNum} - ${subLabel}`;
+            customFieldHeaders.push(composite);
+          });
+        }
+      } else if (inputType === 'groupField' && Array.isArray(fieldRecord.groupFields)) {
+        // For single group, add subfields with "Group - Subfield" format
         (fieldRecord.groupFields as unknown[]).forEach((subField: unknown) => {
           const subRecord = subField as Record<string, unknown>;
           const subLabel = toStringValue(subRecord.label);
           const composite = `${label} - ${subLabel}`;
-          if (!customFieldHeaders.includes(composite)) customFieldHeaders.push(composite);
+          customFieldHeaders.push(composite);
         });
       } else {
-        if (!customFieldHeaders.includes(label)) customFieldHeaders.push(label);
+        customFieldHeaders.push(label);
       }
     }
   });
@@ -608,7 +661,8 @@ function buildTemplateWorkbookForJob(jobPosition: JobPosition): XLSX.WorkBook {
   
   const allHeaders = [...headers, ...customFieldHeaders, ...jobSpecHeaders];
   
-  const exampleRow = [
+  // Create example row with sample data
+  const exampleRowData: (string | number)[] = [
     'Amina Hassan',
     'amina@example.com',
     '01012345678',
@@ -617,36 +671,64 @@ function buildTemplateWorkbookForJob(jobPosition: JobPosition): XLSX.WorkBook {
     'Female',
     '12000',
     toStringValue(jobPosition.title),
-    ...customFieldHeaders.map((header) => {
-      // handle composite headers for group subfields: "Group - Sub"
-      if (header.includes(' - ')) {
-        const [groupLabel, subLabel] = header.split(' - ').map(s => s.trim());
-        const groupField = (jobPosition.customFields || []).find((f: unknown) => toStringValue((f as Record<string, unknown>).label) === groupLabel) as Record<string, unknown> | undefined;
-        const subField = (Array.isArray(groupField?.groupFields) ? groupField.groupFields : []).find((sf: unknown) => toStringValue((sf as Record<string, unknown>).label) === subLabel) as Record<string, unknown> | undefined;
-        const inputType = String(subField?.inputType || 'text');
-        if (inputType === 'checkbox') return 'Yes';
-        if (inputType === 'date') return '2023-01-01';
-        if (inputType === 'number') return '5';
-        if (inputType === 'tags') return 'tag1, tag2, tag3';
-        return `Example ${subLabel}`;
-      }
-      const field = (jobPosition.customFields || []).find(
-        (f: unknown) => toStringValue((f as Record<string, unknown>).label) === header
-      ) as Record<string, unknown> | undefined;
-      const inputType = String(field?.inputType || 'text');
-      
-      if (inputType === 'checkbox') return 'Yes';
-      if (inputType === 'date') return '2023-01-01';
-      if (inputType === 'number') return '5';
-      if (inputType === 'tags') return 'tag1, tag2, tag3';
-      return `Example ${header}`;
-    }),
-    ...jobSpecHeaders.map(() => 'Yes'),
   ];
   
-  const worksheet = XLSX.utils.aoa_to_sheet([allHeaders, exampleRow]);
+  // Add example values for custom fields
+  (jobPosition.customFields || []).forEach((field: unknown) => {
+    const fieldRecord = field as Record<string, unknown>;
+    const label = toStringValue(fieldRecord.label);
+    const inputType = String(fieldRecord.inputType || 'text');
+    
+    if (inputType === 'repeatable_group' && Array.isArray(fieldRecord.groupFields)) {
+      const subFields = fieldRecord.groupFields as unknown[];
+      const maxExamples = 3;
+      
+      for (let exampleNum = 1; exampleNum <= maxExamples; exampleNum++) {
+        subFields.forEach((subField: unknown) => {
+          const subRecord = subField as Record<string, unknown>;
+          const subLabel = toStringValue(subRecord.label);
+          const subInputType = String(subRecord.inputType || 'text');
+          
+          // Provide example values for first row, leave others empty as examples
+          if (exampleNum === 1) {
+            if (subInputType === 'checkbox') exampleRowData.push('Yes');
+            else if (subInputType === 'date') exampleRowData.push('2023-01-01');
+            else if (subInputType === 'number') exampleRowData.push('5');
+            else if (subInputType === 'tags') exampleRowData.push('tag1, tag2');
+            else exampleRowData.push(`Example ${subLabel}`);
+          } else {
+            exampleRowData.push(''); // Empty for additional rows
+          }
+        });
+      }
+    } else if (inputType === 'groupField' && Array.isArray(fieldRecord.groupFields)) {
+      (fieldRecord.groupFields as unknown[]).forEach((subField: unknown) => {
+        const subRecord = subField as Record<string, unknown>;
+        const subLabel = toStringValue(subRecord.label);
+        const subInputType = String(subRecord.inputType || 'text');
+        
+        if (subInputType === 'checkbox') exampleRowData.push('Yes');
+        else if (subInputType === 'date') exampleRowData.push('2023-01-01');
+        else if (subInputType === 'number') exampleRowData.push('5');
+        else if (subInputType === 'tags') exampleRowData.push('tag1, tag2');
+        else exampleRowData.push(`Example ${subLabel}`);
+      });
+    } else {
+      if (inputType === 'checkbox') exampleRowData.push('Yes');
+      else if (inputType === 'date') exampleRowData.push('2023-01-01');
+      else if (inputType === 'number') exampleRowData.push('5');
+      else if (inputType === 'tags') exampleRowData.push('tag1, tag2');
+      else exampleRowData.push(`Example ${label}`);
+    }
+  });
+  
+  // Add job spec examples
+  jobSpecHeaders.forEach(() => exampleRowData.push('Yes'));
+  
+  const worksheet = XLSX.utils.aoa_to_sheet([allHeaders, exampleRowData]);
   worksheet['!cols'] = allHeaders.map(() => ({ wch: 20 }));
   
+  // Enhanced instructions
   const instructionsData = [
     ['Instructions for Bulk Upload'],
     [''],
@@ -660,17 +742,29 @@ function buildTemplateWorkbookForJob(jobPosition: JobPosition): XLSX.WorkBook {
     ['- expectedSalary: Numeric value (optional)'],
     ['- jobPosition: Exact job title as shown above (required)'],
     [''],
-    ['Note: Duplicate applicants will show a warning but can still be submitted.'],
+    ['For Repeatable Groups (e.g., Work Experience, Education, Certifications):'],
+    ['  - Use the numbered columns to add multiple entries'],
+    ['  - First entry uses "Group Name - Field Name" (e.g., "Work Experience - Company Name")'],
+    ['  - Second entry uses "Group Name 2 - Field Name" (e.g., "Work Experience 2 - Company Name")'],
+    ['  - Third entry uses "Group Name 3 - Field Name", and so on'],
+    ['  - You can add up to 20 entries for each repeatable group'],
+    ['  - Leave unused columns empty'],
     [''],
-    ['Custom Fields:'],
-    ...customFieldHeaders.map(h => [`- ${h}: Based on the field type (text, checkbox, date, number, tags)`]),
+    ['For Single Groups (e.g., Address, Contact Info):'],
+    ['  - Use the format "Group Name - Field Name" (e.g., "Current Address - Street")'],
     [''],
     ['Job Specifications:'],
     ...jobSpecHeaders.map(h => [`- ${h}: Answer with Yes or No`]),
+    [''],
+    ['Notes:'],
+    ['- Duplicate applicants will show a warning but can still be submitted'],
+    ['- All custom fields are optional unless marked as required in the job settings'],
+    ['- For checkboxes, use Yes/No or True/False'],
+    ['- For tags, separate multiple values with commas'],
   ];
   
   const instructionsSheet = XLSX.utils.aoa_to_sheet(instructionsData);
-  instructionsSheet['!cols'] = [{ wch: 60 }];
+  instructionsSheet['!cols'] = [{ wch: 80 }];
   
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Applicants');
