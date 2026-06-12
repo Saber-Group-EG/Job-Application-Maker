@@ -242,7 +242,8 @@ class JobPositionsService {
 
   async getJobPositionById(id: string): Promise<JobPosition> {
     const response = await this.request<any>('get', `/job-positions/${id}`);
-    return this.normalizeJobPosition(response);
+    const jobData = response?.jobPosition ?? response;
+    return this.normalizeJobPosition(jobData);
   }
 
   async createJobPosition(data: CreateJobPositionRequest): Promise<JobPosition> {
