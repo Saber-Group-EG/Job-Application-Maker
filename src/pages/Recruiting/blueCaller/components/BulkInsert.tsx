@@ -809,7 +809,7 @@ function buildTemplateWorkbookForJob(jobPosition: JobPosition): XLSX.WorkBook {
           else if (subInputType === 'date') exampleRowData.push('2023-01-01');
           else if (subInputType === 'number') exampleRowData.push('5');
           else if (subInputType === 'tags') exampleRowData.push('tag1, tag2');
-          else exampleRowData.push(`Example ${subLabel}`);
+          else exampleRowData.push(`Example ${subLabel} - ${exampleNum}`);
         });
       }
     } else if (
