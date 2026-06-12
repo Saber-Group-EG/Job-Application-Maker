@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   FileText,
   PlusCircle,
@@ -18,6 +18,9 @@ import {
 } from '../../../hooks/queries/useJobOffers';
 import type { JobOffer, WorkType } from '../../../services/jobOffersService';
 import JobOfferModal from '../../../components/modals/JobOffersModal/JobOffersModal';
+import SectionTemplatesPanel from '../../../components/settings/SectionTemplatesPanel';
+import { useCompanies, useUpdateOfferSectionTemplates } from '../../../hooks/queries/useCompanies';
+import type { SectionTemplate } from '../../../types/companies';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -63,7 +66,6 @@ function TemplateCard({
 }) {
   return (
     <div className="group flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-5 transition hover:border-slate-300 hover:shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-600">
-      {/* Top row */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-bold text-slate-900 dark:text-slate-100">
@@ -77,7 +79,6 @@ function TemplateCard({
           </span>
         </div>
 
-        {/* Actions */}
         {canEdit && (
           <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
             <button
@@ -108,7 +109,6 @@ function TemplateCard({
         )}
       </div>
 
-      {/* Stats row */}
       <div className="flex flex-wrap gap-x-4 gap-y-2">
         {offer.salary.basic != null && (
           <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
@@ -121,7 +121,7 @@ function TemplateCard({
         {offer.workHours && (offer.workHours.en || offer.workHours.ar) && (
           <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
             <Clock className="size-3.5 shrink-0" />
-            <span>{offer.workHours.en || offer.workHours.ar}</span>
+            <span>{offer.workHours.en ?? offer.workHours.ar}</span>
           </div>
         )}
         {offer.commissions.length > 0 && (
@@ -159,10 +159,26 @@ export default function OfferTemplatesTab({
     hasPermission('Settings Management', 'write') ||
     hasPermission('Settings Management', 'create');
 
-    const { data: templatesData, isLoading } = useJobOfferTemplates([companyId]);
-    const templates = templatesData?.data ?? [];
+  const { data: templatesData, isLoading } = useJobOfferTemplates([companyId]);
+  const templates = templatesData?.data ?? [];
+
+  // in OfferTemplatesTab
+  const { data: companies = [] } = useCompanies();
+
+  const selectedCompany = useMemo(
+    () => (companies as any[]).find((c) => c._id === companyId),
+    [companies, companyId]
+  );
+
+  const settingsId = selectedCompany?.settings?._id ?? '';
+  const offerSectionTemplates: SectionTemplate[] =
+    selectedCompany?.settings?.offerSectionTemplates ?? [];
+  const contractSectionTemplates: SectionTemplate[] =
+    selectedCompany?.settings?.contractSectionTemplates ?? [];
+
   const cloneMutation = useCloneJobOffer();
   const deleteMutation = useDeleteJobOffer();
+  const updateOfferSections = useUpdateOfferSectionTemplates();
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingOffer, setEditingOffer] = useState<JobOffer | null>(null);
@@ -171,7 +187,6 @@ export default function OfferTemplatesTab({
     setEditingOffer(null);
     setDrawerOpen(true);
   };
-
   const openEdit = (offer: JobOffer) => {
     setEditingOffer(offer);
     setDrawerOpen(true);
@@ -190,14 +205,16 @@ export default function OfferTemplatesTab({
       confirmButtonText: 'Delete',
       confirmButtonColor: '#ef4444',
     });
-    if (result.isConfirmed) {
-      await deleteMutation.mutateAsync(id);
-    }
+    if (result.isConfirmed) await deleteMutation.mutateAsync(id);
+  };
+
+  const handleSaveSections = async (updated: SectionTemplate[]) => {
+    await updateOfferSections.mutateAsync({ settingsId, templates: updated });
   };
 
   return (
     <div className={embedded ? 'space-y-6' : 'space-y-6 p-6'}>
-      {/* Header card */}
+      {/* ── Header card ─────────────────────────────────────────────────────── */}
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="flex flex-col gap-4 border-b border-slate-200 px-6 py-6 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
@@ -226,7 +243,6 @@ export default function OfferTemplatesTab({
           )}
         </div>
 
-        {/* Stats strip */}
         <div className="grid grid-cols-2 divide-x divide-slate-200 dark:divide-slate-800 sm:grid-cols-3">
           <div className="px-6 py-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
@@ -255,7 +271,7 @@ export default function OfferTemplatesTab({
         </div>
       </div>
 
-      {/* Grid */}
+      {/* ── Templates grid ──────────────────────────────────────────────────── */}
       {isLoading ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {[...Array(3)].map((_, i) => (
@@ -299,7 +315,18 @@ export default function OfferTemplatesTab({
         </div>
       )}
 
-      {/* Drawer */}
+      {/* ── Section Templates Panel ──────────────────────────────────────────── */}
+      <SectionTemplatesPanel
+        type="offer"
+        settingsId={settingsId}
+        templates={offerSectionTemplates}
+        crossTemplates={contractSectionTemplates}
+        canEdit={canEdit}
+        onSave={handleSaveSections}
+        isSaving={updateOfferSections.isPending}
+      />
+
+      {/* ── Drawer ──────────────────────────────────────────────────────────── */}
       {companyId && (
         <JobOfferModal
           isOpen={drawerOpen}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   FileSignature,
   PlusCircle,
@@ -22,6 +22,12 @@ import type {
   ContractType,
 } from '../../../services/contractsService';
 import JobContractModal from '../../../components/modals/ContractModal/ContractModal';
+import SectionTemplatesPanel from '../../../components/settings/SectionTemplatesPanel';
+import {
+  useCompanies,
+  useUpdateContractSectionTemplates,
+} from '../../../hooks/queries/useCompanies';
+import type { SectionTemplate } from '../../../types/companies';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -67,7 +73,6 @@ function TemplateCard({
 }) {
   return (
     <div className="group flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-5 transition hover:border-slate-300 hover:shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-600">
-      {/* Top row */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-bold text-slate-900 dark:text-slate-100">
@@ -81,10 +86,8 @@ function TemplateCard({
           </span>
         </div>
 
-        {/* Actions */}
         {canEdit && (
           <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 [@media(pointer:coarse)]:opacity-100">
-            {' '}
             <button
               type="button"
               title="Edit"
@@ -113,7 +116,6 @@ function TemplateCard({
         )}
       </div>
 
-      {/* Stats row */}
       <div className="flex flex-wrap gap-x-4 gap-y-2">
         {contract.salary.basic != null && (
           <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
@@ -170,8 +172,23 @@ export default function ContractTemplatesTab({
   ]);
   const templates = templatesData?.data ?? [];
 
+  // in OfferTemplatesTab
+  const { data: companies = [] } = useCompanies();
+
+  const selectedCompany = useMemo(
+    () => (companies as any[]).find((c) => c._id === companyId),
+    [companies, companyId]
+  );
+
+  const settingsId = selectedCompany?.settings?._id ?? '';
+  const contractSectionTemplates: SectionTemplate[] =
+    selectedCompany?.settings?.contractSectionTemplates ?? [];
+  const offerSectionTemplates: SectionTemplate[] =
+    selectedCompany?.settings?.offerSectionTemplates ?? [];
+
   const cloneMutation = useCloneJobContract();
   const deleteMutation = useDeleteJobContract();
+  const updateContractSections = useUpdateContractSectionTemplates();
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingContract, setEditingContract] = useState<JobContract | null>(
@@ -182,12 +199,10 @@ export default function ContractTemplatesTab({
     setEditingContract(null);
     setDrawerOpen(true);
   };
-
   const openEdit = (contract: JobContract) => {
     setEditingContract(contract);
     setDrawerOpen(true);
   };
-
   const handleClone = async (id: string) => {
     await cloneMutation.mutateAsync(id);
   };
@@ -201,18 +216,22 @@ export default function ContractTemplatesTab({
       confirmButtonText: 'Delete',
       confirmButtonColor: '#ef4444',
     });
-    if (result.isConfirmed) {
-      await deleteMutation.mutateAsync(id);
-    }
+    if (result.isConfirmed) await deleteMutation.mutateAsync(id);
   };
 
-  // ── Derived stats ──────────────────────────────────────────────────────────
+  const handleSaveSections = async (updated: SectionTemplate[]) => {
+    await updateContractSections.mutateAsync({
+      settingsId,
+      templates: updated,
+    });
+  };
+
   const withBenefits = templates.filter((t) => t.benefits.length > 0).length;
   const withSections = templates.filter((t) => t.sections.length > 0).length;
 
   return (
     <div className={embedded ? 'space-y-6' : 'space-y-6 p-6'}>
-      {/* Header card */}
+      {/* ── Header card ─────────────────────────────────────────────────────── */}
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="flex flex-col gap-4 border-b border-slate-200 px-6 py-6 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
@@ -229,7 +248,6 @@ export default function ContractTemplatesTab({
               </p>
             </div>
           </div>
-
           {canEdit && (
             <button
               type="button"
@@ -241,7 +259,6 @@ export default function ContractTemplatesTab({
           )}
         </div>
 
-        {/* Stats strip */}
         <div className="grid grid-cols-2 divide-x divide-slate-200 dark:divide-slate-800 sm:grid-cols-3">
           <div className="px-6 py-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
@@ -270,7 +287,7 @@ export default function ContractTemplatesTab({
         </div>
       </div>
 
-      {/* Grid */}
+      {/* ── Templates grid ──────────────────────────────────────────────────── */}
       {isLoading ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {[...Array(3)].map((_, i) => (
@@ -314,7 +331,18 @@ export default function ContractTemplatesTab({
         </div>
       )}
 
-      {/* Drawer */}
+      {/* ── Section Templates Panel ──────────────────────────────────────────── */}
+      <SectionTemplatesPanel
+        type="contract"
+        settingsId={settingsId}
+        templates={contractSectionTemplates}
+        crossTemplates={offerSectionTemplates}
+        canEdit={canEdit}
+        onSave={handleSaveSections}
+        isSaving={updateContractSections.isPending}
+      />
+
+      {/* ── Drawer ──────────────────────────────────────────────────────────── */}
       {companyId && (
         <JobContractModal
           isOpen={drawerOpen}
