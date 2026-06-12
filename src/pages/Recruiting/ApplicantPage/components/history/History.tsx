@@ -432,7 +432,7 @@ export default function History({ applicant, loading = false }: Props) {
         </p>
       </div>
 
-      <div className="flex border-b border-gray-200 overflow-x-auto lg:overflow-visible px-5">
+      <div className="flex border-b border-gray-200 overflow-x-auto overflow-y-hidden px-5">
         {SUB_TABS.map(({ key, label, icon: Icon }) => {
           const isActive = activeSubTab === key;
           return (

@@ -1137,39 +1137,39 @@ const ApplicantDetails: React.FC = () => {
        
             
             <div className="flex-1 min-w-0 space-y-6">
-               <div className="flex items-center justify-between border-b border-gray-200 mb-6">
-           <div className="flex overflow-x-auto">
-             <button
-               onClick={() => setActiveTab('details')}
-               className={`px-4 lg:px-5 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
-                 activeTab === 'details'
-                   ? 'border-blue-600 text-blue-600'
-                   : 'border-transparent text-gray-500 hover:text-gray-700'
-               }`}
-             >
-               Details
-             </button>
-             <button
-               onClick={() => setActiveTab('interview')}
-               className={`px-4 lg:px-5 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
-                 activeTab === 'interview'
-                   ? 'border-blue-600 text-blue-600'
-                   : 'border-transparent text-gray-500 hover:text-gray-700'
-               }`}
-             >
-               Interview Questions
-             </button>
-             <button
-               onClick={() => setActiveTab('history')}
-               className={`px-4 lg:px-5 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
-                 activeTab === 'history'
-                   ? 'border-blue-600 text-blue-600'
-                   : 'border-transparent text-gray-500 hover:text-gray-700'
-               }`}
-             >
-               History
-             </button>
-           </div>
+               <div className="flex items-center justify-between border-b border-gray-200 mb-2">
+<div className="flex overflow-x-auto overflow-y-hidden">
+              <button
+                onClick={() => setActiveTab('details')}
+                className={`px-4 lg:px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
+                  activeTab === 'details'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Details
+              </button>
+              <button
+                onClick={() => setActiveTab('interview')}
+                className={`px-4 lg:px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
+                  activeTab === 'interview'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Interview Questions
+              </button>
+              <button
+                onClick={() => setActiveTab('history')}
+                className={`px-4 lg:px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
+                  activeTab === 'history'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                History
+              </button>
+            </div>
            <button
              onClick={() => setShowStatusModal(true)}
              className="hidden lg:inline-flex px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors"
@@ -1264,7 +1264,7 @@ const ApplicantDetails: React.FC = () => {
               </Stickysidebar>
               <div className="flex-1 min-w-0 space-y-6">
                 <div className="flex items-center justify-between border-b border-gray-200 mb-6">
-                  <div className="flex overflow-x-auto">
+                  <div className="flex overflow-x-auto overflow-y-hidden">
                     <button
                       onClick={() => setActiveTab('details')}
                       className={`px-4 lg:px-5 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
@@ -1342,10 +1342,10 @@ const ApplicantDetails: React.FC = () => {
               </Stickysidebar>
               <div className="flex-1 min-w-0 space-y-6">
                 <div className="flex items-center justify-between border-b border-gray-200 mb-6">
-                  <div className="flex">
+                  <div className="flex overflow-x-auto overflow-y-hidden">
                     <button
                       onClick={() => setActiveTab('details')}
-                      className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
+                      className={`px-4 lg:px-5 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
                         activeTab === 'details'
                           ? 'border-blue-600 text-blue-600'
                           : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -1355,7 +1355,7 @@ const ApplicantDetails: React.FC = () => {
                     </button>
                     <button
                       onClick={() => setActiveTab('interview')}
-                      className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
+                      className={`px-4 lg:px-5 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
                         activeTab === 'interview'
                           ? 'border-blue-600 text-blue-600'
                           : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -1365,7 +1365,7 @@ const ApplicantDetails: React.FC = () => {
                     </button>
                     <button
                       onClick={() => setActiveTab('history')}
-                      className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
+                      className={`px-4 lg:px-5 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
                         activeTab === 'history'
                           ? 'border-blue-600 text-blue-600'
                           : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -1376,7 +1376,7 @@ const ApplicantDetails: React.FC = () => {
                   </div>
                   <button
                     onClick={() => setShowStatusModal(true)}
-                    className="hidden lg:inline-flex px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                    className="hidden lg:inline-flex px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors"
                   >
                     Change Status
                   </button>
