@@ -1119,20 +1119,7 @@ const ApplicantDetails: React.FC = () => {
                 onSendMessage={() => setShowMessageModal(true)}
                 onPrint={handlePrint}
               />
-              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 space-y-3">
-                <button
-                  type="button"
-                  className="w-full px-4 py-2.5 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
-                >
-                  Send Job Offer
-                </button>
-                <button
-                  type="button"
-                  className="w-full px-4 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Send Contract
-                </button>
-              </div>
+
             </Stickysidebar>
        
             
@@ -1247,20 +1234,7 @@ const ApplicantDetails: React.FC = () => {
                   onSendMessage={() => setShowMessageModal(true)}
                   onPrint={handlePrint}
                 />
-                <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 space-y-3">
-                  <button
-                    type="button"
-                    className="w-full px-4 py-2.5 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
-                  >
-                    Send Job Offer
-                  </button>
-                  <button
-                    type="button"
-                    className="w-full px-4 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Send Contract
-                  </button>
-                </div>
+                
               </Stickysidebar>
               <div className="flex-1 min-w-0 space-y-6">
                 <div className="flex items-center justify-between border-b border-gray-200 mb-6">
@@ -1325,20 +1299,7 @@ const ApplicantDetails: React.FC = () => {
                   onSendMessage={() => setShowMessageModal(true)}
                   onPrint={handlePrint}
                 />
-                <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 space-y-3">
-                  <button
-                    type="button"
-                    className="w-full px-4 py-2.5 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
-                  >
-                    Send Job Offer
-                  </button>
-                  <button
-                    type="button"
-                    className="w-full px-4 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Send Contract
-                  </button>
-                </div>
+              
               </Stickysidebar>
               <div className="flex-1 min-w-0 space-y-6">
                 <div className="flex items-center justify-between border-b border-gray-200 mb-6">

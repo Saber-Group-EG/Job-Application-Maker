@@ -566,10 +566,11 @@ class ApplicantsService {
     }));
   }
 
-  async getApplicantsByPhone(phone: string, companyId?: string): Promise<Applicant[]> {
+  async getApplicantsByPhone(phone: string, companyId?: string, email?: string): Promise<Applicant[]> {
     if (!phone || !String(phone).trim()) return [];
     const queryParams: Record<string, string> = { phone: String(phone).trim(), PageCount: 'all' };
     if (companyId) queryParams.companyId = companyId;
+    if (email && String(email).trim()) queryParams.email = String(email).trim();
     const response = await this.request<any>(
       'get',
       '/applicants',

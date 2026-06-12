@@ -295,10 +295,28 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, mailRecords = [
       )}
 
       {activity.type === 'status_change' && activity.status && (
-        <div>
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-700 text-xs font-medium rounded-md">
+        <div className="space-y-2">
+          <span
+            className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md ${
+              activity.status === 'rejected'
+                ? 'bg-red-50 text-red-700'
+                : 'bg-blue-50 text-blue-700'
+            }`}
+          >
             {activity.status}
           </span>
+          {activity.status === 'rejected' && activity.reasons && activity.reasons.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {activity.reasons.map((reason, i) => (
+                <span
+                  key={i}
+                  className="inline-flex items-center rounded-md bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-600 ring-1 ring-inset ring-red-200"
+                >
+                  {reason}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

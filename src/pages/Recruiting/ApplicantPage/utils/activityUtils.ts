@@ -61,6 +61,7 @@ const buildActivities = (applicant: Applicant | null | undefined): ActivityItem[
       type: 'status_change',
       title: 'Application status changed',
       status: entry.status,
+      reasons: entry.reasons,
     });
   });
 

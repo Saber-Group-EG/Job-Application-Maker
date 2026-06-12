@@ -1,6 +1,7 @@
 import React from 'react';
 import type { TextareaQuestion } from '../../../../../../../types/applicants';
 import type { QuestionHandlers } from './types';
+import { renderSmartText } from '../../../../../../../components/common/SmartText';
 
 export const TextareaItem: React.FC<{
   question: TextareaQuestion;
@@ -21,8 +22,8 @@ export const TextareaItem: React.FC<{
       className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 bg-white resize-y"
     />
     ) : (
-    <div className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 opacity-75 whitespace-pre-wrap break-words">
-      {question.value || ''}
+    <div className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 opacity-75 break-words">
+      {renderSmartText(question.value, { preserveNewlines: true }).node}
     </div>
     )}
   </div>

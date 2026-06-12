@@ -214,6 +214,7 @@ export interface Activity {
   user?: { name: string; avatar?: string };
   comment?: string;
   status?: string;
+  reasons?: string[];
   subject?: string;
   scheduledAt?: string;
   endedAt?: string;
@@ -230,6 +231,7 @@ export interface ActivityItem {
   user?: { name: string; avatar?: string };
   comment?: string;
   status?: string;
+  reasons?: string[];
   messageChannel?: string;
   interviewStatus?: string;
   subject?: string;

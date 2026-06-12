@@ -245,10 +245,13 @@ export default function History({ applicant, loading = false }: Props) {
     refetchOnReconnect: false,
   });
 
+  const applicantEmail = applicant?.email || '';
+
   const { data: previousApplicants = [], isLoading: isPreviousLoading } =
     useApplicantsByPhone(applicantPhone, {
       enabled: !!applicantPhone,
       companyId: applicantCompanyId || undefined,
+      mail: applicantEmail || undefined,
     });
 
   const deleteInterviewMutation = useDeleteInterview();

@@ -559,10 +559,10 @@ export function useRejectionInsights(params?: { companyId?: string[]; enabled?: 
 }
 
 // Get applicants by phone number
-export function useApplicantsByPhone(phone?: string, options?: { enabled?: boolean; companyId?: string }) {
+export function useApplicantsByPhone(phone?: string, options?: { enabled?: boolean; companyId?: string; mail?: string }) {
   return useQuery({
     queryKey: applicantsKeys.byPhone(phone || ''),
-    queryFn: () => applicantsService.getApplicantsByPhone(phone || '', options?.companyId),
+    queryFn: () => applicantsService.getApplicantsByPhone(phone || '', options?.companyId, options?.mail),
     staleTime: 2 * 60 * 1000,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
