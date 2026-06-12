@@ -8,15 +8,16 @@ export const RadioItem: React.FC<{
   handlers: Pick<QuestionHandlers, 'isEditable' | 'onRadioChange'>;
 }> = ({ question, handlers }) => (
   <div className="mb-4 last:mb-0">
+    {question.text.toLowerCase() !== 'answer' && (
     <label className="block text-sm font-medium text-gray-700 mb-2">
       {question.text}
       {question.required && <span className="text-red-500 ml-1">*</span>}
-    </label>
+    </label>)}
     <div className="flex flex-col gap-1.5">
       {question.options.map((option) => (
         <label
           key={option}
-          className={`flex items-center gap-2 ${handlers.isEditable ? 'cursor-pointer' : 'cursor-not-allowed opacity-75'}`}
+          className={`flex items-center gap-2 ${handlers.isEditable ? 'cursor-pointer' : 'cursor-default opacity-75'}`}
         >
           <input
             type="radio"

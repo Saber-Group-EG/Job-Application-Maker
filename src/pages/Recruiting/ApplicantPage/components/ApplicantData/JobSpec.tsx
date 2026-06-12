@@ -1,82 +1,95 @@
 import React, { useMemo } from 'react';
-import { Layers, CheckCircle2, XCircle, AlertCircle, Percent } from 'lucide-react';
+import { Layers, CheckCircle2, XCircle, Percent } from 'lucide-react';
+import type { JobSpecItem, JobSpecProps } from '../../../../../types/applicants';
 
-const COLORS = [
-  { bg: 'bg-white', text: 'text-[#FBBF24]', border: 'border-[#FEF3C7]', iconBg: 'bg-[#FEF3C7]' },
-  { bg: 'bg-white', text: 'text-[#22C55E]', border: 'border-[#DCFCE7]', iconBg: 'bg-[#DCFCE7]' },
-  { bg: 'bg-white', text: 'text-[#F43F5E]', border: 'border-[#FFE4E6]', iconBg: 'bg-[#FFE4E6]' },
-  { bg: 'bg-white', text: 'text-[#7C3AED]', border: 'border-[#E9E4FF]', iconBg: 'bg-[#E9E4FF]' },
-];
+const COLORS = {
+  met: { bg: 'bg-white', text: 'text-[#22C55E]', border: 'border-[#DCFCE7]', iconBg: 'bg-[#DCFCE7]' },
+  notMet: { bg: 'bg-white', text: 'text-[#F43F5E]', border: 'border-[#FFE4E6]', iconBg: 'bg-[#FFE4E6]' },
+} as const;
 
-interface JobSpecItem {
-  jobSpecId: string;
-  answer: boolean;
-  _id: string;
-  id: string;
-  spec: {
-    en: string;
-  };
-  weight: number;
-}
+const normalizeId = (value: unknown): string => {
+  if (!value) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'object') {
+    const obj = value as { _id?: string; id?: string };
+    return obj?._id || obj?.id || '';
+  }
+  return '';
+};
 
-const JobSpec: React.FC = () => {
-  const specs: JobSpecItem[] = [
-    {
-      jobSpecId: "6a00eb698d136d63562aebc3",
-      answer: true,
-      _id: "6a02085077d59248e46d6c3b",
-      id: "6a02085077d59248e46d6c3b",
-      spec: {
-        en: "From tanta"
-      },
-      weight: 30
-    },
-    {
-      jobSpecId: "6a00eb698d136d63562aebc4",
-      answer: true,
-      _id: "6a02085077d59248e46d6c3c",
-      id: "6a02085077d59248e46d6c3c",
-      spec: {
-        en: "Own laptop"
-      },
-      weight: 30
-    },
-    {
-      jobSpecId: "6a00eb698d136d63562aebc5",
-      answer: false, // Changed to false for demonstration
-      _id: "6a02085077d59248e46d6c3d",
-      id: "6a02085077d59248e46d6c3d",
-      spec: {
-        en: "Full-time availability (not currently a student)"
-      },
-      weight: 20
-    },
-    {
-      jobSpecId: "6a00eb698d136d63562aebc6",
-      answer: true,
-      _id: "6a02085077d59248e46d6c3e",
-      id: "6a02085077d59248e46d6c3e",
-      spec: {
-        en: "1–2 years of experience in graphic design"
-      },
-      weight: 20
+const getSpecText = (item: any): string => {
+  if (!item) return '';
+  if (typeof item.spec === 'string') return item.spec.trim().toLowerCase();
+  if (item.spec && typeof item.spec === 'object') {
+    return String(item.spec.en ?? item.spec.value ?? '').trim().toLowerCase();
+  }
+  return String(item.title ?? item.label ?? item.name ?? '').trim().toLowerCase();
+};
+
+const JobSpec: React.FC<JobSpecProps> = ({ specs: providedSpecs, jobPosition, editable = false, onSpecChange }) => {
+  // ── Build weight map from jobPosition ONLY (ignores item.weight) ──
+  // Keyed by spec TEXT (not ID) because applicant.jobSpecsWithDetails.jobSpecId
+  // does NOT match jobPosition.jobSpecs._id in the API payload.
+  const weightMap = useMemo(() => {
+    const map = new Map<string, number>();
+    if (!jobPosition) return map;
+
+    const jpRaw: any = (jobPosition as any).jobPosition ?? jobPosition;
+    const jpSpecs: any[] = (() => {
+      if (Array.isArray(jpRaw?.jobSpecsWithDetails) && jpRaw.jobSpecsWithDetails.length)
+        return jpRaw.jobSpecsWithDetails;
+      if (Array.isArray(jpRaw?.jobSpecs) && jpRaw.jobSpecs.length) return jpRaw.jobSpecs;
+      return [];
+    })();
+
+    for (const jp of jpSpecs) {
+      if (!jp) continue;
+      const w = typeof jp.weight === 'number' ? jp.weight : Number(jp.weight ?? 0);
+      // Index by spec text (primary)
+      const text = getSpecText(jp);
+      if (text && !map.has(text)) map.set(text, w);
+      // Also index by IDs as a fallback
+      const ids = [jp._id, jp.id, jp.jobSpecId]
+        .map((x: any) => normalizeId(x))
+        .filter(Boolean);
+      for (const id of ids) {
+        if (!map.has(id)) map.set(id, w);
+      }
     }
-  ];
+    return map;
+  }, [jobPosition]);
+
+  // ── Build specs with weights looked up from jobPosition (NOT from item.weight) ──
+  const specs: JobSpecItem[] = useMemo(() => {
+    if (!providedSpecs) return [];
+    return providedSpecs.map((item) => {
+      // Try spec-text lookup first (handles ID mismatch between applicant
+      // jobSpecsWithDetails.jobSpecId and jobPosition.jobSpecs._id)
+      const text = getSpecText(item);
+      let weight = text ? (weightMap.get(text) ?? -1) : -1;
+      if (weight < 0) {
+        // Fall back to ID lookup
+        const itemId = normalizeId(item._id) || normalizeId(item.id) || normalizeId(item.jobSpecId);
+        weight = itemId ? (weightMap.get(itemId) ?? 0) : 0;
+      }
+      return { ...item, weight };
+    });
+  }, [providedSpecs, weightMap]);
 
   // Validate that total weight equals 100%
-  const { totalWeight, isValid, achievedScore} = useMemo(() => {
+  const { totalWeight, isValid, achievedScore } = useMemo(() => {
     const total = specs.reduce((sum, item) => sum + item.weight, 0);
     const isValidWeight = total === 100;
-    
+
     // Calculate achieved score based on answers (if answer is false, weight contribution is 0)
     const achieved = specs.reduce((sum, item) => {
       return sum + (item.answer ? item.weight : 0);
     }, 0);
-    
-    const achievedPercentage = (achieved / total) * 100;
-    
-    return { 
-      totalWeight: total, 
+
+    const achievedPercentage = total > 0 ? (achieved / total) * 100 : 0;
+
+    return {
+      totalWeight: total,
       isValid: isValidWeight,
       achievedScore: achieved,
       totalAchievedPercentage: achievedPercentage
@@ -84,14 +97,19 @@ const JobSpec: React.FC = () => {
   }, [specs]);
 
   // Warning message if total weight is not 100%
-  const weightWarning = !isValid && (
-    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
-      <AlertCircle className="h-4 w-4 text-red-500" />
-      <p className="text-sm text-red-700">
-        Warning: Total weight is {totalWeight}%. It should be exactly 100% for proper evaluation.
-      </p>
-    </div>
-  );
+
+
+  if (specs.length === 0) {
+    return (
+      <div className="bg-white rounded-xl border border-gray-200 p-6 text-center">
+        <Layers className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+        <h3 className="text-sm font-semibold text-gray-700">No job specifications</h3>
+        <p className="text-xs text-gray-400 mt-1">
+          This job position has no specifications configured yet.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -137,14 +155,13 @@ const JobSpec: React.FC = () => {
         </div>
       </div>
 
-      {/* Weight Warning */}
-      {weightWarning}
+
 
       {/* Job Specifications List */}
       <div className="flex flex-col gap-3">
-        {specs.map((item, index) => {
-          const color = COLORS[index % COLORS.length];
-          const isMet = item.answer;
+        {specs.map((item) => {
+          const isMet = item.answer === true;
+          const color = isMet ? COLORS.met : COLORS.notMet;
           const earnedWeight = isMet ? item.weight : 0;
           
           return (
@@ -161,7 +178,34 @@ const JobSpec: React.FC = () => {
                     <h4 className="text-base font-semibold text-gray-800">{item.spec.en}</h4>
                     <div className="flex items-center gap-3 mt-1">
                       <span className="text-xs font-medium text-gray-500">Weight: {item.weight}%</span>
-                      {isMet ? (
+                      {editable ? (
+                        <div className="inline-flex items-center gap-1 bg-gray-100 rounded-full p-0.5">
+                          <button
+                            type="button"
+                            onClick={() => onSpecChange?.(item.id, true)}
+                            className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full transition-colors ${
+                              isMet
+                                ? 'bg-white text-green-600 shadow-sm'
+                                : 'text-gray-500 hover:text-gray-700'
+                            }`}
+                          >
+                            <CheckCircle2 className="h-3 w-3" />
+                            Met
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onSpecChange?.(item.id, false)}
+                            className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full transition-colors ${
+                              !isMet
+                                ? 'bg-white text-red-600 shadow-sm'
+                                : 'text-gray-500 hover:text-gray-700'
+                            }`}
+                          >
+                            <XCircle className="h-3 w-3" />
+                            Not Met
+                          </button>
+                        </div>
+                      ) : isMet ? (
                         <span className="inline-flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
                           <CheckCircle2 className="h-3 w-3" />
                           Met
@@ -216,7 +260,7 @@ const JobSpec: React.FC = () => {
 
       {isValid && achievedScore === 0 && (
         <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
-          <XCircle className="h-4 w-4 text-red-600" />
+          <XCircle className="h-4 w-4 text-red-500" />
           <p className="text-sm text-red-700">
             Candidate does not meet any requirements.
           </p>

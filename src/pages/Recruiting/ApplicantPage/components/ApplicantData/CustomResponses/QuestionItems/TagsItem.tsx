@@ -51,10 +51,11 @@ export const TagsItem: React.FC<{
 
   return (
     <div className="mb-4 last:mb-0" ref={containerRef}>
+      {question.text.toLowerCase() !== 'answer' && (
       <label className="block text-sm font-medium text-gray-700 mb-1">
         {question.text}
         {question.required && <span className="text-red-500 ml-1">*</span>}
-      </label>
+      </label>)}
       <div
         className={`min-h-[38px] w-full px-2 py-1.5 flex flex-wrap gap-1.5 border border-gray-200 rounded-lg ${
           handlers.isEditable ? 'bg-white cursor-text' : 'bg-gray-50 opacity-75'

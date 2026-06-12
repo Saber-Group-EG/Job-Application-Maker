@@ -8,10 +8,11 @@ export const DateItem: React.FC<{
   handlers: Pick<QuestionHandlers, 'isEditable' | 'onDateChange'>;
 }> = ({ question, handlers }) => (
   <div className="mb-4 last:mb-0">
+    {question.text.toLowerCase() !== 'answer' && (
     <label className="block text-sm font-medium text-gray-700 mb-1">
       {question.text}
       {question.required && <span className="text-red-500 ml-1">*</span>}
-    </label>
+    </label>)}
     <input
       type="date"
       value={question.value ?? ''}
@@ -20,7 +21,7 @@ export const DateItem: React.FC<{
       className={`w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none ${
         handlers.isEditable
           ? 'focus:border-blue-400 focus:ring-1 focus:ring-blue-400 bg-white cursor-text'
-          : 'bg-gray-50 cursor-not-allowed opacity-75'
+          : 'bg-gray-50 cursor-default opacity-75'
       }`}
     />
   </div>

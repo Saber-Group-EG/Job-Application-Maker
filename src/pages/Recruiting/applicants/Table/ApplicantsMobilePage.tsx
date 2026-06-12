@@ -8,6 +8,7 @@ import LoadingSpinner from "../../../../components/common/LoadingSpinner";
 import { useQueryClient } from '@tanstack/react-query';
 import { applicantsKeys } from '../../../../hooks/queries/useApplicants';
 import { toPlainString } from "../../../../utils/strings";
+import { paths } from "../../../../router/Paths";
 import {
   buildApplicantDuplicateLookup,
   sortApplicantsByDuplicatePriority,
@@ -1063,11 +1064,11 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
                         const navId = normalizeIdGlobal(a._id) || normalizeIdGlobal((a as any).id);
                         if (navId) queryClient.setQueryData(applicantsKeys.detail(navId), a as any);
                         if (e.ctrlKey || e.metaKey) {
-                          const url = `${window.location.origin}/applicant-details/${navId}`;
+                          const url = `${window.location.origin}${paths.applicants.details(navId)}`;
                           window.open(url, '_blank', 'noopener,noreferrer');
                           return;
                         }
-                        navigate(`/applicant-details/${navId}`, { state: { applicant: a } });
+                        navigate(paths.applicants.details(navId), { state: { applicant: a } });
                       }
                     }}
                     onAuxClick={(e) => {
@@ -1077,7 +1078,7 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
                       if (a && (a._id || (a as any).id)) {
                         const navId = normalizeIdGlobal(a._id) || normalizeIdGlobal((a as any).id);
                         if (!navId) return;
-                        const url = `${window.location.origin}/applicant-details/${navId}`;
+                        const url = `${window.location.origin}${paths.applicants.details(navId)}`;
                         window.open(url, '_blank', 'noopener,noreferrer');
                       }
                     }}
@@ -1176,7 +1177,7 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
                             e.stopPropagation();
                             const navId = normalizeIdGlobal(a._id) || normalizeIdGlobal((a as any).id);
                             if (!navId) return;
-                            const url = `${window.location.origin}/applicant-details/${navId}`;
+                            const url = `${window.location.origin}${paths.applicants.details(navId)}`;
                             try {
                               window.open(url, '_blank', 'noopener,noreferrer');
                             } catch (err) {

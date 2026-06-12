@@ -35,11 +35,12 @@ export const paths = {
 
   applicants: {
     root: '/applicants',
-    new: '/newpage/new',
     mobile: '/applicants/mobile',
     mailPreview: '/applicants/mail-preview',
     page: (pageName: string) => `/applicants/page/${pageName}`,
     details: (id: string) => `/applicant-details/${id}`,
+    completedInterview: (id: string, interviewId: string) =>
+      `/applicant-details/${id}/completed-interview/${interviewId}`,
   },
 
   admin: {
@@ -86,6 +87,7 @@ export const patterns = {
   applicants: {
     page: 'applicants/page/:pageName',
     details: 'applicant-details/:id',
+    completedInterview: 'applicant-details/:id/completed-interview/:interviewId',
   },
 
   admin: {

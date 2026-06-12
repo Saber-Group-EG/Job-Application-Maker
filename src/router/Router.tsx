@@ -45,8 +45,8 @@ const ApplicantDynamicPage = lazy(
 const ApplicantDetails = lazy(
   () => import('../pages/Recruiting/ApplicantPage/ApplicantDetails')
 );
-const ApplicantData = lazy(
-  () => import('../pages/Recruiting/applicants/ApplicantPage/ApplicantData')
+const CompletedInterviewDetails = lazy(
+  () => import('../pages/Recruiting/ApplicantPage/CompletedInterviewDetails')
 );
 const MailPreview = lazy(
   () => import('../pages/Recruiting/applicants/MailPreview')
@@ -173,10 +173,12 @@ export default function App() {
                 path={patterns.applicants.page}
                 element={<ApplicantDynamicPage />}
               />
-              <Route path={paths.applicants.new} element={<ApplicantDetails />} />
               <Route
                 path={patterns.applicants.details}
-                element={<ApplicantData />} />
+                element={<ApplicantDetails />} />
+              <Route
+                path={patterns.applicants.completedInterview}
+                element={<CompletedInterviewDetails />} />
               <Route
                 element={
                   <PermissionProtectedRoute

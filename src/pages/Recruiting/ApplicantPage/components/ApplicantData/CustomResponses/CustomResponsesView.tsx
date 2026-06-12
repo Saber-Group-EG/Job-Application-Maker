@@ -1,16 +1,8 @@
 // ApplicantData/CustomResponse/CustomResponsesView.tsx
 import React from 'react';
 import { ChevronRight } from 'lucide-react';
-import { QuestionRouter, type QuestionHandlers } from './QuestionItems';
-import type { ResponseSection } from '../../../../../../types/applicants';
-
-interface CustomResponsesViewProps {
-  sections: ResponseSection[];
-  expandedSectionIds: Set<string>;
-  openDropdownId: string | null;
-  onToggleSection: (sectionId: string) => void;
-  handlers: QuestionHandlers;
-}
+import { QuestionRouter } from './QuestionItems';
+import type { CustomResponsesViewProps } from '../../../../../../types/applicants';
 
 export const CustomResponsesView: React.FC<CustomResponsesViewProps> = ({
   sections,
@@ -21,10 +13,7 @@ export const CustomResponsesView: React.FC<CustomResponsesViewProps> = ({
 }) => {
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-100 relative z-[100]">
-      <div className="p-5 border-b border-gray-100">
-        <h3 className="text-sm font-semibold text-gray-800">Custom Responses</h3>
-        <p className="text-xs text-gray-400 mt-0.5">Questionnaire responses from applicant</p>
-      </div>
+
 
       <div className="flex flex-col">
         {sections.map((section) => {
@@ -61,7 +50,7 @@ export const CustomResponsesView: React.FC<CustomResponsesViewProps> = ({
               <div
                 className={`transition-all duration-300 ease-in-out ${
                   isOpen
-                    ? 'max-h-[2000px] opacity-100 overflow-visible'
+                    ? 'max-h-[9999px] opacity-100 overflow-visible'
                     : 'max-h-0 opacity-0 overflow-hidden'
                 }`}
               >

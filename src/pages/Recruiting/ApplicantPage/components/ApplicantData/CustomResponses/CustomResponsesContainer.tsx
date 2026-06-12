@@ -3,16 +3,15 @@ import React from 'react';
 import { useCustomResponses } from './Usecustomresponses';
 import { CustomResponsesView } from './CustomResponsesView';
 import type { QuestionHandlers } from './QuestionItems';
+import type { CustomResponsesContainerProps } from '../../../../../../types/applicants';
 
-interface CustomResponsesContainerProps {
-  isEditable?: boolean;
-}
-
-export const CustomResponsesContainer: React.FC<CustomResponsesContainerProps> = ({ 
-  isEditable = false 
+export const CustomResponsesContainer: React.FC<CustomResponsesContainerProps> = ({
+  isEditable = false,
+  sections,
+  onSectionsChange,
 }) => {
   const {
-    sections,
+    sections: responseSections,
     expandedSectionIds,
     expandedGroupIds,
     openDropdownId,
@@ -30,7 +29,7 @@ export const CustomResponsesContainer: React.FC<CustomResponsesContainerProps> =
     updateDropdown,
     updateTextarea,
     updateTags,
-  } = useCustomResponses();
+  } = useCustomResponses({ sections, onSectionsChange });
 
   const handlers: QuestionHandlers = {
     isEditable,
@@ -53,7 +52,7 @@ export const CustomResponsesContainer: React.FC<CustomResponsesContainerProps> =
 
   return (
     <CustomResponsesView
-      sections={sections}
+      sections={responseSections}
       expandedSectionIds={expandedSectionIds}
       openDropdownId={openDropdownId}
       onToggleSection={toggleSection}

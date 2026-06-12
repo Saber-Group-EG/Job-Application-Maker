@@ -145,7 +145,8 @@ class JobOffersService {
   }
 
   async listOffers(params?: {
-    companyId?: string[] | string;
+    companyId?: string | string[];
+    applicantId?: string;
     isTemplate?: boolean;
     status?: OfferStatus;
     deleted?: boolean;

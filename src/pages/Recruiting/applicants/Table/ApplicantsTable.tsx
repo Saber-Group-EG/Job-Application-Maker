@@ -15,6 +15,7 @@ import {
 import { useTableLayout } from '../../../../hooks/queries/useTableLayout';
 import { buildApplicantDuplicateLookup } from '../../../../utils/applicantDuplicateSort';
 import { toPlainString } from '../../../../utils/strings';
+import { paths } from '../../../../router/Paths';
 import { buildFieldToJobIds } from '../../../../components/modals/CustomFilterModal';
 import { useQuery } from '@tanstack/react-query';
 
@@ -735,7 +736,7 @@ export default function Applicants({
   const getApplicantHref = useCallback((row: any) => {
     const orig: any = row?.original ?? row;
     const navId = String(orig?._id || orig?.id || row?.id || '');
-    return `/applicant-details/${navId}`;
+    return paths.applicants.details(navId);
   }, []);
 
   const currentFiltersRef = useRef<{
