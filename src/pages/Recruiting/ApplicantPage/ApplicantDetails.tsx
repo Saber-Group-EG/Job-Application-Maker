@@ -1224,14 +1224,14 @@ const ApplicantDetails: React.FC = () => {
               <div className="bg-white rounded-lg shadow-sm border border-gray-100">
                 <ActivityFeed activities={activities} mailRecords={applicantMailRecords} interviews={applicant?.interviews} />
               </div>
+              <div className="bg-white rounded-lg shadow-sm border border-gray-100">
+                <CustomResponses
+                  isEditable={isEditing}
+                  sections={sections}
+                  onSectionsChange={setEditedSections}
+                />
+              </div>
             </div>
-          </div>
-          <div className="mb-6">
-            <CustomResponses
-              isEditable={isEditing}
-              sections={sections}
-              onSectionsChange={setEditedSections}
-            />
           </div>
         </div>
 
