@@ -38,20 +38,24 @@ const PreviewJob = lazy(() => import('../pages/Recruiting/jobs/PreviewJob'));
 const Applicants = lazy(
   () => import('../pages/Recruiting/applicants/Table/ApplicantsTable')
 );
-const ApplicantDetails = lazy(
-  () => import('../pages/Recruiting/applicants/ApplicantPage/ApplicantData')
-);
+
 const ApplicantDynamicPage = lazy(
   () => import('../pages/Recruiting/applicants/Table/ApplicantDynamicPage')
 );
-const ApplicantData = lazy(
-  () => import('../pages/Recruiting/applicants/ApplicantPage/ApplicantData')
+const ApplicantDetails = lazy(
+  () => import('../pages/Recruiting/ApplicantPage/ApplicantDetails')
+);
+const CompletedInterviewDetails = lazy(
+  () => import('../pages/Recruiting/ApplicantPage/CompletedInterviewDetails')
 );
 const MailPreview = lazy(
   () => import('../pages/Recruiting/applicants/MailPreview')
 );
 const JobOffersPage = lazy(
   () => import('../pages/Recruiting/jobOffers/JobOffersPage')
+);
+const ContractPage = lazy(
+  () => import('../pages/Recruiting/jobContracts/ContractsPage')
 );
 
 // Saved Fields
@@ -169,10 +173,12 @@ export default function App() {
                 path={patterns.applicants.page}
                 element={<ApplicantDynamicPage />}
               />
-              <Route path={paths.applicants.new} element={<ApplicantDetails />} />
               <Route
                 path={patterns.applicants.details}
-                element={<ApplicantData />} />
+                element={<ApplicantDetails />} />
+              <Route
+                path={patterns.applicants.completedInterview}
+                element={<CompletedInterviewDetails />} />
               <Route
                 element={
                   <PermissionProtectedRoute
@@ -188,6 +194,10 @@ export default function App() {
                 <Route
                   path={paths.jobs.offers}
                   element={<JobOffersPage />}
+                />
+                <Route
+                  path={paths.jobs.contracts}
+                  element={<ContractPage />}
                 />
               </Route>
 

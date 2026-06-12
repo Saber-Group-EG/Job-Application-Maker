@@ -7,6 +7,7 @@ import {
   Clock3,
   Copy,
   DollarSign,
+  FileSignature,
   FileText,
   Pencil,
   Trash2,
@@ -26,10 +27,11 @@ export function OfferDetail({
   onStatusChange,
   showCompany,
   setResendOpen,
+  onConvertToContract,
+  canCreateContract,
 }: {
   offer: JobOffer;
   canWrite: boolean;
-  /** Full company objects — forwarded to OfferActions for sender resolution */
   setResendOpen: (open: boolean) => void;
   onBack: () => void;
   onEdit: (o: JobOffer) => void;
@@ -37,6 +39,8 @@ export function OfferDetail({
   onClone: (offer: JobOffer) => void;
   showCompany: boolean;
   onStatusChange: (id: string, status: OfferStatus) => void;
+  onConvertToContract: (offer: JobOffer) => void;
+  canCreateContract: boolean;
 }) {
   const chip = STATUS_CHIP[offer.status];
   const applicantName = offer.applicantId?.fullName;
@@ -56,10 +60,19 @@ export function OfferDetail({
             Back to offers
           </button>
 
-          {/* Action buttons */}
           <div className="flex items-center gap-2">
-            {/* Always-visible: resend email + download PDF */}
+            {/* PDF + resend */}
             <OfferActions offer={offer} setResendOpen={setResendOpen} />
+
+            {/* Convert to Contract — always visible, not write-gated
+                since viewing an offer and creating a contract are separate permissions */}
+            {canCreateContract && <button
+              onClick={() => onConvertToContract(offer)}
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-400 transition hover:border-brand-300 hover:bg-brand-50 hover:text-brand-600 dark:border-slate-700 dark:text-slate-400 dark:hover:border-brand-500/40 dark:hover:bg-brand-500/10 dark:hover:text-brand-400"
+              title="Convert to Contract"
+            >
+              <FileSignature className="size-3.5" />
+            </button>}
 
             {/* Write-gated: edit / clone / delete */}
             {canWrite && (
@@ -96,7 +109,7 @@ export function OfferDetail({
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-              {offer.position}
+              {offer.position?.en} {offer.position.ar && ` / ${offer.position.ar}`}
             </h2>
             {showCompany && (
               <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
@@ -115,7 +128,7 @@ export function OfferDetail({
               {offer.workHours && (
                 <span className="flex items-center gap-1 text-xs text-slate-500">
                   <Clock className="size-3.5" />
-                  {offer.workHours}
+                  {offer.workHours?.en} {offer.workHours.ar && ` / ${offer.workHours.ar}`}
                 </span>
               )}
               {offer.salary.basic != null && (
@@ -182,14 +195,14 @@ export function OfferDetail({
           </div>
         </div>
 
-        {/* Last-emailed badge */}
-        {(offer as any).lastEmailSentAt && (
+        {offer.lastEmailSentAt && (
           <p className="mt-3 text-xs text-slate-400 dark:text-slate-500">
             📧 Last emailed{' '}
-            {new Date((offer as any).lastEmailSentAt).toLocaleDateString(
-              undefined,
-              { day: 'numeric', month: 'short', year: 'numeric' }
-            )}
+            {new Date(offer.lastEmailSentAt!).toLocaleDateString(undefined, {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+            })}
           </p>
         )}
       </div>
@@ -209,10 +222,10 @@ export function OfferDetail({
               >
                 <div>
                   <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
-                    {c.label}
+                    {c.label?.en} {c.label.ar && ` / ${c.label.ar}`}
                   </p>
                   {c.condition && (
-                    <p className="text-xs text-slate-400">{c.condition}</p>
+                    <p className="text-xs text-slate-400">{c.condition?.en} {c.condition.ar && ` / ${c.condition.ar}`}</p>
                   )}
                 </div>
                 <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
@@ -239,7 +252,7 @@ export function OfferDetail({
               .map((section, i) => (
                 <div key={i}>
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                    {section.title.en || section.title.ar}
+                    {section.title?.en || section.title?.ar}
                   </p>
                   <ul className="space-y-1">
                     {section.items.map((item, j) => (
@@ -259,14 +272,26 @@ export function OfferDetail({
       )}
 
       {/* Notes */}
-      {offer.notes && (
+      {offer.notes?.en && (
         <div className="border-b border-slate-200 p-6 dark:border-slate-800">
           <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
             <Clock3 className="h-4 w-4" />
-            Internal Notes
+            Internal Notes (EN)
           </h3>
           <p className="text-sm text-slate-600 dark:text-slate-400">
-            {offer.notes}
+            {offer.notes.en}
+          </p>
+        </div>
+      )}
+
+      {offer.notes?.ar && (
+        <div className="border-b border-slate-200 p-6 dark:border-slate-800">
+          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
+            <Clock3 className="h-4 w-4" />
+            Internal Notes (AR)
+          </h3>
+          <p className="text-sm text-slate-600 dark:text-slate-400">
+            {offer.notes.ar}
           </p>
         </div>
       )}
@@ -281,10 +306,7 @@ export function OfferDetail({
           {[
             { label: 'Created', date: offer.createdAt },
             { label: 'Sent', date: offer.sentAt },
-            {
-              label: 'Last Emailed',
-              date: (offer as any).lastEmailSentAt,
-            },
+            { label: 'Last Emailed', date: offer.lastEmailSentAt },
             { label: 'Responded', date: offer.respondedAt },
             { label: 'Expires', date: offer.expiresAt },
           ]

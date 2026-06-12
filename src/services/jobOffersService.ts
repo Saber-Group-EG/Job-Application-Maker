@@ -28,10 +28,10 @@ export interface BilingualField {
 
 export interface Commission {
   _id?: string;
-  label: string;
+  label: BilingualField;
   value: number;
   type: CommissionType;
-  condition: string | null;
+  condition: BilingualField | null;
 }
 
 export interface OfferSectionItem {
@@ -64,9 +64,9 @@ export interface JobOffer {
     } | null;
   } | null;
   isTemplate: boolean;
-  position: string;
+  position: BilingualField;
   workType: WorkType;
-  workHours: string | null;
+  workHours: BilingualField;
   salary: { basic: number | null; currency: string };
   commissions: Commission[];
   sections: OfferSection[];
@@ -74,7 +74,7 @@ export interface JobOffer {
   sentAt: string | null;
   expiresAt: string | null;
   respondedAt: string | null;
-  notes: string | null;
+  notes: BilingualField | null;
   createdBy: { _id: string; fullName: string; email: string };
   deleted: boolean;
   createdAt: string;
@@ -95,13 +95,13 @@ export type CreateJobOfferPayload = {
   applicantId?: string | null;
   jobPositionId?: string | null;
   isTemplate?: boolean;
-  position: string;
+  position: BilingualField;
   workType: WorkType;
-  workHours?: string | null;
+  workHours?: BilingualField;
   salary?: { basic?: number | null; currency?: string };
   commissions?: Omit<Commission, '_id'>[];
   sections?: Omit<OfferSection, '_id'>[];
-  notes?: string | null;
+  notes?: BilingualField | null;
   expiresAt?: string | null;
 };
 
@@ -145,7 +145,8 @@ class JobOffersService {
   }
 
   async listOffers(params?: {
-    companyId?: string[] | string;
+    companyId?: string | string[];
+    applicantId?: string;
     isTemplate?: boolean;
     status?: OfferStatus;
     deleted?: boolean;
