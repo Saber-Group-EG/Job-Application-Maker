@@ -1078,25 +1078,32 @@ const ApplicantDetails: React.FC = () => {
     {/* Buttons on the right */}
     <div className="flex">
       <button
+        onClick={() => setShowStatusModal(true)}
+        className="mr-2 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors"
+      >
+        Change Status
+      </button>
+      <button
         onClick={handleEdit}
-        className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+        className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors"
       >
         {isEditing ? 'Save' : 'Edit'}
       </button>
       {isEditing && (
         <button
           onClick={handleCancel}
-          className="ml-2 px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors"
+          className="ml-2 px-3 py-1.5 bg-gray-600 text-white text-xs font-medium rounded-lg hover:bg-gray-700 transition-colors"
         >
           Cancel
         </button>
       )}
       <button
         onClick={handleDelete}
-        className="ml-2 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors"
+        className="ml-2 px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition-colors"
       >
         Delete
       </button>
+    
     </div>
   </div>
 </div>
@@ -1137,16 +1144,6 @@ const ApplicantDetails: React.FC = () => {
                 Details
               </button>
               <button
-                onClick={() => setActiveTab('interview')}
-                className={`px-4 lg:px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
-                  activeTab === 'interview'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Interview Questions
-              </button>
-              <button
                 onClick={() => setActiveTab('history')}
                 className={`px-4 lg:px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
                   activeTab === 'history'
@@ -1156,16 +1153,21 @@ const ApplicantDetails: React.FC = () => {
               >
                 History
               </button>
+              <button
+                onClick={() => setActiveTab('interview')}
+                className={`px-4 lg:px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
+                  activeTab === 'interview'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Interview Questions
+              </button>
+              
             </div>
-           <button
-             onClick={() => setShowStatusModal(true)}
-             className="hidden lg:inline-flex px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors"
-           >
-             Change Status
-           </button>
          </div>
          <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6 transition-all duration-200">
-  {/* Header with title and button on the same row */}
+   {/* Header with title and button on the same row */}
   <div className="flex items-center justify-between mb-4">
     <h3 className="text-base font-semibold text-gray-900 flex items-center gap-2">
       <span className="w-1 h-5 bg-blue-500 rounded-full"></span>
@@ -1209,7 +1211,7 @@ const ApplicantDetails: React.FC = () => {
                 />
               </div>
               <div className="bg-white rounded-lg shadow-sm border border-gray-100">
-                <ActivityFeed activities={activities} mailRecords={applicantMailRecords} interviews={applicant?.interviews} />
+                <ActivityFeed activities={activities} mailRecords={applicantMailRecords} interviews={applicant?.interviews} company={companyWithAddress} />
               </div>
               <div className="bg-white rounded-lg shadow-sm border border-gray-100">
                 <CustomResponses
@@ -1249,6 +1251,16 @@ const ApplicantDetails: React.FC = () => {
                     >
                       Details
                     </button>
+                     <button
+                      onClick={() => setActiveTab('history')}
+                      className={`px-4 lg:px-5 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
+                        activeTab === 'history'
+                          ? 'border-blue-600 text-blue-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      History
+                    </button>
                     <button
                       onClick={() => setActiveTab('interview')}
                       className={`px-4 lg:px-5 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
@@ -1259,23 +1271,8 @@ const ApplicantDetails: React.FC = () => {
                     >
                       Interview Questions
                     </button>
-                    <button
-                      onClick={() => setActiveTab('history')}
-                      className={`px-4 lg:px-5 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
-                        activeTab === 'history'
-                          ? 'border-blue-600 text-blue-600'
-                          : 'border-transparent text-gray-500 hover:text-gray-700'
-                      }`}
-                    >
-                      History
-                    </button>
-                  </div>
-                  <button
-                    onClick={() => setShowStatusModal(true)}
-                    className="hidden lg:inline-flex px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Change Status
-                  </button>
+                   
+                   </div>
                 </div>
                 <InterviewQuestions
                   applicantId={id}
@@ -1315,16 +1312,6 @@ const ApplicantDetails: React.FC = () => {
                       Details
                     </button>
                     <button
-                      onClick={() => setActiveTab('interview')}
-                      className={`px-4 lg:px-5 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
-                        activeTab === 'interview'
-                          ? 'border-blue-600 text-blue-600'
-                          : 'border-transparent text-gray-500 hover:text-gray-700'
-                      }`}
-                    >
-                      Interview Questions
-                    </button>
-                    <button
                       onClick={() => setActiveTab('history')}
                       className={`px-4 lg:px-5 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
                         activeTab === 'history'
@@ -1334,13 +1321,18 @@ const ApplicantDetails: React.FC = () => {
                     >
                       History
                     </button>
+                    <button
+                      onClick={() => setActiveTab('interview')}
+                      className={`px-4 lg:px-5 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
+                        activeTab === 'interview'
+                          ? 'border-blue-600 text-blue-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      Interview Questions
+                    </button>
+                    
                   </div>
-                  <button
-                    onClick={() => setShowStatusModal(true)}
-                    className="hidden lg:inline-flex px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Change Status
-                  </button>
                 </div>
                 <History applicant={applicant} loading={isApplicantLoading} />
               </div>

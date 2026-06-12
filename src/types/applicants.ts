@@ -264,6 +264,7 @@ export interface ActivityFeedProps {
   activities?: Activity[];
   mailRecords?: Array<{ createdAt: string; html: string }>;
   interviews?: Interview[];
+  company?: any;
 }
 
 // ─── JobSpec ──────────────────────────────────────────────────────────────────

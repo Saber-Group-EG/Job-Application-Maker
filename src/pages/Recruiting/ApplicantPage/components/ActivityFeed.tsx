@@ -14,8 +14,10 @@ import {
 
 import { Modal } from '../../../../components/ui/modal';
 import type { Activity, ActivityFeedProps, Interview } from '../../../../types/applicants';
+import { useStatusSettings } from '../../../../hooks/useStatusSettings';
 
-const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, mailRecords = [], interviews = [] }) => {
+const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, mailRecords = [], interviews = [], company }) => {
+  const { getStatus } = useStatusSettings(company);
   const data: Activity[] = Array.isArray(activities) ? activities : [];
   const [isExpanded, setIsExpanded] = useState(true);
   const [previewHtml, setPreviewHtml] = useState('');
@@ -233,18 +235,35 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, mailRecords = [
       
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-2 flex-wrap">
-          <span
-            className="text-sm font-semibold text-gray-800 capitalize"
-            style={(activity.type === 'email' || activity.type === 'message') && activity.description ? { cursor: 'pointer' } : undefined}
-            onClick={() => {
-              if ((activity.type === 'email' || activity.type === 'message') && activity.description) {
-                setPreviewHtml(renderEmailContent(activity));
-                setShowPreview(true);
-              }
-            }}
-          >
-            {getDisplayTitle(activity)}
-          </span>
+          {activity.type === 'status_change' && activity.status ? (
+            <>
+              <span className="text-sm font-semibold text-gray-800">
+                Application status changed to
+              </span>
+              <span
+                className="inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-semibold"
+                style={{
+                  backgroundColor: getStatus(activity.status).color,
+                  color: getStatus(activity.status).textColor,
+                }}
+              >
+                {activity.status}
+              </span>
+            </>
+          ) : (
+            <span
+              className="text-sm font-semibold text-gray-800 capitalize"
+              style={(activity.type === 'email' || activity.type === 'message') && activity.description ? { cursor: 'pointer' } : undefined}
+              onClick={() => {
+                if ((activity.type === 'email' || activity.type === 'message') && activity.description) {
+                  setPreviewHtml(renderEmailContent(activity));
+                  setShowPreview(true);
+                }
+              }}
+            >
+              {getDisplayTitle(activity)}
+            </span>
+          )}
           {activity.type === 'interview' && activity.scheduledAt && (
             <span className="text-xs text-gray-400 ml-1">
               {new Date(activity.scheduledAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
@@ -296,15 +315,6 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, mailRecords = [
 
       {activity.type === 'status_change' && activity.status && (
         <div className="space-y-2">
-          <span
-            className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md ${
-              activity.status === 'rejected'
-                ? 'bg-red-50 text-red-700'
-                : 'bg-blue-50 text-blue-700'
-            }`}
-          >
-            {activity.status}
-          </span>
           {activity.status === 'rejected' && activity.reasons && activity.reasons.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {activity.reasons.map((reason, i) => (
