@@ -2563,10 +2563,6 @@ export default function Applicants({
               applicantObjects={selectedApplicants} // _id + fullName + email + companyId
               companyId={selectedApplicantCompanyId!}
             />
-<div className="-mx-4 sm:-mx-6">
-    <MaterialReactTable table={table} />
-</div>
-
                 <BulkMessageModal
                   isOpen={showBulkModal}
                   onClose={() => setShowBulkModal(false)}
