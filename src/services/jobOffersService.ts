@@ -49,7 +49,7 @@ export interface OfferSection {
 
 export interface JobOffer {
   _id: string;
-  companyId: { _id: string; name: string; logoPath?: string } | string;
+  companyId: { _id: string; name: { en: string; ar: string }; logoPath?: string };
   applicantId?: {
     _id: string;
     fullName: string;
@@ -156,7 +156,6 @@ class JobOffersService {
       const response = await axios.get('/job-offers', {
         params: { deleted: false, sort: '-createdAt', ...params },
       });
-      // backend: { message, page, totalPages, pageCount, totalCount, data }
       const { data, page, totalPages, pageCount, totalCount } = response.data;
       return { data, page, totalPages, pageCount, totalCount };
     } catch (error: any) {
