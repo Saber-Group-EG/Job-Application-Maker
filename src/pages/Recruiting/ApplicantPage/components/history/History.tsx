@@ -432,7 +432,7 @@ export default function History({ applicant, loading = false }: Props) {
         </p>
       </div>
 
-      <div className="flex border-b border-gray-200 px-5">
+      <div className="flex border-b border-gray-200 overflow-x-auto px-5">
         {SUB_TABS.map(({ key, label, icon: Icon }) => {
           const isActive = activeSubTab === key;
           return (
@@ -440,14 +440,14 @@ export default function History({ applicant, loading = false }: Props) {
               key={key}
               type="button"
               onClick={() => setActiveSubTab(key)}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 -mb-px ${
                 isActive
                   ? 'border-blue-600 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
               <Icon
-                className={`h-4 w-4 ${isActive ? 'text-blue-600' : 'text-gray-400'}`}
+                className={`h-4 w-4 flex-shrink-0 ${isActive ? 'text-blue-600' : 'text-gray-400'}`}
               />
               <span>{label}</span>
             </button>
