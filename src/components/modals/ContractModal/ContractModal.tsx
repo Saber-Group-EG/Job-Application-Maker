@@ -1,40 +1,33 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   X,
-  FileText,
+  FileSignature,
   Briefcase,
   Clock,
   DollarSign,
-  Percent,
   Plus,
   StickyNote,
   Hash,
-  Mail,
-  Send,
-  ChevronDown,
+  Gift,
+  Calendar,
   Layers,
 } from 'lucide-react';
 import {
-  CommissionType,
-  JobOffer,
-  OfferStatus,
-  WorkType,
-} from '../../../services/jobOffersService';
+  ContractType,
+  CreateJobContractPayload,
+  JobContract,
+} from '../../../services/contractsService';
 import {
-  useBulkCreateJobOffers,
-  useCreateJobOffer,
-  useUpdateJobOffer,
-} from '../../../hooks/queries/useJobOffers';
+  useCreateJobContract,
+  useUpdateJobContract,
+  useBulkCreateJobContracts,
+} from '../../../hooks/queries/useContracts';
 import Swal from '../../../utils/swal';
 import { ApplicantSelect } from '../../form/ApplicantSelection';
-import { TemplateSelector } from './TemplateSelector';
+import { ContractTemplateSelector } from './ContractTemplateSelector';
+import { ApplicantObject } from '../JobOffersModal/EmailModule';
 import { SectionBlock } from '../../form/SectionBlock';
-import { CommissionRow } from './CommissionRow';
-import {
-  useJobOfferEmail,
-  EmailSettingsPanel,
-  type ApplicantObject,
-} from './EmailModule';
+import { BenefitRow } from './BenefitRow';
 import { SectionDivider } from '../../form/SectionDivider';
 import { ModalLabel } from '../../form/ModalLabel';
 import {
@@ -43,24 +36,24 @@ import {
   resolveApplicantSalary,
   resolveApplicantPosition,
   seedBulkOverrideMap,
-} from './BulkSalaryReview';
+} from '../JobOffersModal/BulkSalaryReview';
+import { ChevronDown } from 'lucide-react';
 import SectionTemplatePicker from '../../form/SectionTemplatePicker';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type ModalMode = 'template' | 'offer';
-
-export type JobOfferModalProps = {
+export type JobContractModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  mode: ModalMode;
-  companyId: string | string[];
-  company?: string;
-  editing?: JobOffer | null;
+  mode: 'template' | 'contract';
+  companyId?: string;
+  editing?: JobContract | null;
   applicantId?: string | null;
   jobPositionId?: string | null;
-  cloneFrom?: JobOffer | null;
+  offerId?: string | null;
+  cloneFrom?: JobContract | null;
   applicantObjects?: ApplicantObject[];
+  defaults?: Partial<CreateJobContractPayload> | null;
 };
 
 export type FormSectionItem = {
@@ -76,64 +69,57 @@ export type FormSection = {
   displayOrder: number;
 };
 
-export type FormCommission = {
+export type FormBenefit = {
   _id: string;
+  labelEn: string;
+  labelAr: string;
 
-  label: {
-    en: string;
-    ar: string;
-  };
-
-  value: number | '';
-
-  type: CommissionType;
-
-  condition: {
+  value: {
     en: string;
     ar: string;
   };
 };
+
 export type FormState = {
   applicantId: string | null;
-  selectedApplicantObject?: {
-    _id: string;
-    fullName: string;
-    email: string;
-    jobPositionId?: { _id: string; companyId: { _id: string } } | null;
-  } | null;
+  selectedApplicantObject?: ApplicantObject | null;
   applicantIds?: string[];
   isBulk?: boolean;
+  contractType: ContractType;
+
   position: {
     en: string;
     ar: string;
   };
 
+  startDate: string;
+  endDate: string;
+
+  probationPeriod: number | '';
+
+  salaryBasic: number | '';
+  salaryCurrency: string;
+
+  benefits: FormBenefit[];
+
+  sections: FormSection[];
+
   notes: {
     en: string;
     ar: string;
   };
-  workType: WorkType;
-  workHours: {
-    en: string;
-    ar: string;
-  };
-  salaryBasic: number | '';
-  salaryCurrency: string;
-  commissions: FormCommission[];
-  sections: FormSection[];
-  sendAsEmail: boolean;
+
   senderByCompany: Record<string, string>;
-  emailLang: 'en' | 'ar';
   bulkOverrideMap: BulkOverrideMap;
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const WORK_TYPES: { value: WorkType; label: string }[] = [
-  { value: 'full-time', label: 'Full-time' },
-  { value: 'part-time', label: 'Part-time' },
-  { value: 'contract', label: 'Contract' },
-  { value: 'internship', label: 'Internship' },
+const CONTRACT_TYPES: { value: ContractType; label: string }[] = [
+  { value: 'permanent', label: 'Permanent' },
+  { value: 'fixed-term', label: 'Fixed-term' },
+  { value: 'freelance', label: 'Freelance' },
+  { value: 'probation', label: 'Probation' },
 ];
 
 const CURRENCIES = ['EGP', 'USD', 'EUR', 'SAR', 'AED'];
@@ -142,75 +128,131 @@ const CURRENCIES = ['EGP', 'USD', 'EUR', 'SAR', 'AED'];
 
 export const uid = () => `_${Math.random().toString(36).slice(2, 9)}`;
 
+const toDateInput = (d?: string | Date | null): string => {
+  if (!d) return '';
+  return new Date(d).toISOString().slice(0, 10);
+};
+
 const emptyForm = (): FormState => ({
   applicantId: null,
+  applicantIds: [],
+  isBulk: false,
+  contractType: 'permanent',
   position: {
     en: '',
     ar: '',
   },
-  applicantIds: [],
-  isBulk: false,
-  workType: 'full-time',
-  workHours: {
-    en: '',
-    ar: '',
-  },
-  salaryBasic: '',
-  salaryCurrency: 'EGP',
-  commissions: [],
-  sections: [],
+
   notes: {
     en: '',
     ar: '',
   },
-  sendAsEmail: false,
+  startDate: '',
+  endDate: '',
+  probationPeriod: '',
+  salaryBasic: '',
+  salaryCurrency: 'EGP',
+  benefits: [],
+  sections: [],
   senderByCompany: {},
   selectedApplicantObject: null,
-  emailLang: 'en',
   bulkOverrideMap: {},
 });
 
-const offerToForm = (offer: JobOffer): FormState => ({
-  applicantId: offer.applicantId?._id || null,
-  position: {
-    en: offer.position?.en ?? '',
-    ar: offer.position?.ar ?? '',
-  },
-  workType: offer.workType,
-  workHours: {
-    en: offer.workHours?.en ?? '',
-    ar: offer.workHours?.ar ?? '',
-  },
-  salaryBasic: offer.salary.basic ?? '',
-  salaryCurrency: offer.salary.currency ?? 'EGP',
-  commissions: offer.commissions.map((c) => ({
-    _id: uid(),
-    label: {
-      en: c.label.en ?? '',
-      ar: c.label.ar ?? '',
+const contractToForm = (c: JobContract): FormState => {
+  console.log('Contract to form', c);
+  return {
+    applicantId: c.applicantId?._id || null,
+    applicantIds: [],
+    isBulk: false,
+    contractType: c.contractType,
+    position: {
+      en: c.position?.en ?? '',
+      ar: c.position?.ar ?? '',
     },
-    value: c.value,
-    type: c.type,
-    condition: {
-      en: c.condition?.en ?? '',
-      ar: c.condition?.ar ?? '',
+    startDate: toDateInput(c.startDate),
+    endDate: toDateInput(c.endDate),
+    probationPeriod: c.probationPeriod ?? '',
+    salaryBasic: c.salary.basic ?? '',
+    salaryCurrency: c.salary.currency ?? 'EGP',
+    benefits: c.benefits.map((b) => ({
+      _id: uid(),
+      labelEn: b.label.en ?? '',
+      labelAr: b.label.ar ?? '',
+      value: {
+        en: b.value?.en ?? '',
+        ar: b.value?.ar ?? '',
+      },
+    })),
+    sections: c.sections.map((s, idx) => ({
+      _id: uid(),
+      title: { en: s.title.en || '', ar: s.title.ar || '' },
+      items: s.items.map((i) => ({ _id: uid(), en: i.en, ar: i.ar })),
+      displayOrder: idx,
+    })),
+    notes: {
+      en: c.notes?.en ?? '',
+      ar: c.notes?.ar ?? '',
     },
-  })),
-  sections: offer.sections.map((s, idx) => ({
-    _id: uid(),
-    title: { en: s.title.en, ar: s.title.ar },
-    items: s.items.map((i) => ({ _id: uid(), en: i.en, ar: i.ar })),
-    displayOrder: idx,
-  })),
-  notes: offer.notes
-    ? { en: offer.notes.en ?? '', ar: offer.notes.ar ?? '' }
-    : { en: '', ar: '' },
-  sendAsEmail: false,
-  senderByCompany: {},
-  selectedApplicantObject: offer.applicantId,
-  emailLang: 'en',
-  bulkOverrideMap: {},
-});
+    senderByCompany: {},
+    selectedApplicantObject: c.applicantId,
+    bulkOverrideMap: {},
+  };
+};
+
+function defaultsToForm(
+  defaults: Partial<CreateJobContractPayload>
+): Partial<FormState> {
+  return {
+    ...(defaults.contractType ? { contractType: defaults.contractType } : {}),
+    ...(defaults.position
+      ? {
+          position: {
+            en: defaults.position.en ?? '',
+            ar: defaults.position.ar ?? '',
+          },
+        }
+      : {}),
+    ...(defaults.startDate ? { startDate: defaults.startDate } : {}),
+    ...(defaults.endDate ? { endDate: defaults.endDate } : {}),
+    ...(defaults.probationPeriod != null
+      ? { probationPeriod: defaults.probationPeriod }
+      : {}),
+    ...(defaults.salary
+      ? {
+          salaryBasic: defaults.salary.basic ?? '',
+          salaryCurrency: defaults.salary.currency ?? 'EGP',
+        }
+      : {}),
+    ...(defaults.sections
+      ? {
+          sections: defaults.sections.map((s, idx) => ({
+            _id: uid(),
+            title: {
+              en: s.title.en ?? '',
+              ar: s.title.ar ?? '',
+            },
+            items: (s.items ?? []).map((i) => ({
+              _id: uid(),
+              en: i.en ?? '',
+              ar: i.ar ?? '',
+            })),
+            displayOrder: idx,
+          })),
+        }
+      : {}),
+    ...(defaults.notes
+      ? {
+          notes: {
+            en: defaults.notes.en ?? '',
+            ar: defaults.notes.ar ?? '',
+          },
+        }
+      : {}),
+    ...(defaults.applicantId ? { applicantId: defaults.applicantId } : {}),
+  };
+}
+// ─── Shared style constants ───────────────────────────────────────────────────
 
 const inputCls =
   'w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-brand-400';
@@ -220,62 +262,47 @@ const selectCls =
 
 // ─── Main Modal ───────────────────────────────────────────────────────────────
 
-export default function JobOfferModal({
+export default function JobContractModal({
   isOpen,
   onClose,
   mode,
-  company: propCompany,
+  companyId: propCompanyId,
   editing,
-  applicantId,
+  applicantId: propApplicantId,
   jobPositionId,
+  offerId,
   cloneFrom,
   applicantObjects,
-}: JobOfferModalProps) {
+  defaults,
+}: JobContractModalProps) {
   const [form, setForm] = useState<FormState>(emptyForm);
-  const [pickerOpen, setPickerOpen] = useState(false);
   const [showSalaryReview, setShowSalaryReview] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const firstInputRef = useRef<HTMLInputElement>(null);
-  // ── Mutations ──────────────────────────────────────────────────────────────
-  const createMutation = useCreateJobOffer();
-  const bulkMutation = useBulkCreateJobOffers();
-  const updateMutation = useUpdateJobOffer();
 
-  // ── Email ──────────────────────────────────────────────────────────────────
-  const {
-    sendersByCompany,
-    groupedByCompany,
-    sendSingleOfferEmail,
-    sendBulkOfferEmail,
-    isPending: isEmailPending,
-  } = useJobOfferEmail({
-    propCompany,
-    form,
-    setForm,
-    applicantObjects,
-    jobPositionId,
-  });
+  const createMutation = useCreateJobContract();
+  const updateMutation = useUpdateJobContract();
+  const bulkMutation = useBulkCreateJobContracts();
 
   const isSaving =
     createMutation.isPending ||
     updateMutation.isPending ||
-    bulkMutation.isPending ||
-    isEmailPending;
+    bulkMutation.isPending;
 
-  // ── Template apply ─────────────────────────────────────────────────────────
-  const applyTemplate = (template: JobOffer) => {
+  // Template apply
+  const applyTemplate = (template: JobContract) => {
     setForm((prev) => ({
-      ...offerToForm(template),
+      ...contractToForm(template),
       applicantId: prev.applicantId,
       applicantIds: prev.applicantIds,
       selectedApplicantObject: prev.selectedApplicantObject,
       isBulk: prev.isBulk,
-      sendAsEmail: prev.sendAsEmail,
       senderByCompany: prev.senderByCompany,
     }));
   };
 
-  // ── Keyboard + scroll lock ─────────────────────────────────────────────────
+  // Keyboard + scroll lock
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (e: KeyboardEvent) => {
@@ -292,23 +319,26 @@ export default function JobOfferModal({
     };
   }, [isOpen]);
 
-  // ── Init form on open ──────────────────────────────────────────────────────
   useEffect(() => {
     if (isOpen) {
       const ids = applicantObjects?.map((a) => a._id) ?? [];
-      const bulk = ids.length > 0;
+      const bulk =
+        ids.length > 0 && mode === 'contract' && !editing && !cloneFrom;
 
       if (editing) {
-        setForm({ ...offerToForm(editing), senderByCompany: {} });
+        setForm({ ...contractToForm(editing), senderByCompany: {} });
       } else if (cloneFrom) {
         setForm({
-          ...offerToForm(cloneFrom),
+          ...contractToForm(cloneFrom),
           applicantId: null,
           applicantIds: [],
           isBulk: bulk,
-          sendAsEmail: false,
           senderByCompany: {},
+          startDate: '',
+          endDate: '',
         });
+      } else if (defaults) {
+        setForm({ ...emptyForm(), ...defaultsToForm(defaults) });
       } else {
         setForm({
           ...emptyForm(),
@@ -317,42 +347,63 @@ export default function JobOfferModal({
           bulkOverrideMap: bulk
             ? seedBulkOverrideMap(applicantObjects ?? [])
             : {},
+          ...(propApplicantId ? { applicantId: propApplicantId } : {}),
         });
       }
       setTimeout(() => firstInputRef.current?.focus(), 80);
     }
-  }, [isOpen, editing, cloneFrom]);
+  }, [
+    isOpen,
+    editing,
+    cloneFrom,
+    defaults,
+    applicantObjects,
+    mode,
+    propApplicantId,
+  ]);
 
   if (!isOpen) return null;
 
-  // ── Patch helpers ──────────────────────────────────────────────────────────
-
+  // Patch helpers
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
-  const patchCommission = (id: string, patch: Partial<FormCommission>) =>
+  const patchBenefit = (id: string, patch: Partial<FormBenefit>) =>
     set(
-      'commissions',
-      form.commissions.map((c) => (c._id === id ? { ...c, ...patch } : c))
+      'benefits',
+      form.benefits.map((b) => (b._id === id ? { ...b, ...patch } : b))
     );
 
-  const removeCommission = (id: string) =>
+  const removeBenefit = (id: string) =>
     set(
-      'commissions',
-      form.commissions.filter((c) => c._id !== id)
+      'benefits',
+      form.benefits.filter((b) => b._id !== id)
     );
 
-  const addCommission = () =>
-    set('commissions', [
-      ...form.commissions,
+  const addBenefit = () =>
+    set('benefits', [
+      ...form.benefits,
       {
         _id: uid(),
-        label: { en: '', ar: '' },
-        value: '',
-        type: 'fixed',
-        condition: { en: '', ar: '' },
+        labelEn: '',
+        labelAr: '',
+        value: {
+          en: '',
+          ar: '',
+        },
       },
     ]);
+
+  const duplicateBenefit = (id: string) => {
+    const target = form.benefits.find((b) => b._id === id);
+    if (!target) return;
+    const next = [...form.benefits];
+    next.splice(next.findIndex((b) => b._id === id) + 1, 0, {
+      ...target,
+      _id: uid(),
+    });
+    set('benefits', next);
+  };
 
   const patchSection = (id: string, patch: Partial<FormSection>) =>
     set(
@@ -377,17 +428,6 @@ export default function JobOfferModal({
       },
     ]);
 
-  const duplicateCommission = (id: string) => {
-    const target = form.commissions.find((c) => c._id === id);
-    if (!target) return;
-    const next = [...form.commissions];
-    next.splice(next.findIndex((c) => c._id === id) + 1, 0, {
-      ...target,
-      _id: uid(),
-    });
-    set('commissions', next);
-  };
-
   const duplicateSection = (id: string) => {
     const target = form.sections.find((s) => s._id === id);
     if (!target) return;
@@ -405,8 +445,8 @@ export default function JobOfferModal({
     setForm((prev) => ({
       ...prev,
       position: {
-        en: applicant.jobPositionId?.title?.en ?? prev.position.en,
-        ar: applicant.jobPositionId?.title?.ar ?? prev.position.ar,
+        en: applicant.jobPositionId?.title?.en?.trim() || prev.position.en,
+        ar: applicant.jobPositionId?.title?.ar?.trim() || prev.position.ar,
       },
       salaryBasic: applicant.expectedSalary
         ? Number(applicant.expectedSalary)
@@ -414,70 +454,34 @@ export default function JobOfferModal({
     }));
   };
 
-  // ── Submit ─────────────────────────────────────────────────────────────────
-
+  // Submit
   const handleSubmit = async () => {
     if (!form.isBulk && !form.position.en.trim() && !form.position.ar.trim()) {
       Swal.fire('Validation', 'Position title is required.', 'warning');
       return;
     }
-    const willSendEmail = form.sendAsEmail && mode === 'offer';
-
-    if (willSendEmail) {
-      const missingSender = Object.keys(groupedByCompany).find(
-        (cid) => !form.senderByCompany[cid]
-      );
-      if (missingSender) {
-        Swal.fire(
-          'Validation',
-          'Please select a sender address for every company group before sending.',
-          'warning'
-        );
-        return;
-      }
-    }
-
-    const now = new Date();
-
     const base = {
       isTemplate: mode === 'template',
-      ...(mode === 'offer' && jobPositionId ? { jobPositionId } : {}),
+      contractType: form.contractType,
       position: {
         en: form.position.en.trim(),
         ar: form.position.ar.trim(),
       },
-      workType: form.workType,
-      workHours: {
-        en: form.workHours.en.trim() ?? '',
-        ar: form.workHours.ar.trim() ?? '',
-      },
+      startDate: form.startDate,
+      endDate: form.endDate || null,
+      probationPeriod:
+        form.probationPeriod === '' ? null : Number(form.probationPeriod),
       salary: {
         basic: form.salaryBasic === '' ? null : Number(form.salaryBasic),
         currency: form.salaryCurrency || 'EGP',
       },
-      commissions: form.commissions.map(({ _id, ...c }) => {
-        const conditionEn = c.condition.en.trim();
-        const conditionAr = c.condition.ar.trim();
-
-        return {
-          label: {
-            en: c.label.en.trim(),
-            ar: c.label.ar.trim(),
-          },
-
-          value: Number(c.value) || 0,
-
-          type: c.type,
-
-          condition:
-            !conditionEn && !conditionAr
-              ? null
-              : {
-                  en: conditionEn,
-                  ar: conditionAr,
-                },
-        };
-      }),
+      benefits: form.benefits.map(({ labelEn, labelAr, value }) => ({
+        label: { en: labelEn, ar: labelAr },
+        value: {
+          en: value.en.trim() || null,
+          ar: value.ar.trim() || null,
+        },
+      })),
       sections: form.sections.map(({ _id, items, ...s }, idx) => ({
         title: s.title,
         displayOrder: idx,
@@ -487,30 +491,19 @@ export default function JobOfferModal({
         en: form.notes.en.trim(),
         ar: form.notes.ar.trim(),
       },
-      ...(willSendEmail
-        ? {
-            status: 'sent' as OfferStatus,
-            emailSent: true,
-            sentAt: now,
-            lastEmailSentAt: now,
-          }
-        : {}),
     };
 
     try {
       if (editing) {
         await updateMutation.mutateAsync({ id: editing._id, payload: base });
-        if (willSendEmail) await sendSingleOfferEmail();
       } else if (form.isBulk && form.applicantIds?.length) {
         await bulkMutation.mutateAsync({
           ...base,
-          // In handleSubmit, change the applicantIds map:
           applicantIds: applicantObjects!.map((a) => {
             const override = form.bulkOverrideMap[a._id];
             const resolvedSalary = override
               ? resolveApplicantSalary(a, override)
               : null;
-            // fall back to form salary if source is 'form' or unresolved
             const finalSalary =
               resolvedSalary != null
                 ? resolvedSalary
@@ -522,7 +515,7 @@ export default function JobOfferModal({
               : form.position;
             return {
               applicantId: a._id!,
-              companyId: a.jobPositionId?.companyId?._id!,
+              companyId: a.jobPositionId?.companyId?._id || propCompanyId!,
               salary: {
                 basic: finalSalary,
                 currency: form.salaryCurrency || 'EGP',
@@ -533,18 +526,19 @@ export default function JobOfferModal({
             };
           }),
         });
-        if (willSendEmail) await sendBulkOfferEmail();
       } else {
-        const singleApplicantId = applicantId ?? form.applicantId;
+        const singleApplicantId = propApplicantId ?? form.applicantId;
         await createMutation.mutateAsync({
           ...base,
           companyId:
-            form.selectedApplicantObject?.jobPositionId?.companyId._id!,
-          ...(mode === 'offer' && singleApplicantId
+            propCompanyId ||
+            form.selectedApplicantObject?.jobPositionId?.companyId?._id!,
+          ...(mode === 'contract' && singleApplicantId
             ? { applicantId: singleApplicantId }
             : {}),
+          ...(mode === 'contract' && jobPositionId ? { jobPositionId } : {}),
+          ...(mode === 'contract' && offerId ? { offerId } : {}),
         });
-        if (willSendEmail) await sendSingleOfferEmail();
       }
       onClose();
     } catch {
@@ -552,34 +546,29 @@ export default function JobOfferModal({
     }
   };
 
-  // ── Derived labels ─────────────────────────────────────────────────────────
-
   const isTemplate = mode === 'template';
 
   const title = editing
     ? isTemplate
-      ? 'Edit Offer Template'
-      : 'Edit Job Offer'
+      ? 'Edit Contract Template'
+      : 'Edit Job Contract'
     : isTemplate
-      ? 'New Offer Template'
-      : 'New Job Offer';
+      ? 'New Contract Template'
+      : 'New Job Contract';
 
   const submitLabel = editing
-    ? form.sendAsEmail && mode === 'offer'
-      ? 'Save & Resend'
-      : 'Save Changes'
+    ? isTemplate
+      ? 'Save Template'
+      : 'Save Contract'
     : isTemplate
       ? 'Create Template'
-      : form.sendAsEmail
-        ? 'Create & Send'
-        : 'Create Offer';
+      : 'Create Contract';
 
-  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm h-screen"
+        className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -595,11 +584,11 @@ export default function JobOfferModal({
           onClick={(e) => e.stopPropagation()}
           className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900"
         >
-          {/* ── Header ── */}
+          {/* Header */}
           <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 px-6 py-5 dark:border-slate-800">
             <div className="flex items-center gap-3">
               <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400">
-                <FileText className="size-5" />
+                <FileSignature className="size-5" />
               </div>
               <div>
                 <h2 className="text-lg font-bold leading-tight text-slate-900 dark:text-slate-100">
@@ -607,8 +596,8 @@ export default function JobOfferModal({
                 </h2>
                 <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
                   {isTemplate
-                    ? 'Templates can be reused when creating actual offers'
-                    : 'Fill in the details for this job offer'}
+                    ? 'Templates can be reused when creating actual contracts'
+                    : 'Fill in the details for this job contract'}
                 </p>
               </div>
             </div>
@@ -621,12 +610,15 @@ export default function JobOfferModal({
             </button>
           </div>
 
-          {/* ── Scrollable body ── */}
+          {/* Scrollable body */}
           <div className="flex-1 space-y-6 overflow-y-auto px-6 py-6">
-            {mode === 'offer' && <TemplateSelector onSelect={applyTemplate} />}
+            {/* Template Selector */}
+            {mode === 'contract' && (
+              <ContractTemplateSelector onSelect={applyTemplate} />
+            )}
 
             {/* Applicant selector */}
-            {mode === 'offer' && !applicantId && !editing && (
+            {mode === 'contract' && !propApplicantId && !editing && (
               <div>
                 <ModalLabel>
                   Applicant
@@ -636,7 +628,6 @@ export default function JobOfferModal({
                 </ModalLabel>
                 {form.isBulk ? (
                   <div className="rounded-lg border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800">
-                    {/* Header */}
                     <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2 dark:border-slate-700">
                       <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                         {form.applicantIds?.length} applicant(s) selected
@@ -656,7 +647,6 @@ export default function JobOfferModal({
                       </button>
                     </div>
 
-                    {/* Applicant list */}
                     <ul className="max-h-36 divide-y divide-slate-100 overflow-y-auto dark:divide-slate-700/60">
                       {(applicantObjects ?? []).map((a) => (
                         <li
@@ -685,14 +675,13 @@ export default function JobOfferModal({
                         onClick={() => setShowSalaryReview((v) => !v)}
                         className="flex w-full items-center justify-between text-xs font-semibold text-brand-600 hover:text-brand-700 dark:text-brand-400"
                       >
-                        <span>Configure individual salaries</span>
+                        <span>Configure individual salaries & positions</span>
                         <ChevronDown
                           className={`size-3.5 transition-transform ${showSalaryReview ? 'rotate-180' : ''}`}
                         />
                       </button>
                     </div>
 
-                    {/* Review panel */}
                     {showSalaryReview && (
                       <div className="border-t border-slate-200 p-3 dark:border-slate-700 max-h-96 overflow-y-auto">
                         <BulkSalaryReview
@@ -700,8 +689,8 @@ export default function JobOfferModal({
                           overrideMap={form.bulkOverrideMap}
                           currency={form.salaryCurrency}
                           formPosition={form.position}
-                          onChange={(map) => set('bulkOverrideMap', map)}
                           formSalary={form.salaryBasic}
+                          onChange={(map) => set('bulkOverrideMap', map)}
                         />
                       </div>
                     )}
@@ -720,11 +709,11 @@ export default function JobOfferModal({
               </div>
             )}
 
-            {/* ── Core Info ── */}
+            {/* Core Info */}
             <SectionDivider
               icon={Briefcase}
               title="Core Information"
-              description="Position title, type, and working hours"
+              description="Position title and contract type"
             />
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -762,60 +751,86 @@ export default function JobOfferModal({
                 />
               </div>
             </div>
-
             <div>
-              <ModalLabel>Work Type</ModalLabel>
+              <ModalLabel required>Contract Type</ModalLabel>
               <select
                 className={selectCls}
-                value={form.workType}
-                onChange={(e) => set('workType', e.target.value as WorkType)}
+                value={form.contractType}
+                onChange={(e) =>
+                  set('contractType', e.target.value as ContractType)
+                }
               >
-                {WORK_TYPES.map((w) => (
-                  <option key={w.value} value={w.value}>
-                    {w.label}
+                {CONTRACT_TYPES.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
                   </option>
                 ))}
               </select>
             </div>
+
+            {/* Dates */}
+            <SectionDivider
+              icon={Calendar}
+              title="Contract Dates"
+              description="Start date, end date, and probation period"
+            />
+
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <ModalLabel>Work Hours</ModalLabel>
-                <div className="relative">
-                  <Clock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-                  <input
-                    className={`${inputCls} pl-9`}
-                    value={form.workHours.en}
-                    onChange={(e) =>
-                      set('workHours', {
-                        ...form.workHours,
-                        en: e.target.value,
-                      })
-                    }
-                    placeholder="e.g. 8 flexible hours"
-                  />
-                </div>
+                <ModalLabel required={mode === 'contract' && !form.isBulk}>
+                  Start Date
+                </ModalLabel>
+                <input
+                  className={inputCls}
+                  type="date"
+                  value={form.startDate}
+                  onChange={(e) => set('startDate', e.target.value)}
+                />
               </div>
               <div>
-                <ModalLabel>Work Hours (AR)</ModalLabel>
-                <div className="relative">
-                  <Clock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-                  <input
-                    className={`${inputCls} pl-9`}
-                    dir="rtl"
-                    value={form.workHours.ar}
-                    onChange={(e) =>
-                      set('workHours', {
-                        ...form.workHours,
-                        ar: e.target.value,
-                      })
-                    }
-                    placeholder="e.g. 8 ساعات مرنة"
-                  />
-                </div>
+                <ModalLabel>End Date</ModalLabel>
+                <input
+                  className={inputCls}
+                  type="date"
+                  value={form.endDate}
+                  onChange={(e) => set('endDate', e.target.value)}
+                  min={form.startDate || undefined}
+                />
               </div>
             </div>
 
-            {/* ── Salary ── */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <ModalLabel>Probation Period</ModalLabel>
+                <div className="relative">
+                  <Clock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                  <input
+                    className={`${inputCls} pl-9`}
+                    type="number"
+                    min={0}
+                    value={form.probationPeriod}
+                    onChange={(e) =>
+                      set(
+                        'probationPeriod',
+                        e.target.value === '' ? '' : Number(e.target.value)
+                      )
+                    }
+                    placeholder="months"
+                  />
+                </div>
+              </div>
+              <div className="flex items-end">
+                {form.probationPeriod !== '' &&
+                  Number(form.probationPeriod) > 0 && (
+                    <p className="mb-2.5 text-xs text-slate-500 dark:text-slate-400">
+                      {Number(form.probationPeriod)} month
+                      {Number(form.probationPeriod) !== 1 ? 's' : ''} probation
+                    </p>
+                  )}
+              </div>
+            </div>
+
+            {/* Salary */}
             <SectionDivider
               icon={DollarSign}
               title="Salary"
@@ -832,14 +847,15 @@ export default function JobOfferModal({
                     type="number"
                     min={0}
                     value={form.salaryBasic}
-                    onChange={(e) =>
-                      set(
-                        'salaryBasic',
-                        e.target.value === ''
-                          ? ''
-                          : Math.round(Number(e.target.value))
-                      )
-                    }
+                    onChange={(e) => {
+                      const val =
+                        e.target.value === '' ? '' : Number(e.target.value);
+                      if (val !== '' && val < 0) return;
+                      set('salaryBasic', val);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === '-' || e.key === 'e') e.preventDefault();
+                    }}
                     placeholder="0"
                   />
                 </div>
@@ -860,39 +876,39 @@ export default function JobOfferModal({
               </div>
             </div>
 
-            {/* ── Commissions ── */}
+            {/* Benefits */}
             <SectionDivider
-              icon={Percent}
-              title="Commission Tiers"
-              description="Structured commission rules for this offer"
+              icon={Gift}
+              title="Benefits"
+              description="Health insurance, vacation days, and other perks"
             />
 
             <div className="space-y-3">
-              {form.commissions.map((c, idx) => (
-                <CommissionRow
-                  key={c._id}
-                  comm={c}
+              {form.benefits.map((b, idx) => (
+                <BenefitRow
+                  key={b._id}
+                  benefit={b}
                   index={idx}
-                  onChange={(patch) => patchCommission(c._id, patch)}
-                  onRemove={() => removeCommission(c._id)}
-                  onDuplicate={() => duplicateCommission(c._id)}
+                  onChange={(patch) => patchBenefit(b._id, patch)}
+                  onRemove={() => removeBenefit(b._id)}
+                  onDuplicate={() => duplicateBenefit(b._id)}
                 />
               ))}
               <button
                 type="button"
-                onClick={addCommission}
+                onClick={addBenefit}
                 className="inline-flex items-center gap-2 rounded-lg border border-dashed border-slate-300 px-3 py-2 text-sm font-semibold text-slate-500 transition hover:border-brand-400 hover:text-brand-600 dark:border-slate-600 dark:text-slate-400 dark:hover:border-brand-500 dark:hover:text-brand-300"
               >
                 <Plus className="size-4" />
-                Add Commission Tier
+                Add Benefit
               </button>
             </div>
 
-            {/* ── Offer Sections ── */}
+            {/* Contract Sections */}
             <SectionDivider
               icon={Hash}
-              title="Offer Sections"
-              description="Custom bilingual content blocks (benefits, terms, etc.)"
+              title="Contract Sections"
+              description="Custom bilingual content blocks (terms, responsibilities, etc.)"
             />
 
             <div className="space-y-3">
@@ -927,14 +943,14 @@ export default function JobOfferModal({
               <SectionTemplatePicker
                 isOpen={pickerOpen}
                 onClose={() => setPickerOpen(false)}
-                docType={'offer'}
+                docType={'contract'}
                 onInsert={(section) =>
                   set('sections', [...form.sections, section])
                 }
               />
             </div>
 
-            {/* ── Internal Notes ── */}
+            {/* Internal Notes */}
             <SectionDivider
               icon={StickyNote}
               title="Internal Notes"
@@ -955,7 +971,7 @@ export default function JobOfferModal({
                       en: e.target.value,
                     })
                   }
-                  placeholder="Any internal notes..."
+                  placeholder="Internal notes..."
                 />
               </div>
 
@@ -973,64 +989,15 @@ export default function JobOfferModal({
                       ar: e.target.value,
                     })
                   }
-                  placeholder="أي ملاحظات داخلية..."
+                  placeholder="ملاحظات داخلية..."
                 />
               </div>
             </div>
-
-            {/* ── Email Settings ── */}
-            {mode === 'offer' && form.sendAsEmail && (
-              <EmailSettingsPanel
-                form={form}
-                isBulk={!!form.isBulk}
-                sendersByCompany={sendersByCompany}
-                groupedByCompany={groupedByCompany}
-                onSenderChange={(senderByCompany) =>
-                  set('senderByCompany', senderByCompany)
-                }
-                onLangChange={(lang) => set('emailLang', lang)} // ← add this
-              />
-            )}
-
             <div className="h-2" />
           </div>
 
-          {/* ── Footer ── */}
+          {/* Footer */}
           <div className="flex shrink-0 items-center justify-between gap-3 border-t border-slate-200 bg-slate-50/80 px-6 py-4 dark:border-slate-800 dark:bg-slate-900/80">
-            {mode === 'offer' ? (
-              <label className="flex cursor-pointer select-none items-center gap-2.5">
-                <div className="relative">
-                  <input
-                    type="checkbox"
-                    className="peer sr-only"
-                    checked={form.sendAsEmail}
-                    onChange={(e) => set('sendAsEmail', e.target.checked)}
-                  />
-                  <div className="h-5 w-9 rounded-full bg-slate-200 transition peer-checked:bg-brand-500 dark:bg-slate-700 peer-checked:dark:bg-brand-500" />
-                  <div className="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition peer-checked:translate-x-4" />
-                </div>
-                <Mail className="size-3.5 text-slate-400" />
-                <span className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                  Send as email
-                </span>
-                {editing && editing.lastEmailSentAt && (
-                  <span className="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
-                    Last sent{' '}
-                    {new Date(editing.lastEmailSentAt).toLocaleDateString(
-                      undefined,
-                      {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                      }
-                    )}
-                  </span>
-                )}
-              </label>
-            ) : (
-              <div />
-            )}
-
             <div className="flex items-center gap-3">
               <button
                 type="button"
@@ -1047,10 +1014,8 @@ export default function JobOfferModal({
               >
                 {isSaving ? (
                   <div className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                ) : form.sendAsEmail && mode === 'offer' ? (
-                  <Send className="size-4" />
                 ) : (
-                  <FileText className="size-4" />
+                  <FileSignature className="size-4" />
                 )}
                 {submitLabel}
               </button>
