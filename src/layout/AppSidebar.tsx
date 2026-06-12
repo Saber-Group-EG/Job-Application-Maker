@@ -142,6 +142,15 @@ const AppSidebar: React.FC = () => {
           },
         ]
       : []),
+    ...(hasPermission('Contract Management', 'read')
+      ? [
+          {
+            icon: <TaskIcon />,
+            name: 'Job Contracts',
+            path: '/job-contracts',
+          },
+        ]
+      : []),
     {
       icon: <TaskIcon />,
       name: 'Company Settings',

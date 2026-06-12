@@ -1,24 +1,35 @@
 import { ChevronDown, ChevronUp, Copy, Plus, Trash2, X } from 'lucide-react';
-import Label from '../../form/Label';
 import { useState } from 'react';
-import { FormSection, FormSectionItem, uid } from './JobOffersModal';
+import {
+  FormSection,
+  FormSectionItem,
+  uid,
+} from '../modals/JobOffersModal/JobOffersModal';
+
+const inputCls =
+  'w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-brand-400';
+
+const textareaCls =
+  'w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-brand-400 resize-none';
+
+const Label = ({ children }: { children: React.ReactNode }) => (
+  <label className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">
+    {children}
+  </label>
+);
 
 export function SectionBlock({
   section,
   index,
-  activeLang,
   onChange,
   onRemove,
   onDuplicate,
-  inputCls,
 }: {
   section: FormSection;
   index: number;
-  activeLang: 'en' | 'ar';
   onChange: (patch: Partial<FormSection>) => void;
   onRemove: () => void;
   onDuplicate: () => void;
-  inputCls: string;
 }) {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -46,7 +57,6 @@ export function SectionBlock({
           type="button"
           onClick={() => setCollapsed((v) => !v)}
           className="flex flex-1 items-center gap-2 text-left"
-          tabIndex={0}
         >
           {collapsed ? (
             <ChevronDown className="size-4 shrink-0 text-slate-400" />
@@ -64,7 +74,6 @@ export function SectionBlock({
           <button
             type="button"
             onClick={onDuplicate}
-            tabIndex={0}
             className="flex size-7 items-center justify-center rounded-lg text-slate-400 transition hover:bg-brand-100 hover:text-brand-600 dark:hover:bg-brand-500/10 dark:hover:text-brand-400"
           >
             <Copy className="size-3.5" />
@@ -72,7 +81,6 @@ export function SectionBlock({
           <button
             type="button"
             onClick={onRemove}
-            tabIndex={0}
             className="flex size-7 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-500/10 dark:hover:text-red-400"
           >
             <Trash2 className="size-3.5" />
@@ -82,7 +90,6 @@ export function SectionBlock({
 
       {!collapsed && (
         <div className="space-y-4 p-4">
-          {/* Title fields for both langs always shown */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Title (EN)</Label>
@@ -92,8 +99,7 @@ export function SectionBlock({
                 onChange={(e) =>
                   onChange({ title: { ...section.title, en: e.target.value } })
                 }
-                placeholder="e.g. Benefits & Perks"
-                tabIndex={0}
+                placeholder="e.g. Terms & Conditions"
               />
             </div>
             <div>
@@ -104,18 +110,16 @@ export function SectionBlock({
                 onChange={(e) =>
                   onChange({ title: { ...section.title, ar: e.target.value } })
                 }
-                placeholder="المزايا والامتيازات"
+                placeholder="الشروط والأحكام"
                 dir="rtl"
-                tabIndex={0}
               />
             </div>
           </div>
 
-          {/* Items */}
           {section.items.length > 0 && (
             <div className="space-y-2">
               <Label>
-                Items ({activeLang === 'en' ? 'showing EN' : 'showing AR'})
+                Items
               </Label>
               {section.items.map((item, itemIdx) => (
                 <div key={item._id} className="flex items-center gap-2">
@@ -123,30 +127,29 @@ export function SectionBlock({
                     {itemIdx + 1}
                   </span>
                   <div className="grid flex-1 grid-cols-2 gap-2">
-                    <input
-                      className={inputCls}
+                    <textarea
+                      className={textareaCls}
+                      rows={2}
                       value={item.en}
                       onChange={(e) =>
                         patchItem(item._id, { en: e.target.value })
                       }
                       placeholder="Item text (EN)"
-                      tabIndex={0}
                     />
-                    <input
-                      className={inputCls}
+                    <textarea
+                      className={textareaCls}
+                      rows={2}
                       value={item.ar}
                       onChange={(e) =>
                         patchItem(item._id, { ar: e.target.value })
                       }
                       placeholder="نص العنصر"
                       dir="rtl"
-                      tabIndex={0}
                     />
                   </div>
                   <button
                     type="button"
                     onClick={() => removeItem(item._id)}
-                    tabIndex={0}
                     className="flex size-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-500/10 dark:hover:text-red-400"
                   >
                     <X className="size-3.5" />
@@ -159,7 +162,6 @@ export function SectionBlock({
           <button
             type="button"
             onClick={addItem}
-            tabIndex={0}
             className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-500 transition hover:border-brand-400 hover:text-brand-600 dark:border-slate-600 dark:text-slate-400 dark:hover:border-brand-500 dark:hover:text-brand-300"
           >
             <Plus className="size-3.5" /> Add Item
