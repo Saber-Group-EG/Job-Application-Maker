@@ -20,6 +20,7 @@ import {
 import { useSendEmail } from '../../../hooks/queries/useSendEmail';
 import { useUpdateJobOffer } from '../../../hooks/queries/useJobOffers';
 import { useAuth } from '../../../context/AuthContext';
+import { downloadJobOfferAsPdf } from '../../../utils/jobOfferPdfGenerator';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -67,265 +68,6 @@ function offerToFormLike(offer: JobOffer) {
   } as any;
 }
 
-// ─── PDF generator (jsPDF, no html2canvas, no print dialog) ──────────────────
-
-async function downloadOfferAsPdf(
-  offer: JobOffer,
-  lang: 'en' | 'ar' = 'en'
-): Promise<void> {
-  const { jsPDF } = await import('jspdf');
-  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-
-  const pageW = doc.internal.pageSize.getWidth();
-  const pageH = doc.internal.pageSize.getHeight();
-  const margin = 20;
-  const contentW = pageW - margin * 2;
-  let y = margin;
-
-  // helper: pick the right lang from a BilingualField, fallback to the other
-  const pick = (
-    field: { en?: string; ar?: string } | string | null | undefined
-  ): string => {
-    if (!field) return '';
-    if (typeof field === 'string') return field;
-    return (lang === 'ar' ? field.ar || field.en : field.en || field.ar) ?? '';
-  };
-
-  // ── Brand accent bar ─────────────────────────────────────────────────────
-  doc.setFillColor(239, 68, 68);
-  doc.rect(0, 0, pageW, 6, 'F');
-  y += 4;
-
-  // ── Title ────────────────────────────────────────────────────────────────
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(20);
-  doc.setTextColor(17, 24, 39);
-  doc.text(lang === 'ar' ? 'عرض عمل' : 'Job Offer', margin, (y += 14));
-
-  doc.setFontSize(13);
-  doc.setTextColor(99, 102, 241);
-  doc.text(pick(offer.position), margin, (y += 9));
-
-  // ── Divider ──────────────────────────────────────────────────────────────
-  doc.setDrawColor(226, 232, 240);
-  doc.setLineWidth(0.4);
-  doc.line(margin, (y += 5), pageW - margin, y);
-
-  // ── Applicant block ──────────────────────────────────────────────────────
-  const applicantName =
-    typeof offer.applicantId === 'object' && offer.applicantId !== null
-      ? offer.applicantId.fullName
-      : null;
-  const applicantEmail =
-    typeof offer.applicantId === 'object' && offer.applicantId !== null
-      ? offer.applicantId.email
-      : null;
-
-  if (applicantName) {
-    y += 6;
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(100, 116, 139);
-    doc.text(lang === 'ar' ? 'مُعَدّ لـ' : 'PREPARED FOR', margin, y);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.setTextColor(17, 24, 39);
-    doc.text(applicantName, margin, (y += 5));
-    if (applicantEmail) {
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(9);
-      doc.setTextColor(100, 116, 139);
-      doc.text(applicantEmail, margin, (y += 5));
-    }
-  }
-
-  // ── Core details table ───────────────────────────────────────────────────
-  y += 10;
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.setTextColor(17, 24, 39);
-  doc.text(lang === 'ar' ? 'تفاصيل العرض' : 'Offer Details', margin, y);
-  y += 4;
-
-  const workHoursText = pick(offer.workHours);
-  const details: [string, string][] = [
-    [
-      lang === 'ar' ? 'نوع العمل' : 'Work Type',
-      offer.workType.replace('-', ' '),
-    ],
-    ...(workHoursText
-      ? ([[lang === 'ar' ? 'ساعات العمل' : 'Work Hours', workHoursText]] as [
-          string,
-          string,
-        ][])
-      : []),
-    ...(offer.salary.basic != null
-      ? ([
-          [
-            lang === 'ar' ? 'الراتب الأساسي' : 'Basic Salary',
-            `${offer.salary.basic.toLocaleString()} ${offer.salary.currency}`,
-          ],
-        ] as [string, string][])
-      : []),
-  ];
-
-  const rowH = 8;
-  const labelW = 50;
-
-  details.forEach(([label, value], i) => {
-    const rowY = y + i * rowH;
-    if (i % 2 === 0) {
-      doc.setFillColor(248, 250, 252);
-      doc.rect(margin, rowY, contentW, rowH, 'F');
-    }
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(71, 85, 105);
-    doc.text(label, margin + 3, rowY + 5.5);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(17, 24, 39);
-    doc.text(value, margin + labelW, rowY + 5.5);
-  });
-
-  y += details.length * rowH + 10;
-
-  // ── Commission tiers ─────────────────────────────────────────────────────
-  if (offer.commissions.length > 0) {
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.setTextColor(17, 24, 39);
-    doc.text(
-      lang === 'ar' ? 'هيكل العمولات' : 'Commission Structure',
-      margin,
-      y
-    );
-    y += 5;
-
-    offer.commissions.forEach((c, i) => {
-      if (y > pageH - 30) {
-        doc.addPage();
-        y = margin;
-      }
-
-      const rowY = y + i * rowH;
-      if (i % 2 === 0) {
-        doc.setFillColor(248, 250, 252);
-        doc.rect(margin, rowY, contentW, rowH, 'F');
-      }
-
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
-      doc.setTextColor(71, 85, 105);
-      doc.text(pick(c.label), margin + 3, rowY + 5.5);
-
-      const conditionText = pick(c.condition);
-      if (conditionText) {
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8);
-        doc.setTextColor(148, 163, 184);
-        doc.text(conditionText, margin + 3, rowY + 5.5 + 3.5);
-      }
-
-      const valStr = `${c.value}${c.type === 'percentage' ? '%' : ` ${offer.salary.currency}`}`;
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
-      doc.setTextColor(17, 24, 39);
-      doc.text(valStr, pageW - margin - 3, rowY + 5.5, { align: 'right' });
-    });
-
-    y += offer.commissions.length * rowH + 10;
-  }
-
-  // ── Offer sections ───────────────────────────────────────────────────────
-  const sorted = [...offer.sections].sort(
-    (a, b) => a.displayOrder - b.displayOrder
-  );
-
-  for (const section of sorted) {
-    if (y > pageH - 40) {
-      doc.addPage();
-      y = margin;
-    }
-
-    doc.setFillColor(241, 245, 249);
-    doc.rect(margin, y, contentW, 7, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(71, 85, 105);
-    doc.text(pick(section.title).toUpperCase(), margin + 3, y + 5);
-    y += 10;
-
-    for (const item of section.items) {
-      if (y > pageH - 20) {
-        doc.addPage();
-        y = margin;
-      }
-      const text =
-        (lang === 'ar' ? item.ar || item.en : item.en || item.ar) ?? '';
-      const lines = doc.splitTextToSize(`• ${text}`, contentW - 6) as string[];
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(9);
-      doc.setTextColor(55, 65, 81);
-      doc.text(lines, margin + 3, y);
-      y += lines.length * 5 + 1;
-    }
-    y += 5;
-  }
-
-  // ── Internal notes ───────────────────────────────────────────────────────
-  const notesText = pick(offer.notes);
-  if (notesText) {
-    if (y > pageH - 30) {
-      doc.addPage();
-      y = margin;
-    }
-    doc.setFillColor(248, 250, 252);
-    doc.setDrawColor(203, 213, 225);
-    doc.setLineWidth(0.3);
-    doc.rect(margin, y, contentW, 5, 'F');
-    doc.setFont('helvetica', 'bolditalic');
-    doc.setFontSize(8);
-    doc.setTextColor(100, 116, 139);
-    doc.text(
-      lang === 'ar' ? 'ملاحظات داخلية' : 'Internal Notes',
-      margin + 3,
-      y + 3.5
-    );
-    y += 7;
-    doc.setFont('helvetica', 'italic');
-    doc.setFontSize(9);
-    doc.setTextColor(71, 85, 105);
-    const noteLines = doc.splitTextToSize(notesText, contentW - 6) as string[];
-    doc.text(noteLines, margin + 3, y);
-    y += noteLines.length * 5 + 5;
-  }
-
-  // ── Footer ───────────────────────────────────────────────────────────────
-  const totalPages = (doc.internal as any).getNumberOfPages();
-  for (let p = 1; p <= totalPages; p++) {
-    doc.setPage(p);
-    doc.setFillColor(239, 68, 68);
-    doc.rect(0, pageH - 4, pageW, 4, 'F');
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(148, 163, 184);
-    doc.text(
-      `Page ${p} of ${totalPages}  ·  Generated ${new Date().toLocaleDateString()}`,
-      pageW / 2,
-      pageH - 7,
-      { align: 'center' }
-    );
-  }
-
-  // ── Save ─────────────────────────────────────────────────────────────────
-  const positionSlug = pick(offer.position)
-    .replace(/[^a-z0-9]/gi, '_')
-    .toLowerCase();
-  const applicantSlug = applicantName
-    ? `_${applicantName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}`
-    : '';
-  doc.save(`job_offer_${positionSlug}${applicantSlug}.pdf`);
-}
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const selectCls =
@@ -590,6 +332,7 @@ export function OfferActions({
   const popoverRef = useRef<HTMLDivElement>(null);
   const { hasPermission } = useAuth();
   const canSendEmail = hasPermission('Mail Management', 'create');
+  
   // Close popover on outside click:
   useEffect(() => {
     if (!pdfPopoverOpen) return;
@@ -603,12 +346,14 @@ export function OfferActions({
   }, [pdfPopoverOpen]);
 
   const handleDownloadPdf = async (lang: 'en' | 'ar') => {
-    setPdfPopoverOpen(false);
     setPdfLoading(true);
     try {
-      await downloadOfferAsPdf(offer, lang); // pass lang
+      await downloadJobOfferAsPdf(offer, lang);
+    } catch (error) {
+      console.error('Failed to generate PDF:', error);
     } finally {
       setPdfLoading(false);
+      setPdfPopoverOpen(false);
     }
   };
 
