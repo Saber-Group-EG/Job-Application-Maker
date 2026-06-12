@@ -49,7 +49,7 @@ export interface OfferSection {
 
 export interface JobOffer {
   _id: string;
-  companyId: { _id: string; name: string; logoPath?: string } | string;
+  companyId: { _id: string; name: { en: string; ar: string }; logoPath?: string };
   applicantId?: {
     _id: string;
     fullName: string;
