@@ -137,7 +137,7 @@ export default function PreviewJob() {
   // Fallback: Fetch job by ID only if no data in state
   const {
     data: jobFromApi,
-    isPending: isLoadingJob,
+    isLoading: isLoadingJob,
     isFetching: isJobFetching,
     isFetched: isJobFetched,
     refetch: refetchJob

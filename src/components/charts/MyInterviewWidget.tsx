@@ -9,7 +9,6 @@ import {
 } from '../../icons';
 import { useQueryClient } from '@tanstack/react-query';
 import { usersService } from '../../services/usersService';
-import { paths } from '../../router/Paths';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -63,7 +62,7 @@ function TimelineCard({ interview }: { interview: any }) {
 
   return (
     <div
-      onClick={() => navigate(paths.applicants.details(String(interview.applicant._id || '')))}
+      onClick={() => navigate(`/applicant-details/${interview.applicant._id}`)}
       className="group flex gap-4 cursor-pointer"
     >
       {/* Date column */}
@@ -154,7 +153,7 @@ function PastRow({ interview }: { interview: any }) {
 
   return (
     <tr
-      onClick={() => navigate(paths.applicants.details(String(interview.applicant._id || '')))}
+      onClick={() => navigate(`/applicant-details/${interview.applicant._id}`)}
       className="group cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors"
     >
       <td className="py-3 px-4 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">

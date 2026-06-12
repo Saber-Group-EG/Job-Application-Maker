@@ -1,19 +1,17 @@
-import { useState } from 'react';
-import { JobOffer } from '../../../services/jobOffersService';
-import { useJobOfferTemplates } from '../../../hooks/queries/useJobOffers';
-import { ChevronDown, FileText } from 'lucide-react';
-import { useCompanies } from '../../../hooks/queries';
+import { useState } from "react";
+import { JobOffer } from "../../../services/jobOffersService";
+import { useJobOfferTemplates } from "../../../hooks/queries/useJobOffers";
+import { ChevronDown, FileText } from "lucide-react";
 
 export function TemplateSelector({
+  companyId,
   onSelect,
 }: {
+  companyId: string;
   onSelect: (template: JobOffer) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const { data } = useCompanies();
-  const companyId = data?.map((c) => c._id);
-  const { data: templatesData, isLoading } = useJobOfferTemplates(companyId);
-  const templates = templatesData?.data ?? [];
+  const { data: templates = [], isLoading } = useJobOfferTemplates(companyId);
 
   if (templates.length === 0 && !isLoading) return null;
 
@@ -68,7 +66,7 @@ export function TemplateSelector({
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-slate-800 dark:text-slate-200">
-                    {t.position.en || t.position.ar || 'Untitled Offer'}
+                    {t.position}
                   </p>
                   <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-400">
                     <span>{t.workType}</span>

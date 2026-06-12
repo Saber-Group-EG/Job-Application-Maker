@@ -1,4 +1,4 @@
- // services/jobPositionsService.ts
+// services/jobPositionsService.ts
 import axios from "../config/axios";
 import { getErrorMessage } from "../utils/errorHandler";
 import type {
@@ -242,8 +242,7 @@ class JobPositionsService {
 
   async getJobPositionById(id: string): Promise<JobPosition> {
     const response = await this.request<any>('get', `/job-positions/${id}`);
-    const jobPosition = (response?.jobPosition ?? response) as any;
-    return this.normalizeJobPosition(jobPosition);
+    return this.normalizeJobPosition(response);
   }
 
   async createJobPosition(data: CreateJobPositionRequest): Promise<JobPosition> {

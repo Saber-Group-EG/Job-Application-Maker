@@ -339,34 +339,28 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
               role="listbox"
               aria-label={label}
             >
-              {options
-                .filter((option) => !selectedOptions.includes(option.value))
-                .map((option, index) => {
-                  const isFocused = index === focusedIndex;
+              {options.map((option, index) => {
+                const isSelected = selectedOptions.includes(option.value);
+                const isFocused = index === focusedIndex;
 
-                  return (
-                    <div
-                      key={option.value}
-                      className={`hover:bg-primary/5 w-full cursor-pointer rounded-t border-b border-gray-200 dark:border-gray-800 ${
-                        isFocused ? "bg-primary/5" : ""
-                      }`}
-                      onClick={() => handleSelect(option.value)}
-                      role="option"
-                      aria-selected={false}
-                    >
-                      <div className="relative flex w-full items-center p-2 pl-2">
-                        <div className="mx-2 leading-6 text-gray-800 dark:text-white/90">
-                          {option.text}
-                        </div>
+                return (
+                  <div
+                    key={option.value}
+                    className={`hover:bg-primary/5 w-full cursor-pointer rounded-t border-b border-gray-200 dark:border-gray-800 ${
+                      isFocused ? "bg-primary/5" : ""
+                    } ${isSelected ? "bg-primary/10" : ""}`}
+                    onClick={() => handleSelect(option.value)}
+                    role="option"
+                    aria-selected={isSelected}
+                  >
+                    <div className="relative flex w-full items-center p-2 pl-2">
+                      <div className="mx-2 leading-6 text-gray-800 dark:text-white/90">
+                        {option.text}
                       </div>
                     </div>
-                  );
-                })}
-              {options.filter((option) => !selectedOptions.includes(option.value)).length === 0 && (
-                <div className="p-3 text-sm text-gray-500 dark:text-gray-400 text-center">
-                  No more options available
-                </div>
-              )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

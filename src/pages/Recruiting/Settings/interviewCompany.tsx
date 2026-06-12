@@ -33,7 +33,6 @@ import type {
 } from '../../../services/companiesService';
 import ApplicantPagesSettings from './ApplicantsPagesTab';
 import JobOffersTab from './JobOffersTab';
-import ContractsTab from './ContractsTab';
 
 type CompanyShape = {
   _id: string;
@@ -148,7 +147,6 @@ export default function InterviewCompanySettingsPage() {
     | 'email-templates'
     | 'applicant-pages'
     | 'job-offers'
-    | 'contracts'
   >('interview-groups');
 
   const isInterviewGroupsTab = activeTab === 'interview-groups';
@@ -157,7 +155,6 @@ export default function InterviewCompanySettingsPage() {
   const isEmailTemplatesTab = activeTab === 'email-templates';
   const isApplicantPagesTab = activeTab === 'applicant-pages';
   const isOffersTab = activeTab === 'job-offers';
-  const isContractsTab = activeTab === 'contracts';
 
   const selectedCompany = useMemo(
     () =>
@@ -523,17 +520,6 @@ export default function InterviewCompanySettingsPage() {
               }`}
             >
               <FileText className="size-4" /> Offer Templates
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('contracts')}
-              className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition ${
-                isContractsTab
-                  ? 'bg-brand-500 text-white'
-                  : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800'
-                }`}
-            >
-              <FileText className="size-4" /> Contract Templates
             </button>
           </div>
 
@@ -935,10 +921,8 @@ export default function InterviewCompanySettingsPage() {
                 hideCompanySelector
                 embedded
               />
-            ) : isContractsTab ? (
-              <ContractsTab companyId={selectedCompanyId!} embedded />
             ) : isOffersTab ? (
-              <JobOffersTab companyId={selectedCompanyId!} embedded />
+              <JobOffersTab companyId={selectedCompanyId} embedded />
             ) : null}
           </div>
         </div>

@@ -97,7 +97,7 @@ export function useApplicantFilters({
       if (normalizeStatus(statusVal) === 'trashed') return filtered;
       if (Array.isArray(statusVal) && statusVal.length > 0) {
         const allowed = statusVal.map(normalizeStatus).filter(Boolean);
-filtered = filtered.filter((a: any) => allowed.includes(normalizeStatus(a.status)));
+        filtered = filtered.filter((a: any) => allowed.includes(normalizeStatus(a.status)));
         return filtered;
       }
       filtered = filtered.filter((a: any) => normalizeStatus(a.status) !== 'trashed');
@@ -163,34 +163,15 @@ filtered = filtered.filter((a: any) => allowed.includes(normalizeStatus(a.status
   }, [displayedApplicants, customFilters, duplicatesOnlyEnabled, currentUserId, jobPositionMap, fieldToJobIds]);
 
   // Get status filter options
- const statusFilterOptions = useMemo(() => {
-  // Collect original casing from actual data
-  const uniqueStatuses = Array.from(
-    new Map(
-      applicants
-        .map((a: any) => a?.status)
-        .filter(Boolean)
-        .map((s: string) => [s.trim().toLowerCase(), s.trim()] as [string, string])
-    ).values()
-  );
-
-  const defaultOrderKeys = ['pending', 'approved', 'interview', 'interviewed', 'rejected', 'trashed'];
-  const inDefault = uniqueStatuses.filter(s => defaultOrderKeys.includes(s.toLowerCase()));
-  const outDefault = uniqueStatuses.filter(s => !defaultOrderKeys.includes(s.toLowerCase()));
-
-  // Sort default ones by their defined order, then append the rest alphabetically
-  const sorted = [
-    ...defaultOrderKeys
-      .map(key => inDefault.find(s => s.toLowerCase() === key))
-      .filter(Boolean) as string[],
-    ...outDefault.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase())),
-  ];
-
-  return sorted.map((status) => ({
-    id: status,  // ← original casing, matches applicant.status exactly
-    title: status.charAt(0).toUpperCase() + status.slice(1),
-  }));
-}, [applicants]);
+  const statusFilterOptions = useMemo(() => {
+    const uniqueStatuses = Array.from(new Set(applicants.map((a: any) => normalizeStatus(a?.status)).filter(Boolean)));
+    const defaultOrder = ['pending', 'approved', 'interview', 'interviewed', 'rejected', 'trashed'];
+    const sorted = [...defaultOrder, ...uniqueStatuses.filter(s => !defaultOrder.includes(s))];
+    return sorted.map((status) => ({
+      id: status,
+      title: status.charAt(0).toUpperCase() + status.slice(1),
+    }));
+  }, [applicants, normalizeStatus]);
 
   // Get status color function
   const getStatusColor = useCallback((status: string) => {

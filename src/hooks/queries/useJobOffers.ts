@@ -5,7 +5,6 @@ import {
   type UpdateJobOfferPayload,
   type OfferStatus,
   ApiError,
-  BulkCreateJobOfferPayload,
 } from '../../services/jobOffersService';
 import Swal from '../../utils/swal';
 
@@ -14,7 +13,7 @@ export const jobOffersKeys = {
   all: ['jobOffers'] as const,
   lists: () => [...jobOffersKeys.all, 'list'] as const,
   list: (params?: object) => [...jobOffersKeys.lists(), params] as const,
-  templates: (companyId?: string[] | string) =>
+  templates: (companyId?: string) =>
     [...jobOffersKeys.all, 'templates', companyId] as const,
   detail: (id: string) => [...jobOffersKeys.all, 'detail', id] as const,
 };
@@ -22,7 +21,7 @@ export const jobOffersKeys = {
 // ===== Queries =====
 
 export function useJobOfferTemplates(
-  companyId?: string[] | string,
+  companyId?: string,
   options?: { enabled?: boolean }
 ) {
   return useQuery({
@@ -40,7 +39,7 @@ export function useJobOfferTemplates(
 
 export function useJobOffers(
   params?: {
-    companyId?: string[];
+    companyId?: string;
     status?: OfferStatus;
     isTemplate?: boolean;
     PageCount?: 'all' | number;
@@ -166,20 +165,6 @@ export function useDeleteJobOffer() {
     },
     onError: (err: ApiError) =>
       showError(err.message, 'Failed to delete offer'),
-  });
-}
-
-export function useBulkCreateJobOffers() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (payload: BulkCreateJobOfferPayload) =>
-      jobOffersService.bulkCreateOffers(payload),
-    onSuccess: (created) => {
-      queryClient.invalidateQueries({ queryKey: jobOffersKeys.all });
-      showSuccess(`${created.length} offer(s) created successfully`);
-    },
-    onError: (err: ApiError) =>
-      showError(err.message, 'Failed to create bulk offers'),
   });
 }
 

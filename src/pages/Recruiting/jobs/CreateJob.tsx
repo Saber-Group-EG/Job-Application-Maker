@@ -258,6 +258,14 @@ const normalizeAllowedStatuses = (
     .filter(Boolean);
 };
 
+const getPendingStatusId = (statuses: CompanyStatus[]): string | null => {
+  if (!Array.isArray(statuses) || statuses.length === 0) return null;
+  const pendingStatus = statuses.find(
+    (status) => normalizeStatusLabel(status?.name) === 'pending'
+  );
+  return pendingStatus ? String(pendingStatus._id || pendingStatus.id || '').trim() : null;
+};
+
 type JobForm = {
   companyId: string;
   departmentId: string;
@@ -1819,12 +1827,10 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                         const companyData = jobForm.companyId === value 
                           ? selectedCompany 
                           : allCompanies.find((c: any) => c._id === value);
-                        const allStatusIds = companyData
-                          ? (Array.isArray(companyData.settings?.statuses) ? companyData.settings.statuses : [])
-                              .map((s: any) => String(s?._id || s?.id || '').trim())
-                              .filter(Boolean)
-                          : [];
-                        handleInputChange("allowedStatuses", allStatusIds);
+                        const pendingStatusId = companyData 
+                          ? getPendingStatusId(companyData.settings?.statuses || [])
+                          : null;
+                        handleInputChange("allowedStatuses", pendingStatusId ? [pendingStatusId] : []);
                       }}
                       required
                     />

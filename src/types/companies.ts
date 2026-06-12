@@ -13,20 +13,6 @@ export type CompanyStatus = {
   statusKey?: string;
 };
 
-export type SectionTemplateItem = {
-  _id?: string;
-  en: string;
-  ar: string;
-};
-
-export type SectionTemplate = {
-  _id?: string;
-  category: string;
-  title: { en: string; ar: string };
-  items: SectionTemplateItem[];
-  displayOrder?: number;
-};
-
 export type CompanySet = {
   leadModal: {
     visibleFields: { field: Applicant; defaultValue: any }[];
@@ -38,7 +24,6 @@ export type CompanySet = {
   statuses?: CompanyStatus[];
   _id?: string;
   company: string;
-  mailSettings?: MailSettings;
 };
 
 export interface Company {

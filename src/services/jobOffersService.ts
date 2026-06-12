@@ -11,16 +11,6 @@ export type OfferStatus =
   | 'expired';
 export type CommissionType = 'percentage' | 'fixed';
 
-export type BulkCreateJobOfferPayload = Omit<
-  CreateJobOfferPayload,
-  'applicantId' | 'companyId'
-> & {
-  applicantIds: {
-    applicantId: string;
-    companyId: string;
-  }[];
-};
-
 export interface BilingualField {
   en: string;
   ar: string;
@@ -28,10 +18,10 @@ export interface BilingualField {
 
 export interface Commission {
   _id?: string;
-  label: BilingualField;
+  label: string;
   value: number;
   type: CommissionType;
-  condition: BilingualField | null;
+  condition: string | null;
 }
 
 export interface OfferSectionItem {
@@ -56,17 +46,12 @@ export interface JobOffer {
     email: string;
     phone?: string;
     applicantNo?: string;
-    jobPositionId?: {
-      _id: string;
-      title: string;
-      jobCode?: string;
-      companyId: { _id: string };
-    } | null;
   } | null;
+  jobPositionId?: { _id: string; title: string; jobCode?: string } | null;
   isTemplate: boolean;
-  position: BilingualField;
+  position: string;
   workType: WorkType;
-  workHours: BilingualField;
+  workHours: string | null;
   salary: { basic: number | null; currency: string };
   commissions: Commission[];
   sections: OfferSection[];
@@ -74,20 +59,11 @@ export interface JobOffer {
   sentAt: string | null;
   expiresAt: string | null;
   respondedAt: string | null;
-  notes: BilingualField | null;
+  notes: string | null;
   createdBy: { _id: string; fullName: string; email: string };
   deleted: boolean;
   createdAt: string;
   updatedAt: string;
-  lastEmailSentAt: string | null;
-}
-
-export interface PaginatedJobOffers {
-  data: JobOffer[];
-  page: number;
-  totalPages: number;
-  pageCount: number;
-  totalCount: number;
 }
 
 export type CreateJobOfferPayload = {
@@ -95,13 +71,13 @@ export type CreateJobOfferPayload = {
   applicantId?: string | null;
   jobPositionId?: string | null;
   isTemplate?: boolean;
-  position: BilingualField;
+  position: string;
   workType: WorkType;
-  workHours?: BilingualField;
+  workHours?: string | null;
   salary?: { basic?: number | null; currency?: string };
   commissions?: Omit<Commission, '_id'>[];
   sections?: Omit<OfferSection, '_id'>[];
-  notes?: BilingualField | null;
+  notes?: string | null;
   expiresAt?: string | null;
 };
 
@@ -145,28 +121,15 @@ class JobOffersService {
   }
 
   async listOffers(params?: {
-    companyId?: string | string[];
-    applicantId?: string;
+    companyId?: string;
     isTemplate?: boolean;
     status?: OfferStatus;
     deleted?: boolean;
     PageCount?: 'all' | number;
     page?: number;
-  }): Promise<PaginatedJobOffers> {
-    try {
-      const response = await axios.get('/job-offers', {
-        params: { deleted: false, sort: '-createdAt', ...params },
-      });
-      // backend: { message, page, totalPages, pageCount, totalCount, data }
-      const { data, page, totalPages, pageCount, totalCount } = response.data;
-      return { data, page, totalPages, pageCount, totalCount };
-    } catch (error: any) {
-      throw new ApiError(
-        getErrorMessage(error),
-        error.response?.status,
-        error.response?.data?.details
-      );
-    }
+  }): Promise<JobOffer[]> {
+    const result = await this.request<JobOffer[]>('get', '/job-offers', undefined, { deleted: false, ...params });
+    return result;
   }
 
   async getOffer(id: string): Promise<JobOffer> {
@@ -196,12 +159,6 @@ class JobOffersService {
 
   async deleteOffer(id: string): Promise<void> {
     await this.request<void>('delete', `/job-offers/${id}`);
-  }
-
-  async bulkCreateOffers(
-    payload: BulkCreateJobOfferPayload
-  ): Promise<JobOffer[]> {
-    return this.request<JobOffer[]>('post', '/job-offers/bulk', payload);
   }
 }
 

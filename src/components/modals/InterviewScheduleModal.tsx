@@ -9,8 +9,8 @@ import Select from '../form/Select';
 import { toPlainString } from '../../utils/strings';
 import { EmailTemplate } from '../../services/companiesService';
 import { useAuth } from '../../context/AuthContext';
-import { useUsers, useCompanies } from '../../hooks/queries';
-import { resolveCompanyAddress } from '../../utils/companyAddress';
+import { useUsers } from '../../hooks/queries';
+import { useCompany } from '../../hooks/queries/useCompanies';
 
 // Simple HTML escape utility
 function escapeHtml(str: string) {
@@ -131,51 +131,17 @@ export default function InterviewScheduleModal(props: Props) {
 
   // Get company ID for fetching users
   const getCompanyIdVal = useCallback(() => {
-    const cd = companyData as { _id?: string; id?: string } | null | undefined;
-    if (cd?._id) return cd._id;
-    if (cd?.id) return cd.id;
-    const app = applicant as any;
-    const appCompanyId = app?.companyId;
-    if (typeof appCompanyId === 'string' && appCompanyId) return appCompanyId;
-    if (appCompanyId && typeof appCompanyId === 'object' && appCompanyId._id) return appCompanyId._id;
-    const jpCompanyId = app?.jobPositionId?.companyId;
-    if (typeof jpCompanyId === 'string' && jpCompanyId) return jpCompanyId;
-    if (jpCompanyId && typeof jpCompanyId === 'object' && jpCompanyId._id) return jpCompanyId._id;
-    return null;
+    const company = companyData || (applicant && (applicant.company || applicant.companyObj)) || null;
+    const companyCompany = company || (applicant as any)?.jobPositionId?.companyId || (applicant as any)?.jobPositionId?.company || null;
+    const c = companyCompany as any;
+    return c?._id || c?.id || c?.company || (c?.companyId && (typeof c.companyId === 'string' ? c.companyId : c.companyId._id)) || null;
   }, [companyData, applicant]);
 
   const companyId = getCompanyIdVal();
-
-  // Also pull the company list (super admin has empty user.companies, so useCompanies()
-  // calls the list endpoint which returns the full `address` array).
-  const { data: companiesList = [] } = useCompanies();
-  const companyFromList = useMemo(() => {
-    if (!companyId) return null;
-    return (companiesList as any[]).find((c: any) => c?._id === companyId) ?? null;
-  }, [companiesList, companyId]);
-
-  // Effective company data: prefer the prop, but merge in the address-bearing list entry
-  const effectiveCompanyData = useMemo(() => {
-    if (!companyData && !companyFromList) return null;
-    const detail: any = companyData || {};
-    const list: any = companyFromList || {};
-    const merged: any = { ...list, ...detail };
-    const detailHasAddress = Array.isArray(detail.address) && detail.address.length > 0;
-    const listHasAddress = Array.isArray(list.address) && list.address.length > 0;
-    if (detailHasAddress) {
-      merged.address = detail.address;
-    } else if (listHasAddress) {
-      merged.address = list.address;
-    } else if (detail.address !== undefined) {
-      merged.address = detail.address;
-    } else if (list.address !== undefined) {
-      merged.address = list.address;
-    }
-    if (!merged.addresses && list.addresses) merged.addresses = list.addresses;
-    if (!merged.settings && list.settings) merged.settings = list.settings;
-    return merged;
-  }, [companyData, companyFromList]);
-
+  
+  // Fetch company data directly to ensure we have the latest settings
+  const { data: companyDetails } = useCompany(companyId || '', { enabled: !!companyId });
+  
   // Fetch users for the company using the correct hook
   const { data: usersData = [], isLoading: isLoadingUsers } = useUsers(
   companyId ? { companies: [companyId] } : {}
@@ -221,7 +187,7 @@ export default function InterviewScheduleModal(props: Props) {
         (applicant as any)?.jobPositionId?.companyId ||
         (applicant as any)?.jobPositionId?.company ||
         null;
-      const comp = effectiveCompanyData || companyData || fallbackComp;
+      const comp = companyData || fallbackComp || companyDetails;
       if (!comp) return [];
 
       const source = (comp as any).address ?? (comp as any).addresses ?? [];
@@ -233,11 +199,11 @@ export default function InterviewScheduleModal(props: Props) {
         if (!item) continue;
 
         if (typeof item === 'string') {
-          const url = isUrl(item) ? normalizeUrl(item) : '';
-          const key = url || item.trim();
-          if (!key || seen.has(key)) continue;
-          seen.add(key);
-          out.push({ label: url || item.trim(), url: url || item.trim() });
+          if (!isUrl(item)) continue;
+          const url = normalizeUrl(item);
+          if (!url || seen.has(url)) continue;
+          seen.add(url);
+          out.push({ label: url, url });
           continue;
         }
 
@@ -246,27 +212,18 @@ export default function InterviewScheduleModal(props: Props) {
             (typeof (item as any).location === 'string' && (item as any).location.trim()) ||
             (typeof (item as any).url === 'string' && (item as any).url.trim()) ||
             '';
-          const hasUrl = urlRaw && isUrl(urlRaw);
-          const url = hasUrl ? normalizeUrl(urlRaw) : '';
+          if (!urlRaw || !isUrl(urlRaw)) continue;
+
+          const url = normalizeUrl(urlRaw);
+          if (!url || seen.has(url)) continue;
 
           const en = typeof (item as any).en === 'string' ? (item as any).en.trim() : '';
           const ar = typeof (item as any).ar === 'string' ? (item as any).ar.trim() : '';
           const text = en || ar || toPlainString((item as any).address || (item as any).name || '');
-          const fallback = text && !isUrl(text) ? text : '';
-          const label = fallback || url;
+          const label = text && !isUrl(text) ? text : url;
 
-          if (!label) continue;
-          const key = url || label;
-          if (seen.has(key)) continue;
-          seen.add(key);
-          out.push({ label, url: url || label });
-        }
-      }
-
-      if (out.length === 0) {
-        const resolved = resolveCompanyAddress(comp);
-        if (resolved && resolved.trim()) {
-          out.push({ label: resolved.trim(), url: resolved.trim() });
+          seen.add(url);
+          out.push({ label, url });
         }
       }
 
@@ -796,7 +753,7 @@ export default function InterviewScheduleModal(props: Props) {
     }
   }, [setInterviewForm]);
 
-  const company = effectiveCompanyData || companyData || (applicant && (applicant.company || applicant.companyObj)) || null;
+  const company = companyData || (applicant && (applicant.company || applicant.companyObj)) || companyDetails || null;
   const companyCompany = company || (applicant as any)?.jobPositionId?.companyId || (applicant as any)?.jobPositionId?.company || null;
 
   const senderOptions: Array<{ value: string; label: string }> = [];

@@ -1,43 +1,47 @@
 import { useEffect, useRef, useState } from 'react';
-import { CheckCircle2, ChevronDown, Loader2, Wand2, X } from 'lucide-react';
-import { useDebounce } from '../../hooks/useDebounce';
-import { useApplicants, useCompanies } from '../../hooks/queries';
-import { ApplicantObject } from '../modals/JobOffersModal/EmailModule';
+import { CheckCircle2, ChevronDown, Loader2, X } from 'lucide-react';
+import { useDebounce } from '../../../hooks/useDebounce';
+import { useApplicants } from '../../../hooks/queries';
+
+type ApplicantOption = {
+  _id: string;
+  fullName: string;
+  email: string;
+};
 
 export function ApplicantSelect({
   value,
   onChange,
+  companyId,
   inputCls,
-  onPrefill,
 }: {
   value: string | null;
-  onChange: (id: string | null, applicant: ApplicantObject | null) => void;
+  onChange: (id: string | null) => void;
+  companyId: string;
   inputCls?: string;
-  onPrefill?: (applicant: ApplicantObject) => void; // ← new
 }) {
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
   // ── cache the selected applicant object so we can display it without re-fetching
   const [selectedApplicant, setSelectedApplicant] =
-    useState<ApplicantObject | null>(null);
+    useState<ApplicantOption | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const debouncedSearch = useDebounce(search, 500);
-  const { data: companiesData } = useCompanies();
-  const companyId = companiesData?.map((c) => c._id);
+
   const { data, isFetching } = useApplicants({
-    companyId: companyId,
+    companyId: [companyId],
     search: debouncedSearch,
     enabled: open && !!debouncedSearch.trim(),
-    fields: '_id,fullName,email,jobPositionId,expectedSalary', // only fetch fields we need for display
-    skipPopulation: false, // we only want raw applicant data, no need to populate related fields
+    fields: '_id,fullName,email',
+    skipPopulation: true, // we only want raw applicant data, no need to populate related fields
   });
 
-  const applicants = (data ?? []) as ApplicantObject[];
+  const applicants = (data ?? []) as ApplicantOption[];
 
   // If editing an existing offer, value is set but selectedApplicant is null.
   // Try to resolve it from the current search results or fetch once.
   const { data: prefetchData } = useApplicants({
-    companyId: companyId,
+    companyId: [companyId],
     search: value ?? '',
     enabled: !!value && !selectedApplicant,
     fields: '_id,fullName,email',
@@ -47,7 +51,7 @@ export function ApplicantSelect({
   // Once prefetch resolves, hydrate selectedApplicant from it
   useEffect(() => {
     if (value && !selectedApplicant && prefetchData) {
-      const match = (prefetchData as ApplicantObject[]).find(
+      const match = (prefetchData as ApplicantOption[]).find(
         (a) => a._id === value
       );
       if (match) setSelectedApplicant(match);
@@ -70,8 +74,8 @@ export function ApplicantSelect({
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const handleSelect = (a: ApplicantObject) => {
-    onChange(a._id, a); // pass full object up
+  const handleSelect = (a: ApplicantOption) => {
+    onChange(a._id);
     setSelectedApplicant(a); // ← cache immediately, no re-fetch needed
     setOpen(false);
     setSearch('');
@@ -79,7 +83,7 @@ export function ApplicantSelect({
 
   const handleClear = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onChange(null, null);
+    onChange(null);
     setSelectedApplicant(null);
   };
 
@@ -102,21 +106,6 @@ export function ApplicantSelect({
             <span className="shrink-0 text-xs text-slate-400">
               {selectedApplicant.email}
             </span>
-            {/* Prefill button */}
-            {onPrefill && (
-              <span
-                role="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onPrefill(selectedApplicant);
-                }}
-                title="Pre-fill form from applicant data"
-                className="ml-1 flex shrink-0 items-center gap-1 rounded-md border border-brand-200 bg-brand-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand-600 transition hover:bg-brand-100 dark:border-brand-700 dark:bg-brand-500/10 dark:text-brand-400 dark:hover:bg-brand-500/20"
-              >
-                <Wand2 className="size-2.5" />
-                Prefill
-              </span>
-            )}
           </div>
         ) : (
           <span className="text-slate-400">Select applicant...</span>

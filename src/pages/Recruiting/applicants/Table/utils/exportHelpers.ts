@@ -2,7 +2,6 @@
 import * as XLSX from 'xlsx';
 import Swal from '../../../../../utils/swal';
 import type { Applicant } from '../../../../../types/applicants';
-import { getApplicantCompanyId } from './filterHelpers';
 
 export interface ExportOptions {
   includeCustomFields?: boolean;
@@ -25,14 +24,6 @@ export interface ExportResult {
 }
 
 // Format custom response values for display in Excel
-function extractAnswerValue(value: any): any {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
-  if (Object.prototype.hasOwnProperty.call(value, 'Answer')) return (value as any).Answer;
-  if (Object.prototype.hasOwnProperty.call(value, 'answer')) return (value as any).answer;
-  if (Object.prototype.hasOwnProperty.call(value, 'response')) return (value as any).response;
-  return undefined;
-}
-
 export function formatCustomResponseValue(value: any): string {
   if (value === null || value === undefined) return '';
   
@@ -47,19 +38,6 @@ export function formatCustomResponseValue(value: any): string {
   if (Array.isArray(value)) {
     if (value.length === 0) return '';
     
-    const hasAnswerValue = value.some(
-      (item) => extractAnswerValue(item) !== undefined
-    );
-    if (hasAnswerValue) {
-      return value
-        .map((item) => {
-          const answer = extractAnswerValue(item);
-          return formatCustomResponseValue(answer !== undefined ? answer : item);
-        })
-        .filter(Boolean)
-        .join(', ');
-    }
-
     // Check if it's an array of objects
     if (value.length > 0 && typeof value[0] === 'object' && value[0] !== null) {
       return value.map((item, index) => {
@@ -83,8 +61,6 @@ export function formatCustomResponseValue(value: any): string {
   }
   
   if (typeof value === 'object' && value !== null) {
-    const answer = extractAnswerValue(value);
-    if (answer !== undefined) return formatCustomResponseValue(answer);
     try {
       const formatted = Object.entries(value)
         .map(([key, val]) => {
@@ -282,21 +258,6 @@ export function buildExportRow({
   
   // Helper to get company name
   const getCompanyName = () => {
-    const getCompanyDisplayName = (value: any) => {
-      if (!value || typeof value !== 'object') return '';
-      const name = value.name ?? value.title ?? value.label ?? value.en ?? value.ar;
-      return typeof name === 'string' ? name : '';
-    };
-    const companyId = getApplicantCompanyId(applicant, jobPositionMap);
-    if (companyId) {
-      const company = companyMap[companyId];
-      const mappedName = getCompanyDisplayName(company);
-      if (mappedName) return mappedName;
-    }
-    const directCompany =
-      applicant?.companyId || applicant?.company || applicant?.companyObj;
-    const directName = getCompanyDisplayName(directCompany);
-    if (directName) return directName;
     const raw = applicant.jobPositionId;
     const getId = (v: any) => {
       if (!v) return '';
@@ -304,11 +265,8 @@ export function buildExportRow({
       return v._id ?? v.id ?? '';
     };
     const jobId = getId(raw);
-    const job = jobPositionMap[jobId] || (typeof raw === 'object' ? raw : undefined);
-    const jobCompany = job?.companyId || job?.company || job?.companyObj;
-    const jobCompanyName = getCompanyDisplayName(jobCompany);
-    if (jobCompanyName) return jobCompanyName;
-    const comp = jobCompany ? getId(jobCompany) : '';
+    const job = jobPositionMap[jobId];
+    const comp = job?.companyId ? getId(job.companyId) : '';
     const company = companyMap[comp];
     return company?.name || company?.title || 'N/A';
   };
