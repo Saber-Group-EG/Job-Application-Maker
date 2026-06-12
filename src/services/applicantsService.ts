@@ -273,26 +273,41 @@ class ApplicantsService {
   async getApplicantById(id: string): Promise<Applicant> {
     const response = await this.request<any>('get', `/applicants/${id}`);
 
-    // Normalize job position data if present
+    const applicant = (response?.applicant ?? response) as any;
+
     try {
       if (
-        response.jobPositionId &&
-        typeof response.jobPositionId === 'object'
+        applicant.jobPositionId &&
+        typeof applicant.jobPositionId === 'object'
       ) {
-        jobPositionsService.normalizeJobPosition(response.jobPositionId);
+        jobPositionsService.normalizeJobPosition(applicant.jobPositionId);
+        if (
+          !Array.isArray(applicant.jobSpecsWithDetails) ||
+          applicant.jobSpecsWithDetails.length === 0
+        ) {
+          applicant.jobSpecsWithDetails =
+            applicant.jobPositionId.jobSpecsWithDetails;
+        }
+        if (
+          !Array.isArray(applicant.jobSpecsResponses) ||
+          applicant.jobSpecsResponses.length === 0
+        ) {
+          applicant.jobSpecsResponses = applicant.jobPositionId.jobSpecsResponses;
+        }
       }
+
       if (
-        response.jobSpecsResponses ||
-        response.jobSpecs ||
-        response.jobSpecsWithDetails
+        applicant.jobSpecsResponses ||
+        applicant.jobSpecs ||
+        applicant.jobSpecsWithDetails
       ) {
-        jobPositionsService.normalizeJobPosition(response);
+        jobPositionsService.normalizeJobPosition(applicant);
       }
     } catch (e) {
       // Ignore normalization errors
     }
 
-    return response.applicant as Applicant;
+    return applicant as Applicant;
   }
 
   async createApplicant(data: CreateApplicantRequest): Promise<Applicant> {
@@ -393,6 +408,7 @@ class ApplicantsService {
       'type',
       'notes',
       'status',
+      'interviewers',
     ];
 
     allowedKeys.forEach((key) => {
@@ -408,6 +424,16 @@ class ApplicantsService {
       'put',
       `/applicants/${applicantId}/interviews/${interviewId}`,
       payload
+    );
+  }
+
+  async deleteInterview(
+    applicantId: string,
+    interviewId: string
+  ): Promise<Applicant> {
+    return this.request<Applicant>(
+      'delete',
+      `/applicants/${applicantId}/interviews/${interviewId}`
     );
   }
 
@@ -540,9 +566,10 @@ class ApplicantsService {
     }));
   }
 
-  async getApplicantsByPhone(phone: string): Promise<Applicant[]> {
+  async getApplicantsByPhone(phone: string, companyId?: string): Promise<Applicant[]> {
     if (!phone || !String(phone).trim()) return [];
-    const queryParams = { phone: String(phone).trim(), PageCount: 'all' };
+    const queryParams: Record<string, string> = { phone: String(phone).trim(), PageCount: 'all' };
+    if (companyId) queryParams.companyId = companyId;
     const response = await this.request<any>(
       'get',
       '/applicants',

@@ -1,5 +1,5 @@
 // hooks/useTableState.ts
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import type { MRT_ColumnFiltersState, MRT_RowSelectionState } from 'material-react-table';
 
@@ -138,6 +138,32 @@ export function useTableState({
       }, 0);
     };
   }, []);
+
+  // Reset to first page whenever the active filter set changes. We compare a
+  // serialized snapshot of (columnFilters + customFilters) so we only react
+  // to *real* filter changes — not to the initial mount or to navigation
+  // state being restored with the same filters we already had.
+  const prevFiltersKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    const serialize = (filters: unknown): unknown => {
+      if (!Array.isArray(filters)) return [];
+      return filters.map((f) => {
+        const item = f as { id?: unknown; value?: unknown } | null;
+        return { id: item?.id, value: item?.value };
+      });
+    };
+    const key = JSON.stringify({
+      columnFilters: serialize(sanitizedColumnFilters),
+      customFilters: serialize(customFilters),
+    });
+    if (prevFiltersKeyRef.current === null) {
+      prevFiltersKeyRef.current = key;
+      return;
+    }
+    if (prevFiltersKeyRef.current === key) return;
+    prevFiltersKeyRef.current = key;
+    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+  }, [sanitizedColumnFilters, customFilters]);
   
   return {
     rowSelection,
