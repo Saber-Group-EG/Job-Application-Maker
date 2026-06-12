@@ -250,11 +250,24 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
           <div>
             <div className="text-sm font-semibold text-gray-800 mb-1">Resume / CV</div>
             {resumeUrl ? (
-              <a
-                href={resumeUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                download
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const response = await fetch(resumeUrl);
+                    const blob = await response.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = '';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                  } catch {
+                    window.open(resumeUrl, '_blank', 'noopener');
+                  }
+                }}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white text-sm font-medium rounded-lg transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
               >
                 <svg
@@ -271,7 +284,7 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
                   />
                 </svg>
                 <span>Download CV</span>
-              </a>
+              </button>
             ) : (
               <span className="text-sm text-gray-400">No resume attached</span>
             )}
