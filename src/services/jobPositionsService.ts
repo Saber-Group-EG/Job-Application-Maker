@@ -1,4 +1,4 @@
-// services/jobPositionsService.ts
+ // services/jobPositionsService.ts
 import axios from "../config/axios";
 import { getErrorMessage } from "../utils/errorHandler";
 import type {

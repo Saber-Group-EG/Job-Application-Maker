@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, Link } from "react-router";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
 import {
@@ -29,6 +29,26 @@ import { useAuth } from "../../../context/AuthContext";
 import { toPlainString } from "../../../utils/strings";
 import Switch from "../../../components/form/switch/Switch";
 import { jobPositionsService } from "../../../services/jobPositionsService";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 // Helper to handle multilingual objects or strings and always return plain text
 const getTranslation = (value: any, defaultValue = ""): string => {
@@ -152,6 +172,251 @@ const normalizeFieldConfig = (job: any): FieldConfig => {
 
 
 
+function SortableJobCard({
+  job,
+  canManageJobs,
+  onToggleActive,
+  onDelete,
+  onEdit,
+  suppressNavigateRef,
+}: {
+  job: any;
+  canManageJobs: boolean;
+  onToggleActive: (job: any) => void;
+  onDelete: (e: React.MouseEvent, jobId: string) => void;
+  onEdit: (job: any) => void;
+  suppressNavigateRef: React.MutableRefObject<boolean>;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: job._id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return "N/A";
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  const handleCardClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (suppressNavigateRef.current) {
+      e.preventDefault();
+    }
+  };
+
+  return (
+    <Link
+      ref={setNodeRef}
+      style={style}
+      to={`/job/${job._id}`}
+      state={{ job }}
+      onClick={handleCardClick}
+      {...listeners}
+      className={`group relative block cursor-grab space-y-4 rounded-3xl border border-white/20 bg-white/60 p-6 backdrop-blur-xl transition-[transform,opacity,box-shadow] duration-200 hover:scale-[1.02] hover:shadow-2xl hover:shadow-brand-500/10 active:cursor-grabbing dark:border-slate-800/50 dark:bg-slate-900/60 ${
+        isDragging ? "opacity-60 ring-2 ring-brand-400 z-50" : ""
+      }`}
+    >
+      <div className="flex items-start justify-between">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span
+              {...attributes}
+              className="inline-flex items-center text-slate-400"
+              title="Drag to reorder"
+            >
+              <GripVerticalIcon className="size-4" />
+            </span>
+            <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+              job.isActive !== false ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400" :
+              "bg-slate-100 text-slate-700 dark:bg-slate-500/10 dark:text-slate-400"
+            }`}>
+              {job.isActive !== false ? "Active" : "Deprioritized"}
+            </span>
+          </div>
+          <h3 className="text-lg font-bold text-slate-900 transition-colors group-hover:text-brand-600 dark:text-white dark:group-hover:text-brand-400">
+            {getTranslation(job.title)}
+          </h3>
+        </div>
+        
+        <div className="flex flex-col items-end gap-2">
+           {canManageJobs && (
+             <div onClick={(e) => e.preventDefault()}>
+               <Switch 
+                 label="" 
+                 checked={job.isActive !== false} 
+                 onChange={() => onToggleActive(job)}
+               />
+             </div>
+           )}
+        </div>
+      </div>
+
+      <div className="space-y-2.5">
+        <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+          <Building2Icon className="size-4 text-brand-500" />
+          <span className="font-medium truncate">{getTranslation(job.companyId?.name) || "Global Corp"}</span>
+        </div>
+        <div className="flex items-center gap-2 text-sm text-slate-500">
+          <MapPinIcon className="size-4" />
+          <span>{job.workArrangement || "Remote / Office"}</span>
+        </div>
+        <div className="flex items-center gap-2 text-sm text-slate-500">
+          <CalendarIcon className="size-4" />
+          <span>Created {formatDate(job.createdAt)}</span>
+        </div>
+      </div>
+
+      <div className="pt-4 flex items-center justify-between border-t border-slate-100 dark:border-slate-800">
+        <div className="flex items-center gap-2">
+        
+        </div>
+        
+        <div
+          className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100"
+          onClick={(e) => e.preventDefault()}
+        >
+          {canManageJobs && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onEdit(job); }}
+              className="p-1.5 text-slate-400 hover:text-brand-600 transition-colors bg-white/80 rounded-lg dark:bg-slate-800"
+            >
+              <PencilIcon className="size-4" />
+            </button>
+          )}
+          {canManageJobs && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete(e, job._id); }}
+              className="p-1.5 text-slate-400 hover:text-red-600 transition-colors bg-white/80 rounded-lg dark:bg-slate-800"
+            >
+              <Trash2Icon className="size-4" />
+            </button>
+          )}
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function SortableJobRow({
+  job,
+  onNavigate,
+  suppressNavigateRef,
+}: {
+  job: any;
+  onNavigate: (job: any) => void;
+  suppressNavigateRef: React.MutableRefObject<boolean>;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: job._id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  const handleRowClick = () => {
+    if (suppressNavigateRef.current) return;
+    onNavigate(job);
+  };
+
+  return (
+    <tr
+      ref={setNodeRef}
+      style={style}
+      {...listeners}
+      onClick={handleRowClick}
+      className={`group cursor-grab transition-colors hover:bg-slate-50/50 active:cursor-grabbing dark:hover:bg-slate-800/30 ${
+        isDragging ? "opacity-60 ring-2 ring-brand-400 z-50" : ""
+      }`}
+    >
+      <td className="px-6 py-4">
+        <div className="flex items-center gap-3">
+          <span
+            {...attributes}
+            className="inline-flex items-center text-slate-400"
+            title="Drag to reorder"
+          >
+            <GripVerticalIcon className="size-4" />
+          </span>
+          <div className="rounded-xl bg-brand-50 p-2.5 dark:bg-brand-500/10">
+            <BriefcaseIcon className="size-5 text-brand-600" />
+          </div>
+          <div>
+            <Link
+              to={`/job/${job._id}`}
+              state={{ job }}
+              className="font-bold text-slate-900 hover:text-brand-600 transition-colors dark:text-white"
+              onClick={(e) => {
+                if (suppressNavigateRef.current) {
+                  e.preventDefault();
+                } else {
+                  onNavigate(job);
+                }
+              }}
+            >
+              {getTranslation(job.title)}
+            </Link>
+          </div>
+        </div>
+      </td>
+      <td className="px-6 py-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">
+            <Building2Icon className="size-3.5 text-slate-400" />
+            {getTranslation(job.companyId?.name) || "Global Corp"}
+          </div>
+          <div className="flex items-center gap-1.5 text-xs text-slate-500">
+            <MapPinIcon className="size-3.5" />
+            {job.workArrangement || "Office"}
+          </div>
+        </div>
+      </td>
+      <td className="px-6 py-4">
+        <div className="flex items-center gap-2">
+           <span className="text-sm font-medium text-slate-900 dark:text-white">12</span>
+           <span className="text-xs text-slate-500">Candidates</span>
+        </div>
+      </td>
+      <td className="px-6 py-4">
+        <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${
+          job.isActive !== false ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400" :
+          "border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400"
+        }`}>
+          {job.isActive !== false ? "ACTIVE" : "INACTIVE"}
+        </span>
+      </td>
+      <td className="px-6 py-4 text-right">
+        <div className="flex items-center justify-end gap-2">
+          <button
+            onClick={() => onNavigate(job)}
+            className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-white hover:text-brand-600 dark:hover:bg-slate-700"
+          >
+            <ArrowRightIcon className="size-4" />
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
 export default function Jobs() {
   const navigate = useNavigate();
   const { user, hasPermission } = useAuth();
@@ -166,12 +431,20 @@ export default function Jobs() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [companyFilter, setCompanyFilter] = useState<string>("all");
   const [orderedJobIds, setOrderedJobIds] = useState<string[]>([]);
-  const [draggedJobId, setDraggedJobId] = useState<string | null>(null);
-  const [dropTargetJobId, setDropTargetJobId] = useState<string | null>(null);
   const [isSavingOrder, setIsSavingOrder] = useState(false);
+  const [activeDragJob, setActiveDragJob] = useState<any | null>(null);
   const suppressNavigateRef = useRef(false);
   const orderSyncVersionRef = useRef(0);
   const orderSyncDebounceRef = useRef<number | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 5 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   // Memoize user-derived values for the query
   const jobQueryCompanyParam = useMemo(() => {
@@ -244,22 +517,6 @@ export default function Jobs() {
 
     return [...prioritized, ...remaining];
   }, [jobPositions, orderedJobIds]);
-
-  const moveIdBeforeTarget = (ids: string[], sourceJobId: string, targetJobId: string) => {
-    const sourceIndex = ids.indexOf(sourceJobId);
-    const targetIndex = ids.indexOf(targetJobId);
-
-    if (sourceIndex === -1 || targetIndex === -1 || sourceIndex === targetIndex) {
-      return ids;
-    }
-
-    const next = [...ids];
-    const [movedId] = next.splice(sourceIndex, 1);
-    const insertIndex = sourceIndex < targetIndex ? targetIndex - 1 : targetIndex;
-    next.splice(insertIndex, 0, movedId);
-
-    return next;
-  };
 
   const buildOrderPayload = (job: any, order: number) => {
     const payload: any = {
@@ -375,111 +632,77 @@ export default function Jobs() {
     }, 250);
   };
 
-  const clearDragState = () => {
-    setDraggedJobId(null);
-    setDropTargetJobId(null);
-  };
-
-  const handleJobDragStart = (
-    event: React.DragEvent<HTMLElement>,
-    jobId: string
-  ) => {
-    event.stopPropagation();
-    event.dataTransfer.effectAllowed = "move";
-    event.dataTransfer.setData("text/plain", jobId);
-    setDraggedJobId(jobId);
-    setDropTargetJobId(jobId);
-  };
-
-  const handleJobDragOver = (
-    event: React.DragEvent<HTMLElement>,
-    jobId: string
-  ) => {
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "move";
-    if (dropTargetJobId !== jobId) {
-      setDropTargetJobId(jobId);
-    }
-  };
-
-  const handleJobDrop = (
-    event: React.DragEvent<HTMLElement>,
-    targetJobId: string
-  ) => {
-    event.preventDefault();
-    event.stopPropagation();
-
-    const sourceJobId = draggedJobId || event.dataTransfer.getData("text/plain");
-    if (sourceJobId && sourceJobId !== targetJobId) {
-      suppressNavigateRef.current = true;
-      window.setTimeout(() => {
-        suppressNavigateRef.current = false;
-      }, 0);
-
-      const baselineOrderIds =
-        orderedJobIds.length > 0 ? [...orderedJobIds] : orderedJobs.map((job: any) => job._id);
-
-      const jobsById = new Map(orderedJobs.map((job: any) => [job?._id, job]));
-      const sourceJob = jobsById.get(sourceJobId);
-      const targetJob = jobsById.get(targetJobId);
-      const sourceCompanyId = getJobCompanyId(sourceJob);
-      const targetCompanyId = getJobCompanyId(targetJob);
-
-      if (!sourceCompanyId || !targetCompanyId || sourceCompanyId !== targetCompanyId) {
-        Swal.fire(
-          "Invalid Reorder",
-          "You can only reorder jobs within the same company.",
-          "info"
-        );
-        clearDragState();
-        return;
-      }
-
-      const companyOrderIds = baselineOrderIds.filter((id) => {
-        const job = jobsById.get(id);
-        return getJobCompanyId(job) === sourceCompanyId;
-      });
-
-      const nextCompanyOrderIds = moveIdBeforeTarget(
-        companyOrderIds,
-        sourceJobId,
-        targetJobId
-      );
-
-      const nextOrderIds = (() => {
-        let companyIndex = 0;
-        return baselineOrderIds.map((id) => {
-          const job = jobsById.get(id);
-          if (getJobCompanyId(job) === sourceCompanyId) {
-            const nextId = nextCompanyOrderIds[companyIndex];
-            companyIndex += 1;
-            return nextId ?? id;
-          }
-          return id;
-        });
-      })();
-
-      const hasChanged =
-        nextOrderIds.length !== baselineOrderIds.length ||
-        nextOrderIds.some((id, index) => id !== baselineOrderIds[index]);
-
-      if (hasChanged) {
-        setOrderedJobIds(nextOrderIds);
-        scheduleJobOrderSync({
-          previousOrderIds: baselineOrderIds,
-          nextOrderIds,
-          companyId: sourceCompanyId,
-          sourceJobId,
-        });
-      }
-    }
-
-    clearDragState();
-  };
-
   const handleJobClick = (job: any) => {
     if (suppressNavigateRef.current) return;
     navigate(`/job/${job._id}`, { state: { job } });
+  };
+
+  const handleGridDragStart = (event: DragStartEvent) => {
+    const job = orderedJobs.find((j: any) => j._id === event.active.id);
+    setActiveDragJob(job || null);
+
+    const handler = (e: MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      document.removeEventListener('click', handler, true);
+    };
+    document.addEventListener('click', handler, true);
+    setTimeout(() => document.removeEventListener('click', handler, true), 1000);
+  };
+
+  const handleGridDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveDragJob(null);
+
+    if (!over || active.id === over.id) return;
+
+    const jobsById = new Map(orderedJobs.map((job: any) => [job?._id, job]));
+    const sourceJob = jobsById.get(active.id as string);
+    if (!sourceJob) return;
+
+    const companyId = getJobCompanyId(sourceJob);
+    if (!companyId) return;
+
+    const companyJobIds = (orderedJobIds.length > 0 ? orderedJobIds : orderedJobs.map((j: any) => j._id))
+      .filter((id) => {
+        const job = jobsById.get(id);
+        return getJobCompanyId(job) === companyId;
+      });
+
+    const oldIndex = companyJobIds.indexOf(active.id as string);
+    const newIndex = companyJobIds.indexOf(over.id as string);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const newCompanyOrder = arrayMove(companyJobIds, oldIndex, newIndex);
+
+    const baselineOrderIds =
+      orderedJobIds.length > 0 ? [...orderedJobIds] : orderedJobs.map((job: any) => job._id);
+
+    let companyIndex = 0;
+    const nextOrderIds = baselineOrderIds.map((id) => {
+      const job = jobsById.get(id);
+      if (getJobCompanyId(job) === companyId) {
+        return newCompanyOrder[companyIndex++];
+      }
+      return id;
+    });
+
+    setOrderedJobIds(nextOrderIds);
+    scheduleJobOrderSync({
+      previousOrderIds: baselineOrderIds,
+      nextOrderIds,
+      companyId,
+      sourceJobId: active.id as string,
+    });
+  };
+
+  const handleGridDragCancel = () => {
+    setActiveDragJob(null);
+  };
+
+  const handleEditJob = (job: any) => {
+    navigate(`/create-job?id=${job._id}`, { state: { job } });
   };
 
   const companyOptions = useMemo(() => {
@@ -571,14 +794,7 @@ export default function Jobs() {
       .filter((g) => g.jobs.length > 0);
   }, [orderedJobs, filteredJobs]);
 
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return "N/A";
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  };
+
 
   const handleToggleActive = async (job: any) => {
   try {
@@ -748,12 +964,21 @@ export default function Jobs() {
         </div>
       ) : viewMode === "grid" ? (
         <>
-          {jobsGroupedByCompany.map((group: any) => (
-            <div key={group.companyId} className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="text-lg font-semibold text-slate-900 dark:text-white">{getTranslation(group.companyName)}</h4>
-                <span className="text-sm text-slate-500">{group.jobs.length} positions</span>
-              </div>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleGridDragStart}
+            onDragEnd={handleGridDragEnd}
+            onDragCancel={handleGridDragCancel}
+          >
+            {jobsGroupedByCompany.map((group: any) => {
+              const groupJobIds = group.jobs.map((j: any) => j._id);
+              return (
+                <div key={group.companyId} className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-lg font-semibold text-slate-900 dark:text-white">{getTranslation(group.companyName)}</h4>
+                    <span className="text-sm text-slate-500">{group.jobs.length} positions</span>
+                  </div>
 
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
                 {group.jobs.map((job: any) => (
@@ -875,71 +1100,65 @@ export default function Jobs() {
                   </td>
                 </tr>
 
-                {group.jobs.map((job: any) => (
-                  <tr
-                    key={job._id}
-                    draggable
-                    onDragStart={(event) => handleJobDragStart(event, job._id)}
-                    onDragOver={(event) => handleJobDragOver(event, job._id)}
-                    onDrop={(event) => handleJobDrop(event, job._id)}
-                    onDragEnd={clearDragState}
-                    onClick={() => handleJobClick(job)}
-                    className={`group cursor-grab transition-colors hover:bg-slate-50/50 active:cursor-grabbing dark:hover:bg-slate-800/30 ${
-                      draggedJobId === job._id ? "opacity-60" : ""
-                    } ${
-                      dropTargetJobId === job._id && draggedJobId !== job._id
-                        ? "bg-brand-50/70 dark:bg-brand-500/10"
-                        : ""
-                    }`}
-                  >
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <span className="text-slate-400" title="Drag to reorder">
-                          <GripVerticalIcon className="size-4" />
-                        </span>
-                        <div className="rounded-xl bg-brand-50 p-2.5 dark:bg-brand-500/10">
-                          <BriefcaseIcon className="size-5 text-brand-600" />
-                        </div>
-                        <div>
-                          <p className="font-bold text-slate-900 dark:text-white">{getTranslation(job.title)}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">
-                          <Building2Icon className="size-3.5 text-slate-400" />
-                          {getTranslation(job.companyId?.name) || "Global Corp"}
-                        </div>
-                        <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                          <MapPinIcon className="size-3.5" />
-                          {job.workArrangement || "Office"}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                         <span className="text-sm font-medium text-slate-900 dark:text-white">12</span>
-                         <span className="text-xs text-slate-500">Candidates</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${
-                        job.isActive !== false ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400" :
-                        "border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400"
-                      }`}>
-                        {job.isActive !== false ? "ACTIVE" : "INACTIVE"}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-white hover:text-brand-600 dark:hover:bg-slate-700">
-                          <ArrowRightIcon className="size-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {(() => {
+              const groupJobIds = group.jobs.map((j: any) => j._id);
+              const companyId = group.companyId;
+              const handleListDragEnd = (event: DragEndEvent) => {
+                const { active, over } = event;
+                if (!over || active.id === over.id) return;
+
+                const oldIndex = groupJobIds.indexOf(active.id as string);
+                const newIndex = groupJobIds.indexOf(over.id as string);
+                if (oldIndex === -1 || newIndex === -1) return;
+
+                suppressNavigateRef.current = true;
+                window.setTimeout(() => {
+                  suppressNavigateRef.current = false;
+                }, 0);
+
+                const newCompanyOrder = arrayMove(groupJobIds, oldIndex, newIndex);
+
+                const baselineOrderIds =
+                  orderedJobIds.length > 0 ? [...orderedJobIds] : orderedJobs.map((job: any) => job._id);
+
+                const jobsById = new Map(orderedJobs.map((job: any) => [job?._id, job]));
+
+                let companyIdx = 0;
+                const nextOrderIds = baselineOrderIds.map((id) => {
+                  const job = jobsById.get(id);
+                  if (getJobCompanyId(job) === companyId) {
+                    return newCompanyOrder[companyIdx++];
+                  }
+                  return id;
+                });
+
+                setOrderedJobIds(nextOrderIds);
+                scheduleJobOrderSync({
+                  previousOrderIds: baselineOrderIds,
+                  nextOrderIds,
+                  companyId,
+                  sourceJobId: active.id as string,
+                });
+              };
+              return (
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleListDragEnd}
+                >
+                  <SortableContext items={groupJobIds} strategy={verticalListSortingStrategy}>
+                    {group.jobs.map((job: any) => (
+                      <SortableJobRow
+                        key={job._id}
+                        job={job}
+                        onNavigate={handleJobClick}
+                        suppressNavigateRef={suppressNavigateRef}
+                      />
+                    ))}
+                  </SortableContext>
+                </DndContext>
+              );
+            })()}
               </tbody>
             ))}
           </table>
