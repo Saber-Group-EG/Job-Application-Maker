@@ -51,6 +51,9 @@ import {
 import { ThemeProvider, createTheme } from '@mui/material';
 import { Skeleton } from '@mui/material';
 import type { Applicant } from '../../../../types/applicants';
+import { FileSignature, FileText } from 'lucide-react';
+import JobOfferModal from '../../../../components/modals/JobOffersModal/JobOffersModal';
+import JobContractModal from '../../../../components/modals/ContractModal/ContractModal';
 
 type ApiMailResponse = {
   message: string;
@@ -312,6 +315,9 @@ export default function Applicants({
     return userCompanyId?.length ? userCompanyId : undefined;
   }, [companyIdOverride, user]);
 
+  const [offerModalOpen, setOfferModalOpen] = useState(false);
+  const [contractModalOpen, setContractModalOpen] = useState(false);
+  // Extract department IDs from user companies
   const departmentIds = useMemo(() => {
     if (!user?.companies || !Array.isArray(user.companies)) return undefined;
     const allDepts = user.companies
@@ -346,12 +352,11 @@ export default function Applicants({
     isFetched: isJobPositionsFetched,
     refetch: refetchJobPositions,
   } = useJobPositions(
-    companyId as any,
-    false,
-    departmentIds as any,
-    { enabled: true }
+    companyId as any, // companyId
+    false, // deleted
+    departmentIds as any, // departmentId
+    { enabled: true } // options
   );
-  
   const {
     data: applicants = [],
     error,
@@ -365,16 +370,18 @@ export default function Applicants({
     status: effectiveOnlyStatus,
     enabled: true,
   });
-  
+  // Check the query state directly to detect ongoing fetches for this key
   const applicantsQueryKey = applicantsKeys.list({
     companyId: companyId as any,
     jobPositionId: undefined,
     departmentId: departmentIds as any,
     status: effectiveOnlyStatus,
   });
-  const applicantsQueryState = queryClient.getQueryState(applicantsQueryKey as any);
-  const isApplicantsQueryFetching = applicantsQueryState?.fetchStatus === 'fetching';
-  
+  const applicantsQueryState = queryClient.getQueryState(
+    applicantsQueryKey as any
+  );
+  const isApplicantsQueryFetching =
+    applicantsQueryState?.fetchStatus === 'fetching';
   const {
     data: allCompaniesRaw = [],
     refetch: refetchCompanies,
@@ -599,6 +606,7 @@ export default function Applicants({
     selectedApplicantCompanyId,
     selectedApplicantCompany,
     selectedApplicantCount,
+    selectedApplicants,
   } = useApplicantSelection({
     rowSelection,
     applicants,
@@ -608,21 +616,27 @@ export default function Applicants({
   const selectedApplicantJobIds = useMemo(() => {
     const jobIds = new Set<string>();
     const ids = new Set(selectedApplicantIds);
-    
+
     applicants.forEach((applicant: any) => {
-      const applicantId = typeof applicant._id === 'string' ? applicant._id : applicant._id?._id || applicant.id;
+      const applicantId =
+        typeof applicant._id === 'string'
+          ? applicant._id
+          : applicant._id?._id || applicant.id;
       if (!ids.has(applicantId)) return;
-      
-      const jobId = 
-        (typeof applicant.jobPositionId === 'string' ? applicant.jobPositionId : applicant.jobPositionId?._id) ||
+
+      // Extract job ID from various possible locations
+      const jobId =
+        (typeof applicant.jobPositionId === 'string'
+          ? applicant.jobPositionId
+          : applicant.jobPositionId?._id) ||
         applicant.job?._id ||
         applicant.jobId;
-      
+
       if (jobId) {
         jobIds.add(typeof jobId === 'string' ? jobId : jobId._id || jobId.id);
       }
     });
-    
+
     return Array.from(jobIds);
   }, [selectedApplicantIds, applicants]);
 
@@ -2444,6 +2458,26 @@ export default function Applicants({
                     </span>
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
                       <button
+                    onClick={() => {
+                      setOfferModalOpen(true);
+                    }}
+                    disabled={selectedApplicantCount === 0}
+                    className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
+                  >
+                    <FileText className="h-4 w-4" />
+                    {`Send Offer (${selectedApplicantCount})`}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setContractModalOpen(true);
+                    }}
+                    disabled={selectedApplicantCount === 0}
+                    className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-50"
+                  >
+                    <FileSignature className="h-4 w-4" />
+                    {`Send Contract (${selectedApplicantCount})`}
+                  </button>
+                  <button
                         type="button"
                         onClick={() => {
                           setBulkStatusForm({ status: '', reasons: [], notes: '' });
@@ -2510,6 +2544,25 @@ export default function Applicants({
                   </div>
                 )}
 
+            <div className="w-full overflow-x-auto custom-scrollbar">
+              <MaterialReactTable table={table} />
+            </div>
+
+            <JobContractModal
+              isOpen={contractModalOpen}
+              onClose={() => setContractModalOpen(false)}
+              mode="contract"
+              applicantObjects={selectedApplicants} // _id + fullName + email + companyId
+              companyId={selectedApplicantCompanyId!}
+            />
+
+            <JobOfferModal
+              isOpen={offerModalOpen}
+              onClose={() => setOfferModalOpen(false)}
+              mode="offer"
+              applicantObjects={selectedApplicants} // _id + fullName + email + companyId
+              companyId={selectedApplicantCompanyId!}
+            />
 <div className="-mx-4 sm:-mx-6">
     <MaterialReactTable table={table} />
 </div>
