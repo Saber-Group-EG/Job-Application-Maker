@@ -90,7 +90,6 @@ export function useCompanies(
   const explicitIds = companyIds?.length ? companyIds : undefined;
   const effectiveIds = explicitIds ?? userCompanyIds;
   const useListEndpoint = !effectiveIds?.length;
-  const effectiveIds = companyIds?.length ? companyIds : userCompanyIds;
 
   return useQuery({
     // Always use the same canonical list key so useCompany's initialData/select can find it

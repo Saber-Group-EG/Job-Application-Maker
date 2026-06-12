@@ -57,7 +57,7 @@ const SUB_TABS: TabConfig[] = [
   { key: 'previous', label: 'Previous Entries', icon: HistoryIcon },
   { key: 'interviews', label: 'Completed Interviews', icon: CheckCircle2 },
   { key: 'offers', label: 'Job Offers', icon: Briefcase },
-  { key: 'contracts', label: 'Job Contracts', icon: FileSignature }
+  { key: 'contracts', label: 'Job Contracts', icon: FileSignature },
 ];
 
 function isJobOffer(obj: unknown): obj is JobOffer {
@@ -90,7 +90,11 @@ function extractJobOffer(data: unknown): JobOffer | null {
   }
   if ('data' in obj && obj.data && typeof obj.data === 'object') {
     const dataObj = obj.data as Record<string, unknown>;
-    if ('jobOffer' in dataObj && dataObj.jobOffer && isJobOffer(dataObj.jobOffer)) {
+    if (
+      'jobOffer' in dataObj &&
+      dataObj.jobOffer &&
+      isJobOffer(dataObj.jobOffer)
+    ) {
       return dataObj.jobOffer;
     }
     if (isJobOffer(dataObj)) return dataObj;
@@ -102,7 +106,11 @@ function extractJobOffer(data: unknown): JobOffer | null {
 function extractJobContract(data: unknown): JobContract | null {
   if (!data || typeof data !== 'object') return null;
   const obj = data as Record<string, unknown>;
-  if ('jobContract' in obj && obj.jobContract && isJobContract(obj.jobContract)) {
+  if (
+    'jobContract' in obj &&
+    obj.jobContract &&
+    isJobContract(obj.jobContract)
+  ) {
     return obj.jobContract;
   }
   if ('data' in obj && obj.data && typeof obj.data === 'object') {
@@ -120,7 +128,9 @@ function extractJobContract(data: unknown): JobContract | null {
   return null;
 }
 
-const getRowId = (row: { _id?: string; id?: string } | null | undefined): string | null => {
+const getRowId = (
+  row: { _id?: string; id?: string } | null | undefined
+): string | null => {
   if (!row) return null;
   return row._id || row.id || null;
 };
@@ -152,21 +162,32 @@ export default function History({ applicant, loading = false }: Props) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const applicantId = String(applicant?._id || '');
-  const applicantPhone = useMemo(() => applicant?.phone || '', [applicant?.phone]);
+  const applicantPhone = useMemo(
+    () => applicant?.phone || '',
+    [applicant?.phone]
+  );
   const applicantCompanyId = useMemo(
-    () => getApplicantCompanyId((applicant as unknown as Record<string, unknown>) || {}),
-    [applicant],
+    () =>
+      getApplicantCompanyId(
+        (applicant as unknown as Record<string, unknown>) || {}
+      ),
+    [applicant]
   );
 
   const [activeSubTab, setActiveSubTab] = useState<HistorySubTab>('previous');
 
   const [selectedOfferId, setSelectedOfferId] = useState<string | null>(null);
-  const [selectedOfferLocal, setSelectedOfferLocal] = useState<JobOffer | null>(null);
+  const [selectedOfferLocal, setSelectedOfferLocal] = useState<JobOffer | null>(
+    null
+  );
   const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
   const offerModalLockRef = useRef<number>(0);
 
-  const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
-  const [selectedContractLocal, setSelectedContractLocal] = useState<JobContract | null>(null);
+  const [selectedContractId, setSelectedContractId] = useState<string | null>(
+    null
+  );
+  const [selectedContractLocal, setSelectedContractLocal] =
+    useState<JobContract | null>(null);
   const [isContractModalOpen, setIsContractModalOpen] = useState(false);
   const contractModalLockRef = useRef<number>(0);
 
@@ -174,14 +195,18 @@ export default function History({ applicant, loading = false }: Props) {
     enabled: !!selectedOfferId,
   });
 
-  const { data: offers = [], isLoading: isOffersLoading } = useQuery<JobOffer[]>({
+  const { data: offers = [], isLoading: isOffersLoading } = useQuery<
+    JobOffer[]
+  >({
     queryKey: ['jobOffers', 'applicant', applicantId, applicantCompanyId],
     queryFn: () =>
-      jobOffersService.listOffers({
-        applicantId,
-        companyId: applicantCompanyId || undefined,
-        PageCount: 'all',
-      }),
+      jobOffersService
+        .listOffers({
+          applicantId,
+          companyId: applicantCompanyId || undefined,
+          PageCount: 'all',
+        })
+        .then((res) => res?.data ?? res),
     enabled: !!applicantId,
     staleTime: Infinity,
     refetchOnMount: false,
@@ -189,24 +214,25 @@ export default function History({ applicant, loading = false }: Props) {
     refetchOnReconnect: false,
   });
 
-  const { data: contractsResponse, isLoading: isContractsLoading } = useQuery<PaginatedJobContracts>({
-    queryKey: ['jobContracts', 'applicant', applicantId, applicantCompanyId],
-    queryFn: () =>
-      jobContractsService.listContracts({
-        applicantId,
-        companyId: applicantCompanyId || undefined,
-        PageCount: 'all',
-      }),
-    enabled: !!applicantId,
-    staleTime: Infinity,
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-  });
+  const { data: contractsResponse, isLoading: isContractsLoading } =
+    useQuery<PaginatedJobContracts>({
+      queryKey: ['jobContracts', 'applicant', applicantId, applicantCompanyId],
+      queryFn: () =>
+        jobContractsService.listContracts({
+          applicantId,
+          companyId: applicantCompanyId || undefined,
+          PageCount: 'all',
+        }),
+      enabled: !!applicantId,
+      staleTime: Infinity,
+      refetchOnMount: false,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+    });
 
   const jobContracts = useMemo(
     () => contractsResponse?.data ?? [],
-    [contractsResponse],
+    [contractsResponse]
   );
 
   const { data: selectedContractDetail } = useQuery<JobContract>({
@@ -219,10 +245,11 @@ export default function History({ applicant, loading = false }: Props) {
     refetchOnReconnect: false,
   });
 
-  const { data: previousApplicants = [], isLoading: isPreviousLoading } = useApplicantsByPhone(applicantPhone, {
-    enabled: !!applicantPhone,
-    companyId: applicantCompanyId || undefined,
-  });
+  const { data: previousApplicants = [], isLoading: isPreviousLoading } =
+    useApplicantsByPhone(applicantPhone, {
+      enabled: !!applicantPhone,
+      companyId: applicantCompanyId || undefined,
+    });
 
   const deleteInterviewMutation = useDeleteInterview();
 
@@ -233,21 +260,38 @@ export default function History({ applicant, loading = false }: Props) {
       (applicantItem: Applicant) =>
         String(applicantItem?._id || '') !== currentId &&
         (!applicantCompanyId ||
-          getApplicantCompanyId(applicantItem as unknown as Record<string, unknown>) === applicantCompanyId),
+          getApplicantCompanyId(
+            applicantItem as unknown as Record<string, unknown>
+          ) === applicantCompanyId)
     );
     const getEntryTimestamp = (item: Applicant): number => {
       const raw =
-        (item as { submittedAt?: string; createdAt?: string; appliedAt?: string })
-          .submittedAt ||
-        (item as { submittedAt?: string; createdAt?: string; appliedAt?: string })
-          .createdAt ||
-        (item as { submittedAt?: string; createdAt?: string; appliedAt?: string })
-          .appliedAt;
+        (
+          item as {
+            submittedAt?: string;
+            createdAt?: string;
+            appliedAt?: string;
+          }
+        ).submittedAt ||
+        (
+          item as {
+            submittedAt?: string;
+            createdAt?: string;
+            appliedAt?: string;
+          }
+        ).createdAt ||
+        (
+          item as {
+            submittedAt?: string;
+            createdAt?: string;
+            appliedAt?: string;
+          }
+        ).appliedAt;
       const time = raw ? new Date(raw).getTime() : 0;
       return Number.isNaN(time) ? 0 : time;
     };
     return [...filtered].sort(
-      (a, b) => getEntryTimestamp(b) - getEntryTimestamp(a),
+      (a, b) => getEntryTimestamp(b) - getEntryTimestamp(a)
     );
   }, [previousApplicants, applicant?._id, applicantCompanyId]);
 
@@ -255,7 +299,7 @@ export default function History({ applicant, loading = false }: Props) {
     if (!offers || !Array.isArray(offers)) return [];
     if (!applicantCompanyId) return offers;
     return offers.filter(
-      (offer) => getCompanyId(offer?.companyId) === applicantCompanyId,
+      (offer) => getCompanyId(offer?.companyId) === applicantCompanyId
     );
   }, [offers, applicantCompanyId]);
 
@@ -263,7 +307,7 @@ export default function History({ applicant, loading = false }: Props) {
     if (!jobContracts || !Array.isArray(jobContracts)) return [];
     if (!applicantCompanyId) return jobContracts;
     return jobContracts.filter(
-      (contract) => getCompanyId(contract?.companyId) === applicantCompanyId,
+      (contract) => getCompanyId(contract?.companyId) === applicantCompanyId
     );
   }, [jobContracts, applicantCompanyId]);
 
@@ -271,16 +315,19 @@ export default function History({ applicant, loading = false }: Props) {
     const list = (applicant?.interviews || []) as CompletedInterview[];
     return list.filter(
       (interview) =>
-        String(interview?.status || '').toLowerCase() === 'completed',
+        String(interview?.status || '').toLowerCase() === 'completed'
     );
   }, [applicant?.interviews]);
 
-  const normalizedOfferDetail = useMemo(() => extractJobOffer(selectedOfferDetail), [selectedOfferDetail]);
+  const normalizedOfferDetail = useMemo(
+    () => extractJobOffer(selectedOfferDetail),
+    [selectedOfferDetail]
+  );
   const effectiveOffer = normalizedOfferDetail ?? selectedOfferLocal;
 
   const normalizedContractDetail = useMemo(
     () => extractJobContract(selectedContractDetail),
-    [selectedContractDetail],
+    [selectedContractDetail]
   );
   const effectiveContract = normalizedContractDetail ?? selectedContractLocal;
 
@@ -306,7 +353,9 @@ export default function History({ applicant, loading = false }: Props) {
 
   const invalidateApplicant = () => {
     if (!applicantId) return;
-    queryClient.invalidateQueries({ queryKey: applicantsKeys.detail(applicantId) });
+    queryClient.invalidateQueries({
+      queryKey: applicantsKeys.detail(applicantId),
+    });
   };
 
   const handleDeleteInterview = async (interview: CompletedInterview) => {
@@ -397,7 +446,9 @@ export default function History({ applicant, loading = false }: Props) {
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              <Icon className={`h-4 w-4 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
+              <Icon
+                className={`h-4 w-4 ${isActive ? 'text-blue-600' : 'text-gray-400'}`}
+              />
               <span>{label}</span>
             </button>
           );

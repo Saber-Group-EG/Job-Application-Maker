@@ -35,7 +35,7 @@ export default function JobOfferPreview({ isOpen, onClose, offer }: Props) {
           <div className="flex items-center justify-between border-b px-6 py-4 dark:border-slate-800">
             <div>
               <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
-                {offer?.position || 'Job Offer'}
+                {offer?.position.en || offer?.position.ar || 'Job Offer'}
               </h3>
               <p className="text-sm text-slate-500 dark:text-slate-400">
                 {companyName || '—'}
@@ -64,7 +64,7 @@ export default function JobOfferPreview({ isOpen, onClose, offer }: Props) {
               <div>
                 <p className="text-sm text-slate-500">Position</p>
                 <p className="text-sm font-medium text-slate-900 dark:text-white">
-                  {offer?.position || '—'}
+                  {offer?.position.en || offer?.position.ar || '—'}
                 </p>
               </div>
               <div className="ml-6">
@@ -105,7 +105,7 @@ export default function JobOfferPreview({ isOpen, onClose, offer }: Props) {
                   {offer?.workHours && (
                     <p>
                       <span className="font-semibold">Work Hours:</span>{' '}
-                      {offer.workHours}
+                      {offer.workHours?.ar || offer.workHours?.en || '—'}
                     </p>
                   )}
                   <p>
@@ -141,10 +141,10 @@ export default function JobOfferPreview({ isOpen, onClose, offer }: Props) {
                     >
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="font-medium">{c.label}</p>
+                          <p className="font-medium">{c.label?.en || c.label?.ar || '—'}</p>
                           {c.condition && (
                             <p className="text-sm text-slate-500">
-                              {c.condition}
+                              {c.condition?.en || c.condition?.ar || '—'}
                             </p>
                           )}
                         </div>
@@ -199,7 +199,7 @@ export default function JobOfferPreview({ isOpen, onClose, offer }: Props) {
                   Notes
                 </p>
                 <div className="rounded-lg border border-slate-100 p-3 text-sm dark:border-slate-700">
-                  {offer.notes}
+                  {offer.notes?.en || offer.notes?.ar || '—'}
                 </div>
               </div>
             )}
