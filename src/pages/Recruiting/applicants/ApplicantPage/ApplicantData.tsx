@@ -100,7 +100,10 @@ const ApplicantData = () => {
     );
   }, [userCompanies, userCompanyIds]);
 
-  const { data: userCompaniesFromServer = [] } = useCompanies(
+  const {
+    data: userCompaniesFromServer = [],
+    isLoading: isUserCompaniesLoading,
+  } = useCompanies(
     shouldFetchUserCompanies ? userCompanyIds : undefined,
     { enabled: shouldFetchUserCompanies }
   );
@@ -310,14 +313,30 @@ const ApplicantData = () => {
   }, [applicant?._id, (applicant as any)?.jobPositionId, (applicant as any)?.jobPosition]);
 
   const [shouldFetchApplicantJobPosition, setShouldFetchApplicantJobPosition] =
-  useState(true);
+    useState(true);
 
- const {
-  data: fetchedApplicantJobPosition,
-  isFetching: isApplicantJobPositionFetching,
-} = useJobPosition(applicantJobPositionId, {
-  enabled: !!applicantJobPositionId,  // always fetch when ID exists
-});
+  const hasEmbeddedJobPositionData = useMemo(() => {
+    if (!applicantJobPosition || typeof applicantJobPosition !== 'object') return false;
+    const jobPos = applicantJobPosition as any;
+    return Boolean(
+      jobPos.customFields ||
+        jobPos.jobSpecs ||
+        jobPos.jobSpecsWithDetails ||
+        jobPos.companyId
+    );
+  }, [applicantJobPosition]);
+
+  const shouldFetchApplicantJobPositionDetails =
+    Boolean(applicantJobPositionId) &&
+    (!hasEmbeddedJobPositionData || shouldFetchApplicantJobPosition);
+
+  const {
+    data: fetchedApplicantJobPosition,
+    isFetching: isApplicantJobPositionFetching,
+    isLoading: isApplicantJobPositionLoading,
+  } = useJobPosition(applicantJobPositionId, {
+    enabled: shouldFetchApplicantJobPositionDetails,
+  });
 
   const resolvedJobPosId = useMemo(() => {
     if (!applicant) return '';
@@ -553,8 +572,15 @@ const jobPositionDetail = rawJobPositionDetail?.jobPosition ?? rawJobPositionDet
 
   useEffect(() => {
     hasMarkedSeenRef.current = false;
-    setShouldFetchApplicantJobPosition(false);
+    // New applicant id should trigger a fresh readiness cycle.
+    setShouldFetchApplicantJobPosition(true);
   }, [id]);
+
+  useEffect(() => {
+    if (!fetchedApplicantJobPosition) return;
+    // Prevent repeat fetching once detail has been loaded for current applicant.
+    setShouldFetchApplicantJobPosition(false);
+  }, [fetchedApplicantJobPosition, applicantJobPositionId]);
 
   useEffect(() => {
     if (!applicant?._id || !user?._id || hasMarkedSeenRef.current) return;
@@ -3595,7 +3621,24 @@ setInterviewEditableCustomFields([
         : customFieldsForInterview
       : customFieldsForInterview;
 
-  if (loading) {
+  const isInitialApplicantLoading =
+    !!id && isApplicantLoading && !fetchedApplicant && !stateApplicant;
+  const isInitialCompaniesLoading =
+    shouldFetchUserCompanies &&
+    isUserCompaniesLoading &&
+    userCompaniesFromServer.length === 0;
+  const isInitialJobPositionLoading =
+    shouldFetchApplicantJobPositionDetails &&
+    (isApplicantJobPositionLoading || isApplicantJobPositionFetching) &&
+    !jobPositionDetail;
+
+  const isPageBootstrapping =
+    loading ||
+    isInitialApplicantLoading ||
+    isInitialCompaniesLoading ||
+    isInitialJobPositionLoading;
+
+  if (isPageBootstrapping) {
     return (
       <div className="space-y-6">
         <PageMeta
