@@ -307,7 +307,7 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, mailRecords = [
       {/* Rest of your content remains the same */}
       {activity.type === 'comment' && activity.comment && (
         <div className="pl-3 border-l-2 border-blue-200">
-          <p className="text-sm text-gray-700 leading-relaxed">
+          <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap break-words">
             {activity.comment}
           </p>
         </div>

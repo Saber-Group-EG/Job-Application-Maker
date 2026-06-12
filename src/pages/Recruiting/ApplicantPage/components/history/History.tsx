@@ -245,27 +245,22 @@ export default function History({ applicant, loading = false }: Props) {
     refetchOnReconnect: false,
   });
 
-  const applicantEmail = applicant?.email || '';
-
   const { data: previousApplicants = [], isLoading: isPreviousLoading } =
     useApplicantsByPhone(applicantPhone, {
       enabled: !!applicantPhone,
       companyId: applicantCompanyId || undefined,
-      mail: applicantEmail || undefined,
     });
 
   const deleteInterviewMutation = useDeleteInterview();
 
   const filteredPreviousApplicants = useMemo(() => {
     if (!previousApplicants || !Array.isArray(previousApplicants)) return [];
-    const currentId = String(applicant?._id || '');
     const filtered = previousApplicants.filter(
       (applicantItem: Applicant) =>
-        String(applicantItem?._id || '') !== currentId &&
-        (!applicantCompanyId ||
-          getApplicantCompanyId(
-            applicantItem as unknown as Record<string, unknown>
-          ) === applicantCompanyId)
+        !applicantCompanyId ||
+        getApplicantCompanyId(
+          applicantItem as unknown as Record<string, unknown>
+        ) === applicantCompanyId
     );
     const getEntryTimestamp = (item: Applicant): number => {
       const raw =
@@ -296,7 +291,7 @@ export default function History({ applicant, loading = false }: Props) {
     return [...filtered].sort(
       (a, b) => getEntryTimestamp(b) - getEntryTimestamp(a)
     );
-  }, [previousApplicants, applicant?._id, applicantCompanyId]);
+  }, [previousApplicants, applicantCompanyId]);
 
   const filteredOffers = useMemo(() => {
     if (!offers || !Array.isArray(offers)) return [];
@@ -435,7 +430,7 @@ export default function History({ applicant, loading = false }: Props) {
         </p>
       </div>
 
-      <div className="flex border-b border-gray-200 overflow-x-auto overflow-y-hidden px-5">
+      <div className="flex border-b border-gray-200 md:overflow-x-auto xl:overflow-x-visible px-5">
         {SUB_TABS.map(({ key, label, icon: Icon }) => {
           const isActive = activeSubTab === key;
           return (
