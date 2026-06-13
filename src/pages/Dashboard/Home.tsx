@@ -48,11 +48,20 @@ function getCompanyIdFromUser(
     return undefined; // undefined means fetch all
   }
 
-  // Regular user - get their assigned companies
-  const userCompanyIds =
+  // Regular user - get their assigned companies (from both companies and assignedcompanyId)
+  const fromCompanies =
     user?.companies?.map((c: any) =>
       typeof c.companyId === 'string' ? c.companyId : c.companyId?._id
     ).filter(Boolean) || [];
+
+  const fromAssigned = user?.assignedcompanyId?.filter(Boolean) || [];
+
+  const userCompanyIds = [...new Set([...fromCompanies, ...fromAssigned])];
+
+  // If user has a selected company, filter to that one
+  if (selectedCompanyId) {
+    return userCompanyIds.includes(selectedCompanyId) ? [selectedCompanyId] : [];
+  }
 
   return userCompanyIds.length > 0 ? userCompanyIds : undefined;
 }
@@ -70,13 +79,23 @@ export default function Home() {
     return roleName === 'super admin';
   }, [user?.roleId?.name]);
 
-  // Get companies for super admin selector
+  // Get user's accessible company IDs to determine if selector should show
+  const userCompanyIds = useMemo(() => {
+    const fromCompanies =
+      user?.companies?.map((c: any) =>
+        typeof c.companyId === 'string' ? c.companyId : c.companyId?._id
+      ).filter(Boolean) || [];
+    const fromAssigned = user?.assignedcompanyId?.filter(Boolean) || [];
+    return [...new Set([...fromCompanies, ...fromAssigned])];
+  }, [user?.companies, user?.assignedcompanyId]);
+
+  const showCompanySelector = isSuperAdmin || userCompanyIds.length > 1;
+
+  // Get companies for selector
   const { data: companies = [] } = useCompanies(
     isSuperAdmin
       ? undefined
-      : (user?.companies?.map(
-          (c: any) => c.companyId?._id || c.companyId
-        ) as any)
+      : userCompanyIds
   );
 
   // Determine companyId for the query
@@ -232,8 +251,8 @@ export default function Home() {
 
       <div className="space-y-6">
         <div className="grid grid-cols-12 gap-4 md:gap-6 items-end">
-          {/* Company selector for super admin */}
-          {isSuperAdmin && (
+          {/* Company selector for super admin or users with multiple companies */}
+          {showCompanySelector && (
             <div className="col-span-12 sm:col-span-6 md:col-span-4 lg:col-span-3">
               <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
                 Company
