@@ -45,7 +45,6 @@ const makeId = () => `p_${Math.random().toString(36).slice(2, 9)}`;
 function SortablePageItem({
   id,
   page,
-  index,
   isCollapsed,
   onToggleCollapse,
   onNameChange,
@@ -287,7 +286,6 @@ export default function ApplicantPagesSettings({
         setPageIds((prev) => arrayMove(prev, oldIndex, newIndex));
         setCollapsedPages((prev) => {
           const next = new Set(prev);
-          const moved = next.has(oldIndex);
           next.delete(oldIndex);
           next.delete(newIndex);
           const adjusted = new Set<number>();
