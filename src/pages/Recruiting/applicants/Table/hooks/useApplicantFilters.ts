@@ -2,7 +2,7 @@
 import { useMemo, useCallback } from 'react';
 import { sortApplicantsByDuplicatePriority, buildApplicantDuplicateLookup } from '../../../../../utils/applicantDuplicateSort';
 import { applyCustomFilters, getApplicantCompanyId } from '../utils/filterHelpers';
-import { normalizeGender } from '../utils/filterHelpers'; // ✅ Add this import
+import { normalizeGender } from '../utils/filterHelpers';
 
 interface UseApplicantFiltersProps {
   applicants: any[];
@@ -32,40 +32,47 @@ export function useApplicantFilters({
     return String(value ?? '').trim().toLowerCase();
   }, []);
 
+  const isTrashed = useCallback((status: string) => {
+    return normalizeStatus(status) === 'trashed';
+  }, [normalizeStatus]);
+
   // Helper function to apply column filters
   const applyColumnFilters = useCallback((data: any[]) => {
     let filtered = [...data];
     
-    // Apply company filter
-    let companyIds: string[] | null = null;
-    if (selectedCompanyFilterValue) {
-      if (Array.isArray(selectedCompanyFilterValue)) {
-        companyIds = selectedCompanyFilterValue;
-      } else if (typeof selectedCompanyFilterValue === 'string') {
-        companyIds = [selectedCompanyFilterValue];
-      }
-    } else {
-      const companyFilter = columnFilters.find((f: any) => f.id === 'companyId');
-      if (companyFilter?.value) {
-        companyIds = Array.isArray(companyFilter.value) ? companyFilter.value : [companyFilter.value];
-      }
-    }
+   const companyFilter = columnFilters.find((f: any) => f.id === 'companyId');
+const companyFilterValue = companyFilter?.value;
+const companyExcludeMode = companyFilter?.excludeMode || false;
+
+
+let companyIds: string[] | null = null;
+if (companyFilterValue) {
+  companyIds = Array.isArray(companyFilterValue) ? companyFilterValue : [companyFilterValue];
+} else if (selectedCompanyFilterValue) {
+  if (Array.isArray(selectedCompanyFilterValue)) {
+    companyIds = selectedCompanyFilterValue;
+  } else if (typeof selectedCompanyFilterValue === 'string') {
+    companyIds = [selectedCompanyFilterValue];
+  }
+}
+
+if (companyIds && companyIds.length > 0) {
+  filtered = filtered.filter((applicant: any) => {
+    const applicantCompanyId = getApplicantCompanyId(applicant, jobPositionMap);
+    const matches = applicantCompanyId && companyIds?.includes(applicantCompanyId);
+    const shouldInclude = companyExcludeMode ? !matches : matches;
     
-    if (companyIds && companyIds.length > 0) {
-      filtered = filtered.filter((applicant: any) => {
-        const applicantCompanyId = getApplicantCompanyId(applicant, jobPositionMap);
-        return applicantCompanyId && companyIds?.includes(applicantCompanyId);
-      });
+    if (!shouldInclude) {
     }
+    return shouldInclude;
+  });
+}
     
-    // Apply job position filter
+    // Apply job position filter with exclude mode support
     const jobFilter = columnFilters.find((f: any) => f.id === 'jobPositionId');
     const jobFilterValue = jobFilter?.value;
+    const jobExcludeMode = jobFilter?.excludeMode || false;
 
-    console.log('🔍 Job Filter Debug:');
-console.log('  - jobFilterValue:', jobFilterValue);
-console.log('  - Before job filter, count:', filtered.length);
-    
     if (jobFilterValue && (Array.isArray(jobFilterValue) ? jobFilterValue.length > 0 : true)) {
       const selectedJobIds = Array.isArray(jobFilterValue) ? jobFilterValue : [jobFilterValue];
       filtered = filtered.filter((applicant: any) => {
@@ -76,20 +83,23 @@ console.log('  - Before job filter, count:', filtered.length);
         } else if (jobPositionId && typeof jobPositionId === 'object') {
           applicantJobId = jobPositionId._id || jobPositionId.id || '';
         }
-        return selectedJobIds.includes(applicantJobId);
+        const isSelected = selectedJobIds.includes(applicantJobId);
+        return jobExcludeMode ? !isSelected : isSelected;
       });
     }
     
-    // Apply gender filter
+    // Apply gender filter with exclude mode support
     const genderFilter = columnFilters.find((f: any) => f.id === 'gender');
     const genderFilterValue = genderFilter?.value;
+    const genderExcludeMode = genderFilter?.excludeMode || false;
     
     if (genderFilterValue && (Array.isArray(genderFilterValue) ? genderFilterValue.length > 0 : true)) {
       const selectedGenders = Array.isArray(genderFilterValue) ? genderFilterValue : [genderFilterValue];
       filtered = filtered.filter((applicant: any) => {
         const rawGender = applicant?.gender || applicant?.customResponses?.gender || applicant?.customResponses?.['النوع'] || (applicant as any)['النوع'] || '';
-        const normalizedGenderValue = normalizeGender(rawGender); // ✅ Fixed variable name
-        return selectedGenders.includes(normalizedGenderValue);
+        const normalizedGenderValue = normalizeGender(rawGender);
+        const matches = selectedGenders.includes(normalizedGenderValue);
+        return genderExcludeMode ? !matches : matches;
       });
     }
     
@@ -99,41 +109,64 @@ console.log('  - Before job filter, count:', filtered.length);
         .map(normalizeStatus)
         .filter(Boolean);
       filtered = filtered.filter((a: any) => allowed.includes(normalizeStatus(a.status)));
+      // Also exclude trashed in revert mode
+      if (Array.isArray(effectiveOnlyStatus) ? effectiveOnlyStatus.includes('trashed') : effectiveOnlyStatus === 'trashed') {
+        // If showing trashed, don't filter them out
+      } else {
+        filtered = filtered.filter((a: any) => !isTrashed(a.status));
+      }
       return filtered;
     }
     
-    // Apply status column filter
+    // Apply status column filter with exclude mode support
     const statusFilter = columnFilters.find((f: any) => f.id === 'status');
     const statusVal = statusFilter?.value;
+    const statusExcludeMode = statusFilter?.excludeMode || false;
 
     if (isSuperAdmin) {
       if (normalizeStatus(statusVal) === 'trashed') return filtered;
       if (Array.isArray(statusVal) && statusVal.length > 0) {
         const allowed = statusVal.map(normalizeStatus).filter(Boolean);
-        filtered = filtered.filter((a: any) => allowed.includes(normalizeStatus(a.status)));
+        filtered = filtered.filter((a: any) => {
+          const matches = allowed.includes(normalizeStatus(a.status));
+          // In revert mode, exclude trashed status
+          if (statusExcludeMode && isTrashed(a.status)) {
+            return false;
+          }
+          return statusExcludeMode ? !matches : matches;
+        });
         return filtered;
       }
-      filtered = filtered.filter((a: any) => normalizeStatus(a.status) !== 'trashed');
+      // When no status selected, exclude trashed in both modes
+      filtered = filtered.filter((a: any) => !isTrashed(a.status));
       return filtered;
     }
 
+    // For non-super admin users
     if (Array.isArray(statusVal) && statusVal.length > 0) {
       const allowed = statusVal.map(normalizeStatus).filter((s: string) => s !== 'trashed');
       if (allowed.length === 0) {
-        filtered = filtered.filter((a: any) => normalizeStatus(a.status) !== 'trashed');
+        filtered = filtered.filter((a: any) => !isTrashed(a.status));
         return filtered;
       }
-      filtered = filtered.filter(
-        (a: any) => allowed.includes(normalizeStatus(a.status)) && normalizeStatus(a.status) !== 'trashed'
-      );
+      filtered = filtered.filter((a: any) => {
+        const matches = allowed.includes(normalizeStatus(a.status));
+        const notTrashed = !isTrashed(a.status);
+        // In revert mode, exclude trashed status
+        if (statusExcludeMode && isTrashed(a.status)) {
+          return false;
+        }
+        return statusExcludeMode ? (!matches && notTrashed) : (matches && notTrashed);
+      });
       return filtered;
     }
 
-    filtered = filtered.filter((a: any) => normalizeStatus(a.status) !== 'trashed');
+    // Default: always exclude trashed
+    filtered = filtered.filter((a: any) => !isTrashed(a.status));
     return filtered;
-  }, [columnFilters, isSuperAdmin, effectiveOnlyStatus, selectedCompanyFilterValue, jobPositionMap, normalizeStatus]);
+  }, [columnFilters, isSuperAdmin, effectiveOnlyStatus, selectedCompanyFilterValue, jobPositionMap, normalizeStatus, isTrashed]);
 
-  // Get filtered data based on column filters (including submittedAt)
+  // Get filtered data based on column filters
   const columnFilteredApplicants = useMemo(() => {
     return applyColumnFilters(applicants);
   }, [applicants, applyColumnFilters]);
@@ -191,7 +224,6 @@ console.log('  - Before job filter, count:', filtered.length);
 
   // Get status filter options
   const statusFilterOptions = useMemo(() => {
-    // Collect original casing from actual data
     const uniqueStatuses = Array.from(
       new Map(
         applicants
@@ -205,7 +237,6 @@ console.log('  - Before job filter, count:', filtered.length);
     const inDefault = uniqueStatuses.filter(s => defaultOrderKeys.includes(s.toLowerCase()));
     const outDefault = uniqueStatuses.filter(s => !defaultOrderKeys.includes(s.toLowerCase()));
 
-    // Sort default ones by their defined order, then append the rest alphabetically
     const sorted = [
       ...defaultOrderKeys
         .map(key => inDefault.find(s => s.toLowerCase() === key))
@@ -255,7 +286,7 @@ console.log('  - Before job filter, count:', filtered.length);
     return descriptions[status?.toLowerCase()] || '';
   }, []);
 
-  // Fix: Get the current company IDs from the filter
+  // Get the current company IDs from the filter
   const currentCompanyIds = useMemo(() => {
     if (selectedCompanyFilterValue) {
       if (Array.isArray(selectedCompanyFilterValue)) {
@@ -274,10 +305,10 @@ console.log('  - Before job filter, count:', filtered.length);
   return {
     filteredApplicants,
     duplicatesOnlyEnabled,
-    columnFilteredApplicants, // Return this if needed elsewhere
+    columnFilteredApplicants,
     statusFilterOptions,
     getStatusColor,
     getDescription,
-    selectedCompanyFilter: currentCompanyIds, // ✅ Fixed: use currentCompanyIds
+    selectedCompanyFilter: currentCompanyIds,
   };
 }

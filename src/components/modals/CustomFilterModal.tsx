@@ -462,12 +462,15 @@ const CustomFilterModal: React.FC<Props> = ({
     // Ensure observed range is non-negative (salaries shouldn't be negative)
     let observedMin = validEntries.length ? validEntries[0].n : 0;
     let observedMax = validEntries.length ? Math.max(observedMin, validEntries[validEntries.length - 1].n) : observedMin + 1000;
+    // Cap max at 100000 as requested
+    observedMax = Math.min(observedMax, 100000);
     // Log lowest value and its applicant id for debugging
     if (validEntries.length) {
       try {
       } catch (e) { /* ignore */ }
     }
     if (observedMax <= observedMin) observedMax = observedMin + Math.max(100, Math.abs(observedMin || 1000));
+    observedMax = Math.min(observedMax, 100000);
 
     const rawSelMin = (existing.value && (existing.value.min !== undefined && existing.value.min !== '')) ? Number(existing.value.min) : observedMin;
     const rawSelMax = (existing.value && (existing.value.max !== undefined && existing.value.max !== '')) ? Number(existing.value.max) : observedMax;

@@ -318,12 +318,32 @@ export function extractYear(dateValue: any): number | null {
   if (!s) return null;
   s = normalizeDigits(s);
   
+  // Try ISO format YYYY-MM-DD or YYYY/MM/DD
+  let m = s.match(/^(19|20)\d{2}[-\/](\d{1,2})[-\/](\d{1,2})/);
+  if (m) return Number(m[0].slice(0, 4));
+  
+  // Try DD/MM/YYYY or DD-MM-YYYY
+  m = s.match(/^(\d{1,2})[-\/](\d{1,2})[-\/]((19|20)\d{2})/);
+  if (m) return Number(m[3]);
+  
+  // Try MM/DD/YYYY or MM-DD-YYYY
+  m = s.match(/^(\d{1,2})[-\/](\d{1,2})[-\/]((19|20)\d{2})/);
+  if (m && Number(m[1]) > 12) {
+    // If first part > 12, it's likely DD/MM/YYYY
+    return Number(m[3]);
+  }
+  if (m && Number(m[1]) <= 12) {
+    // Could be MM/DD/YYYY
+    return Number(m[3]);
+  }
+  
   try {
     const d = new Date(s);
     if (!isNaN(d.getTime())) return d.getFullYear();
   } catch { /* ignore */ }
   
-  const m = s.match(/(19|20)\d{2}/);
+  // Fallback: find any 4-digit year in the string
+  m = s.match(/(19|20)\d{2}/);
   if (m) return Number(m[0]);
   
   return null;
@@ -409,7 +429,8 @@ export function evaluateBirthYearFilter(value: any, filterValue: { year: number;
   if (!filterValue?.year) return true;
   
   const year = extractYear(value);
-  if (!year) return false;
+  // If no birthdate found, include the applicant (don't filter them out)
+  if (!year) return true;
   
   if (filterValue.mode === 'before') {
     return year < filterValue.year;
@@ -450,7 +471,13 @@ export function applyCustomFilters(
           raw = (applicant as ExtendedApplicant)?.birthdate ||
             (applicant as ExtendedApplicant)?.dateOfBirth ||
             (applicant as ExtendedApplicant)?.dob ||
+            (applicant as ExtendedApplicant)?.birthDate ||
+            (applicant as ExtendedApplicant)?.birth_date ||
+            (applicant as ExtendedApplicant)?.date_of_birth ||
             applicant?.customResponses?.birthdate ||
+            applicant?.customResponses?.birthDate ||
+            applicant?.customResponses?.birth_date ||
+            applicant?.customResponses?.date_of_birth ||
             applicant?.customResponses?.['تarih'] ||
             applicant?.customResponses?.['تاريخ الميلاد'] ||
             raw || '';
@@ -462,6 +489,10 @@ export function applyCustomFilters(
         
         if (filter.fieldId === '__has_cv') {
           raw = hasCV(applicant);
+        }
+
+        if (filter.fieldId === '__expectedSalary') {
+          raw = applicant?.expectedSalary ?? applicant?.expected_salary ?? applicant?.salaryExpectation ?? applicant?.desiredSalary ?? raw ?? '';
         }
         
         // Boolean presence filters

@@ -569,6 +569,7 @@ export default function Applicants({
     if (isSuperAdminRole) return undefined;
     return userCompanyId?.length ? userCompanyId : undefined;
   }, [companyIdOverride, user]);
+const [excludeModes, setExcludeModes] = useState<Record<string, boolean>>({});
 
   const [offerModalOpen, setOfferModalOpen] = useState(false);
   const [contractModalOpen, setContractModalOpen] = useState(false);
@@ -946,10 +947,7 @@ const jobOptions = useMemo(() => {
     }
     return undefined;
   }, [columnFilters]);
-useEffect(() => {
-  console.log('Current columnFilters:', columnFilters);
-  console.log('Gender filter value:', columnFilters.find((f: any) => f.id === 'gender'));
-}, [columnFilters]);
+
   const {
     filteredApplicants,
     duplicatesOnlyEnabled,
@@ -1590,11 +1588,7 @@ useEffect(() => {
       day: 'numeric',
     });
   }, []);
-  useEffect(() => {
-  console.log('Selected Company IDs:', selectedCompanyIdsForJobs);
-  console.log('Filtered Job Options:', filteredJobOptions);
-  console.log('All Job Options:', jobOptions);
-}, [selectedCompanyIdsForJobs, filteredJobOptions, jobOptions]);
+
 
   const downloadCvForApplicant = useCallback(async (a: any) => {
     if (!a)
@@ -2017,8 +2011,8 @@ useEffect(() => {
   enableColumnFilter: true,
   enableSorting: true,
   Header: ({ column }: { column: any }) => {
-    // Get current gender filter value from columnFilters state
     const genderFilterValue = columnFilters.find((f: any) => f.id === 'gender')?.value;
+    const excludeMode = excludeModes['gender'] || false;
     
     return (
       <ColumnMultiSelectHeader
@@ -2029,13 +2023,17 @@ useEffect(() => {
         menuWidth={200}
         menuMaxHeight={240}
         currentFilterValue={genderFilterValue}
-        onFilterChange={(columnId: string, value: string[] | undefined) => {
+        excludeMode={excludeMode}
+        onFilterChange={(columnId: string, value: string[] | undefined, newExcludeMode?: boolean) => {
+          if (newExcludeMode !== undefined) {
+            setExcludeModes(prev => ({ ...prev, [columnId]: newExcludeMode }));
+          }
           setColumnFilters((prev: any[]) => {
             const without = prev.filter((f) => f.id !== columnId);
             if (!value || value.length === 0) {
               return without;
             }
-            return [...without, { id: columnId, value }];
+            return [...without, { id: columnId, value, excludeMode: newExcludeMode ?? excludeMode }];
           });
         }}
       />
@@ -2064,68 +2062,71 @@ useEffect(() => {
 },
       ...(showCompanyColumn
         ? [
-            {
-              id: 'companyId',
-              header: 'Company',
-              size: columnSizeConfig.companyId,
-              enableColumnFilter: false,
-              enableSorting: true,
-              accessorFn: (row: any) =>
-                getApplicantCompanyId(row, jobPositionMap),
-              Header: ({ column }: { column: any }) => {
-                const companyFilter = columnFilters.find((f: any) => f.id === 'companyId');
-                return (
-                  <ColumnMultiSelectHeader
-                    column={column}
-                    label="Company"
-                    options={companyOptions}
-                    isLaptopViewport={isLaptopViewport}
-                    menuWidth={240}
-                    menuMaxHeight={300}
-                    currentFilterValue={companyFilter?.value}
-                    onFilterChange={(columnId, value) => {
-  console.log('Filter change:', columnId, value); // Add this for debugging
-  setColumnFilters((prev: any[]) => {
-    const without = prev.filter((f) => f.id !== columnId);
-    if (!value || (Array.isArray(value) && value.length === 0)) {
-      console.log('Removing filter for:', columnId);
-      return without;
-    }
-    console.log('Setting filter for:', columnId, value);
-    return [...without, { id: columnId, value }];
-  });
-}}
-                  />
-                );
-              },
-              filterFn: (row: any, columnId: string, filterValue: any) => {
-                if (!filterValue) return true;
-                const vals = Array.isArray(filterValue)
-                  ? filterValue
-                  : [filterValue];
-                if (!vals.length) return true;
-                const cell = String(row.getValue(columnId) ?? '');
-                return vals.includes(cell);
-              },
-              Cell: ({ row }: { row: { original: any } }) => {
-                if (isTableLoading) return renderCellSkeleton('text');
-                const cId = getApplicantCompanyId(row.original, jobPositionMap);
-                const company = companyMap[cId || ''];
-                return (
-                  <a
-                    href={getApplicantHref(row)}
-                    className="text-inherit no-underline hover:no-underline"
-                    onClick={(e) => handleApplicantLinkClick(e, row)}
-                    onAuxClick={handleApplicantLinkAuxClick}
-                  >
-                    {toPlainString(company?.name) || company?.title || 'N/A'}
-                  </a>
-                );
-              },
-            },
+          {
+  id: 'companyId',
+  header: 'Company',
+  size: columnSizeConfig.companyId,
+  enableColumnFilter: false,
+  enableSorting: true,
+  accessorFn: (row: any) =>
+    getApplicantCompanyId(row, jobPositionMap),
+  Header: ({ column }: { column: any }) => {
+    const companyFilter = columnFilters.find((f: any) => f.id === 'companyId');
+    const excludeMode = excludeModes['companyId'] || false;
+    
+    return (
+      <ColumnMultiSelectHeader
+        column={column}
+        label="Company"
+        options={companyOptions}
+        isLaptopViewport={isLaptopViewport}
+        menuWidth={240}
+        menuMaxHeight={300}
+        currentFilterValue={companyFilter?.value}
+        excludeMode={excludeMode}
+        onFilterChange={(columnId: string, value: string[] | undefined, newExcludeMode?: boolean) => {
+          if (newExcludeMode !== undefined) {
+            setExcludeModes(prev => ({ ...prev, [columnId]: newExcludeMode }));
+          }
+          setColumnFilters((prev: any[]) => {
+            const without = prev.filter((f) => f.id !== columnId);
+            if (!value || (Array.isArray(value) && value.length === 0)) {
+              return without;
+            }
+            return [...without, { id: columnId, value, excludeMode: newExcludeMode ?? excludeMode }];
+          });
+        }}
+      />
+    );
+  },
+  filterFn: (row: any, columnId: string, filterValue: any) => {
+    if (!filterValue) return true;
+    const vals = Array.isArray(filterValue)
+      ? filterValue
+      : [filterValue];
+    if (!vals.length) return true;
+    const cell = String(row.getValue(columnId) ?? '');
+    return vals.includes(cell);
+  },
+  Cell: ({ row }: { row: { original: any } }) => {
+    if (isTableLoading) return renderCellSkeleton('text');
+    const cId = getApplicantCompanyId(row.original, jobPositionMap);
+    const company = companyMap[cId || ''];
+    return (
+      <a
+        href={getApplicantHref(row)}
+        className="text-inherit no-underline hover:no-underline"
+        onClick={(e) => handleApplicantLinkClick(e, row)}
+        onAuxClick={handleApplicantLinkAuxClick}
+      >
+        {toPlainString(company?.name) || company?.title || 'N/A'}
+      </a>
+    );
+  },
+},
           ]
         : []),
-      {
+     {
   id: 'jobPositionId',
   header: isLaptopViewport ? 'Job' : 'Job Position',
   enableSorting: true,
@@ -2137,6 +2138,8 @@ useEffect(() => {
   },
   Header: ({ column }: { column: any }) => {
     const jobFilter = columnFilters.find((f: any) => f.id === 'jobPositionId');
+    const currentExcludeMode = jobFilter?.excludeMode || false;
+    
     return (
       <ColumnMultiSelectHeader
         column={column}
@@ -2146,13 +2149,29 @@ useEffect(() => {
         menuWidth={260}
         menuMaxHeight={280}
         currentFilterValue={jobFilter?.value}
-        onFilterChange={(columnId, value) => {
+        excludeMode={currentExcludeMode}
+        onFilterChange={(columnId: string, value: string[] | undefined, newExcludeMode?: boolean) => {
+          
           setColumnFilters((prev: any[]) => {
             const without = prev.filter((f) => f.id !== columnId);
-            if (!value || (Array.isArray(value) && value.length === 0)) {
+            
+            // If no value and no exclude mode, remove filter
+            if ((!value || (Array.isArray(value) && value.length === 0)) && !newExcludeMode) {
               return without;
             }
-            return [...without, { id: columnId, value }];
+            
+            // Create new filter object
+            const newFilter: any = { id: columnId };
+            if (value && value.length > 0) {
+              newFilter.value = value;
+            }
+            if (newExcludeMode !== undefined) {
+              newFilter.excludeMode = newExcludeMode;
+            } else if (currentExcludeMode) {
+              newFilter.excludeMode = currentExcludeMode;
+            }
+            
+            return [...without, newFilter];
           });
         }}
       />
@@ -2259,144 +2278,165 @@ useEffect(() => {
           );
         },
       },
-      {
-        accessorKey: 'status',
-        header: 'Status',
-        enableSorting: true,
-        Header: ({ column }: { column: any }) => {
-          if (
-            effectiveOnlyStatus !== undefined &&
-            effectiveOnlyStatus !== null
-          ) {
-            return <span className="text-sm font-medium">Status</span>;
+    {
+  accessorKey: 'status',
+  header: 'Status',
+  enableSorting: true,
+  Header: ({ column }: { column: any }) => {
+    if (effectiveOnlyStatus !== undefined && effectiveOnlyStatus !== null) {
+      return <span className="text-sm font-medium">Status</span>;
+    }
+    const statusFilterValue = columnFilters.find((f: any) => f.id === 'status')?.value;
+    const excludeMode = excludeModes['status'] || false;
+    
+    return (
+      <div onClick={(e) => e.stopPropagation()}>
+        <ColumnMultiSelectHeader
+          column={column}
+          label="Status"
+          options={statusFilterOptions}
+          isLaptopViewport={isLaptopViewport}
+          menuWidth={220}
+          menuMaxHeight={240}
+          currentFilterValue={statusFilterValue}
+          excludeMode={excludeMode}
+          onFilterChange={(columnId: string, value: string[] | undefined, newExcludeMode?: boolean) => {
+            if (newExcludeMode !== undefined) {
+              setExcludeModes(prev => ({ ...prev, [columnId]: newExcludeMode }));
+            }
+            setColumnFilters((prev: any[]) => {
+              const without = prev.filter((f) => f.id !== columnId);
+              if (!value) return without;
+              return [...without, { id: columnId, value, excludeMode: newExcludeMode ?? excludeMode }];
+            });
+          }}
+        />
+      </div>
+    );
+  },
+  filterFn: (row: any, columnId: string, filterValue: any) => {
+    if (!filterValue) return true;
+    const vals = Array.isArray(filterValue) ? filterValue : [filterValue];
+    if (!vals.length) return true;
+    const cell = String(row.getValue(columnId) ?? '');
+    return vals.includes(cell);
+  },
+  size: columnSizeConfig.status,
+  enableColumnFilter: false,
+  Cell: ({ row }: { row: { original: any } }) => {
+    if (isTableLoading) return renderCellSkeleton('text', '80px');
+
+    const applicantCompanyId = getApplicantCompanyId(
+      row.original,
+      jobPositionMap
+    );
+
+    return (
+      <a
+        href={getApplicantHref(row)}
+        className="text-inherit no-underline hover:no-underline"
+        title={row.original.status ?? ''}
+        onClick={(e) => handleApplicantLinkClick(e, row)}
+        onAuxClick={handleApplicantLinkAuxClick}
+      >
+        <StatusCell
+          status={row.original.status}
+          showTooltip
+          selectedCompanyFilter={selectedCompanyFilter}
+          companyId={applicantCompanyId}
+          allCompanies={allCompaniesRaw}
+          applicant={row.original}
+        />
+      </a>
+    );
+  },
+},
+     {
+  id: 'rejectionReasons',
+  header: 'Reasons',
+  enableSorting: true,
+  enableColumnFilter: true,
+  size: 260,
+  accessorFn: (row: any) => extractRejectionReasons(row),
+  sortingFn: (rowA: any, rowB: any, columnId: string) => {
+    const reasonsA = rowA.getValue(columnId) as string[];
+    const reasonsB = rowB.getValue(columnId) as string[];
+    const a = reasonsA.length;
+    const b = reasonsB.length;
+    if (a === b) return 0;
+    return a > b ? 1 : -1;
+  },
+  filterFn: (row: any, columnId: string, filterValue: any) => {
+    if (!filterValue) return true;
+    const selectedReasons = Array.isArray(filterValue)
+      ? filterValue
+      : [filterValue];
+    if (selectedReasons.length === 0) return true;
+
+    const applicantReasons = row.getValue(columnId) as string[];
+
+    return selectedReasons.some((selectedReason) =>
+      applicantReasons.some(
+        (applicantReason) =>
+          applicantReason
+            .toLowerCase()
+            .includes(selectedReason.toLowerCase()) ||
+          selectedReason
+            .toLowerCase()
+            .includes(applicantReason.toLowerCase())
+      )
+    );
+  },
+  Header: ({ column }: { column: any }) => {
+    const reasonsFilterValue = columnFilters.find((f: any) => f.id === 'rejectionReasons')?.value;
+    const excludeMode = excludeModes['rejectionReasons'] || false;
+    
+    return (
+      <ColumnMultiSelectHeader
+        column={column}
+        label="Reasons"
+        options={rejectionReasonsOptions}
+        isLaptopViewport={isLaptopViewport}
+        menuWidth={260}
+        menuMaxHeight={320}
+        currentFilterValue={reasonsFilterValue}
+        excludeMode={excludeMode}
+        onFilterChange={(columnId: string, value: string[] | undefined, newExcludeMode?: boolean) => {
+          if (newExcludeMode !== undefined) {
+            setExcludeModes(prev => ({ ...prev, [columnId]: newExcludeMode }));
           }
-          return (
-          <div onClick={(e) => e.stopPropagation()}>
-            <ColumnMultiSelectHeader
-              column={column}
-              label="Status"
-              options={statusFilterOptions}
-              isLaptopViewport={isLaptopViewport}
-              menuWidth={220}
-              menuMaxHeight={240}
-              currentFilterValue={columnFilters.find((f: any) => f.id === 'status')?.value}
-              onFilterChange={(columnId, value) => {
-                setColumnFilters((prev: any[]) => {
-                  const without = prev.filter((f) => f.id !== columnId);
-                  if (!value) return without;
-                  return [...without, { id: columnId, value }];
-                });
-              }}
-            />
-          </div>
-          );
-        },
-        filterFn: (row: any, columnId: string, filterValue: any) => {
-          if (!filterValue) return true;
-          const vals = Array.isArray(filterValue) ? filterValue : [filterValue];
-          if (!vals.length) return true;
-          const cell = String(row.getValue(columnId) ?? '');
-          return vals.includes(cell);
-        },
-        size: columnSizeConfig.status,
-        enableColumnFilter: false,
-        Cell: ({ row }: { row: { original: any } }) => {
-          if (isTableLoading) return renderCellSkeleton('text', '80px');
+          setColumnFilters((prev: any[]) => {
+            const without = prev.filter((f) => f.id !== columnId);
+            if (!value) return without;
+            return [...without, { id: columnId, value, excludeMode: newExcludeMode ?? excludeMode }];
+          });
+        }}
+      />
+    );
+  },
+  Cell: ({ row }: { row: { original: any } }) => {
+    if (isTableLoading) return renderCellSkeleton('text');
+    const a = row.original || {};
+    const reasons = extractRejectionReasons(a);
 
-          const applicantCompanyId = getApplicantCompanyId(
-            row.original,
-            jobPositionMap
-          );
+    if (!reasons || reasons.length === 0) {
+      return <span className="text-sm text-gray-500">-</span>;
+    }
 
-          return (
-            <a
-              href={getApplicantHref(row)}
-              className="text-inherit no-underline hover:no-underline"
-              title={row.original.status ?? ''}
-              onClick={(e) => handleApplicantLinkClick(e, row)}
-              onAuxClick={handleApplicantLinkAuxClick}
-            >
-              <StatusCell
-                status={row.original.status}
-                showTooltip
-                selectedCompanyFilter={selectedCompanyFilter}
-                companyId={applicantCompanyId}
-                allCompanies={allCompaniesRaw}
-                applicant={row.original}
-              />
-            </a>
-          );
-        },
-      },
-      {
-        id: 'rejectionReasons',
-        header: 'Reasons',
-        enableSorting: true,
-        enableColumnFilter: true,
-        size: 260,
-        accessorFn: (row: any) => extractRejectionReasons(row),
-        sortingFn: (rowA: any, rowB: any, columnId: string) => {
-          const reasonsA = rowA.getValue(columnId) as string[];
-          const reasonsB = rowB.getValue(columnId) as string[];
-          const a = reasonsA.length;
-          const b = reasonsB.length;
-          if (a === b) return 0;
-          return a > b ? 1 : -1;
-        },
-        filterFn: (row: any, columnId: string, filterValue: any) => {
-          if (!filterValue) return true;
-          const selectedReasons = Array.isArray(filterValue)
-            ? filterValue
-            : [filterValue];
-          if (selectedReasons.length === 0) return true;
-
-          const applicantReasons = row.getValue(columnId) as string[];
-
-          return selectedReasons.some((selectedReason) =>
-            applicantReasons.some(
-              (applicantReason) =>
-                applicantReason
-                  .toLowerCase()
-                  .includes(selectedReason.toLowerCase()) ||
-                selectedReason
-                  .toLowerCase()
-                  .includes(applicantReason.toLowerCase())
-            )
-          );
-        },
-        Header: ({ column }: { column: any }) => (
-          <ColumnMultiSelectHeader
-            column={column}
-            label="Reasons"
-            options={rejectionReasonsOptions}
-            isLaptopViewport={isLaptopViewport}
-            menuWidth={260}
-            menuMaxHeight={320}
-          />
-        ),
-        Cell: ({ row }: { row: { original: any } }) => {
-          if (isTableLoading) return renderCellSkeleton('text');
-          const a = row.original || {};
-          const reasons = extractRejectionReasons(a);
-
-          if (!reasons || reasons.length === 0) {
-            return <span className="text-sm text-gray-500">-</span>;
-          }
-
-          return (
-            <div className="flex flex-wrap gap-1">
-              {reasons.map((r: string, i: number) => (
-                <span
-                  key={i}
-                  className="inline-block rounded-full bg-brand-50 px-2 py-0.5 text-xs text-brand-700"
-                >
-                  {r}
-                </span>
-              ))}
-            </div>
-          );
-        },
-      },
+    return (
+      <div className="flex flex-wrap gap-1">
+        {reasons.map((r: string, i: number) => (
+          <span
+            key={i}
+            className="inline-block rounded-full bg-brand-50 px-2 py-0.5 text-xs text-brand-700"
+          >
+            {r}
+          </span>
+        ))}
+      </div>
+    );
+  },
+},
       {
         accessorKey: 'submittedAt',
         header: 'Submitted',
@@ -2527,6 +2567,7 @@ useEffect(() => {
       statusFilterOptions,
       filteredJobOptions,
       effectiveOnlyStatus,
+      excludeModes,
       columnFilters,
       formatDate,
       getExpectedSalaryDisplay,
