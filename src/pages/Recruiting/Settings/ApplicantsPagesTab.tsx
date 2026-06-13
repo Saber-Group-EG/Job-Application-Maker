@@ -1,6 +1,6 @@
 // components/settings/ApplicantPagesSettings.tsx
-import { useState, useEffect, useMemo } from 'react';
-import { PlusCircle, Save, Trash2, ArrowRight, Layout } from 'lucide-react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { PlusCircle, Save, Trash2, ArrowRight, Layout, ChevronDown, ChevronRight, GripVertical } from 'lucide-react';
 import Swal from '../../../utils/swal';
 import { useAuth } from '../../../context/AuthContext';
 import {
@@ -9,6 +9,23 @@ import {
 } from '../../../hooks/queries/useCompanies';
 import PageMeta from '../../../components/common/PageMeta';
 import PageBreadCrumb from '../../../components/common/PageBreadCrumb';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 type ApplicantPage = {
   _id?: string;
@@ -23,6 +40,139 @@ type Props = {
 };
 
 const makeId = () => `p_${Math.random().toString(36).slice(2, 9)}`;
+
+// Sortable Page Item Component
+function SortablePageItem({
+  id,
+  page,
+  index,
+  isCollapsed,
+  onToggleCollapse,
+  onNameChange,
+  onToggleStatus,
+  onRemove,
+  availableStatuses,
+  canEdit,
+}: {
+  id: string;
+  page: ApplicantPage;
+  index: number;
+  isCollapsed: boolean;
+  onToggleCollapse: () => void;
+  onNameChange: (value: string) => void;
+  onToggleStatus: (statusName: string) => void;
+  onRemove: () => void;
+  availableStatuses: string[];
+  canEdit: boolean;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    isDragging,
+  } = useSortable({ 
+    id,
+    disabled: !canEdit,
+  });
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    transition: isDragging ? 'none' : 'transform 200ms cubic-bezier(0.2, 0, 0, 1)',
+    opacity: isDragging ? 0.4 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`rounded-xl border transition-all duration-200 ${
+        isDragging ? 'shadow-lg ring-2 ring-brand-500 bg-white dark:bg-slate-800' : 'border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/60'
+      }`}
+    >
+      <button
+        type="button"
+        onClick={onToggleCollapse}
+        className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-slate-100 dark:hover:bg-slate-800"
+      >
+        {isCollapsed ? (
+          <ChevronRight className="size-4 shrink-0 text-slate-400" />
+        ) : (
+          <ChevronDown className="size-4 shrink-0 text-slate-400" />
+        )}
+        <div
+          {...attributes}
+          {...listeners}
+          className={`flex cursor-grab items-center justify-center rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-600 active:cursor-grabbing dark:hover:bg-slate-700 dark:hover:text-slate-300 ${
+            !canEdit ? "cursor-not-allowed opacity-50" : ""
+          }`}
+        >
+          <GripVertical className="size-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Page Name
+          </label>
+          <input
+            value={page.name}
+            onChange={(e) => onNameChange(e.target.value)}
+            disabled={!canEdit}
+            placeholder="e.g. Active Pipeline, Shortlisted..."
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900"
+          />
+        </div>
+        <span className="shrink-0 text-xs text-slate-400">
+          {page.statuses.length} status{page.statuses.length !== 1 ? 'es' : ''}
+        </span>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove();
+          }}
+          disabled={!canEdit}
+          className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300"
+        >
+          <Trash2 className="size-4" /> Remove
+        </button>
+      </button>
+
+      {!isCollapsed && (
+        <div className="border-t border-slate-200 p-4 dark:border-slate-700">
+          <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Statuses included in this page
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {availableStatuses.map((statusName) => {
+              const selected = page.statuses.includes(statusName);
+              return (
+                <button
+                  key={statusName}
+                  type="button"
+                  onClick={() => canEdit && onToggleStatus(statusName)}
+                  disabled={!canEdit}
+                  className={`rounded-full px-3 py-1 text-sm font-medium transition ${
+                    selected
+                      ? 'bg-brand-500 text-white'
+                      : 'border border-slate-300 bg-white text-slate-600 hover:border-brand-300 hover:text-brand-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
+                  } disabled:cursor-not-allowed disabled:opacity-60`}
+                >
+                  {statusName}
+                </button>
+              );
+            })}
+          </div>
+          {page.statuses.length > 0 && (
+            <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+              {page.statuses.length} status{page.statuses.length > 1 ? 'es' : ''} selected: {' '}
+              {page.statuses.join(', ')}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function ApplicantPagesSettings({
   companyId,
@@ -91,6 +241,8 @@ export default function ApplicantPagesSettings({
   const [pageIds, setPageIds] = useState<string[]>([]);
   const [originalJson, setOriginalJson] = useState('[]');
   const [isSaving, setIsSaving] = useState(false);
+  const [collapsedPages, setCollapsedPages] = useState<Set<number>>(new Set());
+  const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const raw = selectedCompany?.settings?.applicantPages ?? [];
@@ -111,14 +263,85 @@ export default function ApplicantPagesSettings({
     [pages, originalJson]
   );
 
-  const addPage = () => {
-    setPages((prev) => [...prev, { name: '', statuses: [] }]);
-    setPageIds((prev) => [...prev, makeId()]);
+  // Set up sensors for drag and drop
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (over && active.id !== over.id) {
+      const oldIndex = pageIds.findIndex((id) => id === active.id);
+      const newIndex = pageIds.findIndex((id) => id === over.id);
+      
+      if (oldIndex !== -1 && newIndex !== -1) {
+        setPages((prev) => arrayMove(prev, oldIndex, newIndex));
+        setPageIds((prev) => arrayMove(prev, oldIndex, newIndex));
+        setCollapsedPages((prev) => {
+          const next = new Set(prev);
+          const moved = next.has(oldIndex);
+          next.delete(oldIndex);
+          next.delete(newIndex);
+          const adjusted = new Set<number>();
+          prev.forEach((val, idx) => {
+            let newIdx = idx;
+            if (idx === oldIndex) newIdx = newIndex;
+            else if (oldIndex < newIndex && idx > oldIndex && idx <= newIndex) newIdx = idx - 1;
+            else if (oldIndex > newIndex && idx >= newIndex && idx < oldIndex) newIdx = idx + 1;
+            if (val) adjusted.add(newIdx);
+          });
+          return adjusted;
+        });
+      }
+    }
+  }, [pageIds]);
+
+  const toggleCollapse = (index: number) => {
+    setCollapsedPages((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
   };
+
+  const addPage = useCallback(() => {
+    const newId = makeId();
+    setPages((prev) => [...prev, { name: '', statuses: [] }]);
+    setPageIds((prev) => [...prev, newId]);
+    setCollapsedPages((prev) => {
+      const next = new Set(prev);
+      // Expand the new page
+      return next;
+    });
+    
+    // Scroll to the new item after render
+    setTimeout(() => {
+      listRef.current?.lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 0);
+  }, []);
 
   const removePage = (index: number) => {
     setPages((prev) => prev.filter((_, i) => i !== index));
     setPageIds((prev) => prev.filter((_, i) => i !== index));
+    setCollapsedPages((prev) => {
+      const next = new Set(prev);
+      next.delete(index);
+      const adjusted = new Set<number>();
+      prev.forEach((val, idx) => {
+        if (idx > index && val) adjusted.add(idx - 1);
+        else if (idx < index && val) adjusted.add(idx);
+      });
+      return adjusted;
+    });
   };
 
   const handleNameChange = (index: number, value: string) => {
@@ -274,73 +497,37 @@ export default function ApplicantPagesSettings({
                 </p>
               </div>
             ) : (
-              <div className="space-y-4">
-                {pages.map((page, index) => (
-                  <div
-                    key={pageIds[index]}
-                    className="rounded-xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800/60"
-                  >
-                    <div className="mb-4 flex items-center gap-3">
-                      <div className="flex-1">
-                        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                          Page Name
-                        </label>
-                        <input
-                          value={page.name}
-                          onChange={(e) =>
-                            handleNameChange(index, e.target.value)
-                          }
-                          disabled={!canEdit}
-                          placeholder="e.g. Active Pipeline, Shortlisted..."
-                          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900"
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={pageIds}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div ref={listRef} className="space-y-4">
+                    {pages.map((page, index) => {
+                      const isCollapsed = collapsedPages.has(index);
+                      return (
+                        <SortablePageItem
+                          key={pageIds[index]}
+                          id={pageIds[index]}
+                          page={page}
+                          index={index}
+                          isCollapsed={isCollapsed}
+                          onToggleCollapse={() => toggleCollapse(index)}
+                          onNameChange={(value) => handleNameChange(index, value)}
+                          onToggleStatus={(statusName) => toggleStatus(index, statusName)}
+                          onRemove={() => removePage(index)}
+                          availableStatuses={availableStatuses}
+                          canEdit={canEdit}
                         />
-                      </div>
-                      <button
-                        onClick={() => removePage(index)}
-                        disabled={!canEdit}
-                        className="mt-5 inline-flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300"
-                      >
-                        <Trash2 className="size-4" /> Remove
-                      </button>
-                    </div>
-
-                    <div>
-                      <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        Statuses included in this page
-                      </label>
-                      <div className="flex flex-wrap gap-2">
-                        {availableStatuses.map((statusName) => {
-                          const selected = page.statuses.includes(statusName);
-                          return (
-                            <button
-                              key={statusName}
-                              type="button"
-                              onClick={() =>
-                                canEdit && toggleStatus(index, statusName)
-                              }
-                              disabled={!canEdit}
-                              className={`rounded-full px-3 py-1 text-sm font-medium transition ${
-                                selected
-                                  ? 'bg-brand-500 text-white'
-                                  : 'border border-slate-300 bg-white text-slate-600 hover:border-brand-300 hover:text-brand-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
-                              } disabled:cursor-not-allowed disabled:opacity-60`}
-                            >
-                              {statusName}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      {page.statuses.length > 0 && (
-                        <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                          {page.statuses.length} status
-                          {page.statuses.length > 1 ? 'es' : ''} selected:{' '}
-                          {page.statuses.join(', ')}
-                        </p>
-                      )}
-                    </div>
+                      );
+                    })}
                   </div>
-                ))}
-              </div>
+                </SortableContext>
+              </DndContext>
             )}
           </div>
         </div>

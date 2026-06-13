@@ -10,9 +10,11 @@ import {
   ShieldCheck,
   CircleCheckBig,
   Settings,
-  Mail, // Add this icon
+  Mail,
   Layout,
   FileText,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import Swal from '../../../utils/swal';
 import PageMeta from '../../../components/common/PageMeta';
@@ -141,6 +143,7 @@ export default function InterviewCompanySettingsPage() {
   const [choiceBuffers, setChoiceBuffers] = useState<Record<string, string>>(
     {}
   );
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<number>>(new Set());
   const [activeTab, setActiveTab] = useState<
     | 'interview-groups'
     | 'rejection-reasons'
@@ -177,7 +180,7 @@ export default function InterviewCompanySettingsPage() {
     enabled: !!selectedCompanyId && !isSuperAdmin,
   });
 
-  // In InterviewCompanySettingsPage.tsx
+  // Fixed: Use correct precedence with parentheses
   const derivedInterviewSettings = isSuperAdmin
     ? ((selectedCompany as any)?.settings?.interviewSettings ??
       (selectedCompany as any)?.interviewSettings ??
@@ -210,11 +213,11 @@ export default function InterviewCompanySettingsPage() {
 
   const addGroup = () => {
     setGroups((prev) => [
-      ...prev,
       {
         name: `Group ${prev.length + 1}`,
         questions: [{ ...EMPTY_QUESTION }],
       },
+      ...prev,
     ]);
   };
 
@@ -389,6 +392,7 @@ export default function InterviewCompanySettingsPage() {
       setIsSaving(false);
     }
   };
+
   if (!canRead) {
     return (
       <div className="min-h-screen bg-slate-50 px-4 py-10 dark:bg-slate-950">
@@ -531,7 +535,7 @@ export default function InterviewCompanySettingsPage() {
                 isContractsTab
                   ? 'bg-brand-500 text-white'
                   : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800'
-                }`}
+              }`}
             >
               <FileText className="size-4" /> Contract Templates
             </button>
@@ -583,7 +587,7 @@ export default function InterviewCompanySettingsPage() {
                 : 'hidden'
             }
           >
-            {showSelector && !isEmailTemplatesTab && isApplicantPagesTab && (
+            {showSelector && !isEmailTemplatesTab && (
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                 <div className="mb-4 flex items-center gap-3">
                   <div className="flex size-10 items-center justify-center rounded-lg bg-violet-500/10 text-violet-500">
@@ -610,8 +614,7 @@ export default function InterviewCompanySettingsPage() {
                   <ArrowRight className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 rotate-90 text-slate-400" />
                 </div>
                 <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-                  Change company context to configure another interview
-                  blueprint.
+                  Switch company context to manage settings for another company.
                 </p>
               </div>
             )}
@@ -669,246 +672,277 @@ export default function InterviewCompanySettingsPage() {
                     </div>
                   )}
 
-                  {groups.map((group, groupIndex) => (
-                    <div
-                      key={`group-${groupIndex}`}
-                      className="rounded-xl border border-slate-200 p-4 dark:border-slate-700"
-                    >
-                      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex-1">
-                          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                            Group Name
-                          </label>
-                          <input
-                            value={group.name}
-                            onChange={(e) =>
-                              updateGroupName(groupIndex, e.target.value)
-                            }
-                            disabled={!canEdit}
-                            placeholder="Technical Assessment"
-                            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-800"
-                          />
-                        </div>
+                  {groups.map((group, groupIndex) => {
+                    const isCollapsed = collapsedGroups.has(groupIndex);
+                    const toggleCollapse = () => {
+                      setCollapsedGroups((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(groupIndex)) {
+                          next.delete(groupIndex);
+                        } else {
+                          next.add(groupIndex);
+                        }
+                        return next;
+                      });
+                    };
 
+                    return (
+                      <div
+                        key={`group-${groupIndex}`}
+                        className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700"
+                      >
                         <button
                           type="button"
-                          onClick={() => removeGroup(groupIndex)}
-                          disabled={!canEdit}
-                          className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300"
+                          onClick={toggleCollapse}
+                          className="flex w-full items-center gap-3 bg-slate-50 px-4 py-3 text-left transition hover:bg-slate-100 dark:bg-slate-800/60 dark:hover:bg-slate-800"
                         >
-                          <Trash2 className="size-4" /> Remove Group
-                        </button>
-                      </div>
-
-                      <div className="space-y-3">
-                        {group.questions.map((question, questionIndex) => (
-                          <div
-                            key={`${groupIndex}-${questionIndex}`}
-                            className="grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/60 lg:grid-cols-[1fr_150px_130px_auto]"
+                          {isCollapsed ? (
+                            <ChevronRight className="size-4 shrink-0 text-slate-400" />
+                          ) : (
+                            <ChevronDown className="size-4 shrink-0 text-slate-400" />
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                              Group Name
+                            </label>
+                            <input
+                              value={group.name}
+                              onChange={(e) =>
+                                updateGroupName(groupIndex, e.target.value)
+                              }
+                              disabled={!canEdit}
+                              placeholder="Technical Assessment"
+                              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-800"
+                            />
+                          </div>
+                          <span className="shrink-0 text-xs text-slate-400">
+                            {group.questions.length} question{group.questions.length !== 1 ? 's' : ''}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeGroup(groupIndex);
+                            }}
+                            disabled={!canEdit}
+                            className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300"
                           >
-                            <div>
-                              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                Question
-                              </label>
-                              <input
-                                value={question.question}
-                                onChange={(e) =>
-                                  updateQuestion(groupIndex, questionIndex, {
-                                    question: e.target.value,
-                                  })
-                                }
-                                disabled={!canEdit}
-                                placeholder="Tell us about a complex challenge you solved"
-                                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900"
-                              />
-                            </div>
+                            <Trash2 className="size-4" /> Remove
+                          </button>
+                        </button>
 
-                            <div>
-                              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                Answer Type
-                              </label>
-                              <select
-                                value={question.answerType}
-                                onChange={(e) =>
-                                  updateQuestion(groupIndex, questionIndex, {
-                                    answerType: e.target
-                                      .value as InterviewAnswerType,
-                                  })
-                                }
-                                disabled={!canEdit}
-                                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900"
+                        {!isCollapsed && (
+                          <div className="space-y-3 border-t border-slate-200 p-4 dark:border-slate-700">
+                            {group.questions.map((question, questionIndex) => (
+                              <div
+                                key={`${groupIndex}-${questionIndex}`}
+                                className="grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/60 lg:grid-cols-[1fr_150px_130px_auto]"
                               >
-                                {ANSWER_TYPES.map((type) => (
-                                  <option key={type} value={type}>
-                                    {type}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
+                                <div>
+                                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                    Question
+                                  </label>
+                                  <input
+                                    value={question.question}
+                                    onChange={(e) =>
+                                      updateQuestion(groupIndex, questionIndex, {
+                                        question: e.target.value,
+                                      })
+                                    }
+                                    disabled={!canEdit}
+                                    placeholder="Tell us about a complex challenge you solved"
+                                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900"
+                                  />
+                                </div>
 
-                            <div>
-                              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                Score
-                              </label>
-                              <input
-                                type="number"
-                                min={0}
-                                value={question.score}
-                                onChange={(e) =>
-                                  updateQuestion(groupIndex, questionIndex, {
-                                    score: Number(e.target.value),
-                                  })
-                                }
-                                disabled={!canEdit}
-                                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900"
-                              />
-                            </div>
+                                <div>
+                                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                    Answer Type
+                                  </label>
+                                  <select
+                                    value={question.answerType}
+                                    onChange={(e) =>
+                                      updateQuestion(groupIndex, questionIndex, {
+                                        answerType: e.target
+                                          .value as InterviewAnswerType,
+                                      })
+                                    }
+                                    disabled={!canEdit}
+                                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900"
+                                  >
+                                    {ANSWER_TYPES.map((type) => (
+                                      <option key={type} value={type}>
+                                        {type}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
 
-                            <div className="flex items-end">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  removeQuestion(groupIndex, questionIndex)
-                                }
-                                disabled={!canEdit}
-                                className="inline-flex h-10 items-center rounded-lg border border-red-200 bg-red-50 px-3 text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300"
-                              >
-                                <Trash2 className="size-4" />
-                              </button>
-                            </div>
+                                <div>
+                                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                    Score
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    value={question.score}
+                                    onChange={(e) =>
+                                      updateQuestion(groupIndex, questionIndex, {
+                                        score: Number(e.target.value),
+                                      })
+                                    }
+                                    disabled={!canEdit}
+                                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900"
+                                  />
+                                </div>
 
-                            {(question.answerType === 'radio' ||
-                              question.answerType === 'dropdown') && (
-                              <div className="lg:col-span-4">
-                                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                  Choices
-                                </label>
-                                <div className="mb-2 flex flex-wrap gap-2">
-                                  {(Array.isArray(question.choices)
-                                    ? question.choices
-                                    : []
-                                  ).map((c) => (
-                                    <div
-                                      key={c}
-                                      className="group flex items-center justify-center rounded-full border-[0.7px] border-transparent bg-gray-100 py-1 pl-2.5 pr-2 text-sm text-gray-800 hover:border-gray-200 dark:bg-gray-800 dark:text-white/90 dark:hover:border-gray-800"
-                                    >
-                                      <span className="flex-initial max-w-full">
-                                        {c}
-                                      </span>
-                                      <button
-                                        type="button"
-                                        onClick={() => {
+                                <div className="flex items-end">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      removeQuestion(groupIndex, questionIndex)
+                                    }
+                                    disabled={!canEdit}
+                                    className="inline-flex h-10 items-center rounded-lg border border-red-200 bg-red-50 px-3 text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300"
+                                  >
+                                    <Trash2 className="size-4" />
+                                  </button>
+                                </div>
+
+                                {(question.answerType === 'radio' ||
+                                  question.answerType === 'dropdown') && (
+                                  <div className="lg:col-span-4">
+                                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                      Choices
+                                    </label>
+                                    <div className="mb-2 flex flex-wrap gap-2">
+                                      {(Array.isArray(question.choices)
+                                        ? question.choices
+                                        : []
+                                      ).map((c) => (
+                                        <div
+                                          key={c}
+                                          className="group flex items-center justify-center rounded-full border-[0.7px] border-transparent bg-gray-100 py-1 pl-2.5 pr-2 text-sm text-gray-800 hover:border-gray-200 dark:bg-gray-800 dark:text-white/90 dark:hover:border-gray-800"
+                                        >
+                                          <span className="flex-initial max-w-full">
+                                            {c}
+                                          </span>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              const existing = Array.isArray(
+                                                question.choices
+                                              )
+                                                ? question.choices
+                                                : [];
+                                              const next = existing.filter(
+                                                (x) => String(x) !== String(c)
+                                              );
+                                              updateQuestion(
+                                                groupIndex,
+                                                questionIndex,
+                                                { choices: next }
+                                              );
+                                            }}
+                                            className="cursor-pointer pl-2 text-gray-500 group-hover:text-gray-400 dark:text-gray-400"
+                                            aria-label={`Remove ${c}`}
+                                          >
+                                            <svg
+                                              className="fill-current"
+                                              width="14"
+                                              height="14"
+                                              viewBox="0 0 14 14"
+                                              xmlns="http://www.w3.org/2000/svg"
+                                            >
+                                              <path
+                                                fillRule="evenodd"
+                                                clipRule="evenodd"
+                                                d="M3.40717 4.46881C3.11428 4.17591 3.11428 3.70104 3.40717 3.40815C3.70006 3.11525 4.17494 3.11525 4.46783 3.40815L6.99943 5.93975L9.53095 3.40822C9.82385 3.11533 10.2987 3.11533 10.5916 3.40822C10.8845 3.70112 10.8845 4.17599 10.5916 4.46888L8.06009 7.00041L10.5916 9.53193C10.8845 9.82482 10.8845 10.2997 10.5916 10.5926C10.2987 10.8855 9.82385 10.8855 9.53095 10.5926L6.99943 8.06107L4.46783 10.5927C4.17494 10.8856 3.70006 10.8856 3.40717 10.5927C3.11428 10.2998 3.11428 9.8249 3.40717 9.53201L5.93877 7.00041L3.40717 4.46881Z"
+                                              />
+                                            </svg>
+                                          </button>
+                                        </div>
+                                      ))}
+                                    </div>
+                                    <input
+                                      type="text"
+                                      value={
+                                        choiceBuffers[
+                                          `${groupIndex}_${questionIndex}`
+                                        ] ?? ''
+                                      }
+                                      onChange={(e) =>
+                                        setChoiceBuffers((prev) => ({
+                                          ...prev,
+                                          [`${groupIndex}_${questionIndex}`]:
+                                            e.target.value,
+                                        }))
+                                      }
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                          e.preventDefault();
+                                          const key = `${groupIndex}_${questionIndex}`;
+                                          const buf = (
+                                            choiceBuffers[key] ?? ''
+                                          ).trim();
+                                          if (!buf) return;
                                           const existing = Array.isArray(
                                             question.choices
                                           )
                                             ? question.choices
                                             : [];
-                                          const next = existing.filter(
-                                            (x) => String(x) !== String(c)
-                                          );
+                                          const next = [...existing, buf];
                                           updateQuestion(
                                             groupIndex,
                                             questionIndex,
                                             { choices: next }
                                           );
-                                        }}
-                                        className="pl-2 text-gray-500 cursor-pointer group-hover:text-gray-400 dark:text-gray-400"
-                                        aria-label={`Remove ${c}`}
-                                      >
-                                        <svg
-                                          className="fill-current"
-                                          width="14"
-                                          height="14"
-                                          viewBox="0 0 14 14"
-                                          xmlns="http://www.w3.org/2000/svg"
-                                        >
-                                          <path
-                                            fillRule="evenodd"
-                                            clipRule="evenodd"
-                                            d="M3.40717 4.46881C3.11428 4.17591 3.11428 3.70104 3.40717 3.40815C3.70006 3.11525 4.17494 3.11525 4.46783 3.40815L6.99943 5.93975L9.53095 3.40822C9.82385 3.11533 10.2987 3.11533 10.5916 3.40822C10.8845 3.70112 10.8845 4.17599 10.5916 4.46888L8.06009 7.00041L10.5916 9.53193C10.8845 9.82482 10.8845 10.2997 10.5916 10.5926C10.2987 10.8855 9.82385 10.8855 9.53095 10.5926L6.99943 8.06107L4.46783 10.5927C4.17494 10.8856 3.70006 10.8856 3.40717 10.5927C3.11428 10.2998 3.11428 9.8249 3.40717 9.53201L5.93877 7.00041L3.40717 4.46881Z"
-                                          />
-                                        </svg>
-                                      </button>
-                                    </div>
-                                  ))}
-                                </div>
-                                <input
-                                  type="text"
-                                  value={
-                                    choiceBuffers[
-                                      `${groupIndex}_${questionIndex}`
-                                    ] ?? ''
-                                  }
-                                  onChange={(e) =>
-                                    setChoiceBuffers((prev) => ({
-                                      ...prev,
-                                      [`${groupIndex}_${questionIndex}`]:
-                                        e.target.value,
-                                    }))
-                                  }
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                      e.preventDefault();
-                                      const key = `${groupIndex}_${questionIndex}`;
-                                      const buf = (
-                                        choiceBuffers[key] ?? ''
-                                      ).trim();
-                                      if (!buf) return;
-                                      const existing = Array.isArray(
-                                        question.choices
-                                      )
-                                        ? question.choices
-                                        : [];
-                                      const next = [...existing, buf];
-                                      updateQuestion(
-                                        groupIndex,
-                                        questionIndex,
-                                        { choices: next }
-                                      );
-                                      setChoiceBuffers((prev) => ({
-                                        ...prev,
-                                        [key]: '',
-                                      }));
-                                    }
-                                  }}
-                                  onBlur={() => {
-                                    const key = `${groupIndex}_${questionIndex}`;
-                                    const buf = (
-                                      choiceBuffers[key] ?? ''
-                                    ).trim();
-                                    if (!buf) return;
-                                    const existing = Array.isArray(
-                                      question.choices
-                                    )
-                                      ? question.choices
-                                      : [];
-                                    updateQuestion(groupIndex, questionIndex, {
-                                      choices: [...existing, buf],
-                                    });
-                                    setChoiceBuffers((prev) => ({
-                                      ...prev,
-                                      [key]: '',
-                                    }));
-                                  }}
-                                  placeholder="Type a choice and press Enter"
-                                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900"
-                                />
+                                          setChoiceBuffers((prev) => ({
+                                            ...prev,
+                                            [key]: '',
+                                          }));
+                                        }
+                                      }}
+                                      onBlur={() => {
+                                        const key = `${groupIndex}_${questionIndex}`;
+                                        const buf = (
+                                          choiceBuffers[key] ?? ''
+                                        ).trim();
+                                        if (!buf) return;
+                                        const existing = Array.isArray(
+                                          question.choices
+                                        )
+                                          ? question.choices
+                                          : [];
+                                        updateQuestion(groupIndex, questionIndex, {
+                                          choices: [...existing, buf],
+                                        });
+                                        setChoiceBuffers((prev) => ({
+                                          ...prev,
+                                          [key]: '',
+                                        }));
+                                      }}
+                                      placeholder="Type a choice and press Enter"
+                                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900"
+                                    />
+                                  </div>
+                                )}
                               </div>
-                            )}
-                          </div>
-                        ))}
+                            ))}
 
-                        <button
-                          type="button"
-                          onClick={() => addQuestion(groupIndex)}
-                          disabled={!canEdit}
-                          className="inline-flex items-center gap-2 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-sm font-medium text-brand-700 transition hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-brand-500/30 dark:bg-brand-500/10 dark:text-brand-300"
-                        >
-                          <PlusCircle className="size-4" /> Add Question
-                        </button>
+                            <button
+                              type="button"
+                              onClick={() => addQuestion(groupIndex)}
+                              disabled={!canEdit}
+                              className="inline-flex items-center gap-2 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-sm font-medium text-brand-700 transition hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-brand-500/30 dark:bg-brand-500/10 dark:text-brand-300"
+                            >
+                              <PlusCircle className="size-4" /> Add Question
+                            </button>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             ) : isRejectionTab ? (
@@ -932,13 +966,13 @@ export default function InterviewCompanySettingsPage() {
             ) : isApplicantPagesTab ? (
               <ApplicantPagesSettings
                 companyId={selectedCompanyId}
-                hideCompanySelector
+                hideCompanySelector={true}
                 embedded
               />
             ) : isContractsTab ? (
-              <ContractsTab companyId={selectedCompanyId!} embedded />
+              <ContractsTab companyId={selectedCompanyId!} hideCompanySelector={true} embedded />
             ) : isOffersTab ? (
-              <JobOffersTab companyId={selectedCompanyId!} embedded />
+              <JobOffersTab companyId={selectedCompanyId!} hideCompanySelector={true} embedded />
             ) : null}
           </div>
         </div>
