@@ -11,6 +11,7 @@ import {
   useApplicants,
   useJobPositions,
   useCompanies,
+  useUpdateApplicantStatus,
 } from '../../../../hooks/queries';
 import { useTableLayout } from '../../../../hooks/queries/useTableLayout';
 import { buildApplicantDuplicateLookup } from '../../../../utils/applicantDuplicateSort';
@@ -41,6 +42,7 @@ import { useApplicantFilters } from './hooks/useApplicantFilters';
 // Utils
 import { exportToExcel, showExportNotification } from './utils/exportHelpers';
 import { normalizeGender, getApplicantCompanyId } from './utils/filterHelpers';
+import { getPreviousStatus, isTrashed } from '../../../../pages/Recruiting/ApplicantPage/utils/statusUtils';
 
 // Types
 import {
@@ -2059,6 +2061,28 @@ export default function Applicants({
             return null;
           };
           const hasCv = Boolean(resolveCvPath(orig));
+          const isTrashedApplicant = isTrashed(orig);
+          const previousStatus = getPreviousStatus(orig);
+          const updateStatus = useUpdateApplicantStatus();
+          const handleRestore = async (e: React.MouseEvent<HTMLButtonElement>) => {
+            e.stopPropagation();
+            const result = await Swal.fire({
+              title: 'Restore applicant?',
+              text: `This will restore the applicant to "${previousStatus}" status.`,
+              icon: 'question',
+              showCancelButton: true,
+              confirmButtonColor: '#22c55e',
+              cancelButtonColor: '#6b7280',
+              confirmButtonText: 'Restore',
+              cancelButtonText: 'Cancel',
+            });
+            if (!result.isConfirmed) return;
+            try {
+              await updateStatus.mutateAsync({ id: orig._id, data: { status: previousStatus } });
+            } catch {
+              // toast handled by mutation
+            }
+          };
           return (
             <div
               onClick={(e) => e.stopPropagation()}
@@ -2092,6 +2116,31 @@ export default function Applicants({
                 </button>
               ) : (
                 <span className="text-xs text-gray-500">-</span>
+              )}
+              {isTrashedApplicant && (
+                <button
+                  type="button"
+                  aria-label="Restore applicant"
+                  title={`Restore to ${previousStatus}`}
+                  onClick={handleRestore}
+                  disabled={updateStatus.isPending}
+                  className="inline-flex items-center justify-center rounded bg-green-500 p-1 text-white hover:bg-green-600 disabled:opacity-50"
+                >
+                  <span className="sr-only">Restore</span>
+                  <svg
+                    className="w-4 h-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                    />
+                  </svg>
+                </button>
               )}
             </div>
           );
