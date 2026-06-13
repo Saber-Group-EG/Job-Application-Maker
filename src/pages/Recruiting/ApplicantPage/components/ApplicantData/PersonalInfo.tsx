@@ -203,6 +203,19 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
               </a>
             )}
           </div>
+          <div>
+            <div className="text-sm font-semibold text-gray-800 -mb-1">Date of Birth</div>
+            {isEditing ? (
+              <input
+                type="date"
+                value={data.birthDate ? data.birthDate.split('T')[0] : ''}
+                onChange={handleField('birthDate')}
+                className="w-full text-sm border-b border-gray-200 focus:border-blue-400 focus:outline-none"
+              />
+            ) : (
+              <div className="text-sm text-gray-600">{formatDate(data.birthDate)}</div>
+            )}
+          </div>
 
           <div>
             <div className="text-sm font-semibold text-gray-800 -mb-1">Gender</div>
@@ -250,12 +263,25 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
           <div>
             <div className="text-sm font-semibold text-gray-800 mb-1">Resume / CV</div>
             {resumeUrl ? (
-              <a
-                href={resumeUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                download
-                className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white text-sm font-medium rounded-lg transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const response = await fetch(resumeUrl);
+                    const blob = await response.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = '';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                  } catch {
+                    window.open(resumeUrl, '_blank', 'noopener');
+                  }
+                }}
+                className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors"
               >
                 <svg
                   className="w-4 h-4"
@@ -271,7 +297,7 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
                   />
                 </svg>
                 <span>Download CV</span>
-              </a>
+              </button>
             ) : (
               <span className="text-sm text-gray-400">No resume attached</span>
             )}

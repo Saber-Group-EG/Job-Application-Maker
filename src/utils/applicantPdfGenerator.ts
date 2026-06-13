@@ -97,7 +97,7 @@ interface SectionImg {
 
 async function renderSection(html: string): Promise<SectionImg> {
   const div = document.createElement('div');
-  div.style.cssText = 'position:absolute;left:0;top:0;background:#fff;';
+  div.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:660px;background:#fff;pointer-events:none;';
   div.innerHTML = html;
   document.body.appendChild(div);
   try {
@@ -106,6 +106,8 @@ async function renderSection(html: string): Promise<SectionImg> {
       useCORS: true,
       logging: false,
       backgroundColor: '#ffffff',
+      scrollX: 0,
+      scrollY: 0,
     });
     return { dataUrl: canvas.toDataURL('image/png'), heightPx: canvas.height };
   } finally {
