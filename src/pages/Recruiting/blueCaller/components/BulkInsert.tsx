@@ -793,7 +793,7 @@ function buildTemplateWorkbookForJob(jobPosition: JobPosition): {
 
       if (label === header) {
         if (inputType === 'checkbox') return `${mark} – Yes / No`;
-        if (inputType === 'date') return `${mark} – YYYY-MM-DD`;
+        if (inputType === 'date') return `${mark} – MM/DD/YYYY`;
         if (inputType === 'number') return `${mark} – numeric`;
         if (inputType === 'tags') return `${mark} – comma separated`;
         if (
@@ -830,7 +830,7 @@ function buildTemplateWorkbookForJob(jobPosition: JobPosition): {
 
           if (isMatch) {
             if (sfType === 'checkbox') return `${sfMark} – Yes / No`;
-            if (sfType === 'date') return `${sfMark} – YYYY-MM-DD`;
+            if (sfType === 'date') return `${sfMark} – MM/DD/YYYY`;
             if (sfType === 'number') return `${sfMark} – numeric`;
             if (sfType === 'tags') return `${sfMark} – comma separated`;
             if (
@@ -1101,7 +1101,7 @@ function injectDataValidations(
     const col = colIdxToLetter(colIdx);
     const sqref = `${col}2:${col}1000`;
     dvEntries.push(
-      `<dataValidation type="date" operator="between" allowBlank="1" showInputMessage="1" showErrorMessage="1" promptTitle="Date format" prompt="Enter date in YYYY-MM-DD format." error="Please enter a valid date." errorTitle="Invalid date" sqref="${sqref}"><formula1>1</formula1><formula2>2958465</formula2></dataValidation>`,
+      `<dataValidation type="date" operator="between" allowBlank="1" showInputMessage="1" showErrorMessage="1" promptTitle="Date format" prompt="Enter date in MM/DD/YYYY format (e.g. 01/15/2025)." error="Please enter a valid date." errorTitle="Invalid date" sqref="${sqref}"><formula1>1</formula1><formula2>2958465</formula2></dataValidation>`,
     );
   });
 
@@ -1469,7 +1469,12 @@ export default function BulkInsert({
   const formatCellValue = (value: unknown): string => {
     if (value === undefined || value === null) return '-';
     if (typeof value === 'object') return JSON.stringify(value);
-    return String(value);
+    const str = String(value);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+      const [y, m, d] = str.split('-');
+      return `${m}/${d}/${y}`;
+    }
+    return str;
   };
 
   const getRowStatus = (
