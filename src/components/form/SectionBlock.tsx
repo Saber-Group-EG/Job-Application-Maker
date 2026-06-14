@@ -1,5 +1,7 @@
-import { ChevronDown, ChevronUp, Copy, Plus, Trash2, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, Copy, GripVertical, Plus, Trash2, X } from 'lucide-react';
 import { useState } from 'react';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import {
   FormSection,
   FormSectionItem,
@@ -33,6 +35,21 @@ export function SectionBlock({
 }) {
   const [collapsed, setCollapsed] = useState(false);
 
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: section._id });
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    transition: isDragging ? 'none' : 'transform 200ms cubic-bezier(0.2, 0, 0, 1)',
+    opacity: isDragging ? 0.4 : 1,
+  };
+
   const patchItem = (itemId: string, patch: Partial<FormSectionItem>) => {
     onChange({
       items: section.items.map((i) =>
@@ -50,9 +67,24 @@ export function SectionBlock({
   };
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`overflow-hidden rounded-xl border ${
+        isDragging
+          ? 'border-brand-400 shadow-lg ring-2 ring-brand-500'
+          : 'border-slate-200 dark:border-slate-700'
+      }`}
+    >
       {/* Section header */}
       <div className="flex items-center gap-3 bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
+        <div
+          {...attributes}
+          {...listeners}
+          className="flex cursor-grab items-center justify-center rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-600 active:cursor-grabbing dark:hover:bg-slate-700 dark:hover:text-slate-300"
+        >
+          <GripVertical className="size-4" />
+        </div>
         <button
           type="button"
           onClick={() => setCollapsed((v) => !v)}

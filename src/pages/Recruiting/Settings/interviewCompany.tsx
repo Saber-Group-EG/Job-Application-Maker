@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   Building2,
   Ban,
@@ -15,7 +15,29 @@ import {
   FileText,
   ChevronDown,
   ChevronRight,
+  GripVertical,
 } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
+  defaultDropAnimationSideEffects,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { createPortal } from 'react-dom';
 import Swal from '../../../utils/swal';
 import PageMeta from '../../../components/common/PageMeta';
 import PageBreadCrumb from '../../../components/common/PageBreadCrumb';
@@ -36,6 +58,10 @@ import type {
 import ApplicantPagesSettings from './ApplicantsPagesTab';
 import JobOffersTab from './JobOffersTab';
 import ContractsTab from './ContractsTab';
+
+type QuestionItem = InterviewQuestion & { _id: string };
+
+const uid = () => `q_${Math.random().toString(36).slice(2, 9)}`;
 
 type CompanyShape = {
   _id: string;
@@ -61,15 +87,16 @@ const ANSWER_TYPES: InterviewAnswerType[] = [
   'tags',
 ];
 
-const EMPTY_QUESTION: InterviewQuestion = {
+const EMPTY_QUESTION: QuestionItem = {
+  _id: uid(),
   question: '',
   score: 0,
   answerType: 'text',
 };
 
 const normalizeQuestion = (
-  question: Partial<InterviewQuestion> | undefined
-): InterviewQuestion => {
+  question: Partial<InterviewQuestion & { _id?: string }> | undefined
+): QuestionItem => {
   const answerType =
     question?.answerType && ANSWER_TYPES.includes(question.answerType)
       ? question.answerType
@@ -77,6 +104,7 @@ const normalizeQuestion = (
 
   const score = Number(question?.score);
   return {
+    _id: question?._id ?? uid(),
     question: String(question?.question ?? ''),
     score: Number.isFinite(score) ? score : 0,
     answerType,
@@ -109,6 +137,167 @@ const getCompanyName = (company: CompanyShape | undefined): string => {
   return companyData.name?.en || companyData.name?.ar || 'Unnamed Company';
 };
 
+function SortableQuestionItem({
+  question,
+  canEdit,
+  choiceBuffer,
+  onUpdate,
+  onRemove,
+  onChoiceBufferChange,
+}: {
+  question: any;
+  questionIndex: number;
+  groupIndex: number;
+  canEdit: boolean;
+  choiceBuffer: string;
+  onUpdate: (patch: Partial<InterviewQuestion>) => void;
+  onRemove: () => void;
+  onChoiceBufferChange: (value: string) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    isDragging,
+  } = useSortable({ id: question._id });
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    transition: isDragging ? 'none' : 'transform 200ms cubic-bezier(0.2, 0, 0, 1)',
+    opacity: isDragging ? 0.4 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`grid grid-cols-1 gap-3 rounded-lg border p-3 lg:grid-cols-[auto_1fr_150px_130px_auto] ${
+        isDragging
+          ? 'border-brand-400 bg-white shadow-lg ring-2 ring-brand-500 dark:bg-slate-800'
+          : 'border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/60'
+      }`}
+    >
+      <div
+        {...attributes}
+        {...listeners}
+        className="flex cursor-grab items-center justify-center rounded p-1 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-600 active:cursor-grabbing dark:hover:bg-slate-700 dark:hover:text-slate-300"
+      >
+        <GripVertical className="size-4" />
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Question
+        </label>
+        <input
+          value={question.question}
+          onChange={(e) => onUpdate({ question: e.target.value })}
+          disabled={!canEdit}
+          placeholder="Tell us about a complex challenge you solved"
+          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900"
+        />
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Answer Type
+        </label>
+        <select
+          value={question.answerType}
+          onChange={(e) => onUpdate({ answerType: e.target.value as InterviewAnswerType })}
+          disabled={!canEdit}
+          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900"
+        >
+          {ANSWER_TYPES.map((type) => (
+            <option key={type} value={type}>{type}</option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Score
+        </label>
+        <input
+          type="number"
+          min={0}
+          value={question.score}
+          onChange={(e) => onUpdate({ score: Number(e.target.value) })}
+          disabled={!canEdit}
+          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900"
+        />
+      </div>
+
+      <div className="flex items-end">
+        <button
+          type="button"
+          onClick={onRemove}
+          disabled={!canEdit}
+          className="inline-flex h-10 items-center rounded-lg border border-red-200 bg-red-50 px-3 text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300"
+        >
+          <Trash2 className="size-4" />
+        </button>
+      </div>
+
+      {(question.answerType === 'radio' || question.answerType === 'dropdown') && (
+        <div className="lg:col-span-5">
+          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Choices
+          </label>
+          <div className="mb-2 flex flex-wrap gap-2">
+            {(Array.isArray(question.choices) ? question.choices : []).map((c: string) => (
+              <div
+                key={c}
+                className="group flex items-center justify-center rounded-full border-[0.7px] border-transparent bg-gray-100 py-1 pl-2.5 pr-2 text-sm text-gray-800 hover:border-gray-200 dark:bg-gray-800 dark:text-white/90 dark:hover:border-gray-800"
+              >
+                <span className="flex-initial max-w-full">{c}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const existing = Array.isArray(question.choices) ? question.choices : [];
+                    onUpdate({ choices: existing.filter((x: string) => String(x) !== String(c)) });
+                  }}
+                  className="cursor-pointer pl-2 text-gray-500 group-hover:text-gray-400 dark:text-gray-400"
+                  aria-label={`Remove ${c}`}
+                >
+                  <svg className="fill-current" width="14" height="14" viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg">
+                    <path fillRule="evenodd" clipRule="evenodd" d="M3.40717 4.46881C3.11428 4.17591 3.11428 3.70104 3.40717 3.40815C3.70006 3.11525 4.17494 3.11525 4.46783 3.40815L6.99943 5.93975L9.53095 3.40822C9.82385 3.11533 10.2987 3.11533 10.5916 3.40822C10.8845 3.70112 10.8845 4.17599 10.5916 4.46888L8.06009 7.00041L10.5916 9.53193C10.8845 9.82482 10.8845 10.2997 10.5916 10.5926C10.2987 10.8855 9.82385 10.8855 9.53095 10.5926L6.99943 8.06107L4.46783 10.5927C4.17494 10.8856 3.70006 10.8856 3.40717 10.5927C3.11428 10.2998 3.11428 9.8249 3.40717 9.53201L5.93877 7.00041L3.40717 4.46881Z" />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+          <input
+            type="text"
+            value={choiceBuffer}
+            onChange={(e) => onChoiceBufferChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                const buf = choiceBuffer.trim();
+                if (!buf) return;
+                const existing = Array.isArray(question.choices) ? question.choices : [];
+                onUpdate({ choices: [...existing, buf] });
+                onChoiceBufferChange('');
+              }
+            }}
+            onBlur={() => {
+              const buf = choiceBuffer.trim();
+              if (!buf) return;
+              const existing = Array.isArray(question.choices) ? question.choices : [];
+              onUpdate({ choices: [...existing, buf] });
+              onChoiceBufferChange('');
+            }}
+            placeholder="Type a choice and press Enter"
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900"
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function InterviewCompanySettingsPage() {
   const { user, hasPermission } = useAuth();
   const { data: companies = [], isLoading: isCompaniesLoading } =
@@ -139,6 +328,20 @@ export default function InterviewCompanySettingsPage() {
     string | undefined
   >(undefined);
   const [groups, setGroups] = useState<InterviewGroup[]>([]);
+  const [activeQuestionId, setActiveQuestionId] = useState<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const dropAnimation = {
+    sideEffects: defaultDropAnimationSideEffects({
+      styles: { active: { opacity: '0.4' } },
+    }),
+    duration: 200,
+    easing: 'cubic-bezier(0.2, 0, 0, 1)',
+  };
   const [isSaving, setIsSaving] = useState(false);
   const [choiceBuffers, setChoiceBuffers] = useState<Record<string, string>>(
     {}
@@ -275,6 +478,38 @@ export default function InterviewCompanySettingsPage() {
       })
     );
   };
+
+
+
+  const handleQuestionDragStart = useCallback((event: DragStartEvent) => {
+    setActiveQuestionId(event.active.id as string);
+  }, []);
+
+  const handleQuestionDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveQuestionId(null);
+    if (!over || active.id === over.id) return;
+
+    const activeId = active.id as string;
+    const overId = over.id as string;
+
+    setGroups((prev) =>
+      prev.map((group) => {
+        const qIds = group.questions.map((q: any) => q._id);
+        const oldIndex = qIds.indexOf(activeId);
+        const newIndex = qIds.indexOf(overId);
+        if (oldIndex === -1 || newIndex === -1) return group;
+        return {
+          ...group,
+          questions: arrayMove(group.questions, oldIndex, newIndex),
+        };
+      })
+    );
+  }, []);
+
+  const handleQuestionDragCancel = useCallback(() => {
+    setActiveQuestionId(null);
+  }, []);
 
   const validateGroups = (): InterviewGroup[] | null => {
     for (let groupIndex = 0; groupIndex < groups.length; groupIndex += 1) {
@@ -733,202 +968,81 @@ export default function InterviewCompanySettingsPage() {
 
                         {!isCollapsed && (
                           <div className="space-y-3 border-t border-slate-200 p-4 dark:border-slate-700">
-                            {group.questions.map((question, questionIndex) => (
-                              <div
-                                key={`${groupIndex}-${questionIndex}`}
-                                className="grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/60 lg:grid-cols-[1fr_150px_130px_auto]"
+                            <DndContext
+                              sensors={sensors}
+                              collisionDetection={closestCenter}
+                              onDragStart={handleQuestionDragStart}
+                              onDragEnd={handleQuestionDragEnd}
+                              onDragCancel={handleQuestionDragCancel}
+                            >
+                              <SortableContext
+                                items={group.questions.map((q: any) => q._id)}
+                                strategy={verticalListSortingStrategy}
                               >
-                                <div>
-                                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                    Question
-                                  </label>
-                                  <input
-                                    value={question.question}
-                                    onChange={(e) =>
-                                      updateQuestion(groupIndex, questionIndex, {
-                                        question: e.target.value,
-                                      })
+                                {group.questions.map((question: any, questionIndex) => (
+                                  <SortableQuestionItem
+                                    key={question._id}
+                                    question={question}
+                                    questionIndex={questionIndex}
+                                    groupIndex={groupIndex}
+                                    canEdit={canEdit}
+                                    choiceBuffer={
+                                      choiceBuffers[`${groupIndex}_${questionIndex}`] ?? ''
                                     }
-                                    disabled={!canEdit}
-                                    placeholder="Tell us about a complex challenge you solved"
-                                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900"
+                                    onUpdate={(patch) =>
+                                      updateQuestion(groupIndex, questionIndex, patch)
+                                    }
+                                    onRemove={() => removeQuestion(groupIndex, questionIndex)}
+                                    onChoiceBufferChange={(value) =>
+                                      setChoiceBuffers((prev) => ({
+                                        ...prev,
+                                        [`${groupIndex}_${questionIndex}`]: value,
+                                      }))
+                                    }
                                   />
-                                </div>
-
-                                <div>
-                                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                    Answer Type
-                                  </label>
-                                  <select
-                                    value={question.answerType}
-                                    onChange={(e) =>
-                                      updateQuestion(groupIndex, questionIndex, {
-                                        answerType: e.target
-                                          .value as InterviewAnswerType,
-                                      })
-                                    }
-                                    disabled={!canEdit}
-                                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900"
-                                  >
-                                    {ANSWER_TYPES.map((type) => (
-                                      <option key={type} value={type}>
-                                        {type}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </div>
-
-                                <div>
-                                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                    Score
-                                  </label>
-                                  <input
-                                    type="number"
-                                    min={0}
-                                    value={question.score}
-                                    onChange={(e) =>
-                                      updateQuestion(groupIndex, questionIndex, {
-                                        score: Number(e.target.value),
-                                      })
-                                    }
-                                    disabled={!canEdit}
-                                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900"
-                                  />
-                                </div>
-
-                                <div className="flex items-end">
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      removeQuestion(groupIndex, questionIndex)
-                                    }
-                                    disabled={!canEdit}
-                                    className="inline-flex h-10 items-center rounded-lg border border-red-200 bg-red-50 px-3 text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300"
-                                  >
-                                    <Trash2 className="size-4" />
-                                  </button>
-                                </div>
-
-                                {(question.answerType === 'radio' ||
-                                  question.answerType === 'dropdown') && (
-                                  <div className="lg:col-span-4">
-                                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                      Choices
-                                    </label>
-                                    <div className="mb-2 flex flex-wrap gap-2">
-                                      {(Array.isArray(question.choices)
-                                        ? question.choices
-                                        : []
-                                      ).map((c) => (
-                                        <div
-                                          key={c}
-                                          className="group flex items-center justify-center rounded-full border-[0.7px] border-transparent bg-gray-100 py-1 pl-2.5 pr-2 text-sm text-gray-800 hover:border-gray-200 dark:bg-gray-800 dark:text-white/90 dark:hover:border-gray-800"
-                                        >
-                                          <span className="flex-initial max-w-full">
-                                            {c}
-                                          </span>
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              const existing = Array.isArray(
-                                                question.choices
-                                              )
-                                                ? question.choices
-                                                : [];
-                                              const next = existing.filter(
-                                                (x) => String(x) !== String(c)
-                                              );
-                                              updateQuestion(
-                                                groupIndex,
-                                                questionIndex,
-                                                { choices: next }
-                                              );
-                                            }}
-                                            className="cursor-pointer pl-2 text-gray-500 group-hover:text-gray-400 dark:text-gray-400"
-                                            aria-label={`Remove ${c}`}
-                                          >
-                                            <svg
-                                              className="fill-current"
-                                              width="14"
-                                              height="14"
-                                              viewBox="0 0 14 14"
-                                              xmlns="http://www.w3.org/2000/svg"
-                                            >
-                                              <path
-                                                fillRule="evenodd"
-                                                clipRule="evenodd"
-                                                d="M3.40717 4.46881C3.11428 4.17591 3.11428 3.70104 3.40717 3.40815C3.70006 3.11525 4.17494 3.11525 4.46783 3.40815L6.99943 5.93975L9.53095 3.40822C9.82385 3.11533 10.2987 3.11533 10.5916 3.40822C10.8845 3.70112 10.8845 4.17599 10.5916 4.46888L8.06009 7.00041L10.5916 9.53193C10.8845 9.82482 10.8845 10.2997 10.5916 10.5926C10.2987 10.8855 9.82385 10.8855 9.53095 10.5926L6.99943 8.06107L4.46783 10.5927C4.17494 10.8856 3.70006 10.8856 3.40717 10.5927C3.11428 10.2998 3.11428 9.8249 3.40717 9.53201L5.93877 7.00041L3.40717 4.46881Z"
-                                              />
-                                            </svg>
-                                          </button>
+                                ))}
+                              </SortableContext>
+                              {activeQuestionId &&
+                                (() => {
+                                  const found = groups[groupIndex]?.questions?.find(
+                                    (q: any) => q._id === activeQuestionId
+                                  );
+                                  if (!found) return null;
+                                  return createPortal(
+                                    <DragOverlay dropAnimation={dropAnimation}>
+                                      <div className="grid grid-cols-1 gap-3 rounded-lg border border-brand-400 bg-white p-3 shadow-xl dark:bg-slate-800 lg:grid-cols-[auto_1fr_150px_130px_auto]">
+                                        <div className="flex items-center justify-center">
+                                          <GripVertical className="size-4 text-brand-500" />
                                         </div>
-                                      ))}
-                                    </div>
-                                    <input
-                                      type="text"
-                                      value={
-                                        choiceBuffers[
-                                          `${groupIndex}_${questionIndex}`
-                                        ] ?? ''
-                                      }
-                                      onChange={(e) =>
-                                        setChoiceBuffers((prev) => ({
-                                          ...prev,
-                                          [`${groupIndex}_${questionIndex}`]:
-                                            e.target.value,
-                                        }))
-                                      }
-                                      onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                          e.preventDefault();
-                                          const key = `${groupIndex}_${questionIndex}`;
-                                          const buf = (
-                                            choiceBuffers[key] ?? ''
-                                          ).trim();
-                                          if (!buf) return;
-                                          const existing = Array.isArray(
-                                            question.choices
-                                          )
-                                            ? question.choices
-                                            : [];
-                                          const next = [...existing, buf];
-                                          updateQuestion(
-                                            groupIndex,
-                                            questionIndex,
-                                            { choices: next }
-                                          );
-                                          setChoiceBuffers((prev) => ({
-                                            ...prev,
-                                            [key]: '',
-                                          }));
-                                        }
-                                      }}
-                                      onBlur={() => {
-                                        const key = `${groupIndex}_${questionIndex}`;
-                                        const buf = (
-                                          choiceBuffers[key] ?? ''
-                                        ).trim();
-                                        if (!buf) return;
-                                        const existing = Array.isArray(
-                                          question.choices
-                                        )
-                                          ? question.choices
-                                          : [];
-                                        updateQuestion(groupIndex, questionIndex, {
-                                          choices: [...existing, buf],
-                                        });
-                                        setChoiceBuffers((prev) => ({
-                                          ...prev,
-                                          [key]: '',
-                                        }));
-                                      }}
-                                      placeholder="Type a choice and press Enter"
-                                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900"
-                                    />
-                                  </div>
-                                )}
-                              </div>
-                            ))}
+                                        <div>
+                                          <div className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Question</div>
+                                          <div className="w-full rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm text-slate-700 dark:border-brand-700 dark:bg-slate-900 dark:text-slate-300">
+                                            {found.question || 'Empty question'}
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <div className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Type</div>
+                                          <div className="w-full rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm text-slate-700 dark:border-brand-700 dark:bg-slate-900 dark:text-slate-300">
+                                            {found.answerType}
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <div className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Score</div>
+                                          <div className="w-full rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm text-slate-700 dark:border-brand-700 dark:bg-slate-900 dark:text-slate-300">
+                                            {found.score}
+                                          </div>
+                                        </div>
+                                        <div className="flex items-end">
+                                          <div className="inline-flex h-10 items-center rounded-lg bg-red-100 px-3 text-red-400 opacity-50 dark:bg-red-500/10">
+                                            <Trash2 className="size-4" />
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </DragOverlay>,
+                                    document.body
+                                  );
+                                })()}
+                            </DndContext>
 
                             <button
                               type="button"

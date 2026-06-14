@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   X,
   FileSignature,
@@ -11,7 +11,27 @@ import {
   Gift,
   Calendar,
   Layers,
+  GripVertical,
 } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
+  defaultDropAnimationSideEffects,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { createPortal } from 'react-dom';
 import {
   ContractType,
   CreateJobContractPayload,
@@ -278,8 +298,23 @@ export default function JobContractModal({
   const [form, setForm] = useState<FormState>(emptyForm);
   const [showSalaryReview, setShowSalaryReview] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [activeBenefitId, setActiveBenefitId] = useState<string | null>(null);
+  const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
 
   const firstInputRef = useRef<HTMLInputElement>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const dropAnimation = {
+    sideEffects: defaultDropAnimationSideEffects({
+      styles: { active: { opacity: '0.4' } },
+    }),
+    duration: 200,
+    easing: 'cubic-bezier(0.2, 0, 0, 1)',
+  };
 
   const createMutation = useCreateJobContract();
   const updateMutation = useUpdateJobContract();
@@ -289,6 +324,54 @@ export default function JobContractModal({
     createMutation.isPending ||
     updateMutation.isPending ||
     bulkMutation.isPending;
+
+  // ── Drag handlers ──────────────────────────────────────────────────────────
+
+  const handleBenefitDragStart = useCallback((event: DragStartEvent) => {
+    setActiveBenefitId(event.active.id as string);
+  }, []);
+
+  const handleBenefitDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveBenefitId(null);
+    if (over && active.id !== over.id) {
+      setForm((prev) => {
+        const oldIndex = prev.benefits.findIndex((b) => b._id === active.id);
+        const newIndex = prev.benefits.findIndex((b) => b._id === over.id);
+        if (oldIndex !== -1 && newIndex !== -1) {
+          return { ...prev, benefits: arrayMove(prev.benefits, oldIndex, newIndex) };
+        }
+        return prev;
+      });
+    }
+  }, []);
+
+  const handleBenefitDragCancel = useCallback(() => {
+    setActiveBenefitId(null);
+  }, []);
+
+  const handleSectionDragStart = useCallback((event: DragStartEvent) => {
+    setActiveSectionId(event.active.id as string);
+  }, []);
+
+  const handleSectionDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveSectionId(null);
+    if (over && active.id !== over.id) {
+      setForm((prev) => {
+        const oldIndex = prev.sections.findIndex((s) => s._id === active.id);
+        const newIndex = prev.sections.findIndex((s) => s._id === over.id);
+        if (oldIndex !== -1 && newIndex !== -1) {
+          return { ...prev, sections: arrayMove(prev.sections, oldIndex, newIndex) };
+        }
+        return prev;
+      });
+    }
+  }, []);
+
+  const handleSectionDragCancel = useCallback(() => {
+    setActiveSectionId(null);
+  }, []);
 
   // Template apply
   const applyTemplate = (template: JobContract) => {
@@ -884,16 +967,53 @@ export default function JobContractModal({
             />
 
             <div className="space-y-3">
-              {form.benefits.map((b, idx) => (
-                <BenefitRow
-                  key={b._id}
-                  benefit={b}
-                  index={idx}
-                  onChange={(patch) => patchBenefit(b._id, patch)}
-                  onRemove={() => removeBenefit(b._id)}
-                  onDuplicate={() => duplicateBenefit(b._id)}
-                />
-              ))}
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleBenefitDragStart}
+                onDragEnd={handleBenefitDragEnd}
+                onDragCancel={handleBenefitDragCancel}
+              >
+                <SortableContext
+                  items={form.benefits.map((b) => b._id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {form.benefits.map((b, idx) => (
+                    <BenefitRow
+                      key={b._id}
+                      benefit={b}
+                      index={idx}
+                      onChange={(patch) => patchBenefit(b._id, patch)}
+                      onRemove={() => removeBenefit(b._id)}
+                      onDuplicate={() => duplicateBenefit(b._id)}
+                    />
+                  ))}
+                </SortableContext>
+                {createPortal(
+                  <DragOverlay dropAnimation={dropAnimation}>
+                    {activeBenefitId ? (
+                      (() => {
+                        const b = form.benefits.find((x) => x._id === activeBenefitId);
+                        if (!b) return null;
+                        return (
+                          <div className="rounded-xl border border-brand-400 bg-white p-4 shadow-xl dark:bg-slate-800">
+                            <div className="flex items-center gap-2">
+                              <GripVertical className="size-4 text-brand-500" />
+                              <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                                Benefit {form.benefits.indexOf(b) + 1}
+                              </span>
+                            </div>
+                            <div className="mt-1 text-sm font-medium text-slate-700 dark:text-slate-200">
+                              {b.labelEn || b.labelAr || 'Untitled'}
+                            </div>
+                          </div>
+                        );
+                      })()
+                    ) : null}
+                  </DragOverlay>,
+                  document.body
+                )}
+              </DndContext>
               <button
                 type="button"
                 onClick={addBenefit}
@@ -912,16 +1032,50 @@ export default function JobContractModal({
             />
 
             <div className="space-y-3">
-              {form.sections.map((s, idx) => (
-                <SectionBlock
-                  key={s._id}
-                  section={s}
-                  index={idx}
-                  onChange={(patch) => patchSection(s._id, patch)}
-                  onRemove={() => removeSection(s._id)}
-                  onDuplicate={() => duplicateSection(s._id)}
-                />
-              ))}
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleSectionDragStart}
+                onDragEnd={handleSectionDragEnd}
+                onDragCancel={handleSectionDragCancel}
+              >
+                <SortableContext
+                  items={form.sections.map((s) => s._id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {form.sections.map((s, idx) => (
+                    <SectionBlock
+                      key={s._id}
+                      section={s}
+                      index={idx}
+                      onChange={(patch) => patchSection(s._id, patch)}
+                      onRemove={() => removeSection(s._id)}
+                      onDuplicate={() => duplicateSection(s._id)}
+                    />
+                  ))}
+                </SortableContext>
+                {createPortal(
+                  <DragOverlay dropAnimation={dropAnimation}>
+                    {activeSectionId ? (
+                      (() => {
+                        const s = form.sections.find((x) => x._id === activeSectionId);
+                        if (!s) return null;
+                        return (
+                          <div className="rounded-xl border border-brand-400 bg-white p-4 shadow-xl dark:bg-slate-800">
+                            <div className="flex items-center gap-2">
+                              <GripVertical className="size-4 text-brand-500" />
+                              <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                                {s.title.en || s.title.ar || `Section ${form.sections.indexOf(s) + 1}`}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })()
+                    ) : null}
+                  </DragOverlay>,
+                  document.body
+                )}
+              </DndContext>
               <div className="flex items-center gap-2">
                 <button
                   type="button"

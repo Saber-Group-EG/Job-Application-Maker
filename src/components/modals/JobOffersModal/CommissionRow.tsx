@@ -1,6 +1,8 @@
 // ─── Commission row ───────────────────────────────────────────────────────────
 
-import { Copy, Trash2 } from 'lucide-react';
+import { Copy, Trash2, GripVertical } from 'lucide-react';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { FormCommission } from './JobOffersModal';
 import Label from '../../form/Label';
 import { CommissionType } from '../../../services/jobOffersService';
@@ -20,23 +22,53 @@ export function CommissionRow({
   index,
   onChange,
   onRemove,
-  onDuplicate, // ← add
+  onDuplicate,
 }: {
   comm: FormCommission;
   index: number;
   onChange: (patch: Partial<FormCommission>) => void;
   onRemove: () => void;
-  onDuplicate: () => void; // ← add
+  onDuplicate: () => void;
 }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: comm._id });
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    transition: isDragging ? 'none' : 'transform 200ms cubic-bezier(0.2, 0, 0, 1)',
+    opacity: isDragging ? 0.4 : 1,
+  };
+
   return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`rounded-xl border p-4 ${
+        isDragging
+          ? 'border-brand-400 shadow-lg ring-2 ring-brand-500'
+          : 'border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/50'
+      }`}
+    >
       <div className="mb-3 flex items-center justify-between">
-        <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
-          Tier {index + 1}
-        </span>
+        <div className="flex items-center gap-2">
+          <div
+            {...attributes}
+            {...listeners}
+            className="flex cursor-grab items-center justify-center rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-600 active:cursor-grabbing dark:hover:bg-slate-700 dark:hover:text-slate-300"
+          >
+            <GripVertical className="size-4" />
+          </div>
+          <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+            Tier {index + 1}
+          </span>
+        </div>
         <div className="flex items-center gap-1">
-          {' '}
-          {/* ← wrap in div */}
           <button
             type="button"
             onClick={onDuplicate}
