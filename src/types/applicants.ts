@@ -316,6 +316,7 @@ export interface PersonalInfoProps {
   onScheduleInterview?: () => void;
   onSendMessage?: () => void;
   onPrint?: () => void;
+  onRestore?: () => void;
 }
 
 export type ApplicantView = Omit<Applicant, 'companyId' | 'jobPositionId'> & {

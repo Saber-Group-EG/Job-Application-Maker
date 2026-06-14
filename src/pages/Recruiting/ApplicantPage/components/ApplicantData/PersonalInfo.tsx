@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { CalenderIcon, ChatIcon, DownloadIcon } from '../../../../../icons';
 import type { Applicant, ApplicantView, PersonalInfoProps } from '../../../../../types/applicants';
 import { toPlainString } from '../../../../../utils/strings';
+import { getPreviousStatus, isTrashed } from '../../utils/statusUtils';
 
 const buildResumeUrl = (raw?: string): string | null => {
   if (!raw) return null;
@@ -36,6 +37,7 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
   onScheduleInterview,
   onSendMessage,
   onPrint,
+  onRestore,
 }) => {
   const [photoPreviewOpen, setPhotoPreviewOpen] = useState(false);
 
@@ -154,13 +156,25 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
 
         <div className="flex justify-between items-center mb-3">
           <span className="text-sm font-semibold text-gray-800">Details</span>
-          <button
-            type="button"
-            onClick={onChangeStatus}
-            className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
-          >
-            {data.status || 'Status'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onChangeStatus}
+              className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
+            >
+              {data.status || 'Status'}
+            </button>
+            {isTrashed(applicant) && onRestore && (
+              <button
+                type="button"
+                onClick={onRestore}
+                className="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-700 hover:bg-green-200 transition-colors"
+                title={`Restore to ${getPreviousStatus(applicant)}`}
+              >
+                Restore
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="border-t border-gray-200 mb-5 mt-5" />
