@@ -1910,9 +1910,13 @@ const jobOptions = useMemo(() => {
           onClick={(e) => e.stopPropagation()}
           style={{ display: 'flex', alignItems: 'center', gap: 3 }}
         >
+          <span style={{ fontWeight: 600, fontSize: 'inherit', fontFamily: 'inherit' }}>
+            {label}
+          </span>
           <button
             type="button"
             onClick={handleFilterClick}
+            title="Filter"
             style={{
               background: activeCount > 0 ? (isExclude ? 'rgba(244,63,94,0.08)' : 'rgba(16,185,129,0.08)') : 'none',
               border: 'none',
@@ -1923,13 +1927,14 @@ const jobOptions = useMemo(() => {
               padding: '2px 6px',
               borderRadius: 4,
               fontSize: 'inherit',
-              fontWeight: activeCount > 0 ? 600 : 600,
-              color: activeCount > 0 ? (isExclude ? '#f43f5e' : '#10b981') : 'inherit',
               fontFamily: 'inherit',
               outline: 'none',
+              color: activeCount > 0 ? (isExclude ? '#f43f5e' : '#10b981') : '#667085',
             }}
           >
-            <span>{label}</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+            </svg>
             {activeCount > 0 && (
               <span style={{
                 fontSize: 10,
@@ -2020,7 +2025,7 @@ const jobOptions = useMemo(() => {
     () => [
       {
         accessorKey: 'applicantNo',
-        header: isLaptopViewport ? 'ID' : 'ApplicantNo',
+        header: '#',
         size: columnSizeConfig.applicantNo,
         enableColumnFilter: false,
         enableSorting: !duplicatesOnlyEnabled,
@@ -2715,16 +2720,9 @@ const jobOptions = useMemo(() => {
       createTheme({
         palette: {
           mode: isDarkMode ? 'dark' : 'light',
-          primary: { main: '#e42e2b' },
-          background: {
-            default: isDarkMode ? '#24303F' : '#FFFFFF',
-            paper: isDarkMode ? '#24303F' : '#FFFFFF',
-          },
-          text: {
-            primary: isDarkMode ? '#E4E7EC' : '#101828',
-            secondary: isDarkMode ? '#98A2B3' : '#667085',
-          },
-          divider: isDarkMode ? '#344054' : '#E4E7EC',
+        },
+        typography: {
+          fontFamily: "'Montserrat', sans-serif",
         },
         components: {
           MuiCheckbox: {
@@ -2937,69 +2935,73 @@ const jobOptions = useMemo(() => {
       </div>
     ),
     muiTablePaperProps: {
-      sx: {
-        backgroundColor: isDarkMode ? '#24303F' : '#FFFFFF',
-        backgroundImage: 'none',
-        overflow: 'hidden',
-        boxShadow: 'none',
-        margin: 0,
-      },
+      elevation: 0,
     },
-    muiTableContainerProps: { 
-      sx: { 
-        overflowX: 'auto',
-        width: '100%',
-        minWidth: 0,
-        '&::-webkit-scrollbar': {
-          height: '8px',
-        },
-        '&::-webkit-scrollbar-track': {
-          background: isDarkMode ? '#1C2434' : '#F1F5F9',
-          borderRadius: '4px',
-        },
-        '&::-webkit-scrollbar-thumb': {
-          background: isDarkMode ? '#475569' : '#CBD5E1',
-          borderRadius: '4px',
-        },
-        '&::-webkit-scrollbar-thumb:hover': {
-          background: isDarkMode ? '#64748B' : '#94A3B8',
-        },
-      } 
-    },
-    muiTableProps: {
+    muiTableBodyCellProps: () => ({
       sx: {
-        backgroundColor: isDarkMode ? '#24303F' : '#FFFFFF',
-        fontFamily: "'Cairo', Outfit, system-ui",
-        fontSize: '0.82rem',
-      },
-    },
-    muiTableBodyCellProps: {
-      sx: {
-        backgroundColor: isDarkMode ? '#24303F' : '#FFFFFF',
-        color: isDarkMode ? '#E4E7EC' : '#101828',
-        borderColor: isDarkMode ? '#344054' : '#E4E7EC',
-        verticalAlign: 'middle',
-        overflow: 'hidden',
         whiteSpace: 'nowrap',
-        fontSize: isLaptopViewport ? '0.76rem' : '0.8rem',
-        padding: isLaptopViewport ? '5px 6px' : '6px 8px',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        color: '#282828',
       },
-    },
-    muiTableHeadCellProps: {
+    }),
+    muiTableHeadCellProps: ({ column }) => ({
       sx: {
-        backgroundColor: isDarkMode ? '#1C2434' : '#F9FAFB',
-        color: isDarkMode ? '#E4E7EC' : '#344054',
-        fontWeight: 600,
-        fontSize: isLaptopViewport ? '0.74rem' : '0.78rem',
-        padding: isLaptopViewport ? '7px 6px' : '8px 8px',
-        whiteSpace: 'nowrap',
+        height: '50px',
+        fontWeight: 'bold',
+        '& .MuiTableSortLabel-icon': { display: 'none' },
+        '& .MuiBadge-root': { display: 'none' },
+        '& .Mui-TableHeadCell-Content': {
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        },
+        '& .Mui-TableHeadCell-Content-Labels': {
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px',
+        },
+        '& .Mui-TableHeadCell-Content-Actions': {
+          display: 'flex',
+          alignItems: 'center',
+          gap: '2px',
+        },
       },
-    },
-    muiTableBodyRowProps: () => ({
+      onMouseDown: (e) => {
+        if ((e.target as HTMLElement).closest('button')) return;
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const currentCell = e.currentTarget as HTMLElement;
+        const onMouseUp = (upEvent: MouseEvent) => {
+          const dx = Math.abs(upEvent.clientX - startX);
+          const dy = Math.abs(upEvent.clientY - startY);
+          if (
+            dx < 5 &&
+            dy < 5 &&
+            currentCell.contains(upEvent.target as Node)
+          ) {
+            column.toggleSorting();
+          }
+          document.removeEventListener('mouseup', onMouseUp);
+        };
+        document.addEventListener('mouseup', onMouseUp);
+      },
+    }),
+    muiTableBodyRowProps: ({ row, table }) => ({
       sx: {
-        cursor: 'default',
-        backgroundColor: isDarkMode ? '#24303F' : '#FFFFFF',
-        '&:hover': { backgroundColor: isDarkMode ? '#344054' : '#F9FAFB' },
+        backgroundColor:
+          table.getRowModel().rows.indexOf(row) % 2 === 0
+            ? 'rgba(240, 240, 240, 1)'
+            : 'white',
+        '& .MuiTableRow-root': {
+          overflow: 'hidden',
+          width: '100%',
+        },
+        '& .MuiCollapse-root': {
+          width: '80%',
+          marginX: 'auto',
+        },
       },
     }),
     getRowId: (row) => row._id,
