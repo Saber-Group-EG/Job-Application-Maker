@@ -741,7 +741,7 @@ export default function Applicants({
       sscore: isLaptopViewport ? 72 : 96,
       status: isLaptopViewport ? 150 : 170,
       submittedAt: isLaptopViewport ? 88 : 110,
-      actions: isLaptopViewport ? 58 : 90,
+      actions: 70,
     }),
     [isLaptopViewport]
   );
@@ -2097,9 +2097,9 @@ export default function Applicants({
           return (
             <div
               onClick={(e) => e.stopPropagation()}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 w-full justify-center"
             >
-              {hasCv ? (
+              {hasCv && (
                 <button
                   type="button"
                   aria-label="Download CV"
@@ -2125,8 +2125,6 @@ export default function Applicants({
                     />
                   </svg>
                 </button>
-              ) : (
-                <span className="text-xs text-gray-500">-</span>
               )}
               {isTrashedApplicant && canRestore && (
                 <button
