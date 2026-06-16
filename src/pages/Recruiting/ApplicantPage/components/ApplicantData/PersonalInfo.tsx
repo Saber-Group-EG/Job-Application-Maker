@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CalenderIcon, ChatIcon, DownloadIcon } from '../../../../../icons';
+import { CalenderIcon, ChatIcon, PrintIcon } from '../../../../../icons';
 import type { Applicant, ApplicantView, PersonalInfoProps } from '../../../../../types/applicants';
 import { toPlainString } from '../../../../../utils/strings';
 
@@ -147,7 +147,7 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
               onClick={onPrint}
               className="flex items-center justify-center w-8 h-8 rounded-full bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors"
             >
-              <DownloadIcon className="w-4 h-4" />
+              <PrintIcon className="w-4 h-4" />
             </button>
           </div>
          </div>
