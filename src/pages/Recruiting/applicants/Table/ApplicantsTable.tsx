@@ -28,7 +28,7 @@ import BulkMessageModal from '../../../../components/modals/BulkMessageModal';
 import InterviewScheduleModal from '../../../../components/modals/InterviewScheduleModal';
 import StatusChangeModal from '../../../../components/modals/StatusChangeModal';
 import CustomFilterModal from '../../../../components/modals/CustomFilterModal';
-import { ColumnMultiSelectHeader } from './components/ColumnMultiSelectHeader';
+import { ExcludableMultiSelectFilter } from './components/ExcludableMultiSelectFilter';
 import { StatusCell } from './components/StatusCell';
 import { TrashBinIcon, ChatIcon, AlertIcon } from '../../../../icons';
 
@@ -40,7 +40,7 @@ import { useApplicantFilters } from './hooks/useApplicantFilters';
 
 // Utils
 import { exportToExcel, showExportNotification } from './utils/exportHelpers';
-import { normalizeGender, getApplicantCompanyId } from './utils/filterHelpers';
+import { normalizeGender, getApplicantCompanyId, toggleExcludeColumn } from './utils/filterHelpers';
 
 // Types
 import {
@@ -49,7 +49,7 @@ import {
   useMaterialReactTable,
   type MRT_ColumnDef,
 } from 'material-react-table';
-import { ThemeProvider, createTheme } from '@mui/material';
+import { ThemeProvider, createTheme, Popover } from '@mui/material';
 import { Skeleton } from '@mui/material';
 import type { Applicant } from '../../../../types/applicants';
 import { FileSignature, FileText } from 'lucide-react';
@@ -569,7 +569,7 @@ export default function Applicants({
     if (isSuperAdminRole) return undefined;
     return userCompanyId?.length ? userCompanyId : undefined;
   }, [companyIdOverride, user]);
-const [excludeModes, setExcludeModes] = useState<Record<string, boolean>>({});
+const [excludeModes] = useState<Record<string, boolean>>({});
 
   const [offerModalOpen, setOfferModalOpen] = useState(false);
   const [contractModalOpen, setContractModalOpen] = useState(false);
@@ -860,8 +860,6 @@ const jobOptions = useMemo(() => {
     .filter((x) => x.id && x.title);
 }, [jobPositions, allCompaniesRaw, applicants]);
 
-
-
   const companyOptions = useMemo(() => {
     return allCompaniesRaw
       .map((c: any) => {
@@ -923,6 +921,24 @@ const jobOptions = useMemo(() => {
     }
   }, [selectedCompanyIdsForJobs, filteredJobOptions, columnFilters, setColumnFilters]);
 
+  const jobPositionFilterOptions = useMemo(() => {
+    return jobOptions.map((j) => {
+      const coId = typeof j.companyId === 'string'
+        ? j.companyId
+        : (j.companyId?._id ?? j.companyId?.id ?? '');
+      const company = companyMap[coId];
+      const companyName = company
+        ? toPlainString(company?.name) || company?.title || ''
+        : '';
+      return {
+        label: j.title,
+        subtitle: companyName || undefined,
+        value: j.id,
+        companyId: coId,
+      };
+    });
+  }, [jobOptions, companyMap]);
+
   const fieldToJobIds = useMemo(
     () => buildFieldToJobIds(jobPositions),
     [jobPositions]
@@ -960,6 +976,8 @@ const jobOptions = useMemo(() => {
     isSuperAdmin,
     effectiveOnlyStatus,
     selectedCompanyFilterValue,
+    companyFilterExclude: (layout.excludeColumns ?? []).includes('companyId'),
+    excludeColumns: layout.excludeColumns ?? [],
     jobPositionMap,
     fieldToJobIds,
     currentUserId,
@@ -1769,6 +1787,53 @@ const jobOptions = useMemo(() => {
       .map((reason) => ({ id: reason, title: reason }));
   }, [filteredApplicants, extractRejectionReasons]);
 
+  const unfilteredCounts = useMemo(() => {
+    const rows = Array.isArray(applicants) ? applicants : [];
+    const maps: Record<string, Map<string, number>> = {};
+
+    const addToMap = (colId: string, key: string) => {
+      if (!key) return;
+      if (!maps[colId]) maps[colId] = new Map();
+      maps[colId].set(key, (maps[colId].get(key) ?? 0) + 1);
+    };
+
+    const addArrayToMap = (colId: string, keys: string[]) => {
+      keys.forEach((k) => addToMap(colId, k));
+    };
+
+    rows.forEach((a: any) => {
+      if (!isSuperAdmin && a?.status === 'trashed') return;
+
+      // gender
+      const rawGender =
+        a?.gender ||
+        a?.customResponses?.gender ||
+        a?.customResponses?.['النوع'] ||
+        (a as any)['النوع'];
+      addToMap('gender', normalizeGender(rawGender));
+
+      // companyId
+      addToMap('companyId', getApplicantCompanyId(a, jobPositionMap) || '');
+
+      // jobPositionId
+      const rawJob = a?.jobPositionId;
+      const getId = (v: any) =>
+        typeof v === 'string' ? v : (v?._id ?? v?.id ?? '');
+      addToMap('jobPositionId', getId(rawJob));
+
+      // status
+      addToMap('status', a?.status);
+
+      // rejectionReasons
+      const reasons = extractRejectionReasons(a);
+      if (Array.isArray(reasons) && reasons.length) {
+        addArrayToMap('rejectionReasons', reasons);
+      }
+    });
+
+    return maps;
+  }, [applicants, isSuperAdmin, jobPositionMap]);
+
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   useEffect(() => {
@@ -1784,6 +1849,208 @@ const jobOptions = useMemo(() => {
     });
     return () => observer.disconnect();
   }, []);
+
+  const FilterHeaderCell = useCallback(
+    ({
+      header,
+      column,
+      table,
+      label,
+      colId,
+      options,
+      isArrayColumn = false,
+      countsMap,
+      dependentColumnId,
+      selectedCompanyFilterValue: _selectedCompanyFilterValue,
+      filterValue: _filterValue,
+    }: {
+      header: any;
+      column: any;
+      table: any;
+      label: string;
+      colId: string;
+      options: { label: string; value: string; companyId?: string; subtitle?: string }[];
+      isArrayColumn?: boolean;
+      countsMap?: Map<string, number>;
+      dependentColumnId?: string;
+      selectedCompanyFilterValue?: string[] | string | null;
+      filterValue?: any;
+    }) => {
+      const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+      const currentFilter = (header.column.getFilterValue() as string[]) ?? [];
+      const activeCount = currentFilter.length;
+      const isExclude = (layout.excludeColumns ?? []).includes(colId);
+      const sorted = column.getIsSorted();
+
+      const liveDepFilter = dependentColumnId
+        ? table?.getColumn(dependentColumnId)?.getFilterValue()
+        : undefined;
+      const depFilter = liveDepFilter ?? _selectedCompanyFilterValue;
+      const depIsExclude = dependentColumnId && (layout.excludeColumns ?? []).includes(dependentColumnId);
+      const selectedDepFilter =
+        depFilter && (Array.isArray(depFilter) ? depFilter.length > 0 : true)
+          ? Array.isArray(depFilter)
+            ? depFilter
+            : [depFilter]
+          : null;
+      const doHideSubtitle =
+        dependentColumnId && selectedDepFilter && selectedDepFilter.length === 1 && !depIsExclude;
+      const displayOptions = (dependentColumnId && selectedDepFilter && selectedDepFilter.length > 0 && !depIsExclude
+        ? options.filter((opt) => {
+            const matches = selectedDepFilter.includes(opt.companyId ?? '');
+            return matches;
+          })
+        : options
+      ).map((opt) => (doHideSubtitle ? { ...opt, subtitle: undefined } : opt));
+
+      const handleFilterClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setAnchorEl(e.currentTarget as HTMLElement);
+      };
+
+      const handleSortClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        const toggle = sorted === 'asc' ? 'desc' : sorted === 'desc' ? false : 'desc';
+        column.toggleSorting(toggle === 'desc');
+      };
+
+      return (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{ display: 'flex', alignItems: 'center', gap: 3 }}
+        >
+          <button
+            type="button"
+            onClick={handleFilterClick}
+            style={{
+              background: activeCount > 0 ? (isExclude ? 'rgba(244,63,94,0.08)' : 'rgba(16,185,129,0.08)') : 'none',
+              border: 'none',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 3,
+              padding: '2px 6px',
+              borderRadius: 4,
+              fontSize: 'inherit',
+              fontWeight: activeCount > 0 ? 600 : 600,
+              color: activeCount > 0 ? (isExclude ? '#f43f5e' : '#10b981') : 'inherit',
+              fontFamily: 'inherit',
+              outline: 'none',
+            }}
+          >
+            <span>{label}</span>
+            {activeCount > 0 && (
+              <span style={{
+                fontSize: 10,
+                fontWeight: 700,
+                background: activeCount > 0 ? (isExclude ? 'rgba(244,63,94,0.15)' : 'rgba(16,185,129,0.15)') : 'transparent',
+                borderRadius: 8,
+                padding: '0px 5px',
+                lineHeight: '16px',
+              }}>
+                {activeCount}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleSortClick}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 18,
+              height: 18,
+              borderRadius: 3,
+              border: 'none',
+              background: sorted ? 'rgba(0,0,0,0.06)' : 'transparent',
+              cursor: 'pointer',
+              padding: 0,
+              outline: 'none',
+              color: sorted ? '#e42e2b' : 'rgba(0,0,0,0.25)',
+            }}
+            title={sorted === 'asc' ? 'Sorted ascending' : sorted === 'desc' ? 'Sorted descending' : 'Click to sort'}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M11 5h10" />
+              <path d="M11 9h7" />
+              <path d="M11 13h4" />
+              <path d="M3 17l3 3 3-3" />
+              <path d="M6 20V4" />
+            </svg>
+          </button>
+
+          <Popover
+            anchorEl={anchorEl}
+            open={Boolean(anchorEl)}
+            onClose={() => setAnchorEl(null)}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ExcludableMultiSelectFilter
+              header={header}
+              options={displayOptions}
+              isExclude={isExclude}
+              onToggleExclude={() =>
+                saveLayout({
+                  excludeColumns: toggleExcludeColumn(
+                    layout.excludeColumns ?? [],
+                    colId
+                  ),
+                })
+              }
+              isArrayColumn={isArrayColumn}
+              countsMap={countsMap}
+            />
+          </Popover>
+        </div>
+      );
+    },
+    [layout.excludeColumns, saveLayout]
+  );
+
+  const makeExcludableColumnProps = (
+    colId: string,
+    options: { label: string; value: string; companyId?: string; subtitle?: string }[],
+    isArrayColumn = false,
+    label?: string,
+    dependentColumnId?: string
+  ): Partial<MRT_ColumnDef<any>> => ({
+    filterSelectOptions: options,
+    filterFn: ((row: any, columnId: string, filterValue: string[]) => {
+      if (!filterValue?.length) return true;
+      const isExclude = (layout.excludeColumns ?? []).includes(colId);
+
+      if (isArrayColumn) {
+        const items: Array<{ name: string }> = row.getValue(columnId) || [];
+        const hasMatch = filterValue.some((fv) =>
+          items.some((item) => item.name === fv)
+        );
+        return isExclude ? !hasMatch : hasMatch;
+      }
+
+      const val: string = row.getValue(columnId);
+      return isExclude
+        ? !filterValue.includes(val)
+        : filterValue.includes(val);
+    }) as MRT_ColumnDef<any>['filterFn'],
+    Header: ({ header, column, table }: { header: any; column: any; table: any }) => (
+      <FilterHeaderCell
+        header={header}
+        column={column}
+        table={table}
+        label={label ?? colId}
+        colId={colId}
+        options={options}
+        isArrayColumn={isArrayColumn}
+        countsMap={unfilteredCounts[colId]}
+        dependentColumnId={dependentColumnId}
+        selectedCompanyFilterValue={selectedCompanyFilterValue}
+        filterValue={header.column.getFilterValue()}
+      />
+    ),
+  });
 
   // Build columns
   const columns = useMemo<MRT_ColumnDef<any>[]>(
@@ -1996,224 +2263,154 @@ const jobOptions = useMemo(() => {
           );
         },
       },
-     {
-  id: 'gender',
-  accessorFn: (row: any) =>
-    normalizeGender(
-      row.gender ||
-        row.customResponses?.gender ||
-        row.customResponses?.['النوع'] ||
-        (row as any)['النوع'] ||
-        ''
-    ),
-  header: 'Gender',
-  size: columnSizeConfig.gender,
-  enableColumnFilter: true,
-  enableSorting: true,
-  Header: ({ column }: { column: any }) => {
-    const genderFilterValue = columnFilters.find((f: any) => f.id === 'gender')?.value;
-    const excludeMode = excludeModes['gender'] || false;
-    
-    return (
-      <ColumnMultiSelectHeader
-        column={column}
-        label="Gender"
-        options={genderOptions}
-        isLaptopViewport={isLaptopViewport}
-        menuWidth={200}
-        menuMaxHeight={240}
-        currentFilterValue={genderFilterValue}
-        excludeMode={excludeMode}
-        onFilterChange={(columnId: string, value: string[] | undefined, newExcludeMode?: boolean) => {
-          if (newExcludeMode !== undefined) {
-            setExcludeModes(prev => ({ ...prev, [columnId]: newExcludeMode }));
-          }
-          setColumnFilters((prev: any[]) => {
-            const without = prev.filter((f) => f.id !== columnId);
-            if (!value || value.length === 0) {
-              return without;
-            }
-            return [...without, { id: columnId, value, excludeMode: newExcludeMode ?? excludeMode }];
-          });
-        }}
-      />
-    );
-  },
-  Cell: ({ row }: { row: { original: any } }) => {
-    if (isTableLoading) return renderCellSkeleton('text');
-    const raw =
-      row.original.gender ||
-      row.original.customResponses?.gender ||
-      row.original.customResponses?.['النوع'] ||
-      (row.original as any)['النوع'] ||
-      '';
-    const g = normalizeGender(raw);
-    return (
-      <a
-        href={getApplicantHref(row)}
-        className="text-inherit no-underline hover:no-underline"
-        onClick={(e) => handleApplicantLinkClick(e, row)}
-        onAuxClick={handleApplicantLinkAuxClick}
-      >
-        {g || '-'}
-      </a>
-    );
-  },
-},
+      {
+        id: 'gender',
+        accessorFn: (row: any) =>
+          normalizeGender(
+            row.gender ||
+              row.customResponses?.gender ||
+              row.customResponses?.['النوع'] ||
+              (row as any)['النوع'] ||
+              ''
+          ),
+        header: 'Gender',
+        size: columnSizeConfig.gender,
+        enableSorting: true,
+        ...makeExcludableColumnProps(
+          'gender',
+          genderOptions.map((o) => ({ label: o.title, value: o.id })),
+          false,
+          'Gender'
+        ),
+        filterFn: (row: any, columnId: string, filterValue: any) => {
+          if (!filterValue) return true;
+          const vals = Array.isArray(filterValue) ? filterValue : [filterValue];
+          if (!vals.length) return true;
+          const cell = String(row.getValue(columnId) ?? '').toLowerCase().trim();
+          const matches = vals.some((v) => String(v ?? '').toLowerCase().trim() === cell);
+          const isExclude = (layout.excludeColumns ?? []).includes('gender');
+          return isExclude ? !matches : matches;
+        },
+        Cell: ({ row }: { row: { original: any } }) => {
+          if (isTableLoading) return renderCellSkeleton('text');
+          const raw =
+            row.original.gender ||
+            row.original.customResponses?.gender ||
+            row.original.customResponses?.['النوع'] ||
+            (row.original as any)['النوع'] ||
+            '';
+          const g = normalizeGender(raw);
+          return (
+            <a
+              href={getApplicantHref(row)}
+              className="text-inherit no-underline hover:no-underline"
+              onClick={(e) => handleApplicantLinkClick(e, row)}
+              onAuxClick={handleApplicantLinkAuxClick}
+            >
+              {g || '-'}
+            </a>
+          );
+        },
+      },
       ...(showCompanyColumn
         ? [
-          {
-  id: 'companyId',
-  header: 'Company',
-  size: columnSizeConfig.companyId,
-  enableColumnFilter: false,
-  enableSorting: true,
-  accessorFn: (row: any) =>
-    getApplicantCompanyId(row, jobPositionMap),
-  Header: ({ column }: { column: any }) => {
-    const companyFilter = columnFilters.find((f: any) => f.id === 'companyId');
-    const excludeMode = excludeModes['companyId'] || false;
-    
-    return (
-      <ColumnMultiSelectHeader
-        column={column}
-        label="Company"
-        options={companyOptions}
-        isLaptopViewport={isLaptopViewport}
-        menuWidth={240}
-        menuMaxHeight={300}
-        currentFilterValue={companyFilter?.value}
-        excludeMode={excludeMode}
-        onFilterChange={(columnId: string, value: string[] | undefined, newExcludeMode?: boolean) => {
-          if (newExcludeMode !== undefined) {
-            setExcludeModes(prev => ({ ...prev, [columnId]: newExcludeMode }));
-          }
-          setColumnFilters((prev: any[]) => {
-            const without = prev.filter((f) => f.id !== columnId);
-            if (!value || (Array.isArray(value) && value.length === 0)) {
-              return without;
-            }
-            return [...without, { id: columnId, value, excludeMode: newExcludeMode ?? excludeMode }];
-          });
-        }}
-      />
-    );
-  },
-  filterFn: (row: any, columnId: string, filterValue: any) => {
-    if (!filterValue) return true;
-    const vals = Array.isArray(filterValue)
-      ? filterValue
-      : [filterValue];
-    if (!vals.length) return true;
-    const cell = String(row.getValue(columnId) ?? '');
-    return vals.includes(cell);
-  },
-  Cell: ({ row }: { row: { original: any } }) => {
-    if (isTableLoading) return renderCellSkeleton('text');
-    const cId = getApplicantCompanyId(row.original, jobPositionMap);
-    const company = companyMap[cId || ''];
-    return (
-      <a
-        href={getApplicantHref(row)}
-        className="text-inherit no-underline hover:no-underline"
-        onClick={(e) => handleApplicantLinkClick(e, row)}
-        onAuxClick={handleApplicantLinkAuxClick}
-      >
-        {toPlainString(company?.name) || company?.title || 'N/A'}
-      </a>
-    );
-  },
-},
+            {
+              id: 'companyId',
+              header: 'Company',
+              size: columnSizeConfig.companyId,
+              enableSorting: true,
+              accessorFn: (row: any) =>
+                getApplicantCompanyId(row, jobPositionMap),
+              ...makeExcludableColumnProps(
+                'companyId',
+                companyOptions.map((o) => ({ label: o.title, value: o.id })),
+                false,
+                'Company'
+              ),
+              filterFn: (row: any, columnId: string, filterValue: any) => {
+                if (!filterValue) return true;
+                const vals = Array.isArray(filterValue)
+                  ? filterValue
+                  : [filterValue];
+                if (!vals.length) return true;
+                const cell = String(row.getValue(columnId) ?? '');
+                const matches = vals.includes(cell);
+                const isExclude = (layout.excludeColumns ?? []).includes('companyId');
+                return isExclude ? !matches : matches;
+              },
+              Cell: ({ row }: { row: { original: any } }) => {
+                if (isTableLoading) return renderCellSkeleton('text');
+                const cId = getApplicantCompanyId(row.original, jobPositionMap);
+                const company = companyMap[cId || ''];
+                return (
+                  <a
+                    href={getApplicantHref(row)}
+                    className="text-inherit no-underline hover:no-underline"
+                    onClick={(e) => handleApplicantLinkClick(e, row)}
+                    onAuxClick={handleApplicantLinkAuxClick}
+                  >
+                    {toPlainString(company?.name) || company?.title || 'N/A'}
+                  </a>
+                );
+              },
+            },
           ]
         : []),
-     {
-  id: 'jobPositionId',
-  header: isLaptopViewport ? 'Job' : 'Job Position',
-  enableSorting: true,
-  accessorFn: (row: any) => {
-    const raw = row?.jobPositionId;
-    const getId = (v: any) =>
-      typeof v === 'string' ? v : (v?._id ?? v?.id ?? '');
-    return getId(raw);
-  },
-  Header: ({ column }: { column: any }) => {
-    const jobFilter = columnFilters.find((f: any) => f.id === 'jobPositionId');
-    const currentExcludeMode = jobFilter?.excludeMode || false;
-    
-    return (
-      <ColumnMultiSelectHeader
-        column={column}
-        label={isLaptopViewport ? 'Job' : 'Job Position'}
-        options={filteredJobOptions}
-        isLaptopViewport={isLaptopViewport}
-        menuWidth={260}
-        menuMaxHeight={280}
-        currentFilterValue={jobFilter?.value}
-        excludeMode={currentExcludeMode}
-        onFilterChange={(columnId: string, value: string[] | undefined, newExcludeMode?: boolean) => {
-          
-          setColumnFilters((prev: any[]) => {
-            const without = prev.filter((f) => f.id !== columnId);
-            
-            // If no value and no exclude mode, remove filter
-            if ((!value || (Array.isArray(value) && value.length === 0)) && !newExcludeMode) {
-              return without;
-            }
-            
-            // Create new filter object
-            const newFilter: any = { id: columnId };
-            if (value && value.length > 0) {
-              newFilter.value = value;
-            }
-            if (newExcludeMode !== undefined) {
-              newFilter.excludeMode = newExcludeMode;
-            } else if (currentExcludeMode) {
-              newFilter.excludeMode = currentExcludeMode;
-            }
-            
-            return [...without, newFilter];
-          });
-        }}
-      />
-    );
-  },
-  filterFn: (row: any, columnId: string, filterValue: any) => {
-    if (!filterValue) return true;
-    const vals = Array.isArray(filterValue) ? filterValue : [filterValue];
-    if (!vals.length) return true;
-    const cell = String(row.getValue(columnId) ?? '');
-    return vals.includes(cell);
-  },
-  size: columnSizeConfig.jobPositionId,
-  enableColumnFilter: false,
-  Cell: ({ row }: { row: { original: any } }) => {
-    if (isTableLoading) return renderCellSkeleton('text');
-    const raw = row.original.jobPositionId;
-    const getId = (v: any) => {
-      if (!v) return '';
-      if (typeof v === 'string') return v;
-      return v._id ?? v.id ?? '';
-    };
-    const jobId = getId(raw);
-    const job = jobPositionMap[jobId];
-    const title =
-      typeof job?.title === 'string'
-        ? job.title
-        : (job?.title?.en ??
-          jobOptions.find((o) => o.id === jobId)?.title ??
-          'N/A');
-    return (
-      <a
-        href={getApplicantHref(row)}
-        className="text-inherit no-underline hover:no-underline text-sm font-medium"
-        onClick={(e) => handleApplicantLinkClick(e, row)}
-        onAuxClick={handleApplicantLinkAuxClick}
-      >
-        {title}
-      </a>
-    );
-  },
-},
+      {
+        id: 'jobPositionId',
+        header: isLaptopViewport ? 'Job' : 'Job Position',
+        enableSorting: true,
+        accessorFn: (row: any) => {
+          const raw = row?.jobPositionId;
+          const getId = (v: any) =>
+            typeof v === 'string' ? v : (v?._id ?? v?.id ?? '');
+          return getId(raw);
+        },
+        ...makeExcludableColumnProps(
+          'jobPositionId',
+          jobPositionFilterOptions,
+          false,
+          isLaptopViewport ? 'Job' : 'Job Position',
+          'companyId'
+        ),
+        filterFn: (row: any, columnId: string, filterValue: any) => {
+          if (!filterValue) return true;
+          const vals = Array.isArray(filterValue) ? filterValue : [filterValue];
+          if (!vals.length) return true;
+          const cell = String(row.getValue(columnId) ?? '');
+          const matches = vals.includes(cell);
+          const isExclude = (layout.excludeColumns ?? []).includes('jobPositionId');
+          return isExclude ? !matches : matches;
+        },
+        size: columnSizeConfig.jobPositionId,
+        Cell: ({ row }: { row: { original: any } }) => {
+          if (isTableLoading) return renderCellSkeleton('text');
+          const raw = row.original.jobPositionId;
+          const getId = (v: any) => {
+            if (!v) return '';
+            if (typeof v === 'string') return v;
+            return v._id ?? v.id ?? '';
+          };
+          const jobId = getId(raw);
+          const job = jobPositionMap[jobId];
+          const title =
+            typeof job?.title === 'string'
+              ? job.title
+              : (job?.title?.en ??
+                jobOptions.find((o) => o.id === jobId)?.title ??
+                'N/A');
+          return (
+            <a
+              href={getApplicantHref(row)}
+              className="text-inherit no-underline hover:no-underline text-sm font-medium"
+              onClick={(e) => handleApplicantLinkClick(e, row)}
+              onAuxClick={handleApplicantLinkAuxClick}
+            >
+              {title}
+            </a>
+          );
+        },
+      },
       {
         id: 'expectedSalary',
         header: 'Expected Salary',
@@ -2278,165 +2475,131 @@ const jobOptions = useMemo(() => {
           );
         },
       },
-    {
-  accessorKey: 'status',
-  header: 'Status',
-  enableSorting: true,
-  Header: ({ column }: { column: any }) => {
-    if (effectiveOnlyStatus !== undefined && effectiveOnlyStatus !== null) {
-      return <span className="text-sm font-medium">Status</span>;
-    }
-    const statusFilterValue = columnFilters.find((f: any) => f.id === 'status')?.value;
-    const excludeMode = excludeModes['status'] || false;
-    
-    return (
-      <div onClick={(e) => e.stopPropagation()}>
-        <ColumnMultiSelectHeader
-          column={column}
-          label="Status"
-          options={statusFilterOptions}
-          isLaptopViewport={isLaptopViewport}
-          menuWidth={220}
-          menuMaxHeight={240}
-          currentFilterValue={statusFilterValue}
-          excludeMode={excludeMode}
-          onFilterChange={(columnId: string, value: string[] | undefined, newExcludeMode?: boolean) => {
-            if (newExcludeMode !== undefined) {
-              setExcludeModes(prev => ({ ...prev, [columnId]: newExcludeMode }));
-            }
-            setColumnFilters((prev: any[]) => {
-              const without = prev.filter((f) => f.id !== columnId);
-              if (!value) return without;
-              return [...without, { id: columnId, value, excludeMode: newExcludeMode ?? excludeMode }];
-            });
-          }}
-        />
-      </div>
-    );
-  },
-  filterFn: (row: any, columnId: string, filterValue: any) => {
-    if (!filterValue) return true;
-    const vals = Array.isArray(filterValue) ? filterValue : [filterValue];
-    if (!vals.length) return true;
-    const cell = String(row.getValue(columnId) ?? '');
-    return vals.includes(cell);
-  },
-  size: columnSizeConfig.status,
-  enableColumnFilter: false,
-  Cell: ({ row }: { row: { original: any } }) => {
-    if (isTableLoading) return renderCellSkeleton('text', '80px');
-
-    const applicantCompanyId = getApplicantCompanyId(
-      row.original,
-      jobPositionMap
-    );
-
-    return (
-      <a
-        href={getApplicantHref(row)}
-        className="text-inherit no-underline hover:no-underline"
-        title={row.original.status ?? ''}
-        onClick={(e) => handleApplicantLinkClick(e, row)}
-        onAuxClick={handleApplicantLinkAuxClick}
-      >
-        <StatusCell
-          status={row.original.status}
-          showTooltip
-          selectedCompanyFilter={selectedCompanyFilter}
-          companyId={applicantCompanyId}
-          allCompanies={allCompaniesRaw}
-          applicant={row.original}
-        />
-      </a>
-    );
-  },
-},
-     {
-  id: 'rejectionReasons',
-  header: 'Reasons',
-  enableSorting: true,
-  enableColumnFilter: true,
-  size: 260,
-  accessorFn: (row: any) => extractRejectionReasons(row),
-  sortingFn: (rowA: any, rowB: any, columnId: string) => {
-    const reasonsA = rowA.getValue(columnId) as string[];
-    const reasonsB = rowB.getValue(columnId) as string[];
-    const a = reasonsA.length;
-    const b = reasonsB.length;
-    if (a === b) return 0;
-    return a > b ? 1 : -1;
-  },
-  filterFn: (row: any, columnId: string, filterValue: any) => {
-    if (!filterValue) return true;
-    const selectedReasons = Array.isArray(filterValue)
-      ? filterValue
-      : [filterValue];
-    if (selectedReasons.length === 0) return true;
-
-    const applicantReasons = row.getValue(columnId) as string[];
-
-    return selectedReasons.some((selectedReason) =>
-      applicantReasons.some(
-        (applicantReason) =>
-          applicantReason
-            .toLowerCase()
-            .includes(selectedReason.toLowerCase()) ||
-          selectedReason
-            .toLowerCase()
-            .includes(applicantReason.toLowerCase())
-      )
-    );
-  },
-  Header: ({ column }: { column: any }) => {
-    const reasonsFilterValue = columnFilters.find((f: any) => f.id === 'rejectionReasons')?.value;
-    const excludeMode = excludeModes['rejectionReasons'] || false;
-    
-    return (
-      <ColumnMultiSelectHeader
-        column={column}
-        label="Reasons"
-        options={rejectionReasonsOptions}
-        isLaptopViewport={isLaptopViewport}
-        menuWidth={260}
-        menuMaxHeight={320}
-        currentFilterValue={reasonsFilterValue}
-        excludeMode={excludeMode}
-        onFilterChange={(columnId: string, value: string[] | undefined, newExcludeMode?: boolean) => {
-          if (newExcludeMode !== undefined) {
-            setExcludeModes(prev => ({ ...prev, [columnId]: newExcludeMode }));
+      {
+        accessorKey: 'status',
+        header: 'Status',
+        enableSorting: true,
+        ...makeExcludableColumnProps(
+          'status',
+          statusFilterOptions.map((o) => ({ label: o.title, value: o.id })),
+          false,
+          'Status'
+        ),
+        Header: ({ header, column, table }: { header: any; column: any; table: any }) => {
+          if (
+            effectiveOnlyStatus !== undefined &&
+            effectiveOnlyStatus !== null
+          ) {
+            return <span className="text-sm font-medium">Status</span>;
           }
-          setColumnFilters((prev: any[]) => {
-            const without = prev.filter((f) => f.id !== columnId);
-            if (!value) return without;
-            return [...without, { id: columnId, value, excludeMode: newExcludeMode ?? excludeMode }];
-          });
-        }}
-      />
-    );
-  },
-  Cell: ({ row }: { row: { original: any } }) => {
-    if (isTableLoading) return renderCellSkeleton('text');
-    const a = row.original || {};
-    const reasons = extractRejectionReasons(a);
+          return (
+            <FilterHeaderCell
+              header={header}
+              column={column}
+              table={table}
+              label="Status"
+              colId="status"
+              options={statusFilterOptions.map((o) => ({ label: o.title, value: o.id }))}
+              countsMap={unfilteredCounts['status']}
+              filterValue={header.column.getFilterValue()}
+            />
+          );
+        },
+        size: columnSizeConfig.status,
+        Cell: ({ row }: { row: { original: any } }) => {
+          if (isTableLoading) return renderCellSkeleton('text', '80px');
 
-    if (!reasons || reasons.length === 0) {
-      return <span className="text-sm text-gray-500">-</span>;
-    }
+          const applicantCompanyId = getApplicantCompanyId(
+            row.original,
+            jobPositionMap
+          );
 
-    return (
-      <div className="flex flex-wrap gap-1">
-        {reasons.map((r: string, i: number) => (
-          <span
-            key={i}
-            className="inline-block rounded-full bg-brand-50 px-2 py-0.5 text-xs text-brand-700"
-          >
-            {r}
-          </span>
-        ))}
-      </div>
-    );
-  },
-},
+          return (
+            <a
+              href={getApplicantHref(row)}
+              className="text-inherit no-underline hover:no-underline"
+              title={row.original.status ?? ''}
+              onClick={(e) => handleApplicantLinkClick(e, row)}
+              onAuxClick={handleApplicantLinkAuxClick}
+            >
+              <StatusCell
+                status={row.original.status}
+                showTooltip
+                selectedCompanyFilter={selectedCompanyFilter}
+                companyId={applicantCompanyId}
+                allCompanies={allCompaniesRaw}
+                applicant={row.original}
+              />
+            </a>
+          );
+        },
+      },
+      {
+        id: 'rejectionReasons',
+        header: 'Reasons',
+        enableSorting: true,
+        enableColumnFilter: true,
+        size: 260,
+        accessorFn: (row: any) => extractRejectionReasons(row),
+        sortingFn: (rowA: any, rowB: any, columnId: string) => {
+          const reasonsA = rowA.getValue(columnId) as string[];
+          const reasonsB = rowB.getValue(columnId) as string[];
+          const a = reasonsA.length;
+          const b = reasonsB.length;
+          if (a === b) return 0;
+          return a > b ? 1 : -1;
+        },
+        ...makeExcludableColumnProps(
+          'rejectionReasons',
+          rejectionReasonsOptions.map((o) => ({ label: o.title, value: o.id })),
+          true,
+          'Reasons'
+        ),
+        filterFn: (row: any, columnId: string, filterValue: any) => {
+          if (!filterValue) return true;
+          const selectedReasons = Array.isArray(filterValue)
+            ? filterValue
+            : [filterValue];
+          if (selectedReasons.length === 0) return true;
+
+          const applicantReasons = row.getValue(columnId) as string[];
+          const matches = selectedReasons.some((selectedReason) =>
+            applicantReasons.some(
+              (applicantReason) =>
+                applicantReason
+                  .toLowerCase()
+                  .includes(selectedReason.toLowerCase()) ||
+                selectedReason
+                  .toLowerCase()
+                  .includes(applicantReason.toLowerCase())
+            )
+          );
+          const isExclude = (layout.excludeColumns ?? []).includes('rejectionReasons');
+          return isExclude ? !matches : matches;
+        },
+        Cell: ({ row }: { row: { original: any } }) => {
+          if (isTableLoading) return renderCellSkeleton('text');
+          const a = row.original || {};
+          const reasons = extractRejectionReasons(a);
+
+          if (!reasons || reasons.length === 0) {
+            return <span className="text-sm text-gray-500">-</span>;
+          }
+
+          return (
+            <div className="flex flex-wrap gap-1">
+              {reasons.map((r: string, i: number) => (
+                <span
+                  key={i}
+                  className="inline-block rounded-full bg-brand-50 px-2 py-0.5 text-xs text-brand-700"
+                >
+                  {r}
+                </span>
+              ))}
+            </div>
+          );
+        },
+      },
       {
         accessorKey: 'submittedAt',
         header: 'Submitted',
@@ -2564,8 +2727,10 @@ const jobOptions = useMemo(() => {
       showCompanyColumn,
       companyOptions,
       jobOptions,
+      jobPositionFilterOptions,
       statusFilterOptions,
       filteredJobOptions,
+      rejectionReasonsOptions,
       effectiveOnlyStatus,
       excludeModes,
       columnFilters,
@@ -2577,6 +2742,9 @@ const jobOptions = useMemo(() => {
       jobPositionMap,
       companyMap,
       currentUserId,
+      selectedCompanyFilterValue,
+      layout.excludeColumns,
+      saveLayout,
     ]
   );
 
@@ -2669,6 +2837,7 @@ const jobOptions = useMemo(() => {
     enableBottomToolbar: true,
     enableTopToolbar: true,
     enableColumnFilters: true,
+    columnFilterDisplayMode: 'popover',
     enableFilters: true,
     enableHiding: true,
     enableDensityToggle: false,
@@ -2710,6 +2879,10 @@ const jobOptions = useMemo(() => {
     },
     onSortingChange: setSorting,
     onPaginationChange: setPagination,
+    onColumnFiltersChange: (updater) => {
+      const next = typeof updater === 'function' ? updater(columnFilters) : updater;
+      setColumnFilters(next);
+    },
     onRowSelectionChange: setRowSelection,
     onColumnVisibilityChange: (updater) => {
       const next =

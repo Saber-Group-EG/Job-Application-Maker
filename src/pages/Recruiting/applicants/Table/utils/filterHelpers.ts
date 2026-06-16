@@ -697,6 +697,15 @@ function levenshteinDistance(a: string, b: string): number {
   return matrix[b.length][a.length];
 }
 
+export function toggleExcludeColumn(
+  excludeColumns: string[],
+  colId: string
+): string[] {
+  return excludeColumns.includes(colId)
+    ? excludeColumns.filter((id) => id !== colId)
+    : [...excludeColumns, colId];
+}
+
 export default {
   normalizeForCompare,
   expandForms,

@@ -11,6 +11,8 @@ interface UseApplicantFiltersProps {
   isSuperAdmin: boolean;
   effectiveOnlyStatus?: string | string[];
   selectedCompanyFilterValue?: string[] | string | null;
+  companyFilterExclude?: boolean;
+  excludeColumns?: string[];
   jobPositionMap: Record<string, any>;
   fieldToJobIds: Map<string, Set<string>> | Record<string, Set<string>>;
   currentUserId: string;
@@ -24,6 +26,8 @@ export function useApplicantFilters({
   isSuperAdmin,
   effectiveOnlyStatus,
   selectedCompanyFilterValue,
+  companyFilterExclude = false,
+  excludeColumns = [],
   jobPositionMap,
   fieldToJobIds,
   currentUserId,
@@ -40,38 +44,33 @@ export function useApplicantFilters({
   const applyColumnFilters = useCallback((data: any[]) => {
     let filtered = [...data];
     
-   const companyFilter = columnFilters.find((f: any) => f.id === 'companyId');
-const companyFilterValue = companyFilter?.value;
-const companyExcludeMode = companyFilter?.excludeMode || false;
+    const companyFilter = columnFilters.find((f: any) => f.id === 'companyId');
+    const companyFilterValue = companyFilter?.value;
+    const companyExcludeMode = excludeColumns.includes('companyId');
 
-
-let companyIds: string[] | null = null;
-if (companyFilterValue) {
-  companyIds = Array.isArray(companyFilterValue) ? companyFilterValue : [companyFilterValue];
-} else if (selectedCompanyFilterValue) {
-  if (Array.isArray(selectedCompanyFilterValue)) {
-    companyIds = selectedCompanyFilterValue;
-  } else if (typeof selectedCompanyFilterValue === 'string') {
-    companyIds = [selectedCompanyFilterValue];
-  }
-}
-
-if (companyIds && companyIds.length > 0) {
-  filtered = filtered.filter((applicant: any) => {
-    const applicantCompanyId = getApplicantCompanyId(applicant, jobPositionMap);
-    const matches = applicantCompanyId && companyIds?.includes(applicantCompanyId);
-    const shouldInclude = companyExcludeMode ? !matches : matches;
-    
-    if (!shouldInclude) {
+    let companyIds: string[] | null = null;
+    if (companyFilterValue) {
+      companyIds = Array.isArray(companyFilterValue) ? companyFilterValue : [companyFilterValue];
+    } else if (selectedCompanyFilterValue) {
+      if (Array.isArray(selectedCompanyFilterValue)) {
+        companyIds = selectedCompanyFilterValue;
+      } else if (typeof selectedCompanyFilterValue === 'string') {
+        companyIds = [selectedCompanyFilterValue];
+      }
     }
-    return shouldInclude;
-  });
-}
+
+    if (companyIds && companyIds.length > 0) {
+      filtered = filtered.filter((applicant: any) => {
+        const applicantCompanyId = getApplicantCompanyId(applicant, jobPositionMap);
+        const matches = applicantCompanyId && companyIds?.includes(applicantCompanyId);
+        return companyExcludeMode ? !matches : matches;
+      });
+    }
     
     // Apply job position filter with exclude mode support
     const jobFilter = columnFilters.find((f: any) => f.id === 'jobPositionId');
     const jobFilterValue = jobFilter?.value;
-    const jobExcludeMode = jobFilter?.excludeMode || false;
+    const jobExcludeMode = excludeColumns.includes('jobPositionId');
 
     if (jobFilterValue && (Array.isArray(jobFilterValue) ? jobFilterValue.length > 0 : true)) {
       const selectedJobIds = Array.isArray(jobFilterValue) ? jobFilterValue : [jobFilterValue];
@@ -91,7 +90,7 @@ if (companyIds && companyIds.length > 0) {
     // Apply gender filter with exclude mode support
     const genderFilter = columnFilters.find((f: any) => f.id === 'gender');
     const genderFilterValue = genderFilter?.value;
-    const genderExcludeMode = genderFilter?.excludeMode || false;
+    const genderExcludeMode = excludeColumns.includes('gender');
     
     if (genderFilterValue && (Array.isArray(genderFilterValue) ? genderFilterValue.length > 0 : true)) {
       const selectedGenders = Array.isArray(genderFilterValue) ? genderFilterValue : [genderFilterValue];
@@ -121,7 +120,7 @@ if (companyIds && companyIds.length > 0) {
     // Apply status column filter with exclude mode support
     const statusFilter = columnFilters.find((f: any) => f.id === 'status');
     const statusVal = statusFilter?.value;
-    const statusExcludeMode = statusFilter?.excludeMode || false;
+    const statusExcludeMode = excludeColumns.includes('status');
 
     if (isSuperAdmin) {
       if (normalizeStatus(statusVal) === 'trashed') return filtered;
@@ -222,11 +221,39 @@ if (companyIds && companyIds.length > 0) {
     );
   }, [columnFilteredApplicants, customFilters, duplicatesOnlyEnabled, currentUserId, jobPositionMap, fieldToJobIds]);
 
+  // Get the current company IDs from the filter
+  const currentCompanyIds = useMemo(() => {
+    if (selectedCompanyFilterValue) {
+      if (Array.isArray(selectedCompanyFilterValue)) {
+        return selectedCompanyFilterValue;
+      }
+      if (typeof selectedCompanyFilterValue === 'string') {
+        return [selectedCompanyFilterValue];
+      }
+      return null;
+    }
+    const companyFilter = columnFilters.find((f: any) => f.id === 'companyId');
+    if (!companyFilter?.value) return null;
+    return Array.isArray(companyFilter.value) ? companyFilter.value : [companyFilter.value];
+  }, [selectedCompanyFilterValue, columnFilters]);
+
+  // Applicants filtered only by company (for cascading filter options)
+  const companyFilteredApplicants = useMemo(() => {
+    if (!currentCompanyIds || currentCompanyIds.length === 0) return applicants;
+    return (applicants || []).filter((applicant: any) => {
+      const applicantCompanyId = getApplicantCompanyId(applicant, jobPositionMap);
+      if (!applicantCompanyId) return false;
+      const matches = currentCompanyIds.includes(applicantCompanyId);
+      return companyFilterExclude ? !matches : matches;
+    });
+  }, [applicants, currentCompanyIds, companyFilterExclude, jobPositionMap]);
+
   // Get status filter options
   const statusFilterOptions = useMemo(() => {
+    const source = companyFilteredApplicants || applicants || [];
     const uniqueStatuses = Array.from(
       new Map(
-        applicants
+        source
           .map((a: any) => a?.status)
           .filter(Boolean)
           .map((s: string) => [s.trim().toLowerCase(), s.trim()] as [string, string])
@@ -237,6 +264,7 @@ if (companyIds && companyIds.length > 0) {
     const inDefault = uniqueStatuses.filter(s => defaultOrderKeys.includes(s.toLowerCase()));
     const outDefault = uniqueStatuses.filter(s => !defaultOrderKeys.includes(s.toLowerCase()));
 
+    // Sort default ones by their defined order, then append the rest alphabetically
     const sorted = [
       ...defaultOrderKeys
         .map(key => inDefault.find(s => s.toLowerCase() === key))
@@ -245,10 +273,10 @@ if (companyIds && companyIds.length > 0) {
     ];
 
     return sorted.map((status) => ({
-      id: status,
+      id: status,  // ← original casing, matches applicant.status exactly
       title: status.charAt(0).toUpperCase() + status.slice(1),
     }));
-  }, [applicants]);
+  }, [companyFilteredApplicants]);
 
   // Get status color function
   const getStatusColor = useCallback((status: string) => {
@@ -285,22 +313,6 @@ if (companyIds && companyIds.length > 0) {
     };
     return descriptions[status?.toLowerCase()] || '';
   }, []);
-
-  // Get the current company IDs from the filter
-  const currentCompanyIds = useMemo(() => {
-    if (selectedCompanyFilterValue) {
-      if (Array.isArray(selectedCompanyFilterValue)) {
-        return selectedCompanyFilterValue;
-      }
-      if (typeof selectedCompanyFilterValue === 'string') {
-        return [selectedCompanyFilterValue];
-      }
-      return null;
-    }
-    const companyFilter = columnFilters.find((f: any) => f.id === 'companyId');
-    if (!companyFilter?.value) return null;
-    return Array.isArray(companyFilter.value) ? companyFilter.value : [companyFilter.value];
-  }, [selectedCompanyFilterValue, columnFilters]);
 
   return {
     filteredApplicants,
