@@ -129,7 +129,7 @@ export default function SectionTemplateModal({
   editing,
   existingCategories,
 }: Props) {
-  const [category, setCategory] = useState('general');
+  const [category, setCategory] = useState('');
   const [titleEn, setTitleEn] = useState('');
   const [titleAr, setTitleAr] = useState('');
   const [items, setItems] = useState<(SectionTemplateItem & { _id: string })[]>(
