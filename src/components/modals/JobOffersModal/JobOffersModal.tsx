@@ -226,6 +226,7 @@ export default function JobOfferModal({
   mode,
   company: propCompany,
   editing,
+  companyId,
   applicantId,
   jobPositionId,
   cloneFrom,
@@ -536,10 +537,19 @@ export default function JobOfferModal({
         if (willSendEmail) await sendBulkOfferEmail();
       } else {
         const singleApplicantId = applicantId ?? form.applicantId;
+        const resolvedCompanyId =
+          form.selectedApplicantObject?.jobPositionId?.companyId._id ??
+          (Array.isArray(companyId) ? companyId[0] : companyId); // ← fallback to prop
+        console.log({
+          ...base,
+          companyId: resolvedCompanyId!,
+          ...(mode === 'offer' && singleApplicantId
+            ? { applicantId: singleApplicantId }
+            : {}),
+        });
         await createMutation.mutateAsync({
           ...base,
-          companyId:
-            form.selectedApplicantObject?.jobPositionId?.companyId._id!,
+          companyId: resolvedCompanyId!,
           ...(mode === 'offer' && singleApplicantId
             ? { applicantId: singleApplicantId }
             : {}),
@@ -553,7 +563,6 @@ export default function JobOfferModal({
   };
 
   // ── Derived labels ─────────────────────────────────────────────────────────
-
   const isTemplate = mode === 'template';
 
   const title = editing
