@@ -1853,7 +1853,7 @@ const jobOptions = useMemo(() => {
   const FilterHeaderCell = useCallback(
     ({
       header,
-      column,
+
       table,
       label,
       colId,
@@ -1865,7 +1865,6 @@ const jobOptions = useMemo(() => {
       filterValue: _filterValue,
     }: {
       header: any;
-      column: any;
       table: any;
       label: string;
       colId: string;
@@ -1880,8 +1879,6 @@ const jobOptions = useMemo(() => {
       const currentFilter = (header.column.getFilterValue() as string[]) ?? [];
       const activeCount = currentFilter.length;
       const isExclude = (layout.excludeColumns ?? []).includes(colId);
-      const sorted = column.getIsSorted();
-
       const liveDepFilter = dependentColumnId
         ? table?.getColumn(dependentColumnId)?.getFilterValue()
         : undefined;
@@ -1906,12 +1903,6 @@ const jobOptions = useMemo(() => {
       const handleFilterClick = (e: React.MouseEvent) => {
         e.stopPropagation();
         setAnchorEl(e.currentTarget as HTMLElement);
-      };
-
-      const handleSortClick = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        const toggle = sorted === 'asc' ? 'desc' : sorted === 'desc' ? false : 'desc';
-        column.toggleSorting(toggle === 'desc');
       };
 
       return (
@@ -1953,34 +1944,6 @@ const jobOptions = useMemo(() => {
             )}
           </button>
 
-          <button
-            type="button"
-            onClick={handleSortClick}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: 18,
-              height: 18,
-              borderRadius: 3,
-              border: 'none',
-              background: sorted ? 'rgba(0,0,0,0.06)' : 'transparent',
-              cursor: 'pointer',
-              padding: 0,
-              outline: 'none',
-              color: sorted ? '#e42e2b' : 'rgba(0,0,0,0.25)',
-            }}
-            title={sorted === 'asc' ? 'Sorted ascending' : sorted === 'desc' ? 'Sorted descending' : 'Click to sort'}
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M11 5h10" />
-              <path d="M11 9h7" />
-              <path d="M11 13h4" />
-              <path d="M3 17l3 3 3-3" />
-              <path d="M6 20V4" />
-            </svg>
-          </button>
-
           <Popover
             anchorEl={anchorEl}
             open={Boolean(anchorEl)}
@@ -2017,6 +1980,7 @@ const jobOptions = useMemo(() => {
     label?: string,
     dependentColumnId?: string
   ): Partial<MRT_ColumnDef<any>> => ({
+    enableColumnFilter: false,
     filterSelectOptions: options,
     filterFn: ((row: any, columnId: string, filterValue: string[]) => {
       if (!filterValue?.length) return true;
@@ -2035,10 +1999,9 @@ const jobOptions = useMemo(() => {
         ? !filterValue.includes(val)
         : filterValue.includes(val);
     }) as MRT_ColumnDef<any>['filterFn'],
-    Header: ({ header, column, table }: { header: any; column: any; table: any }) => (
+    Header: ({ header, table }: { header: any; column: any; table: any }) => (
       <FilterHeaderCell
         header={header}
-        column={column}
         table={table}
         label={label ?? colId}
         colId={colId}
@@ -2485,7 +2448,7 @@ const jobOptions = useMemo(() => {
           false,
           'Status'
         ),
-        Header: ({ header, column, table }: { header: any; column: any; table: any }) => {
+        Header: ({ header, table }: { header: any; column: any; table: any }) => {
           if (
             effectiveOnlyStatus !== undefined &&
             effectiveOnlyStatus !== null
@@ -2495,7 +2458,6 @@ const jobOptions = useMemo(() => {
           return (
             <FilterHeaderCell
               header={header}
-              column={column}
               table={table}
               label="Status"
               colId="status"
