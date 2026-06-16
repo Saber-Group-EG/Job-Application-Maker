@@ -1,9 +1,8 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageMeta from '../../components/common/PageMeta';
-import DatePicker from '../../components/form/date-picker';
 import { useAuth } from '../../context/AuthContext';
-import { useApplicantStatuses } from '../../hooks/queries/useApplicants'; // ✅ Fixed import
+import { useApplicantStatuses } from '../../hooks/queries/useApplicants';
 import { useCompanies } from '../../hooks/queries/useCompanies';
 import { useStatusSettings } from '../../hooks/useStatusSettings';
 import {
@@ -71,7 +70,6 @@ export default function Home() {
   const [selectedCompanyId, setSelectedCompanyId] = useState<
     string | undefined
   >(undefined);
-  const [range, setRange] = useState<Date[] | null>(null);
   const { user } = useAuth();
 
   const isSuperAdmin = useMemo(() => {
@@ -89,14 +87,21 @@ export default function Home() {
     return [...new Set([...fromCompanies, ...fromAssigned])];
   }, [user?.companies, user?.assignedcompanyId]);
 
-  const showCompanySelector = isSuperAdmin || userCompanyIds.length > 1;
-
   // Get companies for selector
   const { data: companies = [] } = useCompanies(
     isSuperAdmin
       ? undefined
       : userCompanyIds
   );
+
+  const showCompanySelector = companies.length > 1;
+
+  // Auto-select the first company whenever companies load and nothing is selected
+  useEffect(() => {
+    if (companies.length > 0 && !selectedCompanyId) {
+      setSelectedCompanyId(companies[0]._id);
+    }
+  }, [companies, selectedCompanyId]);
 
   // Determine companyId for the query
   const companyIds = useMemo(() => {
@@ -183,11 +188,6 @@ export default function Home() {
       const searchParams = new URLSearchParams();
       searchParams.append('status', statusName.toLowerCase());
 
-      if (range && range.length === 2) {
-        searchParams.append('startDate', range[0].toISOString());
-        searchParams.append('endDate', range[1].toISOString());
-      }
-
       navigate(`/applicants?${searchParams.toString()}`);
     }
   };
@@ -197,10 +197,6 @@ export default function Home() {
       navigate(`/applicants/company/${selectedCompanyId}`);
     } else {
       const searchParams = new URLSearchParams();
-      if (range && range.length === 2) {
-        searchParams.append('startDate', range[0].toISOString());
-        searchParams.append('endDate', range[1].toISOString());
-      }
       navigate(`/applicants?${searchParams.toString()}`);
     }
   };
@@ -262,7 +258,7 @@ export default function Home() {
                 onChange={(e) => setSelectedCompanyId(e.target.value || undefined)}
                 className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm shadow-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-800"
               >
-                <option value="">All Companies</option>
+                
                 {companies.map((c: any) => (
                   <option key={c._id} value={c._id}>
                     {typeof c.name === 'object' ? c.name.en : c.name}
@@ -272,15 +268,6 @@ export default function Home() {
             </div>
           )}
 
-          <div className="col-span-12 sm:col-span-6 md:col-span-4 lg:col-span-3">
-            <DatePicker
-              id="applicant-range"
-              label="Filter by date range"
-              mode="range"
-              placeholder="Select date range"
-              onChange={(selectedDates) => setRange(selectedDates as Date[])}
-            />
-          </div>
 
           <div className="col-span-12 sm:col-span-12 md:col-span-12 lg:col-span-6">
             <div className="flex flex-wrap items-center gap-3">
