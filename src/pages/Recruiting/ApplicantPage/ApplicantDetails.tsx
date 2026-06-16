@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import axiosInstance from '../../../config/axios';
+import { useAuth } from '../../../context/AuthContext';
 import PersonalInfo from './components/ApplicantData/PersonalInfo';
 import ActivityFeed from './components/ActivityFeed';
 import CustomResponses from './components/ApplicantData/CustomResponses';
@@ -47,6 +48,7 @@ import {
 } from './utils/customResponseUtils';
 import { buildActivities } from './utils/activityUtils';
 import { buildJobSpecItems } from './utils/jobSpecUtils';
+import { getPreviousStatus } from './utils/statusUtils';
 import type { JobSpecItem } from '../../../types/applicants';
 
 // Resolve a possibly-string-or-object id field (companyId, jobPositionId) into
@@ -213,6 +215,9 @@ const Stickysidebar: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 const ApplicantDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+
+  const { hasPermission } = useAuth();
+  const canRestore = hasPermission('Restore Applicant', 'write') || hasPermission('Restore Applicant', 'create');
 
   const { data: applicant, isLoading: isApplicantLoading, isFetching: isApplicantFetching, isError, error, refetch } = useApplicant(id || '');
   const updateApplicant = useUpdateApplicant();
@@ -772,6 +777,27 @@ const ApplicantDetails: React.FC = () => {
     }
   };
 
+  const handleRestore = async () => {
+    if (!id || !applicant) return;
+    const previousStatus = getPreviousStatus(applicant);
+    const result = await Swal.fire({
+      title: 'Restore applicant?',
+      text: `This will restore the applicant to "${previousStatus}" status.`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#22c55e',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Restore',
+      cancelButtonText: 'Cancel',
+    });
+    if (!result.isConfirmed) return;
+    try {
+      await updateStatus.mutateAsync({ id, data: { status: previousStatus } });
+    } catch {
+      // toast handled by mutation
+    }
+  };
+
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!commentForm.text.trim() || !id) {
@@ -1118,6 +1144,7 @@ const ApplicantDetails: React.FC = () => {
                 onScheduleInterview={() => setShowScheduleModal(true)}
                 onSendMessage={() => setShowMessageModal(true)}
                 onPrint={handlePrint}
+                onRestore={canRestore ? handleRestore : undefined}
               />
               <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 space-y-3">
                 <button
@@ -1246,6 +1273,7 @@ const ApplicantDetails: React.FC = () => {
                   onScheduleInterview={() => setShowScheduleModal(true)}
                   onSendMessage={() => setShowMessageModal(true)}
                   onPrint={handlePrint}
+                  onRestore={canRestore ? handleRestore : undefined}
                 />
                 <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 space-y-3">
                   <button
@@ -1324,6 +1352,7 @@ const ApplicantDetails: React.FC = () => {
                   onScheduleInterview={() => setShowScheduleModal(true)}
                   onSendMessage={() => setShowMessageModal(true)}
                   onPrint={handlePrint}
+                  onRestore={canRestore ? handleRestore : undefined}
                 />
                 <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 space-y-3">
                   <button
