@@ -1,6 +1,7 @@
 // components/BulkInsert.tsx
 import { useState, useMemo } from 'react';
 import * as XLSX from 'xlsx';
+import * as fflate from 'fflate';
 import {
   AlertCircle,
   CheckCircle2,
@@ -176,9 +177,6 @@ function checkExistingApplicant(
 
 // ─── Parse custom fields from Excel ───────────────────────────────────────────
 
-// components/BulkInsert.tsx
-// Update the parseCustomFields function
-
 function parseCustomFields(
   rawRow: Record<string, unknown>,
   jobPosition: JobPosition | null
@@ -193,7 +191,6 @@ function parseCustomFields(
     const fieldLabel = toStringValue(fieldRecord.label);
     const inputType = String(fieldRecord.inputType || 'text');
 
-    // Handle repeatable_group with multiple numbered columns
     if (
       inputType === 'repeatable_group' &&
       Array.isArray(fieldRecord.groupFields)
@@ -203,7 +200,6 @@ function parseCustomFields(
         (sf) => sf as Record<string, unknown>
       );
 
-      // Find all numbered occurrences (max up to 20 entries)
       let maxIndex = 0;
       for (let i = 1; i <= 20; i++) {
         let hasAnyField = false;
@@ -229,7 +225,6 @@ function parseCustomFields(
         }
       }
 
-      // Parse each numbered occurrence
       for (let idx = 1; idx <= maxIndex; idx++) {
         const row: Record<string, unknown> = {};
         let hasValue = false;
@@ -239,9 +234,6 @@ function parseCustomFields(
           const subLabel = toStringValue(subField.label);
           const subInputType = String(subField.inputType || 'text');
 
-          // Column naming convention:
-          // First occurrence: "Group Label - Subfield Label"
-          // Subsequent: "Group Label N - Subfield Label"
           const columnName =
             idx === 1
               ? `${fieldLabel} - ${subLabel}`
@@ -256,7 +248,6 @@ function parseCustomFields(
           if (value !== undefined && value !== null && value !== '') {
             hasValue = true;
 
-            // Parse based on input type
             if (subInputType === 'checkbox') {
               const strValue = String(value).toLowerCase().trim();
               row[subLocKey] =
@@ -289,7 +280,6 @@ function parseCustomFields(
       return;
     }
 
-    // Handle groupField (single group)
     if (inputType === 'groupField' && Array.isArray(fieldRecord.groupFields)) {
       const groupObj: Record<string, unknown> = {};
       const subFields = (fieldRecord.groupFields as unknown[]).map(
@@ -301,7 +291,6 @@ function parseCustomFields(
         const subLabel = toStringValue(subField.label);
         const subInputType = String(subField.inputType || 'text');
 
-        // Column naming: "Group Label - Subfield Label"
         const columnName = `${fieldLabel} - ${subLabel}`;
         let value = rawRow[columnName];
         if (value === undefined) value = rawRow[subLabel];
@@ -335,7 +324,6 @@ function parseCustomFields(
       return;
     }
 
-    // Regular fields (non-group)
     let value = rawRow[fieldLabel];
     if (value === undefined) value = rawRow[fieldId];
     if (value === undefined || value === null) return;
@@ -579,7 +567,6 @@ function validateBulkRow(
   let hasDuplicate = false;
   let duplicateInfo = '';
 
-  // Basic validation (errors - prevent submission)
   if (!row.fullName) errors.push('Full name is required.');
   if (!normalizedEmail) errors.push('Email is required.');
   if (normalizedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
@@ -611,7 +598,6 @@ function validateBulkRow(
     errors.push('Expected salary must be numeric.');
   }
 
-  // Duplicate check within batch (warnings - doesn't prevent submission)
   if (normalizedEmail) {
     const firstSeenRow = batchSeenEmails.get(normalizedEmail);
     if (firstSeenRow !== undefined && firstSeenRow !== row.rowNumber) {
@@ -639,7 +625,6 @@ function validateBulkRow(
     }
   }
 
-  // Duplicate check against existing applicants (warnings - doesn't prevent submission)
   const duplicate = checkExistingApplicant(existingApplicants, {
     email: normalizedEmail,
     phone: normalizedPhone,
@@ -706,8 +691,35 @@ function buildApplicantPayload(
 
 // ─── Build template workbook for a specific job position ──────────────────────
 
-function buildTemplateWorkbookForJob(jobPosition: JobPosition): XLSX.WorkBook {
-  const headers = [
+function buildTemplateWorkbookForJob(jobPosition: JobPosition): {
+  workbook: XLSX.WorkBook;
+  dropdownMap: Map<number, string[]>;
+  dateColumns: Set<number>;
+  allHeaders: string[];
+} {
+  // Required base fields (used for notes row)
+  const requiredBaseFields = new Set([
+    'fullName',
+    'email',
+    'phone',
+    'address',
+    'birthDate',
+    'gender',
+    'jobPosition',
+  ]);
+
+  // ── 1. Job spec headers — shown FIRST ──────────────────────────────────────
+  const jobSpecHeaders: string[] = [];
+  (jobPosition.jobSpecsWithDetails || []).forEach(
+    (spec: { spec?: unknown }) => {
+      const specText = toStringValue(spec?.spec);
+      if (specText && !jobSpecHeaders.includes(specText))
+        jobSpecHeaders.push(specText);
+    }
+  );
+
+  // ── 2. Standard applicant fields ───────────────────────────────────────────
+  const baseFields = [
     'fullName',
     'email',
     'phone',
@@ -718,79 +730,14 @@ function buildTemplateWorkbookForJob(jobPosition: JobPosition): XLSX.WorkBook {
     'jobPosition',
   ];
 
+  // ── 3. Custom field headers ─────────────────────────────────────────────────
   const customFieldHeaders: string[] = [];
-  const jobSpecHeaders: string[] = [];
-
   (jobPosition.customFields || []).forEach((field: unknown) => {
     const fieldRecord = field as Record<string, unknown>;
     const label = toStringValue(fieldRecord.label);
     const inputType = String(fieldRecord.inputType || 'text');
 
-    if (label) {
-      if (
-        inputType === 'repeatable_group' &&
-        Array.isArray(fieldRecord.groupFields)
-      ) {
-        // Generate 3 example rows for repeatable groups
-        const subFields = fieldRecord.groupFields as unknown[];
-        const maxExamples = 3; // Show 3 example rows in template
-
-        for (let exampleNum = 1; exampleNum <= maxExamples; exampleNum++) {
-          subFields.forEach((subField: unknown) => {
-            const subRecord = subField as Record<string, unknown>;
-            const subLabel = toStringValue(subRecord.label);
-            // Format: "Group Label N - Subfield Label"
-            const composite =
-              exampleNum === 1
-                ? `${label} - ${subLabel}`
-                : `${label} ${exampleNum} - ${subLabel}`;
-            customFieldHeaders.push(composite);
-          });
-        }
-      } else if (
-        inputType === 'groupField' &&
-        Array.isArray(fieldRecord.groupFields)
-      ) {
-        // For single group, add subfields with "Group - Subfield" format
-        (fieldRecord.groupFields as unknown[]).forEach((subField: unknown) => {
-          const subRecord = subField as Record<string, unknown>;
-          const subLabel = toStringValue(subRecord.label);
-          const composite = `${label} - ${subLabel}`;
-          customFieldHeaders.push(composite);
-        });
-      } else {
-        customFieldHeaders.push(label);
-      }
-    }
-  });
-
-  (jobPosition.jobSpecsWithDetails || []).forEach(
-    (spec: { spec?: unknown }) => {
-      const specText = toStringValue(spec?.spec);
-      if (specText && !jobSpecHeaders.includes(specText))
-        jobSpecHeaders.push(specText);
-    }
-  );
-
-  const allHeaders = [...headers, ...customFieldHeaders, ...jobSpecHeaders];
-
-  // Create example row with sample data
-  const exampleRowData: (string | number)[] = [
-    'Amina Hassan',
-    'amina@example.com',
-    '01012345678',
-    'Cairo',
-    '1998-06-12',
-    'Female',
-    '12000',
-    toStringValue(jobPosition.title),
-  ];
-
-  // Add example values for custom fields
-  (jobPosition.customFields || []).forEach((field: unknown) => {
-    const fieldRecord = field as Record<string, unknown>;
-    const label = toStringValue(fieldRecord.label);
-    const inputType = String(fieldRecord.inputType || 'text');
+    if (!label) return;
 
     if (
       inputType === 'repeatable_group' &&
@@ -798,18 +745,15 @@ function buildTemplateWorkbookForJob(jobPosition: JobPosition): XLSX.WorkBook {
     ) {
       const subFields = fieldRecord.groupFields as unknown[];
       const maxExamples = 3;
-
       for (let exampleNum = 1; exampleNum <= maxExamples; exampleNum++) {
         subFields.forEach((subField: unknown) => {
           const subRecord = subField as Record<string, unknown>;
           const subLabel = toStringValue(subRecord.label);
-          const subInputType = String(subRecord.inputType || 'text');
-
-          if (subInputType === 'checkbox') exampleRowData.push('Yes');
-          else if (subInputType === 'date') exampleRowData.push('2023-01-01');
-          else if (subInputType === 'number') exampleRowData.push('5');
-          else if (subInputType === 'tags') exampleRowData.push('tag1, tag2');
-          else exampleRowData.push(`Example ${subLabel} - ${exampleNum}`);
+          const composite =
+            exampleNum === 1
+              ? `${label} - ${subLabel}`
+              : `${label} ${exampleNum} - ${subLabel}`;
+          customFieldHeaders.push(composite);
         });
       }
     } else if (
@@ -819,82 +763,416 @@ function buildTemplateWorkbookForJob(jobPosition: JobPosition): XLSX.WorkBook {
       (fieldRecord.groupFields as unknown[]).forEach((subField: unknown) => {
         const subRecord = subField as Record<string, unknown>;
         const subLabel = toStringValue(subRecord.label);
-        const subInputType = String(subRecord.inputType || 'text');
-
-        if (subInputType === 'checkbox') exampleRowData.push('Yes');
-        else if (subInputType === 'date') exampleRowData.push('2023-01-01');
-        else if (subInputType === 'number') exampleRowData.push('5');
-        else if (subInputType === 'tags') exampleRowData.push('tag1, tag2');
-        else exampleRowData.push(`Example ${subLabel}`);
+        customFieldHeaders.push(`${label} - ${subLabel}`);
       });
     } else {
-      if (inputType === 'checkbox') exampleRowData.push('Yes');
-      else if (inputType === 'date') exampleRowData.push('2023-01-01');
-      else if (inputType === 'number') exampleRowData.push('5');
-      else if (inputType === 'tags') exampleRowData.push('tag1, tag2');
-      else exampleRowData.push(`Example ${label}`);
+      customFieldHeaders.push(label);
     }
   });
 
-  // Add job spec examples
-  jobSpecHeaders.forEach(() => exampleRowData.push('Yes'));
+  // ── Final order: jobSpecs → base fields → custom fields ────────────────────
+  const allHeaders = [...jobSpecHeaders, ...baseFields, ...customFieldHeaders];
 
-  const worksheet = XLSX.utils.aoa_to_sheet([allHeaders, exampleRowData]);
-  worksheet['!cols'] = allHeaders.map(() => ({ wch: 20 }));
+  // ── Build notes for each header (will be appended to header name) ──────────
+  const headerNotes: string[] = allHeaders.map((header) => {
+    // Job spec columns
+    if (jobSpecHeaders.includes(header)) return 'Yes / No';
 
-  // Enhanced instructions
-  const instructionsData = [
-    ['Instructions for Bulk Upload'],
-    [''],
-    ['Required Columns:'],
-    ['- fullName: Applicant full name (required)'],
-    ['- email: Valid email address (required)'],
-    ['- phone: Egyptian phone number (01XXXXXXXXX) (required)'],
-    ['- address: Applicant address (required)'],
-    ['- birthDate: YYYY-MM-DD format (required)'],
-    ['- gender: Male or Female (required)'],
-    ['- expectedSalary: Numeric value (optional)'],
-    ['- jobPosition: Exact job title as shown above (required)'],
-    [''],
-    [
-      'For Repeatable Groups (e.g., Work Experience, Education, Certifications):',
-    ],
-    ['  - Use the numbered columns to add multiple entries'],
-    [
-      '  - First entry uses "Group Name - Field Name" (e.g., "Work Experience - Company Name")',
-    ],
-    [
-      '  - Second entry uses "Group Name 2 - Field Name" (e.g., "Work Experience 2 - Company Name")',
-    ],
-    ['  - Third entry uses "Group Name 3 - Field Name", and so on'],
-    ['  - You can add up to 20 entries for each repeatable group'],
-    ['  - Leave unused columns empty'],
-    [''],
-    ['For Single Groups (e.g., Address, Contact Info):'],
-    [
-      '  - Use the format "Group Name - Field Name" (e.g., "Current Address - Street")',
-    ],
-    [''],
-    ['Job Specifications:'],
-    ...jobSpecHeaders.map((h) => [`- ${h}: Answer with Yes or No`]),
-    [''],
-    ['Notes:'],
-    ['- Duplicate applicants will show a warning but can still be submitted'],
-    [
-      '- All custom fields are optional unless marked as required in the job settings',
-    ],
-    ['- For checkboxes, use Yes/No or True/False'],
-    ['- For tags, separate multiple values with commas'],
-  ];
+    // Base field notes
+    if (header === 'gender') return 'Required – Male / Female';
+    if (header === 'expectedSalary') return 'Optional – numeric';
+    if (requiredBaseFields.has(header)) return 'Required';
 
-  const instructionsSheet = XLSX.utils.aoa_to_sheet(instructionsData);
-  instructionsSheet['!cols'] = [{ wch: 80 }];
+    // Custom field notes
+    for (const field of jobPosition.customFields || []) {
+      const fieldRecord = field as Record<string, unknown>;
+      const label = toStringValue(fieldRecord.label);
+      const inputType = String(fieldRecord.inputType || 'text');
+      const isRequired = Boolean(fieldRecord.required);
+      const mark = isRequired ? 'Required' : 'Optional';
 
+      if (label === header) {
+        if (inputType === 'checkbox') return `${mark} – Yes / No`;
+        if (inputType === 'date') return `${mark} – MM/DD/YYYY`;
+        if (inputType === 'number') return `${mark} – numeric`;
+        if (inputType === 'tags') return `${mark} – comma separated`;
+        if (
+          (inputType === 'select' || inputType === 'radio') &&
+          Array.isArray(fieldRecord.options)
+        ) {
+          const opts = (fieldRecord.options as unknown[])
+            .map((o) => {
+              const oRec = o as Record<string, unknown>;
+              return toStringValue(oRec.label || oRec.value || o);
+            })
+            .filter(Boolean)
+            .join(' / ');
+          return `${mark} – ${opts}`;
+        }
+        return mark;
+      }
+
+      // Sub-field match (groupField / repeatable_group)
+      if (
+        (inputType === 'groupField' || inputType === 'repeatable_group') &&
+        Array.isArray(fieldRecord.groupFields)
+      ) {
+        for (const sf of fieldRecord.groupFields as unknown[]) {
+          const sfRecord = sf as Record<string, unknown>;
+          const sfLabel = toStringValue(sfRecord.label);
+          const sfType = String(sfRecord.inputType || 'text');
+          const sfRequired = Boolean(sfRecord.required);
+          const sfMark = sfRequired ? 'Required' : 'Optional';
+
+          const isMatch =
+            header === `${label} - ${sfLabel}` ||
+            (header.startsWith(label) && header.endsWith(`- ${sfLabel}`));
+
+          if (isMatch) {
+            if (sfType === 'checkbox') return `${sfMark} – Yes / No`;
+            if (sfType === 'date') return `${sfMark} – MM/DD/YYYY`;
+            if (sfType === 'number') return `${sfMark} – numeric`;
+            if (sfType === 'tags') return `${sfMark} – comma separated`;
+            if (
+              (sfType === 'select' || sfType === 'radio') &&
+              Array.isArray(sfRecord.options)
+            ) {
+              const opts = (sfRecord.options as unknown[])
+                .map((o) => {
+                  const oRec = o as Record<string, unknown>;
+                  return toStringValue(oRec.label || oRec.value || o);
+                })
+                .filter(Boolean)
+                .join(' / ');
+              return `${sfMark} – ${opts}`;
+            }
+            return sfMark;
+          }
+        }
+      }
+    }
+
+    return '';
+  });
+
+  // Merge notes into header names: "fullName" → "fullName (Required)"
+  const headersWithNotes = allHeaders.map((h, i) => {
+    const note = headerNotes[i];
+    return note ? `${h} (${note})` : h;
+  });
+
+  // ── Create sheet: row 1 = headers with notes, row 2+ = empty ───────────────
+  const worksheet = XLSX.utils.aoa_to_sheet([
+    headersWithNotes,
+  ]);
+
+  // ── Column widths ───────────────────────────────────────────────────────────
+  worksheet['!cols'] = allHeaders.map((h) => ({
+    wch: Math.max(22, h.length + 4),
+  }));
+
+  // ── Date cell formatting ───────────────────────────────────────────────────
+  // Ensure date columns have proper number format so Excel treats them as dates.
+  const dateColIndices = new Set<number>();
+  allHeaders.forEach((header, colIdx) => {
+    if (header === 'birthDate') {
+      dateColIndices.add(colIdx);
+      return;
+    }
+    for (const field of jobPosition.customFields || []) {
+      const fieldRecord = field as Record<string, unknown>;
+      const label = toStringValue(fieldRecord.label);
+      const inputType = String(fieldRecord.inputType || 'text');
+      if (label === header && inputType === 'date') {
+        dateColIndices.add(colIdx);
+        return;
+      }
+      if (
+        (inputType === 'groupField' || inputType === 'repeatable_group') &&
+        Array.isArray(fieldRecord.groupFields)
+      ) {
+        for (const sf of fieldRecord.groupFields as unknown[]) {
+          const sfRecord = sf as Record<string, unknown>;
+          const sfLabel = toStringValue(sfRecord.label);
+          const sfType = String(sfRecord.inputType || 'text');
+          const isMatch =
+            header === `${label} - ${sfLabel}` ||
+            (header.startsWith(label) && header.endsWith(`- ${sfLabel}`));
+          if (isMatch && sfType === 'date') {
+            dateColIndices.add(colIdx);
+          }
+        }
+      }
+    }
+  });
+
+  // Ensure date cells exist in the worksheet (styles patched later by injectDataValidations)
+  dateColIndices.forEach((colIdx) => {
+    let col = '';
+    let n = colIdx + 1;
+    while (n > 0) {
+      const r = (n - 1) % 26;
+      col = String.fromCharCode(65 + r) + col;
+      n = Math.floor((n - 1) / 26);
+    }
+    const rowsToFormat = [];
+    for (let r = 2; r <= 1000; r++) rowsToFormat.push(r);
+    rowsToFormat.forEach((r) => {
+      const cellRef = `${col}${r}`;
+      if (!worksheet[cellRef]) {
+        worksheet[cellRef] = { t: 'n' };
+      }
+    });
+  });
+
+  // ── Data Validations (dropdowns) ────────────────────────────────────────────
+  //
+  // Strategy: collect all option lists, write them into a hidden "Options" sheet
+  // (one list per column), then reference each range as the formula1 source.
+  // This works reliably across all SheetJS CE versions and Excel / LibreOffice.
+  //
+  // Layout of Options sheet:
+  //   Row 1 = column headers (debug label)
+  //   Rows 2+ = option values for that column
+  //
+  // Each dropdown points to  Options!$X$2:$X$N  where N = number of options + 1.
+
+  // Map: colIdx on Applicants sheet → string[] of options
+  const dropdownMap = new Map<number, string[]>();
+  // Set: colIdx on Applicants sheet → date columns (need date picker)
+  const dateColumns = new Set<number>();
+
+  // Helper to extract options from a field record
+  // choices is Array<{ en: string; ar: string }> (LocalizedString)
+  const extractOptions = (fieldRecord: Record<string, unknown>): string[] => {
+    const choicesArr = fieldRecord.choices || fieldRecord.options;
+    if (!Array.isArray(choicesArr)) return [];
+    return (choicesArr as unknown[])
+      .map((o) => {
+        if (typeof o === 'string') return o;
+        const oRec = o as Record<string, unknown>;
+        // LocalizedString: { en: string; ar: string }
+        if (typeof oRec.en === 'string' && oRec.en) return oRec.en;
+        return toStringValue(oRec.label || oRec.value || o);
+      })
+      .filter(Boolean);
+  };
+
+  allHeaders.forEach((header, colIdx) => {
+    // Job spec → Yes / No
+    if (jobSpecHeaders.includes(header)) {
+      dropdownMap.set(colIdx, ['Yes', 'No']);
+      return;
+    }
+
+    // gender → Male / Female
+    if (header === 'gender') {
+      dropdownMap.set(colIdx, ['Male', 'Female']);
+      return;
+    }
+
+    // birthDate → date picker
+    if (header === 'birthDate') {
+      dateColumns.add(colIdx);
+      return;
+    }
+
+    // Custom fields — scan each field definition
+    for (const field of jobPosition.customFields || []) {
+      const fieldRecord = field as Record<string, unknown>;
+      const label = toStringValue(fieldRecord.label);
+      const inputType = String(fieldRecord.inputType || 'text');
+
+      // Direct field match
+      if (label === header) {
+        if (inputType === 'checkbox') {
+          dropdownMap.set(colIdx, ['Yes', 'No']);
+        } else if (
+          inputType === 'select' ||
+          inputType === 'radio' ||
+          inputType === 'dropdown'
+        ) {
+          const opts = extractOptions(fieldRecord);
+          if (opts.length) dropdownMap.set(colIdx, opts);
+        } else if (inputType === 'date') {
+          dateColumns.add(colIdx);
+        }
+        return; // done for this column
+      }
+
+      // Sub-fields inside groupField / repeatable_group
+      if (
+        (inputType === 'groupField' || inputType === 'repeatable_group') &&
+        Array.isArray(fieldRecord.groupFields)
+      ) {
+        for (const sf of fieldRecord.groupFields as unknown[]) {
+          const sfRecord = sf as Record<string, unknown>;
+          const sfLabel = toStringValue(sfRecord.label);
+          const sfType = String(sfRecord.inputType || 'text');
+
+          // Match "Label - SubLabel" or "Label N - SubLabel"
+          const isMatch =
+            header === `${label} - ${sfLabel}` ||
+            (header.startsWith(label) && header.endsWith(`- ${sfLabel}`));
+
+          if (isMatch) {
+            if (sfType === 'checkbox') {
+              dropdownMap.set(colIdx, ['Yes', 'No']);
+            } else if (
+              sfType === 'select' ||
+              sfType === 'radio' ||
+              sfType === 'dropdown'
+            ) {
+              const opts = extractOptions(sfRecord);
+              if (opts.length) dropdownMap.set(colIdx, opts);
+            } else if (sfType === 'date') {
+              dateColumns.add(colIdx);
+            }
+            break;
+          }
+        }
+      }
+    }
+  });
+
+  // ── Assemble workbook ───────────────────────────────────────────────────────
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Applicants');
-  XLSX.utils.book_append_sheet(workbook, instructionsSheet, 'Instructions');
 
-  return workbook;
+  return { workbook, dropdownMap, dateColumns, allHeaders };
+}
+
+// ─── Inject data validation XML into xlsx binary ─────────────────────────────
+// SheetJS CE cannot write dataValidation properly, so we unzip, patch the XML,
+// and re-zip.
+//
+// Excel Online shows a calendar date-picker only when the cell:
+//   1. Has dataValidation type="date"
+//   2. Uses a BUILT-IN date number format (numFmtId 14 = "m/d/yyyy")
+// SheetJS always writes custom numFmts, so we must patch styles.xml too.
+
+function colIdxToLetter(colIdx: number): string {
+  let col = '';
+  let n = colIdx + 1;
+  while (n > 0) {
+    const r = (n - 1) % 26;
+    col = String.fromCharCode(65 + r) + col;
+    n = Math.floor((n - 1) / 26);
+  }
+  return col;
+}
+
+function injectDataValidations(
+  xlsxBytes: Uint8Array,
+  dropdownMap: Map<number, string[]>,
+  dateColumns: Set<number>,
+): Uint8Array {
+  const unzipped = fflate.unzipSync(xlsxBytes);
+
+  // ── 1. Find sheet XML ─────────────────────────────────────────────────────
+  const sheetKey = Object.keys(unzipped).find(
+    (k) => k.startsWith('xl/worksheets/sheet') && k.endsWith('.xml'),
+  );
+  if (!sheetKey) return xlsxBytes;
+
+  let xml = new TextDecoder('utf-8').decode(unzipped[sheetKey]);
+
+  // Remove any existing <dataValidations> block
+  xml = xml.replace(
+    /<dataValidations[^>]*>[\s\S]*?<\/dataValidations>/,
+    '',
+  );
+
+  // ── 2. Build data validation entries ───────────────────────────────────────
+  const dvEntries: string[] = [];
+
+  // List dropdowns
+  dropdownMap.forEach((opts, colIdx) => {
+    const col = colIdxToLetter(colIdx);
+    const sqref = `${col}2:${col}1000`;
+    const formula1 = `"${opts.join(',')}"`;
+    dvEntries.push(
+      `<dataValidation type="list" allowBlank="1" showInputMessage="1" showErrorMessage="1" error="Please select from the list." errorTitle="Invalid entry" sqref="${sqref}"><formula1>${formula1}</formula1></dataValidation>`,
+    );
+  });
+
+  // Date columns
+  dateColumns.forEach((colIdx) => {
+    const col = colIdxToLetter(colIdx);
+    const sqref = `${col}2:${col}1000`;
+    dvEntries.push(
+      `<dataValidation type="date" operator="between" allowBlank="1" showInputMessage="1" showErrorMessage="1" promptTitle="Date format" prompt="Enter date in MM/DD/YYYY format (e.g. 01/15/2025)." error="Please enter a valid date." errorTitle="Invalid date" sqref="${sqref}"><formula1>1</formula1><formula2>2958465</formula2></dataValidation>`,
+    );
+  });
+
+  if (dvEntries.length === 0) return xlsxBytes;
+
+  const dvXml = `<dataValidations count="${dvEntries.length}">${dvEntries.join('')}</dataValidations>`;
+  xml = xml.replace(/<\/sheetData>/, `</sheetData>${dvXml}`);
+
+  // ── 3. Patch styles.xml — ensure built-in date format (numFmtId 14) ────────
+  const stylesKey = Object.keys(unzipped).find((k) => k.includes('styles'));
+  let dateXfIdx = -1; // index of the <xf> with numFmtId=14 in <cellXfs>
+
+  if (stylesKey) {
+    let stylesXml = new TextDecoder('utf-8').decode(unzipped[stylesKey]);
+
+    // Parse <cellXfs> to find or add an <xf> with numFmtId="14"
+    const cellXfsMatch = stylesXml.match(
+      /<cellXfs\s[^>]*count="(\d+)"[^>]*>([\s\S]*?)<\/cellXfs>/,
+    );
+    if (cellXfsMatch) {
+      const xfCount = parseInt(cellXfsMatch[1], 10);
+      const xfContent = cellXfsMatch[2];
+
+      // Check if an xf with numFmtId=14 already exists
+      const allXfs = xfContent.match(/<xf\s[^>]*\/>/g) || [];
+      let foundIdx = -1;
+      for (let i = 0; i < allXfs.length; i++) {
+        if (/numFmtId="14"/.test(allXfs[i])) {
+          foundIdx = i;
+          break;
+        }
+      }
+
+      if (foundIdx >= 0) {
+        dateXfIdx = foundIdx;
+      } else {
+        // Add a new <xf> with numFmtId=14 (built-in Short Date)
+        const newXf =
+          '<xf numFmtId="14" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>';
+        dateXfIdx = xfCount; // 0-based index of the new xf
+
+        stylesXml = stylesXml.replace(
+          /<cellXfs\s([^>]*)count="\d+"/,
+          `<cellXfs $1count="${xfCount + 1}"`,
+        );
+        stylesXml = stylesXml.replace(/<\/cellXfs>/, `${newXf}</cellXfs>`);
+      }
+    }
+
+    unzipped[stylesKey] = new TextEncoder().encode(stylesXml);
+  }
+
+  // ── 4. Patch sheet XML — set s="<dateXfIdx>" on date cells ────────────────
+  if (dateXfIdx >= 0) {
+    dateColumns.forEach((colIdx) => {
+      const col = colIdxToLetter(colIdx);
+      const cellRefs = [];
+      for (let r = 2; r <= 1000; r++) cellRefs.push(`${col}${r}`);
+
+      cellRefs.forEach((ref) => {
+        const tagRe = new RegExp(`(<c\\s+r="${ref}"[^>]*?)>`, 'g');
+        xml = xml.replace(tagRe, (_match, tag) => {
+          const clean = tag.replace(/\s*s="\d+"/g, '');
+          return `${clean} s="${dateXfIdx}">`;
+        });
+      });
+    });
+  }
+
+  unzipped[sheetKey] = new TextEncoder().encode(xml);
+  return fflate.zipSync(unzipped, { level: 0 });
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -957,7 +1235,7 @@ export default function BulkInsert({
     );
   };
 
-  const handleDownloadTemplate = () => {
+  const handleDownloadTemplate = async () => {
     if (!selectedJobForTemplate) {
       Swal.fire({
         title: 'Select a job position',
@@ -981,17 +1259,52 @@ export default function BulkInsert({
       return;
     }
 
-    const workbook = buildTemplateWorkbookForJob(jobPosition);
+    const { workbook, dropdownMap, dateColumns } = buildTemplateWorkbookForJob(jobPosition);
     const fileName = `Applicant_Template_${toStringValue(jobPosition.title).replace(/[^a-z0-9]/gi, '_')}.xlsx`;
-    XLSX.writeFile(workbook, fileName);
 
-    Swal.fire({
-      title: 'Template downloaded',
-      text: `Template for "${toStringValue(jobPosition.title)}" has been downloaded.`,
-      icon: 'success',
-      timer: 2000,
-      showConfirmButton: false,
-    });
+    try {
+      // Write workbook to binary string, then to Uint8Array
+      const binStr: string = XLSX.write(workbook, {
+        bookType: 'xlsx',
+        type: 'binary',
+      });
+      const bytes = new Uint8Array(binStr.length);
+      for (let i = 0; i < binStr.length; i++) {
+        bytes[i] = binStr.charCodeAt(i) & 0xff;
+      }
+
+      // Inject data validation XML into the xlsx
+      const patched = injectDataValidations(bytes, dropdownMap, dateColumns);
+
+      // Download as .xlsx
+      const blob = new Blob([new Uint8Array(patched)], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      Swal.fire({
+        title: 'Template downloaded',
+        text: `Template for "${toStringValue(jobPosition.title)}" has been downloaded.`,
+        icon: 'success',
+        timer: 2000,
+        showConfirmButton: false,
+      });
+    } catch (err) {
+      console.error('Template download error:', err);
+      Swal.fire({
+        title: 'Download failed',
+        text: err instanceof Error ? err.message : 'Could not generate template.',
+        icon: 'error',
+        confirmButtonText: 'OK',
+      });
+    }
   };
 
   const handleBulkFileParse = async (file: File) => {
@@ -1015,7 +1328,16 @@ export default function BulkInsert({
         worksheet,
         { defval: '' }
       );
-      const parsed = jsonRows.map((row, index) =>
+      // Strip "(Required ...)" / "(Optional ...)" suffixes from header keys
+      const cleanRows = jsonRows.map((row) => {
+        const cleaned: Record<string, unknown> = {};
+        Object.entries(row).forEach(([key, val]) => {
+          const cleanKey = key.replace(/\s*\(.*?\)\s*$/, '').trim();
+          cleaned[cleanKey] = val;
+        });
+        return cleaned;
+      });
+      const parsed = cleanRows.map((row, index) =>
         normalizeApplicantRow(row, index + 2, jobPositions)
       );
       setBulkRows(validateBulkRows(parsed));
@@ -1040,7 +1362,6 @@ export default function BulkInsert({
   const handleBulkSubmit = async () => {
     const validatedRows = validateBulkRows(bulkRows);
 
-    // Separate rows: those with errors (blocking) vs those with only warnings (including duplicates)
     const rowsWithOnlyWarnings = validatedRows.filter(
       (row) => row.errors.length === 0 && row.warnings.length > 0
     );
@@ -1062,7 +1383,6 @@ export default function BulkInsert({
       return;
     }
 
-    // Show warning if there are duplicates
     if (rowsWithOnlyWarnings.length > 0) {
       const duplicateCount = rowsWithOnlyWarnings.length;
       const result = await Swal.fire({
@@ -1149,7 +1469,12 @@ export default function BulkInsert({
   const formatCellValue = (value: unknown): string => {
     if (value === undefined || value === null) return '-';
     if (typeof value === 'object') return JSON.stringify(value);
-    return String(value);
+    const str = String(value);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+      const [y, m, d] = str.split('-');
+      return `${m}/${d}/${y}`;
+    }
+    return str;
   };
 
   const getRowStatus = (
