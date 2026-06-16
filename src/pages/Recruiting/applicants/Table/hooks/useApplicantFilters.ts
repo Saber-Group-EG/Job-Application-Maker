@@ -14,6 +14,7 @@ interface UseApplicantFiltersProps {
   fieldToJobIds: Map<string, Set<string>> | Record<string, Set<string>>;
   currentUserId: string;
   allCompaniesRaw: any[];
+  canViewTrashed?: boolean;
 }
 
 export function useApplicantFilters({
@@ -26,6 +27,7 @@ export function useApplicantFilters({
   jobPositionMap,
   fieldToJobIds,
   currentUserId,
+  canViewTrashed = false,
 }: UseApplicantFiltersProps) {
   const normalizeStatus = useCallback((value: unknown) => {
     return String(value ?? '').trim().toLowerCase();
@@ -93,7 +95,7 @@ export function useApplicantFilters({
     const statusFilter = columnFilters.find((f: any) => f.id === 'status');
     const statusVal = statusFilter?.value;
 
-    if (isSuperAdmin) {
+    if (isSuperAdmin || canViewTrashed) {
       if (normalizeStatus(statusVal) === 'trashed') return filtered;
       if (Array.isArray(statusVal) && statusVal.length > 0) {
         const allowed = statusVal.map(normalizeStatus).filter(Boolean);
@@ -118,7 +120,7 @@ filtered = filtered.filter((a: any) => allowed.includes(normalizeStatus(a.status
 
     filtered = filtered.filter((a: any) => normalizeStatus(a.status) !== 'trashed');
     return filtered;
-  }, [applicants, columnFilters, isSuperAdmin, effectiveOnlyStatus, selectedCompanyIds, jobPositionMap, normalizeStatus]);
+  }, [applicants, columnFilters, isSuperAdmin, canViewTrashed, effectiveOnlyStatus, selectedCompanyIds, jobPositionMap, normalizeStatus]);
 
   // Check if duplicates only filter is enabled
   const duplicatesOnlyEnabled = useMemo(
@@ -163,7 +165,7 @@ filtered = filtered.filter((a: any) => allowed.includes(normalizeStatus(a.status
   }, [displayedApplicants, customFilters, duplicatesOnlyEnabled, currentUserId, jobPositionMap, fieldToJobIds]);
 
   // Get status filter options
- const statusFilterOptions = useMemo(() => {
+  const statusFilterOptions = useMemo(() => {
   // Collect original casing from actual data
   const uniqueStatuses = Array.from(
     new Map(
@@ -175,8 +177,13 @@ filtered = filtered.filter((a: any) => allowed.includes(normalizeStatus(a.status
   );
 
   const defaultOrderKeys = ['pending', 'approved', 'interview', 'interviewed', 'rejected', 'trashed'];
-  const inDefault = uniqueStatuses.filter(s => defaultOrderKeys.includes(s.toLowerCase()));
-  const outDefault = uniqueStatuses.filter(s => !defaultOrderKeys.includes(s.toLowerCase()));
+
+  const visibleStatuses = (isSuperAdmin || canViewTrashed)
+    ? uniqueStatuses
+    : uniqueStatuses.filter(s => s.toLowerCase() !== 'trashed');
+
+  const inDefault = visibleStatuses.filter(s => defaultOrderKeys.includes(s.toLowerCase()));
+  const outDefault = visibleStatuses.filter(s => !defaultOrderKeys.includes(s.toLowerCase()));
 
   // Sort default ones by their defined order, then append the rest alphabetically
   const sorted = [
@@ -190,7 +197,7 @@ filtered = filtered.filter((a: any) => allowed.includes(normalizeStatus(a.status
     id: status,  // ← original casing, matches applicant.status exactly
     title: status.charAt(0).toUpperCase() + status.slice(1),
   }));
-}, [applicants]);
+}, [applicants, isSuperAdmin, canViewTrashed]);
 
   // Get status color function
   const getStatusColor = useCallback((status: string) => {

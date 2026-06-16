@@ -255,7 +255,7 @@ export default function Applicants({
 }: ApplicantsProps = {}) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const location = useLocation();
   const params = useParams();
 
@@ -279,6 +279,16 @@ export default function Applicants({
       typeof roleName === 'string' && roleName.toLowerCase() === 'super admin'
     );
   }, [user?.roleId?.name]);
+
+  const canRestore = useMemo(() => {
+    if (isSuperAdmin) return true;
+    return hasPermission('Restore Applicant', 'write') || hasPermission('Restore Applicant', 'create');
+  }, [isSuperAdmin, hasPermission]);
+
+  const canViewTrashed = useMemo(() => {
+    if (isSuperAdmin) return true;
+    return hasPermission('Restore Applicant');
+  }, [isSuperAdmin, hasPermission]);
 
   const persistedTableState = useMemo(() => {
     try {
@@ -516,8 +526,8 @@ export default function Applicants({
   const genderOptions = useMemo(() => {
     const s = new Set<string>();
     const rows = Array.isArray(applicants) ? applicants : [];
-    rows.forEach((a: any) => {
-      if (!isSuperAdmin && a?.status === 'trashed') return;
+      rows.forEach((a: any) => {
+        if (!isSuperAdmin && !canViewTrashed && a?.status === 'trashed') return;
       const raw =
         a?.gender ||
         a?.customResponses?.gender ||
@@ -534,7 +544,7 @@ export default function Applicants({
       if (it !== 'Male' && it !== 'Female') ordered.push(it);
     });
     return ordered.map((g) => ({ id: g, title: g }));
-  }, [applicants, isSuperAdmin]);
+  }, [applicants, isSuperAdmin, canViewTrashed]);
 
   const jobOptions = useMemo(() => {
     const getIdValue = (v: any) =>
@@ -600,6 +610,7 @@ export default function Applicants({
     fieldToJobIds,
     currentUserId,
     allCompaniesRaw,
+    canViewTrashed,
   });
 
   const {
@@ -2117,7 +2128,7 @@ export default function Applicants({
               ) : (
                 <span className="text-xs text-gray-500">-</span>
               )}
-              {isTrashedApplicant && (
+              {isTrashedApplicant && canRestore && (
                 <button
                   type="button"
                   aria-label="Restore applicant"
@@ -2166,6 +2177,7 @@ export default function Applicants({
       jobPositionMap,
       companyMap,
       currentUserId,
+      canRestore,
     ]
   );
 
