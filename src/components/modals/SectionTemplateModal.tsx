@@ -220,7 +220,7 @@ export default function SectionTemplateModal({
   editing,
   existingCategories,
 }: Props) {
-  const [category, setCategory] = useState('general');
+  const [category, setCategory] = useState('');
   const [titleEn, setTitleEn] = useState('');
   const [titleAr, setTitleAr] = useState('');
   const [items, setItems] = useState<(SectionTemplateItem & { _id: string })[]>(
@@ -236,14 +236,14 @@ export default function SectionTemplateModal({
   // populate when editing
   useEffect(() => {
     if (editing) {
-      setCategory(editing.category ?? 'general');
+      setCategory(editing.category ?? '');
       setTitleEn(editing.title.en);
       setTitleAr(editing.title.ar);
       setItems(
         (editing.items ?? []).map((i) => ({ ...i, _id: i._id ?? uid() }))
       );
     } else {
-      setCategory('general');
+      setCategory('');
       setTitleEn('');
       setTitleAr('');
       setItems([]);
