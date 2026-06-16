@@ -35,7 +35,6 @@ export function CommissionRow({
     listeners,
     setNodeRef,
     transform,
-    transition,
     isDragging,
   } = useSortable({ id: comm._id });
 

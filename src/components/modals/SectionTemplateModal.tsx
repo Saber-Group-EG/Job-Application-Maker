@@ -157,7 +157,6 @@ function SortableItemRow({
     listeners,
     setNodeRef,
     transform,
-    transition,
     isDragging,
   } = useSortable({ id: item._id });
 

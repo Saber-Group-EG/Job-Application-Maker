@@ -102,6 +102,7 @@ function SortablePageItem({
         <div
           {...attributes}
           {...listeners}
+          onClick={(e) => e.stopPropagation()}
           className={`flex cursor-grab items-center justify-center rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-600 active:cursor-grabbing dark:hover:bg-slate-700 dark:hover:text-slate-300 ${
             !canEdit ? "cursor-not-allowed opacity-50" : ""
           }`}

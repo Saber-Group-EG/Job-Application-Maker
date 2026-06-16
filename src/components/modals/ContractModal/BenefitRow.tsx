@@ -30,7 +30,6 @@ export function BenefitRow({
     listeners,
     setNodeRef,
     transform,
-    transition,
     isDragging,
   } = useSortable({ id: benefit._id });
 

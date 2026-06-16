@@ -40,7 +40,6 @@ export function SectionBlock({
     listeners,
     setNodeRef,
     transform,
-    transition,
     isDragging,
   } = useSortable({ id: section._id });
 
