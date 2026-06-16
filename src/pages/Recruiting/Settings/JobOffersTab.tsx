@@ -47,6 +47,7 @@ const WORK_TYPE_COLORS: Record<WorkType, string> = {
 type Props = {
   companyId: string;
   embedded?: boolean;
+  hideCompanySelector?: boolean;
 };
 
 // ─── Template Card ────────────────────────────────────────────────────────────

@@ -54,6 +54,7 @@ const CONTRACT_TYPE_COLORS: Record<ContractType, string> = {
 type Props = {
   companyId: string;
   embedded?: boolean;
+  hideCompanySelector?: boolean;
 };
 
 // ─── Template Card ────────────────────────────────────────────────────────────

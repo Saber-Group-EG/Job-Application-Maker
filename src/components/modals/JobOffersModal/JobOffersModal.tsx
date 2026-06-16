@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   X,
   FileText,
@@ -13,7 +13,27 @@ import {
   Send,
   ChevronDown,
   Layers,
+  GripVertical,
 } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
+  defaultDropAnimationSideEffects,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { createPortal } from 'react-dom';
 import {
   CommissionType,
   JobOffer,
@@ -234,8 +254,23 @@ export default function JobOfferModal({
   const [form, setForm] = useState<FormState>(emptyForm);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [showSalaryReview, setShowSalaryReview] = useState(false);
+  const [activeCommissionId, setActiveCommissionId] = useState<string | null>(null);
+  const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
 
   const firstInputRef = useRef<HTMLInputElement>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const dropAnimation = {
+    sideEffects: defaultDropAnimationSideEffects({
+      styles: { active: { opacity: '0.4' } },
+    }),
+    duration: 200,
+    easing: 'cubic-bezier(0.2, 0, 0, 1)',
+  };
   // ── Mutations ──────────────────────────────────────────────────────────────
   const createMutation = useCreateJobOffer();
   const bulkMutation = useBulkCreateJobOffers();
@@ -261,6 +296,54 @@ export default function JobOfferModal({
     updateMutation.isPending ||
     bulkMutation.isPending ||
     isEmailPending;
+
+  // ── Drag handlers ──────────────────────────────────────────────────────────
+
+  const handleCommissionDragStart = useCallback((event: DragStartEvent) => {
+    setActiveCommissionId(event.active.id as string);
+  }, []);
+
+  const handleCommissionDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveCommissionId(null);
+    if (over && active.id !== over.id) {
+      setForm((prev) => {
+        const oldIndex = prev.commissions.findIndex((c) => c._id === active.id);
+        const newIndex = prev.commissions.findIndex((c) => c._id === over.id);
+        if (oldIndex !== -1 && newIndex !== -1) {
+          return { ...prev, commissions: arrayMove(prev.commissions, oldIndex, newIndex) };
+        }
+        return prev;
+      });
+    }
+  }, []);
+
+  const handleCommissionDragCancel = useCallback(() => {
+    setActiveCommissionId(null);
+  }, []);
+
+  const handleSectionDragStart = useCallback((event: DragStartEvent) => {
+    setActiveSectionId(event.active.id as string);
+  }, []);
+
+  const handleSectionDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveSectionId(null);
+    if (over && active.id !== over.id) {
+      setForm((prev) => {
+        const oldIndex = prev.sections.findIndex((s) => s._id === active.id);
+        const newIndex = prev.sections.findIndex((s) => s._id === over.id);
+        if (oldIndex !== -1 && newIndex !== -1) {
+          return { ...prev, sections: arrayMove(prev.sections, oldIndex, newIndex) };
+        }
+        return prev;
+      });
+    }
+  }, []);
+
+  const handleSectionDragCancel = useCallback(() => {
+    setActiveSectionId(null);
+  }, []);
 
   // ── Template apply ─────────────────────────────────────────────────────────
   const applyTemplate = (template: JobOffer) => {
@@ -868,16 +951,53 @@ export default function JobOfferModal({
             />
 
             <div className="space-y-3">
-              {form.commissions.map((c, idx) => (
-                <CommissionRow
-                  key={c._id}
-                  comm={c}
-                  index={idx}
-                  onChange={(patch) => patchCommission(c._id, patch)}
-                  onRemove={() => removeCommission(c._id)}
-                  onDuplicate={() => duplicateCommission(c._id)}
-                />
-              ))}
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleCommissionDragStart}
+                onDragEnd={handleCommissionDragEnd}
+                onDragCancel={handleCommissionDragCancel}
+              >
+                <SortableContext
+                  items={form.commissions.map((c) => c._id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {form.commissions.map((c, idx) => (
+                    <CommissionRow
+                      key={c._id}
+                      comm={c}
+                      index={idx}
+                      onChange={(patch) => patchCommission(c._id, patch)}
+                      onRemove={() => removeCommission(c._id)}
+                      onDuplicate={() => duplicateCommission(c._id)}
+                    />
+                  ))}
+                </SortableContext>
+                {createPortal(
+                  <DragOverlay dropAnimation={dropAnimation}>
+                    {activeCommissionId ? (
+                      (() => {
+                        const c = form.commissions.find((x) => x._id === activeCommissionId);
+                        if (!c) return null;
+                        return (
+                          <div className="rounded-xl border border-brand-400 bg-white p-4 shadow-xl dark:bg-slate-800">
+                            <div className="flex items-center gap-2">
+                              <GripVertical className="size-4 text-brand-500" />
+                              <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                                Tier {form.commissions.indexOf(c) + 1}
+                              </span>
+                            </div>
+                            <div className="mt-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+                              {c.label.en || c.label.ar || 'Untitled'}
+                            </div>
+                          </div>
+                        );
+                      })()
+                    ) : null}
+                  </DragOverlay>,
+                  document.body
+                )}
+              </DndContext>
               <button
                 type="button"
                 onClick={addCommission}
@@ -896,16 +1016,50 @@ export default function JobOfferModal({
             />
 
             <div className="space-y-3">
-              {form.sections.map((s, idx) => (
-                <SectionBlock
-                  key={s._id}
-                  section={s}
-                  index={idx}
-                  onChange={(patch) => patchSection(s._id, patch)}
-                  onRemove={() => removeSection(s._id)}
-                  onDuplicate={() => duplicateSection(s._id)}
-                />
-              ))}
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleSectionDragStart}
+                onDragEnd={handleSectionDragEnd}
+                onDragCancel={handleSectionDragCancel}
+              >
+                <SortableContext
+                  items={form.sections.map((s) => s._id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {form.sections.map((s, idx) => (
+                    <SectionBlock
+                      key={s._id}
+                      section={s}
+                      index={idx}
+                      onChange={(patch) => patchSection(s._id, patch)}
+                      onRemove={() => removeSection(s._id)}
+                      onDuplicate={() => duplicateSection(s._id)}
+                    />
+                  ))}
+                </SortableContext>
+                {createPortal(
+                  <DragOverlay dropAnimation={dropAnimation}>
+                    {activeSectionId ? (
+                      (() => {
+                        const s = form.sections.find((x) => x._id === activeSectionId);
+                        if (!s) return null;
+                        return (
+                          <div className="rounded-xl border border-brand-400 bg-white p-4 shadow-xl dark:bg-slate-800">
+                            <div className="flex items-center gap-2">
+                              <GripVertical className="size-4 text-brand-500" />
+                              <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                                {s.title.en || s.title.ar || `Section ${form.sections.indexOf(s) + 1}`}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })()
+                    ) : null}
+                  </DragOverlay>,
+                  document.body
+                )}
+              </DndContext>
               <div className="flex items-center gap-2">
                 <button
                   type="button"

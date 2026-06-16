@@ -1,5 +1,24 @@
-import { useEffect, useRef, useState } from 'react';
-import { X, Plus, Trash2, ChevronDown } from 'lucide-react';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { X, Plus, Trash2, ChevronDown, GripVertical } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import type {
   SectionTemplate,
   SectionTemplateItem,
@@ -121,6 +140,78 @@ type Props = {
   existingCategories: string[];
 };
 
+// ─── Sortable Item ─────────────────────────────────────────────────────────────
+function SortableItemRow({
+  item,
+  idx,
+  onPatch,
+  onRemove,
+}: {
+  item: SectionTemplateItem & { _id: string };
+  idx: number;
+  onPatch: (patch: Partial<SectionTemplateItem>) => void;
+  onRemove: () => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    isDragging,
+  } = useSortable({ id: item._id });
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    transition: isDragging ? 'none' : 'transform 200ms cubic-bezier(0.2, 0, 0, 1)',
+    opacity: isDragging ? 0.4 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-start gap-2 ${
+        isDragging ? 'rounded-lg border border-brand-400 bg-white p-2 shadow-lg ring-2 ring-brand-500 dark:bg-slate-800' : ''
+      }`}
+    >
+      <div
+        {...attributes}
+        {...listeners}
+        className="mt-2.5 flex cursor-grab items-center justify-center rounded p-0.5 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-600 active:cursor-grabbing dark:hover:bg-slate-700 dark:hover:text-slate-300"
+      >
+        <GripVertical className="size-3.5" />
+      </div>
+      <span className="mt-2.5 w-5 shrink-0 text-center text-[11px] font-bold text-slate-400">
+        {idx + 1}
+      </span>
+      <div className="grid flex-1 grid-cols-2 gap-2">
+        <textarea
+          className={textareaCls}
+          rows={2}
+          value={item.en}
+          onChange={(e) => onPatch({ en: e.target.value })}
+          placeholder="Item text (EN)"
+        />
+        <textarea
+          className={textareaCls}
+          rows={2}
+          value={item.ar}
+          onChange={(e) => onPatch({ ar: e.target.value })}
+          placeholder="نص العنصر"
+          dir="rtl"
+        />
+      </div>
+      <button
+        type="button"
+        onClick={onRemove}
+        className="mt-1.5 flex size-8 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-500/10 dark:hover:text-red-400"
+      >
+        <Trash2 className="size-3.5" />
+      </button>
+    </div>
+  );
+}
+
 // ─── Modal ────────────────────────────────────────────────────────────────────
 export default function SectionTemplateModal({
   isOpen,
@@ -134,6 +225,12 @@ export default function SectionTemplateModal({
   const [titleAr, setTitleAr] = useState('');
   const [items, setItems] = useState<(SectionTemplateItem & { _id: string })[]>(
     []
+  );
+  const [activeItemId, setActiveItemId] = useState<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
   // populate when editing
@@ -163,6 +260,29 @@ export default function SectionTemplateModal({
 
   const removeItem = (id: string) =>
     setItems((prev) => prev.filter((i) => i._id !== id));
+
+  const handleItemDragStart = useCallback((event: DragStartEvent) => {
+    setActiveItemId(event.active.id as string);
+  }, []);
+
+  const handleItemDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveItemId(null);
+    if (over && active.id !== over.id) {
+      setItems((prev) => {
+        const oldIndex = prev.findIndex((i) => i._id === active.id);
+        const newIndex = prev.findIndex((i) => i._id === over.id);
+        if (oldIndex !== -1 && newIndex !== -1) {
+          return arrayMove(prev, oldIndex, newIndex);
+        }
+        return prev;
+      });
+    }
+  }, []);
+
+  const handleItemDragCancel = useCallback(() => {
+    setActiveItemId(null);
+  }, []);
 
   const handleSave = () => {
     if (!titleEn.trim() && !titleAr.trim()) return;
@@ -240,41 +360,40 @@ export default function SectionTemplateModal({
           <div>
             <Label>Items</Label>
             <div className="space-y-2">
-              {items.map((item, idx) => (
-                <div key={item._id} className="flex items-start gap-2">
-                  <span className="mt-2.5 w-5 shrink-0 text-center text-[11px] font-bold text-slate-400">
-                    {idx + 1}
-                  </span>
-                  <div className="grid flex-1 grid-cols-2 gap-2">
-                    <textarea
-                      className={textareaCls}
-                      rows={2}
-                      value={item.en}
-                      onChange={(e) =>
-                        patchItem(item._id, { en: e.target.value })
-                      }
-                      placeholder="Item text (EN)"
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleItemDragStart}
+                onDragEnd={handleItemDragEnd}
+                onDragCancel={handleItemDragCancel}
+              >
+                <SortableContext
+                  items={items.map((i) => i._id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {items.map((item, idx) => (
+                    <SortableItemRow
+                      key={item._id}
+                      item={item}
+                      idx={idx}
+                      onPatch={(patch) => patchItem(item._id, patch)}
+                      onRemove={() => removeItem(item._id)}
                     />
-                    <textarea
-                      className={textareaCls}
-                      rows={2}
-                      value={item.ar}
-                      onChange={(e) =>
-                        patchItem(item._id, { ar: e.target.value })
-                      }
-                      placeholder="نص العنصر"
-                      dir="rtl"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => removeItem(item._id)}
-                    className="mt-1.5 flex size-8 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-500/10 dark:hover:text-red-400"
-                  >
-                    <Trash2 className="size-3.5" />
-                  </button>
-                </div>
-              ))}
+                  ))}
+                </SortableContext>
+                {activeItemId && items.find((i) => i._id === activeItemId) ? (
+                  <DragOverlay>
+                    <div className="rounded-lg border border-brand-400 bg-white p-3 shadow-xl dark:bg-slate-800">
+                      <div className="flex items-center gap-2">
+                        <GripVertical className="size-3.5 text-brand-500" />
+                        <span className="text-xs font-semibold text-slate-500">
+                          Item {items.findIndex((i) => i._id === activeItemId) + 1}
+                        </span>
+                      </div>
+                    </div>
+                  </DragOverlay>
+                ) : null}
+              </DndContext>
 
               <button
                 type="button"
