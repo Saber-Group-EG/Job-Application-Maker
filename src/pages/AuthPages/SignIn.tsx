@@ -10,6 +10,7 @@ export default function SignIn() {
         description="This is Saber Group - Hiring Management System - Sign In Page"
       />
       <AuthLayout>
+        <div>helloworld</div>
         <SignInForm />
       </AuthLayout>
     </>
