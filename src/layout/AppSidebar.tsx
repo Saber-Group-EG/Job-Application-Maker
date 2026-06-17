@@ -54,7 +54,7 @@ const AppSidebar: React.FC = () => {
       })
       .map((p: any) => ({
         name: p.name,
-        path: `/applicants/page/${encodeURIComponent(p.name)}?statuses=${(p.statuses || []).map(encodeURIComponent).join(',')}`,
+        path: `/applicants/page/${encodeURIComponent(p.name)}?statuses=${(p.statuses || []).map(encodeURIComponent).join(',')}${(p.jobPositions?.length ? `&jobPositions=${p.jobPositions.map(encodeURIComponent).join(',')}` : '')}`,
         pro: false,
       }));
   }, [companies]);
