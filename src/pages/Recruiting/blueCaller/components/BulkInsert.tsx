@@ -1190,6 +1190,9 @@ export default function BulkInsert({
   const [bulkFileResetKey, setBulkFileResetKey] = useState(0);
   const [selectedJobForTemplate, setSelectedJobForTemplate] =
     useState<string>('');
+  const [selectedRowKeys, setSelectedRowKeys] = useState<Set<string>>(
+    new Set()
+  );
 
   const allColumnHeaders = useMemo(() => {
     if (bulkRows.length === 0) return [];
@@ -1464,6 +1467,98 @@ export default function BulkInsert({
     }
   };
 
+  const handleCellEdit = (rowIndex: number, header: string, value: string) => {
+    setBulkRows((prev) => {
+      const updated = prev.map((row, idx) => {
+        if (idx !== rowIndex) return row;
+        const newRow = { ...row };
+
+        switch (header) {
+          case 'fullName':
+            newRow.fullName = value;
+            break;
+          case 'email':
+            newRow.email = value;
+            break;
+          case 'phone':
+            newRow.phone = value;
+            break;
+          case 'address':
+            newRow.address = value;
+            break;
+          case 'birthDate':
+            newRow.birthDate = value;
+            break;
+          case 'gender':
+            newRow.gender = value;
+            break;
+          case 'expectedSalary':
+            newRow.expectedSalary = value === '' ? undefined : Number(value);
+            break;
+          case 'jobPosition':
+          case 'jobTitle':
+          case 'position':
+            newRow.jobPositionTitle = value;
+            const job = jobPositions.find(
+              (j) =>
+                toStringValue(j.title).toLowerCase() === value.toLowerCase() ||
+                j.jobCode?.toLowerCase() === value.toLowerCase()
+            );
+            newRow.jobPositionId = job?._id || '';
+            break;
+        }
+
+        if (newRow.allData) {
+          newRow.allData = { ...newRow.allData, [header]: value };
+        }
+
+        return newRow;
+      });
+      return updated;
+    });
+  };
+
+  const toggleRowSelection = (rowKey: string) => {
+    setSelectedRowKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(rowKey)) {
+        next.delete(rowKey);
+      } else {
+        next.add(rowKey);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAll = () => {
+    setSelectedRowKeys((prev) => {
+      if (prev.size === bulkPreviewRows.length) {
+        return new Set();
+      }
+      return new Set(bulkPreviewRows.map((r) => String(r.rowNumber)));
+    });
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedRowKeys.size === 0) return;
+
+    const result = await Swal.fire({
+      title: 'Delete Selected Rows?',
+      text: `${selectedRowKeys.size} row(s) will be removed. This cannot be undone.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, delete',
+      cancelButtonText: 'Cancel',
+    });
+
+    if (!result.isConfirmed) return;
+
+    setBulkRows((prev) =>
+      prev.filter((r) => !selectedRowKeys.has(String(r.rowNumber)))
+    );
+    setSelectedRowKeys(new Set());
+  };
+
   const bulkPreviewRows = validateBulkRows(bulkRows);
 
   const formatCellValue = (value: unknown): string => {
@@ -1502,7 +1597,8 @@ export default function BulkInsert({
   };
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+    <div className="space-y-6">
+      {/* Top Section: Template + Upload + Stats + Submit */}
       <section
         className={`space-y-5 rounded-3xl border ${themeColors.borderPrimary} bg-white p-6 shadow-xl`}
       >
@@ -1620,22 +1716,10 @@ export default function BulkInsert({
                   {getDisplayFileName(bulkFileName, 40)}
                 </p>
                 <p className="text-xs text-gray-500">
-                  Parsed rows are shown on the right.
+                  Click cells in the table below to edit data directly.
                 </p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                setBulkRows([]);
-                setBulkFileName('');
-                setBulkUploadErrors([]);
-                setBulkFileResetKey((v) => v + 1);
-              }}
-              className={`inline-flex items-center gap-2 rounded-xl border ${themeColors.borderPrimary} bg-white px-3 py-2 text-sm font-semibold ${themeColors.textPrimary}`}
-            >
-              <Trash2 className="h-4 w-4" /> Reset
-            </button>
           </div>
         )}
 
@@ -1693,6 +1777,26 @@ export default function BulkInsert({
           ))}
         </div>
 
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={() => void handleBulkSubmit()}
+            disabled={
+              bulkSubmitting ||
+              bulkPreviewRows.filter((r) => r.errors.length === 0).length === 0
+            }
+            className={`inline-flex flex-1 items-center justify-center gap-2 rounded-xl ${themeColors.bgPrimary} px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:opacity-90 ${themeColors.hoverBg} disabled:cursor-not-allowed disabled:opacity-60`}
+          >
+            {bulkSubmitting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <UserPlus className="h-4 w-4" />
+            )}
+            Submit Valid Rows (
+            {bulkPreviewRows.filter((r) => r.errors.length === 0).length})
+          </button>
+        </div>
+
         <div
           className={`rounded-2xl border ${themeColors.borderLight} ${themeColors.bgLight} p-4 text-sm text-gray-600`}
         >
@@ -1714,26 +1818,9 @@ export default function BulkInsert({
             </li>
           </ul>
         </div>
-
-        <button
-          type="button"
-          onClick={() => void handleBulkSubmit()}
-          disabled={
-            bulkSubmitting ||
-            bulkPreviewRows.filter((r) => r.errors.length === 0).length === 0
-          }
-          className={`inline-flex w-full items-center justify-center gap-2 rounded-xl ${themeColors.bgPrimary} px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:opacity-90 ${themeColors.hoverBg} disabled:cursor-not-allowed disabled:opacity-60`}
-        >
-          {bulkSubmitting ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <UserPlus className="h-4 w-4" />
-          )}
-          Submit Valid Rows (
-          {bulkPreviewRows.filter((r) => r.errors.length === 0).length})
-        </button>
       </section>
 
+      {/* Bottom Section: Editable Applicant Table */}
       <section
         className={`overflow-hidden rounded-3xl border ${themeColors.borderPrimary} bg-white shadow-xl flex flex-col`}
       >
@@ -1742,16 +1829,44 @@ export default function BulkInsert({
         >
           <div>
             <h3 className="text-base font-bold text-gray-900">
-              Parsed Preview
+              Applicant Data
             </h3>
             <p className="text-xs text-gray-500">
-              Yellow rows have potential duplicates but can still be submitted.
+              Edit cells directly by clicking on them. Select rows to delete.
+              Yellow rows have potential duplicates.
             </p>
           </div>
-          <div
-            className={`rounded-full ${themeColors.bgLight} px-3 py-1 text-xs font-semibold ${themeColors.textPrimary} whitespace-nowrap`}
-          >
-            {bulkPreviewRows.length} rows × {allColumnHeaders.length} cols
+          <div className="flex items-center gap-2 flex-wrap">
+            <span
+              className={`rounded-full ${themeColors.bgLight} px-3 py-1 text-xs font-semibold ${themeColors.textPrimary} whitespace-nowrap`}
+            >
+              {bulkPreviewRows.length} rows × {allColumnHeaders.length} cols
+            </span>
+            {bulkRows.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setBulkRows([]);
+                  setBulkFileName('');
+                  setBulkUploadErrors([]);
+                  setBulkFileResetKey((v) => v + 1);
+                  setSelectedRowKeys(new Set());
+                }}
+                className={`inline-flex items-center gap-1 rounded-xl border ${themeColors.borderPrimary} bg-white px-3 py-1.5 text-xs font-semibold ${themeColors.textPrimary}`}
+              >
+                <Trash2 className="h-3 w-3" /> Reset
+              </button>
+            )}
+            {selectedRowKeys.size > 0 && (
+              <button
+                type="button"
+                onClick={() => void handleDeleteSelected()}
+                className="inline-flex items-center gap-1 rounded-xl bg-red-600 px-3 py-1.5 text-xs font-semibold text-white shadow"
+              >
+                <Trash2 className="h-3 w-3" />
+                Delete ({selectedRowKeys.size})
+              </button>
+            )}
           </div>
         </div>
 
@@ -1766,6 +1881,16 @@ export default function BulkInsert({
               className={`${themeColors.bgLight} text-gray-900 sticky top-0 z-10`}
             >
               <tr>
+                <th className="px-2 py-2 font-semibold w-[40px]">
+                  <input
+                    type="checkbox"
+                    onChange={handleSelectAll}
+                    checked={
+                      selectedRowKeys.size === bulkPreviewRows.length &&
+                      bulkPreviewRows.length > 0
+                    }
+                  />
+                </th>
                 <th className="px-2 py-2 font-semibold w-[50px]">#</th>
                 <th className="px-2 py-2 font-semibold w-[80px]">Status</th>
                 <th className="px-2 py-2 font-semibold w-[180px]">Issues</th>
@@ -1786,21 +1911,22 @@ export default function BulkInsert({
                 <tr>
                   <td
                     className="px-2 py-8 text-center text-gray-500"
-                    colSpan={allColumnHeaders.length + 3}
+                    colSpan={allColumnHeaders.length + 4}
                   >
                     Upload an Excel file to preview applicant rows here.
                   </td>
                 </tr>
               ) : (
-                bulkPreviewRows.map((row) => {
+                bulkPreviewRows.map((row, rowIndex) => {
                   const rowStatus = getRowStatus(row);
                   const hasErrors = row.errors.length > 0;
                   const isDuplicate =
                     !hasErrors && (row.hasDuplicate || row.warnings.length > 0);
+                  const rowKey = String(row.rowNumber);
 
                   return (
                     <tr
-                      key={`${row.rowNumber}-${row.email}`}
+                      key={`row-${rowKey}`}
                       className={
                         hasErrors
                           ? 'bg-red-50/50'
@@ -1809,6 +1935,13 @@ export default function BulkInsert({
                             : 'bg-emerald-50/40'
                       }
                     >
+                      <td className="px-2 py-2 text-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedRowKeys.has(rowKey)}
+                          onChange={() => toggleRowSelection(rowKey)}
+                        />
+                      </td>
                       <td className="px-2 py-2 font-medium text-gray-700 text-center">
                         {row.rowNumber}
                       </td>
@@ -1850,14 +1983,22 @@ export default function BulkInsert({
                       {allColumnHeaders.map((header) => (
                         <td
                           key={header}
-                          className="px-2 py-2 text-gray-700 max-w-[150px]"
+                          className="px-2 py-2 max-w-[150px]"
                         >
-                          <div
-                            className="truncate"
-                            title={formatCellValue(row.allData?.[header])}
-                          >
-                            {formatCellValue(row.allData?.[header])}
-                          </div>
+                          <input
+                            type="text"
+                            defaultValue={String(
+                              row.allData?.[header] ?? ''
+                            )}
+                            onBlur={(e) =>
+                              handleCellEdit(
+                                rowIndex,
+                                header,
+                                e.target.value
+                              )
+                            }
+                            className="w-full bg-transparent border-none outline-none text-gray-700 focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5"
+                          />
                         </td>
                       ))}
                     </tr>
