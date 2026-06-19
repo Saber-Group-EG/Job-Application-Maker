@@ -1,10 +1,11 @@
 // ─── Benefit Row ──────────────────────────────────────────────────────────────
 
-import { Copy, Trash2, GripVertical } from "lucide-react";
+import { Copy, Trash2, GripVertical, Languages } from "lucide-react";
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { FormBenefit } from "./ContractModal";
 import { ModalLabel } from "../../form/ModalLabel";
+import { translateText } from "../../../utils/translate";
 
 const inputCls =
   'w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-brand-400';
@@ -90,7 +91,26 @@ export function BenefitRow({
           />
         </div>
         <div>
-          <ModalLabel>Label (AR)</ModalLabel>
+          <div className="flex items-center justify-between">
+            <ModalLabel>Label (AR)</ModalLabel>
+            <button
+              type="button"
+              onClick={async () => {
+                if (benefit.labelEn.trim()) {
+                  const t = await translateText(benefit.labelEn, 'en', 'ar');
+                  if (t) onChange({ labelAr: t });
+                } else if (benefit.labelAr.trim()) {
+                  const t = await translateText(benefit.labelAr, 'ar', 'en');
+                  if (t) onChange({ labelEn: t });
+                }
+              }}
+              disabled={!benefit.labelEn.trim() && !benefit.labelAr.trim()}
+              className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
+              title={benefit.labelEn.trim() ? 'Translate EN → AR' : 'Translate AR → EN'}
+            >
+              <Languages className="size-3" />
+            </button>
+          </div>
           <input
             className={inputCls}
             value={benefit.labelAr}
@@ -121,7 +141,26 @@ export function BenefitRow({
         </div>
 
         <div>
-          <ModalLabel>Value (AR)</ModalLabel>
+          <div className="flex items-center justify-between">
+            <ModalLabel>Value (AR)</ModalLabel>
+            <button
+              type="button"
+              onClick={async () => {
+                if (benefit.value.en.trim()) {
+                  const t = await translateText(benefit.value.en, 'en', 'ar');
+                  if (t) onChange({ value: { ...benefit.value, ar: t } });
+                } else if (benefit.value.ar.trim()) {
+                  const t = await translateText(benefit.value.ar, 'ar', 'en');
+                  if (t) onChange({ value: { ...benefit.value, en: t } });
+                }
+              }}
+              disabled={!benefit.value.en.trim() && !benefit.value.ar.trim()}
+              className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
+              title={benefit.value.en.trim() ? 'Translate EN → AR' : 'Translate AR → EN'}
+            >
+              <Languages className="size-3" />
+            </button>
+          </div>
 
           <textarea
             className={textareaCls}

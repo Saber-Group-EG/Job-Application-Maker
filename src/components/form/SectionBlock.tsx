@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp, Copy, GripVertical, Plus, Trash2, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, Copy, GripVertical, Languages, Plus, Trash2, X } from 'lucide-react';
 import { useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -7,6 +7,7 @@ import {
   FormSectionItem,
   uid,
 } from '../modals/JobOffersModal/JobOffersModal';
+import { translateText } from '../../utils/translate';
 
 const inputCls =
   'w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-brand-400';
@@ -134,7 +135,26 @@ export function SectionBlock({
               />
             </div>
             <div>
-              <Label>Title (AR)</Label>
+              <div className="flex items-center justify-between">
+                <Label>Title (AR)</Label>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (section.title.en.trim()) {
+                      const t = await translateText(section.title.en, 'en', 'ar');
+                      if (t) onChange({ title: { ...section.title, ar: t } });
+                    } else if (section.title.ar.trim()) {
+                      const t = await translateText(section.title.ar, 'ar', 'en');
+                      if (t) onChange({ title: { ...section.title, en: t } });
+                    }
+                  }}
+                  disabled={!section.title.en.trim() && !section.title.ar.trim()}
+                  className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
+                  title={section.title.en.trim() ? 'Translate EN → AR' : 'Translate AR → EN'}
+                >
+                  <Languages className="size-3" />
+                </button>
+              </div>
               <input
                 className={inputCls}
                 value={section.title.ar}
@@ -152,7 +172,7 @@ export function SectionBlock({
               <Label>
                 Items
               </Label>
-              {section.items.map((item, itemIdx) => (
+                  {section.items.map((item, itemIdx) => (
                 <div key={item._id} className="flex items-center gap-2">
                   <span className="w-5 shrink-0 text-center text-[11px] font-bold text-slate-400">
                     {itemIdx + 1}
@@ -167,16 +187,35 @@ export function SectionBlock({
                       }
                       placeholder="Item text (EN)"
                     />
-                    <textarea
-                      className={textareaCls}
-                      rows={2}
-                      value={item.ar}
-                      onChange={(e) =>
-                        patchItem(item._id, { ar: e.target.value })
-                      }
-                      placeholder="نص العنصر"
-                      dir="rtl"
-                    />
+                    <div className="relative">
+                      <textarea
+                        className={textareaCls}
+                        rows={2}
+                        value={item.ar}
+                        onChange={(e) =>
+                          patchItem(item._id, { ar: e.target.value })
+                        }
+                        placeholder="نص العنصر"
+                        dir="rtl"
+                      />
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (item.en.trim()) {
+                            const t = await translateText(item.en, 'en', 'ar');
+                            if (t) patchItem(item._id, { ar: t });
+                          } else if (item.ar.trim()) {
+                            const t = await translateText(item.ar, 'ar', 'en');
+                            if (t) patchItem(item._id, { en: t });
+                          }
+                        }}
+                        disabled={!item.en.trim() && !item.ar.trim()}
+                        className="absolute right-1.5 top-1.5 flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
+                        title={item.en.trim() ? 'Translate EN → AR' : 'Translate AR → EN'}
+                      >
+                        <Languages className="size-3" />
+                      </button>
+                    </div>
                   </div>
                   <button
                     type="button"

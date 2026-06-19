@@ -1,11 +1,12 @@
 // ─── Commission row ───────────────────────────────────────────────────────────
 
-import { Copy, Trash2, GripVertical } from 'lucide-react';
+import { Copy, Trash2, GripVertical, Languages } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { FormCommission } from './JobOffersModal';
 import Label from '../../form/Label';
 import { CommissionType } from '../../../services/jobOffersService';
+import { translateText } from '../../../utils/translate';
 
 const inputCls =
   'w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-brand-400';
@@ -110,7 +111,26 @@ export function CommissionRow({
           </div>
 
           <div>
-            <Label>Label (AR)</Label>
+            <div className="flex items-center justify-between">
+              <Label>Label (AR)</Label>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (comm.label.en.trim()) {
+                    const t = await translateText(comm.label.en, 'en', 'ar');
+                    if (t) onChange({ label: { ...comm.label, ar: t } });
+                  } else if (comm.label.ar.trim()) {
+                    const t = await translateText(comm.label.ar, 'ar', 'en');
+                    if (t) onChange({ label: { ...comm.label, en: t } });
+                  }
+                }}
+                disabled={!comm.label.en.trim() && !comm.label.ar.trim()}
+                className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
+                title={comm.label.en.trim() ? 'Translate EN → AR' : 'Translate AR → EN'}
+              >
+                <Languages className="size-3" />
+              </button>
+            </div>
 
             <input
               className={inputCls}
@@ -183,7 +203,26 @@ export function CommissionRow({
         </div>
 
         <div>
-          <Label>Condition (AR)</Label>
+          <div className="flex items-center justify-between">
+            <Label>Condition (AR)</Label>
+            <button
+              type="button"
+              onClick={async () => {
+                if (comm.condition.en.trim()) {
+                  const t = await translateText(comm.condition.en, 'en', 'ar');
+                  if (t) onChange({ condition: { ...comm.condition, ar: t } });
+                } else if (comm.condition.ar.trim()) {
+                  const t = await translateText(comm.condition.ar, 'ar', 'en');
+                  if (t) onChange({ condition: { ...comm.condition, en: t } });
+                }
+              }}
+              disabled={!comm.condition.en.trim() && !comm.condition.ar.trim()}
+              className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
+              title={comm.condition.en.trim() ? 'Translate EN → AR' : 'Translate AR → EN'}
+            >
+              <Languages className="size-3" />
+            </button>
+          </div>
 
           <textarea
             className={textareaCls}
