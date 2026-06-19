@@ -1561,16 +1561,6 @@ export default function BulkInsert({
 
   const bulkPreviewRows = validateBulkRows(bulkRows);
 
-  const formatCellValue = (value: unknown): string => {
-    if (value === undefined || value === null) return '-';
-    if (typeof value === 'object') return JSON.stringify(value);
-    const str = String(value);
-    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
-      const [y, m, d] = str.split('-');
-      return `${m}/${d}/${y}`;
-    }
-    return str;
-  };
 
   const getRowStatus = (
     row: RowValidationResult
