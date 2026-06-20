@@ -1,9 +1,8 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageMeta from '../../components/common/PageMeta';
-import DatePicker from '../../components/form/date-picker';
 import { useAuth } from '../../context/AuthContext';
-import { useApplicantStatuses } from '../../hooks/queries/useApplicants'; // ✅ Fixed import
+import { useApplicantStatuses } from '../../hooks/queries/useApplicants';
 import { useCompanies } from '../../hooks/queries/useCompanies';
 import { useStatusSettings } from '../../hooks/useStatusSettings';
 import {
@@ -48,11 +47,20 @@ function getCompanyIdFromUser(
     return undefined; // undefined means fetch all
   }
 
-  // Regular user - get their assigned companies
-  const userCompanyIds =
+  // Regular user - get their assigned companies (from both companies and assignedcompanyId)
+  const fromCompanies =
     user?.companies?.map((c: any) =>
       typeof c.companyId === 'string' ? c.companyId : c.companyId?._id
     ).filter(Boolean) || [];
+
+  const fromAssigned = user?.assignedcompanyId?.filter(Boolean) || [];
+
+  const userCompanyIds = [...new Set([...fromCompanies, ...fromAssigned])];
+
+  // If user has a selected company, filter to that one
+  if (selectedCompanyId) {
+    return userCompanyIds.includes(selectedCompanyId) ? [selectedCompanyId] : [];
+  }
 
   return userCompanyIds.length > 0 ? userCompanyIds : undefined;
 }
@@ -62,7 +70,6 @@ export default function Home() {
   const [selectedCompanyId, setSelectedCompanyId] = useState<
     string | undefined
   >(undefined);
-  const [range, setRange] = useState<Date[] | null>(null);
   const { user } = useAuth();
 
   const isSuperAdmin = useMemo(() => {
@@ -70,14 +77,31 @@ export default function Home() {
     return roleName === 'super admin';
   }, [user?.roleId?.name]);
 
-  // Get companies for super admin selector
+  // Get user's accessible company IDs to determine if selector should show
+  const userCompanyIds = useMemo(() => {
+    const fromCompanies =
+      user?.companies?.map((c: any) =>
+        typeof c.companyId === 'string' ? c.companyId : c.companyId?._id
+      ).filter(Boolean) || [];
+    const fromAssigned = user?.assignedcompanyId?.filter(Boolean) || [];
+    return [...new Set([...fromCompanies, ...fromAssigned])];
+  }, [user?.companies, user?.assignedcompanyId]);
+
+  // Get companies for selector
   const { data: companies = [] } = useCompanies(
     isSuperAdmin
       ? undefined
-      : (user?.companies?.map(
-          (c: any) => c.companyId?._id || c.companyId
-        ) as any)
+      : userCompanyIds
   );
+
+  const showCompanySelector = companies.length > 1;
+
+  // Auto-select the first company whenever companies load and nothing is selected
+  useEffect(() => {
+    if (companies.length > 0 && !selectedCompanyId) {
+      setSelectedCompanyId(companies[0]._id);
+    }
+  }, [companies, selectedCompanyId]);
 
   // Determine companyId for the query
   const companyIds = useMemo(() => {
@@ -164,11 +188,6 @@ export default function Home() {
       const searchParams = new URLSearchParams();
       searchParams.append('status', statusName.toLowerCase());
 
-      if (range && range.length === 2) {
-        searchParams.append('startDate', range[0].toISOString());
-        searchParams.append('endDate', range[1].toISOString());
-      }
-
       navigate(`/applicants?${searchParams.toString()}`);
     }
   };
@@ -178,10 +197,6 @@ export default function Home() {
       navigate(`/applicants/company/${selectedCompanyId}`);
     } else {
       const searchParams = new URLSearchParams();
-      if (range && range.length === 2) {
-        searchParams.append('startDate', range[0].toISOString());
-        searchParams.append('endDate', range[1].toISOString());
-      }
       navigate(`/applicants?${searchParams.toString()}`);
     }
   };
@@ -232,8 +247,8 @@ export default function Home() {
 
       <div className="space-y-6">
         <div className="grid grid-cols-12 gap-4 md:gap-6 items-end">
-          {/* Company selector for super admin */}
-          {isSuperAdmin && (
+          {/* Company selector for super admin or users with multiple companies */}
+          {showCompanySelector && (
             <div className="col-span-12 sm:col-span-6 md:col-span-4 lg:col-span-3">
               <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
                 Company
@@ -243,7 +258,7 @@ export default function Home() {
                 onChange={(e) => setSelectedCompanyId(e.target.value || undefined)}
                 className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm shadow-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-800"
               >
-                <option value="">All Companies</option>
+                
                 {companies.map((c: any) => (
                   <option key={c._id} value={c._id}>
                     {typeof c.name === 'object' ? c.name.en : c.name}
@@ -253,15 +268,6 @@ export default function Home() {
             </div>
           )}
 
-          <div className="col-span-12 sm:col-span-6 md:col-span-4 lg:col-span-3">
-            <DatePicker
-              id="applicant-range"
-              label="Filter by date range"
-              mode="range"
-              placeholder="Select date range"
-              onChange={(selectedDates) => setRange(selectedDates as Date[])}
-            />
-          </div>
 
           <div className="col-span-12 sm:col-span-12 md:col-span-12 lg:col-span-6">
             <div className="flex flex-wrap items-center gap-3">

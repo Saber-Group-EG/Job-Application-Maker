@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { CalenderIcon, ChatIcon, DownloadIcon } from '../../../../../icons';
 import type { Applicant, ApplicantView, PersonalInfoProps } from '../../../../../types/applicants';
 import { toPlainString } from '../../../../../utils/strings';
+import { getPreviousStatus, isTrashed } from '../../utils/statusUtils';
 
 const buildResumeUrl = (raw?: string): string | null => {
   if (!raw) return null;
@@ -36,6 +37,7 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
   onScheduleInterview,
   onSendMessage,
   onPrint,
+  onRestore,
 }) => {
   const [photoPreviewOpen, setPhotoPreviewOpen] = useState(false);
 
@@ -154,13 +156,25 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
 
         <div className="flex justify-between items-center mb-3">
           <span className="text-sm font-semibold text-gray-800">Details</span>
-          <button
-            type="button"
-            onClick={onChangeStatus}
-            className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
-          >
-            {data.status || 'Status'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onChangeStatus}
+              className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
+            >
+              {data.status || 'Status'}
+            </button>
+            {isTrashed(applicant) && onRestore && (
+              <button
+                type="button"
+                onClick={onRestore}
+                className="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-700 hover:bg-green-200 transition-colors"
+                title={`Restore to ${getPreviousStatus(applicant)}`}
+              >
+                Restore
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="border-t border-gray-200 mb-5 mt-5" />
@@ -250,11 +264,24 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
           <div>
             <div className="text-sm font-semibold text-gray-800 mb-1">Resume / CV</div>
             {resumeUrl ? (
-              <a
-                href={resumeUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                download
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const response = await fetch(resumeUrl);
+                    const blob = await response.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = '';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                  } catch {
+                    window.open(resumeUrl, '_blank', 'noopener');
+                  }
+                }}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white text-sm font-medium rounded-lg transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
               >
                 <svg
@@ -271,7 +298,7 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
                   />
                 </svg>
                 <span>Download CV</span>
-              </a>
+              </button>
             ) : (
               <span className="text-sm text-gray-400">No resume attached</span>
             )}
