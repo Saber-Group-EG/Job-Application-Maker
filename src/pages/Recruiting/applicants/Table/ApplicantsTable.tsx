@@ -244,6 +244,7 @@ type ApplicantsProps = {
   layoutKey?: string;
   defaultLayout?: typeof APPLICANTS_DEFAULT_LAYOUT;
   onlyStatus?: string | string[];
+  onlyJobPositions?: string[];
   companyIdOverride?: string | string[] | undefined;
 };
 
@@ -251,6 +252,7 @@ export default function Applicants({
   layoutKey,
   defaultLayout,
   onlyStatus,
+  onlyJobPositions,
   companyIdOverride,
 }: ApplicantsProps = {}) {
   const navigate = useNavigate();
@@ -265,13 +267,21 @@ export default function Applicants({
   );
 
   const effectiveOnlyStatus = useMemo((): string | string[] | undefined => {
-    if (onlyStatus) return onlyStatus;
+    if (onlyStatus && !(Array.isArray(onlyStatus) && onlyStatus.length === 0)) return onlyStatus;
     if (params.status) return params.status;
     const searchParams = new URLSearchParams(location.search);
     const qStatus = searchParams.get('status');
     if (qStatus) return qStatus;
     return undefined;
   }, [onlyStatus, params.status, location.search]);
+
+  const effectiveOnlyJobPositions = useMemo((): string[] | undefined => {
+    if (onlyJobPositions && onlyJobPositions.length > 0) return onlyJobPositions;
+    const searchParams = new URLSearchParams(location.search);
+    const qJobPositions = searchParams.get('jobPositions');
+    if (qJobPositions) return qJobPositions.split(',').map(decodeURIComponent).filter(Boolean);
+    return undefined;
+  }, [onlyJobPositions, location.search]);
 
   const isSuperAdmin = useMemo(() => {
     const roleName = user?.roleId?.name;
@@ -378,7 +388,7 @@ export default function Applicants({
     isFetched: isApplicantsFetched,
   } = useApplicants({
     companyId: companyId as any,
-    jobPositionId: undefined,
+    jobPositionId: effectiveOnlyJobPositions,
     departmentId: departmentIds as any,
     status: effectiveOnlyStatus,
     enabled: true,
@@ -386,7 +396,7 @@ export default function Applicants({
   // Check the query state directly to detect ongoing fetches for this key
   const applicantsQueryKey = applicantsKeys.list({
     companyId: companyId as any,
-    jobPositionId: undefined,
+    jobPositionId: effectiveOnlyJobPositions,
     departmentId: departmentIds as any,
     status: effectiveOnlyStatus,
   });
@@ -605,6 +615,7 @@ export default function Applicants({
     customFilters,
     isSuperAdmin,
     effectiveOnlyStatus,
+    effectiveOnlyJobPositions,
     selectedCompanyFilterValue,
     jobPositionMap,
     fieldToJobIds,

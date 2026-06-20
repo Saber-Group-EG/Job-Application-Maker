@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { X, Plus, Trash2, ChevronDown, GripVertical } from 'lucide-react';
+import { X, Plus, Trash2, ChevronDown, GripVertical, Languages } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -23,6 +23,7 @@ import type {
   SectionTemplate,
   SectionTemplateItem,
 } from '../../types/companies';
+import { translateText } from '../../utils/translate';
 
 // ─── tiny uid ─────────────────────────────────────────────────────────────────
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -192,14 +193,33 @@ function SortableItemRow({
           onChange={(e) => onPatch({ en: e.target.value })}
           placeholder="Item text (EN)"
         />
-        <textarea
-          className={textareaCls}
-          rows={2}
-          value={item.ar}
-          onChange={(e) => onPatch({ ar: e.target.value })}
-          placeholder="نص العنصر"
-          dir="rtl"
-        />
+        <div className="relative">
+          <textarea
+            className={textareaCls}
+            rows={2}
+            value={item.ar}
+            onChange={(e) => onPatch({ ar: e.target.value })}
+            placeholder="نص العنصر"
+            dir="rtl"
+          />
+          <button
+            type="button"
+            onClick={async () => {
+              if (item.en.trim()) {
+                const t = await translateText(item.en, 'en', 'ar');
+                if (t) onPatch({ ar: t });
+              } else if (item.ar.trim()) {
+                const t = await translateText(item.ar, 'ar', 'en');
+                if (t) onPatch({ en: t });
+              }
+            }}
+            disabled={!item.en.trim() && !item.ar.trim()}
+            className="absolute right-1.5 top-1.5 flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
+            title={item.en.trim() ? 'Translate EN → AR' : 'Translate AR → EN'}
+          >
+            <Languages className="size-3" />
+          </button>
+        </div>
       </div>
       <button
         type="button"
@@ -227,6 +247,7 @@ export default function SectionTemplateModal({
     []
   );
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
+  const [translatingAll, setTranslatingAll] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -284,6 +305,40 @@ export default function SectionTemplateModal({
     setActiveItemId(null);
   }, []);
 
+  const translateAll = async () => {
+    setTranslatingAll(true);
+    try {
+      if (titleEn.trim()) {
+        const t = await translateText(titleEn, 'en', 'ar');
+        if (t) setTitleAr(t);
+      } else if (titleAr.trim()) {
+        const t = await translateText(titleAr, 'ar', 'en');
+        if (t) setTitleEn(t);
+      }
+      const itemResults = await Promise.all(
+        items.map(async (item) => {
+          if (item.en.trim()) {
+            const t = await translateText(item.en, 'en', 'ar');
+            return t ? { _id: item._id, target: 'ar' as const, text: t } : null;
+          } else if (item.ar.trim()) {
+            const t = await translateText(item.ar, 'ar', 'en');
+            return t ? { _id: item._id, target: 'en' as const, text: t } : null;
+          }
+          return null;
+        })
+      );
+      setItems((prev) =>
+        prev.map((item) => {
+          const r = itemResults.find((x) => x?._id === item._id);
+          if (!r) return item;
+          return r.target === 'ar' ? { ...item, ar: r.text } : { ...item, en: r.text };
+        })
+      );
+    } finally {
+      setTranslatingAll(false);
+    }
+  };
+
   const handleSave = () => {
     if (!titleEn.trim() && !titleAr.trim()) return;
     onSave({
@@ -312,13 +367,29 @@ export default function SectionTemplateModal({
           <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
             {editing ? 'Edit Section Template' : 'New Section Template'}
           </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex size-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-          >
-            <X className="size-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={translateAll}
+              disabled={translatingAll}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-brand-50 hover:text-brand-600 disabled:opacity-50 dark:border-slate-700 dark:hover:bg-brand-500/10 dark:hover:text-brand-400"
+              title="Translate all EN fields to AR"
+            >
+              {translatingAll ? (
+                <div className="size-3.5 animate-spin rounded-full border-2 border-slate-400/30 border-t-slate-400" />
+              ) : (
+                <Languages className="size-3.5" />
+              )}
+              Translate All
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex size-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
         </div>
 
         {/* body */}
@@ -345,7 +416,26 @@ export default function SectionTemplateModal({
               />
             </div>
             <div>
-              <Label>Title (AR)</Label>
+              <div className="flex items-center justify-between">
+                <Label>Title (AR)</Label>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (titleEn.trim()) {
+                      const t = await translateText(titleEn, 'en', 'ar');
+                      if (t) setTitleAr(t);
+                    } else if (titleAr.trim()) {
+                      const t = await translateText(titleAr, 'ar', 'en');
+                      if (t) setTitleEn(t);
+                    }
+                  }}
+                  disabled={!titleEn.trim() && !titleAr.trim()}
+                  className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
+                  title={titleEn.trim() ? 'Translate EN → AR' : 'Translate AR → EN'}
+                >
+                  <Languages className="size-3" />
+                </button>
+              </div>
               <input
                 className={inputCls}
                 value={titleAr}

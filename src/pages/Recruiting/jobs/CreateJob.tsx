@@ -11,6 +11,7 @@ import Switch from "../../../components/form/switch/Switch";
 import Select from "../../../components/form/Select";
 import MultiSelect from "../../../components/form/MultiSelect";
 import { PlusIcon, TrashBinIcon, CheckCircleIcon } from "../../../icons";
+import { Languages } from 'lucide-react';
 import { useAuth } from "../../../context/AuthContext";
 import { jobPositionsService } from "../../../services/jobPositionsService";
 import {
@@ -21,6 +22,7 @@ import { useSavedFields } from "../../../hooks/queries";
 import { useRecommendedFields } from "../../../hooks/queries/useSystemSettings";
 import { useCreateJobPosition, useUpdateJobPosition, useJobPositions } from "../../../hooks/queries/useJobPositions";
 import { toPlainString } from "../../../utils/strings";
+import { translateText } from "../../../utils/translate";
 import { useQueryClient } from "@tanstack/react-query";
 
 
@@ -411,6 +413,7 @@ export default function CreateJob() {
   const [formError, setFormError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedJobId, setSelectedJobId] = useState<string>("");
+  const [translatingAll, setTranslatingAll] = useState(false);
 
   // Use React Query hooks for data fetching
   const { data: allCompanies = [], isLoading: companiesLoading } = useCompanies(companyId as any);
@@ -1215,7 +1218,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                 ...cf, 
                 choices: [...(cf.choices || []), choice],
                 choicesAr: jobForm.bilingual 
-                  ? [...(cf.choicesAr || []), choiceAr.trim() || choice]
+                  ? [...(cf.choicesAr || []), choiceAr.trim()]
                   : cf.choicesAr
               }
             : cf
@@ -1314,7 +1317,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                         ...sf,
                         choices: [...(sf.choices || []), choice],
                         choicesAr: jobForm.bilingual
-                          ? [...(sf.choicesAr || []), choiceAr.trim() || choice]
+                          ? [...(sf.choicesAr || []), choiceAr.trim()]
                           : sf.choicesAr,
                       }
                     : sf
@@ -1356,6 +1359,118 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
           : cf
       ),
     }));
+  };
+
+  const translateAll = async () => {
+    setTranslatingAll(true);
+    try {
+      const st = (en: string, ar: string) =>
+        en.trim()
+          ? translateText(en, 'en', 'ar')
+          : ar.trim()
+            ? translateText(ar, 'ar', 'en')
+            : Promise.resolve('');
+
+      const titleResult = await st(jobForm.title, jobForm.titleAr);
+      if (titleResult) {
+        if (jobForm.title.trim()) handleInputChange('titleAr', titleResult);
+        else handleInputChange('title', titleResult);
+      }
+
+      const descResult = await st(jobForm.description, jobForm.descriptionAr);
+      if (descResult) {
+        if (jobForm.description.trim()) handleInputChange('descriptionAr', descResult);
+        else handleInputChange('description', descResult);
+      }
+
+      if (jobForm.termsAndConditions.length > 0) {
+        const termResults = await Promise.all(
+          jobForm.termsAndConditions.map((en, i) => {
+            const ar = jobForm.termsAndConditionsAr[i] || '';
+            return en.trim() ? translateText(en, 'en', 'ar') : ar.trim() ? translateText(ar, 'ar', 'en') : Promise.resolve('');
+          })
+        );
+        setJobForm((prev) => {
+          const newTerms = [...prev.termsAndConditions];
+          const newTermsAr = [...prev.termsAndConditionsAr];
+          termResults.forEach((result, i) => {
+            if (!result) return;
+            if ((prev.termsAndConditions[i] || '').trim()) newTermsAr[i] = result;
+            else newTerms[i] = result;
+          });
+          return { ...prev, termsAndConditions: newTerms, termsAndConditionsAr: newTermsAr };
+        });
+      }
+
+      if (jobForm.jobSpecs.length > 0) {
+        const specResults = await Promise.all(
+          jobForm.jobSpecs.map((s) => st(s.spec, s.specAr || ''))
+        );
+        specResults.forEach((result, i) => {
+          if (!result) return;
+          if (jobForm.jobSpecs[i].spec.trim()) handleJobSpecChange(i, 'specAr', result);
+          else handleJobSpecChange(i, 'spec', result);
+        });
+      }
+
+      if (jobForm.customFields.length > 0) {
+        for (let fi = 0; fi < jobForm.customFields.length; fi++) {
+          const cf = jobForm.customFields[fi];
+          const labelResult = await st(cf.label, cf.labelAr || '');
+          if (labelResult) {
+            if (cf.label.trim()) handleCustomFieldChange(fi, 'labelAr', labelResult);
+            else handleCustomFieldChange(fi, 'label', labelResult);
+          }
+
+          if (cf.choices?.length) {
+            const choiceResults = await Promise.all(
+              cf.choices.map((en: string, ci: number) => {
+                const ar = cf.choicesAr?.[ci] || '';
+                return en.trim() && !ar.trim() ? translateText(en, 'en', 'ar') : Promise.resolve('');
+              })
+            );
+            const hasNew = choiceResults.some(Boolean);
+            if (hasNew) {
+              const newAr = [...(cf.choicesAr || [])];
+              choiceResults.forEach((result, ci) => {
+                if (result) newAr[ci] = result;
+              });
+              handleCustomFieldChange(fi, 'choicesAr', newAr);
+            }
+          }
+
+          if (cf.subFields?.length) {
+            for (let si = 0; si < cf.subFields.length; si++) {
+              const sf = cf.subFields[si];
+              const sfLabelResult = await st(sf.label, sf.labelAr || '');
+              if (sfLabelResult) {
+                if (sf.label.trim()) handleSubFieldChange(fi, si, 'labelAr', sfLabelResult);
+                else handleSubFieldChange(fi, si, 'label', sfLabelResult);
+              }
+
+              if (sf.choices?.length) {
+                const sfChoiceResults = await Promise.all(
+                  sf.choices.map((en: string, ci: number) => {
+                    const ar = sf.choicesAr?.[ci] || '';
+                    return en.trim() && !ar.trim() ? translateText(en, 'en', 'ar') : Promise.resolve('');
+                  })
+                );
+                const hasNew = sfChoiceResults.some(Boolean);
+                if (hasNew) {
+                  const newAr = [...(sf.choicesAr || [])];
+                  sfChoiceResults.forEach((result, ci) => {
+                    if (result) newAr[ci] = result;
+                  });
+                  handleSubFieldChange(fi, si, 'choicesAr', newAr);
+                }
+              }
+            }
+          }
+        }
+      }
+    } finally {
+      setTranslatingAll(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -1883,6 +1998,20 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                     onChange={(checked) => handleInputChange("bilingual", checked)}
                   />
                 </div>
+                {jobForm.bilingual && (
+                  <>
+                    <div className="h-8 w-px bg-gray-200 dark:bg-gray-700" />
+                    <button
+                      type="button"
+                      onClick={translateAll}
+                      disabled={translatingAll}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-brand-50 hover:text-brand-600 disabled:opacity-50 dark:border-slate-700 dark:hover:bg-brand-500/10 dark:hover:text-brand-400"
+                    >
+                      <Languages className="size-3.5" />
+                      Translate All
+                    </button>
+                  </>
+                )}
                 <div className="h-8 w-px bg-gray-200 dark:bg-gray-700 hidden sm:block" />
                 <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
                   Currently viewing: {jobForm.bilingual ? 
@@ -1921,7 +2050,26 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                 </div>
                 {jobForm.bilingual && (
                   <div className="space-y-2" dir="rtl">
-                    <Label htmlFor="titleAr" required className="text-right block w-full">مسمى الوظيفة (بالعربية)</Label>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="titleAr" required className="text-right block w-full">مسمى الوظيفة (بالعربية)</Label>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (jobForm.title.trim()) {
+                            const t = await translateText(jobForm.title, 'en', 'ar');
+                            if (t) handleInputChange("titleAr", t);
+                          } else if (jobForm.titleAr.trim()) {
+                            const t = await translateText(jobForm.titleAr, 'ar', 'en');
+                            if (t) handleInputChange("title", t);
+                          }
+                        }}
+                        disabled={!jobForm.title.trim() && !jobForm.titleAr.trim()}
+                        className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
+                        title={jobForm.title.trim() ? 'Translate EN → AR' : 'Translate AR → EN'}
+                      >
+                        <Languages className="size-3" />
+                      </button>
+                    </div>
                     <Input
                       id="titleAr"
                       value={jobForm.titleAr}
@@ -1946,7 +2094,26 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                 </div>
                 {jobForm.bilingual && (
                   <div className="space-y-2" dir="rtl">
-                    <Label htmlFor="descriptionAr" className="text-right block w-full">وصف الوظيفة (بالعربية)</Label>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="descriptionAr" className="text-right block w-full">وصف الوظيفة (بالعربية)</Label>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (jobForm.description.trim()) {
+                            const t = await translateText(jobForm.description, 'en', 'ar');
+                            if (t) handleInputChange("descriptionAr", t);
+                          } else if (jobForm.descriptionAr.trim()) {
+                            const t = await translateText(jobForm.descriptionAr, 'ar', 'en');
+                            if (t) handleInputChange("description", t);
+                          }
+                        }}
+                        disabled={!jobForm.description.trim() && !jobForm.descriptionAr.trim()}
+                        className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
+                        title={jobForm.description.trim() ? 'Translate EN → AR' : 'Translate AR → EN'}
+                      >
+                        <Languages className="size-3" />
+                      </button>
+                    </div>
                     <TextArea
                       value={jobForm.descriptionAr}
                       onChange={(value) => handleInputChange("descriptionAr", value)}
@@ -2209,7 +2376,26 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                   </div>
                   {jobForm.bilingual && (
                     <div className="space-y-2" dir="rtl">
-                      <Label className="text-right block w-full">الشرط الجديد (بالعربية)</Label>
+                      <div className="flex items-center justify-between">
+                        <Label className="text-right block w-full">الشرط الجديد (بالعربية)</Label>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (newTerm.trim()) {
+                              const t = await translateText(newTerm, 'en', 'ar');
+                              if (t) setNewTermAr(t);
+                            } else if (newTermAr.trim()) {
+                              const t = await translateText(newTermAr, 'ar', 'en');
+                              if (t) setNewTerm(t);
+                            }
+                          }}
+                          disabled={!newTerm.trim() && !newTermAr.trim()}
+                          className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
+                          title={newTerm.trim() ? 'Translate EN → AR' : 'Translate AR → EN'}
+                        >
+                          <Languages className="size-3" />
+                        </button>
+                      </div>
                       <Input
                         value={newTermAr}
                         onChange={(e) => setNewTermAr(e.target.value)}
@@ -2258,7 +2444,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                             autoFocus
                           />
                           {jobForm.bilingual && (
-                            <div dir="rtl">
+                            <div className="relative" dir="rtl">
                               <Input
                                 value={jobForm.termsAndConditionsAr[index] || ""}
                                 onChange={(e) => {
@@ -2268,6 +2454,33 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                                 }}
                                 className="text-right"
                               />
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  const en = term;
+                                  const ar = jobForm.termsAndConditionsAr[index] || "";
+                                  if (en.trim()) {
+                                    const t = await translateText(en, 'en', 'ar');
+                                    if (t) {
+                                      const newTermsAr = [...jobForm.termsAndConditionsAr];
+                                      newTermsAr[index] = t;
+                                      setJobForm(prev => ({ ...prev, termsAndConditionsAr: newTermsAr }));
+                                    }
+                                  } else if (ar.trim()) {
+                                    const t = await translateText(ar, 'ar', 'en');
+                                    if (t) {
+                                      const newTerms = [...jobForm.termsAndConditions];
+                                      newTerms[index] = t;
+                                      setJobForm(prev => ({ ...prev, termsAndConditions: newTerms }));
+                                    }
+                                  }
+                                }}
+                                disabled={!term.trim() && !(jobForm.termsAndConditionsAr[index] || "").trim()}
+                                className="absolute left-1.5 top-1/2 -translate-y-1/2 flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
+                                title={term.trim() ? 'Translate EN → AR' : 'Translate AR → EN'}
+                              >
+                                <Languages className="size-3" />
+                              </button>
                             </div>
                           )}
                         </div>
@@ -2360,7 +2573,26 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                           </div>
                           {jobForm.bilingual && (
                             <div className="space-y-2" dir="rtl">
-                              <Label className="text-right block w-full">اسم المواصفة (بالعربية)</Label>
+                              <div className="flex items-center justify-between">
+                                <Label className="text-right block w-full">اسم المواصفة (بالعربية)</Label>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    if (spec.spec.trim()) {
+                                      const t = await translateText(spec.spec, 'en', 'ar');
+                                      if (t) handleJobSpecChange(index, "specAr", t);
+                                    } else if (spec.specAr?.trim()) {
+                                      const t = await translateText(spec.specAr, 'ar', 'en');
+                                      if (t) handleJobSpecChange(index, "spec", t);
+                                    }
+                                  }}
+                                  disabled={!spec.spec.trim() && !spec.specAr?.trim()}
+                                  className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
+                                  title={spec.spec.trim() ? 'Translate EN → AR' : 'Translate AR → EN'}
+                                >
+                                  <Languages className="size-3" />
+                                </button>
+                              </div>
                               <Input
                                 value={spec.specAr || ""}
                                 onChange={(e) => handleJobSpecChange(index, "specAr", e.target.value)}
@@ -2693,7 +2925,26 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                             </div>
                             {jobForm.bilingual && (
                               <div className="space-y-2" dir="rtl">
-                                <Label htmlFor={`field-label-ar-${fieldIndex}`} className="text-right block w-full">تسمية الحقل (بالعربية)</Label>
+                                <div className="flex items-center justify-between">
+                                  <Label htmlFor={`field-label-ar-${fieldIndex}`} className="text-right block w-full">تسمية الحقل (بالعربية)</Label>
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      if (field.label.trim()) {
+                                        const t = await translateText(field.label, 'en', 'ar');
+                                        if (t) handleCustomFieldChange(fieldIndex, "labelAr", t);
+                                      } else if (field.labelAr?.trim()) {
+                                        const t = await translateText(field.labelAr, 'ar', 'en');
+                                        if (t) handleCustomFieldChange(fieldIndex, "label", t);
+                                      }
+                                    }}
+                                    disabled={!field.label.trim() && !field.labelAr?.trim()}
+                                    className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
+                                    title={field.label.trim() ? 'Translate EN → AR' : 'Translate AR → EN'}
+                                  >
+                                    <Languages className="size-3" />
+                                  </button>
+                                </div>
                                 <Input
                                   id={`field-label-ar-${fieldIndex}`}
                                   value={field.labelAr || ""}
@@ -2762,7 +3013,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
 
                           {(field.inputType === "checkbox" || field.inputType === "radio" || field.inputType === "dropdown") && (
                             <div className="rounded-2xl border border-gray-100 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
-                              <Label className="mb-4 block text-xs font-black uppercase tracking-wider text-gray-400">Response Options</Label>
+                              <Label className="mb-4 block text-xs font-black uppercase tracking-wider text-gray-400">Response Options {jobForm.bilingual && "(EN)"}</Label>
                               <div className={`grid gap-4 items-end mb-4 ${jobForm.bilingual ? 'md:grid-cols-2' : ''}`}>
                                 <div className="space-y-2">
                                   <Input
@@ -2773,14 +3024,36 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                                   />
                                 </div>
                                 {jobForm.bilingual && (
-                                  <div className="space-y-2" dir="rtl">
-                                    <Input
-                                      value={newChoiceAr[fieldIndex] || ""}
-                                      onChange={(e) => setNewChoiceAr(prev => ({ ...prev, [fieldIndex]: e.target.value }))}
-                                      onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddChoice(fieldIndex))}
-                                      placeholder="الخيار بالعربية..."
-                                      className="text-right"
-                                    />
+                                  <div className="relative" dir="rtl">
+                                    <Label className="mb-2 block text-right text-xs font-black uppercase tracking-wider text-gray-400">خيارات الاستجابة (بالعربية)</Label>
+                                    <div className="space-y-2">
+                                      <Input
+                                        value={newChoiceAr[fieldIndex] || ""}
+                                        onChange={(e) => setNewChoiceAr(prev => ({ ...prev, [fieldIndex]: e.target.value }))}
+                                        onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddChoice(fieldIndex))}
+                                        placeholder="الخيار بالعربية..."
+                                        className="text-right"
+                                      />
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={async () => {
+                                        const en = newChoice[fieldIndex] || "";
+                                        const ar = newChoiceAr[fieldIndex] || "";
+                                        if (en.trim()) {
+                                          const t = await translateText(en, 'en', 'ar');
+                                          if (t) setNewChoiceAr(prev => ({ ...prev, [fieldIndex]: t }));
+                                        } else if (ar.trim()) {
+                                          const t = await translateText(ar, 'ar', 'en');
+                                          if (t) setNewChoice(prev => ({ ...prev, [fieldIndex]: t }));
+                                        }
+                                      }}
+                                      disabled={!(newChoice[fieldIndex] || "").trim() && !(newChoiceAr[fieldIndex] || "").trim()}
+                                      className="absolute left-1.5 top-1/2 -translate-y-1/2 flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
+                                      title={(newChoice[fieldIndex] || "").trim() ? 'Translate EN → AR' : 'Translate AR → EN'}
+                                    >
+                                      <Languages className="size-3" />
+                                    </button>
                                   </div>
                                 )}
                               </div>
@@ -2865,7 +3138,26 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                                         </div>
                                         {jobForm.bilingual && (
                                           <div className="space-y-1" dir="rtl">
-                                            <Label className="text-[11px] font-bold text-gray-500">Label (AR)</Label>
+                                            <div className="flex items-center justify-between">
+                                              <Label className="text-[11px] font-bold text-gray-500">Label (AR)</Label>
+                                              <button
+                                                type="button"
+                                                onClick={async () => {
+                                                  if (subField.label.trim()) {
+                                                    const t = await translateText(subField.label, 'en', 'ar');
+                                                    if (t) handleSubFieldChange(fieldIndex, subFieldIndex, "labelAr", t);
+                                                  } else if (subField.labelAr?.trim()) {
+                                                    const t = await translateText(subField.labelAr, 'ar', 'en');
+                                                    if (t) handleSubFieldChange(fieldIndex, subFieldIndex, "label", t);
+                                                  }
+                                                }}
+                                                disabled={!subField.label.trim() && !subField.labelAr?.trim()}
+                                                className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
+                                                title={subField.label.trim() ? 'Translate EN → AR' : 'Translate AR → EN'}
+                                              >
+                                                <Languages className="size-3" />
+                                              </button>
+                                            </div>
                                             <Input
                                               value={subField.labelAr || ""}
                                               onChange={(e) => handleSubFieldChange(fieldIndex, subFieldIndex, "labelAr", e.target.value)}
@@ -2905,7 +3197,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                                               className="h-8 text-xs"
                                             />
                                             {jobForm.bilingual && (
-                                              <div dir="rtl">
+                                              <div className="relative" dir="rtl">
                                                 <Input
                                                   value={newSubFieldChoiceAr[`${fieldIndex}-${subFieldIndex}`] || ""}
                                                   onChange={(e) => setNewSubFieldChoiceAr(prev => ({ ...prev, [`${fieldIndex}-${subFieldIndex}`]: e.target.value }))}
@@ -2913,6 +3205,26 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                                                   placeholder="الخيار بالعربية..."
                                                   className="h-8 text-xs text-right"
                                                 />
+                                                <button
+                                                  type="button"
+                                                  onClick={async () => {
+                                                    const key = `${fieldIndex}-${subFieldIndex}`;
+                                                    const en = newSubFieldChoice[key] || "";
+                                                    const ar = newSubFieldChoiceAr[key] || "";
+                                                    if (en.trim()) {
+                                                      const t = await translateText(en, 'en', 'ar');
+                                                      if (t) setNewSubFieldChoiceAr(prev => ({ ...prev, [key]: t }));
+                                                    } else if (ar.trim()) {
+                                                      const t = await translateText(ar, 'ar', 'en');
+                                                      if (t) setNewSubFieldChoice(prev => ({ ...prev, [key]: t }));
+                                                    }
+                                                  }}
+                                                  disabled={!(newSubFieldChoice[`${fieldIndex}-${subFieldIndex}`] || "").trim() && !(newSubFieldChoiceAr[`${fieldIndex}-${subFieldIndex}`] || "").trim()}
+                                                  className="absolute left-1.5 top-1/2 -translate-y-1/2 flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
+                                                  title={(newSubFieldChoice[`${fieldIndex}-${subFieldIndex}`] || "").trim() ? 'Translate EN → AR' : 'Translate AR → EN'}
+                                                >
+                                                  <Languages className="size-3" />
+                                                </button>
                                               </div>
                                             )}
                                           </div>

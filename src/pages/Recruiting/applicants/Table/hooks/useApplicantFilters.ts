@@ -9,6 +9,7 @@ interface UseApplicantFiltersProps {
   customFilters: any[];
   isSuperAdmin: boolean;
   effectiveOnlyStatus?: string | string[];
+  effectiveOnlyJobPositions?: string[];
   selectedCompanyFilterValue?: string[] | string | null;
   jobPositionMap: Record<string, any>;
   fieldToJobIds: Map<string, Set<string>> | Record<string, Set<string>>;
@@ -23,6 +24,7 @@ export function useApplicantFilters({
   customFilters,
   isSuperAdmin,
   effectiveOnlyStatus,
+  effectiveOnlyJobPositions,
   selectedCompanyFilterValue,
   jobPositionMap,
   fieldToJobIds,
@@ -83,14 +85,29 @@ export function useApplicantFilters({
     }
     
     // Apply status filter (from props or URL params)
-    if (effectiveOnlyStatus !== undefined && effectiveOnlyStatus !== null) {
+    if (effectiveOnlyStatus !== undefined && effectiveOnlyStatus !== null && effectiveOnlyStatus !== '') {
       const allowed = (Array.isArray(effectiveOnlyStatus) ? effectiveOnlyStatus : [effectiveOnlyStatus])
         .map(normalizeStatus)
         .filter(Boolean);
-      filtered = filtered.filter((a: any) => allowed.includes(normalizeStatus(a.status)));
-      return filtered;
+      if (allowed.length > 0) {
+        filtered = filtered.filter((a: any) => allowed.includes(normalizeStatus(a.status)));
+      }
     }
-    
+
+    // Apply job position filter (from props or URL params)
+    if (effectiveOnlyJobPositions !== undefined && effectiveOnlyJobPositions !== null && effectiveOnlyJobPositions.length > 0) {
+      filtered = filtered.filter((a: any) => {
+        const jobPositionId = a?.jobPositionId;
+        let applicantJobId = '';
+        if (typeof jobPositionId === 'string') {
+          applicantJobId = jobPositionId;
+        } else if (jobPositionId && typeof jobPositionId === 'object') {
+          applicantJobId = jobPositionId._id || jobPositionId.id || '';
+        }
+        return effectiveOnlyJobPositions.includes(applicantJobId);
+      });
+    }
+
     // Apply status column filter
     const statusFilter = columnFilters.find((f: any) => f.id === 'status');
     const statusVal = statusFilter?.value;
@@ -120,7 +137,7 @@ filtered = filtered.filter((a: any) => allowed.includes(normalizeStatus(a.status
 
     filtered = filtered.filter((a: any) => normalizeStatus(a.status) !== 'trashed');
     return filtered;
-  }, [applicants, columnFilters, isSuperAdmin, canViewTrashed, effectiveOnlyStatus, selectedCompanyIds, jobPositionMap, normalizeStatus]);
+  }, [applicants, columnFilters, isSuperAdmin, effectiveOnlyStatus, effectiveOnlyJobPositions, selectedCompanyIds, jobPositionMap, normalizeStatus, canViewTrashed]);
 
   // Check if duplicates only filter is enabled
   const duplicatesOnlyEnabled = useMemo(

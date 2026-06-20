@@ -165,7 +165,7 @@ function mergeApplicantResponseIntoCache(
 // Get all applicants
 export function useApplicants(params?: {
   companyId?: string[];
-  jobPositionId?: string;
+  jobPositionId?: string | string[];
   departmentId?: string[];
   status?: string | string[];
   fields?: string | string[];
