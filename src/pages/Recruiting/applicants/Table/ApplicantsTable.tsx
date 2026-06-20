@@ -1908,9 +1908,26 @@ const jobOptions = useMemo(() => {
       return (
         <div
           onClick={(e) => e.stopPropagation()}
-          style={{ display: 'flex', alignItems: 'center', gap: 3 }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            width: '100%',
+            minWidth: 0,
+            paddingRight: 12,
+          }}
         >
-          <span style={{ fontWeight: 600, fontSize: 'inherit', fontFamily: 'inherit' }}>
+          <span
+            style={{
+              fontWeight: 600,
+              fontSize: 'inherit',
+              fontFamily: 'inherit',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              minWidth: 0,
+              flex: '1 1 auto',
+            }}
+          >
             {label}
           </span>
           <button
@@ -1918,14 +1935,18 @@ const jobOptions = useMemo(() => {
             onClick={handleFilterClick}
             title="Filter"
             style={{
+              position: 'absolute',
+              right: -3,
+              top: '50%',
+              transform: 'translateY(-50%)',
               background: activeCount > 0 ? (isExclude ? 'rgba(244,63,94,0.08)' : 'rgba(16,185,129,0.08)') : 'none',
               border: 'none',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: 3,
-              padding: '2px 6px',
-              borderRadius: 4,
+              gap: 1,
+              padding: '1px 1px',
+              borderRadius: 1,
               fontSize: 'inherit',
               fontFamily: 'inherit',
               outline: 'none',
@@ -1939,7 +1960,7 @@ const jobOptions = useMemo(() => {
               <span style={{
                 fontSize: 10,
                 fontWeight: 700,
-                background: activeCount > 0 ? (isExclude ? 'rgba(244,63,94,0.15)' : 'rgba(16,185,129,0.15)') : 'transparent',
+                background: isExclude ? 'rgba(244,63,94,0.15)' : 'rgba(16,185,129,0.15)',
                 borderRadius: 8,
                 padding: '0px 5px',
                 lineHeight: '16px',
@@ -2584,7 +2605,7 @@ const jobOptions = useMemo(() => {
           return (
             <button
               onClick={toggle}
-              className="flex items-center gap-1 text-sm font-medium"
+              className="flex flex-1 items-center justify-between gap-1 text-sm font-medium min-w-0"
               type="button"
               title={desc ? 'Newest' : 'Oldest'}
             >
@@ -2949,23 +2970,30 @@ const jobOptions = useMemo(() => {
       sx: {
         height: '50px',
         fontWeight: 'bold',
+        position: 'relative',
+        overflow: 'visible',
         '& .MuiTableSortLabel-icon': { display: 'none' },
         '& .MuiBadge-root': { display: 'none' },
         '& .Mui-TableHeadCell-Content': {
           height: '100%',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
         },
         '& .Mui-TableHeadCell-Content-Labels': {
           display: 'flex',
           alignItems: 'center',
-          gap: '4px',
+          flex: 1,
+          minWidth: 0,
+          overflow: 'visible',
         },
         '& .Mui-TableHeadCell-Content-Actions': {
           display: 'flex',
           alignItems: 'center',
-          gap: '2px',
+          flex: '0 0 0',
+          width: 0,
+          minWidth: 0,
+          padding: 0,
+          overflow: 'hidden',
         },
       },
       onMouseDown: (e) => {

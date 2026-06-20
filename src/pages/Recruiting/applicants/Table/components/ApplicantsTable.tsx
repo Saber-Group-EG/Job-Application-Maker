@@ -229,12 +229,13 @@ export function ApplicantsTable({
           height: '100%',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
         },
         '& .Mui-TableHeadCell-Content-Labels': {
           display: 'flex',
           alignItems: 'center',
           gap: '4px',
+          flex: 1,
+          minWidth: 0,
         },
         '& .Mui-TableHeadCell-Content-Actions': {
           display: 'flex',
