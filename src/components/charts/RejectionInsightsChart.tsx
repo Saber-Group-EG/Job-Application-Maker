@@ -1,4 +1,4 @@
-import { Suspense, lazy, useMemo, useCallback } from "react";
+import { Suspense, lazy, useState, useMemo, useCallback } from "react";
 import type { ApexOptions } from "apexcharts";
 import { useRejectionInsights } from "../../hooks/queries/useApplicants";
 
@@ -33,6 +33,7 @@ export default function RejectionInsightsChart({
   showPercentageLabels = false 
 }: RejectionInsightsChartProps) {
   const { data, isLoading, isFetching, error, refetch } = useRejectionInsights({ companyId });
+  const [showAllReasons, setShowAllReasons] = useState(false);
 
   // Memoized data transformation
   const rows = useMemo(() => {
@@ -53,6 +54,23 @@ export default function RejectionInsightsChart({
 
     return sorted;
   }, [data, maxReasons]);
+
+  const allRows = useMemo(() => {
+    const items = Array.isArray(data) ? data : (data as any)?.data ?? [];
+    if (!items.length) return [];
+
+    const normalizedReason = (reason: string) => reason.replace(/\s+/g, ' ').trim();
+
+    const sorted = [...items]
+      .map((item) => ({
+        reason: normalizedReason(String(item.reason ?? "Unknown")) || "Unknown",
+        count: Number(item.count ?? 0),
+      }))
+      .filter((item) => item.count > 0)
+      .sort((a, b) => b.count - a.count);
+
+    return sorted;
+  }, [data]);
 
   const totalRejected = useMemo(
     () => rows.reduce((sum, item) => sum + item.count, 0),
@@ -341,10 +359,10 @@ export default function RejectionInsightsChart({
           {/* Top reasons list with improved UX */}
           <div className="mt-5">
             <div className="mb-3 text-xs font-medium text-gray-500 dark:text-gray-400">
-              Top {Math.min(rows.length, 5)} reasons
+              {showAllReasons ? `All ${allRows.length} reasons` : `Top ${Math.min(rows.length, 5)} reasons`}
             </div>
             <div className="max-h-96 space-y-2 overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin' }}>
-              {rows.slice(0, 5).map((item, index) => {
+              {(showAllReasons ? allRows : rows.slice(0, 5)).map((item, index) => {
                 const share = totalRejected > 0 ? Math.round((item.count / totalRejected) * 100) : 0;
                 return (
                   <div 
@@ -379,12 +397,25 @@ export default function RejectionInsightsChart({
                   </div>
                 );
               })}
-              {rows.length > 5 && (
-                <div className="rounded-xl bg-gray-100/50 p-3 text-center dark:bg-gray-800/50">
+              {!showAllReasons && rows.length > 5 && (
+                <button
+                  onClick={() => setShowAllReasons(true)}
+                  className="w-full rounded-xl bg-gray-100/50 p-3 text-center transition-colors hover:bg-gray-200/70 dark:bg-gray-800/50 dark:hover:bg-gray-700/50"
+                >
                   <div className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                    +{rows.length - 5} more reason{rows.length - 5 !== 1 ? 's' : ''}
+                    +{allRows.length - 5} more reason{allRows.length - 5 !== 1 ? 's' : ''}
                   </div>
-                </div>
+                </button>
+              )}
+              {showAllReasons && allRows.length > 5 && (
+                <button
+                  onClick={() => setShowAllReasons(false)}
+                  className="w-full rounded-xl bg-gray-100/50 p-3 text-center transition-colors hover:bg-gray-200/70 dark:bg-gray-800/50 dark:hover:bg-gray-700/50"
+                >
+                  <div className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                    Show less
+                  </div>
+                </button>
               )}
             </div>
           </div>
