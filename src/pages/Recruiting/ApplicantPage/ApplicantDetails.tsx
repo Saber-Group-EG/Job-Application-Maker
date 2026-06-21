@@ -153,6 +153,8 @@ const Stickysidebar: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       sidebar.style.top = '';
       sidebar.style.left = '';
       sidebar.style.width = '';
+      sidebar.style.overflowY = '';
+      sidebar.style.maxHeight = '';
       sidebar.style.transform = '';
       sidebar.style.transformOrigin = '';
       sidebar.style.zIndex = '';
@@ -168,23 +170,20 @@ const Stickysidebar: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
       const TOP_OFFSET = getTopOffset();
       const rect = placeholder.getBoundingClientRect();
-      const sidebarHeight = sidebar.offsetHeight;
       const windowHeight = window.innerHeight;
 
       if (rect.top <= TOP_OFFSET) {
         const width = placeholder.offsetWidth;
         const left = rect.left;
         const availableHeight = windowHeight - TOP_OFFSET - 8;
-        // Scale down if sidebar is taller than available space
-        const scale = sidebarHeight > availableHeight ? availableHeight / sidebarHeight : 1;
         sidebar.style.position = 'fixed';
         sidebar.style.top = `${TOP_OFFSET}px`;
         sidebar.style.left = `${left}px`;
         sidebar.style.width = `${width}px`;
-        sidebar.style.transformOrigin = 'top left';
-        sidebar.style.transform = scale < 1 ? `scale(${scale})` : '';
+        sidebar.style.overflowY = 'auto';
+        sidebar.style.maxHeight = `${availableHeight}px`;
         sidebar.style.zIndex = '20';
-        placeholder.style.minHeight = `${sidebarHeight * scale}px`;
+        placeholder.style.minHeight = `${sidebar.scrollHeight}px`;
       } else {
         resetPosition();
       }
