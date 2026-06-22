@@ -632,7 +632,7 @@ export default function StatusLabelsSettings({
                 </h1>
                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                   Customize your company's statuses, colors, default stage, and
-                  notifications. Drag and drop to reorder.
+                  notifications.
                 </p>
               </div>
             </div>
@@ -640,7 +640,7 @@ export default function StatusLabelsSettings({
               <button
                 onClick={addStatus}
                 disabled={!canEdit}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700 transition hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-brand-500/30 dark:bg-brand-500/10 dark:text-brand-300"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-4 py-1.5 text-xs font-semibold text-slate-700 whitespace-nowrap transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <PlusCircle className="size-3.5" /> Add Status
               </button>
