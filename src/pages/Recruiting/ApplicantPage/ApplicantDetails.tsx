@@ -207,7 +207,7 @@ const Stickysidebar: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
   return (
     <div ref={placeholderRef} className="lg:w-72 xl:w-80 flex-shrink-0 self-start">
-      <div ref={sidebarRef} className="space-y-4 w-full">
+      <div ref={sidebarRef} className="no-scrollbar space-y-4 w-full">
         {children}
       </div>
     </div>
