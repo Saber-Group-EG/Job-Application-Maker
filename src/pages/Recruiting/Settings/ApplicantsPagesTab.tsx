@@ -74,6 +74,9 @@ function SortablePageItem({
   canEdit: boolean;
   jobsLoading?: boolean;
 }) {
+  const [editingName, setEditingName] = useState(false);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
   const {
     attributes,
     listeners,
@@ -98,6 +101,23 @@ function SortablePageItem({
         className="h-7 w-20 animate-pulse rounded-full bg-slate-200 dark:bg-slate-700"
       />
     ));
+
+  useEffect(() => {
+    if (editingName && nameInputRef.current) {
+      nameInputRef.current.focus();
+      nameInputRef.current.select();
+    }
+  }, [editingName]);
+
+  const finishEditing = useCallback(() => {
+    setEditingName(false);
+  }, []);
+
+  const handleNameKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      finishEditing();
+    }
+  }, [finishEditing]);
 
   return (
     <div
@@ -129,16 +149,26 @@ function SortablePageItem({
           <GripVertical className="size-5" />
         </div>
         <div className="min-w-0 flex-1">
-          <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Page Name
-          </label>
-          <input
-            value={page.name}
-            onChange={(e) => onNameChange(e.target.value)}
-            disabled={!canEdit}
-            placeholder="e.g. Active Pipeline, Shortlisted..."
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900"
-          />
+          {editingName ? (
+            <input
+              ref={nameInputRef}
+              value={page.name}
+              onChange={(e) => onNameChange(e.target.value)}
+              onBlur={finishEditing}
+              onKeyDown={handleNameKeyDown}
+              placeholder="e.g. Active Pipeline, Shortlisted..."
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-900"
+            />
+          ) : (
+            <div
+              onDoubleClick={() => canEdit && setEditingName(true)}
+              className={`w-full rounded-lg border border-transparent px-3 py-2 text-sm ${
+                canEdit ? 'cursor-default hover:border-slate-300 hover:bg-white dark:hover:border-slate-700 dark:hover:bg-slate-900' : 'cursor-not-allowed opacity-70'
+              } ${!page.name ? 'text-slate-400' : ''}`}
+            >
+              {page.name || 'Double-click to set page name...'}
+            </div>
+          )}
         </div>
         <span className="shrink-0 text-xs text-slate-400">
           {page.statuses.length} status{page.statuses.length !== 1 ? 'es' : ''}
@@ -147,9 +177,9 @@ function SortablePageItem({
           type="button"
           onClick={onRemove}
           disabled={!canEdit}
-          className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300"
+          className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300 lg:gap-2 lg:px-3 lg:py-2 lg:text-sm"
         >
-          <Trash2 className="size-4" /> Remove
+          <Trash2 className="size-3.5 lg:size-4" /> Remove
         </button>
       </div>
 
@@ -329,10 +359,11 @@ export default function ApplicantPagesSettings({
           jobPositions: Array.isArray(p.jobPositions) ? p.jobPositions : [],
         }))
       : [];
+    const initialIds = normalized.map(() => makeId());
     setPages(normalized);
-    setPageIds(normalized.map(() => makeId()));
+    setPageIds(initialIds);
     setOriginalJson(JSON.stringify(normalized));
-    setCollapsedPages(new Set());
+    setCollapsedPages(new Set(initialIds));
   }, [selectedCompanyId]);
 
   const syncPagesToCache = useCallback((updatedPages: ApplicantPage[]) => {
@@ -552,26 +583,26 @@ export default function ApplicantPagesSettings({
                 </p>
               </div>
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-row gap-3">
               <button
                 onClick={addPage}
                 disabled={!canEdit}
-                className="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700 transition hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-brand-500/30 dark:bg-brand-500/10 dark:text-brand-300"
               >
                 <PlusCircle className="size-4" /> Add Page
               </button>
               <button
                 onClick={handleSave}
                 disabled={!canEdit || !hasChanges || isSaving}
-                className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isSaving ? (
-                  <div className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                  <div className="size-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
                 ) : (
-                  <Save className="size-4" />
+                  <Save className="size-3.5" />
                 )}
                 Save Changes
-                <ArrowRight className="size-4" />
+                <ArrowRight className="size-3.5" />
               </button>
             </div>
           </div>
