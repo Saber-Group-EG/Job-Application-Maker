@@ -15,6 +15,7 @@ interface ExcludableMultiSelectFilterProps {
   onToggleExclude: () => void;
   isArrayColumn?: boolean;
   countsMap?: Map<string, number>;
+  title?: string;
 }
 
 export const ExcludableMultiSelectFilter = ({
@@ -24,6 +25,7 @@ export const ExcludableMultiSelectFilter = ({
   onToggleExclude,
   isArrayColumn = false,
   countsMap,
+  title,
 }: ExcludableMultiSelectFilterProps) => {
   const currentValue = (header.column.getFilterValue() as string[]) ?? [];
   const facetedMap = countsMap ?? header.column.getFacetedUniqueValues();
@@ -86,13 +88,27 @@ export const ExcludableMultiSelectFilter = ({
 
   return (
     <div style={{ minWidth: 220, maxWidth: 300 }}>
+      {/* ── Title ── */}
+      {title && (
+        <div
+          style={{
+            padding: '10px 12px 4px',
+            fontWeight: 600,
+            fontSize: 13,
+            color: 'inherit',
+          }}
+        >
+          {title}
+        </div>
+      )}
+
       {/* ── Header: mode toggle ── */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '8px 12px 8px',
+          padding: title ? '4px 12px 8px' : '8px 12px 8px',
           borderBottom: '1px solid rgba(0,0,0,0.07)',
         }}
       >
@@ -210,36 +226,6 @@ export const ExcludableMultiSelectFilter = ({
                       'transparent';
                 }}
               >
-                {/* Checkbox */}
-                <span
-                  style={{
-                    width: 15,
-                    height: 15,
-                    borderRadius: 4,
-                    border: `1.5px solid ${
-                      selected ? accentColor : 'rgba(0,0,0,0.2)'
-                    }`,
-                    background: selected ? accentColor : 'transparent',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                    transition: 'all 0.12s',
-                  }}
-                >
-                  {selected && (
-                    <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
-                      <path
-                        d="M1 3.5L3.5 6L8 1"
-                        stroke="white"
-                        strokeWidth="1.6"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  )}
-                </span>
-
                 {/* Label + subtitle */}
                 <span
                   style={{
@@ -275,6 +261,36 @@ export const ExcludableMultiSelectFilter = ({
                     >
                       {opt.subtitle}
                     </span>
+                  )}
+                </span>
+
+                {/* Checkbox */}
+                <span
+                  style={{
+                    width: 15,
+                    height: 15,
+                    borderRadius: 4,
+                    border: `1.5px solid ${
+                      selected ? accentColor : 'rgba(0,0,0,0.2)'
+                    }`,
+                    background: selected ? accentColor : 'transparent',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    transition: 'all 0.12s',
+                  }}
+                >
+                  {selected && (
+                    <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
+                      <path
+                        d="M1 3.5L3.5 6L8 1"
+                        stroke="white"
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
                   )}
                 </span>
 

@@ -1875,6 +1875,7 @@ const jobOptions = useMemo(() => {
       selectedCompanyFilterValue?: string[] | string | null;
       filterValue?: any;
     }) => {
+      const headerRef = useRef<HTMLDivElement>(null);
       const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
       const currentFilter = (header.column.getFilterValue() as string[]) ?? [];
       const activeCount = currentFilter.length;
@@ -1902,11 +1903,12 @@ const jobOptions = useMemo(() => {
 
       const handleFilterClick = (e: React.MouseEvent) => {
         e.stopPropagation();
-        setAnchorEl(e.currentTarget as HTMLElement);
+        setAnchorEl(headerRef.current);
       };
 
       return (
         <div
+          ref={headerRef}
           onClick={(e) => e.stopPropagation()}
           style={{
             display: 'flex',
@@ -1974,7 +1976,8 @@ const jobOptions = useMemo(() => {
             anchorEl={anchorEl}
             open={Boolean(anchorEl)}
             onClose={() => setAnchorEl(null)}
-            anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+            anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
+            transformOrigin={{ vertical: 'bottom', horizontal: 'left' }}
             onClick={(e) => e.stopPropagation()}
           >
             <ExcludableMultiSelectFilter
@@ -1991,6 +1994,7 @@ const jobOptions = useMemo(() => {
               }
               isArrayColumn={isArrayColumn}
               countsMap={countsMap}
+              title={label}
             />
           </Popover>
         </div>
