@@ -10,6 +10,7 @@ interface UseApplicantFiltersProps {
   customFilters: any[];
   isSuperAdmin: boolean;
   effectiveOnlyStatus?: string | string[];
+  effectiveOnlyJobPositions?: string[];
   selectedCompanyFilterValue?: string[] | string | null;
   companyFilterExclude?: boolean;
   excludeColumns?: string[];
@@ -17,6 +18,7 @@ interface UseApplicantFiltersProps {
   fieldToJobIds: Map<string, Set<string>> | Record<string, Set<string>>;
   currentUserId: string;
   allCompaniesRaw: any[];
+  canViewTrashed?: boolean;
 }
 
 export function useApplicantFilters({
@@ -25,12 +27,14 @@ export function useApplicantFilters({
   customFilters,
   isSuperAdmin,
   effectiveOnlyStatus,
+  effectiveOnlyJobPositions,
   selectedCompanyFilterValue,
   companyFilterExclude = false,
   excludeColumns = [],
   jobPositionMap,
   fieldToJobIds,
   currentUserId,
+  canViewTrashed = false,
 }: UseApplicantFiltersProps) {
   const normalizeStatus = useCallback((value: unknown) => {
     return String(value ?? '').trim().toLowerCase();
@@ -103,26 +107,35 @@ export function useApplicantFilters({
     }
     
     // Apply status filter (from props or URL params)
-    if (effectiveOnlyStatus !== undefined && effectiveOnlyStatus !== null) {
+    if (effectiveOnlyStatus !== undefined && effectiveOnlyStatus !== null && effectiveOnlyStatus !== '') {
       const allowed = (Array.isArray(effectiveOnlyStatus) ? effectiveOnlyStatus : [effectiveOnlyStatus])
         .map(normalizeStatus)
         .filter(Boolean);
-      filtered = filtered.filter((a: any) => allowed.includes(normalizeStatus(a.status)));
-      // Also exclude trashed in revert mode
-      if (Array.isArray(effectiveOnlyStatus) ? effectiveOnlyStatus.includes('trashed') : effectiveOnlyStatus === 'trashed') {
-        // If showing trashed, don't filter them out
-      } else {
-        filtered = filtered.filter((a: any) => !isTrashed(a.status));
+      if (allowed.length > 0) {
+        filtered = filtered.filter((a: any) => allowed.includes(normalizeStatus(a.status)));
       }
-      return filtered;
     }
-    
-    // Apply status column filter with exclude mode support
+
+    // Apply job position filter (from props or URL params)
+    if (effectiveOnlyJobPositions !== undefined && effectiveOnlyJobPositions !== null && effectiveOnlyJobPositions.length > 0) {
+      filtered = filtered.filter((a: any) => {
+        const jobPositionId = a?.jobPositionId;
+        let applicantJobId = '';
+        if (typeof jobPositionId === 'string') {
+          applicantJobId = jobPositionId;
+        } else if (jobPositionId && typeof jobPositionId === 'object') {
+          applicantJobId = jobPositionId._id || jobPositionId.id || '';
+        }
+        return effectiveOnlyJobPositions.includes(applicantJobId);
+      });
+    }
+
+    // Apply status column filter
     const statusFilter = columnFilters.find((f: any) => f.id === 'status');
     const statusVal = statusFilter?.value;
     const statusExcludeMode = excludeColumns.includes('status');
 
-    if (isSuperAdmin) {
+    if (isSuperAdmin || canViewTrashed) {
       if (normalizeStatus(statusVal) === 'trashed') return filtered;
       if (Array.isArray(statusVal) && statusVal.length > 0) {
         const allowed = statusVal.map(normalizeStatus).filter(Boolean);
@@ -168,7 +181,7 @@ export function useApplicantFilters({
   // Get filtered data based on column filters
   const columnFilteredApplicants = useMemo(() => {
     return applyColumnFilters(applicants);
-  }, [applicants, applyColumnFilters]);
+  }, [applicants, columnFilters, isSuperAdmin, effectiveOnlyStatus, effectiveOnlyJobPositions, jobPositionMap, normalizeStatus, canViewTrashed]);
 
   // Check if duplicates only filter is enabled
   const duplicatesOnlyEnabled = useMemo(
@@ -276,7 +289,7 @@ export function useApplicantFilters({
       id: status,  // ← original casing, matches applicant.status exactly
       title: status.charAt(0).toUpperCase() + status.slice(1),
     }));
-  }, [companyFilteredApplicants]);
+  }, [companyFilteredApplicants, applicants, isSuperAdmin, canViewTrashed]);
 
   // Get status color function
   const getStatusColor = useCallback((status: string) => {

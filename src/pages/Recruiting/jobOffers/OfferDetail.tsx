@@ -2,6 +2,7 @@
 
 import {
   ArrowLeft,
+  Briefcase,
   Clock,
   Clock3,
   Copy,
@@ -14,6 +15,7 @@ import {
 import { JobOffer, OfferStatus } from '../../../services/jobOffersService';
 import { STATUS_CHIP, WORK_TYPE_COLORS } from './JobOffersPage';
 import { OfferActions } from './OffersActions';
+import { Link } from 'react-router';
 
 export function OfferDetail({
   offer,
@@ -23,6 +25,7 @@ export function OfferDetail({
   onDelete,
   onClone,
   onStatusChange,
+  showCompany,
   setResendOpen,
   onConvertToContract,
   canCreateContract,
@@ -34,19 +37,15 @@ export function OfferDetail({
   onEdit: (o: JobOffer) => void;
   onDelete: (id: string) => void;
   onClone: (offer: JobOffer) => void;
+  showCompany: boolean;
   onStatusChange: (id: string, status: OfferStatus) => void;
   onConvertToContract: (offer: JobOffer) => void;
   canCreateContract: boolean;
 }) {
   const chip = STATUS_CHIP[offer.status];
-  const applicantName =
-    typeof offer.applicantId === 'object' && offer.applicantId !== null
-      ? offer.applicantId.fullName
-      : '—';
-  const applicantEmail =
-    typeof offer.applicantId === 'object' && offer.applicantId !== null
-      ? offer.applicantId.email
-      : '—';
+  const applicantName = offer.applicantId?.fullName;
+  const applicantEmail = offer.applicantId?.email;
+  const applicantId = offer.applicantId?._id;
 
   return (
     <div className="flex-1 overflow-y-auto bg-white dark:bg-slate-900">
@@ -112,6 +111,14 @@ export function OfferDetail({
             <h2 className="text-xl font-bold text-slate-900 dark:text-white">
               {offer.position?.en} {offer.position.ar && ` / ${offer.position.ar}`}
             </h2>
+            {showCompany && (
+              <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                <Briefcase className="size-3.5" />
+                <span className="font-medium">
+                  {(offer.companyId as { name: { en: string } }).name.en}
+                </span>
+              </div>
+            )}
             <div className="mt-2 flex flex-wrap items-center gap-3">
               <span
                 className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${WORK_TYPE_COLORS[offer.workType]}`}
@@ -161,9 +168,12 @@ export function OfferDetail({
         {/* Applicant info */}
         <div className="mt-4 flex items-center justify-between">
           <div>
-            <p className="text-sm font-semibold text-slate-900 dark:text-white">
+            <Link
+              to={`/applicant-details/${applicantId}`}
+              className="text-sm font-semibold text-slate-900 dark:text-white"
+            >
               {applicantName}
-            </p>
+            </Link>
             <p className="text-xs text-slate-500 dark:text-slate-400">
               {applicantEmail}
             </p>

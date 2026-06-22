@@ -295,36 +295,11 @@ export default function RejectionInsightsChart({
             Shows how rejected applicants are distributed across reasons so you can spot the biggest friction points.
           </p>
         </div>
-
-        <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-center">
-          <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-gray-50 to-white px-4 py-3 dark:border-gray-700 dark:from-gray-800 dark:to-gray-900">
-            <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-gray-400">
-              <span className="text-lg">📊</span>
-              Total rejected
-            </div>
-            <div className="mt-1 text-2xl font-bold text-gray-900 dark:text-white/90">
-              {formatNumber(totalRejected)}
-            </div>
-          </div>
-          <div className="rounded-xl border border-brand-200 bg-gradient-to-br from-brand-50 to-white px-4 py-3 dark:border-brand-500/30 dark:from-brand-500/10 dark:to-gray-900">
-            <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-brand-500/80 dark:text-brand-300">
-              <span className="text-lg">🎯</span>
-              Top reason share
-            </div>
-            <div className="mt-1 text-2xl font-bold text-brand-600 dark:text-brand-300">
-              {topReasonShare}%
-            </div>
-          </div>
-        </div>
       </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[280px_1fr]">
         {/* Sidebar with insights summary */}
         <div className="rounded-2xl border border-gray-200 bg-gradient-to-br from-gray-50 via-white to-brand-50/50 p-5 shadow-sm dark:border-gray-800 dark:from-gray-900 dark:via-gray-900 dark:to-brand-500/10">
-          <div className="flex items-center gap-2 text-sm font-medium text-gray-500 dark:text-gray-400">
-            <span className="text-lg">🔍</span>
-            Main driver
-          </div>
           <div className="mt-2 text-xl font-semibold text-gray-900 dark:text-white/90 break-words">
             {topReason?.reason ?? 'No data yet'}
           </div>

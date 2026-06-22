@@ -11,6 +11,7 @@ import {
   useApplicants,
   useJobPositions,
   useCompanies,
+  useUpdateApplicantStatus,
 } from '../../../../hooks/queries';
 import { useTableLayout } from '../../../../hooks/queries/useTableLayout';
 import { buildApplicantDuplicateLookup } from '../../../../utils/applicantDuplicateSort';
@@ -41,6 +42,7 @@ import { useApplicantFilters } from './hooks/useApplicantFilters';
 // Utils
 import { exportToExcel, showExportNotification } from './utils/exportHelpers';
 import { normalizeGender, getApplicantCompanyId, toggleExcludeColumn } from './utils/filterHelpers';
+import { getPreviousStatus, isTrashed } from '../../../../pages/Recruiting/ApplicantPage/utils/statusUtils';
 
 // Types
 import {
@@ -496,6 +498,7 @@ type ApplicantsProps = {
   layoutKey?: string;
   defaultLayout?: typeof APPLICANTS_DEFAULT_LAYOUT;
   onlyStatus?: string | string[];
+  onlyJobPositions?: string[];
   companyIdOverride?: string | string[] | undefined;
 };
 
@@ -503,11 +506,12 @@ export default function Applicants({
   layoutKey,
   defaultLayout,
   onlyStatus,
+  onlyJobPositions,
   companyIdOverride,
 }: ApplicantsProps = {}) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const location = useLocation();
   const params = useParams();
 
@@ -517,7 +521,7 @@ export default function Applicants({
   );
 
   const effectiveOnlyStatus = useMemo((): string | string[] | undefined => {
-    if (onlyStatus) return onlyStatus;
+    if (onlyStatus && !(Array.isArray(onlyStatus) && onlyStatus.length === 0)) return onlyStatus;
     if (params.status) return params.status;
     const searchParams = new URLSearchParams(location.search);
     const qStatus = searchParams.get('status');
@@ -525,12 +529,30 @@ export default function Applicants({
     return undefined;
   }, [onlyStatus, params.status, location.search]);
 
+  const effectiveOnlyJobPositions = useMemo((): string[] | undefined => {
+    if (onlyJobPositions && onlyJobPositions.length > 0) return onlyJobPositions;
+    const searchParams = new URLSearchParams(location.search);
+    const qJobPositions = searchParams.get('jobPositions');
+    if (qJobPositions) return qJobPositions.split(',').map(decodeURIComponent).filter(Boolean);
+    return undefined;
+  }, [onlyJobPositions, location.search]);
+
   const isSuperAdmin = useMemo(() => {
     const roleName = user?.roleId?.name;
     return (
       typeof roleName === 'string' && roleName.toLowerCase() === 'super admin'
     );
   }, [user?.roleId?.name]);
+
+  const canRestore = useMemo(() => {
+    if (isSuperAdmin) return true;
+    return hasPermission('Restore Applicant', 'write') || hasPermission('Restore Applicant', 'create');
+  }, [isSuperAdmin, hasPermission]);
+
+  const canViewTrashed = useMemo(() => {
+    if (isSuperAdmin) return true;
+    return hasPermission('Restore Applicant');
+  }, [isSuperAdmin, hasPermission]);
 
   const persistedTableState = useMemo(() => {
     try {
@@ -623,7 +645,7 @@ const [excludeModes] = useState<Record<string, boolean>>({});
     isFetched: isApplicantsFetched,
   } = useApplicants({
     companyId: companyId as any,
-    jobPositionId: undefined,
+    jobPositionId: effectiveOnlyJobPositions,
     departmentId: departmentIds as any,
     status: effectiveOnlyStatus,
     enabled: true,
@@ -632,7 +654,7 @@ const [excludeModes] = useState<Record<string, boolean>>({});
   // Check the query state directly to detect ongoing fetches for this key
   const applicantsQueryKey = applicantsKeys.list({
     companyId: companyId as any,
-    jobPositionId: undefined,
+    jobPositionId: effectiveOnlyJobPositions,
     departmentId: departmentIds as any,
     status: effectiveOnlyStatus,
   });
@@ -797,8 +819,8 @@ useEffect(() => {
   const genderOptions = useMemo(() => {
     const s = new Set<string>();
     const rows = Array.isArray(applicants) ? applicants : [];
-    rows.forEach((a: any) => {
-      if (!isSuperAdmin && a?.status === 'trashed') return;
+      rows.forEach((a: any) => {
+        if (!isSuperAdmin && !canViewTrashed && a?.status === 'trashed') return;
       const raw =
         a?.gender ||
         a?.customResponses?.gender ||
@@ -815,7 +837,7 @@ useEffect(() => {
       if (it !== 'Male' && it !== 'Female') ordered.push(it);
     });
     return ordered.map((g) => ({ id: g, title: g }));
-  }, [applicants, isSuperAdmin]);
+  }, [applicants, isSuperAdmin, canViewTrashed]);
 
 const jobOptions = useMemo(() => {
   const getIdValue = (v: any) =>
@@ -975,6 +997,7 @@ const jobOptions = useMemo(() => {
     customFilters,
     isSuperAdmin,
     effectiveOnlyStatus,
+    effectiveOnlyJobPositions,
     selectedCompanyFilterValue,
     companyFilterExclude: (layout.excludeColumns ?? []).includes('companyId'),
     excludeColumns: layout.excludeColumns ?? [],
@@ -982,6 +1005,7 @@ const jobOptions = useMemo(() => {
     fieldToJobIds,
     currentUserId,
     allCompaniesRaw,
+    canViewTrashed,
   });
 
   const {
@@ -1111,7 +1135,7 @@ const jobOptions = useMemo(() => {
       sscore: isLaptopViewport ? 72 : 96,
       status: isLaptopViewport ? 150 : 170,
       submittedAt: isLaptopViewport ? 88 : 110,
-      actions: isLaptopViewport ? 58 : 90,
+      actions: 70,
     }),
     [isLaptopViewport]
   );
@@ -2671,12 +2695,34 @@ const jobOptions = useMemo(() => {
             return null;
           };
           const hasCv = Boolean(resolveCvPath(orig));
+          const isTrashedApplicant = isTrashed(orig);
+          const previousStatus = getPreviousStatus(orig);
+          const updateStatus = useUpdateApplicantStatus();
+          const handleRestore = async (e: React.MouseEvent<HTMLButtonElement>) => {
+            e.stopPropagation();
+            const result = await Swal.fire({
+              title: 'Restore applicant?',
+              text: `This will restore the applicant to "${previousStatus}" status.`,
+              icon: 'question',
+              showCancelButton: true,
+              confirmButtonColor: '#22c55e',
+              cancelButtonColor: '#6b7280',
+              confirmButtonText: 'Restore',
+              cancelButtonText: 'Cancel',
+            });
+            if (!result.isConfirmed) return;
+            try {
+              await updateStatus.mutateAsync({ id: orig._id, data: { status: previousStatus } });
+            } catch {
+              // toast handled by mutation
+            }
+          };
           return (
             <div
               onClick={(e) => e.stopPropagation()}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 w-full justify-center"
             >
-              {hasCv ? (
+              {hasCv && (
                 <button
                   type="button"
                   aria-label="Download CV"
@@ -2702,8 +2748,31 @@ const jobOptions = useMemo(() => {
                     />
                   </svg>
                 </button>
-              ) : (
-                <span className="text-xs text-gray-500">-</span>
+              )}
+              {isTrashedApplicant && canRestore && (
+                <button
+                  type="button"
+                  aria-label="Restore applicant"
+                  title={`Restore to ${previousStatus}`}
+                  onClick={handleRestore}
+                  disabled={updateStatus.isPending}
+                  className="inline-flex items-center justify-center rounded bg-green-500 p-1 text-white hover:bg-green-600 disabled:opacity-50"
+                >
+                  <span className="sr-only">Restore</span>
+                  <svg
+                    className="w-4 h-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                    />
+                  </svg>
+                </button>
               )}
             </div>
           );
@@ -2737,6 +2806,7 @@ const jobOptions = useMemo(() => {
       selectedCompanyFilterValue,
       layout.excludeColumns,
       saveLayout,
+      canRestore,
     ]
   );
 
