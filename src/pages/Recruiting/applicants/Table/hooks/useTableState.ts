@@ -5,33 +5,29 @@ import type { MRT_ColumnFiltersState, MRT_RowSelectionState } from 'material-rea
 
 export function useTableState({
   showCompanyColumn,
-  genderOptions,
   persistedState,
 }: {
   onlyStatus?: string | string[];
   showCompanyColumn: boolean;
   jobPositionMap?: Record<string, any>;
-  genderOptions: Array<{ id: string; title: string }>;
   persistedState?: any;
 }): any {
   const location = useLocation();
   
-  // Get navigation state once on mount (not in effect)
+  // ALL HOOKS MUST BE DECLARED AT THE TOP - NO CONDITIONS
   const navState = (location.state as any);
   const isReturningFromDetails = navState?.returnToApplicants === true;
+  const hasInitializedFromNav = useRef(false);
+  const isUpdatingFromInternal = useRef(false);
   
-  // Initialize state SYNCHRONOUSLY based on priority
   const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>(() => {
-    // Priority 1: Navigation state (coming back from applicant details)
-    if (isReturningFromDetails && navState?.columnFilters) {
+    if (isReturningFromDetails && navState?.columnFilters && !hasInitializedFromNav.current) {
+      hasInitializedFromNav.current = true;
       return navState.columnFilters;
     }
-    
-    // Priority 2: Persisted state
     if (persistedState?.columnFilters && Array.isArray(persistedState.columnFilters)) {
       return persistedState.columnFilters;
     }
-    
     return [];
   });
   
@@ -55,55 +51,14 @@ export function useTableState({
   
   const [rowSelection, setRowSelection] = useState<MRT_RowSelectionState>({});
 
- 
-
   const selectedApplicantIds = useMemo(() => Object.keys(rowSelection), [rowSelection]);
   
-  const sanitizedColumnFilters = useMemo(() => {
-    if (!Array.isArray(columnFilters)) return columnFilters;
-    if (showCompanyColumn) return columnFilters;
-    return columnFilters.filter((f: any) => f?.id !== 'companyId');
+  const effectiveColumnFilters = useMemo(() => {
+    if (!showCompanyColumn && Array.isArray(columnFilters)) {
+      return columnFilters.filter((f: any) => f?.id !== 'companyId');
+    }
+    return columnFilters;
   }, [columnFilters, showCompanyColumn]);
-  
-  const initialColumnFilters = useMemo(() => sanitizedColumnFilters, [sanitizedColumnFilters]);
-  
-  // Sanitize gender filter
-  useEffect(() => {
-    try {
-      const genderFilterIndex = columnFilters.findIndex((f: any) => f.id === 'gender');
-      if (genderFilterIndex === -1) return;
-      
-      const current = columnFilters[genderFilterIndex];
-      const vals = Array.isArray(current.value) ? current.value : current.value ? [current.value] : [];
-      if (!vals.length) return;
-      
-      const optionIds = new Set(genderOptions.map((g) => g.id));
-      const intersection = vals.filter((v: string) => optionIds.has(v));
-      
-      if (intersection.length === vals.length) return;
-      
-      const next = columnFilters.slice();
-      if (intersection.length === 0) {
-        next.splice(genderFilterIndex, 1);
-      } else {
-        next[genderFilterIndex] = { ...next[genderFilterIndex], value: intersection };
-      }
-      setColumnFilters(next);
-    } catch (e) {}
-  }, [genderOptions, columnFilters]);
-  
-  const persistTableState = useCallback(() => {
-    try {
-      const toSave = {
-        pagination,
-        sorting,
-        columnFilters: sanitizedColumnFilters,
-        customFilters,
-      };
-      sessionStorage.setItem('applicants_table_state', JSON.stringify(toSave));
-      localStorage.setItem('applicants_table_state', JSON.stringify(toSave));
-    } catch (e) {}
-  }, [pagination, sorting, sanitizedColumnFilters, customFilters]);
   
   const clearPersistedState = useCallback(() => {
     try {
@@ -113,38 +68,52 @@ export function useTableState({
   }, []);
   
   const resetToDefault = useCallback(() => {
+    isUpdatingFromInternal.current = true;
     setRowSelection({});
     setColumnFilters([]);
     setSorting([{ id: 'submittedAt', desc: true }]);
     setPagination({ pageIndex: 0, pageSize: 10 });
     setCustomFilters([]);
     clearPersistedState();
+    setTimeout(() => {
+      isUpdatingFromInternal.current = false;
+    }, 100);
   }, [clearPersistedState]);
   
-  useEffect(() => {
-    const timer = setTimeout(() => persistTableState(), 100);
-    return () => clearTimeout(timer);
-  }, [persistTableState]);
+  // Persist state effect
+  const persistTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
   
   useEffect(() => {
+    if (persistTimeoutRef.current) {
+      clearTimeout(persistTimeoutRef.current);
+    }
+    persistTimeoutRef.current = setTimeout(() => {
+      try {
+        const toSave = {
+          pagination,
+          sorting,
+          columnFilters: effectiveColumnFilters,
+          customFilters,
+        };
+        sessionStorage.setItem('applicants_table_state', JSON.stringify(toSave));
+        localStorage.setItem('applicants_table_state', JSON.stringify(toSave));
+      } catch (e) {}
+    }, 500);
+    
     return () => {
-      setTimeout(() => {
-        const p = window.location.pathname || '';
-        const inApplicantsPages = p.startsWith('/applicant-details') || p.startsWith('/applicants');
-        if (!inApplicantsPages) {
-          localStorage.removeItem('applicants_table_state');
-          sessionStorage.removeItem('applicants_table_state');
-        }
-      }, 0);
+      if (persistTimeoutRef.current) {
+        clearTimeout(persistTimeoutRef.current);
+      }
     };
-  }, []);
-
-  // Reset to first page whenever the active filter set changes. We compare a
-  // serialized snapshot of (columnFilters + customFilters) so we only react
-  // to *real* filter changes — not to the initial mount or to navigation
-  // state being restored with the same filters we already had.
+  }, [pagination, sorting, columnFilters, customFilters, effectiveColumnFilters]);
+  
+  // Reset pagination when filters change
   const prevFiltersKeyRef = useRef<string | null>(null);
+  
   useEffect(() => {
+    // Skip if this is an internal update
+    if (isUpdatingFromInternal.current) return;
+    
     const serialize = (filters: unknown): unknown => {
       if (!Array.isArray(filters)) return [];
       return filters.map((f) => {
@@ -153,7 +122,7 @@ export function useTableState({
       });
     };
     const key = JSON.stringify({
-      columnFilters: serialize(sanitizedColumnFilters),
+      columnFilters: serialize(columnFilters),
       customFilters: serialize(customFilters),
     });
     if (prevFiltersKeyRef.current === null) {
@@ -163,22 +132,30 @@ export function useTableState({
     if (prevFiltersKeyRef.current === key) return;
     prevFiltersKeyRef.current = key;
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-  }, [sanitizedColumnFilters, customFilters]);
+  }, [columnFilters, customFilters]);
+  
+  // Wrap setColumnFilters to mark internal updates - MUST be after all hooks
+  const handleSetColumnFilters = useCallback((updater: any) => {
+    isUpdatingFromInternal.current = true;
+    setColumnFilters(updater);
+    setTimeout(() => {
+      isUpdatingFromInternal.current = false;
+    }, 100);
+  }, []);
   
   return {
     rowSelection,
     setRowSelection,
     columnFilters,
-    setColumnFilters,
+    setColumnFilters: handleSetColumnFilters,
     sorting,
     setSorting,
     pagination,
     setPagination,
     customFilters,
     setCustomFilters,
-    initialColumnFilters,
+    initialColumnFilters: effectiveColumnFilters,
     selectedApplicantIds,
-    persistTableState,
     clearPersistedState,
     resetToDefault,
   };
