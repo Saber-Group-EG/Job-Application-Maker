@@ -7,7 +7,6 @@ import {
   DollarSign,
   Plus,
   StickyNote,
-  Hash,
   Gift,
   Calendar,
   Layers,

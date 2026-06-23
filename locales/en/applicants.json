@@ -191,9 +191,5 @@
   "uploadingAttachments": "Uploading attachments and creating the applicant record.",
   "interviewsScheduledFor": "Interviews scheduled for {count} applicant(s).",
   "emailSentTo": "Email sent to {sent} applicant(s); {skipped} without email were skipped.",
-  "exportFailed": "Export Failed",
-  "exportSuccessful": "Export Successful!",
-  "emailSentSuccess": "Email sent successfully.",
-  "singleCompanyRequired": "Single Company Required",
-  "singleCompanyRequiredDesc": "Please select applicants from one company to schedule interviews together."
+  "emailSentSuccess": "Email sent successfully."
 }

@@ -52,6 +52,7 @@ function CategoryCombobox({
   onChange: (v: string) => void;
   existingCategories: string[];
 }) {
+  const { t } = useLocale();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState(value);
   const ref = useRef<HTMLDivElement>(null);
