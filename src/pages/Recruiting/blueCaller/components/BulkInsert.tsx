@@ -689,6 +689,21 @@ function buildApplicantPayload(
   return payload;
 }
 
+// ─── Extract options from field record ─────────────────────────────────────────
+
+function extractOptions(fieldRecord: Record<string, unknown>): string[] {
+  const choicesArr = fieldRecord.choices || fieldRecord.options;
+  if (!Array.isArray(choicesArr)) return [];
+  return (choicesArr as unknown[])
+    .map((o) => {
+      if (typeof o === 'string') return o;
+      const oRec = o as Record<string, unknown>;
+      if (typeof oRec.en === 'string' && oRec.en) return oRec.en;
+      return toStringValue(oRec.label || oRec.value || o);
+    })
+    .filter(Boolean);
+}
+
 // ─── Build template workbook for a specific job position ──────────────────────
 
 function buildTemplateWorkbookForJob(jobPosition: JobPosition): {
@@ -941,22 +956,6 @@ function buildTemplateWorkbookForJob(jobPosition: JobPosition): {
   const dropdownMap = new Map<number, string[]>();
   // Set: colIdx on Applicants sheet → date columns (need date picker)
   const dateColumns = new Set<number>();
-
-  // Helper to extract options from a field record
-  // choices is Array<{ en: string; ar: string }> (LocalizedString)
-  const extractOptions = (fieldRecord: Record<string, unknown>): string[] => {
-    const choicesArr = fieldRecord.choices || fieldRecord.options;
-    if (!Array.isArray(choicesArr)) return [];
-    return (choicesArr as unknown[])
-      .map((o) => {
-        if (typeof o === 'string') return o;
-        const oRec = o as Record<string, unknown>;
-        // LocalizedString: { en: string; ar: string }
-        if (typeof oRec.en === 'string' && oRec.en) return oRec.en;
-        return toStringValue(oRec.label || oRec.value || o);
-      })
-      .filter(Boolean);
-  };
 
   allHeaders.forEach((header, colIdx) => {
     // Job spec → Yes / No
@@ -1221,6 +1220,75 @@ export default function BulkInsert({
 
     return [...preferredHeaders, ...otherHeaders];
   }, [bulkRows]);
+
+  const columnMeta = useMemo(() => {
+    const meta: Record<string, { type: 'text' | 'checkbox' | 'select'; options?: string[] }> = {};
+
+    allColumnHeaders.forEach((header) => {
+      if (header === 'gender') {
+        meta[header] = { type: 'select', options: ['Male', 'Female'] };
+        return;
+      }
+
+      if (header === 'expectedSalary') {
+        meta[header] = { type: 'text' };
+        return;
+      }
+
+      for (const job of jobPositions) {
+        const specs = job.jobSpecsWithDetails || [];
+        for (const spec of specs) {
+          const specRec = spec as Record<string, unknown>;
+          const specText = toStringValue(specRec.spec);
+          if (specText === header) {
+            meta[header] = { type: 'checkbox' };
+            return;
+          }
+        }
+      }
+
+      for (const job of jobPositions) {
+        for (const field of (job.customFields || []) as unknown[]) {
+          const fieldRecord = field as Record<string, unknown>;
+          const label = toStringValue(fieldRecord.label);
+          const inputType = String(fieldRecord.inputType || 'text');
+
+          if (label === header) {
+            if (inputType === 'checkbox') {
+              meta[header] = { type: 'checkbox' };
+            } else if (inputType === 'select' || inputType === 'radio' || inputType === 'dropdown') {
+              const opts = extractOptions(fieldRecord);
+              if (opts.length) meta[header] = { type: 'select', options: opts };
+            }
+            return;
+          }
+
+          if ((inputType === 'groupField' || inputType === 'repeatable_group') && Array.isArray(fieldRecord.groupFields)) {
+            for (const sf of fieldRecord.groupFields as unknown[]) {
+              const sfRecord = sf as Record<string, unknown>;
+              const sfLabel = toStringValue(sfRecord.label);
+              const sfType = String(sfRecord.inputType || 'text');
+
+              const isMatch = header === `${label} - ${sfLabel}` ||
+                (header.startsWith(label) && header.endsWith(`- ${sfLabel}`));
+
+              if (isMatch) {
+                if (sfType === 'checkbox') {
+                  meta[header] = { type: 'checkbox' };
+                } else if (sfType === 'select' || sfType === 'radio' || sfType === 'dropdown') {
+                  const opts = extractOptions(sfRecord);
+                  if (opts.length) meta[header] = { type: 'select', options: opts };
+                }
+                return;
+              }
+            }
+          }
+        }
+      }
+    });
+
+    return meta;
+  }, [allColumnHeaders, jobPositions]);
 
   const validateBulkRows = (
     rows: BulkApplicantRow[]
@@ -1510,6 +1578,13 @@ export default function BulkInsert({
 
         if (newRow.allData) {
           newRow.allData = { ...newRow.allData, [header]: value };
+          const job = jobPositions.find((j) => j._id === newRow.jobPositionId);
+          if (job) {
+            newRow.customFields = {
+              ...parseCustomFields(newRow.allData, job),
+              ...parseJobSpecs(newRow.allData, job),
+            };
+          }
         }
 
         return newRow;
@@ -1767,26 +1842,6 @@ export default function BulkInsert({
           ))}
         </div>
 
-        <div className="flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={() => void handleBulkSubmit()}
-            disabled={
-              bulkSubmitting ||
-              bulkPreviewRows.filter((r) => r.errors.length === 0).length === 0
-            }
-            className={`inline-flex flex-1 items-center justify-center gap-2 rounded-xl ${themeColors.bgPrimary} px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:opacity-90 ${themeColors.hoverBg} disabled:cursor-not-allowed disabled:opacity-60`}
-          >
-            {bulkSubmitting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <UserPlus className="h-4 w-4" />
-            )}
-            Submit Valid Rows (
-            {bulkPreviewRows.filter((r) => r.errors.length === 0).length})
-          </button>
-        </div>
-
         <div
           className={`rounded-2xl border ${themeColors.borderLight} ${themeColors.bgLight} p-4 text-sm text-gray-600`}
         >
@@ -1857,6 +1912,23 @@ export default function BulkInsert({
                 Delete ({selectedRowKeys.size})
               </button>
             )}
+              <button
+            type="button"
+            onClick={() => void handleBulkSubmit()}
+            disabled={
+              bulkSubmitting ||
+              bulkPreviewRows.filter((r) => r.errors.length === 0).length === 0
+            }
+            className={`inline-flex flex-1 items-center justify-center gap-2 rounded-xl ${themeColors.bgPrimary} px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:opacity-90 ${themeColors.hoverBg} disabled:cursor-not-allowed disabled:opacity-60`}
+          >
+            {bulkSubmitting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <UserPlus className="h-4 w-4" />
+            )}
+            Submit Valid Rows (
+            {bulkPreviewRows.filter((r) => r.errors.length === 0).length})
+            </button>
           </div>
         </div>
 
@@ -1970,27 +2042,44 @@ export default function BulkInsert({
                           </span>
                         )}
                       </td>
-                      {allColumnHeaders.map((header) => (
-                        <td
-                          key={header}
-                          className="px-2 py-2 max-w-[150px]"
-                        >
-                          <input
-                            type="text"
-                            defaultValue={String(
-                              row.allData?.[header] ?? ''
+                      {allColumnHeaders.map((header) => {
+                        const currentMeta = columnMeta[header];
+                        const currentValue = row.allData?.[header];
+
+                        return (
+                          <td
+                            key={header}
+                            className="px-2 py-2 max-w-[150px]"
+                          >
+                            {currentMeta?.type === 'checkbox' ? (
+                              <input
+                                type="checkbox"
+                                checked={currentValue === 'Yes' || currentValue === 'true' || currentValue === true || currentValue === '1'}
+                                onChange={(e) => handleCellEdit(rowIndex, header, e.target.checked ? 'Yes' : 'No')}
+                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                              />
+                            ) : currentMeta?.type === 'select' ? (
+                              <select
+                                defaultValue={String(currentValue ?? '')}
+                                onChange={(e) => handleCellEdit(rowIndex, header, e.target.value)}
+                                className="w-full bg-transparent border-none outline-none text-gray-700 focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5"
+                              >
+                                <option value="">--</option>
+                                {currentMeta.options?.map((opt) => (
+                                  <option key={opt} value={opt}>{opt}</option>
+                                ))}
+                              </select>
+                            ) : (
+                              <input
+                                type="text"
+                                defaultValue={String(currentValue ?? '')}
+                                onBlur={(e) => handleCellEdit(rowIndex, header, e.target.value)}
+                                className="w-full bg-transparent border-none outline-none text-gray-700 focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5"
+                              />
                             )}
-                            onBlur={(e) =>
-                              handleCellEdit(
-                                rowIndex,
-                                header,
-                                e.target.value
-                              )
-                            }
-                            className="w-full bg-transparent border-none outline-none text-gray-700 focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5"
-                          />
-                        </td>
-                      ))}
+                          </td>
+                        );
+                      })}
                     </tr>
                   );
                 })
