@@ -128,6 +128,85 @@ const getAllScrollParents = (el: HTMLElement | null): Array<HTMLElement | Window
   return parents;
 };
 
+const StickyTopBar: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const placeholderRef = useRef<HTMLDivElement>(null);
+  const barRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const placeholder = placeholderRef.current;
+    const bar = barRef.current;
+    if (!placeholder || !bar) return;
+
+    const getTopOffset = (): number => {
+      const header =
+        (document.querySelector('header') as HTMLElement | null) ??
+        (document.querySelector('[class*="AppHeader"]') as HTMLElement | null) ??
+        (document.querySelector('[class*="header"]') as HTMLElement | null) ??
+        (document.querySelector('nav') as HTMLElement | null);
+      const h = header ? header.getBoundingClientRect().bottom : 0;
+      return Math.max(h, 0);
+    };
+
+    const resetPosition = () => {
+      bar.style.position = '';
+      bar.style.top = '';
+      bar.style.left = '';
+      bar.style.width = '';
+      bar.style.zIndex = '';
+      bar.style.paddingTop = '';
+      bar.style.paddingBottom = '';
+      placeholder.style.minHeight = '';
+    };
+
+    const update = () => {
+      if (window.innerWidth < 1024) {
+        resetPosition();
+        return;
+      }
+      if (placeholder.offsetParent === null) return;
+
+      const TOP_OFFSET = getTopOffset();
+      const rect = placeholder.getBoundingClientRect();
+      if (rect.top <= TOP_OFFSET) {
+        const width = placeholder.offsetWidth;
+        const left = rect.left;
+        bar.style.position = 'fixed';
+        bar.style.top = `${TOP_OFFSET}px`;
+        bar.style.left = `${left}px`;
+        bar.style.width = `${width}px`;
+        bar.style.zIndex = '1000';
+        bar.style.paddingTop = '20px';
+        placeholder.style.minHeight = `${bar.scrollHeight}px`;
+      } else {
+        resetPosition();
+      }
+    };
+
+    const scrollParents = getAllScrollParents(placeholder);
+    scrollParents.forEach(p => p.addEventListener('scroll', update, { passive: true }));
+    window.addEventListener('resize', update, { passive: true });
+
+    const ro = new ResizeObserver(update);
+    ro.observe(placeholder);
+
+    update();
+
+    return () => {
+      scrollParents.forEach(p => p.removeEventListener('scroll', update));
+      window.removeEventListener('resize', update);
+      ro.disconnect();
+    };
+  }, []);
+
+  return (
+    <div ref={placeholderRef}>
+      <div ref={barRef} className="bg-gray-50/95 backdrop-blur-sm border-b border-gray-200">
+        {children}
+      </div>
+    </div>
+  );
+};
+
 const Stickysidebar: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const placeholderRef = React.useRef<HTMLDivElement>(null);
   const sidebarRef = React.useRef<HTMLDivElement>(null);
@@ -171,22 +250,18 @@ const Stickysidebar: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       const TOP_OFFSET = getTopOffset();
       const rect = placeholder.getBoundingClientRect();
       const windowHeight = window.innerHeight;
+      const width = placeholder.offsetWidth;
+      const left = rect.left;
+      const availableHeight = windowHeight - TOP_OFFSET - 8;
 
-      if (rect.top <= TOP_OFFSET) {
-        const width = placeholder.offsetWidth;
-        const left = rect.left;
-        const availableHeight = windowHeight - TOP_OFFSET - 8;
-        sidebar.style.position = 'fixed';
-        sidebar.style.top = `${TOP_OFFSET}px`;
-        sidebar.style.left = `${left}px`;
-        sidebar.style.width = `${width}px`;
-        sidebar.style.overflowY = 'auto';
-        sidebar.style.maxHeight = `${availableHeight}px`;
-        sidebar.style.zIndex = '20';
-        placeholder.style.minHeight = `${sidebar.scrollHeight}px`;
-      } else {
-        resetPosition();
-      }
+      sidebar.style.position = 'fixed';
+      sidebar.style.top = `${TOP_OFFSET + 50}px`;
+      sidebar.style.left = `${left}px`;
+      sidebar.style.width = `${width}px`;
+      sidebar.style.overflowY = 'auto';
+      sidebar.style.maxHeight = `${availableHeight - 50}px`;
+      sidebar.style.zIndex = '20';
+      placeholder.style.minHeight = `${sidebar.scrollHeight}px`;
     };
 
     const scrollParents = getAllScrollParents(placeholder);
@@ -198,10 +273,35 @@ const Stickysidebar: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
     update();
 
+    const handleWheel = (e: WheelEvent) => {
+      if (window.innerWidth < 1024) return;
+      // Let native scroll handle events inside the sidebar
+      if (sidebar.contains(e.target as Node)) return;
+      const scrollEl = document.scrollingElement || document.documentElement;
+      const isPageAtBottom = scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight < 5;
+      const hasHiddenContent = sidebar.scrollHeight > sidebar.clientHeight;
+      if (!hasHiddenContent) return;
+
+      if (e.deltaY > 0) {
+        if (isPageAtBottom) {
+          e.preventDefault();
+          if (sidebar.scrollTop < sidebar.scrollHeight - sidebar.clientHeight) {
+            sidebar.scrollBy({ top: Math.min(e.deltaY, 120), behavior: 'auto' });
+          }
+        }
+      } else if (isPageAtBottom && sidebar.scrollTop > 0) {
+        e.preventDefault();
+        sidebar.scrollBy({ top: -Math.min(Math.abs(e.deltaY), 120), behavior: 'auto' });
+      }
+    };
+
+    document.addEventListener('wheel', handleWheel, { passive: false });
+
     return () => {
       scrollParents.forEach(p => p.removeEventListener('scroll', update));
       window.removeEventListener('resize', update);
       ro.disconnect();
+      document.removeEventListener('wheel', handleWheel);
     };
   }, []);
 
@@ -796,10 +896,10 @@ const ApplicantDetails: React.FC = () => {
   );
 
   return (
-    <div className="bg-gray-50 p-6">
-      <div className="max-w-8xl mx-auto">
-        <div className="mb-4">
-          <div className="flex items-center justify-between">
+    <div className="bg-gray-50">
+      <div className="max-w-8xl mx-auto p-6">
+        <StickyTopBar>
+          <div className="flex items-center justify-between py-3">
             <div className="flex items-center gap-2 text-sm text-gray-500">
               <span onClick={() => navigate(paths.applicants.root)} className="hover:text-gray-700 cursor-pointer">Applicants</span>
               <span>-›</span>
@@ -812,7 +912,7 @@ const ApplicantDetails: React.FC = () => {
               <button onClick={handleDelete} className="ml-2 px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition-colors">Delete</button>
             </div>
           </div>
-        </div>
+        </StickyTopBar>
 
         {/* ── DETAILS TAB ── */}
         <div hidden={activeTab !== 'details'}>
@@ -832,18 +932,18 @@ const ApplicantDetails: React.FC = () => {
             <div className="flex-1 min-w-0 space-y-6">
               <div className="flex items-center justify-between border-b border-gray-200 mb-2">{tabBar}</div>
               <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6 transition-all duration-200">
-                <textarea
-                  ref={commentTextareaRef}
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  placeholder="Write a thoughtful comment..."
-                  className="w-full px-4 py-3 text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 resize-none transition-all duration-200 placeholder:text-gray-400 min-h-[44px]"
-                  rows={1}
-                  style={{ height: 'auto', overflow: 'hidden', scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && comment.trim()) { e.preventDefault(); handleAddComment(); } }}
-                />
-                <div className="flex justify-end mt-2">
-                  <button onClick={handleAddComment} disabled={addComment.isPending || !comment.trim()} className="p-1.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed" aria-label="Add comment">
+                <div className="relative">
+                  <textarea
+                    ref={commentTextareaRef}
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    placeholder="Write a thoughtful comment..."
+                    className="w-full block px-4 py-3 pr-12 text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 resize-none transition-all duration-200 placeholder:text-gray-400 min-h-[44px]"
+                    rows={1}
+                    style={{ height: 'auto', overflow: 'hidden', scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && comment.trim()) { e.preventDefault(); handleAddComment(); } }}
+                  />
+                  <button onClick={handleAddComment} disabled={addComment.isPending || !comment.trim()} className="absolute right-3 inset-y-0 my-auto p-1.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed h-fit" aria-label="Add comment">
                     {addComment.isPending ? (
                       <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                     ) : (
