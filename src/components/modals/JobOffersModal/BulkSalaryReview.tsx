@@ -1,5 +1,6 @@
 import { AlertTriangle, User, Briefcase, Check, Zap } from 'lucide-react';
 import { ApplicantObject } from '../JobOffersModal/EmailModule';
+import { useLocale } from '../../../context/LocaleContext';
 
 export type SalarySource = 'applicant' | 'position' | 'form' | 'custom';
 export type PositionSource = 'applicant' | 'form' | 'custom';
@@ -121,6 +122,7 @@ export function BulkSalaryReview({
   onChange: (map: BulkOverrideMap) => void;
   formSalary: number | '' | null;
 }) {
+  const { t } = useLocale();
   const patch = (id: string, p: Partial<ApplicantOverride>) =>
     onChange({ ...overrideMap, [id]: { ...overrideMap[id], ...p } });
 
@@ -167,9 +169,7 @@ export function BulkSalaryReview({
         <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 dark:border-amber-800/40 dark:bg-amber-900/10">
           <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-500" />
           <p className="text-xs text-amber-700 dark:text-amber-400">
-            <strong>{unresolvedSalary.length}</strong> applicant
-            {unresolvedSalary.length !== 1 ? 's' : ''} have no salary resolved —
-            the form default will be used.
+            {t('noSalaryResolved', 'modals', { count: unresolvedSalary.length })}
           </p>
         </div>
       )}
@@ -177,9 +177,7 @@ export function BulkSalaryReview({
         <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 dark:border-amber-800/40 dark:bg-amber-900/10">
           <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-500" />
           <p className="text-xs text-amber-700 dark:text-amber-400">
-            <strong>{unresolvedPosition.length}</strong> applicant
-            {unresolvedPosition.length !== 1 ? 's' : ''} have no position
-            resolved — the form default will be used.
+            {t('noPositionResolved', 'modals', { count: unresolvedPosition.length })}
           </p>
         </div>
       )}
@@ -187,7 +185,7 @@ export function BulkSalaryReview({
       {/* ── Set-all buttons ── */}
       <div className="flex items-center gap-2">
         <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-          Set all positions to:
+          {t('setAllPositionsTo', 'modals')}
         </span>
         <button
           type="button"
@@ -195,7 +193,7 @@ export function BulkSalaryReview({
           className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 transition hover:border-brand-300 hover:text-brand-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
         >
           <User className="size-3" />
-          Job Position
+          {t('jobPosition', 'modals')}
         </button>
         <button
           type="button"
@@ -203,12 +201,12 @@ export function BulkSalaryReview({
           className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 transition hover:border-brand-300 hover:text-brand-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
         >
           <Zap className="size-3" />
-          Form Default
+          {t('formDefault', 'modals')}
         </button>
       </div>
       <div className="flex items-center gap-2">
         <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-          Set all salaries to:
+          {t('setAllSalariesTo', 'modals')}
         </span>
         <button
           type="button"
@@ -216,7 +214,7 @@ export function BulkSalaryReview({
           className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 transition hover:border-brand-300 hover:text-brand-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
         >
           <User className="size-3" />
-          Expected
+          {t('expected', 'modals')}
         </button>
         <button
           type="button"
@@ -224,7 +222,7 @@ export function BulkSalaryReview({
           className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 transition hover:border-brand-300 hover:text-brand-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
         >
           <Briefcase className="size-3" />
-          Position
+          {t('position', 'modals')}
         </button>
         <button
           type="button"
@@ -232,7 +230,7 @@ export function BulkSalaryReview({
           className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 transition hover:border-brand-300 hover:text-brand-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
         >
           <Zap className="size-3" />
-          Form Default
+          {t('formDefault', 'modals')}
         </button>
       </div>
 
@@ -266,7 +264,7 @@ export function BulkSalaryReview({
                     {a.fullName}
                   </p>
                   <p className="truncate text-xs text-slate-400">
-                    {applicantPositionEn ?? 'No position on record'}
+                    {applicantPositionEn ?? t('positionNoRecord', 'modals')}
                   </p>
                 </div>
               </div>
@@ -274,7 +272,7 @@ export function BulkSalaryReview({
               {/* ── Position source ── */}
               <div>
                 <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
-                  Position
+                  {t('positionSource', 'modals')}
                 </p>
                 <div className="flex gap-2">
                   <SourceBtn
@@ -287,8 +285,8 @@ export function BulkSalaryReview({
                     <User className="size-3 shrink-0" />
                     <span className="truncate">
                       {applicantPositionEn
-                        ? `Job: ${applicantPositionEn}`
-                        : 'No job position'}
+                        ? `${t('jobPosition', 'modals')}: ${applicantPositionEn}`
+                        : t('positionNoRecord', 'modals')}
                     </span>
                   </SourceBtn>
                   <SourceBtn
@@ -298,22 +296,22 @@ export function BulkSalaryReview({
                     <Zap className="size-3 shrink-0" />
                     <span className="truncate">
                       {formPosition.en
-                        ? `Form: ${formPosition.en}`
-                        : 'Form default'}
+                        ? `${t('formDefault', 'modals')}: ${formPosition.en}`
+                        : t('formDefault', 'modals')}
                     </span>
                   </SourceBtn>
                   <SourceBtn
                     active={o.positionSource === 'custom'}
                     onClick={() => patch(a._id, { positionSource: 'custom' })}
                   >
-                    Custom
+                    {t('custom', 'modals')}
                   </SourceBtn>
                 </div>
                 {o.positionSource === 'custom' && (
                   <div className="mt-2 grid grid-cols-2 gap-2">
                     <input
                       className={inputCls}
-                      placeholder="Position (EN)"
+                      placeholder={t('positionEnShort', 'modals')}
                       value={o.customPositionEn}
                       onChange={(e) =>
                         patch(a._id, { customPositionEn: e.target.value })
@@ -321,7 +319,7 @@ export function BulkSalaryReview({
                     />
                     <input
                       className={inputCls}
-                      placeholder="المسمى الوظيفي"
+                      placeholder={t('positionArShort', 'modals')}
                       dir="rtl"
                       value={o.customPositionAr}
                       onChange={(e) =>
@@ -342,7 +340,7 @@ export function BulkSalaryReview({
               {/* ── Salary source ── */}
               <div>
                 <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
-                  Salary
+                  {t('salarySource', 'modals')}
                 </p>
                 <div className="flex gap-2">
                   <SourceBtn
@@ -353,8 +351,8 @@ export function BulkSalaryReview({
                     <User className="size-3 shrink-0" />
                     <span className="truncate">
                       {applicantSalary != null
-                        ? `Expected: ${applicantSalary.toLocaleString()}`
-                        : 'No expected'}
+                        ? `${t('expected', 'modals')}: ${applicantSalary.toLocaleString()}`
+                        : t('noExpected', 'modals')}
                     </span>
                   </SourceBtn>
                   <SourceBtn
@@ -365,8 +363,8 @@ export function BulkSalaryReview({
                     <Briefcase className="size-3 shrink-0" />
                     <span className="truncate">
                       {positionSalary != null
-                        ? `Position: ${positionSalary.toLocaleString()}`
-                        : 'No position salary'}
+                        ? `${t('position', 'modals')}: ${positionSalary.toLocaleString()}`
+                        : t('noPositionSalary', 'modals')}
                     </span>
                   </SourceBtn>
                   <SourceBtn
@@ -376,25 +374,23 @@ export function BulkSalaryReview({
                     <Zap className="size-3 shrink-0" />
                     <span className="truncate">
                       {displayFormSalary != null
-                        ? `Form: ${displayFormSalary.toLocaleString()}`
-                        : 'Form default'}
+                        ? `${t('formDefault', 'modals')}: ${displayFormSalary.toLocaleString()}`
+                        : t('formDefault', 'modals')}
                     </span>
                   </SourceBtn>
                   <SourceBtn
                     active={o.salarySource === 'custom'}
                     onClick={() => patch(a._id, { salarySource: 'custom' })}
                   >
-                    Custom
+                    {t('custom', 'modals')}
                   </SourceBtn>
                 </div>
                 {o.salarySource === 'form' && (
                   <p className="mt-1.5 flex items-center gap-1 text-[11px] text-slate-400 dark:text-slate-500">
                     <Zap className="size-3" />
-                    Uses form salary (
                     {displayFormSalary != null
-                      ? `${displayFormSalary.toLocaleString()} ${currency}`
-                      : 'not set'}
-                    )
+                      ? t('usesFormSalary', 'modals', { salary: displayFormSalary.toLocaleString(), currency })
+                      : t('usesFormSalary', 'modals', { salary: t('notSet', 'modals'), currency })}
                   </p>
                 )}
                 {o.salarySource === 'custom' && (
@@ -402,7 +398,7 @@ export function BulkSalaryReview({
                     type="number"
                     min={0}
                     className={`${inputCls} mt-2`}
-                    placeholder={`Salary in ${currency}`}
+                    placeholder={t('salaryPlaceholder', 'modals', { currency })}
                     value={o.customSalary}
                     onChange={(e) =>
                       patch(a._id, {

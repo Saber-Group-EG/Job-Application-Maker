@@ -10,18 +10,30 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { usersService } from '../../services/usersService';
 import { paths } from '../../router/Paths';
+import { useLocale } from '../../context/LocaleContext';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
-const STATUS_STYLES: Record<string, { dot: string; badge: string; label: string }> = {
-  scheduled:   { dot: 'bg-blue-500',   badge: 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',   label: 'Scheduled'   },
-  in_progress: { dot: 'bg-amber-500',  badge: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300', label: 'In Progress' },
-  completed:   { dot: 'bg-green-500',  badge: 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300', label: 'Completed'   },
-  cancelled:   { dot: 'bg-red-400',    badge: 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-300',         label: 'Cancelled'   },
+const getStatusLabel = (status: string, t: (key: string, ns?: string) => string) => {
+  const map: Record<string, string> = {
+    scheduled: t('scheduled', 'interview'),
+    in_progress: t('inProgress', 'interview'),
+    completed: t('completed', 'interview'),
+    cancelled: t('cancelled', 'interview'),
+  };
+  return map[status] ?? status;
 };
 
-const getStatusStyle = (s: string) =>
-  STATUS_STYLES[s] ?? { dot: 'bg-gray-400', badge: 'bg-gray-100 text-gray-600', label: s };
+const getStatusStyle = (s: string, t: (key: string, ns?: string) => string) => {
+  const base: Record<string, { dot: string; badge: string }> = {
+    scheduled:   { dot: 'bg-blue-500',   badge: 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' },
+    in_progress: { dot: 'bg-amber-500',  badge: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' },
+    completed:   { dot: 'bg-green-500',  badge: 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300' },
+    cancelled:   { dot: 'bg-red-400',    badge: 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-300' },
+  };
+  const style = base[s] ?? { dot: 'bg-gray-400', badge: 'bg-gray-100 text-gray-600' };
+  return { ...style, label: getStatusLabel(s, t) };
+};
 
 function formatDate(dateStr: string) {
   const d = new Date(dateStr);
@@ -47,19 +59,19 @@ function isTomorrow(dateStr: string) {
   return d.toDateString() === tomorrow.toDateString();
 }
 
-function getRelativeDay(dateStr: string) {
-  if (isToday(dateStr)) return 'Today';
-  if (isTomorrow(dateStr)) return 'Tomorrow';
+function getRelativeDay(dateStr: string, t: (key: string, ns?: string) => string) {
+  if (isToday(dateStr)) return t('today', 'interview');
+  if (isTomorrow(dateStr)) return t('tomorrow', 'interview');
   return null;
 }
 
 // ─── Timeline card (future) ──────────────────────────────────────────────────
 
-function TimelineCard({ interview }: { interview: any }) {
+function TimelineCard({ interview, t }: { interview: any; t: (key: string, ns?: string) => string }) {
   const navigate = useNavigate();
   const d = formatDate(interview.scheduledAt);
-  const style = getStatusStyle(interview.status);
-  const relDay = getRelativeDay(interview.scheduledAt);
+  const style = getStatusStyle(interview.status, t);
+  const relDay = getRelativeDay(interview.scheduledAt, t);
 
   return (
     <div
@@ -135,7 +147,7 @@ function TimelineCard({ interview }: { interview: any }) {
                 onClick={(e) => e.stopPropagation()}
                 className="text-brand-500 hover:underline"
               >
-                🔗 Join call
+                🔗 {t('joinCall', 'interview')}
               </a>
             )}
           </div>
@@ -147,10 +159,10 @@ function TimelineCard({ interview }: { interview: any }) {
 
 // ─── Past interviews table row ───────────────────────────────────────────────
 
-function PastRow({ interview }: { interview: any }) {
+function PastRow({ interview, t }: { interview: any; t: (key: string, ns?: string) => string }) {
   const navigate = useNavigate();
   const d = formatDate(interview.scheduledAt);
-  const style = getStatusStyle(interview.status);
+  const style = getStatusStyle(interview.status, t);
 
   return (
     <tr
@@ -182,6 +194,7 @@ function PastRow({ interview }: { interview: any }) {
 // ─── Main widget ─────────────────────────────────────────────────────────────
 
 export default function InterviewScheduleWidget() {
+  const { t } = useLocale();
   const [direction, setDirection] = useState<'future' | 'past'>('future');
   const [page, setPage] = useState(1);
   const queryClient = useQueryClient();
@@ -231,12 +244,12 @@ export default function InterviewScheduleWidget() {
       <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-800">
         <div>
           <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
-            My Interview Schedule
+            {t('title', 'interview')}
           </h2>
           <p className="text-xs text-gray-400 mt-0.5">
             {direction === 'future'
-              ? `${counts.total ?? 0} upcoming interview${counts.total !== 1 ? 's' : ''}`
-              : `${counts.total ?? 0} past interview${counts.total !== 1 ? 's' : ''}`}
+              ? t('upcomingCount' + (counts.total !== 1 ? '_plural' : ''), 'interview', { count: counts.total ?? 0 })
+              : t('pastCount' + (counts.total !== 1 ? '_plural' : ''), 'interview', { count: counts.total ?? 0 })}
           </p>
         </div>
 
@@ -252,7 +265,7 @@ export default function InterviewScheduleWidget() {
                   : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
               }`}
             >
-              {d === 'future' ? 'Upcoming' : 'Past'}
+              {d === 'future' ? t('upcoming', 'interview') : t('past', 'interview')}
             </button>
           ))}
         </div>
@@ -263,9 +276,9 @@ export default function InterviewScheduleWidget() {
         <div className="flex flex-wrap gap-2 px-5 py-3 border-b border-gray-100 dark:border-gray-800">
           {Object.entries(counts)
             .filter(([key]) => key !== 'total')
-            .map(([status, count]) => {
-              const style = getStatusStyle(status);
-              return (
+              .map(([status, count]) => {
+                const style = getStatusStyle(status, t);
+                return (
                 <span key={status} className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${style.badge}`}>
                   <span className={`size-1.5 rounded-full ${style.dot}`} />
                   {style.label}: {String(count)}
@@ -293,17 +306,17 @@ export default function InterviewScheduleWidget() {
               <CheckCircleIcon className="size-6 text-gray-400" />
             </div>
             <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-              {direction === 'future' ? 'No upcoming interviews' : 'No past interviews'}
+              {direction === 'future' ? t('noUpcoming', 'interview') : t('noPast', 'interview')}
             </p>
             <p className="text-xs text-gray-400 mt-1">
-              {direction === 'future' ? 'You\'re all clear!' : 'Nothing to show here yet.'}
+              {direction === 'future' ? t('allClear', 'interview') : t('nothingToShow', 'interview')}
             </p>
           </div>
         ) : direction === 'future' ? (
           // Timeline
           <div className="p-5">
             {interviews.map((interview: any) => (
-              <TimelineCard key={interview.interviewId} interview={interview} />
+              <TimelineCard key={interview.interviewId} interview={interview} t={t} />
             ))}
           </div>
         ) : (
@@ -313,16 +326,16 @@ export default function InterviewScheduleWidget() {
               <table className="w-full text-left">
                 <thead>
                   <tr className="border-b border-gray-100 dark:border-gray-800">
-                    {['Date', 'Applicant', 'Position', 'Type', 'Status'].map((h) => (
+                    {['date', 'applicant', 'position', 'type', 'status'].map((h) => (
                       <th key={h} className="py-2.5 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                        {h}
+                        {t(h, 'interview')}
                       </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                   {interviews.map((interview: any) => (
-                    <PastRow key={interview.interviewId} interview={interview} />
+                    <PastRow key={interview.interviewId} interview={interview} t={t} />
                   ))}
                 </tbody>
               </table>
@@ -332,7 +345,7 @@ export default function InterviewScheduleWidget() {
             {pagination && pagination.totalPages > 1 && (
               <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 dark:border-gray-800">
                 <p className="text-xs text-gray-500">
-                  Page {pagination.page} of {pagination.totalPages} · {pagination.total} total
+                  {t('pageInfo', 'interview', { page: pagination.page, totalPages: pagination.totalPages, total: pagination.total })}
                 </p>
                 <div className="flex gap-2">
                   <button
@@ -341,7 +354,7 @@ export default function InterviewScheduleWidget() {
                     className="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 dark:border-gray-700
                       disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                   >
-                    Previous
+                    {t('previous', 'interview')}
                   </button>
                   <button
                     onClick={() => handleNextPage()}
@@ -349,7 +362,7 @@ export default function InterviewScheduleWidget() {
                     className="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 dark:border-gray-700
                       disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                   >
-                    Next
+                    {t('next', 'interview')}
                   </button>
                 </div>
               </div>

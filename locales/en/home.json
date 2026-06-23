@@ -1,0 +1,20 @@
+{
+  "pageTitle": "Dashboard | Applicants Overview",
+  "pageDescription": "Applicants summary and filters",
+  "company": "Company",
+  "showing": "Showing",
+  "loading": "Loading...",
+  "applicantsCount": "{count} applicants",
+  "updatingData": "Updating Data",
+  "updateData": "Update Data",
+  "lastUpdate": "Last Update: {time}",
+  "notUpdatedYet": "Not updated yet",
+  "totalApplicants": "Total Applicants",
+  "noStatusData": "No status data available",
+  "now": "now",
+  "minAgo": "{mins} min ago",
+  "hourAgo": "{hours} hour ago",
+  "hoursAgo": "{hours} hours ago",
+  "yesterday": "yesterday",
+  "daysAgo": "{days} days ago"
+}

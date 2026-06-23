@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useApplicantStatuses } from '../../hooks/queries/useApplicants';
 import { useCompanies } from '../../hooks/queries/useCompanies';
 import { useStatusSettings } from '../../hooks/useStatusSettings';
+import { useLocale } from '../../context/LocaleContext';
 import {
   TimeIcon,
   ChatIcon,
@@ -71,6 +72,7 @@ export default function Home() {
     string | undefined
   >(undefined);
   const { user } = useAuth();
+  const { t, locale } = useLocale();
 
   const isSuperAdmin = useMemo(() => {
     const roleName = user?.roleId?.name?.toLowerCase();
@@ -162,14 +164,14 @@ export default function Home() {
     }
     const formatRelative = (d: Date) => {
       const diffSec = Math.floor((Date.now() - d.getTime()) / 1000);
-      if (diffSec < 60) return 'now';
+      if (diffSec < 60) return t('now', 'home');
       const mins = Math.floor(diffSec / 60);
-      if (mins < 60) return `${mins} min ago`;
+      if (mins < 60) return t('minAgo', 'home', { mins });
       const hours = Math.floor(mins / 60);
-      if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+      if (hours < 24) return hours === 1 ? t('hourAgo', 'home', { hours }) : t('hoursAgo', 'home', { hours });
       const days = Math.floor(hours / 24);
-      if (days === 1) return 'yesterday';
-      if (days < 7) return `${days} days ago`;
+      if (days === 1) return t('yesterday', 'home');
+      if (days < 7) return t('daysAgo', 'home', { days });
       return d.toLocaleDateString();
     };
 
@@ -241,8 +243,8 @@ export default function Home() {
   return (
     <>
       <PageMeta
-        title="Dashboard | Applicants Overview"
-        description="Applicants summary and filters"
+        title={t('pageTitle', 'home')}
+        description={t('pageDescription', 'home')}
       />
 
       <div className="space-y-6">
@@ -251,7 +253,7 @@ export default function Home() {
           {showCompanySelector && (
             <div className="col-span-12 sm:col-span-6 md:col-span-4 lg:col-span-3">
               <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-                Company
+                {t('company', 'home')}
               </label>
               <select
                 value={selectedCompanyId || ''}
@@ -261,7 +263,7 @@ export default function Home() {
                 
                 {companies.map((c: any) => (
                   <option key={c._id} value={c._id}>
-                    {typeof c.name === 'object' ? c.name.en : c.name}
+                    {typeof c.name === 'object' ? c.name[locale] || c.name.en : c.name}
                   </option>
                 ))}
               </select>
@@ -271,9 +273,9 @@ export default function Home() {
 
           <div className="col-span-12 sm:col-span-12 md:col-span-12 lg:col-span-6">
             <div className="flex flex-wrap items-center gap-3">
-              <div className="text-sm text-gray-500">Showing</div>
+              <div className="text-sm text-gray-500">{t('showing', 'home')}</div>
               <div className="font-semibold text-gray-800">
-                {loading ? 'Loading...' : `${totalApplicants} applicants`}
+                {loading ? t('loading', 'home') : t('applicantsCount', 'home', { count: totalApplicants })}
               </div>
               <button
                 type="button"
@@ -288,10 +290,10 @@ export default function Home() {
                 disabled={isFetching}
                 className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-3 py-1 text-sm font-semibold text-white shadow-sm hover:bg-brand-600 disabled:opacity-50"
               >
-                {isFetching ? 'Updating Data' : 'Update Data'}
+                {isFetching ? t('updatingData', 'home') : t('updateData', 'home')}
               </button>
               <div className="text-sm text-gray-500">
-                {elapsed ? `Last Update: ${elapsed}` : 'Not updated yet'}
+                {elapsed ? t('lastUpdate', 'home', { time: elapsed }) : t('notUpdatedYet', 'home')}
               </div>
             </div>
           </div>
@@ -306,7 +308,7 @@ export default function Home() {
           >
             <div className="flex items-center justify-between">
               <div className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                Total Applicants
+                {t('totalApplicants', 'home')}
               </div>
               <div className="text-gray-400">
                 <UserIcon className="size-5" />
@@ -372,7 +374,7 @@ export default function Home() {
         {/* Show message when no data */}
         {!loading && statusCards.length === 0 && countsData && (
           <div className="text-center py-12">
-            <p className="text-gray-500">No status data available</p>
+            <p className="text-gray-500">{t('noStatusData', 'home')}</p>
           </div>
         )}
       </div>

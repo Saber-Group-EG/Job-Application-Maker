@@ -18,6 +18,7 @@ import type { Applicant } from '../../../types/applicants';
 import type { JobPosition } from '../../../types/jobPositions';
 import ManualInsert from './components/ManualInsert';
 import BulkInsert from './components/BulkInsert';
+import { useLocale } from '../../../context/LocaleContext';
 
 type TabKey = 'manual' | 'bulk';
 
@@ -62,6 +63,7 @@ function getApiErrorMessage(error: unknown, fallback = 'An unexpected error occu
 
 export default function BlueCallerApplicants() {
   const { user } = useAuth();
+  const { t } = useLocale();
 
   const [activeTab, setActiveTab] = useState<TabKey>('manual');
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
@@ -158,10 +160,10 @@ export default function BlueCallerApplicants() {
       } catch (error) {
         if (mounted) {
           await Swal.fire({
-            title: 'Load failed',
-            text: getApiErrorMessage(error, 'Failed to load companies.'),
+            title: t('loadFailed', 'common'),
+            text: getApiErrorMessage(error, t('failedToLoadCompanies', 'common')),
             icon: 'error',
-            confirmButtonText: 'Close',
+            confirmButtonText: t('close', 'common'),
           });
         }
       } finally {
@@ -204,13 +206,13 @@ export default function BlueCallerApplicants() {
       } catch (error) {
         if (!mounted) return;
         await Swal.fire({
-          title: 'Load failed',
+          title: t('loadFailed', 'common'),
           text: getApiErrorMessage(
             error,
-            'Failed to load applicants or job positions.'
+            t('failedToLoadData', 'common')
           ),
           icon: 'error',
-          confirmButtonText: 'Close',
+          confirmButtonText: t('close', 'common'),
         });
       } finally {
         if (mounted) setLoadingJobs(false);

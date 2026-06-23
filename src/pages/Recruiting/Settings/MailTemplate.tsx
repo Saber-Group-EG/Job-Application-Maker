@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import Swal from "../../../utils/swal";
 import { useAuth } from "../../../context/AuthContext";
+import { useLocale } from "../../../context/LocaleContext";
 import { useCompanies } from "../../../hooks/queries/useCompanies";
 import {
   useCreateMailTemplate,
@@ -72,6 +73,7 @@ function TemplateFormModal({
   existingTemplates: any[];
 }) {
   const [formData, setFormData] = useState({ name: "", subject: "", html: "" });
+  const { t } = useLocale();
   const createMutation = useCreateMailTemplate();
   const updateMutation = useUpdateMailTemplate();
   // ✅ No more usePreviewMailTemplate - using direct function import
@@ -91,12 +93,12 @@ function TemplateFormModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.subject || !formData.html) {
-      Swal.fire("Error", "Please fill in all fields", "error");
+      Swal.fire(t('mailTemplates.error', 'settings'), t('mailTemplates.errorFillFields', 'settings'), "error");
       return;
     }
     
     if (!settingsId) {
-      Swal.fire("Error", "Settings ID not found", "error");
+      Swal.fire(t('mailTemplates.error', 'settings'), t('mailTemplates.errorSettingsId', 'settings'), "error");
       return;
     }
     
@@ -118,7 +120,7 @@ function TemplateFormModal({
       onClose();
     } catch (error) {
       console.error(error);
-      Swal.fire("Error", "Failed to save template", "error");
+      Swal.fire(t('mailTemplates.error', 'settings'), t('mailTemplates.errorSaveFailed', 'settings'), "error");
     }
   };
 
@@ -143,7 +145,7 @@ function TemplateFormModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 p-6 flex justify-between items-center">
-          <h2 className="text-2xl font-bold">{template ? "Edit Template" : "Create New Template"}</h2>
+          <h2 className="text-2xl font-bold">{template ? t('mailTemplates.editTemplate', 'settings') : t('mailTemplates.createTemplate', 'settings')}</h2>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
             <X className="size-5" />
           </button>
@@ -151,27 +153,27 @@ function TemplateFormModal({
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div>
-            <Label htmlFor="name">Template Name *</Label>
+            <Label htmlFor="name">{t('mailTemplates.labelTemplateName', 'settings')}</Label>
             <Input 
               id="name" 
               value={formData.name} 
               onChange={(e) => setFormData({ ...formData, name: e.target.value })} 
-              placeholder="e.g., Interview Invitation" 
+              placeholder={t('mailTemplates.templateNamePlaceholder', 'settings')} 
               required 
             />
           </div>
           
           <div>
-            <Label htmlFor="subject">Email Subject *</Label>
+            <Label htmlFor="subject">{t('mailTemplates.labelEmailSubject', 'settings')}</Label>
             <Input 
               id="subject" 
               value={formData.subject} 
               onChange={(e) => setFormData({ ...formData, subject: e.target.value })} 
-              placeholder="Interview Invitation for {{candidateName}}" 
+              placeholder={t('mailTemplates.emailSubjectPlaceholder', 'settings')} 
               required 
             />
             <p className="mt-1 text-xs text-gray-500">
-              Available variables: <code>{`{{candidateName}}`}</code>, <code>{`{{jobTitle}}`}</code>, <code>{`{{InterviewDate}}`}</code>, <code>{`{{interviewTime}}`}</code>, <code>{`{{interviewType}}`}</code>, <code>{`{{location}}`}</code>, <code>{`{{address}}`}</code>
+              {t('mailTemplates.variablesHelpText', 'settings')} <code>{`{{candidateName}}`}</code>, <code>{`{{jobTitle}}`}</code>, <code>{`{{InterviewDate}}`}</code>, <code>{`{{interviewTime}}`}</code>, <code>{`{{interviewType}}`}</code>, <code>{`{{location}}`}</code>, <code>{`{{address}}`}</code>
             </p>
           </div>
           
@@ -179,7 +181,7 @@ function TemplateFormModal({
             <Label htmlFor="html">Email Body *</Label>
             <QuillEditor value={formData.html} onChange={(content) => setFormData({ ...formData, html: content })} />
             <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-              <p className="text-xs font-semibold text-blue-800 dark:text-blue-300 mb-2">Available Variables:</p>
+              <p className="text-xs font-semibold text-blue-800 dark:text-blue-300 mb-2">{t('mailTemplates.variablesHelpText', 'settings')}</p>
               <div className="flex flex-wrap gap-3 text-xs">
                 <code className="bg-blue-100 dark:bg-blue-800 px-2 py-1 rounded text-blue-800 dark:text-blue-200">{`{{candidateName}}`}</code>
                 <code className="bg-blue-100 dark:bg-blue-800 px-2 py-1 rounded text-blue-800 dark:text-blue-200">{`{{jobTitle}}`}</code>
@@ -190,7 +192,7 @@ function TemplateFormModal({
                 <code className="bg-blue-100 dark:bg-blue-800 px-2 py-1 rounded text-blue-800 dark:text-blue-200">{`{{address}}`}</code>
               </div>
               <p className="text-xs text-blue-700 dark:text-blue-300 mt-2">
-                These variables will be replaced with actual candidate, job position, and interview data when sending emails.
+                {t('mailTemplates.variablesExplanation', 'settings')}
               </p>
             </div>
           </div>
@@ -202,14 +204,14 @@ function TemplateFormModal({
               className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
             >
               <Eye className="size-4 inline mr-2" />
-              Preview
+              {t('mailTemplates.preview', 'settings')}
             </button>
             <button 
               type="button" 
               onClick={onClose} 
               className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
             >
-              Cancel
+              {t('mailTemplates.cancel', 'settings')}
             </button>
             <button 
               type="submit" 
@@ -221,7 +223,7 @@ function TemplateFormModal({
               ) : (
                 <Save className="size-4 inline mr-2" />
               )}
-              Save Template
+              {t('mailTemplates.saveTemplate', 'settings')}
             </button>
           </div>
         </form>
@@ -239,6 +241,7 @@ export default function EmailTemplates({
   embedded?: boolean;
 }) {
   const { user, hasPermission } = useAuth();
+  const { t } = useLocale();
   const { data: companies = [] } = useCompanies();
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | undefined>(companyId ?? undefined);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -282,16 +285,16 @@ export default function EmailTemplates({
 
   const handleDeleteTemplate = async (template: any) => {
     if (!settingsId) {
-      Swal.fire("Error", "Settings ID not found", "error");
+      Swal.fire(t('mailTemplates.error', 'settings'), t('mailTemplates.errorSettingsId', 'settings'), "error");
       return;
     }
     const result = await Swal.fire({
-      title: "Delete Template",
-      text: `Are you sure you want to delete "${template.name}"?`,
+      title: t('mailTemplates.deleteTitle', 'settings'),
+      text: t('mailTemplates.deleteText', 'settings', { name: template.name }),
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#d33",
-      confirmButtonText: "Yes, delete",
+      confirmButtonText: t('mailTemplates.deleteConfirm', 'settings'),
     });
     if (result.isConfirmed && template._id) {
       deleteMutation.mutate({
@@ -304,7 +307,7 @@ export default function EmailTemplates({
 
   const handleDuplicate = (template: any) => {
     if (!settingsId) {
-      Swal.fire("Error", "Settings ID not found", "error");
+      Swal.fire(t('mailTemplates.error', 'settings'), t('mailTemplates.errorSettingsId', 'settings'), "error");
       return;
     }
     duplicateMutation.mutate({
@@ -317,7 +320,7 @@ export default function EmailTemplates({
   const getCompanyName = (company: any): string => {
     if (!company) return "";
     if (typeof company.name === "string") return company.name;
-    return company.name?.en || company.name?.ar || "Unnamed Company";
+    return company.name?.en || company.name?.ar || t('mailTemplates.unnamedCompany', 'settings');
   };
 
   return (
@@ -329,9 +332,9 @@ export default function EmailTemplates({
               <Mail className="size-6" />
             </div>
             <div>
-              <h2 className="text-xl font-semibold tracking-tight">Email Templates</h2>
+              <h2 className="text-xl font-semibold tracking-tight">{t('mailTemplates.sectionTitle', 'settings')}</h2>
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                Create and manage email templates with dynamic variables for candidate communication.
+                {t('mailTemplates.sectionDesc', 'settings')}
               </p>
             </div>
           </div>
@@ -341,7 +344,7 @@ export default function EmailTemplates({
             className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <PlusCircle className="size-4" />
-            Create Template
+            {t('mailTemplates.createTemplateBtn', 'settings')}
           </button>
         </div>
 
@@ -352,7 +355,7 @@ export default function EmailTemplates({
                 <div className="flex size-10 items-center justify-center rounded-lg bg-violet-500/10 text-violet-500">
                   <Mail className="size-5" />
                 </div>
-                <h3 className="text-lg font-semibold tracking-tight">Select Company</h3>
+                <h3 className="text-lg font-semibold tracking-tight">{t('mailTemplates.companySelectorTitle', 'settings')}</h3>
               </div>
               <select
                 value={selectedCompanyId || ""}
@@ -371,15 +374,15 @@ export default function EmailTemplates({
           {templates.length === 0 ? (
             <div className="text-center py-12">
               <Mail className="size-12 text-slate-300 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No Templates Yet</h3>
-              <p className="text-slate-500 mb-4">Create your first email template to get started.</p>
+              <h3 className="text-lg font-semibold mb-2">{t('mailTemplates.emptyStateTitle', 'settings')}</h3>
+              <p className="text-slate-500 mb-4">{t('mailTemplates.emptyStateDesc', 'settings')}</p>
               <button
                 onClick={() => { setEditingTemplate(null); setIsModalOpen(true); }}
                 disabled={!canEdit || !settingsId}
                 className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
               >
                 <PlusCircle className="size-4" />
-                Create Template
+                {t('mailTemplates.createTemplateBtn', 'settings')}
               </button>
             </div>
           ) : (
@@ -416,11 +419,9 @@ export default function EmailTemplates({
                     </div>
                   </div>
                   <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
-                    <strong>Subject:</strong> {template.subject}
+                    <strong>{t('mailTemplates.cardSubject', 'settings')}</strong> {template.subject}
                   </p>
-                  <div className="text-xs text-slate-500 dark:text-slate-500 mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
-                    <p>Created: {template.createdAt ? new Date(template.createdAt).toLocaleDateString() : 'Unknown'}</p>
-                  </div>
+
                 </div>
               ))}
             </div>

@@ -1,4 +1,5 @@
 import { Link } from "react-router";
+import { useLocale } from "../../context/LocaleContext";
 
 interface BreadcrumbProps {
   pageTitle: string;
@@ -6,6 +7,7 @@ interface BreadcrumbProps {
 }
 
 const PageBreadcrumb: React.FC<BreadcrumbProps> = ({ pageTitle, actions }) => {
+  const { t } = useLocale();
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
       <h2
@@ -17,13 +19,13 @@ const PageBreadcrumb: React.FC<BreadcrumbProps> = ({ pageTitle, actions }) => {
       <div className="flex flex-wrap items-center gap-3">
         {actions ? <div className="flex items-center gap-2 order-0">{actions}</div> : null}
         <nav className="order-1">
-          <ol className="flex items-center gap-1.5">
+          <ol className="flex items-center gap-1.5" dir="ltr">
             <li>
               <Link
                 className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400"
                 to="/"
               >
-                Home
+                {t('home', 'common')}
                 <svg
                   className="stroke-current"
                   width="17"

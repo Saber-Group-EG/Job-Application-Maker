@@ -5,6 +5,7 @@ import PageMeta from "../../../components/common/PageMeta";
 import LoadingSpinner from "../../../components/common/LoadingSpinner";
 import { Navigate, useNavigate } from "react-router";
 import { useAuth } from "../../../context/AuthContext";
+import { useLocale } from "../../../context/LocaleContext";
 import {
   useCompanies,
   useDepartments,
@@ -30,6 +31,7 @@ import {
 export default function Companies() {
   const navigate = useNavigate();
   const { user, hasPermission } = useAuth();
+  const { t } = useLocale();
 
   // Check permissions
   const canRead = hasPermission("Company Management", "read");
@@ -89,20 +91,20 @@ export default function Companies() {
 
   const handleDeleteCompany = async (company: any) => {
     const result = await Swal.fire({
-      title: "Delete Company?",
-      text: `Are you sure you want to delete ${toPlainString(company.name)}? This action cannot be undone.`,
+      title: t('deleteTitle', 'companies'),
+      text: t('deleteText', 'companies', { name: toPlainString(company.name) }),
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#ef4444",
-      confirmButtonText: "Yes, delete it"
+      confirmButtonText: t('deleteConfirm', 'companies')
     });
 
     if (result.isConfirmed) {
       try {
         await deleteCompanyMutation.mutateAsync(company._id);
-        Swal.fire({ title: "Deleted", icon: "success", timer: 1500, showConfirmButton: false });
+        Swal.fire({ title: t('deleted', 'companies'), icon: "success", timer: 1500, showConfirmButton: false });
       } catch (err: any) {
-        Swal.fire("Error", err.message || "Failed to delete company", "error");
+        Swal.fire(t('error', 'companies'), err.message || t('deleteFailed', 'companies'), "error");
       }
     }
   };
@@ -129,8 +131,8 @@ export default function Companies() {
           <div className="size-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto">
             <ShieldAlert className="size-10 text-red-500" />
           </div>
-          <h1 className="text-2xl font-black dark:text-white">Access Restricted</h1>
-          <p className="text-gray-500 max-w-xs mx-auto font-medium">Your account does not have the necessary clearance to view the company directory.</p>
+          <h1 className="text-2xl font-black dark:text-white">{t('accessRestricted', 'companies')}</h1>
+          <p className="text-gray-500 max-w-xs mx-auto font-medium">{t('accessRestrictedDesc', 'companies')}</p>
         </div>
       </div>
     );
@@ -142,17 +144,17 @@ export default function Companies() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0F172A] p-4 sm:p-8 text-slate-900 dark:text-slate-100">
-      <PageMeta title="Company Directory | Job Application Maker" description="Manage organizations and entities" />
-      <PageBreadcrumb pageTitle="Company directory" />
+      <PageMeta title={t('pageTitle', 'companies')} description={t('pageDesc', 'companies')} />
+      <PageBreadcrumb pageTitle={t('breadcrumb', 'companies')} />
 
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Header Section */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div>
             <h1 className="text-3xl font-black bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400 bg-clip-text text-transparent tracking-tight">
-              Company Directory
+              {t('title', 'companies')}
             </h1>
-            <p className="mt-1 text-gray-500 dark:text-gray-400 font-medium italic">Manage corporate entities and their departmental structures</p>
+            <p className="mt-1 text-gray-500 dark:text-gray-400 font-medium italic">{t('subtitle', 'companies')}</p>
           </div>
           
           <div className="flex flex-wrap items-center gap-3">
@@ -160,7 +162,7 @@ export default function Companies() {
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search companies..."
+                placeholder={t('searchPlaceholder', 'companies')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-11 pr-4 py-3 bg-white/60 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-[1.25rem] focus:ring-2 focus:ring-brand-500/20 outline-none transition-all dark:text-white placeholder:text-gray-400 font-medium"
@@ -172,7 +174,7 @@ export default function Companies() {
                 className="flex items-center gap-2 px-6 py-3 bg-brand-500 text-white rounded-[1.25rem] font-bold shadow-xl shadow-brand-500/20 hover:scale-105 active:scale-95 transition-all"
               >
                 <Plus className="size-5" />
-                Create Company
+                {t('createCompany', 'companies')}
               </button>
             )}
           </div>
@@ -186,7 +188,7 @@ export default function Companies() {
                 <Building2 className="size-5" />
               </div>
               <div>
-                <span className="block text-[10px] font-black uppercase text-gray-400">Total Entities</span>
+                  <span className="block text-[10px] font-black uppercase text-gray-400">{t('totalEntities', 'companies')}</span>
                 <span className="text-xl font-bold">{companies.length}</span>
               </div>
             </div>
@@ -195,7 +197,7 @@ export default function Companies() {
                 <Users className="size-5" />
               </div>
               <div>
-                <span className="block text-[10px] font-black uppercase text-gray-400">Total Departments</span>
+                  <span className="block text-[10px] font-black uppercase text-gray-400">{t('totalDepartments', 'companies')}</span>
                 <span className="text-xl font-bold">{departments.length}</span>
               </div>
             </div>
@@ -260,7 +262,7 @@ export default function Companies() {
                       </h3>
                       <div className="flex items-center gap-1.5 text-xs font-bold text-brand-500 px-2.5 py-1 bg-brand-500/10 rounded-full w-fit">
                         <Users className="size-3" />
-                        {deptCount} Departments
+                        {t('departments', 'companies', { count: deptCount })}
                       </div>
                     </div>
 
@@ -295,7 +297,7 @@ export default function Companies() {
                   </div>
 
                   <div className="mt-6 flex items-center justify-between group/btn">
-                    <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest group-hover/btn:text-brand-500 transition-colors">View Operations</span>
+                    <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest group-hover/btn:text-brand-500 transition-colors">{t('viewOperations', 'companies')}</span>
                     <div className="size-8 rounded-full border border-gray-100 dark:border-white/10 flex items-center justify-center group-hover/btn:bg-brand-500 group-hover/btn:border-brand-500 transition-all">
                       <ArrowRight className="size-4 group-hover/btn:text-white transition-colors" />
                     </div>
@@ -310,7 +312,7 @@ export default function Companies() {
         {totalPages > 1 && (
           <div className="flex items-center justify-between pt-8 border-t border-white/10">
             <p className="text-sm font-bold text-gray-500">
-              Showing <span className="text-slate-900 dark:text-white">{(page - 1) * pageSize + 1}</span> to <span className="text-slate-900 dark:text-white">{Math.min(page * pageSize, filteredCompanies.length)}</span> of <span className="text-slate-900 dark:text-white">{filteredCompanies.length}</span> entities
+              {t('showing', 'companies', { start: (page - 1) * pageSize + 1, end: Math.min(page * pageSize, filteredCompanies.length), total: filteredCompanies.length })}
             </p>
             <div className="flex items-center gap-2">
               <button

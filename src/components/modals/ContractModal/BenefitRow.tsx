@@ -6,6 +6,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { FormBenefit } from "./ContractModal";
 import { ModalLabel } from "../../form/ModalLabel";
 import { translateText } from "../../../utils/translate";
+import { useLocale } from '../../../context/LocaleContext';
 
 const inputCls =
   'w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-brand-400';
@@ -33,6 +34,7 @@ export function BenefitRow({
     transform,
     isDragging,
   } = useSortable({ id: benefit._id });
+  const { t } = useLocale();
 
   const style = {
     transform: CSS.Translate.toString(transform),
@@ -82,17 +84,17 @@ export function BenefitRow({
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
-          <ModalLabel>Label (EN)</ModalLabel>
+          <ModalLabel>{t('labelEn', 'modals')}</ModalLabel>
           <input
             className={inputCls}
             value={benefit.labelEn}
             onChange={(e) => onChange({ labelEn: e.target.value })}
-            placeholder="e.g. Health Insurance"
+            placeholder={t('benefitLabelPlaceholder', 'modals')}
           />
         </div>
         <div>
           <div className="flex items-center justify-between">
-            <ModalLabel>Label (AR)</ModalLabel>
+            <ModalLabel>{t('labelAr', 'modals')}</ModalLabel>
             <button
               type="button"
               onClick={async () => {
@@ -106,7 +108,7 @@ export function BenefitRow({
               }}
               disabled={!benefit.labelEn.trim() && !benefit.labelAr.trim()}
               className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
-              title={benefit.labelEn.trim() ? 'Translate EN → AR' : 'Translate AR → EN'}
+              title={benefit.labelEn.trim() ? t('translateEnToAr', 'modals') : t('translateArToEn', 'modals')}
             >
               <Languages className="size-3" />
             </button>
@@ -115,14 +117,14 @@ export function BenefitRow({
             className={inputCls}
             value={benefit.labelAr}
             onChange={(e) => onChange({ labelAr: e.target.value })}
-            placeholder="التأمين الصحي"
+            placeholder={t('benefitLabelArPlaceholder', 'modals')}
             dir="rtl"
           />
         </div>
       </div>
       <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
-          <ModalLabel>Value (EN)</ModalLabel>
+          <ModalLabel>{t('valueEn', 'modals')}</ModalLabel>
 
           <textarea
             className={textareaCls}
@@ -136,13 +138,13 @@ export function BenefitRow({
                 },
               })
             }
-            placeholder="e.g. Full coverage"
+            placeholder={t('benefitValuePlaceholder', 'modals')}
           />
         </div>
 
         <div>
           <div className="flex items-center justify-between">
-            <ModalLabel>Value (AR)</ModalLabel>
+            <ModalLabel>{t('valueAr', 'modals')}</ModalLabel>
             <button
               type="button"
               onClick={async () => {
@@ -156,7 +158,7 @@ export function BenefitRow({
               }}
               disabled={!benefit.value.en.trim() && !benefit.value.ar.trim()}
               className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
-              title={benefit.value.en.trim() ? 'Translate EN → AR' : 'Translate AR → EN'}
+              title={benefit.value.en.trim() ? t('translateEnToAr', 'modals') : t('translateArToEn', 'modals')}
             >
               <Languages className="size-3" />
             </button>
@@ -175,7 +177,7 @@ export function BenefitRow({
                 },
               })
             }
-            placeholder="تغطية كاملة"
+            placeholder={t('benefitValueArPlaceholder', 'modals')}
           />
         </div>
       </div>

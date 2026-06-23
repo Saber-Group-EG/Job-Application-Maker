@@ -7,6 +7,7 @@ import { applicantsKeys } from '../../../../hooks/queries/useApplicants';
 import axiosInstance from '../../../../config/axios';
 import Swal from '../../../../utils/swal';
 import { useAuth } from '../../../../context/AuthContext';
+import { useLocale } from '../../../../context/LocaleContext';
 import {
   useApplicants,
   useJobPositions,
@@ -40,7 +41,7 @@ import { useBulkActions } from './hooks/useBulkActions';
 import { useApplicantFilters } from './hooks/useApplicantFilters';
 
 // Utils
-import { exportToExcel, showExportNotification } from './utils/exportHelpers';
+import { exportToExcel } from './utils/exportHelpers';
 import { normalizeGender, getApplicantCompanyId } from './utils/filterHelpers';
 import { getPreviousStatus, isTrashed } from '../../../../pages/Recruiting/ApplicantPage/utils/statusUtils';
 
@@ -258,6 +259,7 @@ export default function Applicants({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user, hasPermission } = useAuth();
+  const { t, dir } = useLocale();
   const location = useLocation();
   const params = useParams();
 
@@ -896,14 +898,14 @@ export default function Applicants({
     }
     const formatRelative = (d: Date) => {
       const diffSec = Math.floor((Date.now() - d.getTime()) / 1000);
-      if (diffSec < 60) return 'now';
+      if (diffSec < 60) return t('now', 'applicants');
       const mins = Math.floor(diffSec / 60);
-      if (mins < 60) return `${mins} min ago`;
+      if (mins < 60) return t('minAgo', 'applicants', { mins });
       const hours = Math.floor(mins / 60);
-      if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+      if (hours < 24) return hours === 1 ? t('hourAgo', 'applicants', { hours }) : t('hoursAgo', 'applicants', { hours });
       const days = Math.floor(hours / 24);
-      if (days === 1) return 'yesterday';
-      if (days < 7) return `${days} days ago`;
+      if (days === 1) return t('yesterday', 'applicants');
+      if (days < 7) return t('daysAgo', 'applicants', { days });
       return d.toLocaleDateString();
     };
     const update = () => {
@@ -912,7 +914,7 @@ export default function Applicants({
     update();
     const id = setInterval(update, 30 * 1000);
     return () => clearInterval(id);
-  }, [lastRefetch]);
+  }, [lastRefetch, t]);
 
   const getExpectedSalaryDisplay = useCallback((applicant: any): string => {
     const toText = (value: any): string => {
@@ -1251,8 +1253,8 @@ export default function Applicants({
   const downloadCvForApplicant = useCallback(async (a: any) => {
     if (!a)
       return Swal.fire(
-        'No CV',
-        'No CV file available for this applicant',
+        t('noCv', 'applicants'),
+        t('noCvDesc', 'applicants'),
         'info'
       );
     const resolveCvPath = (applicant: any): string | null => {
@@ -1272,8 +1274,8 @@ export default function Applicants({
     const path = resolveCvPath(a);
     if (!path)
       return Swal.fire(
-        'No CV',
-        'No CV file available for this applicant',
+        t('noCv', 'applicants'),
+        t('noCvDesc', 'applicants'),
         'info'
       );
     const url = (() => {
@@ -1312,8 +1314,8 @@ export default function Applicants({
   const handleExportToExcel = useCallback(async () => {
     if (selectedApplicantIds.length === 0) {
       await Swal.fire({
-        title: 'No Selection',
-        text: 'Please select at least one applicant to export.',
+        title: t('noSelection', 'applicants'),
+        text: t('noSelectionDesc', 'applicants'),
         icon: 'warning',
         timer: 2000,
         showConfirmButton: false,
@@ -1330,7 +1332,21 @@ export default function Applicants({
         normalizeGender,
         options: { includeCustomFields: true, includeJobSpecs: true },
       });
-      await showExportNotification(result);
+      if (result.success) {
+        await Swal.fire({
+          title: t('exportSuccessful', 'applicants'),
+          text: t('successfullyExported', 'applicants', { count: selectedApplicantIds.length }),
+          icon: 'success',
+          timer: 2000,
+          showConfirmButton: false,
+        });
+      } else {
+        await Swal.fire({
+          title: t('exportFailed', 'applicants'),
+          text: result.error || t('failedToExport', 'applicants'),
+          icon: 'error',
+        });
+      }
     } finally {
       if (mountedRef.current) setIsExporting(false);
     }
@@ -1448,7 +1464,7 @@ export default function Applicants({
     () => [
       {
         accessorKey: 'applicantNo',
-        header: isLaptopViewport ? 'ID' : 'ApplicantNo',
+        header: isLaptopViewport ? t('id', 'applicants') : t('applicantNo', 'applicants'),
         size: columnSizeConfig.applicantNo,
         enableColumnFilter: false,
         enableSorting: !duplicatesOnlyEnabled,
@@ -1514,7 +1530,7 @@ export default function Applicants({
       },
       {
         accessorKey: 'profilePhoto',
-        header: 'Photo',
+        header: t('photo', 'applicants'),
         size: columnSizeConfig.profilePhoto,
         enableSorting: false,
         enableColumnFilter: false,
@@ -1550,7 +1566,7 @@ export default function Applicants({
       },
       {
         accessorKey: 'fullName',
-        header: 'Name',
+        header: t('name', 'applicants'),
         size: columnSizeConfig.fullName,
         enableColumnFilter: false,
         enableSorting: true,
@@ -1578,7 +1594,7 @@ export default function Applicants({
                 {orig?.fullName || '-'}
               </a>
               {isDuplicated && (
-                <div title="This applicant has duplicate entries">
+                <div title={t('hasDuplicateEntries', 'applicants')}>
                   <AlertIcon className="h-4 w-4 text-yellow-600 dark:text-yellow-500" />
                 </div>
               )}
@@ -1588,7 +1604,7 @@ export default function Applicants({
       },
       {
         accessorKey: 'email',
-        header: 'Email',
+        header: t('email', 'applicants'),
         size: columnSizeConfig.email,
         enableColumnFilter: false,
         enableSorting: true,
@@ -1608,7 +1624,7 @@ export default function Applicants({
       },
       {
         id: 'messages',
-        header: 'Messages',
+        header: t('messages', 'applicants'),
         size: 90,
         enableSorting: true,
         accessorFn: (row: any) =>
@@ -1636,7 +1652,7 @@ export default function Applicants({
       },
       {
         accessorKey: 'phone',
-        header: 'Phone',
+        header: t('phone', 'applicants'),
         size: columnSizeConfig.phone,
         enableColumnFilter: false,
         enableSorting: true,
@@ -1664,14 +1680,14 @@ export default function Applicants({
               (row as any)['النوع'] ||
               ''
           ),
-        header: 'Gender',
+        header: t('gender', 'applicants'),
         size: columnSizeConfig.gender,
         enableColumnFilter: false,
         enableSorting: true,
         Header: ({ column }: { column: any }) => (
           <ColumnMultiSelectHeader
             column={column}
-            label="Gender"
+            label={t('gender', 'applicants')}
             options={genderOptions}
             isLaptopViewport={isLaptopViewport}
             menuWidth={200}
@@ -1710,7 +1726,7 @@ export default function Applicants({
         ? [
             {
               id: 'companyId',
-              header: 'Company',
+              header: t('company', 'applicants'),
               size: columnSizeConfig.companyId,
               enableColumnFilter: false,
               enableSorting: true,
@@ -1719,7 +1735,7 @@ export default function Applicants({
               Header: ({ column }: { column: any }) => (
                 <ColumnMultiSelectHeader
                   column={column}
-                  label="Company"
+                  label={t('company', 'applicants')}
                   options={companyOptions}
                   isLaptopViewport={isLaptopViewport}
                   menuWidth={240}
@@ -1746,7 +1762,7 @@ export default function Applicants({
                     onClick={(e) => handleApplicantLinkClick(e, row)}
                     onAuxClick={handleApplicantLinkAuxClick}
                   >
-                    {toPlainString(company?.name) || company?.title || 'N/A'}
+                    {toPlainString(company?.name) || company?.title || t('nA', 'applicants')}
                   </a>
                 );
               },
@@ -1755,7 +1771,7 @@ export default function Applicants({
         : []),
       {
         id: 'jobPositionId',
-        header: isLaptopViewport ? 'Job' : 'Job Position',
+        header: isLaptopViewport ? t('job', 'applicants') : t('jobPosition', 'applicants'),
         enableSorting: true,
         accessorFn: (row: any) => {
           const raw = row?.jobPositionId;
@@ -1766,7 +1782,7 @@ export default function Applicants({
         Header: ({ column }: { column: any }) => (
           <ColumnMultiSelectHeader
             column={column}
-            label={isLaptopViewport ? 'Job' : 'Job Position'}
+            label={isLaptopViewport ? t('job', 'applicants') : t('jobPosition', 'applicants')}
             options={jobOptions}
             isLaptopViewport={isLaptopViewport}
             menuWidth={260}
@@ -1797,7 +1813,7 @@ export default function Applicants({
               ? job.title
               : (job?.title?.en ??
                 jobOptions.find((o) => o.id === jobId)?.title ??
-                'N/A');
+                t('nA', 'applicants'));
           return (
             <a
               href={getApplicantHref(row)}
@@ -1812,7 +1828,7 @@ export default function Applicants({
       },
       {
         id: 'expectedSalary',
-        header: 'Expected Salary',
+        header: t('expectedSalary', 'applicants'),
         size: columnSizeConfig.expectedSalary,
         enableColumnFilter: false,
         enableSorting: true,
@@ -1846,7 +1862,7 @@ export default function Applicants({
       },
       {
         id: 'sscore',
-        header: 'Score',
+        header: t('score', 'applicants'),
         size: columnSizeConfig.sscore,
         enableColumnFilter: false,
         enableSorting: true,
@@ -1876,20 +1892,20 @@ export default function Applicants({
       },
       {
         accessorKey: 'status',
-        header: 'Status',
+        header: t('status', 'applicants'),
         enableSorting: true,
         Header: ({ column }: { column: any }) => {
           if (
             effectiveOnlyStatus !== undefined &&
             effectiveOnlyStatus !== null
           ) {
-            return <span className="text-sm font-medium">Status</span>;
+            return <span className="text-sm font-medium">{t('status', 'applicants')}</span>;
           }
           return (
             <div onClick={(e) => e.stopPropagation()}>
               <ColumnMultiSelectHeader
                 column={column}
-                label="Status"
+                label={t('status', 'applicants')}
                 options={statusFilterOptions}
                 isLaptopViewport={isLaptopViewport}
                 menuWidth={220}
@@ -1937,7 +1953,7 @@ export default function Applicants({
       },
       {
         id: 'rejectionReasons',
-        header: 'Reasons',
+        header: t('reasons', 'applicants'),
         enableSorting: true,
         enableColumnFilter: true,
         size: 260,
@@ -1974,7 +1990,7 @@ export default function Applicants({
         Header: ({ column }: { column: any }) => (
           <ColumnMultiSelectHeader
             column={column}
-            label="Reasons"
+            label={t('reasons', 'applicants')}
             options={rejectionReasonsOptions}
             isLaptopViewport={isLaptopViewport}
             menuWidth={260}
@@ -2006,7 +2022,7 @@ export default function Applicants({
       },
       {
         accessorKey: 'submittedAt',
-        header: 'Submitted',
+        header: t('submitted', 'applicants'),
         Header: ({ column, table }: { column: any; table: any }) => {
           const sortingState = table.getState().sorting;
           const submittedSort = sortingState.find(
@@ -2023,9 +2039,9 @@ export default function Applicants({
               onClick={toggle}
               className="flex items-center gap-1 text-sm font-medium"
               type="button"
-              title={desc ? 'Newest' : 'Oldest'}
+              title={desc ? t('newest', 'applicants') : t('oldest', 'applicants')}
             >
-              <span>Submitted</span>
+              <span>{t('submitted', 'applicants')}</span>
               <span className="text-xs">{desc ? '▼' : '▲'}</span>
             </button>
           );
@@ -2060,7 +2076,7 @@ export default function Applicants({
       },
       {
         id: 'actions',
-        header: 'Actions',
+        header: t('actions', 'applicants'),
         size: columnSizeConfig.actions,
         enableColumnFilter: false,
         enableSorting: false,
@@ -2089,14 +2105,14 @@ export default function Applicants({
           const handleRestore = async (e: React.MouseEvent<HTMLButtonElement>) => {
             e.stopPropagation();
             const result = await Swal.fire({
-              title: 'Restore applicant?',
-              text: `This will restore the applicant to "${previousStatus}" status.`,
+              title: t('restoreTitle', 'applicants'),
+              text: t('restoreText', 'applicants', { status: previousStatus || '' }),
               icon: 'question',
               showCancelButton: true,
               confirmButtonColor: '#22c55e',
               cancelButtonColor: '#6b7280',
-              confirmButtonText: 'Restore',
-              cancelButtonText: 'Cancel',
+              confirmButtonText: t('restore', 'applicants'),
+              cancelButtonText: t('cancel', 'applicants'),
             });
             if (!result.isConfirmed) return;
             try {
@@ -2113,15 +2129,15 @@ export default function Applicants({
               {hasCv && (
                 <button
                   type="button"
-                  aria-label="Download CV"
-                  title="Download CV"
+                  aria-label={t('downloadCv', 'applicants')}
+                  title={t('downloadCv', 'applicants')}
                   onClick={async (e) => {
                     e.stopPropagation();
                     await downloadCvForApplicant(orig);
                   }}
                   className="inline-flex items-center justify-center rounded bg-brand-500 p-1 text-white hover:bg-brand-600"
                 >
-                  <span className="sr-only">Download CV</span>
+                  <span className="sr-only">{t('downloadCv', 'applicants')}</span>
                   <svg
                     className="w-4 h-4"
                     viewBox="0 0 24 24"
@@ -2140,13 +2156,13 @@ export default function Applicants({
               {isTrashedApplicant && canRestore && (
                 <button
                   type="button"
-                  aria-label="Restore applicant"
-                  title={`Restore to ${previousStatus}`}
+                  aria-label={t('restoreApplicant', 'applicants')}
+                  title={t('restoreTo', 'applicants', { status: previousStatus || '' })}
                   onClick={handleRestore}
                   disabled={updateStatus.isPending}
                   className="inline-flex items-center justify-center rounded bg-green-500 p-1 text-white hover:bg-green-600 disabled:opacity-50"
                 >
-                  <span className="sr-only">Restore</span>
+                  <span className="sr-only">{t('restore', 'applicants')}</span>
                   <svg
                     className="w-4 h-4"
                     viewBox="0 0 24 24"
@@ -2187,12 +2203,14 @@ export default function Applicants({
       companyMap,
       currentUserId,
       canRestore,
+      dir,
     ]
   );
 
   const muiTheme = useMemo(
     () =>
       createTheme({
+        direction: dir,
         palette: {
           mode: isDarkMode ? 'dark' : 'light',
           primary: { main: '#e42e2b' },
@@ -2220,7 +2238,7 @@ export default function Applicants({
           },
         },
       }),
-    [isDarkMode]
+    [isDarkMode, dir]
   );
 
   const skeletonData = useMemo(
@@ -2232,7 +2250,42 @@ export default function Applicants({
     [pagination.pageSize]
   );
 
+  const mrtLocalization = {
+    noRecordsToDisplay: t('noRecordsToDisplay', 'applicants'),
+    rowsPerPage: t('rowsPerPage', 'applicants'),
+    of: t('of', 'applicants'),
+    search: t('search', 'applicants'),
+    clearSearch: t('clearSearch', 'applicants'),
+    showHideColumns: t('showHideColumns', 'applicants'),
+    showHideSearch: t('showHideSearch', 'applicants'),
+    showHideFilters: t('showHideFilters', 'applicants'),
+    hideColumn: t('hideColumn', 'applicants'),
+    showAllColumns: t('showAllColumns', 'applicants'),
+    jumpToPage: t('jumpToPage', 'applicants'),
+    toggleSelectAll: t('toggleSelectAll', 'applicants'),
+    toggleSelectRow: t('toggleSelectRow', 'applicants'),
+    selectedCountOfRowCountRowsSelected: t('selectedCountOfRowCountRowsSelected', 'applicants'),
+    filterByColumn: t('filterByColumn', 'applicants'),
+    globalSearch: t('globalSearch', 'applicants'),
+    columnSearch: t('columnSearch', 'applicants'),
+    hideAll: t('hideAll', 'applicants'),
+    showAll: t('showAll', 'applicants'),
+    columns: t('columns', 'applicants'),
+    pin: t('pin', 'applicants'),
+    pinToLeft: t('pinToLeft', 'applicants'),
+    pinToRight: t('pinToRight', 'applicants'),
+    unpin: t('unpin', 'applicants'),
+    columnActions: t('columnActions', 'applicants'),
+    and: t('and', 'applicants'),
+    noResultsFound: t('noResultsFound', 'applicants'),
+    goToFirstPage: t('goToFirstPage', 'applicants'),
+    goToLastPage: t('goToLastPage', 'applicants'),
+    goToNextPage: t('goToNextPage', 'applicants'),
+    goToPreviousPage: t('goToPreviousPage', 'applicants'),
+  };
+
   const table = useMaterialReactTable({
+    localization: mrtLocalization,
     columns,
     enableSorting: !duplicatesOnlyEnabled,
     data: isTableLoading ? skeletonData : filteredApplicants,
@@ -2358,7 +2411,7 @@ export default function Applicants({
                     fieldId: '__duplicates_only',
                     value: true,
                     type: 'boolean',
-                    label: 'Show Duplicates Only',
+                    label: t('showDuplicatesOnly', 'applicants'),
                   },
                 ]);
               }
@@ -2378,7 +2431,7 @@ export default function Applicants({
                 d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"
               />
             </svg>
-            {duplicatesOnlyEnabled ? 'Duplicates Only' : 'Show Duplicates'}
+            {duplicatesOnlyEnabled ? t('duplicatesOnly', 'applicants') : t('showDuplicates', 'applicants')}
           </button>
           {duplicatesOnlyEnabled && (
             <span className="text-xs text-amber-600 dark:text-amber-400">
@@ -2394,7 +2447,7 @@ export default function Applicants({
                 const duplicateCount = Array.from(
                   duplicateLookup.values()
                 ).filter((d) => d.isDuplicate === true).length;
-                return `${duplicateCount} duplicate applicant(s) found`;
+                return t('duplicateCount', 'applicants', { count: duplicateCount });
               })()}
             </span>
           )}
@@ -2406,7 +2459,7 @@ export default function Applicants({
             onClick={() => setCustomFilterOpen(true)}
             className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-3 py-1 text-sm font-semibold text-white shadow-sm hover:bg-brand-600"
           >
-            Filter Settings
+            {t('filterSettings', 'applicants')}
           </button>
         </div>
       </div>
@@ -2484,9 +2537,9 @@ export default function Applicants({
   return (
     <ThemeProvider theme={muiTheme}>
         <div className="w-full min-w-0">
-        <PageMeta title="Applicants" description="Manage job applicants" />
+        <PageMeta title={t('pageTitle', 'applicants')} description={t('pageDescription', 'applicants')} />
         <PageBreadcrumb
-          pageTitle="Applicants"
+          pageTitle={t('pageTitle', 'applicants')}
           actions={
             <div className="flex flex-wrap items-center gap-2">
               <button
@@ -2510,18 +2563,18 @@ export default function Applicants({
                 {isJobPositionsFetching ||
                 isApplicantsFetching ||
                 isCompaniesFetching
-                  ? 'Updating Data'
-                  : 'Update Data'}
+                  ? t('updatingData', 'applicants')
+                  : t('updateData', 'applicants')}
               </button>
               <div className="text-sm text-gray-500">
-                {elapsed ? `Last Update: ${elapsed}` : 'Not updated yet'}
+                {elapsed ? t('lastUpdate', 'applicants', { time: elapsed }) : t('notUpdatedYet', 'applicants')}
               </div>
             </div>
           }
         />
 <div className="w-full min-w-0">
   <div className="grid gap-6 min-w-0">
-            <ComponentCard title="Job Applicants" desc="View and manage all applicants"  className="overflow-hidden">
+            <ComponentCard title={t('componentTitle', 'applicants')} desc={t('componentDesc', 'applicants')}  className="overflow-hidden">
               <>
                 {error && (
                   <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg">
@@ -2532,7 +2585,7 @@ export default function Applicants({
                 {selectedApplicantCount > 0 && (
                   <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-lg bg-brand-50 px-4 py-3 dark:bg-brand-900/20">
                     <span className="text-sm font-medium text-brand-700 dark:text-brand-300">
-                      {selectedApplicantCount} applicant(s) selected
+                      {t('selectedCount', 'applicants', { count: selectedApplicantCount })}
                     </span>
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
                       <button
@@ -2543,7 +2596,7 @@ export default function Applicants({
                     className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
                   >
                     <FileText className="h-4 w-4" />
-                    {`Send Offer (${selectedApplicantCount})`}
+                    {`${t('sendOffer', 'applicants')} (${selectedApplicantCount})`}
                   </button>
                   <button
                     onClick={() => {
@@ -2553,7 +2606,7 @@ export default function Applicants({
                     className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-50"
                   >
                     <FileSignature className="h-4 w-4" />
-                    {`Send Contract (${selectedApplicantCount})`}
+                    {`${t('sendContract', 'applicants')} (${selectedApplicantCount})`}
                   </button>
                   <button
                         type="button"
@@ -2565,7 +2618,7 @@ export default function Applicants({
                         disabled={isProcessing || selectedApplicantCount === 0}
                         className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:opacity-50"
                       >
-                        {isProcessing ? 'Changing...' : 'Change Status'}
+                        {isProcessing ? t('changing', 'applicants') : t('changeStatus', 'applicants')}
                       </button>
                       <button
                         onClick={handleExportToExcel}
@@ -2586,8 +2639,8 @@ export default function Applicants({
                           />
                         </svg>
                         {isExporting
-                          ? 'Exporting...'
-                          : `Export (${selectedApplicantCount})`}
+                          ? t('exporting', 'applicants')
+                          : `${t('export', 'applicants')} (${selectedApplicantCount})`}
                       </button>
                       <button
                         onClick={() => setShowBulkModal(true)}
@@ -2596,7 +2649,7 @@ export default function Applicants({
                         }
                         className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
                       >
-                        {`Send Mail (${selectedApplicantRecipients.length})`}
+                        {`${t('sendMail', 'applicants')} (${selectedApplicantRecipients.length})`}
                       </button>
                       <button
                         onClick={openBulkInterviewModal}
@@ -2607,8 +2660,8 @@ export default function Applicants({
                         className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-700 disabled:opacity-50"
                       >
                         {isSubmittingBulkInterview
-                          ? 'Scheduling...'
-                          : `Schedule Interviews (${selectedApplicantsForInterview.length})`}
+                          ? t('scheduling', 'applicants')
+                          : `${t('scheduleInterviews', 'applicants')} (${selectedApplicantsForInterview.length})`}
                       </button>
                       <button
                         onClick={handleBulkDelete}
@@ -2616,7 +2669,7 @@ export default function Applicants({
                         className="inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-600 disabled:opacity-50"
                       >
                         <TrashBinIcon className="h-4 w-4" />
-                        {isDeleting ? 'Deleting...' : 'Delete'}
+                        {isDeleting ? t('deleting', 'applicants') : t('delete', 'applicants')}
                       </button>
                     </div>
                   </div>
@@ -2736,7 +2789,7 @@ export default function Applicants({
                 >
                   <div className="space-y-4">
                     <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                      Interview Email Preview ({bulkInterviewPreviewItems.length})
+                      {t('interviewEmailPreview', 'applicants', { count: bulkInterviewPreviewItems.length })}
                     </h2>
                     <div className="max-h-[70vh] space-y-4 overflow-auto pr-1">
                       {bulkInterviewPreviewItems.map((item, index) => (
@@ -2745,13 +2798,13 @@ export default function Applicants({
                           className="rounded-lg border border-gray-200 p-3 dark:border-gray-700"
                         >
                           <div className="mb-2 text-sm font-semibold text-gray-800 dark:text-white/90">
-                            Applicant #{item.applicantNo} - {item.applicantName}
+                            {t('applicantItem', 'applicants', { no: item.applicantNo, name: item.applicantName })}
                           </div>
                           <div className="mb-3 text-xs text-gray-600 dark:text-gray-300">
                             <span className="mr-4">
-                              To: {item.to || 'No email'}
+                              {t('to', 'applicants')} {item.to || t('noEmail', 'applicants')}
                             </span>
-                            <span>Scheduled: {item.scheduledLabel}</span>
+                            <span>{t('scheduled', 'applicants')} {item.scheduledLabel}</span>
                           </div>
                           <iframe
                             srcDoc={item.html}
@@ -2767,7 +2820,7 @@ export default function Applicants({
                         onClick={() => setShowBulkInterviewPreviewModal(false)}
                         className="rounded-lg border border-stroke px-4 py-2 hover:bg-gray-100"
                       >
-                        Close
+                        {t('close', 'applicants')}
                       </button>
                     </div>
                   </div>
@@ -2780,7 +2833,7 @@ export default function Applicants({
                 >
                   <div className="space-y-3">
                     <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                      Preview
+                      {t('preview', 'applicants')}
                     </h2>
                     <div
                       className="border rounded p-2 bg-white dark:bg-gray-800"
@@ -2813,7 +2866,7 @@ export default function Applicants({
               </button>
               <img
                 src={previewPhoto}
-                alt="Applicant photo preview"
+                alt={t('applicantPhotoPreview', 'applicants')}
                 className="max-h-[85vh] max-w-full rounded-lg shadow-2xl"
                 onClick={(e) => e.stopPropagation()}
               />

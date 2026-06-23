@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { PlusCircle, Save, Trash2, ArrowRight, Settings, GripVertical } from 'lucide-react';
 import Swal from '../../../utils/swal';
+import { useLocale } from '../../../context/LocaleContext';
 import PageMeta from '../../../components/common/PageMeta';
 import PageBreadCrumb from '../../../components/common/PageBreadCrumb';
 import { useAuth } from '../../../context/AuthContext';
@@ -43,14 +44,13 @@ type LeadStatus = {
   _id?: string;
 };
 
-// Default descriptions for static status names (fallback only)
-const DEFAULT_STATUS_DESCRIPTIONS: Record<string, string> = {
-  pending: 'Pending leads awaiting triage.',
-  approved: 'Approved leads ready for next steps.',
-  interview: 'Scheduled for interview.',
-  interviewed: 'Interview completed.',
-  rejected: 'Not a fit / disqualified.',
-  trashed: 'Removed or archived applications.',
+const STATUS_DESC_LOCALE_KEYS: Record<string, string> = {
+  pending: 'statusSettings.defaultDescPending',
+  approved: 'statusSettings.defaultDescApproved',
+  interview: 'statusSettings.defaultDescInterview',
+  interviewed: 'statusSettings.defaultDescInterviewed',
+  rejected: 'statusSettings.defaultDescRejected',
+  trashed: 'statusSettings.defaultDescTrashed',
 };
 
 const DEFAULT_STATUSES: LeadStatus[] = [
@@ -59,7 +59,7 @@ const DEFAULT_STATUSES: LeadStatus[] = [
     color: '#FEF3C7',
     textColor: '#92400E',
     isDefault: true,
-    description: DEFAULT_STATUS_DESCRIPTIONS.pending,
+    description: '',
     statusKey: 'pending',
   },
   {
@@ -67,7 +67,7 @@ const DEFAULT_STATUSES: LeadStatus[] = [
     color: '#D1FAE5',
     textColor: '#065F46',
     isDefault: false,
-    description: DEFAULT_STATUS_DESCRIPTIONS.approved,
+    description: '',
     statusKey: 'approved',
   },
   {
@@ -75,7 +75,7 @@ const DEFAULT_STATUSES: LeadStatus[] = [
     color: '#DBEAFE',
     textColor: '#1E40AF',
     isDefault: false,
-    description: DEFAULT_STATUS_DESCRIPTIONS.interview,
+    description: '',
     statusKey: 'interview',
   },
   {
@@ -83,7 +83,7 @@ const DEFAULT_STATUSES: LeadStatus[] = [
     color: '#DBEAFE',
     textColor: '#065F46',
     isDefault: false,
-    description: DEFAULT_STATUS_DESCRIPTIONS.interviewed,
+    description: '',
     statusKey: 'interviewed',
   },
   {
@@ -91,7 +91,7 @@ const DEFAULT_STATUSES: LeadStatus[] = [
     color: '#FEE2E2',
     textColor: '#991B1B',
     isDefault: false,
-    description: DEFAULT_STATUS_DESCRIPTIONS.rejected,
+    description: '',
     statusKey: 'rejected',
   },
   {
@@ -99,7 +99,7 @@ const DEFAULT_STATUSES: LeadStatus[] = [
     color: '#6B7280',
     textColor: '#FFFFFF',
     isDefault: false,
-    description: DEFAULT_STATUS_DESCRIPTIONS.trashed,
+    description: '',
     statusKey: 'trashed',
   },
 ];
@@ -170,6 +170,7 @@ function SortableStatusItem({
   onSetDefault: (index: number) => void;
   onRemove: (index: number) => void;
 }) {
+  const { t } = useLocale();
   const {
     attributes,
     listeners,
@@ -217,7 +218,7 @@ function SortableStatusItem({
           <input
             value={status.name}
             onChange={(e) => onNameChange(index, e.target.value)}
-            placeholder="Status label"
+            placeholder={t('statusSettings.statusLabelPlaceholder', 'settings')}
             disabled={isLocked || !canEdit}
             className={`w-full rounded-xl border border-transparent bg-transparent py-2 text-sm font-semibold outline-none focus:border-brand-300 focus:ring-0 ${
               isLocked || !canEdit ? 'cursor-not-allowed opacity-70' : ''
@@ -227,13 +228,13 @@ function SortableStatusItem({
           {isLocked ? (
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
               {staticDescription ||
-                DEFAULT_STATUS_DESCRIPTIONS[status.statusKey?.toLowerCase() || '']}
+                t(STATUS_DESC_LOCALE_KEYS[status.statusKey?.toLowerCase() || ''] || '', 'settings')}
             </p>
           ) : (
             <input
               value={status.description}
               onChange={(e) => onDescriptionChange(index, e.target.value)}
-              placeholder="Description (optional)"
+              placeholder={t('statusSettings.descriptionPlaceholder', 'settings')}
               disabled={!canEdit}
               className="mt-1 w-full rounded-xl border border-transparent bg-transparent py-1 text-xs text-slate-500 outline-none focus:border-brand-300 focus:ring-0 dark:text-slate-400"
             />
@@ -242,14 +243,18 @@ function SortableStatusItem({
       </div>
 
       <div className="mt-3 flex items-center gap-3 md:mt-0">
-        <div className="relative">
+        <div className="relative h-8 w-8">
+          <div
+            className="absolute inset-0 rounded-full border border-slate-200 shadow-sm pointer-events-none"
+            style={{ backgroundColor: status.color }}
+          />
           <input
             type="color"
             value={status.color}
             onChange={(e) => onColorChange(index, e.target.value)}
             disabled={!canEdit}
-            className="h-8 w-8 cursor-pointer rounded-full border border-slate-200 shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
-            title={isLocked ? 'Color can be customized' : 'Color picker'}
+            className="absolute inset-0 cursor-pointer opacity-0 disabled:cursor-not-allowed disabled:opacity-0"
+            title={isLocked ? t('statusSettings.colorCustomizableTitle', 'settings') : t('statusSettings.colorPickerTitle', 'settings')}
           />
         </div>
 
@@ -263,7 +268,7 @@ function SortableStatusItem({
             className={`h-4 w-4 ${isLocked || !canEdit ? 'cursor-not-allowed' : ''}`}
           />
           <span className={`text-slate-600 dark:text-slate-400 ${isLocked || !canEdit ? 'opacity-50' : ''}`}>
-            Default
+            {t('statusSettings.labelDefault', 'settings')}
           </span>
         </label>
 
@@ -283,6 +288,7 @@ function SortableStatusItem({
 
 // Drag Overlay Component
 const DragOverlayItem = React.memo(({ status}: { status: LeadStatus; index: number }) => {
+  const { t } = useLocale();
   return (
     <div className="flex flex-col gap-3 rounded-xl border-2 border-brand-400 bg-white p-4 shadow-xl md:flex-row md:items-center md:justify-between dark:bg-slate-800">
       <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -291,7 +297,7 @@ const DragOverlayItem = React.memo(({ status}: { status: LeadStatus; index: numb
         </div>
         <div className="min-w-0 flex-1">
           <div className="w-full rounded-xl px-2 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
-            {status.name || 'Untitled'}
+            {status.name || t('statusSettings.dragOverlayUntitled', 'settings')}
           </div>
           {status.description && (
             <div className="mt-1 px-2 text-xs text-slate-500">
@@ -306,7 +312,7 @@ const DragOverlayItem = React.memo(({ status}: { status: LeadStatus; index: numb
           style={{ backgroundColor: status.color }}
         />
         {status.isDefault && (
-          <span className="text-sm text-slate-500">Default</span>
+          <span className="text-sm text-slate-500">{t('statusSettings.dragOverlayDefault', 'settings')}</span>
         )}
       </div>
     </div>
@@ -326,6 +332,7 @@ export default function StatusLabelsSettings({
   hideCompanySelector,
   embedded,
 }: Props = {}) {
+  const { t } = useLocale();
   const { user, hasPermission } = useAuth();
   const queryClient = useQueryClient();
   const { data: companies = [] } = useCompanies();
@@ -392,7 +399,7 @@ export default function StatusLabelsSettings({
               getContrastColor(s?.color ?? '#94a3b8')
           ),
           description: isLocked
-            ? DEFAULT_STATUS_DESCRIPTIONS[statusKey]
+            ? t(STATUS_DESC_LOCALE_KEYS[statusKey] || '', 'settings')
             : String(s?.description ?? ''),
           isDefault: !!s?.isDefault,
           statusKey: statusKey,
@@ -519,7 +526,7 @@ export default function StatusLabelsSettings({
 
   const handleSave = useCallback(async () => {
     if (!selectedCompanyId) {
-      Swal.fire('Validation', 'Please select a company first.', 'warning');
+      Swal.fire(t('commonValidation', 'settings'), t('statusSettings.validationSelectCompany', 'settings'), 'warning');
       return;
     }
 
@@ -548,7 +555,7 @@ export default function StatusLabelsSettings({
       queryClient.invalidateQueries({ queryKey: ['applicants'] });
 
       Swal.fire({
-        title: 'Saved',
+        title: t('statusSettings.swalSaved', 'settings'),
         icon: 'success',
         timer: 1200,
         showConfirmButton: false,
@@ -561,8 +568,8 @@ export default function StatusLabelsSettings({
       setOriginalStatusesJson(JSON.stringify(payloadWithKeys));
     } catch (err: any) {
       Swal.fire(
-        'Failure',
-        err?.message || 'Failed to update configuration',
+        t('statusSettings.swalFailure', 'settings'),
+        err?.message || t('statusSettings.swalFailureMsg', 'settings'),
         'error'
       );
     } finally {
@@ -612,10 +619,10 @@ export default function StatusLabelsSettings({
       {!embedded && (
         <>
           <PageMeta
-            title="Status Settings | Job Application Maker"
-            description="Configure status labels and pipeline"
+            title={t('statusSettings.pageMetaTitle', 'settings')}
+            description={t('statusSettings.pageMetaDesc', 'settings')}
           />
-          <PageBreadCrumb pageTitle="Statuses" />
+          <PageBreadCrumb pageTitle={t('statusSettings.pageBreadcrumb', 'settings')} />
         </>
       )}
 
@@ -628,11 +635,10 @@ export default function StatusLabelsSettings({
               </div>
               <div>
                 <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
-                  Status Labels
+                  {t('statusSettings.title', 'settings')}
                 </h1>
                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                  Customize your company's statuses, colors, default stage, and
-                  notifications. Drag and drop to reorder.
+                  {t('statusSettings.description', 'settings')}
                 </p>
               </div>
             </div>
@@ -642,7 +648,7 @@ export default function StatusLabelsSettings({
                 disabled={!canEdit}
                 className="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <PlusCircle className="size-4" /> Add Status
+                <PlusCircle className="size-4" /> {t('statusSettings.addStatus', 'settings')}
               </button>
               <button
                 onClick={handleSave}
@@ -654,7 +660,7 @@ export default function StatusLabelsSettings({
                 ) : (
                   <Save className="size-4" />
                 )}
-                Save Changes
+                {t('statusSettings.saveChanges', 'settings')}
                 <ArrowRight className="size-4" />
               </button>
             </div>
@@ -669,7 +675,7 @@ export default function StatusLabelsSettings({
                       <Settings className="size-5" />
                     </div>
                     <h3 className="text-lg font-semibold tracking-tight">
-                      Active Company
+                      {t('statusSettings.companySelectorTitle', 'settings')}
                     </h3>
                   </div>
                   <div className="relative">
@@ -685,14 +691,14 @@ export default function StatusLabelsSettings({
                           className="font-medium"
                         >
                           {(typeof c.name === 'object' ? c.name.en : c.name) ||
-                            'Unnamed Company'}
+                            t('statusSettings.unnamedCompany', 'settings')}
                         </option>
                       ))}
                     </select>
                     <ArrowRight className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 rotate-90 text-slate-400" />
                   </div>
                   <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-                    Pick the company profile to manage statuses for.
+                    {t('statusSettings.companySelectorHelp', 'settings')}
                   </p>
                 </div>
               )}
@@ -703,7 +709,7 @@ export default function StatusLabelsSettings({
                     <PlusCircle className="size-5" />
                   </div>
                   <h3 className="text-lg font-semibold tracking-tight">
-                    Preview
+                    {t('statusSettings.previewTitle', 'settings')}
                   </h3>
                 </div>
                 <div className="flex flex-wrap gap-3">
@@ -716,25 +722,21 @@ export default function StatusLabelsSettings({
                         color: s.textColor ?? getContrastColor(s.color),
                       }}
                     >
-                      {s.name || 'Untitled'}
+                      {s.name || t('statusSettings.previewFallback', 'settings')}
                     </span>
                   ))}
                 </div>
                 <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-                  Live preview of how statuses will appear in lists and
-                  applicant cards.
+                  {t('statusSettings.previewDesc', 'settings')}
                 </p>
               </div>
 
               <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 shadow-sm dark:border-amber-800/30 dark:bg-amber-950/20">
                 <h3 className="mb-2 text-sm font-semibold text-amber-800 dark:text-amber-400">
-                  Note:
+                  {t('statusSettings.noteTitle', 'settings')}
                 </h3>
                 <p className="text-xs text-amber-700 dark:text-amber-500">
-                  The <strong>Interview</strong>, <strong>Rejected</strong>, and{' '}
-                  <strong>Trashed</strong> statuses are system-protected. Only
-                  their colors can be customized. Other properties cannot be
-                  modified.
+                  {t('statusSettings.noteText', 'settings')}
                 </p>
               </div>
             </div>

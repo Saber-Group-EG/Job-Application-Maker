@@ -648,10 +648,11 @@ export async function exportToCSV(
 }
 
 // Show export success/failure notification
-export async function showExportNotification(result: ExportResult): Promise<void> {
+export async function showExportNotification(result: ExportResult, t?: (key: string, ns?: string) => string): Promise<void> {
+  const translate = t || ((key: string) => key);
   if (result.success) {
     await Swal.fire({
-      title: 'Export Successful!',
+      title: translate('exportSuccessful', 'applicants'),
       text: result.message,
       icon: 'success',
       position: 'center',
@@ -660,7 +661,7 @@ export async function showExportNotification(result: ExportResult): Promise<void
     });
   } else {
     await Swal.fire({
-      title: 'Export Failed',
+      title: translate('exportFailed', 'applicants'),
       text: result.error || result.message,
       icon: 'error',
     });

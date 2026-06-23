@@ -14,6 +14,7 @@ import Swal from "../../../utils/swal";
 import PageMeta from "../../../components/common/PageMeta";
 import PageBreadCrumb from "../../../components/common/PageBreadCrumb";
 import { useAuth } from "../../../context/AuthContext";
+import { useLocale } from "../../../context/LocaleContext";
 import {
 	useCompanies,
 	useUpdateCompanyRejectionReasons,
@@ -71,10 +72,10 @@ const normalizeRejectReasons = (reasons: unknown): string[] => {
 		.filter(Boolean);
 };
 
-const getCompanyName = (company: CompanyShape | undefined): string => {
-	if (!company) return "No company selected";
+const getCompanyName = (company: CompanyShape | undefined, t: (key: string, ns: string) => string): string => {
+	if (!company) return t('rejectionTab.noCompany', 'settings');
 	if (typeof company.name === "string") return company.name;
-	return company.name?.en || company.name?.ar || "Unnamed Company";
+	return company.name?.en || company.name?.ar || t('rejectionTab.unnamedCompany', 'settings');
 };
 
 // Sortable Item Component with smooth animations
@@ -95,6 +96,7 @@ function SortableReasonItem({
 	onRemoveReason: (id: string) => void;
 	isDragging?: boolean;
 }) {
+	const { t } = useLocale();
 	const {
 		attributes,
 		listeners,
@@ -138,13 +140,13 @@ function SortableReasonItem({
 
 			<div>
 				<label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-					Reason {index + 1}
+					{t('rejectionTab.reasonLabel', 'settings', { number: index + 1 })}
 				</label>
 				<input
 					value={reason}
 					onChange={(e) => onUpdateReason(id, e.target.value)}
 					disabled={!canEdit}
-					placeholder="Example: Candidate did not meet mandatory experience criteria"
+					placeholder={t('rejectionTab.reasonPlaceholder', 'settings')}
 					className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition-all focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900"
 				/>
 			</div>
@@ -165,6 +167,7 @@ function SortableReasonItem({
 
 // Drag overlay component for smooth dragging
 function DragOverlayItem({ reason, index }: { reason: string; index: number }) {
+	const { t } = useLocale();
 	return (
 		<div className="grid grid-cols-1 gap-3 rounded-lg border border-brand-300 bg-brand-50 p-3 shadow-xl dark:border-brand-700 dark:bg-brand-900/90 md:grid-cols-[auto_1fr_auto]">
 			<div className="flex items-center justify-center">
@@ -173,11 +176,11 @@ function DragOverlayItem({ reason, index }: { reason: string; index: number }) {
 				</div>
 			</div>
 			<div>
-				<label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-brand-600 dark:text-brand-400">
-					Reason {index + 1}
-				</label>
+			<label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-brand-600 dark:text-brand-400">
+				{t('rejectionTab.dragOverlayLabel', 'settings', { number: index + 1 })}
+			</label>
 				<div className="w-full rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm text-slate-700 dark:border-brand-700 dark:bg-brand-900/50 dark:text-slate-300">
-					{reason || "Empty reason"}
+					{reason || t('rejectionTab.dragOverlayEmpty', 'settings')}
 				</div>
 			</div>
 			<div className="flex items-end">
@@ -197,6 +200,7 @@ export default function RejectionTab({
 	embedded = false,
 }: Props) {
 	const { user, hasPermission } = useAuth();
+	const { t } = useLocale();
 	const { data: companies = [], isLoading: isCompaniesLoading } = useCompanies();
 
 	const isSuperAdmin = !!user?.roleId?.name?.toString().toLowerCase().includes("admin");
@@ -308,7 +312,7 @@ export default function RejectionTab({
 
 	const handleSave = async () => {
 		if (!selectedCompanyId) {
-			Swal.fire('Validation', 'Please select a company first.', 'warning');
+			Swal.fire(t('rejectionTab.validationSelectCompany', 'settings'), t('rejectionTab.validationSelectCompany', 'settings'), 'warning');
 			return;
 		}
 
@@ -325,7 +329,7 @@ export default function RejectionTab({
 			});
 
 			Swal.fire({
-				title: 'Saved',
+				title: t('rejectionTab.swalSaved', 'settings'),
 				icon: 'success',
 				timer: 1200,
 				showConfirmButton: false,
@@ -334,8 +338,8 @@ export default function RejectionTab({
 			onSaved?.(payload);
 		} catch (error: any) {
 			Swal.fire(
-				'Save Failed',
-				error?.message || 'Failed to save rejection reasons.',
+				t('rejectionTab.swalSaveFailed', 'settings'),
+				error?.message || t('rejectionTab.swalSaveFailedMsg', 'settings'),
 				'error'
 			);
 		} finally {
@@ -367,10 +371,10 @@ export default function RejectionTab({
 					<div className="mx-auto mb-5 flex size-16 items-center justify-center rounded-2xl bg-red-500/10 text-red-500">
 						<ShieldCheck className="size-8" />
 					</div>
-					<h2 className="text-2xl font-bold tracking-tight">Restricted Protocol</h2>
-					<p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-slate-500 dark:text-slate-400">
-						Your account does not have permission to manage rejection reasons.
-					</p>
+				<h2 className="text-2xl font-bold tracking-tight">{t('rejectionTab.noPermissionTitle', 'settings')}</h2>
+				<p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-slate-500 dark:text-slate-400">
+					{t('rejectionTab.noPermissionDesc', 'settings')}
+				</p>
 				</div>
 			</div>
 		);
@@ -380,11 +384,11 @@ export default function RejectionTab({
 		<div className={embedded ? "space-y-6" : "min-h-screen bg-slate-50 p-4 text-slate-900 dark:bg-slate-950 dark:text-slate-100 sm:p-8"}>
 			{!embedded && (
 				<>
-					<PageMeta
-						title="Rejection Reasons | Job Application Maker"
-						description="Manage company rejection reasons"
-					/>
-					<PageBreadCrumb pageTitle="Rejection Reasons" />
+				<PageMeta
+					title={t('rejectionTab.pageMetaTitle', 'settings')}
+					description={t('rejectionTab.pageMetaDesc', 'settings')}
+				/>
+				<PageBreadCrumb pageTitle={t('rejectionTab.pageBreadcrumb', 'settings')} />
 				</>
 			)}
 
@@ -396,15 +400,15 @@ export default function RejectionTab({
 								<Ban className="size-6" />
 							</div>
 							<div>
-								<p className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-600/80 dark:text-rose-300">
-									Applicant Workflow
-								</p>
-								<h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
-									Rejection Reasons
-								</h1>
-								<p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-									Configure reusable reasons recruiters can choose when rejecting applicants.
-								</p>
+							<p className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-600/80 dark:text-rose-300">
+								{t('rejectionTab.sectionSubtitle', 'settings')}
+							</p>
+							<h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
+								{t('rejectionTab.title', 'settings')}
+							</h1>
+							<p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+								{t('rejectionTab.description', 'settings')}
+							</p>
 							</div>
 						</div>
 
@@ -418,7 +422,7 @@ export default function RejectionTab({
 							) : (
 								<Save className="size-4" />
 							)}
-							Save Reasons
+							{t('rejectionTab.saveReasons', 'settings')}
 							<ArrowRight className="size-4" />
 						</button>
 					</div>
@@ -426,16 +430,16 @@ export default function RejectionTab({
 					<div className="grid grid-cols-1 gap-4 p-6 md:grid-cols-3">
 						<div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/60">
 							<p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-								Company
+								{t('rejectionTab.statCompany', 'settings')}
 							</p>
 							<p className="mt-1 truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
-								{getCompanyName(selectedCompany)}
+								{getCompanyName(selectedCompany, t)}
 							</p>
 						</div>
 
 						<div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/60">
 							<p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-								Total Reasons
+								{t('rejectionTab.statTotalReasons', 'settings')}
 							</p>
 							<p className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
 								{rejectReasons.length}
@@ -444,10 +448,10 @@ export default function RejectionTab({
 
 						<div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/60">
 							<p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-								Save Status
+								{t('rejectionTab.statSaveStatus', 'settings')}
 							</p>
 							<p className="mt-1 inline-flex items-center gap-2 text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-								<CircleCheckBig className="size-4" /> Ready
+								<CircleCheckBig className="size-4" /> {t('rejectionTab.statReady', 'settings')}
 							</p>
 						</div>
 					</div>
@@ -461,7 +465,7 @@ export default function RejectionTab({
 									<div className="flex size-10 items-center justify-center rounded-lg bg-violet-500/10 text-violet-500">
 										<Building2 className="size-5" />
 									</div>
-									<h3 className="text-lg font-semibold tracking-tight">Active Company</h3>
+									<h3 className="text-lg font-semibold tracking-tight">{t('rejectionTab.companySelectorTitle', 'settings')}</h3>
 								</div>
 
 								<div className="relative">
@@ -472,7 +476,7 @@ export default function RejectionTab({
 									>
 										{(companies as CompanyShape[]).map((company) => (
 											<option key={company._id} value={company._id}>
-												{getCompanyName(company)}
+												{getCompanyName(company, t)}
 											</option>
 										))}
 									</select>
@@ -480,9 +484,9 @@ export default function RejectionTab({
 									<ArrowRight className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 rotate-90 text-slate-400" />
 								</div>
 
-								<p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-									Switch company context to manage another rejection reason set.
-								</p>
+							<p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+								{t('rejectionTab.companySelectorHelp', 'settings')}
+							</p>
 							</div>
 						</div>
 					)}
@@ -495,10 +499,10 @@ export default function RejectionTab({
 										<Ban className="size-6" />
 									</div>
 									<div>
-										<h2 className="text-xl font-semibold tracking-tight">Reason Library</h2>
-										<p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-											Drag and drop to reorder reasons. Keep reasons short and clear for consistent rejection communication.
-										</p>
+								<h2 className="text-xl font-semibold tracking-tight">{t('rejectionTab.reasonLibraryTitle', 'settings')}</h2>
+								<p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+									{t('rejectionTab.reasonLibraryDesc', 'settings')}
+								</p>
 									</div>
 								</div>
 
@@ -508,14 +512,14 @@ export default function RejectionTab({
 									disabled={!canEdit}
 									className="inline-flex items-center gap-2 self-start rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
 								>
-									<PlusCircle className="size-4" /> Add Reason
+									<PlusCircle className="size-4" /> {t('rejectionTab.addReason', 'settings')}
 								</button>
 							</div>
 
 							<div className="space-y-4 p-6">
 								{isLoading && (
 									<div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
-										Loading company rejection reasons...
+										{t('rejectionTab.loading', 'settings')}
 									</div>
 								)}
 
@@ -523,7 +527,7 @@ export default function RejectionTab({
 									<div className="rounded-xl border border-dashed border-slate-300 px-6 py-10 text-center dark:border-slate-700">
 										<Ban className="mx-auto mb-3 size-10 text-slate-300 dark:text-slate-600" />
 										<p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-											No rejection reasons yet. Add your first reason to get started.
+											{t('rejectionTab.emptyState', 'settings')}
 										</p>
 									</div>
 								)}

@@ -1,6 +1,7 @@
 // components/ColumnMultiSelectHeader.tsx
 import { useState } from 'react';
 import { Menu, MenuItem, Checkbox, ListItemText } from '@mui/material';
+import { useLocale } from '../../../../../context/LocaleContext';
 
 export interface ColumnFilterOption {
   id: string;
@@ -28,6 +29,7 @@ export function ColumnMultiSelectHeader({
   showSortIndicator = true,
   onSortChange,
 }: ColumnMultiSelectHeaderProps) {
+  const { t } = useLocale();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
   // Get current filter value with proper type checking
@@ -196,7 +198,7 @@ export function ColumnMultiSelectHeader({
           dense
           sx={{ color: 'error.main' }}
         >
-          <ListItemText primary="Clear" primaryTypographyProps={{ sx: { color: 'error.main' } }} />
+          <ListItemText primary={t('clear', 'applicants')} primaryTypographyProps={{ sx: { color: 'error.main' } }} />
         </MenuItem>
         
         {/* Divider after Clear */}
@@ -231,7 +233,7 @@ export function ColumnMultiSelectHeader({
         {/* Empty state */}
         {options.length === 0 && (
           <MenuItem disabled dense>
-            <ListItemText primary="No options available" />
+            <ListItemText primary={t('noOptionsAvailable', 'applicants')} />
           </MenuItem>
         )}
       </Menu>
@@ -257,6 +259,7 @@ export function ColumnSingleSelectHeader({
   menuWidth = 220,
   menuMaxHeight = 280,
 }: ColumnSingleSelectHeaderProps) {
+  const { t } = useLocale();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   
   const current = column.getFilterValue();
@@ -356,7 +359,7 @@ export function ColumnSingleSelectHeader({
         }}
       >
         <MenuItem onClick={(e) => { e.stopPropagation(); clear(); }} dense>
-          <ListItemText primary="Clear" />
+          <ListItemText primary={t('clear', 'applicants')} />
         </MenuItem>
         <hr className="my-1 border-gray-200 dark:border-gray-700" />
         {options.map((option) => (

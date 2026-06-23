@@ -10,6 +10,7 @@ import type {
 } from "../../types/auth";
 import { tokenStorage } from "../../config/api";
 import Swal from "../../utils/swal";
+import { useLocale } from "../../context/LocaleContext";
 
 // ===== Query Keys =====
 export const authKeys = {
@@ -41,6 +42,7 @@ export function useCurrentUser(options?: { enabled?: boolean }) {
 
 export function useLoginMutation() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: (credentials: LoginRequest) => authService.login(credentials),
@@ -54,13 +56,14 @@ export function useLoginMutation() {
     },
     onError: (error: ApiError) => {
       queryClient.removeQueries({ queryKey: authKeys.currentUser() });
-      showErrorToast(error.message, "Login failed");
+      showErrorToast(error.message, t('loginFailed', 'common'), t);
     },
   });
 }
 
 export function useRegisterMutation() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: (userData: RegisterRequest) => authService.register(userData),
@@ -70,7 +73,7 @@ export function useRegisterMutation() {
     },
     onError: (error: ApiError) => {
       queryClient.removeQueries({ queryKey: authKeys.currentUser() });
-      showErrorToast(error.message, "Registration failed");
+      showErrorToast(error.message, t('registrationFailed', 'common'), t);
     },
   });
 }
@@ -78,6 +81,7 @@ export function useRegisterMutation() {
 // hooks/queries/useAuth.ts - Update the logout mutation
 export function useLogoutMutation() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: async () => {
@@ -108,7 +112,7 @@ export function useLogoutMutation() {
       // ✅ Don't navigate here - let the AuthProvider handle it
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, "Logout failed");
+      showErrorToast(error.message, t('logoutFailed', 'common'), t);
       // Still try to clear on error
       tokenStorage.clearTokens();
       queryClient.clear();
@@ -117,6 +121,7 @@ export function useLogoutMutation() {
 }
 export function useChangePasswordMutation() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: (passwords: ChangePasswordRequest) => authService.changePassword(passwords),
@@ -126,7 +131,7 @@ export function useChangePasswordMutation() {
 
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, "Failed to change password");
+      showErrorToast(error.message, t('changePasswordFailed', 'common'), t);
     },
   });
 }
@@ -150,11 +155,9 @@ export function useRefreshTokenMutation() {
 }
 
 // ===== Toast Helpers =====
-
-
-function showErrorToast(message: string, fallback: string) {
+function showErrorToast(message: string, fallback: string, t: (key: string, ns?: string) => string) {
   Swal.fire({
-    title: "Error",
+    title: t('error', 'common'),
     text: message || fallback,
     icon: "error",
   });

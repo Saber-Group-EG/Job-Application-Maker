@@ -42,6 +42,7 @@ import Swal from '../../../utils/swal';
 import PageMeta from '../../../components/common/PageMeta';
 import PageBreadCrumb from '../../../components/common/PageBreadCrumb';
 import { useAuth } from '../../../context/AuthContext';
+import { useLocale } from '../../../context/LocaleContext';
 import {
   useCompanies,
   useCompanyInterviewSettings,
@@ -134,7 +135,7 @@ const getCompanyName = (company: CompanyShape | undefined): string => {
   // Handle case where company might be the nested companyId object
   const companyData = (company as any)?.companyId || company;
   if (typeof companyData.name === 'string') return companyData.name;
-  return companyData.name?.en || companyData.name?.ar || 'Unnamed Company';
+  return companyData.name?.en || companyData.name?.ar || '';
 };
 
 function SortableQuestionItem({
@@ -154,6 +155,8 @@ function SortableQuestionItem({
   onRemove: () => void;
   onChoiceBufferChange: (value: string) => void;
 }) {
+  const { t } = useLocale();
+
   const {
     attributes,
     listeners,
@@ -188,20 +191,20 @@ function SortableQuestionItem({
 
       <div>
         <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-          Question
+          {t('interviewCompany.labelQuestion', 'settings')}
         </label>
         <input
           value={question.question}
           onChange={(e) => onUpdate({ question: e.target.value })}
           disabled={!canEdit}
-          placeholder="Tell us about a complex challenge you solved"
+          placeholder={t('interviewCompany.questionPlaceholder', 'settings')}
           className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900"
         />
       </div>
 
       <div>
         <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-          Answer Type
+          {t('interviewCompany.labelAnswerType', 'settings')}
         </label>
         <select
           value={question.answerType}
@@ -217,7 +220,7 @@ function SortableQuestionItem({
 
       <div>
         <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-          Score
+          {t('interviewCompany.labelScore', 'settings')}
         </label>
         <input
           type="number"
@@ -243,7 +246,7 @@ function SortableQuestionItem({
       {(question.answerType === 'radio' || question.answerType === 'dropdown') && (
         <div className="lg:col-span-5">
           <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Choices
+            {t('interviewCompany.labelChoices', 'settings')}
           </label>
           <div className="mb-2 flex flex-wrap gap-2">
             {(Array.isArray(question.choices) ? question.choices : []).map((c: string) => (
@@ -259,7 +262,7 @@ function SortableQuestionItem({
                     onUpdate({ choices: existing.filter((x: string) => String(x) !== String(c)) });
                   }}
                   className="cursor-pointer pl-2 text-gray-500 group-hover:text-gray-400 dark:text-gray-400"
-                  aria-label={`Remove ${c}`}
+                  aria-label={t('interviewCompany.removeChoice', 'settings', { value: c })}
                 >
                   <svg className="fill-current" width="14" height="14" viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg">
                     <path fillRule="evenodd" clipRule="evenodd" d="M3.40717 4.46881C3.11428 4.17591 3.11428 3.70104 3.40717 3.40815C3.70006 3.11525 4.17494 3.11525 4.46783 3.40815L6.99943 5.93975L9.53095 3.40822C9.82385 3.11533 10.2987 3.11533 10.5916 3.40822C10.8845 3.70112 10.8845 4.17599 10.5916 4.46888L8.06009 7.00041L10.5916 9.53193C10.8845 9.82482 10.8845 10.2997 10.5916 10.5926C10.2987 10.8855 9.82385 10.8855 9.53095 10.5926L6.99943 8.06107L4.46783 10.5927C4.17494 10.8856 3.70006 10.8856 3.40717 10.5927C3.11428 10.2998 3.11428 9.8249 3.40717 9.53201L5.93877 7.00041L3.40717 4.46881Z" />
@@ -289,7 +292,7 @@ function SortableQuestionItem({
               onUpdate({ choices: [...existing, buf] });
               onChoiceBufferChange('');
             }}
-            placeholder="Type a choice and press Enter"
+            placeholder={t('interviewCompany.choicesPlaceholder', 'settings')}
             className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900"
           />
         </div>
@@ -300,6 +303,7 @@ function SortableQuestionItem({
 
 export default function InterviewCompanySettingsPage() {
   const { user, hasPermission } = useAuth();
+  const { t } = useLocale();
   const { data: companies = [], isLoading: isCompaniesLoading } =
     useCompanies();
 
@@ -417,7 +421,7 @@ export default function InterviewCompanySettingsPage() {
   const addGroup = () => {
     setGroups((prev) => [
       {
-        name: `Group ${prev.length + 1}`,
+        name: t('interviewCompany.defaultGroupName', 'settings', { number: prev.length + 1 }),
         questions: [{ ...EMPTY_QUESTION }],
       },
       ...prev,
@@ -516,8 +520,8 @@ export default function InterviewCompanySettingsPage() {
       const group = groups[groupIndex];
       if (!group.name.trim()) {
         Swal.fire(
-          'Validation',
-          `Group ${groupIndex + 1} must have a name.`,
+          t('commonValidation', 'settings'),
+          t('interviewCompany.validationGroupMustHaveName', 'settings', { number: groupIndex + 1 }),
           'warning'
         );
         return null;
@@ -532,8 +536,8 @@ export default function InterviewCompanySettingsPage() {
 
         if (!question.question.trim()) {
           Swal.fire(
-            'Validation',
-            `Question ${questionIndex + 1} in group ${groupIndex + 1} must not be empty.`,
+            t('commonValidation', 'settings'),
+            t('interviewCompany.validationQuestionNotEmpty', 'settings', { qNumber: questionIndex + 1, gNumber: groupIndex + 1 }),
             'warning'
           );
           return null;
@@ -541,8 +545,8 @@ export default function InterviewCompanySettingsPage() {
 
         if (!Number.isFinite(question.score)) {
           Swal.fire(
-            'Validation',
-            `Question ${questionIndex + 1} in group ${groupIndex + 1} needs a valid numeric score.`,
+            t('commonValidation', 'settings'),
+            t('interviewCompany.validationQuestionNeedsScore', 'settings', { qNumber: questionIndex + 1, gNumber: groupIndex + 1 }),
             'warning'
           );
           return null;
@@ -554,8 +558,8 @@ export default function InterviewCompanySettingsPage() {
           (!Array.isArray(question.choices) || question.choices.length === 0)
         ) {
           Swal.fire(
-            'Validation',
-            `Question ${questionIndex + 1} in group ${groupIndex + 1} must include at least one choice for radio/dropdown.`,
+            t('commonValidation', 'settings'),
+            t('interviewCompany.validationChoiceRequired', 'settings', { qNumber: questionIndex + 1, gNumber: groupIndex + 1 }),
             'warning'
           );
           return null;
@@ -580,7 +584,7 @@ export default function InterviewCompanySettingsPage() {
 
   const handleSaveAll = async () => {
     if (!selectedCompanyId) {
-      Swal.fire('Validation', 'Please select a company first.', 'warning');
+      Swal.fire(t('commonValidation', 'settings'), t('interviewCompany.validationSelectCompany', 'settings'), 'warning');
       return;
     }
 
@@ -592,8 +596,8 @@ export default function InterviewCompanySettingsPage() {
 
     if (!settingsId) {
       Swal.fire(
-        'Validation',
-        'Company settings not found. Please contact support.',
+        t('commonValidation', 'settings'),
+        t('interviewCompany.validationSettingsNotFound', 'settings'),
         'warning'
       );
       return;
@@ -612,15 +616,15 @@ export default function InterviewCompanySettingsPage() {
       });
 
       Swal.fire({
-        title: 'Saved',
+        title: t('commonSaved', 'settings'),
         icon: 'success',
         timer: 1200,
         showConfirmButton: false,
       });
     } catch (error: any) {
       Swal.fire(
-        'Save Failed',
-        error?.message || 'Failed to save interview settings.',
+        t('interviewCompany.swalSaveFailed', 'settings'),
+        error?.message || t('interviewCompany.swalSaveFailedMsg', 'settings'),
         'error'
       );
     } finally {
@@ -636,11 +640,10 @@ export default function InterviewCompanySettingsPage() {
             <ShieldCheck className="size-8" />
           </div>
           <h2 className="text-2xl font-bold tracking-tight">
-            Restricted Protocol
+            {t('interviewCompany.noPermissionTitle', 'settings')}
           </h2>
           <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-slate-500 dark:text-slate-400">
-            Your account does not have permission to manage interview
-            configuration.
+            {t('interviewCompany.noPermissionDesc', 'settings')}
           </p>
         </div>
       </div>
@@ -650,10 +653,10 @@ export default function InterviewCompanySettingsPage() {
   return (
     <div className="min-h-screen bg-slate-50 p-4 text-slate-900 dark:bg-slate-950 dark:text-slate-100 sm:p-8">
       <PageMeta
-        title="Interview Settings | Job Application Maker"
-        description="Manage interview groups, questions, reject reasons, email templates, and gradient settings per company"
+        title={t('interviewCompany.pageMetaTitle', 'settings')}
+        description={t('interviewCompany.pageMetaDesc', 'settings')}
       />
-      <PageBreadCrumb pageTitle="Interview Configuration" />
+      <PageBreadCrumb pageTitle={t('interviewCompany.pageBreadcrumb', 'settings')} />
 
       <div className="mx-auto max-w-7xl space-y-6">
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -664,14 +667,13 @@ export default function InterviewCompanySettingsPage() {
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600/80 dark:text-brand-300">
-                  Interview Settings
+                  {t('interviewCompany.sectionTitle', 'settings')}
                 </p>
                 <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
-                  Company Interview Playbook
+                  {t('interviewCompany.title', 'settings')}
                 </h1>
                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                  Define interview groups, scoring rules, answer types, email
-                  templates, and rejection reasons from a unified screen.
+                  {t('interviewCompany.description', 'settings')}
                 </p>
               </div>
             </div>
@@ -686,7 +688,7 @@ export default function InterviewCompanySettingsPage() {
                 ) : (
                   <Save className="size-4" />
                 )}
-                Save All
+                {t('interviewCompany.saveAll', 'settings')}
                 <ArrowRight className="size-4" />
               </button>
             )}
@@ -702,7 +704,7 @@ export default function InterviewCompanySettingsPage() {
                   : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800'
               }`}
             >
-              <ClipboardList className="size-4" /> Interview Groups
+              <ClipboardList className="size-4" /> {t('interviewCompany.tabInterviewGroups', 'settings')}
             </button>
 
             <button
@@ -714,7 +716,7 @@ export default function InterviewCompanySettingsPage() {
                   : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800'
               }`}
             >
-              <Ban className="size-4" /> Rejection Reasons
+              <Ban className="size-4" /> {t('interviewCompany.tabRejectionReasons', 'settings')}
             </button>
 
             <button
@@ -726,7 +728,7 @@ export default function InterviewCompanySettingsPage() {
                   : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800'
               }`}
             >
-              <Settings className="size-4" /> Statuses
+              <Settings className="size-4" /> {t('interviewCompany.tabStatuses', 'settings')}
             </button>
 
             {/* New Email Templates Tab */}
@@ -739,7 +741,7 @@ export default function InterviewCompanySettingsPage() {
                   : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800'
               }`}
             >
-              <Mail className="size-4" /> Email Templates
+              <Mail className="size-4" /> {t('interviewCompany.tabEmailTemplates', 'settings')}
             </button>
             <button
               type="button"
@@ -750,7 +752,7 @@ export default function InterviewCompanySettingsPage() {
                   : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800'
               }`}
             >
-              <Layout className="size-4" /> Applicant Pages
+              <Layout className="size-4" /> {t('interviewCompany.tabApplicantPages', 'settings')}
             </button>
             <button
               type="button"
@@ -761,7 +763,7 @@ export default function InterviewCompanySettingsPage() {
                   : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800'
               }`}
             >
-              <FileText className="size-4" /> Offer Templates
+              <FileText className="size-4" /> {t('interviewCompany.tabOfferTemplates', 'settings')}
             </button>
             <button
               type="button"
@@ -772,7 +774,7 @@ export default function InterviewCompanySettingsPage() {
                   : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800'
               }`}
             >
-              <FileText className="size-4" /> Contract Templates
+              <FileText className="size-4" /> {t('interviewCompany.tabContractTemplates', 'settings')}
             </button>
           </div>
 
@@ -780,15 +782,15 @@ export default function InterviewCompanySettingsPage() {
             <div className="grid grid-cols-1 gap-4 p-6 md:grid-cols-4">
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/60">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                  Company
+                  {t('interviewCompany.statCompany', 'settings')}
                 </p>
                 <p className="mt-1 truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
-                  {getCompanyName(selectedCompany) || 'No company selected'}
+                  {getCompanyName(selectedCompany) || t('interviewCompany.statNoCompany', 'settings')}
                 </p>
               </div>
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/60">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                  Interview Groups
+                  {t('interviewCompany.statInterviewGroups', 'settings')}
                 </p>
                 <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
                   {groups.length}
@@ -796,7 +798,7 @@ export default function InterviewCompanySettingsPage() {
               </div>
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/60">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                  Total Questions
+                  {t('interviewCompany.statTotalQuestions', 'settings')}
                 </p>
                 <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
                   {totalQuestions}
@@ -804,10 +806,10 @@ export default function InterviewCompanySettingsPage() {
               </div>
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/60">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                  Save Status
+                  {t('interviewCompany.statSaveStatus', 'settings')}
                 </p>
                 <p className="mt-1 inline-flex items-center gap-2 text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-                  <CircleCheckBig className="size-4" /> Ready
+                  <CircleCheckBig className="size-4" /> {t('interviewCompany.statReady', 'settings')}
                 </p>
               </div>
             </div>
@@ -829,7 +831,7 @@ export default function InterviewCompanySettingsPage() {
                     <Building2 className="size-5" />
                   </div>
                   <h3 className="text-lg font-semibold tracking-tight">
-                    Active Company
+                    {t('interviewCompany.companySelectorTitle', 'settings')}
                   </h3>
                 </div>
                 <div className="relative">
@@ -842,14 +844,14 @@ export default function InterviewCompanySettingsPage() {
                   >
                     {(companies as CompanyShape[]).map((company) => (
                       <option key={company._id} value={company._id}>
-                        {getCompanyName(company)}
+                        {getCompanyName(company) || t('interviewCompany.unnamedCompany', 'settings')}
                       </option>
                     ))}
                   </select>
                   <ArrowRight className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 rotate-90 text-slate-400" />
                 </div>
                 <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-                  Switch company context to manage settings for another company.
+                  {t('interviewCompany.companySelectorHelp', 'settings')}
                 </p>
               </div>
             )}
@@ -871,11 +873,10 @@ export default function InterviewCompanySettingsPage() {
                     </div>
                     <div>
                       <h2 className="text-xl font-semibold tracking-tight">
-                        Interview Groups
+                        {t('interviewCompany.interviewGroupsTitle', 'settings')}
                       </h2>
                       <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                        Create question groups and choose the answer type for
-                        each question.
+                        {t('interviewCompany.interviewGroupsDesc', 'settings')}
                       </p>
                     </div>
                   </div>
@@ -886,14 +887,14 @@ export default function InterviewCompanySettingsPage() {
                     disabled={!canEdit}
                     className="inline-flex items-center gap-2 self-start rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    <PlusCircle className="size-4" /> Add Group
+                    <PlusCircle className="size-4" /> {t('interviewCompany.addGroup', 'settings')}
                   </button>
                 </div>
 
                 <div className="space-y-5 p-6">
                   {isLoading && (
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
-                      Loading company interview settings...
+                      {t('interviewCompany.loading', 'settings')}
                     </div>
                   )}
 
@@ -901,8 +902,7 @@ export default function InterviewCompanySettingsPage() {
                     <div className="rounded-xl border border-dashed border-slate-300 px-6 py-10 text-center dark:border-slate-700">
                       <ClipboardList className="mx-auto mb-3 size-10 text-slate-300 dark:text-slate-600" />
                       <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                        No interview groups yet. Add your first group to get
-                        started.
+                        {t('interviewCompany.emptyState', 'settings')}
                       </p>
                     </div>
                   )}
@@ -938,7 +938,7 @@ export default function InterviewCompanySettingsPage() {
                           )}
                           <div className="min-w-0 flex-1">
                             <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                              Group Name
+                              {t('interviewCompany.labelGroupName', 'settings')}
                             </label>
                             <input
                               value={group.name}
@@ -946,12 +946,12 @@ export default function InterviewCompanySettingsPage() {
                                 updateGroupName(groupIndex, e.target.value)
                               }
                               disabled={!canEdit}
-                              placeholder="Technical Assessment"
+                              placeholder={t('interviewCompany.groupNamePlaceholder', 'settings')}
                               className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-800"
                             />
                           </div>
                           <span className="shrink-0 text-xs text-slate-400">
-                            {group.questions.length} question{group.questions.length !== 1 ? 's' : ''}
+                            {t('interviewCompany.questionCount', 'settings', { count: group.questions.length })}
                           </span>
                           <button
                             type="button"
@@ -962,7 +962,7 @@ export default function InterviewCompanySettingsPage() {
                             disabled={!canEdit}
                             className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300"
                           >
-                            <Trash2 className="size-4" /> Remove
+                            <Trash2 className="size-4" /> {t('interviewCompany.remove', 'settings')}
                           </button>
                         </button>
 
@@ -1015,19 +1015,19 @@ export default function InterviewCompanySettingsPage() {
                                           <GripVertical className="size-4 text-brand-500" />
                                         </div>
                                         <div>
-                                          <div className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Question</div>
+                                          <div className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{t('interviewCompany.dragOverlayQuestion', 'settings')}</div>
                                           <div className="w-full rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm text-slate-700 dark:border-brand-700 dark:bg-slate-900 dark:text-slate-300">
-                                            {found.question || 'Empty question'}
+                                            {found.question || t('interviewCompany.emptyQuestion', 'settings')}
                                           </div>
                                         </div>
                                         <div>
-                                          <div className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Type</div>
+                                          <div className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{t('interviewCompany.dragOverlayType', 'settings')}</div>
                                           <div className="w-full rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm text-slate-700 dark:border-brand-700 dark:bg-slate-900 dark:text-slate-300">
                                             {found.answerType}
                                           </div>
                                         </div>
                                         <div>
-                                          <div className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Score</div>
+                                          <div className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{t('interviewCompany.dragOverlayScore', 'settings')}</div>
                                           <div className="w-full rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm text-slate-700 dark:border-brand-700 dark:bg-slate-900 dark:text-slate-300">
                                             {found.score}
                                           </div>
@@ -1050,7 +1050,7 @@ export default function InterviewCompanySettingsPage() {
                               disabled={!canEdit}
                               className="inline-flex items-center gap-2 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-sm font-medium text-brand-700 transition hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-brand-500/30 dark:bg-brand-500/10 dark:text-brand-300"
                             >
-                              <PlusCircle className="size-4" /> Add Question
+                              <PlusCircle className="size-4" /> {t('interviewCompany.addQuestion', 'settings')}
                             </button>
                           </div>
                         )}

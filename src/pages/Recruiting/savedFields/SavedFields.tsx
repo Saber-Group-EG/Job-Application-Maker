@@ -8,8 +8,10 @@ import Swal from '../../../utils/swal';
 import { PencilIcon, TrashBinIcon, PlusIcon } from "../../../icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { savedFieldsKeys } from "../../../hooks/queries/useUsers";
+import { useLocale } from '../../../context/LocaleContext';
 
 export default function SavedFields() {
+  const { t } = useLocale();
   const navigate = useNavigate();
   const { data, isLoading } = useSavedFields();
   const deleteMutation = useDeleteSavedField();
@@ -29,13 +31,13 @@ export default function SavedFields() {
 
   const handleDelete = async (fieldId: string) => {
     const result = await Swal.fire({
-      title: "Delete Saved Field?",
-      text: "This action is permanent and cannot be undone.",
+      title: t('deleteConfirmTitle', 'savedFields'),
+      text: t('deleteConfirmText', 'savedFields'),
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#EF4444",
       cancelButtonColor: "#6B7280",
-      confirmButtonText: "Delete Template",
+      confirmButtonText: t('deleteConfirmButton', 'savedFields'),
       customClass: {
         popup: "rounded-3xl border-none",
         confirmButton: "rounded-xl px-6 py-2.5 font-bold",
@@ -47,7 +49,7 @@ export default function SavedFields() {
     setDeletingIds((s) => ({ ...s, [fieldId]: true }));
     deleteMutation.mutate(fieldId, {
       onError: (err) => {
-        Swal.fire({ title: "Error", text: String((err as any)?.message || err), icon: "error" });
+        Swal.fire({ title: t('deleteError', 'savedFields'), text: String((err as any)?.message || err), icon: "error" });
         setDeletingIds((s) => {
           const copy = { ...s };
           delete copy[fieldId];
@@ -68,12 +70,12 @@ export default function SavedFields() {
   if (isLoading) {
     return (
       <div className="min-h-screen space-y-6 pb-20">
-        <PageMeta title="Saved Fields" description="Loading field templates..." />
+        <PageMeta title={t('metaTitle', 'savedFields')} description={t('metaLoadingDescription', 'savedFields')} />
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <PageBreadcrumb pageTitle="Saved Fields" />
+          <PageBreadcrumb pageTitle={t('pageTitle', 'savedFields')} />
         </div>
         <div className="flex flex-col items-center justify-center py-20">
-          <LoadingSpinner fullPage message="Locating your field templates..." />
+          <LoadingSpinner fullPage message={t('loadingMessage', 'savedFields')} />
         </div>
       </div>
     );
@@ -84,16 +86,16 @@ export default function SavedFields() {
 
   return (
     <div className="mx-auto max-w-[1200px] space-y-8 pb-20">
-      <PageMeta title="Saved Fields" description="Manage your reusable field templates" />
+      <PageMeta title={t('metaTitle', 'savedFields')} description={t('metaDescription', 'savedFields')} />
       
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <PageBreadcrumb pageTitle="Saved Fields" />
+        <PageBreadcrumb pageTitle={t('pageTitle', 'savedFields')} />
         <button
           onClick={() => navigate(`/recruiting/saved-fields/create`)}
           className="inline-flex items-center gap-2 rounded-2xl bg-brand-500 px-6 py-3 text-sm font-bold text-white shadow-xl shadow-brand-500/25 transition-all hover:bg-brand-600 hover:shadow-brand-500/40 active:scale-95"
         >
           <PlusIcon className="size-5" />
-          Create New Saved Field
+          {t('createNewField', 'savedFields')}
         </button>
       </div>
 
@@ -101,8 +103,8 @@ export default function SavedFields() {
         <div className="p-8">
           <div className="mb-8 flex items-center justify-between">
             <div>
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Saved Fields</h3>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Total of {activeFields.length} reusable field templates found</p>
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{t('sectionTitle', 'savedFields')}</h3>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{t('totalTemplates', 'savedFields', { count: activeFields.length })}</p>
             </div>
             <div className="h-12 w-12 rounded-2xl bg-brand-50 flex items-center justify-center dark:bg-brand-500/10">
               <svg className="size-6 text-brand-600 dark:text-brand-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -118,8 +120,8 @@ export default function SavedFields() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                 </svg>
               </div>
-              <h4 className="mt-6 text-lg font-bold text-gray-900 dark:text-white">You Didn't Create Saved Fields Yet</h4>
-              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 max-w-xs text-center">Start by creating your first reusable field template for job applications.</p>
+              <h4 className="mt-6 text-lg font-bold text-gray-900 dark:text-white">{t('emptyTitle', 'savedFields')}</h4>
+              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 max-w-xs text-center">{t('emptyDescription', 'savedFields')}</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -137,13 +139,13 @@ export default function SavedFields() {
                           </span>
                         </div>
                         {f.isRequired && (
-                          <span className="rounded-full bg-error-50 px-2 py-0.5 text-[10px] font-bold text-error-600 dark:bg-error-500/10 dark:text-error-400 uppercase">Required</span>
+                          <span className="rounded-full bg-error-50 px-2 py-0.5 text-[10px] font-bold text-error-600 dark:bg-error-500/10 dark:text-error-400 uppercase">{t('requiredBadge', 'savedFields')}</span>
                         )}
                       </div>
                       
                       <div>
                         <h4 className="truncate text-lg font-bold text-gray-900 dark:text-white group-hover:text-brand-600 transition-colors">
-                          {typeof f.label === "string" ? f.label : (f.label?.en || "Untitled Field")}
+                          {typeof f.label === "string" ? f.label : (f.label?.en || t('untitledField', 'savedFields'))}
                         </h4>
                         {typeof f.label !== "string" && f.label?.ar && (
                           <p className="mt-1 truncate text-sm text-gray-400 font-medium" dir="rtl">{f.label.ar}</p>
@@ -152,16 +154,16 @@ export default function SavedFields() {
 
                       <div className="flex flex-wrap gap-2">
                         <div className="rounded-xl bg-blue-50/50 px-3 py-1.5 text-xs font-semibold text-blue-600 dark:bg-blue-500/10 dark:text-blue-400">
-                          Type: {f.inputType?.replace(/_/g, " ") || "text"}
+                          {t('typeLabel', 'savedFields', { type: f.inputType?.replace(/_/g, " ") || "text" })}
                         </div>
                         {(f.choices || []).length > 0 && (
                           <div className="rounded-xl bg-amber-50/50 px-3 py-1.5 text-xs font-semibold text-amber-600 dark:bg-amber-500/10 dark:text-amber-400">
-                            {f.choices.length} Options
+                            {t('optionsCount', 'savedFields', { count: f.choices.length })}
                           </div>
                         )}
                         {(f.groupFields || []).length > 0 && (
                           <div className="rounded-xl bg-purple-50/50 px-3 py-1.5 text-xs font-semibold text-purple-600 dark:bg-purple-500/10 dark:text-purple-400">
-                            {f.groupFields.length} Nested Fields
+                            {t('nestedFieldsCount', 'savedFields', { count: f.groupFields.length })}
                           </div>
                         )}
                       </div>
@@ -171,7 +173,7 @@ export default function SavedFields() {
                       <button 
                         onClick={() => handleEdit(f)}
                         className="rounded-xl p-2.5 text-gray-400 bg-gray-50 hover:bg-brand-50 hover:text-brand-600 transition-all dark:bg-gray-800 dark:hover:bg-brand-500/10 dark:hover:text-brand-400"
-                        title="Edit Template"
+                        title={t('editTemplateTitle', 'savedFields')}
                       >
                         <PencilIcon className="size-5" />
                       </button>
@@ -179,7 +181,7 @@ export default function SavedFields() {
                         onClick={() => handleDelete(f.fieldId)}
                         disabled={deletingIds[f.fieldId]}
                         className="rounded-xl p-2.5 text-gray-400 bg-gray-50 hover:bg-error-50 hover:text-error-600 transition-all dark:bg-gray-800 dark:hover:bg-error-500/10 dark:hover:text-error-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                        title="Delete Template"
+                        title={t('deleteTemplateTitle', 'savedFields')}
                       >
                         <TrashBinIcon className="size-5" />
                       </button>

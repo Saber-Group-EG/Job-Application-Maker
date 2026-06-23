@@ -30,6 +30,7 @@ import Swal from '../../../utils/swal';
 import JobContractModal from '../../../components/modals/ContractModal/ContractModal';
 import { useDebounce } from '../../../hooks/useDebounce';
 import { SidebarNavItem } from '../../../components/common/SidebarNavItem';
+import { useLocale } from '../../../context/LocaleContext';
 import { ContractDetail } from './ContractDetails';
 import {
   useUpdateContractStatus,
@@ -47,12 +48,12 @@ const STATUS_OPTIONS: Array<{
   label: string;
   icon: React.ElementType;
 }> = [
-  { key: 'all', label: 'All', icon: Hash },
-  { key: 'draft', label: 'Draft', icon: FileText },
-  { key: 'sent', label: 'Sent', icon: Send },
-  { key: 'signed', label: 'Signed', icon: CheckCircle2 },
-  { key: 'rejected', label: 'Rejected', icon: XCircle },
-  { key: 'expired', label: 'Expired', icon: AlertCircle },
+  { key: 'all', label: 'statusAll', icon: Hash },
+  { key: 'draft', label: 'statusDraft', icon: FileText },
+  { key: 'sent', label: 'statusSent', icon: Send },
+  { key: 'signed', label: 'statusSigned', icon: CheckCircle2 },
+  { key: 'rejected', label: 'statusRejected', icon: XCircle },
+  { key: 'expired', label: 'statusExpired', icon: AlertCircle },
 ];
 
 export const STATUS_CHIP: Record<
@@ -101,6 +102,7 @@ export const CONTRACT_TYPE_COLORS: Record<string, string> = {
 
 export default function JobContractsPage() {
   const { hasPermission } = useAuth();
+  const { t } = useLocale();
   const queryClient = useQueryClient();
   const { data: companies = [] } = useCompanies();
 
@@ -173,11 +175,11 @@ export default function JobContractsPage() {
 
   const handleDelete = async (id: string) => {
     const result = await Swal.fire({
-      title: 'Delete Contract?',
-      text: 'This action cannot be undone.',
+      title: t('deleteTitle', 'jobContracts'),
+      text: t('deleteText', 'jobContracts'),
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonText: 'Delete',
+      confirmButtonText: t('deleteConfirm', 'jobContracts'),
       confirmButtonColor: '#ef4444',
     });
     if (result.isConfirmed) {
@@ -247,8 +249,8 @@ export default function JobContractsPage() {
               <div className="mb-6 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <FileSignature className="h-6 w-6 text-brand-600" />
-                  <span className="text-lg font-bold text-slate-800 dark:text-white">
-                    Contracts
+                    <span className="text-lg font-bold text-slate-800 dark:text-white">
+                    {t('sidebarTitle', 'jobContracts')}
                   </span>
                 </div>
               </div>
@@ -258,7 +260,7 @@ export default function JobContractsPage() {
                   <SidebarNavItem
                     key={opt.key}
                     icon={opt.icon}
-                    label={opt.label}
+                    label={t(opt.label, 'jobContracts')}
                     count={getStatusCount(opt.key)}
                     active={statusFilter === opt.key}
                     onClick={() => setStatusFilter(opt.key)}
@@ -269,29 +271,29 @@ export default function JobContractsPage() {
               {/* Stats summary */}
               <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/40">
                 <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
-                  Summary
+                  {t('summaryTitle', 'jobContracts')}
                 </p>
                 <div className="space-y-2">
                   <div className="flex justify-between text-xs">
-                    <span className="text-slate-500">Total Contracts</span>
+                    <span className="text-slate-500">{t('totalContracts', 'jobContracts')}</span>
                     <span className="font-semibold text-slate-700 dark:text-slate-300">
                       {total}
                     </span>
                   </div>
                   <div className="flex justify-between text-xs">
-                    <span className="text-slate-500">Signed</span>
+                    <span className="text-slate-500">{t('signed', 'jobContracts')}</span>
                     <span className="font-semibold text-emerald-600">
                       {contracts.filter((c) => c.status === 'signed').length}
                     </span>
                   </div>
                   <div className="flex justify-between text-xs">
-                    <span className="text-slate-500">Pending</span>
+                    <span className="text-slate-500">{t('pending', 'jobContracts')}</span>
                     <span className="font-semibold text-blue-600">
                       {contracts.filter((c) => c.status === 'sent').length}
                     </span>
                   </div>
                   <div className="flex justify-between text-xs">
-                    <span className="text-slate-500">Rejected</span>
+                    <span className="text-slate-500">{t('rejected', 'jobContracts')}</span>
                     <span className="font-semibold text-red-500">
                       {contracts.filter((c) => c.status === 'rejected').length}
                     </span>
@@ -310,7 +312,7 @@ export default function JobContractsPage() {
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search contracts..."
+                  placeholder={t('searchPlaceholder', 'jobContracts')}
                   className="w-full rounded-full border border-slate-200 bg-slate-50 py-2 pl-10 pr-4 text-sm focus:border-brand-300 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-slate-700 dark:bg-slate-800/50 dark:text-white"
                 />
               </div>
@@ -325,7 +327,7 @@ export default function JobContractsPage() {
                   }}
                   className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 focus:border-brand-300 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-300"
                 >
-                  <option value="all">All Companies</option>
+                  <option value="all">{t('allCompanies', 'jobContracts')}</option>
                   {companies.map((c) => (
                     <option key={c._id} value={c._id}>
                       {typeof c.name === 'string'
@@ -344,7 +346,7 @@ export default function JobContractsPage() {
                   }}
                   className="inline-flex shrink-0 items-center gap-2 rounded-full bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700"
                 >
-                  <PlusCircle className="h-4 w-4" /> New Contract
+                  <PlusCircle className="h-4 w-4" /> {t('newContract', 'jobContracts')}
                 </button>
               )}
             </div>
@@ -364,7 +366,7 @@ export default function JobContractsPage() {
                     }`}
                   >
                     <Icon className="size-3" />
-                    {opt.label}
+                    {t(opt.label, 'jobContracts')}
                     {getStatusCount(opt.key) > 0 && (
                       <span
                         className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
@@ -397,12 +399,12 @@ export default function JobContractsPage() {
                     <Briefcase className="h-8 w-8 text-slate-400" />
                   </div>
                   <h3 className="mt-4 text-lg font-medium text-slate-900 dark:text-white">
-                    No contracts found
+                    {t('emptyTitle', 'jobContracts')}
                   </h3>
                   <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                     {search || statusFilter !== 'all'
-                      ? 'Try adjusting your filters'
-                      : 'Create the first contract for your team'}
+                      ? t('emptyDescFilter', 'jobContracts')
+                      : t('emptyDescCreate', 'jobContracts')}
                   </p>
                   {canWrite && !search && statusFilter === 'all' && (
                     <button
@@ -412,7 +414,7 @@ export default function JobContractsPage() {
                       }}
                       className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-600"
                     >
-                      <PlusCircle className="size-4" /> New Contract
+                      <PlusCircle className="size-4" /> {t('newContract', 'jobContracts')}
                     </button>
                   )}
                 </div>
@@ -494,21 +496,21 @@ export default function JobContractsPage() {
                                 <button
                                   onClick={() => handleEdit(contract)}
                                   className="flex size-6 items-center justify-center rounded text-slate-300 hover:text-brand-500"
-                                  title="Edit"
+                                  title={t('edit', 'jobContracts')}
                                 >
                                   <Pencil className="size-3" />
                                 </button>
                                 <button
                                   onClick={() => handleClone(contract)}
                                   className="flex size-6 items-center justify-center rounded text-slate-300 hover:text-emerald-500"
-                                  title="Clone"
+                                  title={t('clone', 'jobContracts')}
                                 >
                                   <Copy className="size-3" />
                                 </button>
                                 <button
                                   onClick={() => handleDelete(contract._id)}
                                   className="flex size-6 items-center justify-center rounded text-slate-300 hover:text-red-500"
-                                  title="Delete"
+                                  title={t('delete', 'jobContracts')}
                                 >
                                   <Trash2 className="size-3" />
                                 </button>
@@ -531,17 +533,17 @@ export default function JobContractsPage() {
                     className="flex items-center gap-1 rounded-md px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-100 disabled:opacity-40 dark:text-slate-400 dark:hover:bg-slate-800"
                   >
                     <ChevronLeft className="h-4 w-4" />
-                    Previous
+                    {t('previous', 'jobContracts')}
                   </button>
                   <span className="text-sm text-slate-500 dark:text-slate-400">
-                    {page} of {totalPages} · {total} total
+                    {t('paginationInfo', 'jobContracts', { page, totalPages, total })}
                   </span>
                   <button
                     disabled={page === totalPages}
                     onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                     className="flex items-center gap-1 rounded-md px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-100 disabled:opacity-40 dark:text-slate-400 dark:hover:bg-slate-800"
                   >
-                    Next
+                    {t('next', 'jobContracts')}
                     <ChevronRight className="h-4 w-4" />
                   </button>
                 </div>
@@ -565,7 +567,7 @@ export default function JobContractsPage() {
             <div className="mb-6 flex items-center gap-2">
               <FileSignature className="h-6 w-6 text-brand-600" />
               <span className="text-lg font-bold text-slate-800 dark:text-white">
-                Contracts
+                {t('sidebarTitle', 'jobContracts')}
               </span>
             </div>
             <div className="space-y-1">
@@ -573,7 +575,7 @@ export default function JobContractsPage() {
                 <SidebarNavItem
                   key={opt.key}
                   icon={opt.icon}
-                  label={opt.label}
+                  label={t(opt.label, 'jobContracts')}
                   count={getStatusCount(opt.key)}
                   active={statusFilter === opt.key}
                   onClick={() => {

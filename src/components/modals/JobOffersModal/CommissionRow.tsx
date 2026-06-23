@@ -7,6 +7,7 @@ import { FormCommission } from './JobOffersModal';
 import Label from '../../form/Label';
 import { CommissionType } from '../../../services/jobOffersService';
 import { translateText } from '../../../utils/translate';
+import { useLocale } from '../../../context/LocaleContext';
 
 const inputCls =
   'w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-brand-400';
@@ -31,6 +32,7 @@ export function CommissionRow({
   onRemove: () => void;
   onDuplicate: () => void;
 }) {
+  const { t } = useLocale();
   const {
     attributes,
     listeners,
@@ -65,7 +67,7 @@ export function CommissionRow({
             <GripVertical className="size-4" />
           </div>
           <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
-            Tier {index + 1}
+            {t('tier', 'modals', { index: index + 1 })}
           </span>
         </div>
         <div className="flex items-center gap-1">
@@ -92,7 +94,7 @@ export function CommissionRow({
         {' '}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:col-span-1">
           <div>
-            <Label>Label (EN)</Label>
+            <Label>{t('commissionLabelEn', 'modals')}</Label>
 
             <input
               className={inputCls}
@@ -105,14 +107,14 @@ export function CommissionRow({
                   },
                 })
               }
-              placeholder="e.g. Base Commission"
+              placeholder={t('commissionPlaceholderEn', 'modals')}
               tabIndex={0}
             />
           </div>
 
           <div>
             <div className="flex items-center justify-between">
-              <Label>Label (AR)</Label>
+              <Label>{t('commissionLabelAr', 'modals')}</Label>
               <button
                 type="button"
                 onClick={async () => {
@@ -126,7 +128,7 @@ export function CommissionRow({
                 }}
                 disabled={!comm.label.en.trim() && !comm.label.ar.trim()}
                 className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
-                title={comm.label.en.trim() ? 'Translate EN → AR' : 'Translate AR → EN'}
+                title={comm.label.en.trim() ? t('translateEnToAr', 'modals') : t('translateArToEn', 'modals')}
               >
                 <Languages className="size-3" />
               </button>
@@ -144,13 +146,13 @@ export function CommissionRow({
                   },
                 })
               }
-              placeholder="العمولة الأساسية"
+              placeholder={t('commissionPlaceholderAr', 'modals')}
               tabIndex={0}
             />
           </div>
         </div>
         <div>
-          <Label>Value</Label>
+          <Label>{t('commissionValue', 'modals')}</Label>
           <input
             className={inputCls}
             type="number"
@@ -166,7 +168,7 @@ export function CommissionRow({
           />
         </div>
         <div>
-          <Label>Type</Label>
+          <Label>{t('commissionType', 'modals')}</Label>
           <select
             className={selectCls}
             value={comm.type}
@@ -175,15 +177,15 @@ export function CommissionRow({
             }
             tabIndex={0}
           >
-            <option value="fixed">Fixed</option>
-            <option value="percentage">Percentage %</option>
+            <option value="fixed">{t('fixed', 'modals')}</option>
+            <option value="percentage">{t('percentage', 'modals')}</option>
           </select>
         </div>
       </div>
 
       <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
-          <Label>Condition (EN)</Label>
+          <Label>{t('commissionConditionEn', 'modals')}</Label>
 
           <textarea
             className={textareaCls}
@@ -197,14 +199,14 @@ export function CommissionRow({
                 },
               })
             }
-            placeholder='e.g. "for deals under 15,000 EGP"'
+            placeholder={t('conditionPlaceholderEn', 'modals')}
             tabIndex={0}
           />
         </div>
 
         <div>
           <div className="flex items-center justify-between">
-            <Label>Condition (AR)</Label>
+            <Label>{t('commissionConditionAr', 'modals')}</Label>
             <button
               type="button"
               onClick={async () => {
@@ -218,7 +220,7 @@ export function CommissionRow({
               }}
               disabled={!comm.condition.en.trim() && !comm.condition.ar.trim()}
               className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
-              title={comm.condition.en.trim() ? 'Translate EN → AR' : 'Translate AR → EN'}
+              title={comm.condition.en.trim() ? t('translateEnToAr', 'modals') : t('translateArToEn', 'modals')}
             >
               <Languages className="size-3" />
             </button>
@@ -237,7 +239,7 @@ export function CommissionRow({
                 },
               })
             }
-            placeholder="للصفقات الأقل من ١٥٬٠٠٠ جنيه"
+            placeholder={t('conditionPlaceholderAr', 'modals')}
             tabIndex={0}
           />
         </div>

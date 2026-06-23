@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, Download, Search, ChevronDown, ChevronRight } from 'lucide-react';
 import type { SectionTemplate } from '../../types/companies';
+import { useLocale } from '../../context/LocaleContext';
 
 type Props = {
   isOpen: boolean;
@@ -17,6 +18,7 @@ export default function ImportSectionsModal({
   sourceTemplates,
   sourceLabel,
 }: Props) {
+  const { t } = useLocale();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState('');
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
@@ -91,10 +93,10 @@ export default function ImportSectionsModal({
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-800">
           <div>
             <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
-              Import from {sourceLabel}
+              {t('importFrom', 'modals', { label: sourceLabel })}
             </h2>
             <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-              Select templates to copy into this list
+              {t('selectTemplatesCopy', 'modals')}
             </p>
           </div>
           <button
@@ -112,7 +114,7 @@ export default function ImportSectionsModal({
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
             <input
               className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800"
-              placeholder="Search sections…"
+              placeholder={t('searchSections', 'modals')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -126,12 +128,12 @@ export default function ImportSectionsModal({
         >
           {Object.keys(grouped).length === 0 ? (
             <p className="py-8 text-center text-sm text-slate-400">
-              No templates found
+              {t('noTemplatesFound', 'modals')}
             </p>
           ) : (
             <div className="space-y-3">
               {Object.entries(grouped).map(([cat, templates]) => {
-                const ids = templates.map((t) => t._id!).filter(Boolean);
+                const ids = templates.map((tmpl) => tmpl._id!).filter(Boolean);
                 const allSelected =
                   ids.length > 0 && ids.every((id) => selected.has(id));
                 const someSelected = ids.some((id) => selected.has(id));
@@ -176,32 +178,32 @@ export default function ImportSectionsModal({
                     {/* group items */}
                     {!isCollapsed && (
                       <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                        {templates.map((t) => (
+                        {templates.map((tmpl) => (
                           <label
-                            key={t._id}
+                            key={tmpl._id}
                             className="flex cursor-pointer items-start gap-3 px-3 py-2.5 transition hover:bg-slate-50 dark:hover:bg-slate-800/40"
                           >
                             <input
                               type="checkbox"
-                              checked={selected.has(t._id!)}
-                              onChange={() => toggleItem(t._id!)}
+                              checked={selected.has(tmpl._id!)}
+                              onChange={() => toggleItem(tmpl._id!)}
                               className="mt-0.5 size-4 cursor-pointer rounded border-slate-300 accent-brand-500"
                             />
                             <div className="min-w-0">
                               <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
-                                {t.title.en || t.title.ar}
+                                {tmpl.title.en || tmpl.title.ar}
                               </p>
-                              {t.title.en && t.title.ar && (
+                              {tmpl.title.en && tmpl.title.ar && (
                                 <p
                                   className="text-xs text-slate-400 dark:text-slate-500"
                                   dir="rtl"
                                 >
-                                  {t.title.ar}
+                                  {tmpl.title.ar}
                                 </p>
                               )}
                               <p className="mt-0.5 text-[11px] text-slate-400">
-                                {t.items.length} item
-                                {t.items.length !== 1 ? 's' : ''}
+                                {tmpl.items.length} item
+                                {tmpl.items.length !== 1 ? 's' : ''}
                               </p>
                             </div>
                           </label>
@@ -217,14 +219,14 @@ export default function ImportSectionsModal({
 
         {/* footer */}
         <div className="flex items-center justify-between border-t border-slate-200 px-5 py-4 dark:border-slate-800">
-          <p className="text-xs text-slate-500">{selected.size} selected</p>
+          <p className="text-xs text-slate-500">{t('selected', 'modals', { count: selected.size })}</p>
           <div className="flex gap-2">
             <button
               type="button"
               onClick={onClose}
               className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800"
             >
-              Cancel
+              {t('cancel', 'modals')}
             </button>
             <button
               type="button"
@@ -233,7 +235,7 @@ export default function ImportSectionsModal({
               className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Download className="size-3.5" />
-              Import {selected.size > 0 ? `(${selected.size})` : ''}
+              {t('import', 'modals', { count: selected.size })}
             </button>
           </div>
         </div>

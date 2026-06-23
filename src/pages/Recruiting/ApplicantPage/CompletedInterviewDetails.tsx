@@ -22,6 +22,7 @@ import PageMeta from '../../../components/common/PageMeta';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import { useApplicant, useUpdateInterviewStatus, applicantsKeys } from '../../../hooks/queries/useApplicants';
 import Swal from '../../../utils/swal';
+import { useLocale } from '../../../context/LocaleContext';
 import type {
   Interview,
   InterviewAnswer,
@@ -246,6 +247,7 @@ const CompletedInterviewDetails: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   const passedInterview = (location.state as { interview?: CompletedInterview; mode?: string } | null)
     ?.interview;
@@ -304,8 +306,8 @@ const CompletedInterviewDetails: React.FC = () => {
       });
       queryClient.invalidateQueries({ queryKey: applicantsKeys.detail(applicantId) });
       await Swal.fire({
-        title: 'Success',
-        text: 'Interview updated successfully.',
+        title: t('success', 'common'),
+        text: t('interviewUpdated', 'common'),
         icon: 'success',
         timer: 1500,
         showConfirmButton: false,
@@ -313,8 +315,8 @@ const CompletedInterviewDetails: React.FC = () => {
       navigate(paths.applicants.details(applicantId));
     } catch (error) {
       await Swal.fire({
-        title: 'Error',
-        text: 'Failed to update interview.',
+        title: t('error', 'common'),
+        text: t('interviewUpdateFailed', 'common'),
         icon: 'error',
       });
     } finally {

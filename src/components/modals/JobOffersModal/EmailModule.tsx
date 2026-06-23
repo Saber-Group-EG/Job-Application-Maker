@@ -1,5 +1,6 @@
 import { useMemo, useEffect } from 'react';
 import { Mail } from 'lucide-react';
+import { useLocale } from '../../../context/LocaleContext';
 import {
   useSendEmail,
   useSendBatchEmail,
@@ -359,6 +360,7 @@ export function EmailSettingsPanel({
   onSenderChange: (senderByCompany: Record<string, string>) => void;
   onLangChange: (lang: 'en' | 'ar') => void;
 }) {
+  const { t } = useLocale();
   const setSender = (cid: string, value: string) =>
     onSenderChange({ ...form.senderByCompany, [cid]: value });
 
@@ -367,11 +369,11 @@ export function EmailSettingsPanel({
       <div className="mb-3 flex items-center gap-2">
         <Mail className="size-4 text-brand-600 dark:text-brand-400" />
         <span className="text-sm font-semibold text-brand-700 dark:text-brand-300">
-          Email Settings
+          {t('emailSettings', 'modals')}
         </span>
       </div>
       <div className="mb-4">
-        <ModalLabel>Email Language</ModalLabel>
+        <ModalLabel>{t('emailLanguage', 'modals')}</ModalLabel>
         <div className="flex gap-2">
           {(['en', 'ar'] as const).map((lang) => (
             <button
@@ -385,7 +387,7 @@ export function EmailSettingsPanel({
                     : 'border-slate-200 bg-white text-slate-600 hover:border-brand-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
                 }`}
             >
-              {lang === 'en' ? 'English' : 'Arabic'}
+              {t(lang === 'en' ? 'english' : 'arabic', 'modals')}
             </button>
           ))}
         </div>
@@ -406,11 +408,11 @@ export function EmailSettingsPanel({
                       {name}
                     </p>
                     <span className="text-xs text-slate-500">
-                      {withEmail.length}/{applicants.length} have email
+                      {t('haveEmail', 'modals', { count: withEmail.length, total: applicants.length })}
                     </span>
                   </div>
 
-                  <ModalLabel>Send From</ModalLabel>
+<ModalLabel>{t('sendFrom', 'modals')}</ModalLabel>
                   {senders.length > 0 ? (
                     <select
                       className={selectCls}
@@ -425,7 +427,7 @@ export function EmailSettingsPanel({
                     </select>
                   ) : (
                     <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-700 dark:border-amber-800/40 dark:bg-amber-900/10 dark:text-amber-400">
-                      ⚠️ No sender addresses configured for this company.
+                      {t('noSenderConfigured', 'modals')}
                     </p>
                   )}
 
@@ -447,7 +449,7 @@ export function EmailSettingsPanel({
                           </span>
                         ) : (
                           <span className="ml-auto text-[11px] text-amber-500">
-                            no email
+                            {t('noEmail', 'modals')}
                           </span>
                         )}
                       </li>
@@ -460,7 +462,7 @@ export function EmailSettingsPanel({
         </div>
       ) : (
         <>
-          <ModalLabel>Send From</ModalLabel>
+          <ModalLabel>{t('sendFrom', 'modals')}</ModalLabel>
           {(() => {
             const cid =
               form.selectedApplicantObject?.jobPositionId?.companyId?._id!;
@@ -479,15 +481,14 @@ export function EmailSettingsPanel({
               </select>
             ) : (
               <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-700 dark:border-amber-800/40 dark:bg-amber-900/10 dark:text-amber-400">
-                ⚠️ No sender addresses found for this company. Please configure
-                them in Company Settings first.
+                {t('noSenderFound', 'modals')}
               </p>
             );
           })()}
           <div className="mt-3">
-            <ModalLabel>Recipient</ModalLabel>
+            <ModalLabel>{t('recipient', 'modals')}</ModalLabel>
             <p className="text-sm text-slate-600 dark:text-slate-400">
-              Will be sent to the selected applicant's email address
+              {t('sentToApplicantEmail', 'modals')}
             </p>
           </div>
         </>

@@ -11,6 +11,7 @@ import InterviewQuestions from './components/InterviewData/InterviewQuestions';
 import History from './components/history/History';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import Swal from '../../../utils/swal';
+import { useLocale } from '../../../context/LocaleContext';
 import {
   useApplicant,
   useUpdateApplicant,
@@ -215,6 +216,7 @@ const Stickysidebar: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 const ApplicantDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { t } = useLocale();
 
   const { hasPermission } = useAuth();
   const canRestore = hasPermission('Restore Applicant', 'write') || hasPermission('Restore Applicant', 'create');
@@ -563,8 +565,8 @@ const ApplicantDetails: React.FC = () => {
       const toEmail = (applicant as { email?: string }).email;
       if (!toEmail) {
         await Swal.fire({
-          title: 'Email Skipped',
-          text: 'Interview scheduled, but the applicant has no email address on file, so no notification email was sent.',
+          title: t('emailSkipped', 'common'),
+          text: t('emailSkippedNoEmail', 'applicants'),
           icon: 'warning',
           confirmButtonColor: '#3085d6',
         });
@@ -574,8 +576,8 @@ const ApplicantDetails: React.FC = () => {
       const fromEmail = resolveSenderEmail(companyWithAddress as never, snapshot.customEmail);
       if (!fromEmail) {
         await Swal.fire({
-          title: 'Email Skipped',
-          text: 'Interview scheduled, but no sender email is configured for this company. To send notification emails, please select a sender in the Schedule Interview modal or configure the company default email in Mail Settings.',
+          title: t('emailSkipped', 'common'),
+          text: t('emailSkippedNoSender', 'applicants'),
           icon: 'warning',
           confirmButtonColor: '#3085d6',
         });
@@ -650,8 +652,8 @@ const ApplicantDetails: React.FC = () => {
         // The interview is already scheduled — only the email failed.
         const msg = getErrorMessage(mailErr);
         await Swal.fire({
-          title: 'Interview Scheduled',
-          text: `The interview was scheduled, but the notification email failed: ${msg}`,
+          title: t('interviewScheduled', 'common'),
+          text: t('interviewScheduledEmailFailed', 'applicants', { msg }),
           icon: 'warning',
           confirmButtonColor: '#3085d6',
         });
@@ -781,14 +783,14 @@ const ApplicantDetails: React.FC = () => {
     if (!id || !applicant) return;
     const previousStatus = getPreviousStatus(applicant);
     const result = await Swal.fire({
-      title: 'Restore applicant?',
-      text: `This will restore the applicant to "${previousStatus}" status.`,
+      title: t('restoreTitle', 'applicants'),
+      text: t('restoreText', 'applicants', { status: previousStatus }),
       icon: 'question',
       showCancelButton: true,
       confirmButtonColor: '#22c55e',
       cancelButtonColor: '#6b7280',
-      confirmButtonText: 'Restore',
-      cancelButtonText: 'Cancel',
+      confirmButtonText: t('restore', 'applicants'),
+      cancelButtonText: t('cancel', 'applicants'),
     });
     if (!result.isConfirmed) return;
     try {
@@ -996,14 +998,14 @@ const ApplicantDetails: React.FC = () => {
   const handleDelete = async () => {
     if (!id) return;
     const result = await Swal.fire({
-      title: 'Delete applicant?',
-      text: 'This action cannot be undone.',
+      title: t('deleteApplicantTitle', 'applicants'),
+      text: t('actionCannotBeUndone', 'common'),
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#dc2626',
       cancelButtonColor: '#6b7280',
-      confirmButtonText: 'Delete',
-      cancelButtonText: 'Cancel',
+      confirmButtonText: t('delete', 'common'),
+      cancelButtonText: t('cancel', 'common'),
     });
     if (!result.isConfirmed) return;
     try {
@@ -1017,8 +1019,8 @@ const ApplicantDetails: React.FC = () => {
   const handlePrint = useCallback(async () => {
     if (!applicant) return;
     Swal.fire({
-      title: 'Generating PDF',
-      text: 'Please wait while the applicant profile is being generated...',
+      title: t('generatingPdf', 'common'),
+      text: t('generatingPdfDesc', 'common'),
       allowOutsideClick: false,
       allowEscapeKey: false,
       showConfirmButton: false,
@@ -1030,8 +1032,8 @@ const ApplicantDetails: React.FC = () => {
     } catch {
       Swal.close();
       await Swal.fire({
-        title: 'Error',
-        text: 'Failed to generate the PDF. Please try again.',
+        title: t('error', 'common'),
+        text: t('pdfGenerationFailed', 'common'),
         icon: 'error',
         confirmButtonColor: '#3085d6',
       });

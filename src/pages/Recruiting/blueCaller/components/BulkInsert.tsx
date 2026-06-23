@@ -20,6 +20,7 @@ import Swal from '../../../../utils/swal';
 import { toPlainString } from '../../../../utils/strings';
 import type { Applicant } from '../../../../types/applicants';
 import type { JobPosition } from '../../../../types/jobPositions';
+import { useLocale } from '../../../../context/LocaleContext';
 
 type BulkApplicantRow = {
   rowNumber: number;
@@ -1183,6 +1184,7 @@ export default function BulkInsert({
   themeColors,
   onSuccess,
 }: BulkInsertProps) {
+  const { t } = useLocale();
   const [bulkSubmitting, setBulkSubmitting] = useState(false);
   const [bulkFileName, setBulkFileName] = useState('');
   const [bulkRows, setBulkRows] = useState<BulkApplicantRow[]>([]);
@@ -1238,10 +1240,10 @@ export default function BulkInsert({
   const handleDownloadTemplate = async () => {
     if (!selectedJobForTemplate) {
       Swal.fire({
-        title: 'Select a job position',
-        text: 'Please select a job position to download the template.',
+        title: t('selectJobPosition', 'common'),
+        text: t('selectJobPositionDesc', 'common'),
         icon: 'warning',
-        confirmButtonText: 'OK',
+        confirmButtonText: t('ok', 'common'),
       });
       return;
     }
@@ -1251,10 +1253,10 @@ export default function BulkInsert({
     );
     if (!jobPosition) {
       Swal.fire({
-        title: 'Job not found',
-        text: 'The selected job position could not be found.',
+        title: t('jobNotFound', 'common'),
+        text: t('jobNotFoundDesc', 'common'),
         icon: 'error',
-        confirmButtonText: 'OK',
+        confirmButtonText: t('ok', 'common'),
       });
       return;
     }
@@ -1290,8 +1292,8 @@ export default function BulkInsert({
       URL.revokeObjectURL(url);
 
       Swal.fire({
-        title: 'Template downloaded',
-        text: `Template for "${toStringValue(jobPosition.title)}" has been downloaded.`,
+        title: t('templateDownloaded', 'common'),
+        text: t('templateDownloadedFor', 'applicants', { title: toStringValue(jobPosition.title) }),
         icon: 'success',
         timer: 2000,
         showConfirmButton: false,
@@ -1299,10 +1301,10 @@ export default function BulkInsert({
     } catch (err) {
       console.error('Template download error:', err);
       Swal.fire({
-        title: 'Download failed',
-        text: err instanceof Error ? err.message : 'Could not generate template.',
+        title: t('downloadFailed', 'common'),
+        text: err instanceof Error ? err.message : t('couldNotGenerateTemplate', 'applicants'),
         icon: 'error',
-        confirmButtonText: 'OK',
+        confirmButtonText: t('ok', 'common'),
       });
     }
   };
@@ -1386,27 +1388,27 @@ export default function BulkInsert({
     if (rowsWithOnlyWarnings.length > 0) {
       const duplicateCount = rowsWithOnlyWarnings.length;
       const result = await Swal.fire({
-        title: '⚠️ Duplicate Applicants Detected',
+        title: t('duplicateApplicantsDetected', 'applicants'),
         html: `
           <div style="text-align: left;">
-            <p><strong>${duplicateCount} row${duplicateCount > 1 ? 's' : ''} ${duplicateCount > 1 ? 'have' : 'has'} potential duplicates:</strong></p>
+            <p><strong>${t('rowsWithDuplicates', 'applicants', { count: duplicateCount })}</strong></p>
             <ul style="margin-top: 10px; margin-bottom: 10px;">
               ${rowsWithOnlyWarnings
                 .slice(0, 5)
                 .map(
                   (row) =>
-                    `<li>Row ${row.rowNumber}: ${row.fullName || row.email} - ${row.duplicateInfo || 'Potential duplicate'}</li>`
+                    `<li>Row ${row.rowNumber}: ${row.fullName || row.email}</li>`
                 )
                 .join('')}
-              ${rowsWithOnlyWarnings.length > 5 ? `<li>... and ${rowsWithOnlyWarnings.length - 5} more</li>` : ''}
+              ${rowsWithOnlyWarnings.length > 5 ? `<li>...</li>` : ''}
             </ul>
-            <p>These applicants will still be submitted. Do you want to continue?</p>
+            <p>${t('willStillBeSubmitted', 'applicants')}</p>
           </div>
         `,
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonText: 'Yes, submit anyway',
-        cancelButtonText: 'No, cancel',
+        confirmButtonText: t('submitAnyway', 'applicants'),
+        cancelButtonText: t('no', 'common'),
         confirmButtonColor: '#f59e0b',
       });
 
@@ -1420,8 +1422,8 @@ export default function BulkInsert({
     setBulkSubmitting(true);
     try {
       void Swal.fire({
-        title: 'Submitting batch',
-        text: `Saving ${payload.length} applicant${payload.length === 1 ? '' : 's'} to the server.${rowsWithOnlyWarnings.length > 0 ? ` (${rowsWithOnlyWarnings.length} duplicate${rowsWithOnlyWarnings.length > 1 ? 's' : ''} included)` : ''}`,
+        title: t('submittingBatch', 'applicants'),
+        text: t('savingApplicants', 'applicants', { count: payload.length }),
         icon: 'info',
         allowOutsideClick: false,
         allowEscapeKey: false,
@@ -1433,10 +1435,10 @@ export default function BulkInsert({
       await axiosInstance.post('/applicants/bulk', { applicants: payload });
 
       await Swal.fire({
-        title: 'Batch submitted',
-        html: `${payload.length} applicant${payload.length === 1 ? '' : 's'} inserted successfully.${
+        title: t('batchSubmitted', 'applicants'),
+        html: `${t('insertedSuccessfully', 'applicants', { count: payload.length })}${
           rowsWithOnlyWarnings.length > 0
-            ? `<br/><br/><span style="color: #f59e0b;">⚠️ ${rowsWithOnlyWarnings.length} duplicate${rowsWithOnlyWarnings.length > 1 ? 's were' : ' was'} submitted with warnings.</span>`
+            ? `<br/><br/><span style="color: #f59e0b;">⚠️ ${t('duplicateWarning', 'common', { count: rowsWithOnlyWarnings.length })}</span>`
             : ''
         }`,
         icon: 'success',
@@ -1451,13 +1453,13 @@ export default function BulkInsert({
       onSuccess();
     } catch (error) {
       await Swal.fire({
-        title: 'Batch failed',
+        title: t('batchFailed', 'applicants'),
         text: getApiErrorMessage(
           error,
-          'Failed to submit the applicant batch.'
+          t('failedToSubmitBatch', 'applicants')
         ),
         icon: 'error',
-        confirmButtonText: 'Close',
+        confirmButtonText: t('close', 'common'),
       });
     } finally {
       setBulkSubmitting(false);

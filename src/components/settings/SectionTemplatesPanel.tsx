@@ -14,6 +14,7 @@ import Swal from '../../utils/swal';
 import type { SectionTemplate } from '../../types/companies';
 import SectionTemplateModal from '../modals/SectionTemplateModal';
 import ImportSectionsModal from '../modals/ImportSectionsModal';
+import { useLocale } from '../../context/LocaleContext';
 
 // ─── tiny uid ─────────────────────────────────────────────────────────────────
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -47,6 +48,7 @@ function CategoryGroup({
   onDuplicate: (t: SectionTemplate) => void;
   onDelete: (id: string) => void;
 }) {
+  const { t } = useLocale();
   const [collapsed, setCollapsed] = useState(false);
 
   return (
@@ -66,7 +68,7 @@ function CategoryGroup({
           {category}
         </span>
         <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-bold text-slate-500 dark:bg-slate-700 dark:text-slate-400">
-          {templates.length} section{templates.length !== 1 ? 's' : ''}
+          {t('sectionCount', 'modals', { count: templates.length })}
         </span>
       </button>
 
@@ -122,7 +124,7 @@ function CategoryGroup({
 
               <div className="flex items-center gap-1.5 text-xs text-slate-400">
                 <FileText className="size-3.5 shrink-0" />
-                {t.items.length} item{t.items.length !== 1 ? 's' : ''}
+                {t('itemCount', 'modals', { count: t.items.length })}
               </div>
             </div>
           ))}
@@ -142,6 +144,7 @@ export default function SectionTemplatesPanel({
   onSave,
   isSaving,
 }: Props) {
+  const { t } = useLocale();
   const [local, setLocal] = useState<SectionTemplate[]>(() =>
     templates.map((t) => ({ ...t, _id: t._id ?? uid() }))
   );
@@ -222,11 +225,11 @@ export default function SectionTemplatesPanel({
 
   const handleDelete = async (id: string) => {
     const result = await Swal.fire({
-      title: 'Delete Section Template?',
-      text: 'This will remove it from the template library.',
+      title: t('deleteSectionTitle', 'modals'),
+      text: t('deleteSectionText', 'modals'),
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonText: 'Delete',
+      confirmButtonText: t('delete', 'modals'),
       confirmButtonColor: '#ef4444',
     });
     if (result.isConfirmed) {
@@ -241,7 +244,7 @@ export default function SectionTemplatesPanel({
     ]);
   };
 
-  const crossLabel = type === 'offer' ? 'Contract Sections' : 'Offer Sections';
+  const crossLabel = type === 'offer' ? t('contractSections', 'modals') : t('offerSections', 'modals');
 
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -253,11 +256,10 @@ export default function SectionTemplatesPanel({
           </div>
           <div>
             <h3 className="text-base font-bold tracking-tight text-slate-900 dark:text-slate-100">
-              Section Templates
+              {t('sectionTemplates', 'modals')}
             </h3>
             <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-              Reusable sections you can insert when building a{' '}
-              {type === 'offer' ? 'job offer' : 'contract'}.
+              {t('sectionTemplatesDesc', 'modals', { type: (type === 'offer' ? t('jobOffer', 'modals') : t('contract', 'modals')).toLowerCase() })}
             </p>
           </div>
         </div>
@@ -271,7 +273,7 @@ export default function SectionTemplatesPanel({
               className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800"
             >
               <Download className="size-3.5" />
-              Import from {crossLabel}
+              {t('importFromCross', 'modals', { label: crossLabel })}
             </button>
           )}
 
@@ -283,14 +285,14 @@ export default function SectionTemplatesPanel({
               className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800"
             >
               <PlusCircle className="size-3.5" />
-              New Section
+              {t('newSection', 'modals')}
             </button>
           )}
 
           {isSaving && (
             <div className="inline-flex items-center gap-1.5 rounded-xl bg-brand-500/10 px-3 py-2 text-xs font-semibold text-brand-600">
               <div className="size-3.5 animate-spin rounded-full border-2 border-brand-500/30 border-t-brand-500" />
-              Saving...
+              {t('saving', 'modals')}
             </div>
           )}
         </div>
@@ -300,7 +302,7 @@ export default function SectionTemplatesPanel({
       <div className="grid grid-cols-2 divide-x divide-slate-100 border-b border-slate-100 dark:divide-slate-800 dark:border-slate-800 sm:grid-cols-2">
         <div className="px-6 py-3">
           <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-            Total
+            {t('total', 'modals')}
           </p>
           <p className="mt-0.5 text-xl font-bold text-slate-900 dark:text-slate-100">
             {local.length}
@@ -308,7 +310,7 @@ export default function SectionTemplatesPanel({
         </div>
         <div className="px-6 py-3">
           <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-            Categories
+            {t('categories', 'modals')}
           </p>
           <p className="mt-0.5 text-xl font-bold text-slate-900 dark:text-slate-100">
             {existingCategories.length}
@@ -322,10 +324,10 @@ export default function SectionTemplatesPanel({
           <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 py-12 text-center dark:border-slate-700">
             <Layers className="mb-3 size-10 text-slate-300 dark:text-slate-600" />
             <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">
-              No section templates yet
+              {t('noSectionTemplates', 'modals')}
             </p>
             <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
-              Add reusable sections to speed up document creation
+              {t('noSectionsDesc', 'modals')}
             </p>
             {canEdit && (
               <button
@@ -339,7 +341,7 @@ export default function SectionTemplatesPanel({
                 ) : (
                   <PlusCircle className="size-4" />
                 )}
-                Add First Section
+                {t('addFirstSection', 'modals')}
               </button>
             )}
           </div>

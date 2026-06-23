@@ -19,6 +19,7 @@ import Swal from '../../../../utils/swal';
 import { toPlainString } from '../../../../utils/strings';
 import type { Applicant } from '../../../../types/applicants';
 import type { JobPosition } from '../../../../types/jobPositions';
+import { useLocale } from '../../../../context/LocaleContext';
 
 type ManualFormState = {
   fullName: string;
@@ -409,6 +410,7 @@ export default function ManualInsert({
   themeColors,
   onSuccess,
 }: ManualInsertProps) {
+  const { t } = useLocale();
   const [manualSubmitting, setManualSubmitting] = useState(false);
   const [uploadingProfilePhoto, setUploadingProfilePhoto] = useState(false);
   const [uploadingCv, setUploadingCv] = useState(false);
@@ -815,12 +817,12 @@ export default function ManualInsert({
 
     if (duplicate) {
       const confirmation = await Swal.fire({
-        title: 'Applicant already applied before',
-        text: `A matching applicant already exists for ${duplicate.fullName || duplicate.email || duplicate.phone}. Do you want to apply again?`,
+        title: t('applicantAlreadyApplied', 'applicants'),
+        text: t('applicantAlreadyAppliedDesc', 'applicants', { name: duplicate.fullName || duplicate.email || duplicate.phone }),
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonText: 'Yes',
-        cancelButtonText: 'No',
+        confirmButtonText: t('yes', 'common'),
+        cancelButtonText: t('no', 'common'),
         reverseButtons: true,
       });
 
@@ -830,8 +832,8 @@ export default function ManualInsert({
     setManualSubmitting(true);
     try {
       void Swal.fire({
-        title: 'Saving applicant',
-        text: 'Uploading attachments and creating the applicant record.',
+        title: t('savingApplicant', 'applicants'),
+        text: t('uploadingAttachments', 'applicants'),
         icon: 'info',
         allowOutsideClick: false,
         allowEscapeKey: false,
@@ -863,8 +865,8 @@ export default function ManualInsert({
       await axiosInstance.post('/applicants', payload);
 
       await Swal.fire({
-        title: 'Applicant created',
-        text: 'The applicant was inserted successfully.',
+        title: t('applicantCreated', 'applicants'),
+        text: t('applicantCreatedDesc', 'applicants'),
         icon: 'success',
         timer: 1800,
         showConfirmButton: false,
@@ -890,10 +892,10 @@ export default function ManualInsert({
       onSuccess();
     } catch (error) {
       await Swal.fire({
-        title: 'Submit failed',
-        text: error instanceof Error ? error.message : 'Failed to create the applicant.',
+        title: t('submitFailed', 'applicants'),
+        text: error instanceof Error ? error.message : t('failedToCreateApplicant', 'applicants'),
         icon: 'error',
-        confirmButtonText: 'Close',
+        confirmButtonText: t('close', 'common'),
       });
     } finally {
       setUploadingProfilePhoto(false);

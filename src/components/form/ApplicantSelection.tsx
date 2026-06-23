@@ -3,6 +3,7 @@ import { CheckCircle2, ChevronDown, Loader2, Wand2, X } from 'lucide-react';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useApplicants, useCompanies } from '../../hooks/queries';
 import { ApplicantObject } from '../modals/JobOffersModal/EmailModule';
+import { useLocale } from '../../context/LocaleContext';
 
 export function ApplicantSelect({
   value,
@@ -15,6 +16,7 @@ export function ApplicantSelect({
   inputCls?: string;
   onPrefill?: (applicant: ApplicantObject) => void; // ← new
 }) {
+  const { t } = useLocale();
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
   // ── cache the selected applicant object so we can display it without re-fetching
@@ -110,16 +112,16 @@ export function ApplicantSelect({
                   e.stopPropagation();
                   onPrefill(selectedApplicant);
                 }}
-                title="Pre-fill form from applicant data"
+                title={t('prefillForm', 'modals')}
                 className="ml-1 flex shrink-0 items-center gap-1 rounded-md border border-brand-200 bg-brand-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand-600 transition hover:bg-brand-100 dark:border-brand-700 dark:bg-brand-500/10 dark:text-brand-400 dark:hover:bg-brand-500/20"
               >
                 <Wand2 className="size-2.5" />
-                Prefill
+                {t('prefill', 'modals')}
               </span>
             )}
           </div>
         ) : (
-          <span className="text-slate-400">Select applicant...</span>
+          <span className="text-slate-400">{t('selectApplicant', 'modals')}</span>
         )}
         <div className="ml-2 flex shrink-0 items-center gap-1">
           {value && (
@@ -145,7 +147,7 @@ export function ApplicantSelect({
               <input
                 autoFocus
                 className={inputCls}
-                placeholder="Type to search by name or email..."
+                placeholder={t('searchByName', 'modals')}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -158,7 +160,7 @@ export function ApplicantSelect({
           <div className="max-h-52 overflow-y-auto">
             {!debouncedSearch.trim() ? (
               <p className="px-3 py-4 text-center text-xs text-slate-400">
-                Start typing to search applicants
+                {t('startTypingSearch', 'modals')}
               </p>
             ) : isFetching ? (
               <div className="flex items-center justify-center py-6">
@@ -166,7 +168,7 @@ export function ApplicantSelect({
               </div>
             ) : applicants.length === 0 ? (
               <p className="px-3 py-4 text-center text-xs text-slate-400">
-                No applicants found for "{debouncedSearch}"
+                {t('noApplicantsFound', 'modals', { search: debouncedSearch })}
               </p>
             ) : (
               applicants.map((a) => (

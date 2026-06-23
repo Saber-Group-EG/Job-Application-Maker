@@ -26,6 +26,7 @@ import {
 } from '../../../../../hooks/queries/useApplicants';
 import type { Applicant, Interview } from '../../../../../types/applicants';
 import Swal from '../../../../../utils/swal';
+import { useLocale } from '../../../../../context/LocaleContext';
 import { paths } from '../../../../../router/Paths';
 import JobOfferHistory from './JobOfferHistory';
 import ContractHistory from './ContractHistory';
@@ -161,6 +162,7 @@ function getApplicantCompanyId(applicantItem: Record<string, unknown>): string {
 export default function History({ applicant, loading = false }: Props) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { t } = useLocale();
   const applicantId = String(applicant?._id || '');
   const applicantPhone = useMemo(
     () => applicant?.phone || '',
@@ -362,12 +364,12 @@ export default function History({ applicant, loading = false }: Props) {
     const interviewId = String(interview?._id || interview?.id || '');
     if (!applicantId || !interviewId) return;
     const result = await Swal.fire({
-      title: 'Delete interview?',
-      text: 'This action cannot be undone.',
+      title: t('deleteInterviewTitle', 'applicants'),
+      text: t('actionCannotBeUndone', 'common'),
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonText: 'Delete',
-      cancelButtonText: 'Cancel',
+      confirmButtonText: t('delete', 'common'),
+      cancelButtonText: t('cancel', 'common'),
       confirmButtonColor: '#dc2626',
     });
     if (!result.isConfirmed) return;

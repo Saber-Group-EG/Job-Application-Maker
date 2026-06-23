@@ -1,6 +1,7 @@
 import { Suspense, lazy, useMemo, useCallback } from "react";
 import type { ApexOptions } from "apexcharts";
 import { useRejectionInsights } from "../../hooks/queries/useApplicants";
+import { useLocale } from "../../context/LocaleContext";
 
 const Chart = lazy(() => import("react-apexcharts"));
 
@@ -32,6 +33,7 @@ export default function RejectionInsightsChart({
   maxReasons = DEFAULT_MAX_REASONS,
   showPercentageLabels = false 
 }: RejectionInsightsChartProps) {
+  const { t, dir } = useLocale();
   const { data, isLoading, isFetching, error, refetch } = useRejectionInsights({ companyId });
 
   // Memoized data transformation
@@ -157,7 +159,7 @@ export default function RejectionInsightsChart({
       axisBorder: { show: false },
       axisTicks: { show: false },
       title: {
-        text: "Number of rejections",
+        text: t('xaxisTitle', 'rejection'),
         style: {
           fontSize: "12px",
           fontWeight: 500,
@@ -180,13 +182,13 @@ export default function RejectionInsightsChart({
       theme: "light",
       y: {
         formatter: function(val: number) {
-          return `${formatNumber(val)} rejected applicant${val === 1 ? "" : "s"}`;
+          return t('rejectedApplicant' + (val !== 1 ? '_plural' : ''), 'rejection', { count: formatNumber(val) });
         },
       },
       x: {
         formatter: function( opts?: any) {
           const category = rows[opts?.dataPointIndex]?.reason || "";
-          return `Reason: ${category}`;
+          return t('reasonPrefix', 'rejection', { reason: category });
         },
       },
       marker: {
@@ -215,7 +217,7 @@ export default function RejectionInsightsChart({
 
   const series = useMemo(() => [
     {
-      name: "Rejected applicants",
+      name: t('seriesName', 'rejection'),
       data: rows.map((item) => item.count),
     },
   ], [rows]);
@@ -243,16 +245,16 @@ export default function RejectionInsightsChart({
         <div className="text-center">
           <div className="text-red-600 dark:text-red-400 text-4xl mb-3">⚠️</div>
           <h3 className="text-lg font-semibold text-red-800 dark:text-red-200">
-            Failed to load rejection insights
+            {t('loadError', 'rejection')}
           </h3>
           <p className="mt-2 text-sm text-red-600 dark:text-red-300">
-            {error instanceof Error ? error.message : "An unexpected error occurred"}
+            {error instanceof Error ? error.message : t('unexpectedError', 'rejection')}
           </p>
           <button
             onClick={() => refetch()}
             className="mt-4 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 transition-colors"
           >
-            Try again
+            {t('tryAgain', 'rejection')}
           </button>
         </div>
       </section>
@@ -266,14 +268,14 @@ export default function RejectionInsightsChart({
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <div className="text-5xl mb-4">📊</div>
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-            No rejection insights yet
+            {t('noData', 'rejection')}
           </h3>
           <p className="mt-2 max-w-md text-sm text-gray-500 dark:text-gray-400">
-            Once applicants are rejected with reasons, the chart will appear here automatically.
+            {t('noDataDesc', 'rejection')}
           </p>
           <div className="mt-6 rounded-lg bg-gray-50 p-4 dark:bg-gray-800/50">
             <p className="text-xs text-gray-600 dark:text-gray-400">
-              💡 Tip: Make sure to include rejection reasons when updating applicant status
+              {t('tip', 'rejection')}
             </p>
           </div>
         </div>
@@ -289,34 +291,32 @@ export default function RejectionInsightsChart({
       <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-            Rejection Reasons
+            {t('title', 'rejection')}
           </h3>
           <p className="mt-1 max-w-2xl text-sm text-gray-500 dark:text-gray-400">
-            Shows how rejected applicants are distributed across reasons so you can spot the biggest friction points.
+            {t('description', 'rejection')}
           </p>
         </div>
       </div>
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-[280px_1fr]">
+      <div className="mt-6 grid gap-6 xl:grid-cols-[280px_1fr]" dir="ltr">
         {/* Sidebar with insights summary */}
-        <div className="rounded-2xl border border-gray-200 bg-gradient-to-br from-gray-50 via-white to-brand-50/50 p-5 shadow-sm dark:border-gray-800 dark:from-gray-900 dark:via-gray-900 dark:to-brand-500/10">
+        <div dir={dir} className="rounded-2xl border border-gray-200 bg-gradient-to-br from-gray-50 via-white to-brand-50/50 p-5 shadow-sm dark:border-gray-800 dark:from-gray-900 dark:via-gray-900 dark:to-brand-500/10">
           <div className="mt-2 text-xl font-semibold text-gray-900 dark:text-white/90 break-words">
-            {topReason?.reason ?? 'No data yet'}
+            {topReason?.reason ?? t('noDataYet', 'rejection')}
           </div>
           <div className="mt-3 space-y-2">
             <p className="text-sm text-gray-500 dark:text-gray-400">
               {topReason
-                ? `${formatNumber(topReason.count)} rejection${topReason.count === 1 ? '' : 's'} recorded under this reason (${topReasonShare}% of total).`
-                : 'Waiting for rejected applicant insights.'}
+                ? t('rejectionCount' + (topReason.count !== 1 ? '_plural' : ''), 'rejection', { count: formatNumber(topReason.count), share: topReasonShare })
+                : t('waitingInsights', 'rejection')}
             </p>
-            
-           
           </div>
 
           {/* Top reasons list with improved UX */}
           <div className="mt-5">
             <div className="mb-3 text-xs font-medium text-gray-500 dark:text-gray-400">
-              Top {Math.min(rows.length, 5)} reasons
+              {t('topReasons', 'rejection', { count: Math.min(rows.length, 5) })}
             </div>
             <div className="max-h-96 space-y-2 overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin' }}>
               {rows.slice(0, 5).map((item, index) => {
@@ -357,7 +357,7 @@ export default function RejectionInsightsChart({
               {rows.length > 5 && (
                 <div className="rounded-xl bg-gray-100/50 p-3 text-center dark:bg-gray-800/50">
                   <div className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                    +{rows.length - 5} more reason{rows.length - 5 !== 1 ? 's' : ''}
+                    {t('moreReasons' + (rows.length - 5 !== 1 ? '_plural' : ''), 'rejection', { count: rows.length - 5 })}
                   </div>
                 </div>
               )}
@@ -366,7 +366,7 @@ export default function RejectionInsightsChart({
         </div>
 
         {/* Chart container */}
-        <div className="min-h-[330px] rounded-2xl border border-gray-200 bg-white p-3 shadow-sm transition-all dark:border-gray-800 dark:bg-gray-900/50 sm:p-4">
+        <div dir={dir} className="min-h-[330px] rounded-2xl border border-gray-200 bg-white p-3 shadow-sm transition-all dark:border-gray-800 dark:bg-gray-900/50 sm:p-4">
           <div className={`${isFetching ? 'opacity-70 transition-opacity' : ''}`}>
             <Suspense 
               fallback={
@@ -393,7 +393,7 @@ export default function RejectionInsightsChart({
             <div className="mt-2 text-right">
               <span className="inline-flex items-center gap-1 text-xs text-gray-400">
                 <div className="h-2 w-2 animate-spin rounded-full border border-gray-400 border-t-transparent" />
-                Updating...
+                {t('updating', 'rejection')}
               </span>
             </div>
           )}

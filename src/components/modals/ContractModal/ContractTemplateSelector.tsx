@@ -3,6 +3,7 @@ import { JobContract } from '../../../services/contractsService';
 import { useJobContractTemplates } from '../../../hooks/queries/useContracts';
 import { ChevronDown, FileSignature } from 'lucide-react';
 import { useCompanies } from '../../../hooks/queries';
+import { useLocale } from '../../../context/LocaleContext';
 
 export function ContractTemplateSelector({
   onSelect,
@@ -10,6 +11,7 @@ export function ContractTemplateSelector({
   onSelect: (template: JobContract) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const { t } = useLocale();
   const { data } = useCompanies();
   const companyId = data?.map((c) => c._id);
   const { data: templatesData, isLoading } = useJobContractTemplates(companyId);
@@ -23,10 +25,10 @@ export function ContractTemplateSelector({
         <div className="flex items-center gap-2">
           <FileSignature className="size-4 text-brand-600 dark:text-brand-400" />
           <span className="text-sm font-semibold text-brand-700 dark:text-brand-300">
-            Load from template
+            {t('loadFromTemplate', 'modals')}
           </span>
           <span className="text-xs text-brand-500 dark:text-brand-400">
-            Pre-fill this form with a saved template
+            {t('prefillFormTemplate', 'modals')}
           </span>
         </div>
         <button
@@ -34,7 +36,7 @@ export function ContractTemplateSelector({
           onClick={() => setOpen((v) => !v)}
           className="flex items-center gap-1.5 rounded-lg border border-brand-300 bg-white px-3 py-1.5 text-xs font-semibold text-brand-700 transition hover:bg-brand-50 dark:border-brand-500/30 dark:bg-slate-800 dark:text-brand-300"
         >
-          {open ? 'Hide' : 'Choose template'}
+          {open ? t('hide', 'modals') : t('chooseTemplate', 'modals')}
           <ChevronDown
             className={`size-3.5 transition-transform ${open ? 'rotate-180' : ''}`}
           />
@@ -53,12 +55,12 @@ export function ContractTemplateSelector({
               ))}
             </div>
           ) : (
-            templates.map((t) => (
+            templates.map((tmpl) => (
               <button
-                key={t._id}
+                key={tmpl._id}
                 type="button"
                 onClick={() => {
-                  onSelect(t);
+                  onSelect(tmpl);
                   setOpen(false);
                 }}
                 className="flex w-full items-start gap-3 rounded-lg border border-slate-200 bg-white p-3 text-left transition hover:border-brand-300 hover:bg-brand-50 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-brand-500/40"
@@ -68,33 +70,31 @@ export function ContractTemplateSelector({
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-slate-800 dark:text-slate-200">
-                    {t.position.en || t.position.ar || 'Untitled Contract'}
+                    {tmpl.position.en || tmpl.position.ar || t('untitledContract', 'modals')}
                   </p>
                   <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-400">
-                    <span>{t.contractType}</span>
-                    {t.salary.basic != null && (
+                    <span>{tmpl.contractType}</span>
+                    {tmpl.salary.basic != null && (
                       <>
                         <span>·</span>
                         <span>
-                          {t.salary.basic.toLocaleString()} {t.salary.currency}
+                          {tmpl.salary.basic.toLocaleString()} {tmpl.salary.currency}
                         </span>
                       </>
                     )}
-                    {t.benefits.length > 0 && (
+                    {tmpl.benefits.length > 0 && (
                       <>
                         <span>·</span>
                         <span>
-                          {t.benefits.length} benefit
-                          {t.benefits.length !== 1 ? 's' : ''}
+                          {t('benefitCount', 'modals', { count: tmpl.benefits.length })}
                         </span>
                       </>
                     )}
-                    {t.sections.length > 0 && (
+                    {tmpl.sections.length > 0 && (
                       <>
                         <span>·</span>
                         <span>
-                          {t.sections.length} section
-                          {t.sections.length !== 1 ? 's' : ''}
+                          {t('sectionCount', 'modals', { count: tmpl.sections.length })}
                         </span>
                       </>
                     )}

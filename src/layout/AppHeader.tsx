@@ -4,9 +4,11 @@ import { useSidebar } from "../context/SidebarContext";
 import { ThemeToggleButton } from "../components/common/ThemeToggleButton";
 // import NotificationDropdown from "../components/header/NotificationDropdown";
 import UserDropdown from "../components/header/UserDropdown";
+import { useLocale } from "../context/LocaleContext";
 
 const AppHeader: React.FC = () => {
   const [isApplicationMenuOpen, setApplicationMenuOpen] = useState(false);
+  const { locale, setLocale, t } = useLocale();
 
   const { isMobileOpen, toggleSidebar, toggleMobileSidebar } = useSidebar();
 
@@ -108,6 +110,16 @@ const AppHeader: React.FC = () => {
           } items-center justify-between w-full gap-3 px-3 py-3 lg:flex shadow-theme-md lg:mr-5 lg:justify-end lg:px-0 lg:shadow-none`}
         >
           <div className=" ml-2 flex items-center gap-2 2xsm:gap-3">
+            {/* <!-- Language Toggler --> */}
+            <button
+              onClick={() => setLocale(locale === 'en' ? 'ar' : 'en')}
+              className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-100 dark:text-gray-400 dark:border-gray-800 dark:hover:bg-gray-800"
+              aria-label={t('language', 'common')}
+            >
+              <span className="text-xs font-semibold uppercase">
+                {locale === 'en' ? 'AR' : 'EN'}
+              </span>
+            </button>
             {/* <!-- Dark Mode Toggler --> */}
             <ThemeToggleButton />
             {/* <!-- Dark Mode Toggler --> */}

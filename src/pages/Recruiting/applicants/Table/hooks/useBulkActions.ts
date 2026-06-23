@@ -1,6 +1,7 @@
 // hooks/useBulkActions.ts
 import { useState, useCallback } from 'react';
 import Swal from '../../../../../utils/swal';
+import { useLocale } from '../../../../../context/LocaleContext';
 import {
   useScheduleBulkInterviews,
   useBatchUpdateApplicantStatus,
@@ -148,6 +149,7 @@ export function useBulkActions({
   queryClient,
   onClearSelection,
 }: UseBulkActionsProps): UseBulkActionsReturn {
+  const { t } = useLocale();
   // Mutations
   const batchUpdateStatusMutation = useBatchUpdateApplicantStatus();
   const scheduleBulkInterviewsMutation = useScheduleBulkInterviews();
@@ -208,14 +210,14 @@ export function useBulkActions({
     if (selectedApplicantIds.length === 0) return;
 
     const result = await Swal.fire({
-      title: 'Delete Applicants?',
-      text: `Are you sure you want to delete ${selectedApplicantIds.length} applicant(s)? They will be moved to trash.`,
+      title: t('deleteApplicantsTitle', 'applicants'),
+      text: t('deleteApplicantsText', 'applicants', { count: selectedApplicantIds.length }),
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#d33',
       cancelButtonColor: '#3085d6',
-      confirmButtonText: 'Yes, delete them!',
-      cancelButtonText: 'Cancel',
+      confirmButtonText: t('yes', 'common'),
+      cancelButtonText: t('cancel', 'common'),
     });
 
     if (!result.isConfirmed) return;
@@ -231,8 +233,8 @@ export function useBulkActions({
       await batchUpdateStatusMutation.mutateAsync(updates);
 
       await Swal.fire({
-        title: 'Success!',
-        text: `${selectedApplicantIds.length} applicant(s) moved to trash.`,
+        title: t('success', 'applicants'),
+        text: t('movedToTrash', 'applicants', { count: selectedApplicantIds.length }),
         icon: 'success',
         position: 'center',
         timer: 2000,
@@ -285,8 +287,8 @@ export function useBulkActions({
         await batchUpdateStatusMutation.mutateAsync(updates);
 
         await Swal.fire({
-          title: 'Success!',
-          text: `Status updated for ${selectedApplicantIds.length} applicant(s).`,
+          title: t('success', 'applicants'),
+          text: t('statusUpdateSuccess', 'applicants', { count: selectedApplicantIds.length }),
           icon: 'success',
           position: 'center',
           timer: 2000,
@@ -322,13 +324,13 @@ export function useBulkActions({
       }
 
       const result = await Swal.fire({
-        title: 'Change Status?',
-        text: `Are you sure you want to change the status of ${selectedApplicantIds.length} applicant(s) to ${action}?`,
+        title: t('changeStatusTitle', 'applicants'),
+        text: t('statusChangedTo', 'applicants', { count: selectedApplicantIds.length, action }),
         icon: 'question',
         showCancelButton: true,
         confirmButtonColor: '#3085d6',
         cancelButtonColor: '#d33',
-        confirmButtonText: 'Yes, change it!',
+        confirmButtonText: t('yes', 'common'),
       });
 
       if (!result.isConfirmed) return;
@@ -346,8 +348,8 @@ export function useBulkActions({
         await batchUpdateStatusMutation.mutateAsync(updates);
 
         await Swal.fire({
-          title: 'Success!',
-          text: `Status updated for ${selectedApplicantIds.length} applicant(s).`,
+          title: t('success', 'applicants'),
+          text: t('statusUpdateSuccess', 'applicants', { count: selectedApplicantIds.length }),
           icon: 'success',
           position: 'center',
           timer: 2000,
@@ -455,8 +457,8 @@ export function useBulkActions({
 
   if (!selectedApplicantCompanyId) {
     await Swal.fire({
-      title: 'Single Company Required',
-      text: 'Please select applicants from one company to schedule interviews together.',
+      title: t('singleCompanyRequired', 'applicants'),
+      text: t('singleCompanyRequiredDesc', 'applicants'),
       icon: 'warning',
     });
     return;
@@ -612,16 +614,16 @@ export function useBulkActions({
           if (emailableItems.length > 0) {
             // Here you would send emails
             if (missingEmails.length > 0) {
-              emailResultNote = `Email sent to ${emailableItems.length} applicant(s); ${missingEmails.length} without email were skipped.`;
+              emailResultNote = t('emailSentTo', 'applicants', { sent: emailableItems.length, skipped: missingEmails.length });
             }
           }
         }
 
-        const successMessageBase = `Interviews scheduled for ${previewItems.length} applicant(s).`;
+        const successMessageBase = t('interviewsScheduledFor', 'applicants', { count: previewItems.length });
         const successText = emailResultNote ? `${successMessageBase} ${emailResultNote}` : successMessageBase;
 
         await Swal.fire({
-          title: 'Success!',
+          title: t('success', 'applicants'),
           text: successText,
           icon: 'success',
           position: 'center',

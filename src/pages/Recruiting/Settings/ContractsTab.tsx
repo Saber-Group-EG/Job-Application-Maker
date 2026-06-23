@@ -11,6 +11,7 @@ import {
   FileText,
 } from 'lucide-react';
 import Swal from '../../../utils/swal';
+import { useLocale } from '../../../context/LocaleContext';
 import { useAuth } from '../../../context/AuthContext';
 import {
   useJobContractTemplates,
@@ -30,13 +31,6 @@ import {
 import type { SectionTemplate } from '../../../types/companies';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-const CONTRACT_TYPES: { value: ContractType; label: string }[] = [
-  { value: 'permanent', label: 'Permanent' },
-  { value: 'fixed-term', label: 'Fixed-term' },
-  { value: 'freelance', label: 'Freelance' },
-  { value: 'probation', label: 'Probation' },
-];
 
 const CONTRACT_TYPE_COLORS: Record<ContractType, string> = {
   permanent:
@@ -72,18 +66,24 @@ function TemplateCard({
   onClone: (id: string) => void;
   onDelete: (id: string) => void;
 }) {
+  const { t } = useLocale();
+  const typeLabels = {
+    permanent: t('contracts.permanent', 'settings'),
+    'fixed-term': t('contracts.fixedTerm', 'settings'),
+    freelance: t('contracts.freelance', 'settings'),
+    probation: t('contracts.probation', 'settings'),
+  };
   return (
     <div className="group flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-5 transition hover:border-slate-300 hover:shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-600">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-bold text-slate-900 dark:text-slate-100">
-            {contract.position?.en || contract.position?.ar || 'Untitled Contract'}
+            {contract.position?.en || contract.position?.ar || t('contracts.untitled', 'settings')}
           </p>
           <span
             className={`mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${CONTRACT_TYPE_COLORS[contract.contractType]}`}
           >
-            {CONTRACT_TYPES.find((c) => c.value === contract.contractType)
-              ?.label ?? contract.contractType}
+            {typeLabels[contract.contractType] ?? contract.contractType}
           </span>
         </div>
 
@@ -91,7 +91,7 @@ function TemplateCard({
           <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 [@media(pointer:coarse)]:opacity-100">
             <button
               type="button"
-              title="Edit"
+              title={t('contracts.edit', 'settings')}
               onClick={() => onEdit(contract)}
               className="flex size-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-brand-50 hover:text-brand-600 dark:border-slate-700 dark:hover:bg-brand-500/10 dark:hover:text-brand-400"
             >
@@ -99,7 +99,7 @@ function TemplateCard({
             </button>
             <button
               type="button"
-              title="Clone"
+              title={t('contracts.clone', 'settings')}
               onClick={() => onClone(contract._id)}
               className="flex size-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-emerald-50 hover:text-emerald-600 dark:border-slate-700 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-400"
             >
@@ -107,7 +107,7 @@ function TemplateCard({
             </button>
             <button
               type="button"
-              title="Delete"
+              title={t('contracts.delete', 'settings')}
               onClick={() => onDelete(contract._id)}
               className="flex size-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-red-50 hover:text-red-600 dark:border-slate-700 dark:hover:bg-red-500/10 dark:hover:text-red-400"
             >
@@ -130,15 +130,14 @@ function TemplateCard({
         {contract.probationPeriod != null && (
           <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
             <Calendar className="size-3.5 shrink-0" />
-            <span>{contract.probationPeriod}mo probation</span>
+            <span>{t('contracts.probationPeriod', 'settings', { months: contract.probationPeriod })}</span>
           </div>
         )}
         {contract.benefits.length > 0 && (
           <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
             <Gift className="size-3.5 shrink-0" />
             <span>
-              {contract.benefits.length} benefit
-              {contract.benefits.length !== 1 ? 's' : ''}
+              {t('contracts.benefitsCount', 'settings', { count: contract.benefits.length })}
             </span>
           </div>
         )}
@@ -146,8 +145,7 @@ function TemplateCard({
           <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
             <FileText className="size-3.5 shrink-0" />
             <span>
-              {contract.sections.length} section
-              {contract.sections.length !== 1 ? 's' : ''}
+              {t('contracts.sectionsCount', 'settings', { count: contract.sections.length })}
             </span>
           </div>
         )}
@@ -163,6 +161,7 @@ export default function ContractTemplatesTab({
   embedded = true,
 }: Props) {
   const { hasPermission } = useAuth();
+  const { t } = useLocale();
   const canEdit =
     hasPermission('Company Management', 'write') ||
     hasPermission('Settings Management', 'write') ||
@@ -210,11 +209,11 @@ export default function ContractTemplatesTab({
 
   const handleDelete = async (id: string) => {
     const result = await Swal.fire({
-      title: 'Delete Template?',
-      text: 'This action cannot be undone.',
+      title: t('contracts.deleteTitle', 'settings'),
+      text: t('contracts.deleteText', 'settings'),
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonText: 'Delete',
+      confirmButtonText: t('contracts.deleteConfirm', 'settings'),
       confirmButtonColor: '#ef4444',
     });
     if (result.isConfirmed) await deleteMutation.mutateAsync(id);
@@ -241,11 +240,10 @@ export default function ContractTemplatesTab({
             </div>
             <div>
               <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-                Contract Templates
+                {t('contracts.title', 'settings')}
               </h2>
               <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-                Reusable contract structures with sections, benefits, and salary
-                presets.
+                {t('contracts.description', 'settings')}
               </p>
             </div>
           </div>
@@ -255,7 +253,7 @@ export default function ContractTemplatesTab({
               onClick={openCreate}
               className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-600"
             >
-              <PlusCircle className="size-4" /> New Template
+              <PlusCircle className="size-4" /> {t('contracts.newTemplate', 'settings')}
             </button>
           )}
         </div>
@@ -263,7 +261,7 @@ export default function ContractTemplatesTab({
         <div className="grid grid-cols-2 divide-x divide-slate-200 dark:divide-slate-800 sm:grid-cols-3">
           <div className="px-6 py-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-              Total Templates
+              {t('contracts.totalTemplates', 'settings')}
             </p>
             <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100">
               {templates.length}
@@ -271,7 +269,7 @@ export default function ContractTemplatesTab({
           </div>
           <div className="px-6 py-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-              With Benefits
+              {t('contracts.withBenefits', 'settings')}
             </p>
             <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100">
               {withBenefits}
@@ -279,7 +277,7 @@ export default function ContractTemplatesTab({
           </div>
           <div className="hidden px-6 py-4 sm:block">
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-              With Sections
+              {t('contracts.withSections', 'settings')}
             </p>
             <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100">
               {withSections}
@@ -302,10 +300,10 @@ export default function ContractTemplatesTab({
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 py-16 text-center dark:border-slate-700">
           <FileSignature className="mb-3 size-12 text-slate-300 dark:text-slate-600" />
           <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">
-            No contract templates yet
+            {t('contracts.emptyStateTitle', 'settings')}
           </p>
           <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
-            Create a template to reuse across multiple job contracts
+            {t('contracts.emptyStateDesc', 'settings')}
           </p>
           {canEdit && (
             <button
@@ -313,7 +311,7 @@ export default function ContractTemplatesTab({
               onClick={openCreate}
               className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-600"
             >
-              <PlusCircle className="size-4" /> Create First Template
+              <PlusCircle className="size-4" /> {t('contracts.createFirst', 'settings')}
             </button>
           )}
         </div>
