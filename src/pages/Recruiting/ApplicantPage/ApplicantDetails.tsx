@@ -457,6 +457,8 @@ const ApplicantDetails: React.FC = () => {
     }
   }, [comment]);
 
+
+
   const [isEditing, setIsEditing] = useState(false);
   const [editedApplicant, setEditedApplicant] = useState<Partial<Applicant> | null>(null);
   const [editedSections, setEditedSections] = useState<ResponseSection[]>([]);
@@ -905,40 +907,42 @@ const ApplicantDetails: React.FC = () => {
     <div className="bg-gray-50">
       <div className="max-w-8xl mx-auto p-6">
         <StickyTopBar>
-          <div className="flex items-center justify-between py-3">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between py-3 gap-2">
             <div className="flex items-center gap-2 text-sm text-gray-500">
               <span onClick={() => navigate(paths.applicants.root)} className="hover:text-gray-700 cursor-pointer">Applicants</span>
               <span>-›</span>
-              <span className="text-gray-800">{applicant.fullName || 'Applicant Details'}</span>
+              <span className="text-gray-800 font-medium">{applicant.fullName || 'Applicant Details'}</span>
             </div>
-            <div className="flex">
-              <button onClick={() => setShowStatusModal(true)} className="mr-2 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors">Change Status</button>
+            <div className="flex flex-wrap gap-2 justify-end">
+              <button onClick={() => setShowStatusModal(true)} className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors">Change Status</button>
               <button onClick={handleEdit} className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors">{isEditing ? 'Save' : 'Edit'}</button>
-              {isEditing && <button onClick={handleCancel} className="ml-2 px-3 py-1.5 bg-gray-600 text-white text-xs font-medium rounded-lg hover:bg-gray-700 transition-colors">Cancel</button>}
-              <button onClick={handleDelete} className="ml-2 px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition-colors">Delete</button>
+              {isEditing && <button onClick={handleCancel} className="px-3 py-1.5 bg-gray-600 text-white text-xs font-medium rounded-lg hover:bg-gray-700 transition-colors">Cancel</button>}
+              <button onClick={handleDelete} className="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition-colors">Delete</button>
             </div>
           </div>
         </StickyTopBar>
 
         {/* ── DETAILS TAB ── */}
         <div hidden={activeTab !== 'details'}>
-          <div className="flex flex-col lg:flex-row gap-6 mb-6 items-start">
-            <Stickysidebar>
-              <PersonalInfo
-                applicant={applicant}
-                isEditing={isEditing}
-                editedApplicant={editedApplicant}
-                onChange={setEditedApplicant}
-                onChangeStatus={() => setShowStatusModal(true)}
-                onScheduleInterview={() => setShowScheduleModal(true)}
-                onSendMessage={() => setShowMessageModal(true)}
-                onPrint={handlePrint}
-                onCreateJobOffer={() => setShowJobOfferModal(true)}
-                onCreateContract={() => setShowContractModal(true)}
-              />
-            </Stickysidebar>
-            <div className="flex-1 min-w-0 space-y-6">
-              <div className="flex items-center justify-between border-b border-gray-200 mb-2">{tabBar}</div>
+          <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-6 mb-6">
+            <div className="lg:w-72 xl:w-80 min-w-0">
+              <Stickysidebar>
+                <PersonalInfo
+                  applicant={applicant}
+                  isEditing={isEditing}
+                  editedApplicant={editedApplicant}
+                  onChange={setEditedApplicant}
+                  onChangeStatus={() => setShowStatusModal(true)}
+                  onScheduleInterview={() => setShowScheduleModal(true)}
+                  onSendMessage={() => setShowMessageModal(true)}
+                  onPrint={handlePrint}
+                  onCreateJobOffer={() => setShowJobOfferModal(true)}
+                  onCreateContract={() => setShowContractModal(true)}
+                />
+              </Stickysidebar>
+            </div>
+            <div className="min-w-0 flex flex-col gap-6">
+              <div className="flex items-center justify-between border-b border-gray-200">{tabBar}</div>
               <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6 transition-all duration-200">
                 <div className="relative">
                   <textarea
@@ -966,7 +970,7 @@ const ApplicantDetails: React.FC = () => {
               <div className="bg-white rounded-lg shadow-sm border border-gray-100">
                 <ActivityFeed activities={activities} mailRecords={applicantMailRecords} interviews={applicant?.interviews} company={companyWithAddress} />
               </div>
-              <div className="bg-white rounded-lg shadow-sm border border-gray-100">
+              <div className="bg-white rounded-lg shadow-sm border border-gray-100 flex-1 p-4">
                 <CustomResponses isEditable={isEditing} sections={sections} onSectionsChange={setEditedSections} />
               </div>
             </div>
