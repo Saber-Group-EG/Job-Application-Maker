@@ -559,7 +559,8 @@ function validateBulkRow(
   jobPositions: JobPosition[],
   existingApplicants: Applicant[],
   batchSeenEmails: Map<string, number>,
-  batchSeenPhones: Map<string, number>
+  batchSeenPhones: Map<string, number>,
+  t: (key: string, ns: string, params?: Record<string, string | number>) => string
 ): RowValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -568,45 +569,48 @@ function validateBulkRow(
   let hasDuplicate = false;
   let duplicateInfo = '';
 
-  if (!row.fullName) errors.push('Full name is required.');
-  if (!normalizedEmail) errors.push('Email is required.');
+  if (!row.fullName) errors.push(t('fullNameRequired', 'blueCaller'));
+  if (!normalizedEmail) errors.push(t('emailRequired', 'blueCaller'));
   if (normalizedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
-    errors.push('Invalid email format.');
+    errors.push(t('invalidEmailFormat', 'blueCaller'));
   }
-  if (!normalizedPhone) errors.push('Phone is required.');
+  if (!normalizedPhone) errors.push(t('phoneRequired', 'blueCaller'));
   if (normalizedPhone && !PHONE_REGEX.test(normalizedPhone)) {
-    errors.push('Phone must match 01[0125]XXXXXXXX.');
+    errors.push(t('phoneMustMatch', 'blueCaller'));
   }
-  if (!row.address) errors.push('Address is required.');
-  if (!row.birthDate) errors.push('Birth date is required.');
+  if (!row.address) errors.push(t('addressRequired', 'blueCaller'));
+  if (!row.birthDate) errors.push(t('birthDateRequired', 'blueCaller'));
   if (row.birthDate && isFutureBirthDate(row.birthDate)) {
-    errors.push('Birth date cannot be in the future.');
+    errors.push(t('birthDateFuture', 'blueCaller'));
   }
-  if (!row.gender) errors.push('Gender is required.');
+  if (!row.gender) errors.push(t('genderRequired', 'blueCaller'));
   if (row.gender && !['Male', 'Female'].includes(row.gender)) {
-    errors.push('Gender must be Male or Female.');
+    errors.push(t('genderMustBeMaleOrFemale', 'blueCaller'));
   }
 
   if (!row.jobPositionTitle) {
-    errors.push('Job position is required.');
+    errors.push(t('jobPositionRequired', 'blueCaller'));
   } else if (!row.jobPositionId) {
     errors.push(
-      `Job position "${row.jobPositionTitle}" was not found. Available positions: ${jobPositions.map((j) => toStringValue(j.title)).join(', ')}`
+      t('jobPositionNotFound', 'blueCaller', {
+        jobTitle: row.jobPositionTitle,
+        availablePositions: jobPositions.map((j) => toStringValue(j.title)).join(', ')
+      })
     );
   }
 
   if (row.expectedSalary !== undefined && Number.isNaN(row.expectedSalary)) {
-    errors.push('Expected salary must be numeric.');
+    errors.push(t('expectedSalaryNumeric', 'blueCaller'));
   }
 
   if (normalizedEmail) {
     const firstSeenRow = batchSeenEmails.get(normalizedEmail);
     if (firstSeenRow !== undefined && firstSeenRow !== row.rowNumber) {
       warnings.push(
-        `Duplicate email appears in row ${firstSeenRow} (will still be submitted).`
+        t('duplicateEmailWarning', 'blueCaller', { rowNumber: firstSeenRow })
       );
       hasDuplicate = true;
-      duplicateInfo = `Email duplicate with row ${firstSeenRow}`;
+      duplicateInfo = t('duplicateEmailInfo', 'blueCaller', { rowNumber: firstSeenRow });
     } else {
       batchSeenEmails.set(normalizedEmail, row.rowNumber);
     }
@@ -616,11 +620,11 @@ function validateBulkRow(
     const firstSeenRow = batchSeenPhones.get(normalizedPhone);
     if (firstSeenRow !== undefined && firstSeenRow !== row.rowNumber) {
       warnings.push(
-        `Duplicate phone appears in row ${firstSeenRow} (will still be submitted).`
+        t('duplicatePhoneWarning', 'blueCaller', { rowNumber: firstSeenRow })
       );
       hasDuplicate = true;
       duplicateInfo =
-        duplicateInfo || `Phone duplicate with row ${firstSeenRow}`;
+        duplicateInfo || t('duplicatePhoneInfo', 'blueCaller', { rowNumber: firstSeenRow });
     } else {
       batchSeenPhones.set(normalizedPhone, row.rowNumber);
     }
@@ -632,12 +636,16 @@ function validateBulkRow(
   });
   if (duplicate) {
     warnings.push(
-      `Applicant may already exist: ${duplicate.fullName || duplicate.email || duplicate.phone} (will still be submitted).`
+      t('existingApplicantWarning', 'blueCaller', {
+        applicantName: duplicate.fullName || duplicate.email || duplicate.phone
+      })
     );
     hasDuplicate = true;
     duplicateInfo =
       duplicateInfo ||
-      `Existing applicant: ${duplicate.fullName || duplicate.email}`;
+      t('existingApplicantInfo', 'blueCaller', {
+        applicantName: duplicate.fullName || duplicate.email
+      });
   }
 
   return {
@@ -1303,7 +1311,8 @@ export default function BulkInsert({
         jobPositions,
         existingApplicants,
         emailTracker,
-        phoneTracker
+        phoneTracker,
+        t
       )
     );
   };
@@ -1391,7 +1400,7 @@ export default function BulkInsert({
       if (!sheetName) {
         setBulkRows([]);
         setBulkUploadErrors([
-          'The uploaded file does not contain any worksheet.',
+          t('noWorksheet', 'blueCaller'),
         ]);
         return;
       }
@@ -1417,7 +1426,7 @@ export default function BulkInsert({
     } catch (error) {
       setBulkRows([]);
       setBulkUploadErrors([
-        getApiErrorMessage(error, 'Failed to parse the Excel file.'),
+        getApiErrorMessage(error, t('failedToParseExcel', 'blueCaller')),
       ]);
     }
   };
@@ -1426,7 +1435,7 @@ export default function BulkInsert({
     const file = files?.[0] || null;
     if (!file) return;
     if (!file.name.toLowerCase().endsWith('.xlsx')) {
-      setBulkUploadErrors(['Please upload a .xlsx file.']);
+      setBulkUploadErrors([t('pleaseUploadXlsx', 'blueCaller')]);
       return;
     }
     await handleBulkFileParse(file);
@@ -1444,14 +1453,14 @@ export default function BulkInsert({
 
     if (validatedRows.length === 0) {
       setBulkUploadErrors([
-        'Upload and parse an Excel file before submitting.',
+        t('uploadBeforeSubmit', 'blueCaller'),
       ]);
       return;
     }
 
     if (validRows.length === 0) {
       setBulkUploadErrors([
-        'No valid rows are available for submission. Please fix the errors.',
+        t('noValidRows', 'blueCaller'),
       ]);
       return;
     }
@@ -1620,12 +1629,12 @@ export default function BulkInsert({
     if (selectedRowKeys.size === 0) return;
 
     const result = await Swal.fire({
-      title: 'Delete Selected Rows?',
-      text: `${selectedRowKeys.size} row(s) will be removed. This cannot be undone.`,
+      title: t('deleteSelectedRows', 'blueCaller'),
+      text: t('deleteSelectedRowsDesc', 'blueCaller', { count: selectedRowKeys.size }),
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonText: 'Yes, delete',
-      cancelButtonText: 'Cancel',
+      confirmButtonText: t('yesDelete', 'blueCaller'),
+      cancelButtonText: t('cancel', 'blueCaller'),
     });
 
     if (!result.isConfirmed) return;
@@ -1644,20 +1653,20 @@ export default function BulkInsert({
   ): { status: string; color: string; icon: JSX.Element } => {
     if (row.errors.length > 0) {
       return {
-        status: 'Failed',
+        status: t('failed', 'blueCaller'),
         color: 'bg-red-100 text-red-700',
         icon: <AlertCircle className="h-3 w-3" />,
       };
     }
     if (row.hasDuplicate || row.warnings.length > 0) {
       return {
-        status: 'Duplicate',
+        status: t('duplicate', 'blueCaller'),
         color: 'bg-amber-100 text-amber-700',
         icon: <AlertTriangle className="h-3 w-3" />,
       };
     }
     return {
-      status: 'Valid',
+      status: t('valid', 'blueCaller'),
       color: 'bg-emerald-100 text-emerald-700',
       icon: <CheckCircle2 className="h-3 w-3" />,
     };
@@ -1674,14 +1683,12 @@ export default function BulkInsert({
         >
           <div>
             <h2 className="text-2xl font-bold text-gray-900">
-              Bulk Excel Insert
+              {t('bulkExcelInsert', 'blueCaller')}
             </h2>
             <p className="mt-1 text-sm text-gray-500">
-              Upload a spreadsheet, inspect the parsed rows, and submit only the
-              valid applicants.
+              {t('bulkExcelDesc', 'blueCaller')}
               <span className="block text-amber-600 text-xs mt-1">
-                ⚠️ Duplicate applicants will show a warning but can still be
-                submitted.
+                ⚠️ {t('duplicateWarningDesc', 'blueCaller')}
               </span>
             </p>
           </div>
@@ -1692,12 +1699,12 @@ export default function BulkInsert({
           className={`rounded-2xl border ${themeColors.borderLight} ${themeColors.bgLight} p-4`}
         >
           <h3 className="text-md font-semibold text-gray-900 mb-3">
-            Download Template
+            {t('downloadTemplate', 'blueCaller')}
           </h3>
           <div className="flex flex-col sm:flex-row gap-3 items-end">
             <div className="flex-1">
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Select Job Position
+                {t('selectJobPosition', 'blueCaller')}
               </label>
               <div className="relative">
                 <select
@@ -1705,7 +1712,7 @@ export default function BulkInsert({
                   onChange={(e) => setSelectedJobForTemplate(e.target.value)}
                   className={`w-full appearance-none rounded-xl border ${themeColors.borderPrimary} bg-white px-4 py-2 pr-10 text-sm shadow-sm outline-none transition ${themeColors.focusRing}`}
                 >
-                  <option value="">-- Select a job position --</option>
+                  <option value="">{t('selectJobPositionPlaceholder', 'blueCaller')}</option>
                   {jobPositions.map((job) => (
                     <option key={job._id} value={job._id}>
                       {toStringValue(job.title) || job.jobCode || job._id}
@@ -1726,7 +1733,7 @@ export default function BulkInsert({
               }`}
             >
               <Download className="h-4 w-4" />
-              Download Template
+              {t('downloadTemplate', 'blueCaller')}
             </button>
           </div>
         </div>
@@ -1734,7 +1741,7 @@ export default function BulkInsert({
         {/* Upload Section */}
         <div>
           <h3 className="text-md font-semibold text-gray-900 mb-3">
-            Upload File
+            {t('uploadFile', 'blueCaller')}
           </h3>
           <label
             onDragOver={(e) => e.preventDefault()}
@@ -1751,10 +1758,10 @@ export default function BulkInsert({
             </div>
             <div className="space-y-1">
               <p className="text-lg font-bold text-gray-900">
-                Drop your .xlsx file here
+                {t('dropXlsxHere', 'blueCaller')}
               </p>
               <p className="text-sm text-gray-600">
-                Or click to browse. Use the template matching your job position.
+                {t('orClickToBrowse', 'blueCaller')}
               </p>
             </div>
             <input
@@ -1767,7 +1774,7 @@ export default function BulkInsert({
             <span
               className={`inline-flex items-center gap-2 rounded-full ${themeColors.bgPrimary} px-4 py-2 text-sm font-semibold text-white shadow-lg ${themeColors.hoverBg}`}
             >
-              <Upload className="h-4 w-4" /> Browse Excel file
+              <Upload className="h-4 w-4" /> {t('browseExcelFile', 'blueCaller')}
             </span>
           </label>
         </div>
@@ -1783,7 +1790,7 @@ export default function BulkInsert({
                   {getDisplayFileName(bulkFileName, 40)}
                 </p>
                 <p className="text-xs text-gray-500">
-                  Click cells in the table below to edit data directly.
+                  {t('clickCellsToEdit', 'blueCaller')}
                 </p>
               </div>
             </div>
@@ -1793,7 +1800,7 @@ export default function BulkInsert({
         {bulkUploadErrors.length > 0 && (
           <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             <div className="mb-2 flex items-center gap-2 font-semibold">
-              <AlertCircle className="h-4 w-4" /> Upload issues
+              <AlertCircle className="h-4 w-4" /> {t('uploadIssues', 'blueCaller')}
             </div>
             <ul className="space-y-1">
               {bulkUploadErrors.map((error) => (
@@ -1806,26 +1813,26 @@ export default function BulkInsert({
         <div className="grid gap-3 sm:grid-cols-4">
           {[
             {
-              label: 'Parsed rows',
+              label: t('parsedRows', 'blueCaller'),
               value: bulkRows.length,
               color: 'text-gray-900',
             },
             {
-              label: 'Valid',
+              label: t('valid', 'blueCaller'),
               value: bulkPreviewRows.filter(
                 (r) => r.errors.length === 0 && !r.hasDuplicate
               ).length,
               color: 'text-emerald-600',
             },
             {
-              label: 'Duplicate',
+              label: t('duplicate', 'blueCaller'),
               value: bulkPreviewRows.filter(
                 (r) => r.errors.length === 0 && r.hasDuplicate
               ).length,
               color: 'text-amber-600',
             },
             {
-              label: 'Failed',
+              label: t('failed', 'blueCaller'),
               value: bulkPreviewRows.filter((r) => r.errors.length > 0).length,
               color: 'text-red-600',
             },
@@ -1848,20 +1855,17 @@ export default function BulkInsert({
           className={`rounded-2xl border ${themeColors.borderLight} ${themeColors.bgLight} p-4 text-sm text-gray-600`}
         >
           <span className={`font-semibold ${themeColors.textPrimary}`}>
-            Validation Rules:
+            {t('validationRules', 'blueCaller')}
           </span>
           <ul className="mt-1 space-y-1 text-xs">
             <li>
-              • <span className="text-red-600">Failed (red)</span> - Missing
-              required fields or invalid data - cannot submit
+              • <span className="text-red-600">{t('failedRed', 'blueCaller')}</span> - {t('failedRedDesc', 'blueCaller')}
             </li>
             <li>
-              • <span className="text-amber-600">Duplicate (yellow)</span> -
-              Potential duplicate applicant - can still submit
+              • <span className="text-amber-600">{t('duplicateYellow', 'blueCaller')}</span> - {t('duplicateYellowDesc', 'blueCaller')}
             </li>
             <li>
-              • <span className="text-emerald-600">Valid (green)</span> - Ready
-              to submit
+              • <span className="text-emerald-600">{t('validGreen', 'blueCaller')}</span> - {t('validGreenDesc', 'blueCaller')}
             </li>
           </ul>
         </div>
@@ -1876,18 +1880,17 @@ export default function BulkInsert({
         >
           <div>
             <h3 className="text-base font-bold text-gray-900">
-              Applicant Data
+              {t('applicantData', 'blueCaller')}
             </h3>
             <p className="text-xs text-gray-500">
-              Edit cells directly by clicking on them. Select rows to delete.
-              Yellow rows have potential duplicates.
+              {t('applicantDataHint', 'blueCaller')}
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <span
               className={`rounded-full ${themeColors.bgLight} px-3 py-1 text-xs font-semibold ${themeColors.textPrimary} whitespace-nowrap`}
             >
-              {bulkPreviewRows.length} rows × {allColumnHeaders.length} cols
+              {t('rowsByCols', 'blueCaller', { rows: bulkPreviewRows.length, cols: allColumnHeaders.length })}
             </span>
             {bulkRows.length > 0 && (
               <button
@@ -1901,7 +1904,7 @@ export default function BulkInsert({
                 }}
                 className={`inline-flex items-center gap-1 rounded-xl border ${themeColors.borderPrimary} bg-white px-3 py-1.5 text-xs font-semibold ${themeColors.textPrimary}`}
               >
-                <Trash2 className="h-3 w-3" /> Reset
+                <Trash2 className="h-3 w-3" /> {t('reset', 'blueCaller')}
               </button>
             )}
             {selectedRowKeys.size > 0 && (
@@ -1911,7 +1914,7 @@ export default function BulkInsert({
                 className="inline-flex items-center gap-1 rounded-xl bg-red-600 px-3 py-1.5 text-xs font-semibold text-white shadow"
               >
                 <Trash2 className="h-3 w-3" />
-                Delete ({selectedRowKeys.size})
+                {t('deleteCount', 'blueCaller', { count: selectedRowKeys.size })}
               </button>
             )}
               <button
@@ -1928,8 +1931,7 @@ export default function BulkInsert({
             ) : (
               <UserPlus className="h-4 w-4" />
             )}
-            Submit Valid Rows (
-            {bulkPreviewRows.filter((r) => r.errors.length === 0).length})
+            {t('submitValidRows', 'blueCaller', { count: bulkPreviewRows.filter((r) => r.errors.length === 0).length })}
             </button>
           </div>
         </div>
@@ -1955,9 +1957,9 @@ export default function BulkInsert({
                     }
                   />
                 </th>
-                <th className="px-2 py-2 font-semibold w-[50px]">#</th>
-                <th className="px-2 py-2 font-semibold w-[80px]">Status</th>
-                <th className="px-2 py-2 font-semibold w-[180px]">Issues</th>
+                <th className="px-2 py-2 font-semibold w-[50px]">{t('rowNumber', 'blueCaller')}</th>
+                <th className="px-2 py-2 font-semibold w-[80px]">{t('status', 'blueCaller')}</th>
+                <th className="px-2 py-2 font-semibold w-[180px]">{t('issues', 'blueCaller')}</th>
                 {allColumnHeaders.map((header) => (
                   <th
                     key={header}
@@ -1977,7 +1979,7 @@ export default function BulkInsert({
                     className="px-2 py-8 text-center text-gray-500"
                     colSpan={allColumnHeaders.length + 4}
                   >
-                    Upload an Excel file to preview applicant rows here.
+                    {t('uploadToPreview', 'blueCaller')}
                   </td>
                 </tr>
               ) : (
@@ -2040,7 +2042,7 @@ export default function BulkInsert({
                           </div>
                         ) : (
                           <span className="text-emerald-600 text-[10px] whitespace-nowrap">
-                            ✓ Ready
+                            ✓ {t('ready', 'blueCaller')}
                           </span>
                         )}
                       </td>
@@ -2095,7 +2097,7 @@ export default function BulkInsert({
             className={`border-t ${themeColors.borderLight} px-3 py-1.5 text-center text-[10px] text-gray-400 flex-shrink-0`}
           >
             <span className="inline-flex items-center gap-1">
-              ← Scroll → {allColumnHeaders.length} columns total
+              {t('scrollHint', 'blueCaller', { count: allColumnHeaders.length })}
             </span>
           </div>
         )}

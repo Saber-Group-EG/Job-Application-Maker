@@ -240,24 +240,11 @@ function SortablePageItem({
               const selectedJobIds = page.jobPositions ?? [];
               const hasJobsSelected = selectedJobIds.length > 0;
               if (!hasJobsSelected) {
-                return availableStatuses.map((statusName) => {
-                  const selected = page.statuses.includes(statusName);
-                  return (
-                    <button
-                      key={statusName}
-                      type="button"
-                      onClick={() => canEdit && onToggleStatus(statusName)}
-                      disabled={!canEdit}
-                      className={`rounded-full px-3 py-1 text-sm font-medium transition ${
-                        selected
-                          ? 'bg-brand-500 text-white'
-                          : 'border border-slate-300 bg-white text-slate-600 hover:border-brand-300 hover:text-brand-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
-                      } disabled:cursor-not-allowed disabled:opacity-60`}
-                    >
-                      {statusName}
-                    </button>
-                  );
-                });
+                return (
+                  <p className="text-sm text-slate-400 italic">
+                    {t('applicantPages.selectJobFirst', 'settings')}
+                  </p>
+                );
               }
               const allowedStatusIds = new Set(
                 availableJobPositions

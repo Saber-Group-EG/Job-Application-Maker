@@ -75,14 +75,14 @@ const toUserLabel = (value: unknown): string => {
   return '';
 };
 
-const getAnswerDisplay = (q: InterviewAnswer): {
+const getAnswerDisplay = (q: InterviewAnswer, t?: (key: string, ns: string) => string): {
   type: 'choice' | 'text' | 'empty';
   text: string;
   selectedChoice?: string;
 } => {
   const noteText = (q?.notes ?? '').toString().trim();
   if (noteText) return { type: 'text', text: noteText };
-  return { type: 'empty', text: 'No answer recorded' };
+  return { type: 'empty', text: t ? t('noAnswerRecorded', 'completedInterview') : 'No answer recorded' };
 };
 
 const InfoTile: React.FC<{
@@ -122,11 +122,12 @@ const QuestionDisplay: React.FC<{
   editable?: boolean;
   onChange?: (updated: InterviewAnswer) => void;
 }> = ({ question, index, editable, onChange }) => {
+  const { t } = useLocale();
   const score = Number(question?.score || 0);
   const achieved = Number(question?.achievedScore || 0);
   const percentage = score > 0 ? Math.round((achieved / score) * 100) : 0;
   const choices = Array.isArray(question?.choices) ? question!.choices : [];
-  const answer = getAnswerDisplay(question);
+  const answer = getAnswerDisplay(question, t);
 
   const handleChange = (field: 'score' | 'achievedScore' | 'notes', value: string | number) => {
     if (!onChange) return;
@@ -141,7 +142,7 @@ const QuestionDisplay: React.FC<{
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium text-gray-800 mt-1.5">
-            {question?.question || '(Untitled question)'}
+            {question?.question || t('untitledQuestion', 'completedInterview')}
           </p>
           <div className="mt-1.5 flex flex-wrap items-center gap-2">
           </div>
@@ -159,7 +160,7 @@ const QuestionDisplay: React.FC<{
       {choices.length > 0 && (
         <div className="mt-4">
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-            Choices
+            {t('choices', 'completedInterview')}
           </p>
           <div className="flex flex-wrap gap-2">
             {choices.map((choice, i) => {
@@ -187,7 +188,7 @@ const QuestionDisplay: React.FC<{
 
       <div className="mt-1.5 rounded-lg border border-gray-100 bg-gray-50/60 p-3">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-          Candidate's answer
+          {t('candidateAnswer', 'completedInterview')}
         </p>
         {editable ? (
           <textarea
@@ -195,7 +196,7 @@ const QuestionDisplay: React.FC<{
             onChange={e => handleChange('notes', e.target.value)}
             className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             rows={3}
-            placeholder="Edit answer notes..."
+            placeholder={t('editAnswerNotes', 'completedInterview')}
           />
         ) : answer.type === 'text' ? (
           <p className="whitespace-pre-wrap text-sm text-gray-800">{answer.text}</p>
@@ -207,7 +208,7 @@ const QuestionDisplay: React.FC<{
       {editable && score > 0 && (
         <div className="mt-3 space-y-2 pt-3 border-t border-gray-100">
           <div className="flex justify-between text-[10px] text-gray-500 font-medium">
-            <span>Performance Weight</span>
+            <span>{t('performanceWeight', 'completedInterview')}</span>
             <span>{percentage}%</span>
           </div>
           <input
@@ -233,10 +234,10 @@ const QuestionDisplay: React.FC<{
 };
 
 const STATUS_OPTIONS = [
-  { value: 'completed', label: 'Completed' },
-  { value: 'scheduled', label: 'Scheduled' },
-  { value: 'in_progress', label: 'In Progress' },
-  { value: 'cancelled', label: 'Cancelled' },
+  { value: 'completed', labelKey: 'statusCompleted' },
+  { value: 'scheduled', labelKey: 'statusScheduled' },
+  { value: 'in_progress', labelKey: 'statusInProgress' },
+  { value: 'cancelled', labelKey: 'statusCancelled' },
 ];
 
 const CompletedInterviewDetails: React.FC = () => {
@@ -395,17 +396,17 @@ const CompletedInterviewDetails: React.FC = () => {
       <div className="bg-gray-50 min-h-screen p-6">
         <div className="max-w-3xl mx-auto bg-white rounded-lg shadow-sm border border-gray-100 p-8 text-center">
           <h2 className="text-lg font-semibold text-gray-800 mb-2">
-            Interview not found
+            {t('interviewNotFound', 'completedInterview')}
           </h2>
           <p className="text-sm text-gray-500 mb-4">
             {(error as { message?: string } | null | undefined)?.message ||
-              'We could not load this interview.'}
+              t('couldNotLoadInterview', 'completedInterview')}
           </p>
           <button
             onClick={handleBack}
             className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
           >
-            Back to applicant
+            {t('backToApplicant', 'completedInterview')}
           </button>
         </div>
       </div>
@@ -420,16 +421,16 @@ const CompletedInterviewDetails: React.FC = () => {
             <XCircle className="h-6 w-6 text-gray-400" />
           </div>
           <h2 className="text-lg font-semibold text-gray-800 mb-2">
-            Interview not found
+            {t('interviewNotFound', 'completedInterview')}
           </h2>
           <p className="text-sm text-gray-500 mb-4">
-            The interview you are looking for does not exist or has been removed.
+            {t('interviewNotFoundDesc', 'completedInterview')}
           </p>
           <button
             onClick={handleBack}
             className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
           >
-            Back to applicant
+            {t('backToApplicant', 'completedInterview')}
           </button>
         </div>
       </div>
@@ -442,7 +443,7 @@ const CompletedInterviewDetails: React.FC = () => {
         .replace(/_/g, ' ')
         .replace(/-/g, ' ')
         .replace(/\b\w/g, (c) => c.toUpperCase())
-    : 'Interview';
+    : t('interview', 'completedInterview');
   const conductedByLabel = toUserLabel(interview.conductedBy);
   const interviewerLabels = Array.isArray(interview.interviewers)
     ? interview.interviewers.map((i) => toUserLabel(i)).filter(Boolean)
@@ -452,12 +453,12 @@ const CompletedInterviewDetails: React.FC = () => {
     <div className="bg-gray-50 min-h-screen p-6">
       <div className="max-w-6xl mx-auto space-y-6 pb-12">
         <PageMeta
-          title={`${typeLabel} | Interview Details`}
-          description="Completed interview details"
+          title={t('interviewDetailsPageTitle', 'completedInterview', { type: typeLabel })}
+          description={t('completedInterviewDetails', 'completedInterview')}
         />
 
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <PageBreadCrumb pageTitle={isEditing ? 'Edit Interview' : 'Completed Interview Details'} />
+          <PageBreadCrumb pageTitle={isEditing ? t('editInterview', 'completedInterview') : t('completedInterviewDetails', 'completedInterview')} />
           <div className="flex items-center gap-2">
             {isEditing ? (
               <>
@@ -467,7 +468,7 @@ const CompletedInterviewDetails: React.FC = () => {
                   disabled={isSaving}
                   className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50"
                 >
-                  Cancel
+                  {t('cancel', 'completedInterview')}
                 </button>
                 <button
                   type="button"
@@ -476,7 +477,7 @@ const CompletedInterviewDetails: React.FC = () => {
                   className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 disabled:opacity-50"
                 >
                   <Save className="h-4 w-4" />
-                  {isSaving ? 'Saving...' : 'Save Edits'}
+                  {isSaving ? t('saving', 'completedInterview') : t('saveEdits', 'completedInterview')}
                 </button>
               </>
             ) : (
@@ -486,7 +487,7 @@ const CompletedInterviewDetails: React.FC = () => {
                 className="inline-flex items-center gap-2 self-start rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
               >
                 <ArrowLeft className="h-4 w-4" />
-                Back to applicant
+                {t('backToApplicant', 'completedInterview')}
               </button>
             )}
           </div>
@@ -501,17 +502,17 @@ const CompletedInterviewDetails: React.FC = () => {
                   onClick={handleCancel}
                   className="inline-flex items-center gap-1.5 text-white/90 hover:text-white text-sm font-medium group"
                 >
-                  <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
-                  Back
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleBack}
-                  className="inline-flex items-center gap-1.5 text-white/90 hover:text-white text-sm font-medium group"
-                >
-                  <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
-                  Back
+                    <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
+                    {t('back', 'completedInterview')}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleBack}
+                    className="inline-flex items-center gap-1.5 text-white/90 hover:text-white text-sm font-medium group"
+                  >
+                    <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
+                    {t('back', 'completedInterview')}
                 </button>
               )}
               <div className="flex items-center gap-2 flex-wrap">
@@ -522,13 +523,13 @@ const CompletedInterviewDetails: React.FC = () => {
                     className="rounded-lg border border-white/30 bg-white/15 px-3 py-1.5 text-xs font-semibold text-white focus:border-white/50 focus:outline-none focus:ring-1 focus:ring-white/50"
                   >
                     {STATUS_OPTIONS.map(opt => (
-                      <option key={opt.value} value={opt.value} className="text-gray-800">{opt.label}</option>
+                      <option key={opt.value} value={opt.value} className="text-gray-800">{t(opt.labelKey, 'completedInterview')}</option>
                     ))}
                   </select>
                 ) : (
                   <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${status === 'completed' ? 'bg-emerald-500/20 text-emerald-50' : 'bg-white/15 text-white'}`}>
                     <CheckCircle2 className="h-3.5 w-3.5" />
-                    {status === 'completed' ? 'Completed' : status}
+                    {status === 'completed' ? t('statusCompleted', 'completedInterview') : status}
                   </span>
                 )}
               </div>
@@ -543,7 +544,7 @@ const CompletedInterviewDetails: React.FC = () => {
                   {performance}%
                 </p>
                 <p className="px-2 py-0.5 text-xs font-medium rounded-full bg-purple-100 text-gray-700 hover:bg-blue-200 transition-colors">
-                  {achievedScore} / {totalScore}
+                  {t('scoreFormat', 'completedInterview', { achieved: achievedScore, total: totalScore })}
                 </p>
               </div>
             </div>
@@ -562,7 +563,7 @@ const CompletedInterviewDetails: React.FC = () => {
                   {completion}%
                 </p>
                 <p className="px-2 py-0.5 text-xs font-medium rounded-full bg-amber-100 text-gray-700 hover:bg-blue-200 transition-colors">
-                  {answeredCount} / {effectiveQuestions.length}
+                  {t('answeredCountFormat', 'completedInterview', { answered: answeredCount, total: effectiveQuestions.length })}
                 </p>
               </div>
             </div>
@@ -570,7 +571,7 @@ const CompletedInterviewDetails: React.FC = () => {
             <div className="bg-white p-4 text-center">
               <Clock className="h-4 w-4 text-gray-500 mx-auto mb-1" />
               <p className="text-sm font-semibold text-gray-800 tabular-nums">
-                {interview?.startedAt ? new Date(interview.startedAt).toLocaleString() : 'N/A'}
+                {interview?.startedAt ? new Date(interview.startedAt).toLocaleString() : t('na', 'completedInterview')}
               </p>
             </div>
           </div>
@@ -578,37 +579,37 @@ const CompletedInterviewDetails: React.FC = () => {
 
         <section>
           <h2 className="mb-3 text-sm font-semibold text-gray-700">
-            Interview Information
+            {t('interviewInformation', 'completedInterview')}
           </h2>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <InfoTile
               icon={<Clock4 className="h-4 w-4" />}
-              label="Type"
+              label={t('type', 'completedInterview')}
               value={typeLabel}
               accent="blue"
             />
             <InfoTile
               icon={<Calendar className="h-4 w-4" />}
-              label="Scheduled At"
+              label={t('scheduledAt', 'completedInterview')}
               value={formatDate(interview.scheduledAt)}
               accent="purple"
             />
             <InfoTile
               icon={<Calendar className="h-4 w-4" />}
-              label="Started At"
+              label={t('startedAt', 'completedInterview')}
               value={formatDate(interview.startedAt)}
               accent="green"
             />
             <InfoTile
               icon={<Calendar className="h-4 w-4" />}
-              label="Ended At"
+              label={t('endedAt', 'completedInterview')}
               value={formatDate(interview.endedAt)}
               accent="amber"
             />
             {conductedByLabel && (
               <InfoTile
                 icon={<UserIcon className="h-4 w-4" />}
-                label="Conducted By"
+                label={t('conductedBy', 'completedInterview')}
                 value={conductedByLabel}
                 accent="purple"
               />
@@ -616,7 +617,7 @@ const CompletedInterviewDetails: React.FC = () => {
             {interview.videoLink && (
               <InfoTile
                 icon={<Video className="h-4 w-4" />}
-                label="Video Link"
+                label={t('videoLink', 'completedInterview')}
                 value={
                   <a
                     href={interview.videoLink}
@@ -624,7 +625,7 @@ const CompletedInterviewDetails: React.FC = () => {
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline"
                   >
-                    Open link
+                    {t('openLink', 'completedInterview')}
                     <ExternalLink className="h-3 w-3" />
                   </a>
                 }
@@ -634,7 +635,7 @@ const CompletedInterviewDetails: React.FC = () => {
             {interviewerLabels.length > 0 && (
               <InfoTile
                 icon={<UserIcon className="h-4 w-4" />}
-                label="Interviewers"
+                label={t('interviewers', 'completedInterview')}
                 value={
                   <div className="flex flex-wrap gap-1.5">
                     {interviewerLabels.map((name, i) => (
@@ -658,11 +659,11 @@ const CompletedInterviewDetails: React.FC = () => {
                 <StickyNote className="h-3.5 w-3.5" />
               </span>
               <h3 className="text-sm font-semibold text-gray-800">
-                Interviewer Notes
+                {t('interviewerNotes', 'completedInterview')}
               </h3>
             </div>
             <p className="whitespace-pre-wrap text-sm text-gray-700">
-              {interview.notes || 'No notes recorded.'}
+              {interview.notes || t('noNotesRecorded', 'completedInterview')}
             </p>
           </div>
         </section>
@@ -670,11 +671,10 @@ const CompletedInterviewDetails: React.FC = () => {
         <section>
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-gray-700">
-              Questions &amp; Answers
+              {t('questionsAndAnswers', 'completedInterview')}
             </h2>
             <span className="text-xs text-gray-400">
-              {effectiveQuestions.length} question
-              {effectiveQuestions.length === 1 ? '' : 's'}
+              {t('questionCount', 'completedInterview', { count: effectiveQuestions.length })}
             </span>
           </div>
 
@@ -684,10 +684,10 @@ const CompletedInterviewDetails: React.FC = () => {
                 <Inbox className="h-5 w-5 text-gray-400" />
               </div>
               <p className="text-sm font-medium text-gray-700">
-                No questions recorded
+                {t('noQuestionsRecorded', 'completedInterview')}
               </p>
               <p className="text-xs text-gray-400">
-                This interview does not have any questions attached to it.
+                {t('noQuestionsRecordedDesc', 'completedInterview')}
               </p>
             </div>
           ) : (

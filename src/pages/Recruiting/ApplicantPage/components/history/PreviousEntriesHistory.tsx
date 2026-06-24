@@ -1,4 +1,5 @@
 import { Inbox, Mail, Phone, UserCircle2 } from 'lucide-react';
+import { useLocale } from '../../../../../context/LocaleContext';
 import type { Applicant } from '../../../../../types/applicants';
 import { toPlainString } from '../../../../../utils/strings';
 import { formatDateOnly, getStatusColor } from './historyUtils';
@@ -28,19 +29,21 @@ export default function PreviousEntriesHistory({
   applicants,
   onSelectApplicant,
 }: Props) {
+  const { t } = useLocale();
+
   if (isLoading) {
     return (
       <div className="overflow-hidden rounded-xl border border-gray-100">
         <table className="min-w-full">
           <thead className="bg-gray-50/80 border-b border-gray-100">
             <tr>
-              <th className={TABLE_HEAD_CLASS}>Full Name</th>
-              <th className={TABLE_HEAD_CLASS}>Email</th>
-              <th className={TABLE_HEAD_CLASS}>Phone</th>
-              <th className={TABLE_HEAD_CLASS}>Status</th>
-              <th className={TABLE_HEAD_CLASS}>Rejected Reasons</th>
-              <th className={TABLE_HEAD_CLASS}>Applied Date</th>
-              <th className={TABLE_HEAD_CLASS}>Job Position</th>
+              <th className={TABLE_HEAD_CLASS}>{t('fullName', 'history')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('email', 'applicants')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('phone', 'applicants')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('status', 'applicants')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('rejectedReasons', 'history')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('appliedDate', 'history')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('jobPosition', 'applicants')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
@@ -78,9 +81,9 @@ export default function PreviousEntriesHistory({
         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100">
           <Inbox className="h-5 w-5 text-gray-400" />
         </div>
-        <p className="text-sm font-medium text-gray-700">No previous entries</p>
+        <p className="text-sm font-medium text-gray-700">{t('noPreviousEntries', 'history')}</p>
         <p className="text-xs text-gray-400">
-          Other applications with the same phone number will appear here.
+          {t('noPreviousEntriesDesc', 'history')}
         </p>
       </div>
     );
@@ -92,13 +95,13 @@ export default function PreviousEntriesHistory({
         <table className="min-w-full divide-y divide-gray-100">
           <thead className="bg-gray-50/80">
             <tr>
-              <th className={TABLE_HEAD_CLASS}>Full Name</th>
-              <th className={TABLE_HEAD_CLASS}>Email</th>
-              <th className={TABLE_HEAD_CLASS}>Phone</th>
-              <th className={TABLE_HEAD_CLASS}>Status</th>
-              <th className={TABLE_HEAD_CLASS}>Rejected Reasons</th>
-              <th className={TABLE_HEAD_CLASS}>Applied Date</th>
-              <th className={TABLE_HEAD_CLASS}>Job Position</th>
+              <th className={TABLE_HEAD_CLASS}>{t('fullName', 'history')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('email', 'applicants')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('phone', 'applicants')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('status', 'applicants')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('rejectedReasons', 'history')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('appliedDate', 'history')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('jobPosition', 'applicants')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50 bg-white">
@@ -129,7 +132,7 @@ export default function PreviousEntriesHistory({
                         <UserCircle2 className="h-4 w-4" />
                       </span>
                       <span className="truncate text-blue-600 group-hover:underline">
-                        {prev?.fullName || 'N/A'}
+                        {prev?.fullName || t('nA', 'applicants')}
                       </span>
                     </div>
                   </td>
@@ -186,7 +189,7 @@ export default function PreviousEntriesHistory({
                     {appliedDate || <span className="text-gray-300">—</span>}
                   </td>
                   <td className={BODY_CELL_SECONDARY}>
-                    <span className="truncate">{jobPosition || 'N/A'}</span>
+                    <span className="truncate">{jobPosition || t('nA', 'applicants')}</span>
                   </td>
                 </tr>
               );

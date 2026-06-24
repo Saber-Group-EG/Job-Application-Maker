@@ -1,4 +1,5 @@
 import { Briefcase, Inbox } from 'lucide-react';
+import { useLocale } from '../../../../../context/LocaleContext';
 import type { JobOffer } from '../../../../../services/jobOffersService';
 import { toPlainString } from '../../../../../utils/strings';
 import { formatDate, getStatusColor } from './historyUtils';
@@ -26,17 +27,19 @@ export default function JobOfferHistory({
   offers,
   onSelectOffer,
 }: Props) {
+  const { t } = useLocale();
+
   if (isLoading) {
     return (
       <div className="overflow-hidden rounded-xl border border-gray-100">
         <table className="min-w-full">
           <thead className="bg-gray-50/80 border-b border-gray-100">
             <tr>
-              <th className={TABLE_HEAD_CLASS}>Position</th>
-              <th className={TABLE_HEAD_CLASS}>Company</th>
-              <th className={TABLE_HEAD_CLASS}>Status</th>
-              <th className={TABLE_HEAD_CLASS}>Sent</th>
-              <th className={TABLE_HEAD_CLASS}>Responded</th>
+              <th className={TABLE_HEAD_CLASS}>{t('position', 'history')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('company', 'applicants')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('status', 'applicants')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('sent', 'history')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('responded', 'history')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
@@ -71,9 +74,9 @@ export default function JobOfferHistory({
         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100">
           <Inbox className="h-5 w-5 text-gray-400" />
         </div>
-        <p className="text-sm font-medium text-gray-700">No job offers yet</p>
+        <p className="text-sm font-medium text-gray-700">{t('noJobOffers', 'history')}</p>
         <p className="text-xs text-gray-400">
-          Job offers issued to this applicant will appear here.
+          {t('noJobOffersDesc', 'history')}
         </p>
       </div>
     );
@@ -85,10 +88,10 @@ export default function JobOfferHistory({
         <table className="min-w-full divide-y divide-gray-100">
           <thead className="bg-gray-50/80">
             <tr>
-              <th className={TABLE_HEAD_CLASS}>Position</th>
-              <th className={TABLE_HEAD_CLASS}>Company</th>
-              <th className={TABLE_HEAD_CLASS}>Status</th>
-              <th className={TABLE_HEAD_CLASS}>Sent</th>
+              <th className={TABLE_HEAD_CLASS}>{t('position', 'history')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('company', 'applicants')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('status', 'applicants')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('sent', 'history')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50 bg-white">
@@ -99,11 +102,11 @@ export default function JobOfferHistory({
               const companyName =
                 typeof offer?.companyId === 'string'
                   ? offer?.companyId
-                  : toPlainString(offer?.companyId?.name) || 'N/A';
+                  : toPlainString(offer?.companyId?.name) || t('nA', 'applicants');
               const position =
                 toPlainString(offer?.position) ||
                 toPlainString(offer?.jobPositionId?.title) ||
-                'N/A';
+                t('nA', 'applicants');
 
               return (
                 <tr

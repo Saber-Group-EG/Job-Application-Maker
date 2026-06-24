@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Layers, CheckCircle2, XCircle, Percent } from 'lucide-react';
 import type { JobSpecItem, JobSpecProps } from '../../../../../types/applicants';
+import { useLocale } from '../../../../../context/LocaleContext';
 
 const COLORS = {
   met: { bg: 'bg-white', text: 'text-[#22C55E]', border: 'border-[#DCFCE7]', iconBg: 'bg-[#DCFCE7]' },
@@ -27,6 +28,7 @@ const getSpecText = (item: any): string => {
 };
 
 const JobSpec: React.FC<JobSpecProps> = ({ specs: providedSpecs, jobPosition, editable = false, onSpecChange }) => {
+  const { t } = useLocale();
   // ── Build weight map from jobPosition ONLY (ignores item.weight) ──
   // Keyed by spec TEXT (not ID) because applicant.jobSpecsWithDetails.jobSpecId
   // does NOT match jobPosition.jobSpecs._id in the API payload.
@@ -103,9 +105,9 @@ const JobSpec: React.FC<JobSpecProps> = ({ specs: providedSpecs, jobPosition, ed
     return (
       <div className="bg-white rounded-xl border border-gray-200 p-6 text-center">
         <Layers className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-        <h3 className="text-sm font-semibold text-gray-700">No job specifications</h3>
+        <h3 className="text-sm font-semibold text-gray-700">{t('noJobSpecifications', 'jobSpec')}</h3>
         <p className="text-xs text-gray-400 mt-1">
-          This job position has no specifications configured yet.
+          {t('noJobSpecificationsDesc', 'jobSpec')}
         </p>
       </div>
     );
@@ -118,7 +120,7 @@ const JobSpec: React.FC<JobSpecProps> = ({ specs: providedSpecs, jobPosition, ed
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Percent className="h-5 w-5 text-blue-500" />
-            <h3 className="text-sm font-semibold text-gray-700">Compatibility Score</h3>
+            <h3 className="text-sm font-semibold text-gray-700">{t('compatibilityScore', 'jobSpec')}</h3>
           </div>
           <span className={`text-2xl font-bold ${achievedScore === totalWeight ? 'text-green-600' : 'text-orange-600'}`}>
             {achievedScore}%
@@ -130,7 +132,7 @@ const JobSpec: React.FC<JobSpecProps> = ({ specs: providedSpecs, jobPosition, ed
           <div className="flex mb-2 items-center justify-between">
             <div>
               <span className="text-xs font-semibold inline-block text-gray-600">
-                Requirements Met
+                {t('requirementsMet', 'jobSpec')}
               </span>
             </div>
             <div className="text-right">
@@ -148,9 +150,9 @@ const JobSpec: React.FC<JobSpecProps> = ({ specs: providedSpecs, jobPosition, ed
             />
           </div>
           <div className="flex justify-between text-[10px] text-gray-400 mt-1">
-            <span>0%</span>
-            <span>50%</span>
-            <span>100%</span>
+            <span>{t('zeroPercent', 'jobSpec')}</span>
+            <span>{t('fiftyPercent', 'jobSpec')}</span>
+            <span>{t('hundredPercent', 'jobSpec')}</span>
           </div>
         </div>
       </div>
@@ -177,7 +179,7 @@ const JobSpec: React.FC<JobSpecProps> = ({ specs: providedSpecs, jobPosition, ed
                   <div className="flex-1">
                     <h4 className="text-base font-semibold text-gray-800">{item.spec.en}</h4>
                     <div className="flex items-center gap-3 mt-1">
-                      <span className="text-xs font-medium text-gray-500">Weight: {item.weight}%</span>
+                      <span className="text-xs font-medium text-gray-500">{t('weightLabel', 'jobSpec', { weight: item.weight })}</span>
                       {editable ? (
                         <div className="inline-flex items-center gap-1 bg-gray-100 rounded-full p-0.5">
                           <button
@@ -190,7 +192,7 @@ const JobSpec: React.FC<JobSpecProps> = ({ specs: providedSpecs, jobPosition, ed
                             }`}
                           >
                             <CheckCircle2 className="h-3 w-3" />
-                            Met
+                            {t('met', 'jobSpec')}
                           </button>
                           <button
                             type="button"
@@ -202,18 +204,18 @@ const JobSpec: React.FC<JobSpecProps> = ({ specs: providedSpecs, jobPosition, ed
                             }`}
                           >
                             <XCircle className="h-3 w-3" />
-                            Not Met
+                            {t('notMet', 'jobSpec')}
                           </button>
                         </div>
                       ) : isMet ? (
-                        <span className="inline-flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
-                          <CheckCircle2 className="h-3 w-3" />
-                          Met
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-xs text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
-                          <XCircle className="h-3 w-3" />
-                          Not Met
+                          <span className="inline-flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                            <CheckCircle2 className="h-3 w-3" />
+                            {t('met', 'jobSpec')}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-xs text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
+                            <XCircle className="h-3 w-3" />
+                            {t('notMet', 'jobSpec')}
                         </span>
                       )}
                     </div>
@@ -222,10 +224,10 @@ const JobSpec: React.FC<JobSpecProps> = ({ specs: providedSpecs, jobPosition, ed
                 
                 <div className="text-right">
                   <div className={`text-lg font-bold ${isMet ? color.text : 'text-gray-400'}`}>
-                    {isMet ? `+${earnedWeight}%` : '0%'}
+                    {isMet ? t('earnedWeightFormat', 'jobSpec', { weight: earnedWeight }) : t('zeroEarnedWeight', 'jobSpec')}
                   </div>
                   <div className="text-[10px] text-gray-400">
-                    of {item.weight}%
+                    {t('ofWeight', 'jobSpec', { weight: item.weight })}
                   </div>
                 </div>
               </div>
@@ -251,7 +253,7 @@ const JobSpec: React.FC<JobSpecProps> = ({ specs: providedSpecs, jobPosition, ed
         <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
           <CheckCircle2 className="h-4 w-4 text-green-600" />
           <p className="text-sm text-green-700">
-            Perfect match! Candidate meets all job requirements.
+            {t('perfectMatch', 'jobSpec')}
           </p>
         </div>
       )}
@@ -262,7 +264,7 @@ const JobSpec: React.FC<JobSpecProps> = ({ specs: providedSpecs, jobPosition, ed
         <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
           <XCircle className="h-4 w-4 text-red-500" />
           <p className="text-sm text-red-700">
-            Candidate does not meet any requirements.
+            {t('noRequirementsMet', 'jobSpec')}
           </p>
         </div>
       )}

@@ -34,6 +34,20 @@ import enUsers from '../../locales/en/users.json';
 import arUsers from '../../locales/ar/users.json';
 import enModals from '../../locales/en/modals.json';
 import arModals from '../../locales/ar/modals.json';
+import enHistory from '../../locales/en/history.json';
+import arHistory from '../../locales/ar/history.json';
+import enCompletedInterview from '../../locales/en/completedInterview.json';
+import arCompletedInterview from '../../locales/ar/completedInterview.json';
+import enActivity from '../../locales/en/activity.json';
+import arActivity from '../../locales/ar/activity.json';
+import enJobSpec from '../../locales/en/jobSpec.json';
+import arJobSpec from '../../locales/ar/jobSpec.json';
+import enBlueCaller from '../../locales/en/blueCaller.json';
+import arBlueCaller from '../../locales/ar/blueCaller.json';
+import enApplicantDetails from '../../locales/en/applicantDetails.json';
+import arApplicantDetails from '../../locales/ar/applicantDetails.json';
+import enPersonalInfo from '../../locales/en/personalInfo.json';
+import arPersonalInfo from '../../locales/ar/personalInfo.json';
 
 type Locale = 'en' | 'ar';
 
@@ -45,8 +59,8 @@ interface LocaleContextType {
 }
 
 const translations: Record<Locale, Record<string, Record<string, string>>> = {
-  en: { sidebar: enSidebar, common: enCommon, home: enHome, interview: enInterview, rejection: enRejection, applicants: enApplicants, companies: enCompanies, settings: enSettings, jobs: enJobs, jobContracts: enJobContracts, jobOffers: enJobOffers, mailPreview: enMailPreview, savedFields: enSavedFields, roles: enRoles, systemSettings: enSystemSettings, users: enUsers, modals: enModals },
-  ar: { sidebar: arSidebar, common: arCommon, home: arHome, interview: arInterview, rejection: arRejection, applicants: arApplicants, companies: arCompanies, settings: arSettings, jobs: arJobs, jobContracts: arJobContracts, jobOffers: arJobOffers, mailPreview: arMailPreview, savedFields: arSavedFields, roles: arRoles, systemSettings: arSystemSettings, users: arUsers, modals: arModals },
+  en: { sidebar: enSidebar, common: enCommon, home: enHome, interview: enInterview, rejection: enRejection, applicants: enApplicants, companies: enCompanies, settings: enSettings, jobs: enJobs, jobContracts: enJobContracts, jobOffers: enJobOffers, mailPreview: enMailPreview, savedFields: enSavedFields, roles: enRoles, systemSettings: enSystemSettings, users: enUsers, modals: enModals, completedInterview: enCompletedInterview, activity: enActivity, jobSpec: enJobSpec, history: enHistory, blueCaller: enBlueCaller, applicantDetails: enApplicantDetails, personalInfo: enPersonalInfo },
+  ar: { sidebar: arSidebar, common: arCommon, home: arHome, interview: arInterview, rejection: arRejection, applicants: arApplicants, companies: arCompanies, settings: arSettings, jobs: arJobs, jobContracts: arJobContracts, jobOffers: arJobOffers, mailPreview: arMailPreview, savedFields: arSavedFields, roles: arRoles, systemSettings: arSystemSettings, users: arUsers, modals: arModals, completedInterview: arCompletedInterview, activity: arActivity, jobSpec: arJobSpec, history: arHistory, blueCaller: arBlueCaller, applicantDetails: arApplicantDetails, personalInfo: arPersonalInfo },
 };
 
 const LocaleContext = createContext<LocaleContextType | undefined>(undefined);

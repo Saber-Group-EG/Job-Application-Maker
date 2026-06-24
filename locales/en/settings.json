@@ -1,7 +1,9 @@
 {
   "applicantPages.pageName": "Page Name",
   "applicantPages.pageNamePlaceholder": "e.g. Active Pipeline, Shortlisted...",
+  "applicantPages.doubleClickHint": "Double-click to edit name",
   "applicantPages.statusesIncluded": "Statuses included in this page",
+  "applicantPages.selectJobFirst": "Select a job position first to see available statuses",
   "applicantPages.jobPositionsIncluded": "Job Positions included in this page",
   "applicantPages.remove": "Remove",
   "applicantPages.addPage": "Add Page",

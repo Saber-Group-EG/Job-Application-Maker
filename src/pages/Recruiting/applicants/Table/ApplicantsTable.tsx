@@ -1978,7 +1978,8 @@ const jobOptions = useMemo(() => {
             title="Filter"
             style={{
               position: 'absolute',
-              right: -3,
+              right: dir === 'rtl' ? 'auto' : -3,
+              left: dir === 'rtl' ? -3 : 'auto',
               top: '50%',
               transform: 'translateY(-50%)',
               background: activeCount > 0 ? (isExclude ? 'rgba(244,63,94,0.08)' : 'rgba(16,185,129,0.08)') : 'none',
@@ -2016,8 +2017,8 @@ const jobOptions = useMemo(() => {
             anchorEl={anchorEl}
             open={Boolean(anchorEl)}
             onClose={() => setAnchorEl(null)}
-            anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
-            transformOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+            anchorOrigin={{ vertical: 'top', horizontal: dir === 'rtl' ? 'right' : 'left' }}
+            transformOrigin={{ vertical: 'bottom', horizontal: dir === 'rtl' ? 'right' : 'left' }}
             onClick={(e) => e.stopPropagation()}
           >
             <ExcludableMultiSelectFilter

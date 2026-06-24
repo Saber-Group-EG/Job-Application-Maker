@@ -1,7 +1,9 @@
 {
   "applicantPages.pageName": "اسم الصفحة",
   "applicantPages.pageNamePlaceholder": "مثال: المسار النشط، المختصرون...",
+  "applicantPages.doubleClickHint": "انقر نقراً مزدوجاً لتعديل الاسم",
   "applicantPages.statusesIncluded": "الحالات المضمنة في هذه الصفحة",
+  "applicantPages.selectJobFirst": "اختر منصباً وظيفياً أولاً لرؤية الحالات المتاحة",
   "applicantPages.jobPositionsIncluded": "المناصب الوظيفية المضمنة في هذه الصفحة",
   "applicantPages.remove": "إزالة",
   "applicantPages.addPage": "إضافة صفحة",
