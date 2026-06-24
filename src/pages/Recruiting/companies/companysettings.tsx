@@ -202,18 +202,18 @@ export default function CompanySettingsPage({ companyId, onSaved, onChange }: Pr
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
           <div className="space-y-6 xl:col-span-4">
             {showSelector && (
-              <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-700/50 dark:bg-slate-800/40">
-                <div className="mb-3 flex items-center gap-2">
-                  <div className="flex size-8 items-center justify-center rounded-lg bg-violet-500/10 text-violet-500">
-                    <Building2 className="size-4" />
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="flex size-10 items-center justify-center rounded-lg bg-violet-500/10 text-violet-500">
+                    <Building2 className="size-5" />
                   </div>
-                  <h3 className="text-sm font-semibold tracking-tight text-slate-700 dark:text-slate-300">Active Company</h3>
+                  <h3 className="text-lg font-semibold tracking-tight">Active Company</h3>
                 </div>
                 <div className="relative">
                   <select
                     value={selectedCompanyId}
                     onChange={(e) => setSelectedCompanyId(e.target.value)}
-                    className="w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 pr-10 text-sm font-medium outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800"
+                    className="w-full appearance-none rounded-xl border border-slate-300 bg-white py-3 pl-4 pr-10 text-sm font-medium outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800"
                   >
                     {companies.map((c: any) => (
                       <option key={c._id} value={c._id} className="font-medium">
@@ -223,7 +223,7 @@ export default function CompanySettingsPage({ companyId, onSaved, onChange }: Pr
                   </select>
                   <ArrowRight className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 rotate-90 text-slate-400" />
                 </div>
-                <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">Pick the company profile whose mail infrastructure you want to manage.</p>
+                <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">Pick the company profile whose mail infrastructure you want to manage.</p>
               </div>
             )}
 

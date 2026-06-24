@@ -2,6 +2,7 @@
 import React from 'react';
 import type { TextQuestion } from '../../../../../../../types/applicants';
 import type { QuestionHandlers } from './types';
+import { renderSmartText } from '../../../../../../../components/common/SmartText';
 
 export const TextItem: React.FC<{ 
   question: TextQuestion; 
@@ -23,8 +24,8 @@ export const TextItem: React.FC<{
       className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 bg-white cursor-text"
     />
     ) : (
-    <div className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 opacity-75 whitespace-pre-wrap break-words">
-      {question.value || ''}
+    <div className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 opacity-75 break-words">
+      {renderSmartText(question.value, { preserveNewlines: true }).node}
     </div>
     )}
   </div>

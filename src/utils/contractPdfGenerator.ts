@@ -263,8 +263,9 @@ export const generateContractPDF = async ({ contract, lang = 'en', companyName =
         </div>
         ` : ''}
 
-        <!-- Contract Sections -->
+        <!-- Contract Terms & Conditions (Sections) -->
         <div style="margin: 20px 0;">
+            <div style="font-size: 11pt; font-weight: 700; color: #242B32; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 2px solid #242B32; ${isRTL ? 'text-align: right;' : ''}">${lang === 'ar' ? 'بنود العقد والشروط' : 'Contract Terms & Conditions'}</div>
             ${sectionsHTML}
         </div>
 

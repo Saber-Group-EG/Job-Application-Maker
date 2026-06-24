@@ -26,8 +26,6 @@ import {
 	useSensor,
 	useSensors,
 	DragEndEvent,
-	DragStartEvent,
-	DragOverlay,
 } from "@dnd-kit/core";
 import {
 	arrayMove,
@@ -37,7 +35,6 @@ import {
 	useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { createPortal } from "react-dom";
 
 type Props = {
 	companyId?: string;
@@ -58,11 +55,6 @@ type CompanyShape = {
 	};
 };
 
-type ReasonItem = {
-	id: string;
-	value: string;
-};
-
 const normalizeRejectReasons = (reasons: unknown): string[] => {
 	if (!Array.isArray(reasons)) return [];
 
@@ -77,7 +69,7 @@ const getCompanyName = (company: CompanyShape | undefined): string => {
 	return company.name?.en || company.name?.ar || "Unnamed Company";
 };
 
-// Sortable Item Component with smooth animations
+// Sortable Item Component
 function SortableReasonItem({
 	id,
 	index,
@@ -85,15 +77,13 @@ function SortableReasonItem({
 	canEdit,
 	onUpdateReason,
 	onRemoveReason,
-	isDragging = false,
 }: {
 	id: string;
 	index: number;
 	reason: string;
 	canEdit: boolean;
-	onUpdateReason: (id: string, value: string) => void;
-	onRemoveReason: (id: string) => void;
-	isDragging?: boolean;
+	onUpdateReason: (index: number, value: string) => void;
+	onRemoveReason: (index: number) => void;
 }) {
 	const {
 		attributes,
@@ -101,35 +91,29 @@ function SortableReasonItem({
 		setNodeRef,
 		transform,
 		transition,
-		isDragging: isSortableDragging,
-	} = useSortable({ 
-		id,
-		animateLayoutChanges: () => false, // Prevents layout shift animation conflicts
-	});
+		isDragging,
+	} = useSortable({ id });
 
 	const style = {
 		transform: CSS.Transform.toString(transform),
-		transition: transition || "transform 200ms ease, opacity 200ms ease",
-		opacity: isSortableDragging || isDragging ? 0.5 : 1,
-		willChange: "transform",
+		transition,
+		opacity: isDragging ? 0.5 : 1,
 	};
 
 	return (
 		<div
 			ref={setNodeRef}
 			style={style}
-			className={`group grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 transition-all duration-200 dark:border-slate-700 dark:bg-slate-800/60 md:grid-cols-[auto_1fr_auto] ${
-				isSortableDragging || isDragging
-					? "shadow-lg ring-2 ring-brand-500 ring-opacity-50 scale-[1.02] z-50"
-					: "hover:shadow-md hover:border-brand-200 dark:hover:border-brand-700"
+			className={`grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 transition-all duration-200 dark:border-slate-700 dark:bg-slate-800/60 md:grid-cols-[auto_1fr_auto] ${
+				isDragging ? "shadow-lg ring-2 ring-brand-500" : "hover:shadow-sm"
 			}`}
 		>
 			<div className="flex items-center justify-center">
 				<div
 					{...attributes}
 					{...listeners}
-					className={`flex cursor-grab items-center justify-center rounded-lg p-2 text-slate-400 transition-all duration-200 hover:bg-slate-200 hover:text-slate-600 active:cursor-grabbing active:scale-95 dark:hover:bg-slate-700 dark:hover:text-slate-300 ${
-						!canEdit ? "cursor-not-allowed opacity-50 hover:bg-transparent" : ""
+					className={`flex cursor-grab items-center justify-center rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-600 active:cursor-grabbing dark:hover:bg-slate-700 dark:hover:text-slate-300 ${
+						!canEdit ? "cursor-not-allowed opacity-50" : ""
 					}`}
 				>
 					<GripVertical className="size-5" />
@@ -142,7 +126,7 @@ function SortableReasonItem({
 				</label>
 				<input
 					value={reason}
-					onChange={(e) => onUpdateReason(id, e.target.value)}
+					onChange={(e) => onUpdateReason(index, e.target.value)}
 					disabled={!canEdit}
 					placeholder="Example: Candidate did not meet mandatory experience criteria"
 					className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition-all focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900"
@@ -152,38 +136,12 @@ function SortableReasonItem({
 			<div className="flex items-end">
 				<button
 					type="button"
-					onClick={() => onRemoveReason(id)}
+					onClick={() => onRemoveReason(index)}
 					disabled={!canEdit}
-					className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-600 transition-all duration-200 hover:bg-red-100 hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300 dark:hover:bg-red-500/20"
+					className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-600 transition-all hover:bg-red-100 hover:scale-105 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300 dark:hover:bg-red-500/20"
 				>
 					<Trash2 className="size-4" />
 				</button>
-			</div>
-		</div>
-	);
-}
-
-// Drag overlay component for smooth dragging
-function DragOverlayItem({ reason, index }: { reason: string; index: number }) {
-	return (
-		<div className="grid grid-cols-1 gap-3 rounded-lg border border-brand-300 bg-brand-50 p-3 shadow-xl dark:border-brand-700 dark:bg-brand-900/90 md:grid-cols-[auto_1fr_auto]">
-			<div className="flex items-center justify-center">
-				<div className="flex cursor-grabbing items-center justify-center rounded-lg p-2 text-brand-600 dark:text-brand-400">
-					<GripVertical className="size-5" />
-				</div>
-			</div>
-			<div>
-				<label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-brand-600 dark:text-brand-400">
-					Reason {index + 1}
-				</label>
-				<div className="w-full rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm text-slate-700 dark:border-brand-700 dark:bg-brand-900/50 dark:text-slate-300">
-					{reason || "Empty reason"}
-				</div>
-			</div>
-			<div className="flex items-end">
-				<div className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-red-100 text-red-400 opacity-50 dark:bg-red-500/10">
-					<Trash2 className="size-4" />
-				</div>
 			</div>
 		</div>
 	);
@@ -218,9 +176,8 @@ export default function RejectionTab({
 	const showSelector = !hideCompanySelector && (isSuperAdmin || userCompanyIds.length > 1);
 
 	const [selectedCompanyId, setSelectedCompanyId] = useState<string | undefined>(companyId);
-	const [rejectReasons, setRejectReasons] = useState<ReasonItem[]>([]);
+	const [rejectReasons, setRejectReasons] = useState<string[]>([]);
 	const [isSaving, setIsSaving] = useState(false);
-	const [activeId, setActiveId] = useState<string | null>(null);
 
 	const selectedCompany = useMemo(
 		() => (companies as CompanyShape[]).find((company) => company._id === selectedCompanyId),
@@ -259,40 +216,32 @@ export default function RejectionTab({
 	}, [companyId, companies, selectedCompanyId, showSelector, userCompanyIds]);
 
 	useEffect(() => {
-		setRejectReasons(derivedRejectReasons.map((value) => ({
-			id: crypto.randomUUID(),
-			value,
-		})));
+		setRejectReasons(derivedRejectReasons);
 	}, [derivedRejectReasons]);
 
 	useEffect(() => {
-		onChange?.(rejectReasons.map(r => r.value));
+		onChange?.(rejectReasons);
 	}, [onChange, rejectReasons]);
 
 	const addReason = () => {
-		setRejectReasons((prev) => [...prev, { id: crypto.randomUUID(), value: "" }]);
+		setRejectReasons((prev) => [...prev, ""]);
 	};
 
-	const updateReason = (id: string, value: string) => {
-		setRejectReasons((prev) => prev.map((reason) => (reason.id === id ? { ...reason, value } : reason)));
+	const updateReason = (index: number, value: string) => {
+		setRejectReasons((prev) => prev.map((reason, i) => (i === index ? value : reason)));
 	};
 
-	const removeReason = (id: string) => {
-		setRejectReasons((prev) => prev.filter((reason) => reason.id !== id));
-	};
-
-	const handleDragStart = (event: DragStartEvent) => {
-		setActiveId(event.active.id as string);
+	const removeReason = (index: number) => {
+		setRejectReasons((prev) => prev.filter((_, i) => i !== index));
 	};
 
 	const handleDragEnd = (event: DragEndEvent) => {
 		const { active, over } = event;
-		setActiveId(null);
 		
 		if (over && active.id !== over.id) {
 			setRejectReasons((items) => {
-				const oldIndex = items.findIndex((item) => item.id === active.id);
-				const newIndex = items.findIndex((item) => item.id === over.id);
+				const oldIndex = items.findIndex((_, i) => i.toString() === active.id);
+				const newIndex = items.findIndex((_, i) => i.toString() === over.id);
 				
 				if (oldIndex !== -1 && newIndex !== -1) {
 					return arrayMove(items, oldIndex, newIndex);
@@ -302,57 +251,50 @@ export default function RejectionTab({
 		}
 	};
 
-	const handleDragCancel = () => {
-		setActiveId(null);
-	};
+// In RejectionTab.tsx, update the handleSave function
 
-	const handleSave = async () => {
-		if (!selectedCompanyId) {
-			Swal.fire('Validation', 'Please select a company first.', 'warning');
-			return;
-		}
+const handleSave = async () => {
+  if (!selectedCompanyId) {
+    Swal.fire('Validation', 'Please select a company first.', 'warning');
+    return;
+  }
 
-		const payload = normalizeRejectReasons(rejectReasons.map(r => r.value));
-		
-		// Get the settings ID from the selected company
-		const settingsId = selectedCompany?.settings?._id;
-		
-		setIsSaving(true);
-		try {
-			await updateRejectionReasonsMutation.mutateAsync({
-				settingsId: settingsId || '',  // Only settingsId
-				rejectReasons: payload,  // Array of strings      
-			});
+  const payload = normalizeRejectReasons(rejectReasons);
+  
+  // Get the settings ID from the selected company
+  const settingsId = selectedCompany?.settings?._id;
+  
+  setIsSaving(true);
+  try {
+    await updateRejectionReasonsMutation.mutateAsync({
+    settingsId: settingsId || '',  // Only settingsId
+    rejectReasons: payload,  // Array of strings      
+    });
 
-			Swal.fire({
-				title: 'Saved',
-				icon: 'success',
-				timer: 1200,
-				showConfirmButton: false,
-			});
+    Swal.fire({
+      title: 'Saved',
+      icon: 'success',
+      timer: 1200,
+      showConfirmButton: false,
+    });
 
-			onSaved?.(payload);
-		} catch (error: any) {
-			Swal.fire(
-				'Save Failed',
-				error?.message || 'Failed to save rejection reasons.',
-				'error'
-			);
-		} finally {
-			setIsSaving(false);
-		}
-	};
+    onSaved?.(payload);
+  } catch (error: any) {
+    Swal.fire(
+      'Save Failed',
+      error?.message || 'Failed to save rejection reasons.',
+      'error'
+    );
+  } finally {
+    setIsSaving(false);
+  }
+};
 
-	// Get the active dragging item data
-	const activeItem = activeId ? rejectReasons.find((item) => item.id === activeId) : null;
-
-	// Set up sensors for drag and drop with improved sensitivity
+	// Set up sensors for drag and drop
 	const sensors = useSensors(
 		useSensor(PointerSensor, {
 			activationConstraint: {
-				distance: 8, // Reduced distance for faster response
-				delay: 0,
-				tolerance: 5,
+				distance: 5,
 			},
 		}),
 		useSensor(KeyboardSensor, {
@@ -438,7 +380,7 @@ export default function RejectionTab({
 								Total Reasons
 							</p>
 							<p className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
-								{rejectReasons.length}
+								{normalizeRejectReasons(rejectReasons).length}
 							</p>
 						</div>
 
@@ -456,19 +398,19 @@ export default function RejectionTab({
 				<div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
 					{showSelector && (
 						<div className="space-y-6 xl:col-span-3">
-							<div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-700/50 dark:bg-slate-800/40">
-								<div className="mb-3 flex items-center gap-2">
-									<div className="flex size-8 items-center justify-center rounded-lg bg-violet-500/10 text-violet-500">
-										<Building2 className="size-4" />
+							<div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+								<div className="mb-4 flex items-center gap-3">
+									<div className="flex size-10 items-center justify-center rounded-lg bg-violet-500/10 text-violet-500">
+										<Building2 className="size-5" />
 									</div>
-									<h3 className="text-sm font-semibold tracking-tight text-slate-700 dark:text-slate-300">Active Company</h3>
+									<h3 className="text-lg font-semibold tracking-tight">Active Company</h3>
 								</div>
 
 								<div className="relative">
 									<select
 										value={selectedCompanyId || ""}
 										onChange={(e) => setSelectedCompanyId(e.target.value || undefined)}
-										className="w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 pr-10 text-sm font-medium outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800"
+										className="w-full appearance-none rounded-xl border border-slate-300 bg-white py-3 pl-4 pr-10 text-sm font-medium outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800"
 									>
 										{(companies as CompanyShape[]).map((company) => (
 											<option key={company._id} value={company._id}>
@@ -476,10 +418,11 @@ export default function RejectionTab({
 											</option>
 										))}
 									</select>
+
 									<ArrowRight className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 rotate-90 text-slate-400" />
 								</div>
 
-								<p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
+								<p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
 									Switch company context to manage another rejection reason set.
 								</p>
 							</div>
@@ -531,42 +474,26 @@ export default function RejectionTab({
 									<DndContext
 										sensors={sensors}
 										collisionDetection={closestCenter}
-										onDragStart={handleDragStart}
 										onDragEnd={handleDragEnd}
-										onDragCancel={handleDragCancel}
 									>
 										<SortableContext
-											items={rejectReasons.map((item) => item.id)}
+											items={rejectReasons.map((_, index) => index.toString())}
 											strategy={verticalListSortingStrategy}
 										>
 											<div className="space-y-3">
-												{rejectReasons.map((item, index) => (
+												{rejectReasons.map((reason, index) => (
 													<SortableReasonItem
-														key={item.id}
-														id={item.id}
+														key={index}
+														id={index.toString()}
 														index={index}
-														reason={item.value}
+														reason={reason}
 														canEdit={canEdit}
 														onUpdateReason={updateReason}
 														onRemoveReason={removeReason}
-														isDragging={activeId === item.id}
 													/>
 												))}
 											</div>
 										</SortableContext>
-										
-										{/* Drag overlay for smooth dragging */}
-										{createPortal(
-											<DragOverlay>
-												{activeId && activeItem ? (
-													<DragOverlayItem
-														reason={activeItem.value}
-														index={rejectReasons.findIndex((item) => item.id === activeId)}
-													/>
-												) : null}
-											</DragOverlay>,
-											document.body
-										)}
 									</DndContext>
 								)}
 							</div>

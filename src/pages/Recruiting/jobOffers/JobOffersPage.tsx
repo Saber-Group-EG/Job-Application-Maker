@@ -218,8 +218,6 @@ export default function JobOffersPage() {
     setModalOpen(true);
   };
 
-  const showCompany = companies.length !== 1;
-
   // ── Shared modal (used in both list & detail views) ────────────────────
   const sharedModal = companyId.length > 0 && (
     <JobOfferModal
@@ -443,12 +441,6 @@ export default function JobOffersPage() {
                                   {offer.salary.currency}
                                 </span>
                               )}
-                              {companies.length !== 1 && (
-                                <span className="flex items-center gap-1 text-[11px] text-slate-400">
-                                  <Briefcase className="size-3" />
-                                  {offer.companyId.name.en}
-                                </span>
-                              )}
                             </div>
                           </div>
                           <div className="flex flex-col items-end gap-1.5">
@@ -574,7 +566,6 @@ export default function JobOffersPage() {
             setModalOpen(true);
           }}
           setResendOpen={setResendOpen}
-          showCompany={showCompany}
           onDelete={handleDelete}
           onClone={handleClone}
           onStatusChange={(id, status) =>
