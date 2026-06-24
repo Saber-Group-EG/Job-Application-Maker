@@ -48,7 +48,7 @@ import {
 } from './utils/customResponseUtils';
 import { buildActivities } from './utils/activityUtils';
 import { buildJobSpecItems } from './utils/jobSpecUtils';
-import { isTrashed, getPreviousStatus } from './utils/statusUtils';
+import { getPreviousStatus } from './utils/statusUtils';
 import type { JobSpecItem } from '../../../types/applicants';
 
 const resolveId = (value: unknown): string | undefined => {
