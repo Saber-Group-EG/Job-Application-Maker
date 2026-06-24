@@ -15,7 +15,6 @@ import {
   useUpdateApplicant,
   useUpdateApplicantStatus,
   useAddComment,
-  useDeleteApplicant,
   useJobPosition,
   useCompany,
   useCompanies,
@@ -324,7 +323,6 @@ const ApplicantDetails: React.FC = () => {
   const updateApplicant = useUpdateApplicant();
   const updateStatus = useUpdateApplicantStatus();
   const addComment = useAddComment();
-  const deleteApplicant = useDeleteApplicant();
   const scheduleInterviewMutation = useScheduleInterview();
   const updateInterviewStatusMutation = useUpdateInterviewStatus();
   const sendEmailMutation = useSendEmail();
@@ -829,9 +827,9 @@ const ApplicantDetails: React.FC = () => {
 
   const handleDelete = async () => {
     if (!id) return;
-    const result = await Swal.fire({ title: 'Delete applicant?', text: 'This action cannot be undone.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#dc2626', cancelButtonColor: '#6b7280', confirmButtonText: 'Delete', cancelButtonText: 'Cancel' });
+    const result = await Swal.fire({ title: 'Move to trash?', text: 'This applicant will be moved to trash and can be restored later.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#dc2626', cancelButtonColor: '#6b7280', confirmButtonText: 'Move to Trash', cancelButtonText: 'Cancel' });
     if (!result.isConfirmed) return;
-    try { await deleteApplicant.mutateAsync(id); navigate(paths.applicants.root); } catch { /* toast handled by mutation */ }
+    try { await updateStatus.mutateAsync({ id, data: { status: 'trashed' } }); navigate(paths.applicants.root); } catch { /* toast handled by mutation */ }
   };
 
   const handlePrint = useCallback(async () => {
