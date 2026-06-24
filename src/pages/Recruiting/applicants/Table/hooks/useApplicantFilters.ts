@@ -93,8 +93,11 @@ export function useApplicantFilters({
     const statusFilter = columnFilters.find((f: any) => f.id === 'status');
     const statusVal = statusFilter?.value;
 
-    if (isSuperAdmin) {
-      if (normalizeStatus(statusVal) === 'trashed') return filtered;
+    if (isSuperAdmin || canViewTrashed) {
+      if (normalizeStatus(statusVal) === 'trashed') {
+        filtered = filtered.filter((a: any) => isTrashed(a.status));
+        return filtered;
+      }
       if (Array.isArray(statusVal) && statusVal.length > 0) {
         const allowed = statusVal.map(normalizeStatus).filter(Boolean);
 filtered = filtered.filter((a: any) => allowed.includes(normalizeStatus(a.status)));
