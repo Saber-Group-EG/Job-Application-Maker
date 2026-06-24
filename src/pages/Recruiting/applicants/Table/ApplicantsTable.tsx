@@ -1950,13 +1950,13 @@ const jobOptions = useMemo(() => {
         <div
           ref={headerRef}
           onClick={(e) => e.stopPropagation()}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            width: '100%',
-            minWidth: 0,
-            paddingRight: 12,
-          }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              width: '100%',
+              minWidth: 0,
+              paddingInlineEnd: 12,
+            }}
         >
           <span
             style={{
@@ -1978,8 +1978,7 @@ const jobOptions = useMemo(() => {
             title="Filter"
             style={{
               position: 'absolute',
-              right: dir === 'rtl' ? 'auto' : -3,
-              left: dir === 'rtl' ? -3 : 'auto',
+              insetInlineEnd: -3,
               top: '50%',
               transform: 'translateY(-50%)',
               background: activeCount > 0 ? (isExclude ? 'rgba(244,63,94,0.08)' : 'rgba(16,185,129,0.08)') : 'none',
@@ -2017,8 +2016,8 @@ const jobOptions = useMemo(() => {
             anchorEl={anchorEl}
             open={Boolean(anchorEl)}
             onClose={() => setAnchorEl(null)}
-            anchorOrigin={{ vertical: 'top', horizontal: dir === 'rtl' ? 'right' : 'left' }}
-            transformOrigin={{ vertical: 'bottom', horizontal: dir === 'rtl' ? 'right' : 'left' }}
+            anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
+            transformOrigin={{ vertical: 'bottom', horizontal: 'left' }}
             onClick={(e) => e.stopPropagation()}
           >
             <ExcludableMultiSelectFilter

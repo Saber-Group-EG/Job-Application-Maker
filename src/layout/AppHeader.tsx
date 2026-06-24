@@ -100,33 +100,22 @@ const AppHeader: React.FC = () => {
               <path d="M3 20c2.5-4 6.5-5 9-5s6.5 1 9 5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
             </svg>
           </button>
-
-         
-          
         </div>
         <div
           className={`${
             isApplicationMenuOpen ? "flex" : "hidden"
-          } items-center justify-between w-full gap-3 px-3 py-3 lg:flex shadow-theme-md ${dir === 'rtl' ? 'lg:ml-5' : 'lg:mr-5'} lg:justify-end lg:px-0 lg:shadow-none`}
+          } items-center justify-end w-full gap-2 px-3 py-3 lg:flex shadow-theme-md lg:shadow-none`}
         >
-          <div className={`${dir === 'rtl' ? 'mr-2' : 'ml-2'} flex items-center gap-2 2xsm:gap-3`}>
-            {/* <!-- Language Toggler --> */}
-            <button
-              onClick={() => setLocale(locale === 'en' ? 'ar' : 'en')}
-              className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-100 dark:text-gray-400 dark:border-gray-800 dark:hover:bg-gray-800"
-              aria-label={t('language', 'common')}
-            >
-              <span className="text-xs font-semibold uppercase">
-                {locale === 'en' ? 'AR' : 'EN'}
-              </span>
-            </button>
-            {/* <!-- Dark Mode Toggler --> */}
-            <ThemeToggleButton />
-            {/* <!-- Dark Mode Toggler --> */}
-            {/* <NotificationDropdown /> */}
-            {/* <!-- Notification Menu Area --> */}
-          </div>
-          {/* <!-- User Area --> */}
+          <button
+            onClick={() => setLocale(locale === 'en' ? 'ar' : 'en')}
+            className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-100 dark:text-gray-400 dark:border-gray-800 dark:hover:bg-gray-800"
+            aria-label={t('language', 'common')}
+          >
+            <span className="text-xs font-semibold uppercase">
+              {locale === 'en' ? 'AR' : 'EN'}
+            </span>
+          </button>
+          <ThemeToggleButton />
           <UserDropdown />
         </div>
       </div>
