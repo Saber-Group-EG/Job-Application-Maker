@@ -1826,8 +1826,6 @@ const jobOptions = useMemo(() => {
     };
 
     rows.forEach((a: any) => {
-      if (!isSuperAdmin && a?.status === 'trashed') return;
-
       // gender
       const rawGender =
         a?.gender ||
@@ -1846,7 +1844,7 @@ const jobOptions = useMemo(() => {
       addToMap('jobPositionId', getId(rawJob));
 
       // status
-      addToMap('status', a?.status);
+      addToMap('status', a?.status?.trim?.() ?? a?.status);
 
       // rejectionReasons
       const reasons = extractRejectionReasons(a);
@@ -2807,6 +2805,7 @@ const jobOptions = useMemo(() => {
       layout.excludeColumns,
       saveLayout,
       canRestore,
+      unfilteredCounts,
     ]
   );
 
