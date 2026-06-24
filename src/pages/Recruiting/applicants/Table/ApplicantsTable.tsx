@@ -1,4 +1,4 @@
-// Applicants.tsx - Complete working version with no horizontal scroll
+// Applicants.tsx - Optimized version with improved photo loading
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import { useNavigate } from 'react-router';
@@ -11,6 +11,7 @@ import {
   useApplicants,
   useJobPositions,
   useCompanies,
+  useUpdateApplicantStatus,
 } from '../../../../hooks/queries';
 import { useTableLayout } from '../../../../hooks/queries/useTableLayout';
 import { buildApplicantDuplicateLookup } from '../../../../utils/applicantDuplicateSort';
@@ -28,7 +29,7 @@ import BulkMessageModal from '../../../../components/modals/BulkMessageModal';
 import InterviewScheduleModal from '../../../../components/modals/InterviewScheduleModal';
 import StatusChangeModal from '../../../../components/modals/StatusChangeModal';
 import CustomFilterModal from '../../../../components/modals/CustomFilterModal';
-import { ColumnMultiSelectHeader } from './components/ColumnMultiSelectHeader';
+import { ExcludableMultiSelectFilter } from './components/ExcludableMultiSelectFilter';
 import { StatusCell } from './components/StatusCell';
 import { TrashBinIcon, ChatIcon, AlertIcon } from '../../../../icons';
 
@@ -40,7 +41,8 @@ import { useApplicantFilters } from './hooks/useApplicantFilters';
 
 // Utils
 import { exportToExcel, showExportNotification } from './utils/exportHelpers';
-import { normalizeGender, getApplicantCompanyId } from './utils/filterHelpers';
+import { normalizeGender, getApplicantCompanyId, toggleExcludeColumn } from './utils/filterHelpers';
+import { getPreviousStatus, isTrashed } from '../../../../pages/Recruiting/ApplicantPage/utils/statusUtils';
 
 // Types
 import {
@@ -49,7 +51,7 @@ import {
   useMaterialReactTable,
   type MRT_ColumnDef,
 } from 'material-react-table';
-import { ThemeProvider, createTheme } from '@mui/material';
+import { ThemeProvider, createTheme, Popover } from '@mui/material';
 import { Skeleton } from '@mui/material';
 import type { Applicant } from '../../../../types/applicants';
 import { FileSignature, FileText } from 'lucide-react';
@@ -93,16 +95,125 @@ const extractId = (value: unknown): string | null => {
   return null;
 };
 
-// Simple in-memory cache for compressed thumbnails
-const thumbnailCache: Map<string, string> = new Map();
+// LRU Cache implementation for thumbnails to prevent memory bloat
+class LRUCache<K, V> {
+  private cache = new Map<K, V>();
+  private maxSize: number;
 
+  constructor(maxSize: number = 150) {
+    this.maxSize = maxSize;
+  }
+
+  get(key: K): V | undefined {
+    const value = this.cache.get(key);
+    if (value) {
+      // Refresh - move to end (most recently used)
+      this.cache.delete(key);
+      this.cache.set(key, value);
+    }
+    return value;
+  }
+
+  set(key: K, value: V): void {
+    if (this.cache.size >= this.maxSize) {
+      // Delete oldest (first item)
+      const firstKey = this.cache.keys().next().value;
+      if (firstKey) this.cache.delete(firstKey);
+    }
+    this.cache.set(key, value);
+  }
+
+  has(key: K): boolean {
+    return this.cache.has(key);
+  }
+
+  clear(): void {
+    this.cache.clear();
+  }
+}
+
+const thumbnailCache = new LRUCache<string, string>(150);
+
+// Image loader pool to limit concurrent image loading
+class ImageLoaderPool {
+  private queue: Array<() => Promise<void>> = [];
+  private active = 0;
+  private maxConcurrent = 3; // Load only 3 images at once
+
+  async add(task: () => Promise<void>): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.queue.push(async () => {
+        try {
+          await task();
+          resolve();
+        } catch (e) {
+          reject(e);
+        }
+      });
+      this.processQueue();
+    });
+  }
+
+  private processQueue() {
+    if (this.active >= this.maxConcurrent) return;
+    if (this.queue.length === 0) return;
+
+    this.active++;
+    const task = this.queue.shift()!;
+    task().finally(() => {
+      this.active--;
+      this.processQueue();
+    });
+  }
+}
+
+const imageLoader = new ImageLoaderPool();
+
+// Optimized image compression with smaller dimensions
 async function createCompressedDataUrl(
   src: string,
-  maxBytes = 5120
+  maxBytes = 3072 // Reduced from 5120
 ): Promise<string> {
   if (!src) return src;
-  if (thumbnailCache.has(src)) return thumbnailCache.get(src) as string;
+  
+  // Check cache first
+  const cached = thumbnailCache.get(src);
+  if (cached) return cached;
 
+  // Use OffscreenCanvas if available (better performance)
+  if ('OffscreenCanvas' in window) {
+    try {
+      const response = await fetch(src);
+      const blob = await response.blob();
+      const bitmap = await createImageBitmap(blob);
+      
+      const MAX_DIM = 48; // Significantly reduced from 160
+      let { width, height } = bitmap;
+      const ratio = Math.max(width / MAX_DIM, height / MAX_DIM, 1);
+      const canvas = new OffscreenCanvas(
+        Math.max(24, Math.round(width / ratio)),
+        Math.max(24, Math.round(height / ratio))
+      );
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('No context');
+      
+      ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      
+      const blobResult = await canvas.convertToBlob({ 
+        type: 'image/jpeg', 
+        quality: 0.5 // Reduced quality
+      });
+      const dataUrl = URL.createObjectURL(blobResult);
+      
+      thumbnailCache.set(src, dataUrl);
+      return dataUrl;
+    } catch (e) {
+      // Fallback to regular canvas
+      console.debug('OffscreenCanvas failed, falling back to regular canvas', e);
+    }
+  }
+
+  // Regular canvas fallback with optimized settings
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'Anonymous';
@@ -122,44 +233,27 @@ async function createCompressedDataUrl(
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         if (!ctx) return finish(src);
-        const MAX_DIM = 160;
+        
+        const MAX_DIM = 48; // Smaller thumbnails
         let { width, height } = img;
         const ratio = Math.max(width / MAX_DIM, height / MAX_DIM, 1);
-        canvas.width = Math.max(32, Math.round(width / ratio));
-        canvas.height = Math.max(32, Math.round(height / ratio));
+        canvas.width = Math.max(24, Math.round(width / ratio));
+        canvas.height = Math.max(24, Math.round(height / ratio));
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-        const tryQualities = (qualities: number[]) => {
-          for (const q of qualities) {
-            try {
-              const dataUrl = canvas.toDataURL('image/jpeg', q);
-              const b64 = dataUrl.split(',')[1] || '';
-              const bytes = Math.ceil((b64.length * 3) / 4);
-              if (bytes <= maxBytes) return dataUrl;
-            } catch (e) {
-              return null;
-            }
+        // Lower quality settings for faster loading
+        const qualities = [0.5, 0.4, 0.3, 0.2, 0.15];
+        for (const q of qualities) {
+          try {
+            const dataUrl = canvas.toDataURL('image/jpeg', q);
+            const b64 = dataUrl.split(',')[1] || '';
+            const bytes = Math.ceil((b64.length * 3) / 4);
+            if (bytes <= maxBytes) return finish(dataUrl);
+          } catch (e) {
+            continue;
           }
-          return null;
-        };
-
-        let dataUrl = tryQualities([
-          0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.15, 0.1,
-        ]);
-        if (dataUrl) return finish(dataUrl);
-
-        let w = canvas.width;
-        let h = canvas.height;
-        while ((w > 32 || h > 32) && !dataUrl) {
-          w = Math.max(24, Math.floor(w * 0.75));
-          h = Math.max(24, Math.floor(h * 0.75));
-          canvas.width = w;
-          canvas.height = h;
-          ctx.drawImage(img, 0, 0, w, h);
-          dataUrl = tryQualities([0.6, 0.4, 0.25, 0.15, 0.1]);
         }
 
-        if (dataUrl) return finish(dataUrl);
         finish(src);
       } catch (e) {
         finish(src);
@@ -172,8 +266,130 @@ async function createCompressedDataUrl(
     } catch (e) {
       finish(src);
     }
-    setTimeout(() => finish(src), 1500);
+    setTimeout(() => finish(src), 1000); // Reduced timeout
   });
+}
+
+// Progressive image component with lazy loading and placeholder
+function ProgressiveImage({
+  src,
+  alt,
+  onClick,
+}: {
+  src?: string | null;
+  alt?: string;
+  onClick?: () => void;
+}) {
+  const [thumb, setThumb] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!src || thumb) return;
+
+    // Use Intersection Observer to lazy load only visible images
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && !thumb && mountedRef.current) {
+            loadImageAsync();
+            observer.disconnect();
+          }
+        });
+      },
+      { rootMargin: '100px' } // Start loading when within 100px of viewport
+    );
+
+    if (containerRef.current) {
+      observer.observe(containerRef.current);
+    }
+
+    observerRef.current = observer;
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [src]);
+
+  const loadImageAsync = async () => {
+    if (!src) return;
+    
+    if (typeof src === 'string' && src.startsWith('data:')) {
+      setThumb(src);
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      // Use requestIdleCallback to load images when browser is idle
+      await new Promise((resolve) => {
+        if ('requestIdleCallback' in window) {
+          requestIdleCallback(resolve, { timeout: 2000 });
+        } else {
+          setTimeout(resolve, 50);
+        }
+      });
+
+      // Use image loader pool to limit concurrency
+      await imageLoader.add(async () => {
+        if (!mountedRef.current) return;
+        const compressed = await createCompressedDataUrl(src as string, 3072);
+        if (mountedRef.current) {
+          setThumb(compressed || (src as string));
+          setIsLoading(false);
+        }
+      });
+    } catch (e) {
+      if (mountedRef.current) {
+        setThumb(src as string);
+        setIsLoading(false);
+      }
+    }
+  };
+
+  const getInitials = () => {
+    if (alt && alt.length > 0) {
+      return alt.charAt(0).toUpperCase();
+    }
+    return '?';
+  };
+
+  return (
+    <div
+      ref={containerRef}
+      className="relative h-full w-full cursor-pointer overflow-hidden rounded-full"
+      onClick={onClick}
+    >
+      {isLoading && !thumb && (
+        <div className="absolute inset-0 flex h-full w-full items-center justify-center bg-gray-100 dark:bg-gray-800 animate-pulse rounded-full">
+          <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">
+            {getInitials()}
+          </span>
+        </div>
+      )}
+      {thumb && (
+        <img
+          loading="lazy"
+          src={thumb}
+          alt={alt || ''}
+          className={`h-full w-full object-cover transition-opacity duration-300 ${
+            isLoading ? 'opacity-0' : 'opacity-100'
+          }`}
+          decoding="async"
+          onLoad={() => setIsLoading(false)}
+        />
+      )}
+    </div>
+  );
 }
 
 function ImageThumbnailComponent({
@@ -185,41 +401,10 @@ function ImageThumbnailComponent({
   alt?: string;
   onClick?: () => void;
 }) {
-  const [thumb, setThumb] = useState<string | null>(null);
-
-  useEffect(() => {
-    let mounted = true;
-    if (!src) {
-      setThumb(null);
-      return () => {
-        mounted = false;
-      };
-    }
-    if (typeof src === 'string' && src.startsWith('data:')) {
-      setThumb(src);
-      return () => {
-        mounted = false;
-      };
-    }
-
-    (async () => {
-      try {
-        const compressed = await createCompressedDataUrl(src as string, 5120);
-        if (mounted) setThumb(compressed || (src as string));
-      } catch (e) {
-        if (mounted) setThumb(src as string);
-      }
-    })();
-
-    return () => {
-      mounted = false;
-    };
-  }, [src]);
-
-  if (!thumb) {
+  if (!src) {
     return (
       <div
-        className="flex h-full w-full items-center justify-center text-sm font-semibold text-gray-500 dark:text-gray-400 cursor-pointer"
+        className="flex h-full w-full items-center justify-center text-sm font-semibold text-gray-500 dark:text-gray-400 cursor-pointer bg-gray-100 dark:bg-gray-800 rounded-full"
         onClick={onClick}
       >
         {alt && alt.charAt(0) ? alt.charAt(0).toUpperCase() : '-'}
@@ -227,13 +412,84 @@ function ImageThumbnailComponent({
     );
   }
 
+  return <ProgressiveImage src={src} alt={alt} onClick={onClick} />;
+}
+
+function getOptimizedPreviewUrl(src: string): string {
+  if (!src) return src;
+  if (src.startsWith('data:')) return src;
+  try {
+    const url = new URL(src);
+    if (url.hostname.includes('cloudinary.com')) {
+      const uploadIndex = src.indexOf('/upload/');
+      if (uploadIndex !== -1) {
+        const beforeUpload = src.substring(0, uploadIndex + 8);
+        const afterUpload = src.substring(uploadIndex + 8);
+        // Even smaller preview for modal
+        return `${beforeUpload}w_400,h_400,c_limit,q_auto,f_auto/${afterUpload}`;
+      }
+    }
+  } catch (e) {}
+  return src;
+}
+
+function PhotoPreviewImage({
+  src,
+  onLoad,
+}: {
+  src: string;
+  onLoad?: (loadedSrc: string) => void;
+}) {
+  const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const previewUrl = getOptimizedPreviewUrl(src);
+
+  useEffect(() => {
+    if (!previewUrl) return;
+    setIsLoading(true);
+    setError(false);
+    setLoadedSrc(null);
+
+    const img = new Image();
+    img.src = previewUrl;
+    img.loading = 'eager';
+    img.onload = () => {
+      setLoadedSrc(previewUrl);
+      setIsLoading(false);
+      onLoad?.(previewUrl);
+    };
+    img.onerror = () => {
+      setError(true);
+      setIsLoading(false);
+      setLoadedSrc(previewUrl);
+      onLoad?.(previewUrl);
+    };
+  }, [previewUrl, onLoad]);
+
+  if (isLoading) {
+    return (
+      <div className="flex h-[60vh] w-full items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-brand-500 border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-[60vh] w-full items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg text-gray-500">
+        Failed to load image
+      </div>
+    );
+  }
+
   return (
     <img
-      loading="lazy"
-      src={thumb}
-      alt={alt || ''}
-      className="h-full w-full object-cover cursor-pointer"
-      onClick={onClick}
+      src={loadedSrc ?? undefined}
+      alt="Applicant photo preview"
+      className="max-h-[85vh] max-w-full rounded-lg shadow-2xl"
+      onClick={(e) => e.stopPropagation()}
+      loading="eager"
     />
   );
 }
@@ -242,6 +498,7 @@ type ApplicantsProps = {
   layoutKey?: string;
   defaultLayout?: typeof APPLICANTS_DEFAULT_LAYOUT;
   onlyStatus?: string | string[];
+  onlyJobPositions?: string[];
   companyIdOverride?: string | string[] | undefined;
 };
 
@@ -249,11 +506,12 @@ export default function Applicants({
   layoutKey,
   defaultLayout,
   onlyStatus,
+  onlyJobPositions,
   companyIdOverride,
 }: ApplicantsProps = {}) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const location = useLocation();
   const params = useParams();
 
@@ -263,7 +521,7 @@ export default function Applicants({
   );
 
   const effectiveOnlyStatus = useMemo((): string | string[] | undefined => {
-    if (onlyStatus) return onlyStatus;
+    if (onlyStatus && !(Array.isArray(onlyStatus) && onlyStatus.length === 0)) return onlyStatus;
     if (params.status) return params.status;
     const searchParams = new URLSearchParams(location.search);
     const qStatus = searchParams.get('status');
@@ -271,12 +529,30 @@ export default function Applicants({
     return undefined;
   }, [onlyStatus, params.status, location.search]);
 
+  const effectiveOnlyJobPositions = useMemo((): string[] | undefined => {
+    if (onlyJobPositions && onlyJobPositions.length > 0) return onlyJobPositions;
+    const searchParams = new URLSearchParams(location.search);
+    const qJobPositions = searchParams.get('jobPositions');
+    if (qJobPositions) return qJobPositions.split(',').map(decodeURIComponent).filter(Boolean);
+    return undefined;
+  }, [onlyJobPositions, location.search]);
+
   const isSuperAdmin = useMemo(() => {
     const roleName = user?.roleId?.name;
     return (
       typeof roleName === 'string' && roleName.toLowerCase() === 'super admin'
     );
   }, [user?.roleId?.name]);
+
+  const canRestore = useMemo(() => {
+    if (isSuperAdmin) return true;
+    return hasPermission('Restore Applicant', 'write') || hasPermission('Restore Applicant', 'create');
+  }, [isSuperAdmin, hasPermission]);
+
+  const canViewTrashed = useMemo(() => {
+    if (isSuperAdmin) return true;
+    return hasPermission('Restore Applicant');
+  }, [isSuperAdmin, hasPermission]);
 
   const persistedTableState = useMemo(() => {
     try {
@@ -315,9 +591,11 @@ export default function Applicants({
     if (isSuperAdminRole) return undefined;
     return userCompanyId?.length ? userCompanyId : undefined;
   }, [companyIdOverride, user]);
+const [excludeModes] = useState<Record<string, boolean>>({});
 
   const [offerModalOpen, setOfferModalOpen] = useState(false);
   const [contractModalOpen, setContractModalOpen] = useState(false);
+  
   // Extract department IDs from user companies
   const departmentIds = useMemo(() => {
     if (!user?.companies || !Array.isArray(user.companies)) return undefined;
@@ -353,11 +631,12 @@ export default function Applicants({
     isFetched: isJobPositionsFetched,
     refetch: refetchJobPositions,
   } = useJobPositions(
-    companyId as any, // companyId
-    false, // deleted
-    departmentIds as any, // departmentId
-    { enabled: true } // options
+    companyId as any,
+    false,
+    departmentIds as any,
+    { enabled: true }
   );
+  
   const {
     data: applicants = [],
     error,
@@ -366,15 +645,16 @@ export default function Applicants({
     isFetched: isApplicantsFetched,
   } = useApplicants({
     companyId: companyId as any,
-    jobPositionId: undefined,
+    jobPositionId: effectiveOnlyJobPositions,
     departmentId: departmentIds as any,
     status: effectiveOnlyStatus,
     enabled: true,
   });
+  
   // Check the query state directly to detect ongoing fetches for this key
   const applicantsQueryKey = applicantsKeys.list({
     companyId: companyId as any,
-    jobPositionId: undefined,
+    jobPositionId: effectiveOnlyJobPositions,
     departmentId: departmentIds as any,
     status: effectiveOnlyStatus,
   });
@@ -383,6 +663,7 @@ export default function Applicants({
   );
   const isApplicantsQueryFetching =
     applicantsQueryState?.fetchStatus === 'fetching';
+  
   const {
     data: allCompaniesRaw = [],
     refetch: refetchCompanies,
@@ -459,27 +740,51 @@ export default function Applicants({
     onlyStatus: effectiveOnlyStatus,
     showCompanyColumn,
     jobPositionMap: {},
-    genderOptions: [],
     persistedState: persistedTableState,
   });
 
+  const prevFiltersRef = useRef<string | null>(null);
   useEffect(() => {
-    if (urlParams.status) {
-      setColumnFilters((prev: any) => {
-        const withoutStatus = prev.filter((f: any) => f.id !== 'status');
-        return [...withoutStatus, { id: 'status', value: urlParams.status }];
+    const serialize = (filters: unknown): unknown => {
+      if (!Array.isArray(filters)) return [];
+      return filters.map((f) => {
+        const item = f as { id?: unknown; value?: unknown } | null;
+        return { id: item?.id, value: item?.value };
       });
+    };
+    const key = JSON.stringify({
+      columnFilters: serialize(columnFilters),
+      customFilters: serialize(customFilters),
+    });
+    if (prevFiltersRef.current === null) {
+      prevFiltersRef.current = key;
+      return;
     }
-    if (urlParams.company) {
-      setColumnFilters((prev: any) => {
-        const withoutCompany = prev.filter((f: any) => f.id !== 'companyId');
-        return [
-          ...withoutCompany,
-          { id: 'companyId', value: urlParams.company },
-        ];
-      });
+    if (prevFiltersRef.current !== key) {
+      prevFiltersRef.current = key;
+      setPagination((prev : { pageIndex: number; pageSize: number }) => ({ ...prev, pageIndex: 0 }));
     }
-  }, [urlParams.status, urlParams.company, setColumnFilters]);
+  }, [columnFilters, customFilters, setPagination]);
+
+useEffect(() => {
+  if (urlParams.status) {
+    setColumnFilters((prev: any) => {
+      const withoutStatus = prev.filter((f: any) => f.id !== 'status');
+      const hasStatus = prev.some((f: any) => f.id === 'status');
+      if (hasStatus) return prev;
+      return [...withoutStatus, { id: 'status', value: urlParams.status }];
+    });
+  }
+  if (urlParams.company) {
+    setColumnFilters((prev: any) => {
+      const withoutCompany = prev.filter((f: any) => f.id !== 'companyId');
+      const hasCompany = prev.some((f: any) => f.id === 'companyId');
+      if (hasCompany) return prev;
+      return [...withoutCompany, { id: 'companyId', value: urlParams.company }];
+    });
+  }
+}, [urlParams.status, urlParams.company, setColumnFilters]);
+  
 
   const jobPositionMap = useMemo(() => {
     const map: Record<string, any> = {};
@@ -514,8 +819,8 @@ export default function Applicants({
   const genderOptions = useMemo(() => {
     const s = new Set<string>();
     const rows = Array.isArray(applicants) ? applicants : [];
-    rows.forEach((a: any) => {
-      if (!isSuperAdmin && a?.status === 'trashed') return;
+      rows.forEach((a: any) => {
+        if (!isSuperAdmin && !canViewTrashed && a?.status === 'trashed') return;
       const raw =
         a?.gender ||
         a?.customResponses?.gender ||
@@ -532,30 +837,129 @@ export default function Applicants({
       if (it !== 'Male' && it !== 'Female') ordered.push(it);
     });
     return ordered.map((g) => ({ id: g, title: g }));
-  }, [applicants, isSuperAdmin]);
+  }, [applicants, isSuperAdmin, canViewTrashed]);
 
-  const jobOptions = useMemo(() => {
-    const getIdValue = (v: any) =>
-      typeof v === 'string' ? v : (v?._id ?? v?.id);
-    return jobPositions
-      .map((j: any) => {
-        const id = getIdValue(j._id) || getIdValue(j.id) || '';
-        const title =
-          typeof j.title === 'string' ? j.title : j?.title?.en || '';
-        return { id, title };
-      })
-      .filter((x) => x.id && x.title);
-  }, [jobPositions]);
+const jobOptions = useMemo(() => {
+  const getIdValue = (v: any) =>
+    typeof v === 'string' ? v : (v?._id ?? v?.id);
+  
+  // Helper function to extract string title from object or string
+  const getTitleString = (title: any): string => {
+    if (!title) return '';
+    if (typeof title === 'string') return title;
+    if (typeof title === 'object') {
+      // Try to get English first, then Arabic, then any string value
+      return title.en || title.ar || title.name || Object.values(title)[0] || '';
+    }
+    return String(title);
+  };
+  
+  return jobPositions
+    .map((j: any) => {
+      const id = getIdValue(j._id) || getIdValue(j.id) || '';
+      const title = getTitleString(j.title);
+      
+      const companyId = j.companyId?._id || j.companyId;
+      const company = allCompaniesRaw.find((c: any) => {
+        const cId = typeof c._id === 'string' ? c._id : c._id?._id;
+        return cId === companyId;
+      });
+      const companyName = getTitleString(company?.name || '');
+      
+      // ✅ Calculate applicant count for this job - EXCLUDE trashed status
+      const applicantCount = applicants.filter((applicant: any) => {
+        // Skip trashed applicants
+        if (applicant?.status?.toLowerCase() === 'trashed') return false;
+        
+        const applicantJobId = typeof applicant.jobPositionId === 'string' 
+          ? applicant.jobPositionId 
+          : applicant.jobPositionId?._id || applicant.jobPositionId?.id;
+        return applicantJobId === id;
+      }).length;
+      
+      return { id, title, companyName, companyId, applicantCount };
+    })
+    .filter((x) => x.id && x.title);
+}, [jobPositions, allCompaniesRaw, applicants]);
 
   const companyOptions = useMemo(() => {
     return allCompaniesRaw
       .map((c: any) => {
         const id = typeof c._id === 'string' ? c._id : c._id?._id || '';
-        const title = toPlainString(c?.name) || c?.title || '';
+        const title = toPlainString(c?.name) || '';
         return { id, title };
       })
       .filter((x) => x.id && x.title);
   }, [allCompaniesRaw]);
+
+  // Cascading filter: Get selected company IDs from column filters
+  const selectedCompanyIdsForJobs = useMemo(() => {
+    const companyFilter = columnFilters.find((f: any) => f.id === 'companyId');
+    if (!companyFilter?.value) return [] as string[];
+    const value = companyFilter.value;
+    return Array.isArray(value) ? value : [value];
+  }, [columnFilters]);
+
+  // Map jobId -> companyId for quick lookup
+  const jobToCompanyMap = useMemo(() => {
+    const map = new Map<string, string>();
+    jobPositions.forEach((job: any) => {
+      const jobId = typeof job._id === 'string' ? job._id : job._id?._id;
+      const companyId = job.companyId?._id || job.companyId;
+      if (jobId && companyId) {
+        map.set(jobId, companyId);
+      }
+    });
+    return map;
+  }, [jobPositions]);
+
+  // Filter job options based on selected companies
+  const filteredJobOptions = useMemo(() => {
+    if (selectedCompanyIdsForJobs.length === 0) {
+      return jobOptions;
+    }
+    return jobOptions.filter((job) => {
+      const jobCompanyId = jobToCompanyMap.get(job.id);
+      return jobCompanyId && selectedCompanyIdsForJobs.includes(jobCompanyId);
+    });
+  }, [selectedCompanyIdsForJobs, jobOptions, jobToCompanyMap]);
+
+  // Clear invalid job filters when company selection changes
+  useEffect(() => {
+    const selectedJobIds = columnFilters.find((f: any) => f.id === 'jobPositionId')?.value;
+    if (selectedJobIds && Array.isArray(selectedJobIds) && selectedJobIds.length > 0) {
+      const validJobIds = filteredJobOptions.map((j) => j.id);
+      const invalidJobs = selectedJobIds.filter((jobId: string) => !validJobIds.includes(jobId));
+      if (invalidJobs.length > 0) {
+        const remainingJobs = selectedJobIds.filter((jobId: string) => validJobIds.includes(jobId));
+        setColumnFilters((prev: any[]) => {
+          const without = prev.filter((f) => f.id !== 'jobPositionId');
+          if (remainingJobs.length === 0) {
+            return without;
+          }
+          return [...without, { id: 'jobPositionId', value: remainingJobs }];
+        });
+      }
+    }
+  }, [selectedCompanyIdsForJobs, filteredJobOptions, columnFilters, setColumnFilters]);
+
+  const jobPositionFilterOptions = useMemo(() => {
+    return jobOptions.map((j) => {
+      const coId = typeof j.companyId === 'string'
+        ? j.companyId
+        : (j.companyId?._id ?? j.companyId?.id ?? '');
+      const company = companyMap[coId];
+      const companyName = company
+        ? toPlainString(company?.name) || company?.title || ''
+        : '';
+      return {
+        label: j.title,
+        subtitle: companyName || undefined,
+        value: j.id,
+        companyId: coId,
+      };
+    });
+  }, [jobOptions, companyMap]);
 
   const fieldToJobIds = useMemo(
     () => buildFieldToJobIds(jobPositions),
@@ -593,11 +997,15 @@ export default function Applicants({
     customFilters,
     isSuperAdmin,
     effectiveOnlyStatus,
+    effectiveOnlyJobPositions,
     selectedCompanyFilterValue,
+    companyFilterExclude: (layout.excludeColumns ?? []).includes('companyId'),
+    excludeColumns: layout.excludeColumns ?? [],
     jobPositionMap,
     fieldToJobIds,
     currentUserId,
     allCompaniesRaw,
+    canViewTrashed,
   });
 
   const {
@@ -625,7 +1033,6 @@ export default function Applicants({
           : applicant._id?._id || applicant.id;
       if (!ids.has(applicantId)) return;
 
-      // Extract job ID from various possible locations
       const jobId =
         (typeof applicant.jobPositionId === 'string'
           ? applicant.jobPositionId
@@ -728,7 +1135,7 @@ export default function Applicants({
       sscore: isLaptopViewport ? 72 : 96,
       status: isLaptopViewport ? 150 : 170,
       submittedAt: isLaptopViewport ? 88 : 110,
-      actions: isLaptopViewport ? 58 : 90,
+      actions: 70,
     }),
     [isLaptopViewport]
   );
@@ -796,7 +1203,7 @@ export default function Applicants({
     []
   );
 
-  const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
+  const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null);
   const [customFilterOpen, setCustomFilterOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const mountedRef = useRef(true);
@@ -1224,6 +1631,7 @@ export default function Applicants({
     });
   }, []);
 
+
   const downloadCvForApplicant = useCallback(async (a: any) => {
     if (!a)
       return Swal.fire(
@@ -1403,6 +1811,53 @@ export default function Applicants({
       .map((reason) => ({ id: reason, title: reason }));
   }, [filteredApplicants, extractRejectionReasons]);
 
+  const unfilteredCounts = useMemo(() => {
+    const rows = Array.isArray(applicants) ? applicants : [];
+    const maps: Record<string, Map<string, number>> = {};
+
+    const addToMap = (colId: string, key: string) => {
+      if (!key) return;
+      if (!maps[colId]) maps[colId] = new Map();
+      maps[colId].set(key, (maps[colId].get(key) ?? 0) + 1);
+    };
+
+    const addArrayToMap = (colId: string, keys: string[]) => {
+      keys.forEach((k) => addToMap(colId, k));
+    };
+
+    rows.forEach((a: any) => {
+      if (!isSuperAdmin && a?.status === 'trashed') return;
+
+      // gender
+      const rawGender =
+        a?.gender ||
+        a?.customResponses?.gender ||
+        a?.customResponses?.['النوع'] ||
+        (a as any)['النوع'];
+      addToMap('gender', normalizeGender(rawGender));
+
+      // companyId
+      addToMap('companyId', getApplicantCompanyId(a, jobPositionMap) || '');
+
+      // jobPositionId
+      const rawJob = a?.jobPositionId;
+      const getId = (v: any) =>
+        typeof v === 'string' ? v : (v?._id ?? v?.id ?? '');
+      addToMap('jobPositionId', getId(rawJob));
+
+      // status
+      addToMap('status', a?.status);
+
+      // rejectionReasons
+      const reasons = extractRejectionReasons(a);
+      if (Array.isArray(reasons) && reasons.length) {
+        addArrayToMap('rejectionReasons', reasons);
+      }
+    });
+
+    return maps;
+  }, [applicants, isSuperAdmin, jobPositionMap]);
+
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   useEffect(() => {
@@ -1419,12 +1874,207 @@ export default function Applicants({
     return () => observer.disconnect();
   }, []);
 
+  const FilterHeaderCell = useCallback(
+    ({
+      header,
+
+      table,
+      label,
+      colId,
+      options,
+      isArrayColumn = false,
+      countsMap,
+      dependentColumnId,
+      selectedCompanyFilterValue: _selectedCompanyFilterValue,
+      filterValue: _filterValue,
+    }: {
+      header: any;
+      table: any;
+      label: string;
+      colId: string;
+      options: { label: string; value: string; companyId?: string; subtitle?: string }[];
+      isArrayColumn?: boolean;
+      countsMap?: Map<string, number>;
+      dependentColumnId?: string;
+      selectedCompanyFilterValue?: string[] | string | null;
+      filterValue?: any;
+    }) => {
+      const headerRef = useRef<HTMLDivElement>(null);
+      const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+      const currentFilter = (header.column.getFilterValue() as string[]) ?? [];
+      const activeCount = currentFilter.length;
+      const isExclude = (layout.excludeColumns ?? []).includes(colId);
+      const liveDepFilter = dependentColumnId
+        ? table?.getColumn(dependentColumnId)?.getFilterValue()
+        : undefined;
+      const depFilter = liveDepFilter ?? _selectedCompanyFilterValue;
+      const depIsExclude = dependentColumnId && (layout.excludeColumns ?? []).includes(dependentColumnId);
+      const selectedDepFilter =
+        depFilter && (Array.isArray(depFilter) ? depFilter.length > 0 : true)
+          ? Array.isArray(depFilter)
+            ? depFilter
+            : [depFilter]
+          : null;
+      const doHideSubtitle =
+        dependentColumnId && selectedDepFilter && selectedDepFilter.length === 1 && !depIsExclude;
+      const displayOptions = (dependentColumnId && selectedDepFilter && selectedDepFilter.length > 0 && !depIsExclude
+        ? options.filter((opt) => {
+            const matches = selectedDepFilter.includes(opt.companyId ?? '');
+            return matches;
+          })
+        : options
+      ).map((opt) => (doHideSubtitle ? { ...opt, subtitle: undefined } : opt));
+
+      const handleFilterClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setAnchorEl(headerRef.current);
+      };
+
+      return (
+        <div
+          ref={headerRef}
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            width: '100%',
+            minWidth: 0,
+            paddingRight: 12,
+          }}
+        >
+          <span
+            style={{
+              fontWeight: 600,
+              fontSize: 'inherit',
+              fontFamily: 'inherit',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              minWidth: 0,
+              flex: '1 1 auto',
+            }}
+          >
+            {label}
+          </span>
+          <button
+            type="button"
+            onClick={handleFilterClick}
+            title="Filter"
+            style={{
+              position: 'absolute',
+              right: -3,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              background: activeCount > 0 ? (isExclude ? 'rgba(244,63,94,0.08)' : 'rgba(16,185,129,0.08)') : 'none',
+              border: 'none',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              padding: '1px 1px',
+              borderRadius: 1,
+              fontSize: 'inherit',
+              fontFamily: 'inherit',
+              outline: 'none',
+              color: activeCount > 0 ? (isExclude ? '#f43f5e' : '#10b981') : '#667085',
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+            </svg>
+            {activeCount > 0 && (
+              <span style={{
+                fontSize: 10,
+                fontWeight: 700,
+                background: isExclude ? 'rgba(244,63,94,0.15)' : 'rgba(16,185,129,0.15)',
+                borderRadius: 8,
+                padding: '0px 5px',
+                lineHeight: '16px',
+              }}>
+                {activeCount}
+              </span>
+            )}
+          </button>
+
+          <Popover
+            anchorEl={anchorEl}
+            open={Boolean(anchorEl)}
+            onClose={() => setAnchorEl(null)}
+            anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
+            transformOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ExcludableMultiSelectFilter
+              header={header}
+              options={displayOptions}
+              isExclude={isExclude}
+              onToggleExclude={() =>
+                saveLayout({
+                  excludeColumns: toggleExcludeColumn(
+                    layout.excludeColumns ?? [],
+                    colId
+                  ),
+                })
+              }
+              isArrayColumn={isArrayColumn}
+              countsMap={countsMap}
+              title={label}
+            />
+          </Popover>
+        </div>
+      );
+    },
+    [layout.excludeColumns, saveLayout]
+  );
+
+  const makeExcludableColumnProps = (
+    colId: string,
+    options: { label: string; value: string; companyId?: string; subtitle?: string }[],
+    isArrayColumn = false,
+    label?: string,
+    dependentColumnId?: string
+  ): Partial<MRT_ColumnDef<any>> => ({
+    enableColumnFilter: false,
+    filterSelectOptions: options,
+    filterFn: ((row: any, columnId: string, filterValue: string[]) => {
+      if (!filterValue?.length) return true;
+      const isExclude = (layout.excludeColumns ?? []).includes(colId);
+
+      if (isArrayColumn) {
+        const items: Array<{ name: string }> = row.getValue(columnId) || [];
+        const hasMatch = filterValue.some((fv) =>
+          items.some((item) => item.name === fv)
+        );
+        return isExclude ? !hasMatch : hasMatch;
+      }
+
+      const val: string = row.getValue(columnId);
+      return isExclude
+        ? !filterValue.includes(val)
+        : filterValue.includes(val);
+    }) as MRT_ColumnDef<any>['filterFn'],
+    Header: ({ header, table }: { header: any; column: any; table: any }) => (
+      <FilterHeaderCell
+        header={header}
+        table={table}
+        label={label ?? colId}
+        colId={colId}
+        options={options}
+        isArrayColumn={isArrayColumn}
+        countsMap={unfilteredCounts[colId]}
+        dependentColumnId={dependentColumnId}
+        selectedCompanyFilterValue={selectedCompanyFilterValue}
+        filterValue={header.column.getFilterValue()}
+      />
+    ),
+  });
+
   // Build columns
   const columns = useMemo<MRT_ColumnDef<any>[]>(
     () => [
       {
         accessorKey: 'applicantNo',
-        header: isLaptopViewport ? 'ID' : 'ApplicantNo',
+        header: '#',
         size: columnSizeConfig.applicantNo,
         enableColumnFilter: false,
         enableSorting: !duplicatesOnlyEnabled,
@@ -1503,7 +2153,7 @@ export default function Applicants({
                 e.preventDefault();
                 e.stopPropagation();
                 if (row.original.profilePhoto) {
-                  setPreviewPhoto(row.original.profilePhoto);
+                  setPreviewPhotoUrl(row.original.profilePhoto);
                 } else {
                   handleApplicantLinkClick(e as any, row);
                 }
@@ -1515,7 +2165,7 @@ export default function Applicants({
                   alt={row.original.fullName}
                   onClick={() => {
                     if (row.original.profilePhoto) {
-                      setPreviewPhoto(row.original.profilePhoto);
+                      setPreviewPhotoUrl(row.original.profilePhoto);
                     }
                   }}
                 />
@@ -1642,24 +2292,21 @@ export default function Applicants({
           ),
         header: 'Gender',
         size: columnSizeConfig.gender,
-        enableColumnFilter: false,
         enableSorting: true,
-        Header: ({ column }: { column: any }) => (
-          <ColumnMultiSelectHeader
-            column={column}
-            label="Gender"
-            options={genderOptions}
-            isLaptopViewport={isLaptopViewport}
-            menuWidth={200}
-            menuMaxHeight={240}
-          />
+        ...makeExcludableColumnProps(
+          'gender',
+          genderOptions.map((o) => ({ label: o.title, value: o.id })),
+          false,
+          'Gender'
         ),
         filterFn: (row: any, columnId: string, filterValue: any) => {
           if (!filterValue) return true;
           const vals = Array.isArray(filterValue) ? filterValue : [filterValue];
           if (!vals.length) return true;
           const cell = String(row.getValue(columnId) ?? '').toLowerCase().trim();
-          return vals.some((v) => String(v ?? '').toLowerCase().trim() === cell);
+          const matches = vals.some((v) => String(v ?? '').toLowerCase().trim() === cell);
+          const isExclude = (layout.excludeColumns ?? []).includes('gender');
+          return isExclude ? !matches : matches;
         },
         Cell: ({ row }: { row: { original: any } }) => {
           if (isTableLoading) return renderCellSkeleton('text');
@@ -1688,19 +2335,14 @@ export default function Applicants({
               id: 'companyId',
               header: 'Company',
               size: columnSizeConfig.companyId,
-              enableColumnFilter: false,
               enableSorting: true,
               accessorFn: (row: any) =>
                 getApplicantCompanyId(row, jobPositionMap),
-              Header: ({ column }: { column: any }) => (
-                <ColumnMultiSelectHeader
-                  column={column}
-                  label="Company"
-                  options={companyOptions}
-                  isLaptopViewport={isLaptopViewport}
-                  menuWidth={240}
-                  menuMaxHeight={300}
-                />
+              ...makeExcludableColumnProps(
+                'companyId',
+                companyOptions.map((o) => ({ label: o.title, value: o.id })),
+                false,
+                'Company'
               ),
               filterFn: (row: any, columnId: string, filterValue: any) => {
                 if (!filterValue) return true;
@@ -1709,7 +2351,9 @@ export default function Applicants({
                   : [filterValue];
                 if (!vals.length) return true;
                 const cell = String(row.getValue(columnId) ?? '');
-                return vals.includes(cell);
+                const matches = vals.includes(cell);
+                const isExclude = (layout.excludeColumns ?? []).includes('companyId');
+                return isExclude ? !matches : matches;
               },
               Cell: ({ row }: { row: { original: any } }) => {
                 if (isTableLoading) return renderCellSkeleton('text');
@@ -1739,25 +2383,23 @@ export default function Applicants({
             typeof v === 'string' ? v : (v?._id ?? v?.id ?? '');
           return getId(raw);
         },
-        Header: ({ column }: { column: any }) => (
-          <ColumnMultiSelectHeader
-            column={column}
-            label={isLaptopViewport ? 'Job' : 'Job Position'}
-            options={jobOptions}
-            isLaptopViewport={isLaptopViewport}
-            menuWidth={260}
-            menuMaxHeight={280}
-          />
+        ...makeExcludableColumnProps(
+          'jobPositionId',
+          jobPositionFilterOptions,
+          false,
+          isLaptopViewport ? 'Job' : 'Job Position',
+          'companyId'
         ),
         filterFn: (row: any, columnId: string, filterValue: any) => {
           if (!filterValue) return true;
           const vals = Array.isArray(filterValue) ? filterValue : [filterValue];
           if (!vals.length) return true;
           const cell = String(row.getValue(columnId) ?? '');
-          return vals.includes(cell);
+          const matches = vals.includes(cell);
+          const isExclude = (layout.excludeColumns ?? []).includes('jobPositionId');
+          return isExclude ? !matches : matches;
         },
         size: columnSizeConfig.jobPositionId,
-        enableColumnFilter: false,
         Cell: ({ row }: { row: { original: any } }) => {
           if (isTableLoading) return renderCellSkeleton('text');
           const raw = row.original.jobPositionId;
@@ -1854,7 +2496,13 @@ export default function Applicants({
         accessorKey: 'status',
         header: 'Status',
         enableSorting: true,
-        Header: ({ column }: { column: any }) => {
+        ...makeExcludableColumnProps(
+          'status',
+          statusFilterOptions.map((o) => ({ label: o.title, value: o.id })),
+          false,
+          'Status'
+        ),
+        Header: ({ header, table }: { header: any; column: any; table: any }) => {
           if (
             effectiveOnlyStatus !== undefined &&
             effectiveOnlyStatus !== null
@@ -1862,27 +2510,18 @@ export default function Applicants({
             return <span className="text-sm font-medium">Status</span>;
           }
           return (
-            <div onClick={(e) => e.stopPropagation()}>
-              <ColumnMultiSelectHeader
-                column={column}
-                label="Status"
-                options={statusFilterOptions}
-                isLaptopViewport={isLaptopViewport}
-                menuWidth={220}
-                menuMaxHeight={240}
-              />
-            </div>
+            <FilterHeaderCell
+              header={header}
+              table={table}
+              label="Status"
+              colId="status"
+              options={statusFilterOptions.map((o) => ({ label: o.title, value: o.id }))}
+              countsMap={unfilteredCounts['status']}
+              filterValue={header.column.getFilterValue()}
+            />
           );
         },
-        filterFn: (row: any, columnId: string, filterValue: any) => {
-          if (!filterValue) return true;
-          const vals = Array.isArray(filterValue) ? filterValue : [filterValue];
-          if (!vals.length) return true;
-          const cell = String(row.getValue(columnId) ?? '');
-          return vals.includes(cell);
-        },
         size: columnSizeConfig.status,
-        enableColumnFilter: false,
         Cell: ({ row }: { row: { original: any } }) => {
           if (isTableLoading) return renderCellSkeleton('text', '80px');
 
@@ -1926,6 +2565,12 @@ export default function Applicants({
           if (a === b) return 0;
           return a > b ? 1 : -1;
         },
+        ...makeExcludableColumnProps(
+          'rejectionReasons',
+          rejectionReasonsOptions.map((o) => ({ label: o.title, value: o.id })),
+          true,
+          'Reasons'
+        ),
         filterFn: (row: any, columnId: string, filterValue: any) => {
           if (!filterValue) return true;
           const selectedReasons = Array.isArray(filterValue)
@@ -1934,8 +2579,7 @@ export default function Applicants({
           if (selectedReasons.length === 0) return true;
 
           const applicantReasons = row.getValue(columnId) as string[];
-
-          return selectedReasons.some((selectedReason) =>
+          const matches = selectedReasons.some((selectedReason) =>
             applicantReasons.some(
               (applicantReason) =>
                 applicantReason
@@ -1946,17 +2590,9 @@ export default function Applicants({
                   .includes(applicantReason.toLowerCase())
             )
           );
+          const isExclude = (layout.excludeColumns ?? []).includes('rejectionReasons');
+          return isExclude ? !matches : matches;
         },
-        Header: ({ column }: { column: any }) => (
-          <ColumnMultiSelectHeader
-            column={column}
-            label="Reasons"
-            options={rejectionReasonsOptions}
-            isLaptopViewport={isLaptopViewport}
-            menuWidth={260}
-            menuMaxHeight={320}
-          />
-        ),
         Cell: ({ row }: { row: { original: any } }) => {
           if (isTableLoading) return renderCellSkeleton('text');
           const a = row.original || {};
@@ -1997,7 +2633,7 @@ export default function Applicants({
           return (
             <button
               onClick={toggle}
-              className="flex items-center gap-1 text-sm font-medium"
+              className="flex flex-1 items-center justify-between gap-1 text-sm font-medium min-w-0"
               type="button"
               title={desc ? 'Newest' : 'Oldest'}
             >
@@ -2059,12 +2695,34 @@ export default function Applicants({
             return null;
           };
           const hasCv = Boolean(resolveCvPath(orig));
+          const isTrashedApplicant = isTrashed(orig);
+          const previousStatus = getPreviousStatus(orig);
+          const updateStatus = useUpdateApplicantStatus();
+          const handleRestore = async (e: React.MouseEvent<HTMLButtonElement>) => {
+            e.stopPropagation();
+            const result = await Swal.fire({
+              title: 'Restore applicant?',
+              text: `This will restore the applicant to "${previousStatus}" status.`,
+              icon: 'question',
+              showCancelButton: true,
+              confirmButtonColor: '#22c55e',
+              cancelButtonColor: '#6b7280',
+              confirmButtonText: 'Restore',
+              cancelButtonText: 'Cancel',
+            });
+            if (!result.isConfirmed) return;
+            try {
+              await updateStatus.mutateAsync({ id: orig._id, data: { status: previousStatus } });
+            } catch {
+              // toast handled by mutation
+            }
+          };
           return (
             <div
               onClick={(e) => e.stopPropagation()}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 w-full justify-center"
             >
-              {hasCv ? (
+              {hasCv && (
                 <button
                   type="button"
                   aria-label="Download CV"
@@ -2090,8 +2748,31 @@ export default function Applicants({
                     />
                   </svg>
                 </button>
-              ) : (
-                <span className="text-xs text-gray-500">-</span>
+              )}
+              {isTrashedApplicant && canRestore && (
+                <button
+                  type="button"
+                  aria-label="Restore applicant"
+                  title={`Restore to ${previousStatus}`}
+                  onClick={handleRestore}
+                  disabled={updateStatus.isPending}
+                  className="inline-flex items-center justify-center rounded bg-green-500 p-1 text-white hover:bg-green-600 disabled:opacity-50"
+                >
+                  <span className="sr-only">Restore</span>
+                  <svg
+                    className="w-4 h-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                    />
+                  </svg>
+                </button>
               )}
             </div>
           );
@@ -2107,8 +2788,13 @@ export default function Applicants({
       showCompanyColumn,
       companyOptions,
       jobOptions,
+      jobPositionFilterOptions,
       statusFilterOptions,
+      filteredJobOptions,
+      rejectionReasonsOptions,
       effectiveOnlyStatus,
+      excludeModes,
+      columnFilters,
       formatDate,
       getExpectedSalaryDisplay,
       getApplicantSScore,
@@ -2117,6 +2803,10 @@ export default function Applicants({
       jobPositionMap,
       companyMap,
       currentUserId,
+      selectedCompanyFilterValue,
+      layout.excludeColumns,
+      saveLayout,
+      canRestore,
     ]
   );
 
@@ -2125,16 +2815,9 @@ export default function Applicants({
       createTheme({
         palette: {
           mode: isDarkMode ? 'dark' : 'light',
-          primary: { main: '#e42e2b' },
-          background: {
-            default: isDarkMode ? '#24303F' : '#FFFFFF',
-            paper: isDarkMode ? '#24303F' : '#FFFFFF',
-          },
-          text: {
-            primary: isDarkMode ? '#E4E7EC' : '#101828',
-            secondary: isDarkMode ? '#98A2B3' : '#667085',
-          },
-          divider: isDarkMode ? '#344054' : '#E4E7EC',
+        },
+        typography: {
+          fontFamily: "'Montserrat', sans-serif",
         },
         components: {
           MuiCheckbox: {
@@ -2164,8 +2847,9 @@ export default function Applicants({
 
   const table = useMaterialReactTable({
     columns,
-    enableSorting: !duplicatesOnlyEnabled,
+    enableSorting: true,
     data: isTableLoading ? skeletonData : filteredApplicants,
+    enableRowVirtualization: true, // Enable virtual scrolling for better performance
     displayColumnDefOptions: {
       'mrt-row-select': {
         size: selectColumnWidth,
@@ -2208,6 +2892,7 @@ export default function Applicants({
     enableBottomToolbar: true,
     enableTopToolbar: true,
     enableColumnFilters: true,
+    columnFilterDisplayMode: 'popover',
     enableFilters: true,
     enableHiding: true,
     enableDensityToggle: false,
@@ -2216,7 +2901,7 @@ export default function Applicants({
     enableColumnResizing: true,
     layoutMode: 'grid',
     manualPagination: false,
-    manualFiltering: false,
+    manualFiltering: true,
     manualSorting: false,
     rowCount: isTableLoading ? skeletonData.length : filteredApplicants.length,
     initialState: {
@@ -2249,7 +2934,10 @@ export default function Applicants({
     },
     onSortingChange: setSorting,
     onPaginationChange: setPagination,
-    onColumnFiltersChange: setColumnFilters,
+    onColumnFiltersChange: (updater) => {
+      const next = typeof updater === 'function' ? updater(columnFilters) : updater;
+      setColumnFilters(next);
+    },
     onRowSelectionChange: setRowSelection,
     onColumnVisibilityChange: (updater) => {
       const next =
@@ -2342,70 +3030,80 @@ export default function Applicants({
       </div>
     ),
     muiTablePaperProps: {
-      sx: {
-        backgroundColor: isDarkMode ? '#24303F' : '#FFFFFF',
-        backgroundImage: 'none',
-
-        overflow: 'hidden',
-        boxShadow: 'none',
-        margin: 0,
-      },
+      elevation: 0,
     },
-    muiTableContainerProps: { 
-      sx: { 
-        overflowX: 'auto',
-        width: '100%',
-        minWidth: 0,
-        '&::-webkit-scrollbar': {
-          height: '8px',
-        },
-        '&::-webkit-scrollbar-track': {
-          background: isDarkMode ? '#1C2434' : '#F1F5F9',
-          borderRadius: '4px',
-        },
-        '&::-webkit-scrollbar-thumb': {
-          background: isDarkMode ? '#475569' : '#CBD5E1',
-          borderRadius: '4px',
-        },
-        '&::-webkit-scrollbar-thumb:hover': {
-          background: isDarkMode ? '#64748B' : '#94A3B8',
-        },
-      } 
-    },
-   muiTableProps: {
-  sx: {
-    backgroundColor: isDarkMode ? '#24303F' : '#FFFFFF',
-    fontFamily: "'Cairo', Outfit, system-ui",
-    fontSize: '0.82rem',
-  },
-},
-    muiTableBodyCellProps: {
+    muiTableBodyCellProps: () => ({
       sx: {
-        backgroundColor: isDarkMode ? '#24303F' : '#FFFFFF',
-        color: isDarkMode ? '#E4E7EC' : '#101828',
-        borderColor: isDarkMode ? '#344054' : '#E4E7EC',
-        verticalAlign: 'middle',
-        overflow: 'hidden',
         whiteSpace: 'nowrap',
-        fontSize: isLaptopViewport ? '0.76rem' : '0.8rem',
-        padding: isLaptopViewport ? '5px 6px' : '6px 8px',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        color: '#282828',
       },
-    },
-    muiTableHeadCellProps: {
+    }),
+    muiTableHeadCellProps: ({ column }) => ({
       sx: {
-        backgroundColor: isDarkMode ? '#1C2434' : '#F9FAFB',
-        color: isDarkMode ? '#E4E7EC' : '#344054',
-        fontWeight: 600,
-        fontSize: isLaptopViewport ? '0.74rem' : '0.78rem',
-        padding: isLaptopViewport ? '7px 6px' : '8px 8px',
-        whiteSpace: 'nowrap',
+        height: '50px',
+        fontWeight: 'bold',
+        position: 'relative',
+        overflow: 'visible',
+        '& .MuiTableSortLabel-icon': { display: 'none' },
+        '& .MuiBadge-root': { display: 'none' },
+        '& .Mui-TableHeadCell-Content': {
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+        },
+        '& .Mui-TableHeadCell-Content-Labels': {
+          display: 'flex',
+          alignItems: 'center',
+          flex: 1,
+          minWidth: 0,
+          overflow: 'visible',
+        },
+        '& .Mui-TableHeadCell-Content-Actions': {
+          display: 'flex',
+          alignItems: 'center',
+          flex: '0 0 0',
+          width: 0,
+          minWidth: 0,
+          padding: 0,
+          overflow: 'hidden',
+        },
       },
-    },
-    muiTableBodyRowProps: () => ({
+      onMouseDown: (e) => {
+        if ((e.target as HTMLElement).closest('button')) return;
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const currentCell = e.currentTarget as HTMLElement;
+        const onMouseUp = (upEvent: MouseEvent) => {
+          const dx = Math.abs(upEvent.clientX - startX);
+          const dy = Math.abs(upEvent.clientY - startY);
+          if (
+            dx < 5 &&
+            dy < 5 &&
+            currentCell.contains(upEvent.target as Node)
+          ) {
+            column.toggleSorting();
+          }
+          document.removeEventListener('mouseup', onMouseUp);
+        };
+        document.addEventListener('mouseup', onMouseUp);
+      },
+    }),
+    muiTableBodyRowProps: ({ row, table }) => ({
       sx: {
-        cursor: 'default',
-        backgroundColor: isDarkMode ? '#24303F' : '#FFFFFF',
-        '&:hover': { backgroundColor: isDarkMode ? '#344054' : '#F9FAFB' },
+        backgroundColor:
+          table.getRowModel().rows.indexOf(row) % 2 === 0
+            ? 'rgba(240, 240, 240, 1)'
+            : 'white',
+        '& .MuiTableRow-root': {
+          overflow: 'hidden',
+          width: '100%',
+        },
+        '& .MuiCollapse-root': {
+          width: '80%',
+          marginX: 'auto',
+        },
       },
     }),
     getRowId: (row) => row._id,
@@ -2560,7 +3258,7 @@ export default function Applicants({
               isOpen={contractModalOpen}
               onClose={() => setContractModalOpen(false)}
               mode="contract"
-              applicantObjects={selectedApplicants} // _id + fullName + email + companyId
+              applicantObjects={selectedApplicants}
               companyId={selectedApplicantCompanyId!}
             />
 
@@ -2568,7 +3266,7 @@ export default function Applicants({
               isOpen={offerModalOpen}
               onClose={() => setOfferModalOpen(false)}
               mode="offer"
-              applicantObjects={selectedApplicants} // _id + fullName + email + companyId
+              applicantObjects={selectedApplicants}
               companyId={selectedApplicantCompanyId!}
             />
                 <BulkMessageModal
@@ -2729,24 +3427,19 @@ export default function Applicants({
           </div>
         </div>
 
-        {previewPhoto && (
+        {previewPhotoUrl && (
           <div
             className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm"
-            onClick={() => setPreviewPhoto(null)}
+            onClick={() => setPreviewPhotoUrl(null)}
           >
             <div className="relative max-h-[90vh] max-w-[90vw] p-4">
               <button
-                onClick={() => setPreviewPhoto(null)}
+                onClick={() => setPreviewPhotoUrl(null)}
                 className="absolute -top-2 -right-2 flex h-8 w-8 items-center justify-center rounded-full bg-white text-gray-700 shadow-lg hover:bg-gray-100"
               >
                 ✕
               </button>
-              <img
-                src={previewPhoto}
-                alt="Applicant photo preview"
-                className="max-h-[85vh] max-w-full rounded-lg shadow-2xl"
-                onClick={(e) => e.stopPropagation()}
-              />
+              <PhotoPreviewImage src={previewPhotoUrl} />
             </div>
           </div>
         )}

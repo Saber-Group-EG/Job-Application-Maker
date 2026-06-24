@@ -1,7 +1,7 @@
 // pages/Settings/EmailTemplates.tsx
 import React, { useState, useEffect} from "react";
 import {
-  PlusCircle, Save, Trash2, Edit, Copy, Mail, Eye, X
+  PlusCircle, Save, Trash2, Edit, Copy, Mail, Eye, X, ChevronDown, Building2
 } from "lucide-react";
 import Swal from "../../../utils/swal";
 import { useAuth } from "../../../context/AuthContext";
@@ -243,6 +243,7 @@ export default function EmailTemplates({
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | undefined>(companyId ?? undefined);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<any | null>(null);
+  const [isCompanyDropdownOpen, setIsCompanyDropdownOpen] = useState(false);
 
   const isSuperAdmin = !!user?.roleId?.name?.toString().toLowerCase().includes("admin");
   const userCompanyIds = (user?.companies ?? [])
@@ -347,24 +348,85 @@ export default function EmailTemplates({
 
         <div className="p-6">
           {showSelector && (
-            <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-              <div className="mb-4 flex items-center gap-3">
-                <div className="flex size-10 items-center justify-center rounded-lg bg-violet-500/10 text-violet-500">
-                  <Mail className="size-5" />
+            <div className="mb-6 rounded-xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-700/50 dark:bg-slate-800/40">
+              <div className="mb-3 flex items-center gap-2">
+                <div className="flex size-8 items-center justify-center rounded-lg bg-violet-500/10 text-violet-500">
+                  <Building2 className="size-4" />
                 </div>
-                <h3 className="text-lg font-semibold tracking-tight">Select Company</h3>
+                <h3 className="text-sm font-semibold tracking-tight text-slate-700 dark:text-slate-300">Select Company</h3>
               </div>
-              <select
-                value={selectedCompanyId || ""}
-                onChange={(e) => setSelectedCompanyId(e.target.value)}
-                className="w-full appearance-none rounded-xl border border-slate-300 bg-white py-3 pl-4 pr-10 text-sm font-medium outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800"
-              >
-                {availableCompanies.map((company) => (
-                  <option key={company._id} value={company._id}>
-                    {getCompanyName(company)}
-                  </option>
-                ))}
-              </select>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsCompanyDropdownOpen(!isCompanyDropdownOpen)}
+                  className="flex w-full items-center gap-3 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800"
+                >
+                  {(selectedCompany as any)?.logoPath ? (
+                    <img
+                      src={(selectedCompany as any).logoPath.replace('/upload/', '/upload/q_10,w_48/')}
+                      alt={getCompanyName(selectedCompany)}
+                      className="size-7 shrink-0 rounded-md object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="flex size-7 items-center justify-center rounded-md bg-brand-500/10 text-[11px] font-bold uppercase text-brand-600 dark:text-brand-400">
+                      {(getCompanyName(selectedCompany) || '?').charAt(0)}
+                    </div>
+                  )}
+                  <span className="flex-1 truncate text-left">
+                    {getCompanyName(selectedCompany) || 'Select a company'}
+                  </span>
+                  <ChevronDown className="size-4 text-slate-400" />
+                </button>
+
+                {isCompanyDropdownOpen && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setIsCompanyDropdownOpen(false)} />
+                    <div className="absolute left-0 right-0 z-20 mt-1 max-h-60 overflow-auto rounded-lg border border-slate-200 bg-white p-1 shadow-lg dark:border-slate-700 dark:bg-slate-800">
+                      {availableCompanies.map((company) => {
+                        const companyName = getCompanyName(company);
+                        const isSelected = company._id === selectedCompanyId;
+                        const logoPath = (company as any).logoPath;
+                        return (
+                          <button
+                            key={company._id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedCompanyId(company._id);
+                              setIsCompanyDropdownOpen(false);
+                            }}
+                            className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm transition ${
+                              isSelected
+                                ? 'bg-brand-500/10 text-brand-700 dark:bg-brand-500/20 dark:text-brand-300'
+                                : 'text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700/50'
+                            }`}
+                          >
+                            {logoPath ? (
+                              <img
+                                src={logoPath.replace('/upload/', '/upload/q_10,w_48/')}
+                                alt={companyName}
+                                className="size-7 shrink-0 rounded-md object-cover"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <div
+                                className={`flex size-7 items-center justify-center rounded-md text-[11px] font-bold uppercase ${
+                                  isSelected
+                                    ? 'bg-brand-500 text-white'
+                                    : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+                                }`}
+                              >
+                                {companyName.charAt(0)}
+                              </div>
+                            )}
+                            <span className="flex-1 truncate">{companyName}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           )}
 

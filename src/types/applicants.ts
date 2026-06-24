@@ -324,6 +324,7 @@ export interface PersonalInfoProps {
   onPrint?: () => void;
   onCreateJobOffer?: () => void;
   onCreateContract?: () => void;
+  onRestore?: () => void;
 }
 
 export type ApplicantView = Omit<Applicant, 'companyId' | 'jobPositionId'> & {

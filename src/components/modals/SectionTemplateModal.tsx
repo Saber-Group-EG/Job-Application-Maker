@@ -1,9 +1,29 @@
-import { useEffect, useRef, useState } from 'react';
-import { X, Plus, Trash2, ChevronDown } from 'lucide-react';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { X, Plus, Trash2, ChevronDown, GripVertical, Languages } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import type {
   SectionTemplate,
   SectionTemplateItem,
 } from '../../types/companies';
+import { translateText } from '../../utils/translate';
 
 // ─── tiny uid ─────────────────────────────────────────────────────────────────
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -121,6 +141,97 @@ type Props = {
   existingCategories: string[];
 };
 
+// ─── Sortable Item ─────────────────────────────────────────────────────────────
+function SortableItemRow({
+  item,
+  idx,
+  onPatch,
+  onRemove,
+}: {
+  item: SectionTemplateItem & { _id: string };
+  idx: number;
+  onPatch: (patch: Partial<SectionTemplateItem>) => void;
+  onRemove: () => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    isDragging,
+  } = useSortable({ id: item._id });
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    transition: isDragging ? 'none' : 'transform 200ms cubic-bezier(0.2, 0, 0, 1)',
+    opacity: isDragging ? 0.4 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-start gap-2 ${
+        isDragging ? 'rounded-lg border border-brand-400 bg-white p-2 shadow-lg ring-2 ring-brand-500 dark:bg-slate-800' : ''
+      }`}
+    >
+      <div
+        {...attributes}
+        {...listeners}
+        className="mt-2.5 flex cursor-grab items-center justify-center rounded p-0.5 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-600 active:cursor-grabbing dark:hover:bg-slate-700 dark:hover:text-slate-300"
+      >
+        <GripVertical className="size-3.5" />
+      </div>
+      <span className="mt-2.5 w-5 shrink-0 text-center text-[11px] font-bold text-slate-400">
+        {idx + 1}
+      </span>
+      <div className="grid flex-1 grid-cols-2 gap-2">
+        <textarea
+          className={textareaCls}
+          rows={2}
+          value={item.en}
+          onChange={(e) => onPatch({ en: e.target.value })}
+          placeholder="Item text (EN)"
+        />
+        <div className="relative">
+          <textarea
+            className={textareaCls}
+            rows={2}
+            value={item.ar}
+            onChange={(e) => onPatch({ ar: e.target.value })}
+            placeholder="نص العنصر"
+            dir="rtl"
+          />
+          <button
+            type="button"
+            onClick={async () => {
+              if (item.en.trim()) {
+                const t = await translateText(item.en, 'en', 'ar');
+                if (t) onPatch({ ar: t });
+              } else if (item.ar.trim()) {
+                const t = await translateText(item.ar, 'ar', 'en');
+                if (t) onPatch({ en: t });
+              }
+            }}
+            disabled={!item.en.trim() && !item.ar.trim()}
+            className="absolute right-1.5 top-1.5 flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
+            title={item.en.trim() ? 'Translate EN → AR' : 'Translate AR → EN'}
+          >
+            <Languages className="size-3" />
+          </button>
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={onRemove}
+        className="mt-1.5 flex size-8 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-500/10 dark:hover:text-red-400"
+      >
+        <Trash2 className="size-3.5" />
+      </button>
+    </div>
+  );
+}
+
 // ─── Modal ────────────────────────────────────────────────────────────────────
 export default function SectionTemplateModal({
   isOpen,
@@ -129,24 +240,31 @@ export default function SectionTemplateModal({
   editing,
   existingCategories,
 }: Props) {
-  const [category, setCategory] = useState('general');
+  const [category, setCategory] = useState('');
   const [titleEn, setTitleEn] = useState('');
   const [titleAr, setTitleAr] = useState('');
   const [items, setItems] = useState<(SectionTemplateItem & { _id: string })[]>(
     []
   );
+  const [activeItemId, setActiveItemId] = useState<string | null>(null);
+  const [translatingAll, setTranslatingAll] = useState(false);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
 
   // populate when editing
   useEffect(() => {
     if (editing) {
-      setCategory(editing.category ?? 'general');
+      setCategory(editing.category ?? '');
       setTitleEn(editing.title.en);
       setTitleAr(editing.title.ar);
       setItems(
         (editing.items ?? []).map((i) => ({ ...i, _id: i._id ?? uid() }))
       );
     } else {
-      setCategory('general');
+      setCategory('');
       setTitleEn('');
       setTitleAr('');
       setItems([]);
@@ -163,6 +281,63 @@ export default function SectionTemplateModal({
 
   const removeItem = (id: string) =>
     setItems((prev) => prev.filter((i) => i._id !== id));
+
+  const handleItemDragStart = useCallback((event: DragStartEvent) => {
+    setActiveItemId(event.active.id as string);
+  }, []);
+
+  const handleItemDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveItemId(null);
+    if (over && active.id !== over.id) {
+      setItems((prev) => {
+        const oldIndex = prev.findIndex((i) => i._id === active.id);
+        const newIndex = prev.findIndex((i) => i._id === over.id);
+        if (oldIndex !== -1 && newIndex !== -1) {
+          return arrayMove(prev, oldIndex, newIndex);
+        }
+        return prev;
+      });
+    }
+  }, []);
+
+  const handleItemDragCancel = useCallback(() => {
+    setActiveItemId(null);
+  }, []);
+
+  const translateAll = async () => {
+    setTranslatingAll(true);
+    try {
+      if (titleEn.trim()) {
+        const t = await translateText(titleEn, 'en', 'ar');
+        if (t) setTitleAr(t);
+      } else if (titleAr.trim()) {
+        const t = await translateText(titleAr, 'ar', 'en');
+        if (t) setTitleEn(t);
+      }
+      const itemResults = await Promise.all(
+        items.map(async (item) => {
+          if (item.en.trim()) {
+            const t = await translateText(item.en, 'en', 'ar');
+            return t ? { _id: item._id, target: 'ar' as const, text: t } : null;
+          } else if (item.ar.trim()) {
+            const t = await translateText(item.ar, 'ar', 'en');
+            return t ? { _id: item._id, target: 'en' as const, text: t } : null;
+          }
+          return null;
+        })
+      );
+      setItems((prev) =>
+        prev.map((item) => {
+          const r = itemResults.find((x) => x?._id === item._id);
+          if (!r) return item;
+          return r.target === 'ar' ? { ...item, ar: r.text } : { ...item, en: r.text };
+        })
+      );
+    } finally {
+      setTranslatingAll(false);
+    }
+  };
 
   const handleSave = () => {
     if (!titleEn.trim() && !titleAr.trim()) return;
@@ -192,13 +367,29 @@ export default function SectionTemplateModal({
           <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
             {editing ? 'Edit Section Template' : 'New Section Template'}
           </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex size-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-          >
-            <X className="size-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={translateAll}
+              disabled={translatingAll}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-brand-50 hover:text-brand-600 disabled:opacity-50 dark:border-slate-700 dark:hover:bg-brand-500/10 dark:hover:text-brand-400"
+              title="Translate all EN fields to AR"
+            >
+              {translatingAll ? (
+                <div className="size-3.5 animate-spin rounded-full border-2 border-slate-400/30 border-t-slate-400" />
+              ) : (
+                <Languages className="size-3.5" />
+              )}
+              Translate All
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex size-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
         </div>
 
         {/* body */}
@@ -225,7 +416,26 @@ export default function SectionTemplateModal({
               />
             </div>
             <div>
-              <Label>Title (AR)</Label>
+              <div className="flex items-center justify-between">
+                <Label>Title (AR)</Label>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (titleEn.trim()) {
+                      const t = await translateText(titleEn, 'en', 'ar');
+                      if (t) setTitleAr(t);
+                    } else if (titleAr.trim()) {
+                      const t = await translateText(titleAr, 'ar', 'en');
+                      if (t) setTitleEn(t);
+                    }
+                  }}
+                  disabled={!titleEn.trim() && !titleAr.trim()}
+                  className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
+                  title={titleEn.trim() ? 'Translate EN → AR' : 'Translate AR → EN'}
+                >
+                  <Languages className="size-3" />
+                </button>
+              </div>
               <input
                 className={inputCls}
                 value={titleAr}
@@ -240,41 +450,40 @@ export default function SectionTemplateModal({
           <div>
             <Label>Items</Label>
             <div className="space-y-2">
-              {items.map((item, idx) => (
-                <div key={item._id} className="flex items-start gap-2">
-                  <span className="mt-2.5 w-5 shrink-0 text-center text-[11px] font-bold text-slate-400">
-                    {idx + 1}
-                  </span>
-                  <div className="grid flex-1 grid-cols-2 gap-2">
-                    <textarea
-                      className={textareaCls}
-                      rows={2}
-                      value={item.en}
-                      onChange={(e) =>
-                        patchItem(item._id, { en: e.target.value })
-                      }
-                      placeholder="Item text (EN)"
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleItemDragStart}
+                onDragEnd={handleItemDragEnd}
+                onDragCancel={handleItemDragCancel}
+              >
+                <SortableContext
+                  items={items.map((i) => i._id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {items.map((item, idx) => (
+                    <SortableItemRow
+                      key={item._id}
+                      item={item}
+                      idx={idx}
+                      onPatch={(patch) => patchItem(item._id, patch)}
+                      onRemove={() => removeItem(item._id)}
                     />
-                    <textarea
-                      className={textareaCls}
-                      rows={2}
-                      value={item.ar}
-                      onChange={(e) =>
-                        patchItem(item._id, { ar: e.target.value })
-                      }
-                      placeholder="نص العنصر"
-                      dir="rtl"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => removeItem(item._id)}
-                    className="mt-1.5 flex size-8 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-500/10 dark:hover:text-red-400"
-                  >
-                    <Trash2 className="size-3.5" />
-                  </button>
-                </div>
-              ))}
+                  ))}
+                </SortableContext>
+                {activeItemId && items.find((i) => i._id === activeItemId) ? (
+                  <DragOverlay>
+                    <div className="rounded-lg border border-brand-400 bg-white p-3 shadow-xl dark:bg-slate-800">
+                      <div className="flex items-center gap-2">
+                        <GripVertical className="size-3.5 text-brand-500" />
+                        <span className="text-xs font-semibold text-slate-500">
+                          Item {items.findIndex((i) => i._id === activeItemId) + 1}
+                        </span>
+                      </div>
+                    </div>
+                  </DragOverlay>
+                ) : null}
+              </DndContext>
 
               <button
                 type="button"
