@@ -91,11 +91,10 @@ class ApplicantsService {
     method: 'get' | 'post' | 'put' | 'delete' | 'patch',
     url: string,
     data?: any,
-    params?: any,
-    extraConfig?: Record<string, any>
+    params?: any
   ): Promise<T> {
     try {
-      const config: Record<string, any> = { params, ...extraConfig };
+      const config = { params };
       let response;
 
       if (method === 'get' || method === 'delete') {
@@ -188,7 +187,7 @@ class ApplicantsService {
 
       if (params?.status) {
         queryParams.status = Array.isArray(params.status)
-          ? params.status
+          ? params.status.join(',')
           : params.status;
       }
       if (params?.fields) {
@@ -210,29 +209,11 @@ class ApplicantsService {
       companyId?: string;
       jobPositionId?: string;
     }): Promise<Applicant[]> => {
-      const queryParams = buildQueryParams(options);
       const response = await this.request<any>(
         'get',
         '/applicants',
         undefined,
-        queryParams,
-        {
-          paramsSerializer: {
-            serialize: (p: Record<string, any>) => {
-              const parts: string[] = [];
-              for (const [key, value] of Object.entries(p)) {
-                if (Array.isArray(value)) {
-                  for (const v of value) {
-                    parts.push(`${key}=${encodeURIComponent(v)}`);
-                  }
-                } else if (value !== undefined && value !== null) {
-                  parts.push(`${key}=${encodeURIComponent(value)}`);
-                }
-              }
-              return parts.join('&');
-            },
-          },
-        }
+        buildQueryParams(options)
       );
       return this.extractApplicants(response);
     };

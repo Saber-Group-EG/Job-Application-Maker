@@ -79,6 +79,7 @@ class DepartmentsService {
   }
 
   async createDepartment(departmentData: CreateDepartmentRequest): Promise<Department> {
+    // Map legacy `deleted` to `isActive` before sending
     const payload: any = { ...departmentData };
     if (typeof payload.deleted === 'boolean') {
       payload.isActive = !payload.deleted;

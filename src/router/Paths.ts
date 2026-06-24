@@ -36,7 +36,6 @@ export const paths = {
   applicants: {
     root: '/applicants',
     mobile: '/applicants/mobile',
-    blueCaller: '/applicants/blue-caller',
     mailPreview: '/applicants/mail-preview',
     page: (pageName: string) => `/applicants/page/${pageName}`,
     details: (id: string) => `/applicant-details/${id}`,

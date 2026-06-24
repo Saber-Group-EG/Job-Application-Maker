@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   X,
   FileSignature,
@@ -11,28 +11,7 @@ import {
   Gift,
   Calendar,
   Layers,
-  GripVertical,
-  Languages,
 } from 'lucide-react';
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-  DragStartEvent,
-  DragOverlay,
-  defaultDropAnimationSideEffects,
-} from '@dnd-kit/core';
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
-import { createPortal } from 'react-dom';
 import {
   ContractType,
   CreateJobContractPayload,
@@ -60,7 +39,6 @@ import {
 } from '../JobOffersModal/BulkSalaryReview';
 import { ChevronDown } from 'lucide-react';
 import SectionTemplatePicker from '../../form/SectionTemplatePicker';
-import { translateText } from '../../../utils/translate';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -300,24 +278,8 @@ export default function JobContractModal({
   const [form, setForm] = useState<FormState>(emptyForm);
   const [showSalaryReview, setShowSalaryReview] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [activeBenefitId, setActiveBenefitId] = useState<string | null>(null);
-  const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
-  const [translatingAll, setTranslatingAll] = useState(false);
 
   const firstInputRef = useRef<HTMLInputElement>(null);
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  );
-
-  const dropAnimation = {
-    sideEffects: defaultDropAnimationSideEffects({
-      styles: { active: { opacity: '0.4' } },
-    }),
-    duration: 200,
-    easing: 'cubic-bezier(0.2, 0, 0, 1)',
-  };
 
   const createMutation = useCreateJobContract();
   const updateMutation = useUpdateJobContract();
@@ -327,54 +289,6 @@ export default function JobContractModal({
     createMutation.isPending ||
     updateMutation.isPending ||
     bulkMutation.isPending;
-
-  // ── Drag handlers ──────────────────────────────────────────────────────────
-
-  const handleBenefitDragStart = useCallback((event: DragStartEvent) => {
-    setActiveBenefitId(event.active.id as string);
-  }, []);
-
-  const handleBenefitDragEnd = useCallback((event: DragEndEvent) => {
-    const { active, over } = event;
-    setActiveBenefitId(null);
-    if (over && active.id !== over.id) {
-      setForm((prev) => {
-        const oldIndex = prev.benefits.findIndex((b) => b._id === active.id);
-        const newIndex = prev.benefits.findIndex((b) => b._id === over.id);
-        if (oldIndex !== -1 && newIndex !== -1) {
-          return { ...prev, benefits: arrayMove(prev.benefits, oldIndex, newIndex) };
-        }
-        return prev;
-      });
-    }
-  }, []);
-
-  const handleBenefitDragCancel = useCallback(() => {
-    setActiveBenefitId(null);
-  }, []);
-
-  const handleSectionDragStart = useCallback((event: DragStartEvent) => {
-    setActiveSectionId(event.active.id as string);
-  }, []);
-
-  const handleSectionDragEnd = useCallback((event: DragEndEvent) => {
-    const { active, over } = event;
-    setActiveSectionId(null);
-    if (over && active.id !== over.id) {
-      setForm((prev) => {
-        const oldIndex = prev.sections.findIndex((s) => s._id === active.id);
-        const newIndex = prev.sections.findIndex((s) => s._id === over.id);
-        if (oldIndex !== -1 && newIndex !== -1) {
-          return { ...prev, sections: arrayMove(prev.sections, oldIndex, newIndex) };
-        }
-        return prev;
-      });
-    }
-  }, []);
-
-  const handleSectionDragCancel = useCallback(() => {
-    setActiveSectionId(null);
-  }, []);
 
   // Template apply
   const applyTemplate = (template: JobContract) => {
@@ -540,78 +454,6 @@ export default function JobContractModal({
     }));
   };
 
-  // Translate All
-  const translateAll = async () => {
-    setTranslatingAll(true);
-    try {
-      const smartTranslate = (en: string, ar: string) =>
-        en.trim()
-          ? translateText(en, 'en', 'ar').then((t) => ({ target: 'ar' as const, text: t }))
-          : ar.trim()
-            ? translateText(ar, 'ar', 'en').then((t) => ({ target: 'en' as const, text: t }))
-            : Promise.resolve(null);
-
-      const pos = await smartTranslate(form.position.en, form.position.ar);
-      const nt = await smartTranslate(form.notes.en, form.notes.ar);
-
-      const sectionResults = await Promise.all(
-        form.sections.map(async (s) => {
-          const title = await smartTranslate(s.title.en, s.title.ar);
-          const items = await Promise.all(
-            s.items.map(async (item) => {
-              const r = await smartTranslate(item.en, item.ar);
-              return r ? { _id: item._id, target: r.target, text: r.text } : null;
-            })
-          );
-          return { _id: s._id, title, items: items.filter(Boolean) as { _id: string; target: 'en' | 'ar'; text: string }[] };
-        })
-      );
-
-      const benefitResults = await Promise.all(
-        form.benefits.map(async (b) => {
-          const label = b.labelEn.trim()
-            ? await translateText(b.labelEn, 'en', 'ar').then((t) => ({ target: 'ar' as const, text: t }))
-            : b.labelAr.trim()
-              ? await translateText(b.labelAr, 'ar', 'en').then((t) => ({ target: 'en' as const, text: t }))
-              : null;
-          const value = await smartTranslate(b.value.en, b.value.ar);
-          return { _id: b._id, label, value };
-        })
-      );
-
-      setForm((prev) => ({
-        ...prev,
-        position: pos && pos.target === 'ar' ? { ...prev.position, ar: pos.text } : pos && pos.target === 'en' ? { ...prev.position, en: pos.text } : prev.position,
-        notes: nt && nt.target === 'ar' ? { ...prev.notes, ar: nt.text } : nt && nt.target === 'en' ? { ...prev.notes, en: nt.text } : prev.notes,
-        sections: prev.sections.map((s) => {
-          const r = sectionResults.find((x) => x._id === s._id);
-          if (!r) return s;
-          return {
-            ...s,
-            title: r.title?.target === 'ar' ? { ...s.title, ar: r.title.text } : r.title?.target === 'en' ? { ...s.title, en: r.title.text } : s.title,
-            items: s.items.map((item) => {
-              const ri = r.items.find((x) => x._id === item._id);
-              if (!ri) return item;
-              return ri.target === 'ar' ? { ...item, ar: ri.text } : { ...item, en: ri.text };
-            }),
-          };
-        }),
-        benefits: prev.benefits.map((b) => {
-          const r = benefitResults.find((x) => x._id === b._id);
-          if (!r) return b;
-          return {
-            ...b,
-            labelEn: r.label?.target === 'en' ? r.label.text : b.labelEn,
-            labelAr: r.label?.target === 'ar' ? r.label.text : b.labelAr,
-            value: r.value?.target === 'ar' ? { ...b.value, ar: r.value.text } : r.value?.target === 'en' ? { ...b.value, en: r.value.text } : b.value,
-          };
-        }),
-      }));
-    } finally {
-      setTranslatingAll(false);
-    }
-  };
-
   // Submit
   const handleSubmit = async () => {
     if (!form.isBulk && !form.position.en.trim() && !form.position.ar.trim()) {
@@ -759,29 +601,13 @@ export default function JobContractModal({
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={translateAll}
-                disabled={translatingAll}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-brand-50 hover:text-brand-600 disabled:opacity-50 dark:border-slate-700 dark:hover:bg-brand-500/10 dark:hover:text-brand-400"
-                title="Translate all EN fields to AR"
-              >
-                {translatingAll ? (
-                  <div className="size-3.5 animate-spin rounded-full border-2 border-slate-400/30 border-t-slate-400" />
-                ) : (
-                  <Languages className="size-3.5" />
-                )}
-                Translate All
-              </button>
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:border-slate-700 dark:hover:bg-slate-800"
-              >
-                <X className="size-4" />
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:border-slate-700 dark:hover:bg-slate-800"
+            >
+              <X className="size-4" />
+            </button>
           </div>
 
           {/* Scrollable body */}
@@ -909,26 +735,7 @@ export default function JobContractModal({
               </div>
 
               <div>
-                <div className="flex items-center justify-between">
-                  <ModalLabel required>Position Title (AR)</ModalLabel>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (form.position.en.trim()) {
-                        const t = await translateText(form.position.en, 'en', 'ar');
-                        if (t) set('position', { ...form.position, ar: t });
-                      } else if (form.position.ar.trim()) {
-                        const t = await translateText(form.position.ar, 'ar', 'en');
-                        if (t) set('position', { ...form.position, en: t });
-                      }
-                    }}
-                    disabled={!form.position.en.trim() && !form.position.ar.trim()}
-                    className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
-                    title={form.position.en.trim() ? 'Translate EN → AR' : 'Translate AR → EN'}
-                  >
-                    <Languages className="size-3" />
-                  </button>
-                </div>
+                <ModalLabel required>Position Title (AR)</ModalLabel>
 
                 <input
                   className={inputCls}
@@ -1077,53 +884,16 @@ export default function JobContractModal({
             />
 
             <div className="space-y-3">
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragStart={handleBenefitDragStart}
-                onDragEnd={handleBenefitDragEnd}
-                onDragCancel={handleBenefitDragCancel}
-              >
-                <SortableContext
-                  items={form.benefits.map((b) => b._id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  {form.benefits.map((b, idx) => (
-                    <BenefitRow
-                      key={b._id}
-                      benefit={b}
-                      index={idx}
-                      onChange={(patch) => patchBenefit(b._id, patch)}
-                      onRemove={() => removeBenefit(b._id)}
-                      onDuplicate={() => duplicateBenefit(b._id)}
-                    />
-                  ))}
-                </SortableContext>
-                {createPortal(
-                  <DragOverlay dropAnimation={dropAnimation}>
-                    {activeBenefitId ? (
-                      (() => {
-                        const b = form.benefits.find((x) => x._id === activeBenefitId);
-                        if (!b) return null;
-                        return (
-                          <div className="rounded-xl border border-brand-400 bg-white p-4 shadow-xl dark:bg-slate-800">
-                            <div className="flex items-center gap-2">
-                              <GripVertical className="size-4 text-brand-500" />
-                              <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                                Benefit {form.benefits.indexOf(b) + 1}
-                              </span>
-                            </div>
-                            <div className="mt-1 text-sm font-medium text-slate-700 dark:text-slate-200">
-                              {b.labelEn || b.labelAr || 'Untitled'}
-                            </div>
-                          </div>
-                        );
-                      })()
-                    ) : null}
-                  </DragOverlay>,
-                  document.body
-                )}
-              </DndContext>
+              {form.benefits.map((b, idx) => (
+                <BenefitRow
+                  key={b._id}
+                  benefit={b}
+                  index={idx}
+                  onChange={(patch) => patchBenefit(b._id, patch)}
+                  onRemove={() => removeBenefit(b._id)}
+                  onDuplicate={() => duplicateBenefit(b._id)}
+                />
+              ))}
               <button
                 type="button"
                 onClick={addBenefit}
@@ -1142,50 +912,16 @@ export default function JobContractModal({
             />
 
             <div className="space-y-3">
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragStart={handleSectionDragStart}
-                onDragEnd={handleSectionDragEnd}
-                onDragCancel={handleSectionDragCancel}
-              >
-                <SortableContext
-                  items={form.sections.map((s) => s._id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  {form.sections.map((s, idx) => (
-                    <SectionBlock
-                      key={s._id}
-                      section={s}
-                      index={idx}
-                      onChange={(patch) => patchSection(s._id, patch)}
-                      onRemove={() => removeSection(s._id)}
-                      onDuplicate={() => duplicateSection(s._id)}
-                    />
-                  ))}
-                </SortableContext>
-                {createPortal(
-                  <DragOverlay dropAnimation={dropAnimation}>
-                    {activeSectionId ? (
-                      (() => {
-                        const s = form.sections.find((x) => x._id === activeSectionId);
-                        if (!s) return null;
-                        return (
-                          <div className="rounded-xl border border-brand-400 bg-white p-4 shadow-xl dark:bg-slate-800">
-                            <div className="flex items-center gap-2">
-                              <GripVertical className="size-4 text-brand-500" />
-                              <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                                {s.title.en || s.title.ar || `Section ${form.sections.indexOf(s) + 1}`}
-                              </span>
-                            </div>
-                          </div>
-                        );
-                      })()
-                    ) : null}
-                  </DragOverlay>,
-                  document.body
-                )}
-              </DndContext>
+              {form.sections.map((s, idx) => (
+                <SectionBlock
+                  key={s._id}
+                  section={s}
+                  index={idx}
+                  onChange={(patch) => patchSection(s._id, patch)}
+                  onRemove={() => removeSection(s._id)}
+                  onDuplicate={() => duplicateSection(s._id)}
+                />
+              ))}
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -1240,26 +976,7 @@ export default function JobContractModal({
               </div>
 
               <div>
-                <div className="flex items-center justify-between">
-                  <ModalLabel>Notes (AR)</ModalLabel>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (form.notes.en.trim()) {
-                        const t = await translateText(form.notes.en, 'en', 'ar');
-                        if (t) set('notes', { ...form.notes, ar: t });
-                      } else if (form.notes.ar.trim()) {
-                        const t = await translateText(form.notes.ar, 'ar', 'en');
-                        if (t) set('notes', { ...form.notes, en: t });
-                      }
-                    }}
-                    disabled={!form.notes.en.trim() && !form.notes.ar.trim()}
-                    className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
-                    title={form.notes.en.trim() ? 'Translate EN → AR' : 'Translate AR → EN'}
-                  >
-                    <Languages className="size-3" />
-                  </button>
-                </div>
+                <ModalLabel>Notes (AR)</ModalLabel>
 
                 <textarea
                   className={`${inputCls} resize-none`}

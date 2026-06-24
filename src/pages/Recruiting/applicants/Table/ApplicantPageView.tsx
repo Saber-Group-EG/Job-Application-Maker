@@ -6,7 +6,6 @@ interface ApplicantPageViewProps {
   title: string;
   description?: string;
   statuses: string[];
-  jobPositions?: string[];
   companyId?: string;
   layoutKey: string;
 }
@@ -15,7 +14,6 @@ export default function ApplicantPageView({
   title,
   description,
   statuses,
-  jobPositions,
   companyId,
   layoutKey,
 }: ApplicantPageViewProps) {
@@ -26,7 +24,6 @@ export default function ApplicantPageView({
         <Applicants
           layoutKey={layoutKey}
           onlyStatus={statuses}
-          onlyJobPositions={jobPositions}
           companyIdOverride={companyId}
         />
       </div>

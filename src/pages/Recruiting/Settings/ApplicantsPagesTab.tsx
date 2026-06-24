@@ -1,40 +1,19 @@
 // components/settings/ApplicantPagesSettings.tsx
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { PlusCircle, Save, Trash2, ArrowRight, Layout, ChevronDown, ChevronRight, GripVertical, Briefcase } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { PlusCircle, Save, Trash2, ArrowRight, Layout } from 'lucide-react';
 import Swal from '../../../utils/swal';
 import { useAuth } from '../../../context/AuthContext';
 import {
   useCompanies,
   useUpdateCompanyApplicantPages,
-  companiesKeys,
 } from '../../../hooks/queries/useCompanies';
-import { useJobPositions } from '../../../hooks/queries/useJobPositions';
 import PageMeta from '../../../components/common/PageMeta';
 import PageBreadCrumb from '../../../components/common/PageBreadCrumb';
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-} from "@dnd-kit/core";
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-  useSortable,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 
 type ApplicantPage = {
   _id?: string;
   name: string;
   statuses: string[]; // status names
-  jobPositions?: string[]; // job position IDs
 };
 
 type Props = {
@@ -45,253 +24,16 @@ type Props = {
 
 const makeId = () => `p_${Math.random().toString(36).slice(2, 9)}`;
 
-// Sortable Page Item Component
-function SortablePageItem({
-  id,
-  page,
-  isCollapsed,
-  onToggleCollapse,
-  onNameChange,
-  onToggleStatus,
-  onToggleJobPosition,
-  onRemove,
-  availableStatuses,
-  availableJobPositions,
-  statusById,
-  canEdit,
-  jobsLoading,
-}: {
-  id: string;
-  page: ApplicantPage;
-  index: number;
-  isCollapsed: boolean;
-  onToggleCollapse: () => void;
-  onNameChange: (value: string) => void;
-  onToggleStatus: (statusName: string) => void;
-  onToggleJobPosition: (jobId: string) => void;
-  onRemove: () => void;
-  availableStatuses: string[];
-  availableJobPositions: any[];
-  statusById: Record<string, string>;
-  canEdit: boolean;
-  jobsLoading?: boolean;
-}) {
-  const [editingName, setEditingName] = useState(false);
-  const nameInputRef = useRef<HTMLInputElement>(null);
-
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    isDragging,
-  } = useSortable({ 
-    id,
-    disabled: !canEdit,
-  });
-
-  const style = {
-    transform: CSS.Translate.toString(transform),
-    transition: isDragging ? 'none' : 'transform 200ms cubic-bezier(0.2, 0, 0, 1)',
-    opacity: isDragging ? 0.4 : 1,
-  };
-
-  const skeletonPills = (count: number) =>
-    Array.from({ length: count }, (_, i) => (
-      <div
-        key={i}
-        className="h-7 w-20 animate-pulse rounded-full bg-slate-200 dark:bg-slate-700"
-      />
-    ));
-
-  useEffect(() => {
-    if (editingName && nameInputRef.current) {
-      nameInputRef.current.focus();
-      nameInputRef.current.select();
-    }
-  }, [editingName]);
-
-  const finishEditing = useCallback(() => {
-    setEditingName(false);
-  }, []);
-
-  const handleNameKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      finishEditing();
-    }
-  }, [finishEditing]);
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={`rounded-xl border transition-all duration-200 ${
-        isDragging ? 'shadow-lg ring-2 ring-brand-500 bg-white dark:bg-slate-800' : 'border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/60'
-      }`}
-    >
-      <div className="flex w-full items-center gap-3 px-4 py-3">
-        <button
-          type="button"
-          onClick={onToggleCollapse}
-          className="flex shrink-0 items-center justify-center rounded-lg p-2 text-slate-400 transition hover:bg-slate-200 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-300"
-        >
-          {isCollapsed ? (
-            <ChevronRight className="size-4" />
-          ) : (
-            <ChevronDown className="size-4" />
-          )}
-        </button>
-        <div
-          {...attributes}
-          {...listeners}
-          className={`flex cursor-grab items-center justify-center rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-600 active:cursor-grabbing dark:hover:bg-slate-700 dark:hover:text-slate-300 ${
-            !canEdit ? "cursor-not-allowed opacity-50" : ""
-          }`}
-        >
-          <GripVertical className="size-5" />
-        </div>
-        <div className="min-w-0 flex-1">
-          {editingName ? (
-            <input
-              ref={nameInputRef}
-              value={page.name}
-              onChange={(e) => onNameChange(e.target.value)}
-              onBlur={finishEditing}
-              onKeyDown={handleNameKeyDown}
-              placeholder="e.g. Active Pipeline, Shortlisted..."
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-900"
-            />
-          ) : (
-            <div
-              onDoubleClick={() => canEdit && setEditingName(true)}
-              className={`w-full rounded-lg border border-transparent px-3 py-2 text-sm ${
-                canEdit ? 'cursor-default hover:border-slate-300 hover:bg-white dark:hover:border-slate-700 dark:hover:bg-slate-900' : 'cursor-not-allowed opacity-70'
-              } ${!page.name ? 'text-slate-400' : ''}`}
-            >
-              {page.name || 'Double-click to set page name...'}
-            </div>
-          )}
-        </div>
-        <span className="shrink-0 text-xs text-slate-400">
-          {page.statuses.length} status{page.statuses.length !== 1 ? 'es' : ''}
-        </span>
-        <button
-          type="button"
-          onClick={onRemove}
-          disabled={!canEdit}
-          className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300 lg:gap-2 lg:px-3 lg:py-2 lg:text-sm"
-        >
-          <Trash2 className="size-3.5 lg:size-4" /> Remove
-        </button>
-      </div>
-
-      {!isCollapsed && (
-        <div className="border-t border-slate-200 p-4 dark:border-slate-700">
-          {(availableJobPositions.length > 0 || jobsLoading) && (
-            <>
-              <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Job Positions included in this page
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {jobsLoading ? (
-                  skeletonPills(5)
-                ) : (
-                  availableJobPositions.map((jp) => {
-                    const jpId = jp._id || '';
-                    const jpTitle = jp.title?.en || jp.title?.ar || jp.title || '';
-                    const selected = (page.jobPositions ?? []).includes(jpId);
-                    return (
-                      <button
-                        key={jpId}
-                        type="button"
-                        onClick={() => canEdit && onToggleJobPosition(jpId)}
-                        disabled={!canEdit}
-                        className={`rounded-full px-3 py-1 text-sm font-medium transition ${
-                          selected
-                            ? 'bg-brand-500 text-white'
-                            : 'border border-slate-300 bg-white text-slate-600 hover:border-brand-300 hover:text-brand-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
-                        } disabled:cursor-not-allowed disabled:opacity-60`}
-                      >
-                        <Briefcase className="mr-1 inline-block size-3.5" />
-                        {jpTitle}
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-              {!jobsLoading && (page.jobPositions ?? []).length > 0 && (
-                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                  {(page.jobPositions ?? []).length} job position{(page.jobPositions ?? []).length > 1 ? 's' : ''} selected
-                </p>
-              )}
-              <div className="my-3 border-t border-dashed border-slate-200 dark:border-slate-700" />
-            </>
-          )}
-
-          {(page.jobPositions ?? []).length > 0 && (
-            <>
-              <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Statuses included in this page
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {(() => {
-                  const selectedJobIds = page.jobPositions ?? [];
-                  const allowedStatusIds = selectedJobIds.length > 0
-                    ? new Set(
-                        availableJobPositions
-                          .filter((jp: any) => selectedJobIds.includes(jp._id))
-                          .flatMap((jp: any) => jp.allowedStatuses ?? [])
-                      )
-                    : null;
-                  const allowedNames = allowedStatusIds
-                    ? new Set(
-                        [...allowedStatusIds]
-                          .map((id) => statusById[id])
-                          .filter(Boolean)
-                      )
-                    : null;
-                  const useAll = !allowedNames || allowedNames.size === 0 || (allowedNames.size === 1 && allowedNames.has('pending'));
-                  const statusesToShow = useAll ? availableStatuses : availableStatuses.filter((s) => allowedNames!.has(s));
-                  return statusesToShow.map((statusName) => {
-                    const selected = page.statuses.includes(statusName);
-                    return (
-                      <button
-                        key={statusName}
-                        type="button"
-                        onClick={() => canEdit && onToggleStatus(statusName)}
-                        disabled={!canEdit}
-                        className={`rounded-full px-3 py-1 text-sm font-medium transition ${
-                          selected
-                            ? 'bg-brand-500 text-white'
-                            : 'border border-slate-300 bg-white text-slate-600 hover:border-brand-300 hover:text-brand-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
-                        } disabled:cursor-not-allowed disabled:opacity-60`}
-                      >
-                        {statusName}
-                      </button>
-                    );
-                  });
-                })()}
-              </div>
-              {page.statuses.length > 0 && (
-                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                  {page.statuses.length} status{page.statuses.length > 1 ? 'es' : ''} selected: {' '}
-                  {page.statuses.join(', ')}
-                </p>
-              )}
-            </>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
 export default function ApplicantPagesSettings({
   companyId,
   embedded,
 }: Props = {}) {
   const { user, hasPermission } = useAuth();
   const { data: companies = [] } = useCompanies();
+  const [selectedCompanyId, setSelectedCompanyId] = useState<
+    string | undefined
+  >(companyId);
+  const updateMutation = useUpdateCompanyApplicantPages();
 
   const isSuperAdmin = !!user?.roleId?.name
     ?.toString()
@@ -303,20 +45,6 @@ export default function ApplicantPagesSettings({
     )
     .filter(Boolean) as string[];
   const computedShowSelector = isSuperAdmin || userCompanyIds.length > 1;
-
-  // Derive initial company ID synchronously from props or user context
-  // instead of waiting for the companies API call
-  const [selectedCompanyId, setSelectedCompanyId] = useState<
-    string | undefined
-  >(() => {
-    if (companyId) return companyId;
-    if (!computedShowSelector && userCompanyIds.length === 1) {
-      return userCompanyIds[0];
-    }
-    return undefined;
-  });
-  const updateMutation = useUpdateCompanyApplicantPages();
-  const queryClient = useQueryClient();
 
   const canEdit =
     hasPermission('Company Management', 'write') ||
@@ -359,32 +87,10 @@ export default function ApplicantPagesSettings({
       : [];
   }, [selectedCompany]);
 
-  // Map status _id → status name for resolving allowedStatuses on job positions
-  const statusById: Record<string, string> = useMemo(() => {
-    const raw = selectedCompany?.settings?.statuses ?? [];
-    const map: Record<string, string> = {};
-    if (Array.isArray(raw)) {
-      raw.forEach((s: any) => {
-        if (s._id && s.name) map[s._id] = s.name;
-      });
-    }
-    return map;
-  }, [selectedCompany]);
-
-  // Available job positions from API
-  const { data: jobPositions = [], isFetching: jobsFetching } = useJobPositions(
-    selectedCompanyId ? [selectedCompanyId] : undefined,
-    false,
-    undefined,
-    { enabled: !!selectedCompanyId }
-  ) as unknown as { data: any[]; isFetching: boolean };
-
   const [pages, setPages] = useState<ApplicantPage[]>([]);
   const [pageIds, setPageIds] = useState<string[]>([]);
   const [originalJson, setOriginalJson] = useState('[]');
   const [isSaving, setIsSaving] = useState(false);
-  const [collapsedPages, setCollapsedPages] = useState<Set<string>>(new Set());
-  const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const raw = selectedCompany?.settings?.applicantPages ?? [];
@@ -393,105 +99,26 @@ export default function ApplicantPagesSettings({
           _id: p._id,
           name: String(p.name ?? '').trim(),
           statuses: Array.isArray(p.statuses) ? p.statuses : [],
-          jobPositions: Array.isArray(p.jobPositions) ? p.jobPositions : [],
         }))
       : [];
-    const initialIds = normalized.map(() => makeId());
     setPages(normalized);
-    setPageIds(initialIds);
+    setPageIds(normalized.map(() => makeId()));
     setOriginalJson(JSON.stringify(normalized));
-    setCollapsedPages(new Set(initialIds));
-  }, [selectedCompanyId]);
-
-  const syncPagesToCache = useCallback((updatedPages: ApplicantPage[]) => {
-    if (!selectedCompanyId) return;
-    queryClient.setQueryData<any[]>(companiesKeys.list(), (old: any[] | undefined) => {
-      if (!old) return old;
-      return old.map((company: any) => {
-        if (company._id !== selectedCompanyId) return company;
-        return {
-          ...company,
-          settings: {
-            ...company.settings,
-            applicantPages: updatedPages.map(p => ({
-              ...(p._id ? { _id: p._id } : {}),
-              name: p.name,
-              statuses: p.statuses,
-              ...(p.jobPositions?.length ? { jobPositions: p.jobPositions } : {}),
-            })),
-          },
-        };
-      });
-    });
-  }, [selectedCompanyId, queryClient]);
+  }, [selectedCompany]);
 
   const hasChanges = useMemo(
     () => JSON.stringify(pages) !== originalJson,
     [pages, originalJson]
   );
 
-  // Set up sensors for drag and drop
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 5,
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
-
-  const handleDragEnd = useCallback((event: DragEndEvent) => {
-    const { active, over } = event;
-    
-    if (over && active.id !== over.id) {
-      const oldIndex = pageIds.findIndex((id) => id === active.id);
-      const newIndex = pageIds.findIndex((id) => id === over.id);
-      
-      if (oldIndex !== -1 && newIndex !== -1) {
-        setPages((prev) => arrayMove(prev, oldIndex, newIndex));
-        setPageIds((prev) => arrayMove(prev, oldIndex, newIndex));
-      }
-    }
-  }, [pageIds]);
-
-  const toggleCollapse = (pageId: string) => {
-    setCollapsedPages((prev) => {
-      const next = new Set(prev);
-      if (next.has(pageId)) next.delete(pageId);
-      else next.add(pageId);
-      return next;
-    });
+  const addPage = () => {
+    setPages((prev) => [...prev, { name: '', statuses: [] }]);
+    setPageIds((prev) => [...prev, makeId()]);
   };
 
-  const addPage = useCallback(() => {
-    const newId = makeId();
-    setPages((prev) => {
-      const updated = [...prev, { name: '', statuses: [] }];
-      syncPagesToCache(updated);
-      return updated;
-    });
-    setPageIds((prev) => [...prev, newId]);
-    // Scroll to the new item after render
-    setTimeout(() => {
-      listRef.current?.lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 0);
-  }, [syncPagesToCache]);
-
   const removePage = (index: number) => {
-    const removedId = pageIds[index];
-    setPages((prev) => {
-      const updated = prev.filter((_, i) => i !== index);
-      syncPagesToCache(updated);
-      return updated;
-    });
+    setPages((prev) => prev.filter((_, i) => i !== index));
     setPageIds((prev) => prev.filter((_, i) => i !== index));
-    setCollapsedPages((prev) => {
-      const next = new Set(prev);
-      next.delete(removedId);
-      return next;
-    });
   };
 
   const handleNameChange = (index: number, value: string) => {
@@ -501,8 +128,8 @@ export default function ApplicantPagesSettings({
   };
 
   const toggleStatus = (pageIndex: number, statusName: string) => {
-    setPages((prev) => {
-      const updated = prev.map((p, i) => {
+    setPages((prev) =>
+      prev.map((p, i) => {
         if (i !== pageIndex) return p;
         const already = p.statuses.includes(statusName);
         return {
@@ -511,28 +138,8 @@ export default function ApplicantPagesSettings({
             ? p.statuses.filter((s) => s !== statusName)
             : [...p.statuses, statusName],
         };
-      });
-      syncPagesToCache(updated);
-      return updated;
-    });
-  };
-
-  const toggleJobPosition = (pageIndex: number, jobId: string) => {
-    setPages((prev) => {
-      const updated = prev.map((p, i) => {
-        if (i !== pageIndex) return p;
-        const current = p.jobPositions ?? [];
-        const already = current.includes(jobId);
-        return {
-          ...p,
-          jobPositions: already
-            ? current.filter((j) => j !== jobId)
-            : [...current, jobId],
-        };
-      });
-      syncPagesToCache(updated);
-      return updated;
-    });
+      })
+    );
   };
 
   const handleSave = async () => {
@@ -551,13 +158,20 @@ export default function ApplicantPagesSettings({
         Swal.fire('Validation', `Page ${i + 1} must have a name.`, 'warning');
         return;
       }
+      if (pages[i].statuses.length === 0) {
+        Swal.fire(
+          'Validation',
+          `Page "${pages[i].name}" must have at least one status selected.`,
+          'warning'
+        );
+        return;
+      }
     }
 
     const payload = pages.map((p) => ({
       ...(p._id ? { _id: p._id } : {}),
       name: p.name.trim(),
       statuses: p.statuses,
-      ...(p.jobPositions?.length ? { jobPositions: p.jobPositions } : {}),
     }));
     
     setIsSaving(true);
@@ -620,26 +234,26 @@ export default function ApplicantPagesSettings({
                 </p>
               </div>
             </div>
-            <div className="flex flex-row gap-3">
+            <div className="flex gap-3">
               <button
                 onClick={addPage}
                 disabled={!canEdit}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-4 py-1.5 text-xs font-semibold text-slate-700 whitespace-nowrap transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <PlusCircle className="size-4" /> Add Page
               </button>
               <button
                 onClick={handleSave}
                 disabled={!canEdit || !hasChanges || isSaving}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isSaving ? (
-                  <div className="size-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                  <div className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
                 ) : (
-                  <Save className="size-3.5" />
+                  <Save className="size-4" />
                 )}
                 Save Changes
-                <ArrowRight className="size-3.5" />
+                <ArrowRight className="size-4" />
               </button>
             </div>
           </div>
@@ -660,42 +274,73 @@ export default function ApplicantPagesSettings({
                 </p>
               </div>
             ) : (
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
-              >
-                <SortableContext
-                  items={pageIds}
-                  strategy={verticalListSortingStrategy}
-                >
-                  <div ref={listRef} className="space-y-4">
-                    {pages.map((page, index) => {
-                      const pageId = pageIds[index];
-                      const isCollapsed = collapsedPages.has(pageId);
-                      return (
-                        <SortablePageItem
-                          key={pageId}
-                          id={pageId}
-                          page={page}
-                          index={index}
-                          isCollapsed={isCollapsed}
-                          onToggleCollapse={() => toggleCollapse(pageId)}
-                          onNameChange={(value) => handleNameChange(index, value)}
-                          onToggleStatus={(statusName) => toggleStatus(index, statusName)}
-                          onToggleJobPosition={(jobId) => toggleJobPosition(index, jobId)}
-                          onRemove={() => removePage(index)}
-                          availableStatuses={availableStatuses}
-                          availableJobPositions={jobPositions}
-                          statusById={statusById}
-                          canEdit={canEdit}
-                          jobsLoading={jobsFetching}
+              <div className="space-y-4">
+                {pages.map((page, index) => (
+                  <div
+                    key={pageIds[index]}
+                    className="rounded-xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800/60"
+                  >
+                    <div className="mb-4 flex items-center gap-3">
+                      <div className="flex-1">
+                        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          Page Name
+                        </label>
+                        <input
+                          value={page.name}
+                          onChange={(e) =>
+                            handleNameChange(index, e.target.value)
+                          }
+                          disabled={!canEdit}
+                          placeholder="e.g. Active Pipeline, Shortlisted..."
+                          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900"
                         />
-                      );
-                    })}
+                      </div>
+                      <button
+                        onClick={() => removePage(index)}
+                        disabled={!canEdit}
+                        className="mt-5 inline-flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300"
+                      >
+                        <Trash2 className="size-4" /> Remove
+                      </button>
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Statuses included in this page
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {availableStatuses.map((statusName) => {
+                          const selected = page.statuses.includes(statusName);
+                          return (
+                            <button
+                              key={statusName}
+                              type="button"
+                              onClick={() =>
+                                canEdit && toggleStatus(index, statusName)
+                              }
+                              disabled={!canEdit}
+                              className={`rounded-full px-3 py-1 text-sm font-medium transition ${
+                                selected
+                                  ? 'bg-brand-500 text-white'
+                                  : 'border border-slate-300 bg-white text-slate-600 hover:border-brand-300 hover:text-brand-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
+                              } disabled:cursor-not-allowed disabled:opacity-60`}
+                            >
+                              {statusName}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {page.statuses.length > 0 && (
+                        <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                          {page.statuses.length} status
+                          {page.statuses.length > 1 ? 'es' : ''} selected:{' '}
+                          {page.statuses.join(', ')}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </SortableContext>
-              </DndContext>
+                ))}
+              </div>
             )}
           </div>
         </div>

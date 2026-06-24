@@ -3,6 +3,7 @@ import {
   Layers,
   PlusCircle,
   Download,
+  Save,
   ChevronDown,
   ChevronRight,
   Pencil,
@@ -162,17 +163,22 @@ export default function SectionTemplatesPanel({
       items: t.items.map(({ _id: _i, ...item }) => item),
     }));
 
-  const saveImmediately = (updated: SectionTemplate[]) => {
-    onSave(strip(updated) as SectionTemplate[]);
+  const sortKeys = (obj: any): any => {
+    if (Array.isArray(obj)) return obj.map(sortKeys);
+    if (obj && typeof obj === 'object') {
+      return Object.keys(obj)
+        .sort()
+        .reduce<any>((acc, k) => {
+          acc[k] = sortKeys(obj[k]);
+          return acc;
+        }, {});
+    }
+    return obj;
   };
 
-  const saveAndUpdate = (updater: (prev: SectionTemplate[]) => SectionTemplate[]) => {
-    setLocal((prev) => {
-      const updated = updater(prev);
-      saveImmediately(updated);
-      return updated;
-    });
-  };
+  const isDirty =
+    JSON.stringify(sortKeys(strip(local))) !==
+    JSON.stringify(sortKeys(strip(templates)));
 
   // all unique categories present in local list
   const existingCategories = useMemo(
@@ -200,17 +206,17 @@ export default function SectionTemplatesPanel({
   };
 
   const handleModalSave = (t: SectionTemplate) => {
-    saveAndUpdate((prev) => {
-      const exists = prev.some((l) => l._id === t._id);
-      if (exists) {
-        return prev.map((l) => (l._id === t._id ? t : l));
-      }
-      return [...prev, { ...t, _id: uid() }];
-    });
+    if (t._id && local.some((l) => l._id === t._id)) {
+      // update
+      setLocal((prev) => prev.map((l) => (l._id === t._id ? t : l)));
+    } else {
+      // create
+      setLocal((prev) => [...prev, { ...t, _id: uid() }]);
+    }
   };
 
   const handleDuplicate = (t: SectionTemplate) => {
-    saveAndUpdate((prev) => [
+    setLocal((prev) => [
       ...prev,
       {
         ...t,
@@ -230,15 +236,23 @@ export default function SectionTemplatesPanel({
       confirmButtonColor: '#ef4444',
     });
     if (result.isConfirmed) {
-      saveAndUpdate((prev) => prev.filter((t) => t._id !== id));
+      setLocal((prev) => prev.filter((t) => t._id !== id));
     }
   };
 
   const handleImport = (imported: SectionTemplate[]) => {
-    saveAndUpdate((prev) => [
-      ...prev,
-      ...imported.map((t) => ({ ...t, _id: uid() })),
-    ]);
+    const withIds = imported.map((t) => ({ ...t, _id: uid() }));
+    setLocal((prev) => [...prev, ...withIds]);
+  };
+
+  const handleSave = async () => {
+    const stripped = local.map(({ _id: _tid, ...t }) => ({
+      ...t,
+      items: t.items.map(({ _id: _iid, ...item }) => item),
+    }));
+    await onSave(stripped as SectionTemplate[]);
+    // reset local to match what was just saved so isDirty clears
+    setLocal(stripped.map((t) => ({ ...t, _id: uid() })));
   };
 
   const crossLabel = type === 'offer' ? 'Contract Sections' : 'Offer Sections';
@@ -279,25 +293,36 @@ export default function SectionTemplatesPanel({
             <button
               type="button"
               onClick={openCreate}
-              disabled={isSaving}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800"
             >
               <PlusCircle className="size-3.5" />
               New Section
             </button>
           )}
 
-          {isSaving && (
-            <div className="inline-flex items-center gap-1.5 rounded-xl bg-brand-500/10 px-3 py-2 text-xs font-semibold text-brand-600">
-              <div className="size-3.5 animate-spin rounded-full border-2 border-brand-500/30 border-t-brand-500" />
-              Saving...
-            </div>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={!isDirty || isSaving}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-brand-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isSaving ? (
+                <div className="size-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+              ) : (
+                <Save className="size-3.5" />
+              )}
+              Save
+              {isDirty && (
+                <span className="ml-0.5 size-1.5 rounded-full bg-white/70" />
+              )}
+            </button>
           )}
         </div>
       </div>
 
       {/* stats strip */}
-      <div className="grid grid-cols-2 divide-x divide-slate-100 border-b border-slate-100 dark:divide-slate-800 dark:border-slate-800 sm:grid-cols-2">
+      <div className="grid grid-cols-2 divide-x divide-slate-100 border-b border-slate-100 dark:divide-slate-800 dark:border-slate-800 sm:grid-cols-3">
         <div className="px-6 py-3">
           <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
             Total
@@ -312,6 +337,16 @@ export default function SectionTemplatesPanel({
           </p>
           <p className="mt-0.5 text-xl font-bold text-slate-900 dark:text-slate-100">
             {existingCategories.length}
+          </p>
+        </div>
+        <div className="hidden px-6 py-3 sm:block">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+            Status
+          </p>
+          <p
+            className={`mt-0.5 text-sm font-semibold ${isDirty ? 'text-amber-500' : 'text-emerald-500'}`}
+          >
+            {isDirty ? 'Unsaved changes' : 'Saved'}
           </p>
         </div>
       </div>
@@ -331,15 +366,9 @@ export default function SectionTemplatesPanel({
               <button
                 type="button"
                 onClick={openCreate}
-                disabled={isSaving}
-                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
+                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-600"
               >
-                {isSaving ? (
-                  <div className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                ) : (
-                  <PlusCircle className="size-4" />
-                )}
-                Add First Section
+                <PlusCircle className="size-4" /> Add First Section
               </button>
             )}
           </div>
