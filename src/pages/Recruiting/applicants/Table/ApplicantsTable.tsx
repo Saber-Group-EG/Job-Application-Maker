@@ -1417,6 +1417,51 @@ export default function Applicants({
       .map((reason) => ({ id: reason, title: reason }));
   }, [filteredApplicants, extractRejectionReasons]);
 
+  const unfilteredCounts = useMemo(() => {
+    const rows = Array.isArray(applicants) ? applicants : [];
+    const maps: Record<string, Map<string, number>> = {};
+
+    const addToMap = (colId: string, key: string) => {
+      if (!key) return;
+      if (!maps[colId]) maps[colId] = new Map();
+      maps[colId].set(key, (maps[colId].get(key) ?? 0) + 1);
+    };
+
+    const addArrayToMap = (colId: string, keys: string[]) => {
+      keys.forEach((k) => addToMap(colId, k));
+    };
+
+    rows.forEach((a: any) => {
+      // gender
+      const rawGender =
+        a?.gender ||
+        a?.customResponses?.gender ||
+        a?.customResponses?.['النوع'] ||
+        (a as any)['النوع'];
+      addToMap('gender', normalizeGender(rawGender));
+
+      // companyId
+      addToMap('companyId', getApplicantCompanyId(a, jobPositionMap) || '');
+
+      // jobPositionId
+      const rawJob = a?.jobPositionId;
+      const getId = (v: any) =>
+        typeof v === 'string' ? v : (v?._id ?? v?.id ?? '');
+      addToMap('jobPositionId', getId(rawJob));
+
+      // status
+      addToMap('status', a?.status?.trim?.() ?? a?.status);
+
+      // rejectionReasons
+      const reasons = extractRejectionReasons(a);
+      if (Array.isArray(reasons) && reasons.length) {
+        addArrayToMap('rejectionReasons', reasons);
+      }
+    });
+
+    return maps;
+  }, [applicants, isSuperAdmin, jobPositionMap]);
+
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   useEffect(() => {
@@ -2131,6 +2176,11 @@ export default function Applicants({
       jobPositionMap,
       companyMap,
       currentUserId,
+      selectedCompanyFilterValue,
+      layout.excludeColumns,
+      saveLayout,
+      canRestore,
+      unfilteredCounts,
     ]
   );
 

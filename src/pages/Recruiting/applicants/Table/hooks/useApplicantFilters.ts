@@ -28,12 +28,10 @@ export function useApplicantFilters({
   effectiveOnlyStatus,
   effectiveOnlyJobPositions,
   selectedCompanyFilterValue,
-  companyFilterExclude = false,
   excludeColumns = [],
   jobPositionMap,
   fieldToJobIds,
   currentUserId,
-  allCompaniesRaw,
   canViewTrashed = false,
 }: UseApplicantFiltersProps) {
   const normalizeStatus = useCallback((value: unknown) => {
@@ -154,6 +152,11 @@ export function useApplicantFilters({
     if (isSuperAdmin || canViewTrashed) {
       if (normalizeStatus(statusVal) === 'trashed') {
         filtered = filtered.filter((a: any) => isTrashed(a.status));
+        return filtered;
+      }
+      if (Array.isArray(statusVal) && statusVal.length > 0) {
+        const allowed = statusVal.map(normalizeStatus).filter(Boolean);
+filtered = filtered.filter((a: any) => allowed.includes(normalizeStatus(a.status)));
         return filtered;
       }
       if (Array.isArray(statusVal) && statusVal.length > 0) {

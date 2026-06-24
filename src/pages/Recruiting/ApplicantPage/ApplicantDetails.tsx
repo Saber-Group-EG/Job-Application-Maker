@@ -827,9 +827,23 @@ const ApplicantDetails: React.FC = () => {
 
   const handleDelete = async () => {
     if (!id) return;
-    const result = await Swal.fire({ title: 'Move to trash?', text: 'This applicant will be moved to trash and can be restored later.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#dc2626', cancelButtonColor: '#6b7280', confirmButtonText: 'Move to Trash', cancelButtonText: 'Cancel' });
+    const result = await Swal.fire({
+      title: 'Move applicant to trash?',
+      text: 'You can restore it later.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Trash',
+      cancelButtonText: 'Cancel',
+    });
     if (!result.isConfirmed) return;
-    try { await updateStatus.mutateAsync({ id, data: { status: 'trashed' } }); navigate(paths.applicants.root); } catch { /* toast handled by mutation */ }
+    try {
+      await updateStatus.mutateAsync({ id, data: { status: 'trashed' } });
+      navigate(paths.applicants.root);
+    } catch {
+      // toast handled by mutation
+    }
   };
 
   const handlePrint = useCallback(async () => {
