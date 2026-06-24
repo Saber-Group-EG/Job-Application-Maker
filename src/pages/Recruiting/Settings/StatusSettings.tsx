@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
-import { PlusCircle, Save, Trash2, ArrowRight, Settings, GripVertical } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { PlusCircle, Save, Trash2, ArrowRight, Settings } from 'lucide-react';
 import Swal from '../../../utils/swal';
 import PageMeta from '../../../components/common/PageMeta';
 import PageBreadCrumb from '../../../components/common/PageBreadCrumb';
@@ -11,27 +11,6 @@ import {
 import { useStatusSettings } from '../../../hooks/useStatusSettings';
 import { useQueryClient } from '@tanstack/react-query';
 import type { CompanyStatus } from '../../../types/companies';
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-  DragStartEvent,
-  DragOverlay,
-  defaultDropAnimationSideEffects,
-} from "@dnd-kit/core";
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-  useSortable,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import { createPortal } from "react-dom";
 
 type LeadStatus = {
   name: string;
@@ -106,6 +85,13 @@ const DEFAULT_STATUSES: LeadStatus[] = [
 
 const makeId = () => `s_${Math.random().toString(36).slice(2, 9)}`;
 
+const arrayMove = <T,>(arr: T[], from: number, to: number) => {
+  const copy = [...arr];
+  const item = copy.splice(from, 1)[0];
+  copy.splice(to, 0, item);
+  return copy;
+};
+
 const getContrastColor = (hex: string | undefined): string => {
   try {
     if (!hex) return '#111827';
@@ -142,179 +128,6 @@ const isStaticStatus = (statusKey: string): boolean => {
   return staticKeys.includes(statusKey?.toLowerCase());
 };
 
-// Sortable Status Item Component
-function SortableStatusItem({
-  id,
-  status,
-  index,
-  canEdit,
-  isLocked,
-  staticDescription,
-  onNameChange,
-  onDescriptionChange,
-  onColorChange,
-  onSetDefault,
-  onRemove,
-}: {
-  id: string;
-  status: LeadStatus;
-  index: number;
-  canEdit: boolean;
-  isLocked: boolean;
-  isStatic: boolean;
-  staticDescription: string | null;
-  statusIds: string[];
-  onNameChange: (index: number, value: string) => void;
-  onDescriptionChange: (index: number, value: string) => void;
-  onColorChange: (index: number, value: string) => void;
-  onSetDefault: (index: number) => void;
-  onRemove: (index: number) => void;
-}) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    isDragging,
-  } = useSortable({ 
-    id,
-    disabled: isLocked || !canEdit,
-    animateLayoutChanges: () => false,
-  });
-
-  const style = {
-    transform: CSS.Translate.toString(transform),
-    transition: isDragging ? 'none' : 'transform 200ms cubic-bezier(0.2, 0, 0, 1)',
-    opacity: isDragging ? 0.4 : 1,
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={`group flex flex-col gap-3 rounded-xl border p-4 transition-shadow duration-200 md:flex-row md:items-center md:justify-between ${
-        status.isDefault
-          ? 'border-brand-300 bg-brand-50/60 dark:border-brand-500/40 dark:bg-brand-500/10'
-          : 'border-slate-200 bg-white hover:shadow-sm dark:border-slate-700 dark:bg-slate-900'
-      } ${isLocked ? 'border-l-4 border-l-amber-500' : ''} ${
-        isDragging ? 'shadow-lg ring-2 ring-brand-500' : ''
-      }`}
-    >
-      <div className="flex min-w-0 flex-1 items-center gap-3">
-        <div
-          {...attributes}
-          {...listeners}
-          className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
-            !isLocked && canEdit
-              ? 'cursor-grab hover:bg-slate-100 active:cursor-grabbing dark:hover:bg-slate-800'
-              : 'cursor-not-allowed opacity-50'
-          }`}
-        >
-          <GripVertical className="size-5 text-slate-400" />
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <input
-            value={status.name}
-            onChange={(e) => onNameChange(index, e.target.value)}
-            placeholder="Status label"
-            disabled={isLocked || !canEdit}
-            className={`w-full rounded-xl border border-transparent bg-transparent py-2 text-sm font-semibold outline-none focus:border-brand-300 focus:ring-0 ${
-              isLocked || !canEdit ? 'cursor-not-allowed opacity-70' : ''
-            }`}
-          />
-
-          {isLocked ? (
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              {staticDescription ||
-                DEFAULT_STATUS_DESCRIPTIONS[status.statusKey?.toLowerCase() || '']}
-            </p>
-          ) : (
-            <input
-              value={status.description}
-              onChange={(e) => onDescriptionChange(index, e.target.value)}
-              placeholder="Description (optional)"
-              disabled={!canEdit}
-              className="mt-1 w-full rounded-xl border border-transparent bg-transparent py-1 text-xs text-slate-500 outline-none focus:border-brand-300 focus:ring-0 dark:text-slate-400"
-            />
-          )}
-        </div>
-      </div>
-
-      <div className="mt-3 flex items-center gap-3 md:mt-0">
-        <div className="relative">
-          <input
-            type="color"
-            value={status.color}
-            onChange={(e) => onColorChange(index, e.target.value)}
-            disabled={!canEdit}
-            className="h-8 w-8 cursor-pointer rounded-full border border-slate-200 shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
-            title={isLocked ? 'Color can be customized' : 'Color picker'}
-          />
-        </div>
-
-        <label className="inline-flex items-center gap-2 text-sm">
-          <input
-            type="radio"
-            name="default-status"
-            checked={!!status.isDefault}
-            onChange={() => !isLocked && canEdit && onSetDefault(index)}
-            disabled={isLocked || !canEdit}
-            className={`h-4 w-4 ${isLocked || !canEdit ? 'cursor-not-allowed' : ''}`}
-          />
-          <span className={`text-slate-600 dark:text-slate-400 ${isLocked || !canEdit ? 'opacity-50' : ''}`}>
-            Default
-          </span>
-        </label>
-
-        {!isLocked && (
-          <button
-            onClick={() => onRemove(index)}
-            disabled={!canEdit}
-            className="inline-flex items-center justify-center rounded-lg border border-red-200 bg-red-50 p-2 text-red-500 transition-colors hover:bg-red-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <Trash2 className="size-4" />
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// Drag Overlay Component
-const DragOverlayItem = React.memo(({ status}: { status: LeadStatus; index: number }) => {
-  return (
-    <div className="flex flex-col gap-3 rounded-xl border-2 border-brand-400 bg-white p-4 shadow-xl md:flex-row md:items-center md:justify-between dark:bg-slate-800">
-      <div className="flex min-w-0 flex-1 items-center gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg">
-          <GripVertical className="size-5 text-brand-500" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="w-full rounded-xl px-2 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
-            {status.name || 'Untitled'}
-          </div>
-          {status.description && (
-            <div className="mt-1 px-2 text-xs text-slate-500">
-              {status.description}
-            </div>
-          )}
-        </div>
-      </div>
-      <div className="mt-3 flex items-center gap-3 md:mt-0">
-        <div
-          className="h-8 w-8 rounded-full border border-slate-200 shadow-sm"
-          style={{ backgroundColor: status.color }}
-        />
-        {status.isDefault && (
-          <span className="text-sm text-slate-500">Default</span>
-        )}
-      </div>
-    </div>
-  );
-});
-
-DragOverlayItem.displayName = 'DragOverlayItem';
-
 type Props = {
   companyId?: string;
   hideCompanySelector?: boolean;
@@ -333,8 +146,6 @@ export default function StatusLabelsSettings({
     string | undefined
   >(companyId ?? undefined);
   const updateMutation = useUpdateCompanyStatuses();
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const listRef = useRef<HTMLDivElement>(null);
 
   const isSuperAdmin = !!user?.roleId?.name
     ?.toString()
@@ -376,6 +187,7 @@ export default function StatusLabelsSettings({
 
   // Get statuses directly from the selected company (from /auth/me data)
   const deriveStatuses = (payload: any): LeadStatus[] => {
+    // Try to get statuses from settings
     const fromSettings = payload?.settings?.statuses;
     
     if (Array.isArray(fromSettings) && fromSettings.length > 0) {
@@ -404,7 +216,9 @@ export default function StatusLabelsSettings({
     return DEFAULT_STATUSES;
   };
 
-  const [statuses, setStatuses] = useState<LeadStatus[]>(() => DEFAULT_STATUSES);
+  const [statuses, setStatuses] = useState<LeadStatus[]>(
+    () => DEFAULT_STATUSES
+  );
   const [statusIds, setStatusIds] = useState<string[]>(() =>
     DEFAULT_STATUSES.map(() => makeId())
   );
@@ -413,6 +227,7 @@ export default function StatusLabelsSettings({
   );
   const [isSaving, setIsSaving] = useState(false);
 
+  // Get the hook for checking static statuses
   const { isStaticStatus: checkIsStatic, getDescription } = useStatusSettings(
     selectedCompany
   );
@@ -435,8 +250,7 @@ export default function StatusLabelsSettings({
     [statuses, originalStatusesJson]
   );
 
-  const addStatus = useCallback(() => {
-    const newId = makeId();
+  const addStatus = () => {
     setStatuses((prev) => [
       ...prev,
       {
@@ -447,15 +261,10 @@ export default function StatusLabelsSettings({
         description: '',
       },
     ]);
-    setStatusIds((prev) => [...prev, newId]);
-    
-    // Scroll to the new item after render
-    setTimeout(() => {
-      listRef.current?.lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 0);
-  }, []);
+    setStatusIds((prev) => [...prev, makeId()]);
+  };
 
-  const removeStatus = useCallback((index: number) => {
+  const removeStatus = (index: number) => {
     setStatuses((prev) => {
       const next = prev.filter((_, i) => i !== index);
       if (next.length > 0 && !next.some((s) => s.isDefault)) {
@@ -464,21 +273,21 @@ export default function StatusLabelsSettings({
       return next;
     });
     setStatusIds((prev) => prev.filter((_, i) => i !== index));
-  }, []);
+  };
 
-  const setDefault = useCallback((index: number) => {
+  const setDefault = (index: number) => {
     setStatuses((prev) =>
       prev.map((s, i) => ({ ...s, isDefault: i === index }))
     );
-  }, []);
+  };
 
-  const handleNameChange = useCallback((index: number, value: string) => {
+  const handleNameChange = (index: number, value: string) => {
     setStatuses((prev) =>
       prev.map((s, i) => (i === index ? { ...s, name: value } : s))
     );
-  }, []);
+  };
 
-  const handleColorChange = useCallback((index: number, value: string) => {
+  const handleColorChange = (index: number, value: string) => {
     setStatuses((prev) =>
       prev.map((s, i) =>
         i === index
@@ -486,120 +295,98 @@ export default function StatusLabelsSettings({
           : s
       )
     );
-  }, []);
+  };
 
-  const handleDescriptionChange = useCallback((index: number, value: string) => {
+  const handleDescriptionChange = (index: number, value: string) => {
     setStatuses((prev) =>
       prev.map((s, i) => (i === index ? { ...s, description: value } : s))
     );
-  }, []);
-
-  const handleDragStart = useCallback((event: DragStartEvent) => {
-    setActiveId(event.active.id as string);
-  }, []);
-
-  const handleDragEnd = useCallback((event: DragEndEvent) => {
-    const { active, over } = event;
-    setActiveId(null);
-    
-    if (over && active.id !== over.id) {
-      const oldIndex = statusIds.findIndex((id) => id === active.id);
-      const newIndex = statusIds.findIndex((id) => id === over.id);
-      
-      if (oldIndex !== -1 && newIndex !== -1) {
-        setStatuses((prev) => arrayMove(prev, oldIndex, newIndex));
-        setStatusIds((prev) => arrayMove(prev, oldIndex, newIndex));
-      }
-    }
-  }, [statusIds]);
-
-  const handleDragCancel = useCallback(() => {
-    setActiveId(null);
-  }, []);
-
-  const handleSave = useCallback(async () => {
-    if (!selectedCompanyId) {
-      Swal.fire('Validation', 'Please select a company first.', 'warning');
-      return;
-    }
-
-    const payload: CompanyStatus[] = statuses.map((s) => ({
-      ...(s._id ? { _id: s._id } : {}),
-      name: String(s.name ?? '').trim(),
-      color: s.color,
-      textColor: s.textColor,
-      description: isStaticStatus(s.statusKey || s.name)
-        ? ''
-        : String(s.description ?? '').trim(),
-      isDefault: !!s.isDefault,
-    }));
-
-    const settingsId = selectedCompany?.settings?._id;
-
-    setIsSaving(true);
-
-    try {
-      await updateMutation.mutateAsync({
-        settingsId: settingsId,
-        statuses: payload,
-      });
-
-      queryClient.invalidateQueries({ queryKey: ['companies'] });
-      queryClient.invalidateQueries({ queryKey: ['applicants'] });
-
-      Swal.fire({
-        title: 'Saved',
-        icon: 'success',
-        timer: 1200,
-        showConfirmButton: false,
-      });
-
-      const payloadWithKeys = statuses.map((s, idx) => ({
-        ...payload[idx],
-        statusKey: s.statusKey,
-      }));
-      setOriginalStatusesJson(JSON.stringify(payloadWithKeys));
-    } catch (err: any) {
-      Swal.fire(
-        'Failure',
-        err?.message || 'Failed to update configuration',
-        'error'
-      );
-    } finally {
-      setIsSaving(false);
-    }
-  }, [selectedCompanyId, statuses, selectedCompany, updateMutation, queryClient]);
-
-  const isLocked = useCallback((status: LeadStatus) => {
-    return isLockedStatus(status.statusKey || status.name);
-  }, []);
-
-  // Set up sensors for drag and drop
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 5,
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
-
-  const dropAnimation = {
-    sideEffects: defaultDropAnimationSideEffects({
-      styles: {
-        active: {
-          opacity: '0.4',
-        },
-      },
-    }),
-    duration: 200,
-    easing: 'cubic-bezier(0.2, 0, 0, 1)',
   };
 
-  const activeItem = activeId ? statuses[statusIds.findIndex(id => id === activeId)] : null;
-  const activeIndex = activeItem ? statuses.findIndex(s => s === activeItem) : -1;
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    e.dataTransfer.setData('text/plain', String(index));
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDropOnRow = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    const fromIndex = Number(e.dataTransfer.getData('text/plain'));
+    if (Number.isNaN(fromIndex)) return;
+    if (fromIndex === index) return;
+    setStatuses((prev) => arrayMove(prev, fromIndex, index));
+    setStatusIds((prev) => arrayMove(prev, fromIndex, index));
+  };
+
+  const handleDropAtEnd = (e: React.DragEvent) => {
+    e.preventDefault();
+    const fromIndex = Number(e.dataTransfer.getData('text/plain'));
+    if (Number.isNaN(fromIndex)) return;
+    if (fromIndex === statuses.length - 1) return;
+    setStatuses((prev) => arrayMove(prev, fromIndex, statuses.length - 1));
+    setStatusIds((prev) => arrayMove(prev, fromIndex, statusIds.length - 1));
+  };
+
+
+const handleSave = async () => {
+  if (!selectedCompanyId) {
+    Swal.fire('Validation', 'Please select a company first.', 'warning');
+    return;
+  }
+
+  // Prepare payload as array of CompanyStatus objects
+  const payload: CompanyStatus[] = statuses.map((s) => ({
+    ...(s._id ? { _id: s._id } : {}),
+    name: String(s.name ?? '').trim(),
+    color: s.color,
+    textColor: s.textColor,
+    description: isStaticStatus(s.statusKey || s.name)
+      ? ''
+      : String(s.description ?? '').trim(),
+    isDefault: !!s.isDefault,
+  }));
+
+  // Get the settings ID from the selected company
+  const settingsId = selectedCompany?.settings?._id;
+
+  setIsSaving(true);
+
+  try {
+    await updateMutation.mutateAsync({
+      settingsId: settingsId,  // Pass the settings ID
+      statuses: payload,
+    });
+
+    // Invalidate queries to refresh data across the app
+    queryClient.invalidateQueries({ queryKey: ['companies'] });
+    queryClient.invalidateQueries({ queryKey: ['applicants'] });
+
+    Swal.fire({
+      title: 'Saved',
+      icon: 'success',
+      timer: 1200,
+      showConfirmButton: false,
+    });
+
+    // Update the original statuses JSON to reflect saved state
+    const payloadWithKeys = statuses.map((s, idx) => ({
+      ...payload[idx],
+      statusKey: s.statusKey,
+    }));
+    setOriginalStatusesJson(JSON.stringify(payloadWithKeys));
+  } catch (err: any) {
+    Swal.fire(
+      'Failure',
+      err?.message || 'Failed to update configuration',
+      'error'
+    );
+  } finally {
+    setIsSaving(false);
+  }
+};
+  // Helper to check if a status is locked (only color editable)
+  const isLocked = (status: LeadStatus) => {
+    return isLockedStatus(status.statusKey || status.name);
+  };
 
   return (
     <div
@@ -636,26 +423,26 @@ export default function StatusLabelsSettings({
                 </p>
               </div>
             </div>
-            <div className="flex flex-row gap-3">
+            <div className="flex gap-3">
               <button
                 onClick={addStatus}
                 disabled={!canEdit}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-4 py-1.5 text-xs font-semibold text-slate-700 whitespace-nowrap transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <PlusCircle className="size-3.5" /> Add Status
+                <PlusCircle className="size-4" /> Add Status
               </button>
               <button
                 onClick={handleSave}
                 disabled={!canEdit || !hasChanges || isSaving}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isSaving ? (
-                  <div className="size-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                  <div className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
                 ) : (
-                  <Save className="size-3.5" />
+                  <Save className="size-4" />
                 )}
                 Save Changes
-                <ArrowRight className="size-3.5" />
+                <ArrowRight className="size-4" />
               </button>
             </div>
           </div>
@@ -663,12 +450,12 @@ export default function StatusLabelsSettings({
           <div className="grid grid-cols-1 gap-6 p-6 xl:grid-cols-12">
             <div className="space-y-6 xl:col-span-4">
               {showSelector && (
-                <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-700/50 dark:bg-slate-800/40">
-                  <div className="mb-3 flex items-center gap-2">
-                    <div className="flex size-8 items-center justify-center rounded-lg bg-violet-500/10 text-violet-500">
-                      <Settings className="size-4" />
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                  <div className="mb-4 flex items-center gap-3">
+                    <div className="flex size-10 items-center justify-center rounded-lg bg-violet-500/10 text-violet-500">
+                      <Settings className="size-5" />
                     </div>
-                    <h3 className="text-sm font-semibold tracking-tight text-slate-700 dark:text-slate-300">
+                    <h3 className="text-lg font-semibold tracking-tight">
                       Active Company
                     </h3>
                   </div>
@@ -676,7 +463,7 @@ export default function StatusLabelsSettings({
                     <select
                       value={selectedCompanyId}
                       onChange={(e) => setSelectedCompanyId(e.target.value)}
-                      className="w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 pr-10 text-sm font-medium outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800"
+                      className="w-full appearance-none rounded-xl border border-slate-300 bg-white py-3 pl-4 pr-10 text-sm font-medium outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800"
                     >
                       {companies.map((c: any) => (
                         <option
@@ -691,7 +478,7 @@ export default function StatusLabelsSettings({
                     </select>
                     <ArrowRight className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 rotate-90 text-slate-400" />
                   </div>
-                  <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
+                  <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
                     Pick the company profile to manage statuses for.
                   </p>
                 </div>
@@ -741,61 +528,140 @@ export default function StatusLabelsSettings({
 
             <div className="xl:col-span-8">
               <div className="space-y-4">
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragStart={handleDragStart}
-                  onDragEnd={handleDragEnd}
-                  onDragCancel={handleDragCancel}
-                >
-                  <SortableContext
-                    items={statusIds}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    <div ref={listRef} className="space-y-4">
-                    {statuses.map((status, index) => {
-                      const locked = isLocked(status);
-                      const isStatic = checkIsStatic(
-                        status.statusKey || status.name
-                      );
-                      const staticDescription = isStatic
-                        ? getDescription(status.statusKey || status.name)
-                        : null;
+                {statuses.map((status, index) => {
+                  const id = statusIds[index] ?? index;
+                  const locked = isLocked(status);
+                  const isStatic = checkIsStatic(
+                    status.statusKey || status.name
+                  );
+                  const staticDescription = isStatic
+                    ? getDescription(status.statusKey || status.name)
+                    : null;
 
-                      return (
-                        <SortableStatusItem
-                          key={statusIds[index]}
-                          id={statusIds[index]}
-                          status={status}
-                          index={index}
-                          canEdit={canEdit}
-                          isLocked={locked}
-                          isStatic={isStatic}
-                          staticDescription={staticDescription}
-                          statusIds={statusIds}
-                          onNameChange={handleNameChange}
-                          onDescriptionChange={handleDescriptionChange}
-                          onColorChange={handleColorChange}
-                          onSetDefault={setDefault}
-                          onRemove={removeStatus}
-                        />
-                      );
-                    })}
+                  return (
+                    <div
+                      key={id}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => handleDropOnRow(e as any, index)}
+                      className={`group flex cursor-default flex-col gap-3 rounded-xl border p-4 transition md:flex-row md:items-center md:justify-between ${
+                        status.isDefault
+                          ? 'border-brand-300 bg-brand-50/60 dark:border-brand-500/40 dark:bg-brand-500/10'
+                          : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900'
+                      } ${locked ? 'border-l-4 border-l-amber-500' : ''}`}
+                    >
+                      <div className="flex min-w-0 flex-1 items-center gap-3">
+                        <div
+                          draggable={!locked}
+                          onDragStart={(e) =>
+                            !locked && handleDragStart(e, index)
+                          }
+                          className={`flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 ${!locked ? 'cursor-grab hover:text-slate-700' : 'cursor-not-allowed opacity-50'}`}
+                          aria-label={
+                            locked
+                              ? 'Cannot reorder system status'
+                              : 'Drag to reorder'
+                          }
+                        >
+                          ≡
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <input
+                            value={status.name}
+                            onChange={(e) =>
+                              handleNameChange(index, e.target.value)
+                            }
+                            placeholder="Status label"
+                            disabled={locked}
+                            className={`w-full rounded-xl border border-transparent bg-transparent py-2 text-sm font-semibold outline-none focus:border-brand-300 focus:ring-0 ${
+                              locked ? 'cursor-not-allowed opacity-70' : ''
+                            }`}
+                          />
+
+                          {/* Description - Locked statuses show read-only text */}
+                          {locked ? (
+                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                              {staticDescription ||
+                                DEFAULT_STATUS_DESCRIPTIONS[
+                                  status.statusKey?.toLowerCase() || ''
+                                ]}
+                            </p>
+                          ) : (
+                            <input
+                              value={status.description}
+                              onChange={(e) =>
+                                handleDescriptionChange(index, e.target.value)
+                              }
+                              placeholder="Description (optional)"
+                              className="mt-1 w-full rounded-xl border border-transparent bg-transparent py-1 text-xs text-slate-500 outline-none focus:border-brand-300 focus:ring-0 dark:text-slate-400"
+                            />
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="mt-3 flex items-center gap-3 md:mt-0">
+                        {/* Color picker - always editable */}
+                        <div className="relative">
+                          <input
+                            id={`color-${id}`}
+                            type="color"
+                            value={status.color}
+                            onChange={(e) =>
+                              handleColorChange(index, e.target.value)
+                            }
+                            className="h-8 w-8 cursor-pointer rounded-full border border-slate-200 shadow-sm"
+                            title={
+                              locked
+                                ? 'Color can be customized'
+                                : 'Color picker'
+                            }
+                          />
+                        </div>
+
+                        {/* Default radio - disabled for locked statuses */}
+                        <label className="inline-flex items-center gap-2 text-sm">
+                          <input
+                            type="radio"
+                            name="default-status"
+                            checked={!!status.isDefault}
+                            onChange={() => !locked && setDefault(index)}
+                            disabled={locked}
+                            className={`h-4 w-4 ${locked ? 'cursor-not-allowed' : ''}`}
+                          />
+                          <span
+                            className={`text-slate-600 dark:text-slate-400 ${locked ? 'opacity-50' : ''}`}
+                          >
+                            Default
+                          </span>
+                        </label>
+
+                        {/* Delete button - hidden for locked statuses */}
+                        {!locked && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeStatus(index);
+                            }}
+                            disabled={statuses.length === 1 || !canEdit}
+                            className="inline-flex items-center justify-center rounded-lg border border-red-200 bg-red-50 p-2 text-red-500 transition hover:bg-red-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <Trash2 className="size-4" />
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </SortableContext>
+                  );
+                })}
 
-                  {createPortal(
-                    <DragOverlay dropAnimation={dropAnimation}>
-                      {activeId && activeItem && activeIndex !== -1 ? (
-                        <DragOverlayItem
-                          status={activeItem}
-                          index={activeIndex}
-                        />
-                      ) : null}
-                    </DragOverlay>,
-                    document.body
-                  )}
-                </DndContext>
+                <div
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={handleDropAtEnd}
+                  className="rounded-xl border-2 border-dashed border-slate-300 p-6 text-center dark:border-slate-700"
+                >
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                    Drag here to move a status to the end
+                  </p>
+                </div>
               </div>
             </div>
           </div>

@@ -1,4 +1,4 @@
-import { Suspense, lazy, useState, useMemo, useCallback } from "react";
+import { Suspense, lazy, useMemo, useCallback } from "react";
 import type { ApexOptions } from "apexcharts";
 import { useRejectionInsights } from "../../hooks/queries/useApplicants";
 
@@ -33,7 +33,6 @@ export default function RejectionInsightsChart({
   showPercentageLabels = false 
 }: RejectionInsightsChartProps) {
   const { data, isLoading, isFetching, error, refetch } = useRejectionInsights({ companyId });
-  const [showAllReasons, setShowAllReasons] = useState(false);
 
   // Memoized data transformation
   const rows = useMemo(() => {
@@ -55,41 +54,19 @@ export default function RejectionInsightsChart({
     return sorted;
   }, [data, maxReasons]);
 
-  const allRows = useMemo(() => {
-    const items = Array.isArray(data) ? data : (data as any)?.data ?? [];
-    if (!items.length) return [];
-
-    const normalizedReason = (reason: string) => reason.replace(/\s+/g, ' ').trim();
-
-    const sorted = [...items]
-      .map((item) => ({
-        reason: normalizedReason(String(item.reason ?? "Unknown")) || "Unknown",
-        count: Number(item.count ?? 0),
-      }))
-      .filter((item) => item.count > 0)
-      .sort((a, b) => b.count - a.count);
-
-    return sorted;
-  }, [data]);
-
-  const chartRows = useMemo(
-    () => showAllReasons ? allRows : rows,
-    [showAllReasons, allRows, rows]
-  );
-
   const totalRejected = useMemo(
-    () => chartRows.reduce((sum, item) => sum + item.count, 0),
-    [chartRows]
+    () => rows.reduce((sum, item) => sum + item.count, 0),
+    [rows]
   );
 
-  const topReason = chartRows[0];
+  const topReason = rows[0];
   const topReasonShare = totalRejected > 0 && topReason 
     ? Math.round((topReason.count / totalRejected) * 100) 
     : 0;
 
   const chartHeight = useMemo(
-    () => Math.max(330, Math.min(chartRows.length * 50, 600)),
-    [chartRows.length]
+    () => Math.max(330, Math.min(rows.length * 50, 600)),
+    [rows.length]
   );
 
   // Format number with locale support
@@ -137,7 +114,7 @@ export default function RejectionInsightsChart({
         },
       },
     },
-    colors: chartRows.map((_, index) => getReasonColor(index)),
+    colors: rows.map((_, index) => getReasonColor(index)),
     dataLabels: {
       enabled: showPercentageLabels,
       formatter: function(val: number) {
@@ -167,7 +144,7 @@ export default function RejectionInsightsChart({
       },
     },
     xaxis: {
-      categories: chartRows.map((item) => formatReason(item.reason)),
+      categories: rows.map((item) => formatReason(item.reason)),
       labels: {
         style: {
           fontSize: "12px",
@@ -208,7 +185,7 @@ export default function RejectionInsightsChart({
       },
       x: {
         formatter: function( opts?: any) {
-          const category = chartRows[opts?.dataPointIndex]?.reason || "";
+          const category = rows[opts?.dataPointIndex]?.reason || "";
           return `Reason: ${category}`;
         },
       },
@@ -234,14 +211,14 @@ export default function RejectionInsightsChart({
         },
       },
     },
-  }), [chartRows, chartHeight, showPercentageLabels, totalRejected, formatNumber]);
+  }), [rows, chartHeight, showPercentageLabels, totalRejected, formatNumber]);
 
   const series = useMemo(() => [
     {
       name: "Rejected applicants",
-      data: chartRows.map((item) => item.count),
+      data: rows.map((item) => item.count),
     },
-  ], [chartRows]);
+  ], [rows]);
 
   // Loading skeleton
   if (isLoading) {
@@ -318,11 +295,36 @@ export default function RejectionInsightsChart({
             Shows how rejected applicants are distributed across reasons so you can spot the biggest friction points.
           </p>
         </div>
+
+        <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-center">
+          <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-gray-50 to-white px-4 py-3 dark:border-gray-700 dark:from-gray-800 dark:to-gray-900">
+            <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-gray-400">
+              <span className="text-lg">📊</span>
+              Total rejected
+            </div>
+            <div className="mt-1 text-2xl font-bold text-gray-900 dark:text-white/90">
+              {formatNumber(totalRejected)}
+            </div>
+          </div>
+          <div className="rounded-xl border border-brand-200 bg-gradient-to-br from-brand-50 to-white px-4 py-3 dark:border-brand-500/30 dark:from-brand-500/10 dark:to-gray-900">
+            <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-brand-500/80 dark:text-brand-300">
+              <span className="text-lg">🎯</span>
+              Top reason share
+            </div>
+            <div className="mt-1 text-2xl font-bold text-brand-600 dark:text-brand-300">
+              {topReasonShare}%
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[280px_1fr]">
         {/* Sidebar with insights summary */}
         <div className="rounded-2xl border border-gray-200 bg-gradient-to-br from-gray-50 via-white to-brand-50/50 p-5 shadow-sm dark:border-gray-800 dark:from-gray-900 dark:via-gray-900 dark:to-brand-500/10">
+          <div className="flex items-center gap-2 text-sm font-medium text-gray-500 dark:text-gray-400">
+            <span className="text-lg">🔍</span>
+            Main driver
+          </div>
           <div className="mt-2 text-xl font-semibold text-gray-900 dark:text-white/90 break-words">
             {topReason?.reason ?? 'No data yet'}
           </div>
@@ -339,10 +341,10 @@ export default function RejectionInsightsChart({
           {/* Top reasons list with improved UX */}
           <div className="mt-5">
             <div className="mb-3 text-xs font-medium text-gray-500 dark:text-gray-400">
-              {showAllReasons ? `All ${allRows.length} reasons` : `Top ${Math.min(rows.length, 5)} reasons`}
+              Top {Math.min(rows.length, 5)} reasons
             </div>
             <div className="max-h-96 space-y-2 overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin' }}>
-              {(showAllReasons ? allRows : rows.slice(0, 5)).map((item, index) => {
+              {rows.slice(0, 5).map((item, index) => {
                 const share = totalRejected > 0 ? Math.round((item.count / totalRejected) * 100) : 0;
                 return (
                   <div 
@@ -377,25 +379,12 @@ export default function RejectionInsightsChart({
                   </div>
                 );
               })}
-              {!showAllReasons && rows.length > 5 && (
-                <button
-                  onClick={() => setShowAllReasons(true)}
-                  className="w-full rounded-xl bg-gray-100/50 p-3 text-center transition-colors hover:bg-gray-200/70 dark:bg-gray-800/50 dark:hover:bg-gray-700/50"
-                >
+              {rows.length > 5 && (
+                <div className="rounded-xl bg-gray-100/50 p-3 text-center dark:bg-gray-800/50">
                   <div className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                    +{allRows.length - 5} more reason{allRows.length - 5 !== 1 ? 's' : ''}
+                    +{rows.length - 5} more reason{rows.length - 5 !== 1 ? 's' : ''}
                   </div>
-                </button>
-              )}
-              {showAllReasons && allRows.length > 5 && (
-                <button
-                  onClick={() => setShowAllReasons(false)}
-                  className="w-full rounded-xl bg-gray-100/50 p-3 text-center transition-colors hover:bg-gray-200/70 dark:bg-gray-800/50 dark:hover:bg-gray-700/50"
-                >
-                  <div className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                    Show less
-                  </div>
-                </button>
+                </div>
               )}
             </div>
           </div>
@@ -403,19 +392,6 @@ export default function RejectionInsightsChart({
 
         {/* Chart container */}
         <div className="min-h-[330px] rounded-2xl border border-gray-200 bg-white p-3 shadow-sm transition-all dark:border-gray-800 dark:bg-gray-900/50 sm:p-4">
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-xs text-gray-400">
-              {showAllReasons ? `All ${chartRows.length} reasons` : `Top ${Math.min(chartRows.length, maxReasons)} reasons`}
-            </span>
-            {allRows.length > maxReasons && (
-              <button
-                onClick={() => setShowAllReasons((prev) => !prev)}
-                className="text-xs font-medium text-brand-500 hover:text-brand-600 transition-colors"
-              >
-                {showAllReasons ? "Show top" : "Show all"}
-              </button>
-            )}
-          </div>
           <div className={`${isFetching ? 'opacity-70 transition-opacity' : ''}`}>
             <Suspense 
               fallback={

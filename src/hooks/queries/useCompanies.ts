@@ -495,9 +495,6 @@ export function useUpdateCompanyApplicantPages() {
       queryClient.invalidateQueries({
         queryKey: companiesKeys.applicantPages(settingsId),
       });
-      queryClient.invalidateQueries({
-        queryKey: companiesKeys.lists(),
-      });
       showSuccessToast('Applicant pages updated successfully');
     },
     onError: (error: ApiError) =>

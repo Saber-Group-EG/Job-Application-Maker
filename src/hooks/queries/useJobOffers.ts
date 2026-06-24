@@ -75,8 +75,17 @@ export function useCreateJobOffer() {
   return useMutation({
     mutationFn: (payload: CreateJobOfferPayload) =>
       jobOffersService.createOffer(payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: jobOffersKeys.all }); // ← covers both lists and templates
+    onSuccess: (created) => {
+      queryClient.invalidateQueries({ queryKey: jobOffersKeys.lists() });
+      if (created.isTemplate) {
+        queryClient.invalidateQueries({
+          queryKey: jobOffersKeys.templates(
+            typeof created.companyId === 'string'
+              ? created.companyId
+              : created.companyId._id
+          ),
+        });
+      }
       showSuccess('Offer created successfully');
     },
     onError: (err: ApiError) =>
