@@ -57,6 +57,7 @@ function SortablePageItem({
   onRemove,
   availableStatuses,
   availableJobPositions,
+  statusById,
   canEdit,
   jobsLoading,
 }: {
@@ -71,6 +72,7 @@ function SortablePageItem({
   onRemove: () => void;
   availableStatuses: string[];
   availableJobPositions: any[];
+  statusById: Record<string, string>;
   canEdit: boolean;
   jobsLoading?: boolean;
 }) {
@@ -185,39 +187,8 @@ function SortablePageItem({
 
       {!isCollapsed && (
         <div className="border-t border-slate-200 p-4 dark:border-slate-700">
-          <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Statuses included in this page
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {availableStatuses.map((statusName) => {
-              const selected = page.statuses.includes(statusName);
-              return (
-                <button
-                  key={statusName}
-                  type="button"
-                  onClick={() => canEdit && onToggleStatus(statusName)}
-                  disabled={!canEdit}
-                  className={`rounded-full px-3 py-1 text-sm font-medium transition ${
-                    selected
-                      ? 'bg-brand-500 text-white'
-                      : 'border border-slate-300 bg-white text-slate-600 hover:border-brand-300 hover:text-brand-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
-                  } disabled:cursor-not-allowed disabled:opacity-60`}
-                >
-                  {statusName}
-                </button>
-              );
-            })}
-          </div>
-          {page.statuses.length > 0 && (
-            <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-              {page.statuses.length} status{page.statuses.length > 1 ? 'es' : ''} selected: {' '}
-              {page.statuses.join(', ')}
-            </p>
-          )}
-
           {(availableJobPositions.length > 0 || jobsLoading) && (
             <>
-              <div className="my-3 border-t border-dashed border-slate-200 dark:border-slate-700" />
               <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Job Positions included in this page
               </label>
@@ -251,6 +222,60 @@ function SortablePageItem({
               {!jobsLoading && (page.jobPositions ?? []).length > 0 && (
                 <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
                   {(page.jobPositions ?? []).length} job position{(page.jobPositions ?? []).length > 1 ? 's' : ''} selected
+                </p>
+              )}
+              <div className="my-3 border-t border-dashed border-slate-200 dark:border-slate-700" />
+            </>
+          )}
+
+          {(page.jobPositions ?? []).length > 0 && (
+            <>
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Statuses included in this page
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {(() => {
+                  const selectedJobIds = page.jobPositions ?? [];
+                  const allowedStatusIds = selectedJobIds.length > 0
+                    ? new Set(
+                        availableJobPositions
+                          .filter((jp: any) => selectedJobIds.includes(jp._id))
+                          .flatMap((jp: any) => jp.allowedStatuses ?? [])
+                      )
+                    : null;
+                  const allowedNames = allowedStatusIds
+                    ? new Set(
+                        [...allowedStatusIds]
+                          .map((id) => statusById[id])
+                          .filter(Boolean)
+                      )
+                    : null;
+                  const useAll = !allowedNames || allowedNames.size === 0 || (allowedNames.size === 1 && allowedNames.has('pending'));
+                  const statusesToShow = useAll ? availableStatuses : availableStatuses.filter((s) => allowedNames!.has(s));
+                  return statusesToShow.map((statusName) => {
+                    const selected = page.statuses.includes(statusName);
+                    return (
+                      <button
+                        key={statusName}
+                        type="button"
+                        onClick={() => canEdit && onToggleStatus(statusName)}
+                        disabled={!canEdit}
+                        className={`rounded-full px-3 py-1 text-sm font-medium transition ${
+                          selected
+                            ? 'bg-brand-500 text-white'
+                            : 'border border-slate-300 bg-white text-slate-600 hover:border-brand-300 hover:text-brand-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
+                        } disabled:cursor-not-allowed disabled:opacity-60`}
+                      >
+                        {statusName}
+                      </button>
+                    );
+                  });
+                })()}
+              </div>
+              {page.statuses.length > 0 && (
+                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                  {page.statuses.length} status{page.statuses.length > 1 ? 'es' : ''} selected: {' '}
+                  {page.statuses.join(', ')}
                 </p>
               )}
             </>
@@ -332,6 +357,18 @@ export default function ApplicantPagesSettings({
     return Array.isArray(raw)
       ? raw.map((s: any) => s.name).filter(Boolean)
       : [];
+  }, [selectedCompany]);
+
+  // Map status _id → status name for resolving allowedStatuses on job positions
+  const statusById: Record<string, string> = useMemo(() => {
+    const raw = selectedCompany?.settings?.statuses ?? [];
+    const map: Record<string, string> = {};
+    if (Array.isArray(raw)) {
+      raw.forEach((s: any) => {
+        if (s._id && s.name) map[s._id] = s.name;
+      });
+    }
+    return map;
   }, [selectedCompany]);
 
   // Available job positions from API
@@ -650,6 +687,7 @@ export default function ApplicantPagesSettings({
                           onRemove={() => removePage(index)}
                           availableStatuses={availableStatuses}
                           availableJobPositions={jobPositions}
+                          statusById={statusById}
                           canEdit={canEdit}
                           jobsLoading={jobsFetching}
                         />
