@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   Building2,
   Ban,
@@ -10,10 +10,34 @@ import {
   ShieldCheck,
   CircleCheckBig,
   Settings,
-  Mail, // Add this icon
+  Mail,
   Layout,
   FileText,
+  ChevronDown,
+  ChevronRight,
+  GripVertical,
 } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
+  defaultDropAnimationSideEffects,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { createPortal } from 'react-dom';
 import Swal from '../../../utils/swal';
 import PageMeta from '../../../components/common/PageMeta';
 import PageBreadCrumb from '../../../components/common/PageBreadCrumb';
@@ -34,6 +58,10 @@ import type {
 import ApplicantPagesSettings from './ApplicantsPagesTab';
 import JobOffersTab from './JobOffersTab';
 import ContractsTab from './ContractsTab';
+
+type QuestionItem = InterviewQuestion & { _id: string };
+
+const uid = () => `q_${Math.random().toString(36).slice(2, 9)}`;
 
 type CompanyShape = {
   _id: string;
@@ -59,15 +87,16 @@ const ANSWER_TYPES: InterviewAnswerType[] = [
   'tags',
 ];
 
-const EMPTY_QUESTION: InterviewQuestion = {
+const EMPTY_QUESTION: QuestionItem = {
+  _id: uid(),
   question: '',
   score: 0,
   answerType: 'text',
 };
 
 const normalizeQuestion = (
-  question: Partial<InterviewQuestion> | undefined
-): InterviewQuestion => {
+  question: Partial<InterviewQuestion & { _id?: string }> | undefined
+): QuestionItem => {
   const answerType =
     question?.answerType && ANSWER_TYPES.includes(question.answerType)
       ? question.answerType
@@ -75,6 +104,7 @@ const normalizeQuestion = (
 
   const score = Number(question?.score);
   return {
+    _id: question?._id ?? uid(),
     question: String(question?.question ?? ''),
     score: Number.isFinite(score) ? score : 0,
     answerType,
@@ -107,6 +137,167 @@ const getCompanyName = (company: CompanyShape | undefined): string => {
   return companyData.name?.en || companyData.name?.ar || 'Unnamed Company';
 };
 
+function SortableQuestionItem({
+  question,
+  canEdit,
+  choiceBuffer,
+  onUpdate,
+  onRemove,
+  onChoiceBufferChange,
+}: {
+  question: any;
+  questionIndex: number;
+  groupIndex: number;
+  canEdit: boolean;
+  choiceBuffer: string;
+  onUpdate: (patch: Partial<InterviewQuestion>) => void;
+  onRemove: () => void;
+  onChoiceBufferChange: (value: string) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    isDragging,
+  } = useSortable({ id: question._id });
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    transition: isDragging ? 'none' : 'transform 200ms cubic-bezier(0.2, 0, 0, 1)',
+    opacity: isDragging ? 0.4 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`grid grid-cols-1 gap-3 rounded-lg border p-3 lg:grid-cols-[auto_1fr_150px_130px_auto] ${
+        isDragging
+          ? 'border-brand-400 bg-white shadow-lg ring-2 ring-brand-500 dark:bg-slate-800'
+          : 'border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/60'
+      }`}
+    >
+      <div
+        {...attributes}
+        {...listeners}
+        className="flex cursor-grab items-center justify-center rounded p-1 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-600 active:cursor-grabbing dark:hover:bg-slate-700 dark:hover:text-slate-300"
+      >
+        <GripVertical className="size-4" />
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Question
+        </label>
+        <input
+          value={question.question}
+          onChange={(e) => onUpdate({ question: e.target.value })}
+          disabled={!canEdit}
+          placeholder="Tell us about a complex challenge you solved"
+          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900"
+        />
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Answer Type
+        </label>
+        <select
+          value={question.answerType}
+          onChange={(e) => onUpdate({ answerType: e.target.value as InterviewAnswerType })}
+          disabled={!canEdit}
+          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900"
+        >
+          {ANSWER_TYPES.map((type) => (
+            <option key={type} value={type}>{type}</option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Score
+        </label>
+        <input
+          type="number"
+          min={0}
+          value={question.score}
+          onChange={(e) => onUpdate({ score: Number(e.target.value) })}
+          disabled={!canEdit}
+          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900"
+        />
+      </div>
+
+      <div className="flex items-end">
+        <button
+          type="button"
+          onClick={onRemove}
+          disabled={!canEdit}
+          className="inline-flex h-10 items-center rounded-lg border border-red-200 bg-red-50 px-3 text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300"
+        >
+          <Trash2 className="size-4" />
+        </button>
+      </div>
+
+      {(question.answerType === 'radio' || question.answerType === 'dropdown') && (
+        <div className="lg:col-span-5">
+          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Choices
+          </label>
+          <div className="mb-2 flex flex-wrap gap-2">
+            {(Array.isArray(question.choices) ? question.choices : []).map((c: string) => (
+              <div
+                key={c}
+                className="group flex items-center justify-center rounded-full border-[0.7px] border-transparent bg-gray-100 py-1 pl-2.5 pr-2 text-sm text-gray-800 hover:border-gray-200 dark:bg-gray-800 dark:text-white/90 dark:hover:border-gray-800"
+              >
+                <span className="flex-initial max-w-full">{c}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const existing = Array.isArray(question.choices) ? question.choices : [];
+                    onUpdate({ choices: existing.filter((x: string) => String(x) !== String(c)) });
+                  }}
+                  className="cursor-pointer pl-2 text-gray-500 group-hover:text-gray-400 dark:text-gray-400"
+                  aria-label={`Remove ${c}`}
+                >
+                  <svg className="fill-current" width="14" height="14" viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg">
+                    <path fillRule="evenodd" clipRule="evenodd" d="M3.40717 4.46881C3.11428 4.17591 3.11428 3.70104 3.40717 3.40815C3.70006 3.11525 4.17494 3.11525 4.46783 3.40815L6.99943 5.93975L9.53095 3.40822C9.82385 3.11533 10.2987 3.11533 10.5916 3.40822C10.8845 3.70112 10.8845 4.17599 10.5916 4.46888L8.06009 7.00041L10.5916 9.53193C10.8845 9.82482 10.8845 10.2997 10.5916 10.5926C10.2987 10.8855 9.82385 10.8855 9.53095 10.5926L6.99943 8.06107L4.46783 10.5927C4.17494 10.8856 3.70006 10.8856 3.40717 10.5927C3.11428 10.2998 3.11428 9.8249 3.40717 9.53201L5.93877 7.00041L3.40717 4.46881Z" />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+          <input
+            type="text"
+            value={choiceBuffer}
+            onChange={(e) => onChoiceBufferChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                const buf = choiceBuffer.trim();
+                if (!buf) return;
+                const existing = Array.isArray(question.choices) ? question.choices : [];
+                onUpdate({ choices: [...existing, buf] });
+                onChoiceBufferChange('');
+              }
+            }}
+            onBlur={() => {
+              const buf = choiceBuffer.trim();
+              if (!buf) return;
+              const existing = Array.isArray(question.choices) ? question.choices : [];
+              onUpdate({ choices: [...existing, buf] });
+              onChoiceBufferChange('');
+            }}
+            placeholder="Type a choice and press Enter"
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900"
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function InterviewCompanySettingsPage() {
   const { user, hasPermission } = useAuth();
   const { data: companies = [], isLoading: isCompaniesLoading } =
@@ -137,10 +328,26 @@ export default function InterviewCompanySettingsPage() {
     string | undefined
   >(undefined);
   const [groups, setGroups] = useState<InterviewGroup[]>([]);
+  const [activeQuestionId, setActiveQuestionId] = useState<string | null>(null);
+  const [isCompanyDropdownOpen, setIsCompanyDropdownOpen] = useState(false);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const dropAnimation = {
+    sideEffects: defaultDropAnimationSideEffects({
+      styles: { active: { opacity: '0.4' } },
+    }),
+    duration: 200,
+    easing: 'cubic-bezier(0.2, 0, 0, 1)',
+  };
   const [isSaving, setIsSaving] = useState(false);
   const [choiceBuffers, setChoiceBuffers] = useState<Record<string, string>>(
     {}
   );
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<number>>(new Set());
   const [activeTab, setActiveTab] = useState<
     | 'interview-groups'
     | 'rejection-reasons'
@@ -177,7 +384,7 @@ export default function InterviewCompanySettingsPage() {
     enabled: !!selectedCompanyId && !isSuperAdmin,
   });
 
-  // In InterviewCompanySettingsPage.tsx
+  // Fixed: Use correct precedence with parentheses
   const derivedInterviewSettings = isSuperAdmin
     ? ((selectedCompany as any)?.settings?.interviewSettings ??
       (selectedCompany as any)?.interviewSettings ??
@@ -210,11 +417,11 @@ export default function InterviewCompanySettingsPage() {
 
   const addGroup = () => {
     setGroups((prev) => [
-      ...prev,
       {
         name: `Group ${prev.length + 1}`,
         questions: [{ ...EMPTY_QUESTION }],
       },
+      ...prev,
     ]);
   };
 
@@ -272,6 +479,38 @@ export default function InterviewCompanySettingsPage() {
       })
     );
   };
+
+
+
+  const handleQuestionDragStart = useCallback((event: DragStartEvent) => {
+    setActiveQuestionId(event.active.id as string);
+  }, []);
+
+  const handleQuestionDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveQuestionId(null);
+    if (!over || active.id === over.id) return;
+
+    const activeId = active.id as string;
+    const overId = over.id as string;
+
+    setGroups((prev) =>
+      prev.map((group) => {
+        const qIds = group.questions.map((q: any) => q._id);
+        const oldIndex = qIds.indexOf(activeId);
+        const newIndex = qIds.indexOf(overId);
+        if (oldIndex === -1 || newIndex === -1) return group;
+        return {
+          ...group,
+          questions: arrayMove(group.questions, oldIndex, newIndex),
+        };
+      })
+    );
+  }, []);
+
+  const handleQuestionDragCancel = useCallback(() => {
+    setActiveQuestionId(null);
+  }, []);
 
   const validateGroups = (): InterviewGroup[] | null => {
     for (let groupIndex = 0; groupIndex < groups.length; groupIndex += 1) {
@@ -389,6 +628,7 @@ export default function InterviewCompanySettingsPage() {
       setIsSaving(false);
     }
   };
+
   if (!canRead) {
     return (
       <div className="min-h-screen bg-slate-50 px-4 py-10 dark:bg-slate-950">
@@ -531,7 +771,7 @@ export default function InterviewCompanySettingsPage() {
                 isContractsTab
                   ? 'bg-brand-500 text-white'
                   : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800'
-                }`}
+              }`}
             >
               <FileText className="size-4" /> Contract Templates
             </button>
@@ -583,35 +823,91 @@ export default function InterviewCompanySettingsPage() {
                 : 'hidden'
             }
           >
-            {showSelector && !isEmailTemplatesTab && isApplicantPagesTab && (
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                <div className="mb-4 flex items-center gap-3">
-                  <div className="flex size-10 items-center justify-center rounded-lg bg-violet-500/10 text-violet-500">
-                    <Building2 className="size-5" />
+            {showSelector && !isEmailTemplatesTab && (
+              <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-700/50 dark:bg-slate-800/40">
+                <div className="mb-3 flex items-center gap-2">
+                  <div className="flex size-8 items-center justify-center rounded-lg bg-violet-500/10 text-violet-500">
+                    <Building2 className="size-4" />
                   </div>
-                  <h3 className="text-lg font-semibold tracking-tight">
+                  <h3 className="text-sm font-semibold tracking-tight text-slate-700 dark:text-slate-300">
                     Active Company
                   </h3>
                 </div>
                 <div className="relative">
-                  <select
-                    value={selectedCompanyId || ''}
-                    onChange={(e) =>
-                      setSelectedCompanyId(e.target.value || undefined)
-                    }
-                    className="w-full appearance-none rounded-xl border border-slate-300 bg-white py-3 pl-4 pr-10 text-sm font-medium outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800"
+                  <button
+                    type="button"
+                    onClick={() => setIsCompanyDropdownOpen(!isCompanyDropdownOpen)}
+                    className="flex w-full items-center gap-3 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800"
                   >
-                    {(companies as CompanyShape[]).map((company) => (
-                      <option key={company._id} value={company._id}>
-                        {getCompanyName(company)}
-                      </option>
-                    ))}
-                  </select>
-                  <ArrowRight className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 rotate-90 text-slate-400" />
+                    {(selectedCompany as any)?.logoPath ? (
+                      <img
+                        src={(selectedCompany as any).logoPath.replace('/upload/', '/upload/q_10,w_48/')}
+                        alt={getCompanyName(selectedCompany)}
+                        className="size-7 shrink-0 rounded-md object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="flex size-7 items-center justify-center rounded-md bg-brand-500/10 text-[11px] font-bold uppercase text-brand-600 dark:text-brand-400">
+                        {(getCompanyName(selectedCompany) || '?').charAt(0)}
+                      </div>
+                    )}
+                    <span className="flex-1 truncate text-left">
+                      {getCompanyName(selectedCompany) || 'Select a company'}
+                    </span>
+                    <ChevronDown className="size-4 text-slate-400" />
+                  </button>
+
+                  {isCompanyDropdownOpen && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setIsCompanyDropdownOpen(false)} />
+                      <div className="absolute left-0 right-0 z-20 mt-1 max-h-60 overflow-auto rounded-lg border border-slate-200 bg-white p-1 shadow-lg dark:border-slate-700 dark:bg-slate-800">
+                        {(companies as CompanyShape[]).map((company) => {
+                          const companyName = getCompanyName(company);
+                          const isSelected = company._id === selectedCompanyId;
+                          const logoPath = (company as any).logoPath;
+                          return (
+                            <button
+                              key={company._id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedCompanyId(company._id);
+                                setIsCompanyDropdownOpen(false);
+                              }}
+                              className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm transition ${
+                                isSelected
+                                  ? 'bg-brand-500/10 text-brand-700 dark:bg-brand-500/20 dark:text-brand-300'
+                                  : 'text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700/50'
+                              }`}
+                            >
+                              {logoPath ? (
+                                <img
+                                  src={logoPath.replace('/upload/', '/upload/q_10,w_48/')}
+                                  alt={companyName}
+                                  className="size-7 shrink-0 rounded-md object-cover"
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <div
+                                  className={`flex size-7 items-center justify-center rounded-md text-[11px] font-bold uppercase ${
+                                    isSelected
+                                      ? 'bg-brand-500 text-white'
+                                      : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+                                  }`}
+                                >
+                                  {companyName.charAt(0)}
+                                </div>
+                              )}
+                              <span className="flex-1 truncate">{companyName}</span>
+
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
                 </div>
-                <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-                  Change company context to configure another interview
-                  blueprint.
+                <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
+                  Switch company context to manage settings for another company.
                 </p>
               </div>
             )}
@@ -669,246 +965,156 @@ export default function InterviewCompanySettingsPage() {
                     </div>
                   )}
 
-                  {groups.map((group, groupIndex) => (
-                    <div
-                      key={`group-${groupIndex}`}
-                      className="rounded-xl border border-slate-200 p-4 dark:border-slate-700"
-                    >
-                      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex-1">
-                          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                            Group Name
-                          </label>
-                          <input
-                            value={group.name}
-                            onChange={(e) =>
-                              updateGroupName(groupIndex, e.target.value)
-                            }
-                            disabled={!canEdit}
-                            placeholder="Technical Assessment"
-                            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-800"
-                          />
-                        </div>
+                  {groups.map((group, groupIndex) => {
+                    const isCollapsed = collapsedGroups.has(groupIndex);
+                    const toggleCollapse = () => {
+                      setCollapsedGroups((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(groupIndex)) {
+                          next.delete(groupIndex);
+                        } else {
+                          next.add(groupIndex);
+                        }
+                        return next;
+                      });
+                    };
 
+                    return (
+                      <div
+                        key={`group-${groupIndex}`}
+                        className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700"
+                      >
                         <button
                           type="button"
-                          onClick={() => removeGroup(groupIndex)}
-                          disabled={!canEdit}
-                          className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300"
+                          onClick={toggleCollapse}
+                          className="flex w-full items-center gap-3 bg-slate-50 px-4 py-3 text-left transition hover:bg-slate-100 dark:bg-slate-800/60 dark:hover:bg-slate-800"
                         >
-                          <Trash2 className="size-4" /> Remove Group
-                        </button>
-                      </div>
-
-                      <div className="space-y-3">
-                        {group.questions.map((question, questionIndex) => (
-                          <div
-                            key={`${groupIndex}-${questionIndex}`}
-                            className="grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/60 lg:grid-cols-[1fr_150px_130px_auto]"
+                          {isCollapsed ? (
+                            <ChevronRight className="size-4 shrink-0 text-slate-400" />
+                          ) : (
+                            <ChevronDown className="size-4 shrink-0 text-slate-400" />
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                              Group Name
+                            </label>
+                            <input
+                              value={group.name}
+                              onChange={(e) =>
+                                updateGroupName(groupIndex, e.target.value)
+                              }
+                              disabled={!canEdit}
+                              placeholder="Technical Assessment"
+                              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-800"
+                            />
+                          </div>
+                          <span className="shrink-0 text-xs text-slate-400">
+                            {group.questions.length} question{group.questions.length !== 1 ? 's' : ''}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeGroup(groupIndex);
+                            }}
+                            disabled={!canEdit}
+                            className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300"
                           >
-                            <div>
-                              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                Question
-                              </label>
-                              <input
-                                value={question.question}
-                                onChange={(e) =>
-                                  updateQuestion(groupIndex, questionIndex, {
-                                    question: e.target.value,
-                                  })
-                                }
-                                disabled={!canEdit}
-                                placeholder="Tell us about a complex challenge you solved"
-                                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900"
-                              />
-                            </div>
+                            <Trash2 className="size-4" /> Remove
+                          </button>
+                        </button>
 
-                            <div>
-                              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                Answer Type
-                              </label>
-                              <select
-                                value={question.answerType}
-                                onChange={(e) =>
-                                  updateQuestion(groupIndex, questionIndex, {
-                                    answerType: e.target
-                                      .value as InterviewAnswerType,
-                                  })
-                                }
-                                disabled={!canEdit}
-                                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900"
+                        {!isCollapsed && (
+                          <div className="space-y-3 border-t border-slate-200 p-4 dark:border-slate-700">
+                            <DndContext
+                              sensors={sensors}
+                              collisionDetection={closestCenter}
+                              onDragStart={handleQuestionDragStart}
+                              onDragEnd={handleQuestionDragEnd}
+                              onDragCancel={handleQuestionDragCancel}
+                            >
+                              <SortableContext
+                                items={group.questions.map((q: any) => q._id)}
+                                strategy={verticalListSortingStrategy}
                               >
-                                {ANSWER_TYPES.map((type) => (
-                                  <option key={type} value={type}>
-                                    {type}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-
-                            <div>
-                              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                Score
-                              </label>
-                              <input
-                                type="number"
-                                min={0}
-                                value={question.score}
-                                onChange={(e) =>
-                                  updateQuestion(groupIndex, questionIndex, {
-                                    score: Number(e.target.value),
-                                  })
-                                }
-                                disabled={!canEdit}
-                                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900"
-                              />
-                            </div>
-
-                            <div className="flex items-end">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  removeQuestion(groupIndex, questionIndex)
-                                }
-                                disabled={!canEdit}
-                                className="inline-flex h-10 items-center rounded-lg border border-red-200 bg-red-50 px-3 text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300"
-                              >
-                                <Trash2 className="size-4" />
-                              </button>
-                            </div>
-
-                            {(question.answerType === 'radio' ||
-                              question.answerType === 'dropdown') && (
-                              <div className="lg:col-span-4">
-                                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                  Choices
-                                </label>
-                                <div className="mb-2 flex flex-wrap gap-2">
-                                  {(Array.isArray(question.choices)
-                                    ? question.choices
-                                    : []
-                                  ).map((c) => (
-                                    <div
-                                      key={c}
-                                      className="group flex items-center justify-center rounded-full border-[0.7px] border-transparent bg-gray-100 py-1 pl-2.5 pr-2 text-sm text-gray-800 hover:border-gray-200 dark:bg-gray-800 dark:text-white/90 dark:hover:border-gray-800"
-                                    >
-                                      <span className="flex-initial max-w-full">
-                                        {c}
-                                      </span>
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          const existing = Array.isArray(
-                                            question.choices
-                                          )
-                                            ? question.choices
-                                            : [];
-                                          const next = existing.filter(
-                                            (x) => String(x) !== String(c)
-                                          );
-                                          updateQuestion(
-                                            groupIndex,
-                                            questionIndex,
-                                            { choices: next }
-                                          );
-                                        }}
-                                        className="pl-2 text-gray-500 cursor-pointer group-hover:text-gray-400 dark:text-gray-400"
-                                        aria-label={`Remove ${c}`}
-                                      >
-                                        <svg
-                                          className="fill-current"
-                                          width="14"
-                                          height="14"
-                                          viewBox="0 0 14 14"
-                                          xmlns="http://www.w3.org/2000/svg"
-                                        >
-                                          <path
-                                            fillRule="evenodd"
-                                            clipRule="evenodd"
-                                            d="M3.40717 4.46881C3.11428 4.17591 3.11428 3.70104 3.40717 3.40815C3.70006 3.11525 4.17494 3.11525 4.46783 3.40815L6.99943 5.93975L9.53095 3.40822C9.82385 3.11533 10.2987 3.11533 10.5916 3.40822C10.8845 3.70112 10.8845 4.17599 10.5916 4.46888L8.06009 7.00041L10.5916 9.53193C10.8845 9.82482 10.8845 10.2997 10.5916 10.5926C10.2987 10.8855 9.82385 10.8855 9.53095 10.5926L6.99943 8.06107L4.46783 10.5927C4.17494 10.8856 3.70006 10.8856 3.40717 10.5927C3.11428 10.2998 3.11428 9.8249 3.40717 9.53201L5.93877 7.00041L3.40717 4.46881Z"
-                                          />
-                                        </svg>
-                                      </button>
-                                    </div>
-                                  ))}
-                                </div>
-                                <input
-                                  type="text"
-                                  value={
-                                    choiceBuffers[
-                                      `${groupIndex}_${questionIndex}`
-                                    ] ?? ''
-                                  }
-                                  onChange={(e) =>
-                                    setChoiceBuffers((prev) => ({
-                                      ...prev,
-                                      [`${groupIndex}_${questionIndex}`]:
-                                        e.target.value,
-                                    }))
-                                  }
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                      e.preventDefault();
-                                      const key = `${groupIndex}_${questionIndex}`;
-                                      const buf = (
-                                        choiceBuffers[key] ?? ''
-                                      ).trim();
-                                      if (!buf) return;
-                                      const existing = Array.isArray(
-                                        question.choices
-                                      )
-                                        ? question.choices
-                                        : [];
-                                      const next = [...existing, buf];
-                                      updateQuestion(
-                                        groupIndex,
-                                        questionIndex,
-                                        { choices: next }
-                                      );
+                                {group.questions.map((question: any, questionIndex) => (
+                                  <SortableQuestionItem
+                                    key={question._id}
+                                    question={question}
+                                    questionIndex={questionIndex}
+                                    groupIndex={groupIndex}
+                                    canEdit={canEdit}
+                                    choiceBuffer={
+                                      choiceBuffers[`${groupIndex}_${questionIndex}`] ?? ''
+                                    }
+                                    onUpdate={(patch) =>
+                                      updateQuestion(groupIndex, questionIndex, patch)
+                                    }
+                                    onRemove={() => removeQuestion(groupIndex, questionIndex)}
+                                    onChoiceBufferChange={(value) =>
                                       setChoiceBuffers((prev) => ({
                                         ...prev,
-                                        [key]: '',
-                                      }));
+                                        [`${groupIndex}_${questionIndex}`]: value,
+                                      }))
                                     }
-                                  }}
-                                  onBlur={() => {
-                                    const key = `${groupIndex}_${questionIndex}`;
-                                    const buf = (
-                                      choiceBuffers[key] ?? ''
-                                    ).trim();
-                                    if (!buf) return;
-                                    const existing = Array.isArray(
-                                      question.choices
-                                    )
-                                      ? question.choices
-                                      : [];
-                                    updateQuestion(groupIndex, questionIndex, {
-                                      choices: [...existing, buf],
-                                    });
-                                    setChoiceBuffers((prev) => ({
-                                      ...prev,
-                                      [key]: '',
-                                    }));
-                                  }}
-                                  placeholder="Type a choice and press Enter"
-                                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900"
-                                />
-                              </div>
-                            )}
-                          </div>
-                        ))}
+                                  />
+                                ))}
+                              </SortableContext>
+                              {activeQuestionId &&
+                                (() => {
+                                  const found = groups[groupIndex]?.questions?.find(
+                                    (q: any) => q._id === activeQuestionId
+                                  );
+                                  if (!found) return null;
+                                  return createPortal(
+                                    <DragOverlay dropAnimation={dropAnimation}>
+                                      <div className="grid grid-cols-1 gap-3 rounded-lg border border-brand-400 bg-white p-3 shadow-xl dark:bg-slate-800 lg:grid-cols-[auto_1fr_150px_130px_auto]">
+                                        <div className="flex items-center justify-center">
+                                          <GripVertical className="size-4 text-brand-500" />
+                                        </div>
+                                        <div>
+                                          <div className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Question</div>
+                                          <div className="w-full rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm text-slate-700 dark:border-brand-700 dark:bg-slate-900 dark:text-slate-300">
+                                            {found.question || 'Empty question'}
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <div className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Type</div>
+                                          <div className="w-full rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm text-slate-700 dark:border-brand-700 dark:bg-slate-900 dark:text-slate-300">
+                                            {found.answerType}
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <div className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Score</div>
+                                          <div className="w-full rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm text-slate-700 dark:border-brand-700 dark:bg-slate-900 dark:text-slate-300">
+                                            {found.score}
+                                          </div>
+                                        </div>
+                                        <div className="flex items-end">
+                                          <div className="inline-flex h-10 items-center rounded-lg bg-red-100 px-3 text-red-400 opacity-50 dark:bg-red-500/10">
+                                            <Trash2 className="size-4" />
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </DragOverlay>,
+                                    document.body
+                                  );
+                                })()}
+                            </DndContext>
 
-                        <button
-                          type="button"
-                          onClick={() => addQuestion(groupIndex)}
-                          disabled={!canEdit}
-                          className="inline-flex items-center gap-2 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-sm font-medium text-brand-700 transition hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-brand-500/30 dark:bg-brand-500/10 dark:text-brand-300"
-                        >
-                          <PlusCircle className="size-4" /> Add Question
-                        </button>
+                            <button
+                              type="button"
+                              onClick={() => addQuestion(groupIndex)}
+                              disabled={!canEdit}
+                              className="inline-flex items-center gap-2 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-sm font-medium text-brand-700 transition hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-brand-500/30 dark:bg-brand-500/10 dark:text-brand-300"
+                            >
+                              <PlusCircle className="size-4" /> Add Question
+                            </button>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             ) : isRejectionTab ? (
@@ -932,13 +1138,13 @@ export default function InterviewCompanySettingsPage() {
             ) : isApplicantPagesTab ? (
               <ApplicantPagesSettings
                 companyId={selectedCompanyId}
-                hideCompanySelector
+                hideCompanySelector={true}
                 embedded
               />
             ) : isContractsTab ? (
-              <ContractsTab companyId={selectedCompanyId!} embedded />
+              <ContractsTab companyId={selectedCompanyId!} hideCompanySelector={true} embedded />
             ) : isOffersTab ? (
-              <JobOffersTab companyId={selectedCompanyId!} embedded />
+              <JobOffersTab companyId={selectedCompanyId!} hideCompanySelector={true} embedded />
             ) : null}
           </div>
         </div>

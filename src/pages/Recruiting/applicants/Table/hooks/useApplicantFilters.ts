@@ -1,7 +1,8 @@
 // hooks/useApplicantFilters.ts
 import { useMemo, useCallback } from 'react';
-import { sortApplicantsByDuplicatePriority } from '../../../../../utils/applicantDuplicateSort';
+import { sortApplicantsByDuplicatePriority, buildApplicantDuplicateLookup } from '../../../../../utils/applicantDuplicateSort';
 import { applyCustomFilters, getApplicantCompanyId } from '../utils/filterHelpers';
+import { normalizeGender } from '../utils/filterHelpers';
 
 interface UseApplicantFiltersProps {
   applicants: any[];
@@ -28,6 +29,7 @@ export function useApplicantFilters({
   effectiveOnlyStatus,
   effectiveOnlyJobPositions,
   selectedCompanyFilterValue,
+  companyFilterExclude = false,
   excludeColumns = [],
   jobPositionMap,
   fieldToJobIds,
@@ -42,37 +44,23 @@ export function useApplicantFilters({
     return normalizeStatus(status) === 'trashed';
   }, [normalizeStatus]);
 
-  // Get selected company from column filters
-  const selectedCompanyIds = useMemo((): string[] | null => {
-    if (selectedCompanyFilterValue) {
-      if (Array.isArray(selectedCompanyFilterValue)) {
-        return selectedCompanyFilterValue;
-      }
-      if (typeof selectedCompanyFilterValue === 'string') {
-        return [selectedCompanyFilterValue];
-      }
-      return null;
-    }
-    const companyFilter = columnFilters.find((f: any) => f.id === 'companyId');
-    if (!companyFilter?.value) return null;
-    const companyIds = Array.isArray(companyFilter.value) 
-      ? companyFilter.value 
-      : [companyFilter.value];
-    return companyIds;
-  }, [selectedCompanyFilterValue, columnFilters]);
-
-  // Determine dataset to pass to MRT
-  const displayedApplicants = useMemo(() => {
-    let filtered = applicants || [];
+  // Helper function to apply column filters
+  const applyColumnFilters = useCallback((data: any[]) => {
+    let filtered = [...data];
     
-    // Apply company filter with exclude mode support
     const companyFilter = columnFilters.find((f: any) => f.id === 'companyId');
     const companyFilterValue = companyFilter?.value;
-    const companyExcludeMode = companyFilterValue !== undefined && excludeColumns.includes('companyId');
+    const companyExcludeMode = excludeColumns.includes('companyId');
 
-    let companyIds: string[] | null = selectedCompanyIds;
-    if (!companyIds && companyFilterValue) {
+    let companyIds: string[] | null = null;
+    if (companyFilterValue) {
       companyIds = Array.isArray(companyFilterValue) ? companyFilterValue : [companyFilterValue];
+    } else if (selectedCompanyFilterValue) {
+      if (Array.isArray(selectedCompanyFilterValue)) {
+        companyIds = selectedCompanyFilterValue;
+      } else if (typeof selectedCompanyFilterValue === 'string') {
+        companyIds = [selectedCompanyFilterValue];
+      }
     }
 
     if (companyIds && companyIds.length > 0) {
@@ -86,8 +74,8 @@ export function useApplicantFilters({
     // Apply job position filter with exclude mode support
     const jobFilter = columnFilters.find((f: any) => f.id === 'jobPositionId');
     const jobFilterValue = jobFilter?.value;
-    const jobExcludeMode = jobFilterValue !== undefined && excludeColumns.includes('jobPositionId');
-    
+    const jobExcludeMode = excludeColumns.includes('jobPositionId');
+
     if (jobFilterValue && (Array.isArray(jobFilterValue) ? jobFilterValue.length > 0 : true)) {
       const selectedJobIds = Array.isArray(jobFilterValue) ? jobFilterValue : [jobFilterValue];
       filtered = filtered.filter((applicant: any) => {
@@ -106,12 +94,11 @@ export function useApplicantFilters({
     // Apply gender filter with exclude mode support
     const genderFilter = columnFilters.find((f: any) => f.id === 'gender');
     const genderFilterValue = genderFilter?.value;
-    const genderExcludeMode = genderFilterValue !== undefined && excludeColumns.includes('gender');
+    const genderExcludeMode = excludeColumns.includes('gender');
     
     if (genderFilterValue && (Array.isArray(genderFilterValue) ? genderFilterValue.length > 0 : true)) {
       const selectedGenders = Array.isArray(genderFilterValue) ? genderFilterValue : [genderFilterValue];
       filtered = filtered.filter((applicant: any) => {
-        const normalizeGender = (v: any) => String(v ?? '').trim().toLowerCase();
         const rawGender = applicant?.gender || applicant?.customResponses?.gender || applicant?.customResponses?.['النوع'] || (applicant as any)['النوع'] || '';
         const normalizedGenderValue = normalizeGender(rawGender);
         const matches = selectedGenders.includes(normalizedGenderValue);
@@ -127,7 +114,6 @@ export function useApplicantFilters({
       if (allowed.length > 0) {
         filtered = filtered.filter((a: any) => allowed.includes(normalizeStatus(a.status)));
       }
-      return filtered;
     }
 
     // Apply job position filter (from props or URL params)
@@ -143,11 +129,11 @@ export function useApplicantFilters({
         return effectiveOnlyJobPositions.includes(applicantJobId);
       });
     }
-    
+
     // Apply status column filter
     const statusFilter = columnFilters.find((f: any) => f.id === 'status');
     const statusVal = statusFilter?.value;
-    const statusExcludeMode = statusVal !== undefined && excludeColumns.includes('status');
+    const statusExcludeMode = excludeColumns.includes('status');
 
     if (isSuperAdmin || canViewTrashed) {
       if (normalizeStatus(statusVal) === 'trashed') {
@@ -156,18 +142,17 @@ export function useApplicantFilters({
       }
       if (Array.isArray(statusVal) && statusVal.length > 0) {
         const allowed = statusVal.map(normalizeStatus).filter(Boolean);
-filtered = filtered.filter((a: any) => allowed.includes(normalizeStatus(a.status)));
-        return filtered;
-      }
-      if (Array.isArray(statusVal) && statusVal.length > 0) {
-        const allowed = statusVal.map(normalizeStatus).filter(Boolean);
         filtered = filtered.filter((a: any) => {
           const matches = allowed.includes(normalizeStatus(a.status));
-          if (statusExcludeMode && isTrashed(a.status)) return false;
+          // In revert mode, exclude trashed status
+          if (statusExcludeMode && isTrashed(a.status)) {
+            return false;
+          }
           return statusExcludeMode ? !matches : matches;
         });
         return filtered;
       }
+      // When no status selected, exclude trashed in both modes
       filtered = filtered.filter((a: any) => !isTrashed(a.status));
       return filtered;
     }
@@ -182,15 +167,24 @@ filtered = filtered.filter((a: any) => allowed.includes(normalizeStatus(a.status
       filtered = filtered.filter((a: any) => {
         const matches = allowed.includes(normalizeStatus(a.status));
         const notTrashed = !isTrashed(a.status);
-        if (statusExcludeMode && isTrashed(a.status)) return false;
+        // In revert mode, exclude trashed status
+        if (statusExcludeMode && isTrashed(a.status)) {
+          return false;
+        }
         return statusExcludeMode ? (!matches && notTrashed) : (matches && notTrashed);
       });
       return filtered;
     }
 
+    // Default: always exclude trashed
     filtered = filtered.filter((a: any) => !isTrashed(a.status));
     return filtered;
-  }, [applicants, columnFilters, isSuperAdmin, effectiveOnlyStatus, effectiveOnlyJobPositions, selectedCompanyIds, jobPositionMap, normalizeStatus, isTrashed, excludeColumns, canViewTrashed]);
+  }, [columnFilters, isSuperAdmin, effectiveOnlyStatus, selectedCompanyFilterValue, jobPositionMap, normalizeStatus, isTrashed]);
+
+  // Get filtered data based on column filters
+  const columnFilteredApplicants = useMemo(() => {
+    return applyColumnFilters(applicants);
+  }, [applicants, columnFilters, isSuperAdmin, effectiveOnlyStatus, effectiveOnlyJobPositions, jobPositionMap, normalizeStatus, canViewTrashed]);
 
   // Check if duplicates only filter is enabled
   const duplicatesOnlyEnabled = useMemo(
@@ -204,21 +198,32 @@ filtered = filtered.filter((a: any) => allowed.includes(normalizeStatus(a.status
 
   // Apply custom filters and duplicates logic
   const filteredApplicants = useMemo(() => {
-    
-    // First apply custom filters
-    let processed = applyCustomFilters(displayedApplicants, customFilters, {
+    // First apply custom filters to column-filtered data
+    let processed = applyCustomFilters(columnFilteredApplicants, customFilters, {
       jobPositionMap,
       fieldToJobIds: fieldToJobIds instanceof Map ? fieldToJobIds : new Map(),
       currentUserId,
     });
 
-
     if (!duplicatesOnlyEnabled) {
       return processed;
     }
 
-    const sortedByDuplicatePriority = sortApplicantsByDuplicatePriority(
+    // If duplicates only is enabled, further filter to show only duplicates
+    const lookup = buildApplicantDuplicateLookup(
       processed as any[],
+      currentUserId,
+      { getCompanyId: (applicant: any) => getApplicantCompanyId(applicant, jobPositionMap) }
+    );
+
+    const duplicatesOnly = processed.filter((applicant: any) => {
+      const id = String(applicant?._id || applicant?.id || '');
+      const meta = lookup.get(id);
+      return meta?.isDuplicate === true;
+    });
+
+    return sortApplicantsByDuplicatePriority(
+      duplicatesOnly as any[],
       currentUserId,
       (a, b) => {
         const nameA = String(a?.fullName || a?.email || '').toLowerCase();
@@ -230,39 +235,64 @@ filtered = filtered.filter((a: any) => allowed.includes(normalizeStatus(a.status
       },
       { getCompanyId: (applicant: any) => getApplicantCompanyId(applicant, jobPositionMap) }
     );
+  }, [columnFilteredApplicants, customFilters, duplicatesOnlyEnabled, currentUserId, jobPositionMap, fieldToJobIds]);
 
-    return sortedByDuplicatePriority;
-  }, [displayedApplicants, customFilters, duplicatesOnlyEnabled, currentUserId, jobPositionMap, fieldToJobIds]);
+  // Get the current company IDs from the filter
+  const currentCompanyIds = useMemo(() => {
+    if (selectedCompanyFilterValue) {
+      if (Array.isArray(selectedCompanyFilterValue)) {
+        return selectedCompanyFilterValue;
+      }
+      if (typeof selectedCompanyFilterValue === 'string') {
+        return [selectedCompanyFilterValue];
+      }
+      return null;
+    }
+    const companyFilter = columnFilters.find((f: any) => f.id === 'companyId');
+    if (!companyFilter?.value) return null;
+    return Array.isArray(companyFilter.value) ? companyFilter.value : [companyFilter.value];
+  }, [selectedCompanyFilterValue, columnFilters]);
+
+  // Applicants filtered only by company (for cascading filter options)
+  const companyFilteredApplicants = useMemo(() => {
+    if (!currentCompanyIds || currentCompanyIds.length === 0) return applicants;
+    return (applicants || []).filter((applicant: any) => {
+      const applicantCompanyId = getApplicantCompanyId(applicant, jobPositionMap);
+      if (!applicantCompanyId) return false;
+      const matches = currentCompanyIds.includes(applicantCompanyId);
+      return companyFilterExclude ? !matches : matches;
+    });
+  }, [applicants, currentCompanyIds, companyFilterExclude, jobPositionMap]);
 
   // Get status filter options
- const statusFilterOptions = useMemo(() => {
-  // Collect original casing from actual data
-  const uniqueStatuses = Array.from(
-    new Map(
-      applicants
-        .map((a: any) => a?.status)
-        .filter(Boolean)
-        .map((s: string) => [s.trim().toLowerCase(), s.trim()] as [string, string])
-    ).values()
-  );
+  const statusFilterOptions = useMemo(() => {
+    const source = companyFilteredApplicants || applicants || [];
+    const uniqueStatuses = Array.from(
+      new Map(
+        source
+          .map((a: any) => a?.status)
+          .filter(Boolean)
+          .map((s: string) => [s.trim().toLowerCase(), s.trim()] as [string, string])
+      ).values()
+    );
 
-  const defaultOrderKeys = ['pending', 'approved', 'interview', 'interviewed', 'rejected', 'trashed'];
-  const inDefault = uniqueStatuses.filter(s => defaultOrderKeys.includes(s.toLowerCase()));
-  const outDefault = uniqueStatuses.filter(s => !defaultOrderKeys.includes(s.toLowerCase()));
+    const defaultOrderKeys = ['pending', 'approved', 'interview', 'interviewed', 'rejected', 'trashed'];
+    const inDefault = uniqueStatuses.filter(s => defaultOrderKeys.includes(s.toLowerCase()));
+    const outDefault = uniqueStatuses.filter(s => !defaultOrderKeys.includes(s.toLowerCase()));
 
-  // Sort default ones by their defined order, then append the rest alphabetically
-  const sorted = [
-    ...defaultOrderKeys
-      .map(key => inDefault.find(s => s.toLowerCase() === key))
-      .filter(Boolean) as string[],
-    ...outDefault.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase())),
-  ];
+    // Sort default ones by their defined order, then append the rest alphabetically
+    const sorted = [
+      ...defaultOrderKeys
+        .map(key => inDefault.find(s => s.toLowerCase() === key))
+        .filter(Boolean) as string[],
+      ...outDefault.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase())),
+    ];
 
-  return sorted.map((status) => ({
-    id: status,  // ← original casing, matches applicant.status exactly
-    title: status.charAt(0).toUpperCase() + status.slice(1),
-  }));
-}, [applicants, isSuperAdmin, canViewTrashed]);
+    return sorted.map((status) => ({
+      id: status,  // ← original casing, matches applicant.status exactly
+      title: status.charAt(0).toUpperCase() + status.slice(1),
+    }));
+  }, [companyFilteredApplicants, applicants, isSuperAdmin, canViewTrashed]);
 
   // Get status color function
   const getStatusColor = useCallback((status: string) => {
@@ -303,10 +333,10 @@ filtered = filtered.filter((a: any) => allowed.includes(normalizeStatus(a.status
   return {
     filteredApplicants,
     duplicatesOnlyEnabled,
-    displayedApplicants,  // IMPORTANT: Return this!
+    columnFilteredApplicants,
     statusFilterOptions,
     getStatusColor,
     getDescription,
-    selectedCompanyFilter: selectedCompanyIds,
+    selectedCompanyFilter: currentCompanyIds,
   };
 }

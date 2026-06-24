@@ -59,9 +59,8 @@ const buildActivities = (applicant: Applicant | null | undefined): ActivityItem[
     items.push({
       ...base,
       type: 'status_change',
-      title: `Application status changed to ${entry.status}`,
+      title: 'Application status changed',
       status: entry.status,
-      reasons: entry.reasons,
     });
   });
 

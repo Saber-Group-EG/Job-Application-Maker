@@ -98,7 +98,6 @@ export type Applicant = {
   expectedSalary?: string;
   phone: string;
   address?: string;
-  birthDate?: string;
   profilePhoto?: string;
   cvFilePath?: string;
   resume?: string;
@@ -125,7 +124,6 @@ export type CreateApplicantRequest = {
   resume?: string;
   source?: string;
   address?: string;
-  birthDate?: string;
   customResponses?: Record<string, any>;
   expectedSalary?: string;
 };
@@ -136,7 +134,6 @@ export type UpdateApplicantRequest = {
   email?: string;
   phone?: string;
   address?: string;
-  birthDate?: string;
   resume?: string;
   customResponses?: Record<string, any>;
 };
@@ -217,7 +214,6 @@ export interface Activity {
   user?: { name: string; avatar?: string };
   comment?: string;
   status?: string;
-  reasons?: string[];
   subject?: string;
   scheduledAt?: string;
   endedAt?: string;
@@ -234,7 +230,6 @@ export interface ActivityItem {
   user?: { name: string; avatar?: string };
   comment?: string;
   status?: string;
-  reasons?: string[];
   messageChannel?: string;
   interviewStatus?: string;
   subject?: string;
@@ -267,7 +262,6 @@ export interface ActivityFeedProps {
   activities?: Activity[];
   mailRecords?: Array<{ createdAt: string; html: string }>;
   interviews?: Interview[];
-  company?: any;
 }
 
 // ─── JobSpec ──────────────────────────────────────────────────────────────────
@@ -322,8 +316,7 @@ export interface PersonalInfoProps {
   onScheduleInterview?: () => void;
   onSendMessage?: () => void;
   onPrint?: () => void;
-  onCreateJobOffer?: () => void;
-  onCreateContract?: () => void;
+  onRestore?: () => void;
 }
 
 export type ApplicantView = Omit<Applicant, 'companyId' | 'jobPositionId'> & {

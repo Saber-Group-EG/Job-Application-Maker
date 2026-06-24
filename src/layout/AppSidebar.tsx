@@ -54,7 +54,7 @@ const AppSidebar: React.FC = () => {
       })
       .map((p: any) => ({
         name: p.name,
-        path: `/applicants/page/${encodeURIComponent(p.name)}?statuses=${(p.statuses || []).map(encodeURIComponent).join(',')}`,
+        path: `/applicants/page/${encodeURIComponent(p.name)}?statuses=${(p.statuses || []).map(encodeURIComponent).join(',')}${(p.jobPositions?.length ? `&jobPositions=${p.jobPositions.map(encodeURIComponent).join(',')}` : '')}`,
         pro: false,
       }));
   }, [companies]);
@@ -120,6 +120,11 @@ const AppSidebar: React.FC = () => {
       name: 'Applicants',
       subItems: [
         { name: 'All Applicants', path: '/applicants', pro: false },
+        {
+          name: 'Blue Caller Applicants',
+          path: '/applicants/blue-caller',
+          pro: false,
+        },
         ...applicantPageSubItems,
       ],
     },
@@ -242,6 +247,8 @@ const AppSidebar: React.FC = () => {
       return subItems.filter((subItem) => {
         if (subItem.path === '/applicants')
           return hasPermission('Applicant Management', 'read');
+        if (subItem.path === '/applicants/blue-caller')
+          return hasPermission('Applicant Management', 'create');
         if (subItem.path === '/applicants/mail-preview')
           return hasPermission('Mail Management', 'read');
         if (subItem.path === '/recruiting')

@@ -38,7 +38,6 @@ export default function PreviousEntriesHistory({
               <th className={TABLE_HEAD_CLASS}>Email</th>
               <th className={TABLE_HEAD_CLASS}>Phone</th>
               <th className={TABLE_HEAD_CLASS}>Status</th>
-              <th className={TABLE_HEAD_CLASS}>Rejected Reasons</th>
               <th className={TABLE_HEAD_CLASS}>Applied Date</th>
               <th className={TABLE_HEAD_CLASS}>Job Position</th>
             </tr>
@@ -96,7 +95,6 @@ export default function PreviousEntriesHistory({
               <th className={TABLE_HEAD_CLASS}>Email</th>
               <th className={TABLE_HEAD_CLASS}>Phone</th>
               <th className={TABLE_HEAD_CLASS}>Status</th>
-              <th className={TABLE_HEAD_CLASS}>Rejected Reasons</th>
               <th className={TABLE_HEAD_CLASS}>Applied Date</th>
               <th className={TABLE_HEAD_CLASS}>Job Position</th>
             </tr>
@@ -112,10 +110,6 @@ export default function PreviousEntriesHistory({
                 typeof prev?.jobPositionId === 'string'
                   ? prev.jobPositionId
                   : toPlainString(prev?.jobPositionId?.title);
-              const rejectReasons = prev?.statusHistory
-                ?.filter((h) => h.status === 'rejected' && h.reasons?.length)
-                .flatMap((h) => h.reasons!)
-                .filter((r, i, a) => a.indexOf(r) === i) ?? [];
 
               return (
                 <tr
@@ -165,22 +159,6 @@ export default function PreviousEntriesHistory({
                     >
                       {status}
                     </span>
-                  </td>
-                  <td className={BODY_CELL_SECONDARY}>
-                    {status === 'rejected' && rejectReasons.length > 0 ? (
-                      <div className="flex flex-wrap gap-1">
-                        {rejectReasons.map((reason, i) => (
-                          <span
-                            key={i}
-                            className="inline-flex items-center rounded-md bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-600 ring-1 ring-inset ring-red-200"
-                          >
-                            {reason}
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <span className="text-gray-300">—</span>
-                    )}
                   </td>
                   <td className={BODY_CELL_SECONDARY}>
                     {appliedDate || <span className="text-gray-300">—</span>}

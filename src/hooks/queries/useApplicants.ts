@@ -165,7 +165,7 @@ function mergeApplicantResponseIntoCache(
 // Get all applicants
 export function useApplicants(params?: {
   companyId?: string[];
-  jobPositionId?: string;
+  jobPositionId?: string | string[];
   departmentId?: string[];
   status?: string | string[];
   fields?: string | string[];
@@ -348,6 +348,31 @@ export function useUpdateApplicantStatus() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateStatusRequest }) =>
       applicantsService.updateApplicantStatus(id, data),
+    onMutate: async ({ id, data }) => {
+      await queryClient.cancelQueries({ queryKey: applicantsKeys.all });
+
+      const previousDetail = queryClient.getQueryData<Applicant>(applicantsKeys.detail(id));
+
+      const previousLists: Record<string, Applicant[] | undefined> = {};
+      const queryCache = queryClient.getQueryCache();
+      const listQueries = queryCache.findAll({ queryKey: applicantsKeys.lists(), type: 'active' });
+      listQueries.forEach((query) => {
+        previousLists[JSON.stringify(query.queryKey)] = query.state.data as Applicant[] | undefined;
+        queryClient.setQueryData(query.queryKey, (old: Applicant[] | undefined) => {
+          if (!old) return old;
+          return old.map((a) => a._id === id ? { ...a, status: data.status } : a);
+        });
+      });
+
+      if (previousDetail) {
+        queryClient.setQueryData(applicantsKeys.detail(id), {
+          ...previousDetail,
+          status: data.status,
+        });
+      }
+
+      return { previousDetail, previousLists };
+    },
     onSuccess: (updatedApplicant, { id }) => {
       const looksLikeApplicant =
         updatedApplicant &&
@@ -361,20 +386,21 @@ export function useUpdateApplicantStatus() {
 
       if (looksLikeApplicant) {
         queryClient.setQueryData(applicantsKeys.detail(id), updatedApplicant);
-        queryClient.setQueryData<Applicant[]>(applicantsKeys.list(), (old) => {
-          if (!old) return [updatedApplicant as Applicant];
-          return old.map((applicant) =>
-            applicant._id === id ? (updatedApplicant as Applicant) : applicant
-          );
-        });
-      } else {
-        queryClient.invalidateQueries({ queryKey: applicantsKeys.detail(id) });
-        queryClient.invalidateQueries({ queryKey: applicantsKeys.lists() });
       }
 
       showSuccessToast("Status updated successfully");
     },
-    onError: (error: ApiError) => {
+    onError: (error: ApiError, { id }, context) => {
+      if (context?.previousDetail) {
+        queryClient.setQueryData(applicantsKeys.detail(id), context.previousDetail);
+      }
+      if (context?.previousLists) {
+        Object.entries(context.previousLists).forEach(([key, data]) => {
+          if (data !== undefined) {
+            queryClient.setQueryData(JSON.parse(key), data);
+          }
+        });
+      }
       showErrorToast(error.message, "Failed to update status");
     },
   });
@@ -559,10 +585,10 @@ export function useRejectionInsights(params?: { companyId?: string[]; enabled?: 
 }
 
 // Get applicants by phone number
-export function useApplicantsByPhone(phone?: string, options?: { enabled?: boolean; companyId?: string; mail?: string }) {
+export function useApplicantsByPhone(phone?: string, options?: { enabled?: boolean; companyId?: string }) {
   return useQuery({
     queryKey: applicantsKeys.byPhone(phone || ''),
-    queryFn: () => applicantsService.getApplicantsByPhone(phone || '', options?.companyId, options?.mail),
+    queryFn: () => applicantsService.getApplicantsByPhone(phone || '', options?.companyId),
     staleTime: 2 * 60 * 1000,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
