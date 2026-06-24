@@ -62,7 +62,7 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
     };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+    <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden mb-19">
       <div className="p-5">
         <div className="flex flex-col items-center text-center mb-5 mt-8">
           {data.profilePhoto ? (
