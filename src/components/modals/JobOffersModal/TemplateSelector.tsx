@@ -15,7 +15,7 @@ export function TemplateSelector({
   const { data: templatesData, isLoading } = useJobOfferTemplates(companyId);
   const templates = templatesData?.data ?? [];
 
-  if (templates.length === 0 && !isLoading) return null;
+  if (isLoading || templates.length === 0) return null;
 
   return (
     <div className="rounded-xl border border-brand-200 bg-brand-50/60 p-3 dark:border-brand-500/20 dark:bg-brand-500/5">

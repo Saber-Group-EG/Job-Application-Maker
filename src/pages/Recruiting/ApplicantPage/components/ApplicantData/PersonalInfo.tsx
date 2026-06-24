@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CalenderIcon, ChatIcon, PrintIcon } from '../../../../../icons';
+import { CalenderIcon, ChatIcon, PrintIcon, DocsIcon, FileIcon } from '../../../../../icons';
 import type { Applicant, ApplicantView, PersonalInfoProps } from '../../../../../types/applicants';
 import { toPlainString } from '../../../../../utils/strings';
 
@@ -36,6 +36,8 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
   onScheduleInterview,
   onSendMessage,
   onPrint,
+  onCreateJobOffer,
+  onCreateContract,
 }) => {
   const [photoPreviewOpen, setPhotoPreviewOpen] = useState(false);
 
@@ -148,6 +150,24 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
               className="flex items-center justify-center w-8 h-8 rounded-full bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors"
             >
               <PrintIcon className="w-4 h-4" />
+            </button>
+
+            <button
+              type="button"
+              title="Create Job Offer"
+              onClick={onCreateJobOffer}
+              className="flex items-center justify-center w-8 h-8 rounded-full bg-green-50 text-green-600 hover:bg-green-100 transition-colors"
+            >
+              <DocsIcon className="w-4 h-4" />
+            </button>
+
+            <button
+              type="button"
+              title="Create Contract"
+              onClick={onCreateContract}
+              className="flex items-center justify-center w-8 h-8 rounded-full bg-cyan-50 text-cyan-600 hover:bg-cyan-100 transition-colors"
+            >
+              <FileIcon className="w-4 h-4" />
             </button>
           </div>
          </div>

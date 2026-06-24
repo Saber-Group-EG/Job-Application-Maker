@@ -37,6 +37,8 @@ import CommentModal from '../../../components/modals/commentmodal';
 import MessageModal from '../../../components/modals/MessageModal';
 import InterviewSettingsModal from '../../../components/modals/InterviewSettingsModal';
 import InterviewScheduleModal from '../../../components/modals/InterviewScheduleModal';
+import JobOfferModal from '../../../components/modals/JobOffersModal/JobOffersModal';
+import JobContractModal from '../../../components/modals/ContractModal/ContractModal';
 import { Modal } from '../../../components/ui/modal';
 import { paths } from '../../../router/Paths';
 import { getErrorMessage } from '../../../utils/errorHandler';
@@ -200,7 +202,7 @@ const StickyTopBar: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 
   return (
     <div ref={placeholderRef}>
-      <div ref={barRef} className="bg-gray-50/95 backdrop-blur-sm border-b border-gray-200">
+      <div ref={barRef} className="bg-gray-50/95 backdrop-blur-sm">
         {children}
       </div>
     </div>
@@ -255,11 +257,11 @@ const Stickysidebar: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       const availableHeight = windowHeight - TOP_OFFSET - 8;
 
       sidebar.style.position = 'fixed';
-      sidebar.style.top = `${TOP_OFFSET + 50}px`;
+      sidebar.style.top = `${TOP_OFFSET + 95}px`;
       sidebar.style.left = `${left}px`;
       sidebar.style.width = `${width}px`;
       sidebar.style.overflowY = 'auto';
-      sidebar.style.maxHeight = `${availableHeight - 50}px`;
+      sidebar.style.maxHeight = `${availableHeight - 80}px`;
       sidebar.style.zIndex = '20';
       placeholder.style.minHeight = `${sidebar.scrollHeight}px`;
     };
@@ -484,6 +486,8 @@ const ApplicantDetails: React.FC = () => {
   const [interviewEmailSubject, setInterviewEmailSubject] = useState('Interview Invitation');
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
+  const [showJobOfferModal, setShowJobOfferModal] = useState(false);
+  const [showContractModal, setShowContractModal] = useState(false);
 
   useEffect(() => {
     if (showStatusModal && applicant) {
@@ -891,6 +895,8 @@ const ApplicantDetails: React.FC = () => {
         onScheduleInterview={() => setShowScheduleModal(true)}
         onSendMessage={() => setShowMessageModal(true)}
         onPrint={handlePrint}
+        onCreateJobOffer={() => setShowJobOfferModal(true)}
+        onCreateContract={() => setShowContractModal(true)}
       />
     </Stickysidebar>
   );
@@ -927,6 +933,8 @@ const ApplicantDetails: React.FC = () => {
                 onScheduleInterview={() => setShowScheduleModal(true)}
                 onSendMessage={() => setShowMessageModal(true)}
                 onPrint={handlePrint}
+                onCreateJobOffer={() => setShowJobOfferModal(true)}
+                onCreateContract={() => setShowContractModal(true)}
               />
             </Stickysidebar>
             <div className="flex-1 min-w-0 space-y-6">
@@ -1040,6 +1048,22 @@ const ApplicantDetails: React.FC = () => {
         onClose={() => { setShowInterviewSettingsModal(false); setSelectedInterview(null); }}
         applicant={applicant} selectedInterview={selectedInterview} setSelectedInterview={setSelectedInterview}
         setShowInterviewSettingsModal={setShowInterviewSettingsModal} updateInterviewMutation={updateInterviewStatusMutation}
+      />
+      <JobOfferModal
+        isOpen={showJobOfferModal}
+        onClose={() => setShowJobOfferModal(false)}
+        mode="offer"
+        companyId={applicantCompanyId || jobPosCompanyId || ''}
+        applicantId={id || null}
+        jobPositionId={applicantJobPositionId || null}
+      />
+      <JobContractModal
+        isOpen={showContractModal}
+        onClose={() => setShowContractModal(false)}
+        mode="contract"
+        companyId={applicantCompanyId || jobPosCompanyId || ''}
+        applicantId={id || null}
+        jobPositionId={applicantJobPositionId || null}
       />
     </div>
   );

@@ -230,6 +230,7 @@ export default function JobOfferModal({
   jobPositionId,
   cloneFrom,
   applicantObjects,
+  companyId: propCompanyId,
 }: JobOfferModalProps) {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -536,10 +537,13 @@ export default function JobOfferModal({
         if (willSendEmail) await sendBulkOfferEmail();
       } else {
         const singleApplicantId = applicantId ?? form.applicantId;
+        const resolvedCompanyId =
+          form.selectedApplicantObject?.jobPositionId?.companyId._id
+          ?? (typeof propCompanyId === 'string' ? propCompanyId : propCompanyId?.[0])
+          ?? '';
         await createMutation.mutateAsync({
           ...base,
-          companyId:
-            form.selectedApplicantObject?.jobPositionId?.companyId._id!,
+          companyId: resolvedCompanyId,
           ...(mode === 'offer' && singleApplicantId
             ? { applicantId: singleApplicantId }
             : {}),
