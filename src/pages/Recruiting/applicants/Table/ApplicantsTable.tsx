@@ -41,7 +41,7 @@ import { useBulkActions } from './hooks/useBulkActions';
 import { useApplicantFilters } from './hooks/useApplicantFilters';
 
 // Utils
-import { exportToExcel, showExportNotification } from './utils/exportHelpers';
+import { exportToExcel } from './utils/exportHelpers';
 import { normalizeGender, getApplicantCompanyId, toggleExcludeColumn } from './utils/filterHelpers';
 import { getPreviousStatus, isTrashed } from '../../../../pages/Recruiting/ApplicantPage/utils/statusUtils';
 
@@ -2315,7 +2315,6 @@ const jobOptions = useMemo(() => {
           false,
           t('gender', 'applicants')
         ),
-        ),
         filterFn: (row: any, columnId: string, filterValue: any) => {
           if (!filterValue) return true;
           const vals = Array.isArray(filterValue) ? filterValue : [filterValue];
@@ -2360,7 +2359,6 @@ const jobOptions = useMemo(() => {
                 companyOptions.map((o) => ({ label: o.title, value: o.id })),
                 false,
                 t('company', 'applicants')
-              ),
               ),
               filterFn: (row: any, columnId: string, filterValue: any) => {
                 if (!filterValue) return true;
@@ -2407,7 +2405,6 @@ const jobOptions = useMemo(() => {
           false,
           isLaptopViewport ? t('job', 'applicants') : t('jobPosition', 'applicants'),
           'companyId'
-        ),
         ),
         filterFn: (row: any, columnId: string, filterValue: any) => {
           if (!filterValue) return true;

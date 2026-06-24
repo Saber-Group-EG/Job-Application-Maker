@@ -192,34 +192,6 @@ function SortablePageItem({
 
       {!isCollapsed && (
         <div className="border-t border-slate-200 p-4 dark:border-slate-700">
-          <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-            {t('applicantPages.statusesIncluded', 'settings')}
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {availableStatuses.map((statusName) => {
-              const selected = page.statuses.includes(statusName);
-              return (
-                <button
-                  key={statusName}
-                  type="button"
-                  onClick={() => canEdit && onToggleStatus(statusName)}
-                  disabled={!canEdit}
-                  className={`rounded-full px-3 py-1 text-sm font-medium transition ${
-                    selected
-                      ? 'bg-brand-500 text-white'
-                      : 'border border-slate-300 bg-white text-slate-600 hover:border-brand-300 hover:text-brand-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
-                  } disabled:cursor-not-allowed disabled:opacity-60`}
-                >
-                  {statusName}
-                </button>
-              );
-            })}
-          </div>
-          {page.statuses.length > 0 && (
-            <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-              {t('applicantPages.statusCountSelected', 'settings', { count: page.statuses.length, list: page.statuses.join(', ') })}
-            </p>
-          )}
           {(availableJobPositions.length > 0 || jobsLoading) && (
             <>
               <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -260,57 +232,71 @@ function SortablePageItem({
             </>
           )}
 
-          {(page.jobPositions ?? []).length > 0 && (
-            <>
-              <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Statuses included in this page
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {(() => {
-                  const selectedJobIds = page.jobPositions ?? [];
-                  const allowedStatusIds = selectedJobIds.length > 0
-                    ? new Set(
-                        availableJobPositions
-                          .filter((jp: any) => selectedJobIds.includes(jp._id))
-                          .flatMap((jp: any) => jp.allowedStatuses ?? [])
-                      )
-                    : null;
-                  const allowedNames = allowedStatusIds
-                    ? new Set(
-                        [...allowedStatusIds]
-                          .map((id) => statusById[id])
-                          .filter(Boolean)
-                      )
-                    : null;
-                  const useAll = !allowedNames || allowedNames.size === 0 || (allowedNames.size === 1 && allowedNames.has('pending'));
-                  const statusesToShow = useAll ? availableStatuses : availableStatuses.filter((s) => allowedNames!.has(s));
-                  return statusesToShow.map((statusName) => {
-                    const selected = page.statuses.includes(statusName);
-                    return (
-                      <button
-                        key={statusName}
-                        type="button"
-                        onClick={() => canEdit && onToggleStatus(statusName)}
-                        disabled={!canEdit}
-                        className={`rounded-full px-3 py-1 text-sm font-medium transition ${
-                          selected
-                            ? 'bg-brand-500 text-white'
-                            : 'border border-slate-300 bg-white text-slate-600 hover:border-brand-300 hover:text-brand-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
-                        } disabled:cursor-not-allowed disabled:opacity-60`}
-                      >
-                        {statusName}
-                      </button>
-                    );
-                  });
-                })()}
-              </div>
-              {page.statuses.length > 0 && (
-                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                  {page.statuses.length} status{page.statuses.length > 1 ? 'es' : ''} selected: {' '}
-                  {page.statuses.join(', ')}
-                </p>
-              )}
-            </>
+          <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+            {t('applicantPages.statusesIncluded', 'settings')}
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {(() => {
+              const selectedJobIds = page.jobPositions ?? [];
+              const hasJobsSelected = selectedJobIds.length > 0;
+              if (!hasJobsSelected) {
+                return availableStatuses.map((statusName) => {
+                  const selected = page.statuses.includes(statusName);
+                  return (
+                    <button
+                      key={statusName}
+                      type="button"
+                      onClick={() => canEdit && onToggleStatus(statusName)}
+                      disabled={!canEdit}
+                      className={`rounded-full px-3 py-1 text-sm font-medium transition ${
+                        selected
+                          ? 'bg-brand-500 text-white'
+                          : 'border border-slate-300 bg-white text-slate-600 hover:border-brand-300 hover:text-brand-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
+                      } disabled:cursor-not-allowed disabled:opacity-60`}
+                    >
+                      {statusName}
+                    </button>
+                  );
+                });
+              }
+              const allowedStatusIds = new Set(
+                availableJobPositions
+                  .filter((jp: any) => selectedJobIds.includes(jp._id))
+                  .flatMap((jp: any) => jp.allowedStatuses ?? [])
+              );
+              const allowedNames = allowedStatusIds.size > 0
+                ? new Set(
+                    [...allowedStatusIds]
+                      .map((id) => statusById[id])
+                      .filter(Boolean)
+                  )
+                : null;
+              const useAll = !allowedNames || allowedNames.size === 0 || (allowedNames.size === 1 && allowedNames.has('pending'));
+              const statusesToShow = useAll ? availableStatuses : availableStatuses.filter((s) => allowedNames!.has(s));
+              return statusesToShow.map((statusName) => {
+                const selected = page.statuses.includes(statusName);
+                return (
+                  <button
+                    key={statusName}
+                    type="button"
+                    onClick={() => canEdit && onToggleStatus(statusName)}
+                    disabled={!canEdit}
+                    className={`rounded-full px-3 py-1 text-sm font-medium transition ${
+                      selected
+                        ? 'bg-brand-500 text-white'
+                        : 'border border-slate-300 bg-white text-slate-600 hover:border-brand-300 hover:text-brand-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
+                    } disabled:cursor-not-allowed disabled:opacity-60`}
+                  >
+                    {statusName}
+                  </button>
+                );
+              });
+            })()}
+          </div>
+          {page.statuses.length > 0 && (
+            <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+              {t('applicantPages.statusCountSelected', 'settings', { count: page.statuses.length, list: page.statuses.join(', ') })}
+            </p>
           )}
         </div>
       )}
