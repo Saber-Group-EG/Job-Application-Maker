@@ -12,8 +12,7 @@ export const CustomResponsesView: React.FC<CustomResponsesViewProps> = ({
   handlers,
 }) => {
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-100 relative z-[100]">
-
+<div className="bg-white rounded-lg shadow-sm border border-gray-100 relative z-[100] ">
 
       <div className="flex flex-col">
         {sections.map((section) => {

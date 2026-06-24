@@ -58,6 +58,7 @@ function SortablePageItem({
   onRemove,
   availableStatuses,
   availableJobPositions,
+  statusById,
   canEdit,
   jobsLoading,
 }: {
@@ -72,9 +73,13 @@ function SortablePageItem({
   onRemove: () => void;
   availableStatuses: string[];
   availableJobPositions: any[];
+  statusById: Record<string, string>;
   canEdit: boolean;
   jobsLoading?: boolean;
 }) {
+  const [editingName, setEditingName] = useState(false);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
   const {
     attributes,
     listeners,
@@ -100,6 +105,23 @@ function SortablePageItem({
         className="h-7 w-20 animate-pulse rounded-full bg-slate-200 dark:bg-slate-700"
       />
     ));
+
+  useEffect(() => {
+    if (editingName && nameInputRef.current) {
+      nameInputRef.current.focus();
+      nameInputRef.current.select();
+    }
+  }, [editingName]);
+
+  const finishEditing = useCallback(() => {
+    setEditingName(false);
+  }, []);
+
+  const handleNameKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      finishEditing();
+    }
+  }, [finishEditing]);
 
   return (
     <div
@@ -134,13 +156,26 @@ function SortablePageItem({
           <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
             {t('applicantPages.pageName', 'settings')}
           </label>
-          <input
-            value={page.name}
-            onChange={(e) => onNameChange(e.target.value)}
-            disabled={!canEdit}
-            placeholder={t('applicantPages.pageNamePlaceholder', 'settings')}
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900"
-          />
+          {editingName ? (
+            <input
+              ref={nameInputRef}
+              value={page.name}
+              onChange={(e) => onNameChange(e.target.value)}
+              onBlur={finishEditing}
+              onKeyDown={handleNameKeyDown}
+              placeholder={t('applicantPages.pageNamePlaceholder', 'settings')}
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-900"
+            />
+          ) : (
+            <div
+              onDoubleClick={() => canEdit && setEditingName(true)}
+              className={`w-full rounded-lg border border-transparent px-3 py-2 text-sm ${
+                canEdit ? 'cursor-default hover:border-slate-300 hover:bg-white dark:hover:border-slate-700 dark:hover:bg-slate-900' : 'cursor-not-allowed opacity-70'
+              } ${!page.name ? 'text-slate-400' : ''}`}
+            >
+              {page.name || t('applicantPages.doubleClickHint', 'settings')}
+            </div>
+          )}
         </div>
         <span className="shrink-0 text-xs text-slate-400">
           {t('applicantPages.statusCount', 'settings', { count: page.statuses.length })}
@@ -149,9 +184,9 @@ function SortablePageItem({
           type="button"
           onClick={onRemove}
           disabled={!canEdit}
-          className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300"
+          className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300 lg:gap-2 lg:px-3 lg:py-2 lg:text-sm"
         >
-            <Trash2 className="size-4" /> {t('applicantPages.remove', 'settings')}
+            <Trash2 className="size-3.5 lg:size-4" /> {t('applicantPages.remove', 'settings')}
         </button>
       </div>
 
@@ -185,10 +220,8 @@ function SortablePageItem({
               {t('applicantPages.statusCountSelected', 'settings', { count: page.statuses.length, list: page.statuses.join(', ') })}
             </p>
           )}
-
           {(availableJobPositions.length > 0 || jobsLoading) && (
             <>
-              <div className="my-3 border-t border-dashed border-slate-200 dark:border-slate-700" />
               <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
                 {t('applicantPages.jobPositionsIncluded', 'settings')}
               </label>
@@ -221,6 +254,60 @@ function SortablePageItem({
               {!jobsLoading && (page.jobPositions ?? []).length > 0 && (
                 <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
                   {t('applicantPages.jobPositionsCount', 'settings', { count: (page.jobPositions ?? []).length })}
+                </p>
+              )}
+              <div className="my-3 border-t border-dashed border-slate-200 dark:border-slate-700" />
+            </>
+          )}
+
+          {(page.jobPositions ?? []).length > 0 && (
+            <>
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Statuses included in this page
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {(() => {
+                  const selectedJobIds = page.jobPositions ?? [];
+                  const allowedStatusIds = selectedJobIds.length > 0
+                    ? new Set(
+                        availableJobPositions
+                          .filter((jp: any) => selectedJobIds.includes(jp._id))
+                          .flatMap((jp: any) => jp.allowedStatuses ?? [])
+                      )
+                    : null;
+                  const allowedNames = allowedStatusIds
+                    ? new Set(
+                        [...allowedStatusIds]
+                          .map((id) => statusById[id])
+                          .filter(Boolean)
+                      )
+                    : null;
+                  const useAll = !allowedNames || allowedNames.size === 0 || (allowedNames.size === 1 && allowedNames.has('pending'));
+                  const statusesToShow = useAll ? availableStatuses : availableStatuses.filter((s) => allowedNames!.has(s));
+                  return statusesToShow.map((statusName) => {
+                    const selected = page.statuses.includes(statusName);
+                    return (
+                      <button
+                        key={statusName}
+                        type="button"
+                        onClick={() => canEdit && onToggleStatus(statusName)}
+                        disabled={!canEdit}
+                        className={`rounded-full px-3 py-1 text-sm font-medium transition ${
+                          selected
+                            ? 'bg-brand-500 text-white'
+                            : 'border border-slate-300 bg-white text-slate-600 hover:border-brand-300 hover:text-brand-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
+                        } disabled:cursor-not-allowed disabled:opacity-60`}
+                      >
+                        {statusName}
+                      </button>
+                    );
+                  });
+                })()}
+              </div>
+              {page.statuses.length > 0 && (
+                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                  {page.statuses.length} status{page.statuses.length > 1 ? 'es' : ''} selected: {' '}
+                  {page.statuses.join(', ')}
                 </p>
               )}
             </>
@@ -305,6 +392,18 @@ export default function ApplicantPagesSettings({
       : [];
   }, [selectedCompany]);
 
+  // Map status _id → status name for resolving allowedStatuses on job positions
+  const statusById: Record<string, string> = useMemo(() => {
+    const raw = selectedCompany?.settings?.statuses ?? [];
+    const map: Record<string, string> = {};
+    if (Array.isArray(raw)) {
+      raw.forEach((s: any) => {
+        if (s._id && s.name) map[s._id] = s.name;
+      });
+    }
+    return map;
+  }, [selectedCompany]);
+
   // Available job positions from API
   const { data: jobPositions = [], isFetching: jobsFetching } = useJobPositions(
     selectedCompanyId ? [selectedCompanyId] : undefined,
@@ -330,10 +429,11 @@ export default function ApplicantPagesSettings({
           jobPositions: Array.isArray(p.jobPositions) ? p.jobPositions : [],
         }))
       : [];
+    const initialIds = normalized.map(() => makeId());
     setPages(normalized);
-    setPageIds(normalized.map(() => makeId()));
+    setPageIds(initialIds);
     setOriginalJson(JSON.stringify(normalized));
-    setCollapsedPages(new Set());
+    setCollapsedPages(new Set(initialIds));
   }, [selectedCompanyId]);
 
   const syncPagesToCache = useCallback((updatedPages: ApplicantPage[]) => {
@@ -552,26 +652,26 @@ export default function ApplicantPagesSettings({
                 </p>
               </div>
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-row gap-3">
               <button
                 onClick={addPage}
                 disabled={!canEdit}
-                className="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-4 py-1.5 text-xs font-semibold text-slate-700 whitespace-nowrap transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <PlusCircle className="size-4" /> {t('applicantPages.addPage', 'settings')}
               </button>
               <button
                 onClick={handleSave}
                 disabled={!canEdit || !hasChanges || isSaving}
-                className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isSaving ? (
-                  <div className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                  <div className="size-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
                 ) : (
-                  <Save className="size-4" />
+                  <Save className="size-3.5" />
                 )}
                 {t('applicantPages.saveChanges', 'settings')}
-                <ArrowRight className="size-4" />
+                <ArrowRight className="size-3.5" />
               </button>
             </div>
           </div>
@@ -618,6 +718,7 @@ export default function ApplicantPagesSettings({
                           onRemove={() => removePage(index)}
                           availableStatuses={availableStatuses}
                           availableJobPositions={jobPositions}
+                          statusById={statusById}
                           canEdit={canEdit}
                           jobsLoading={jobsFetching}
                         />

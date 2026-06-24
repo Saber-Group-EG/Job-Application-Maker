@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { CalenderIcon, ChatIcon, DownloadIcon } from '../../../../../icons';
+import { CalenderIcon, ChatIcon, PrintIcon, DocsIcon, FileIcon } from '../../../../../icons';
 import type { Applicant, ApplicantView, PersonalInfoProps } from '../../../../../types/applicants';
 import { toPlainString } from '../../../../../utils/strings';
-import { getPreviousStatus, isTrashed } from '../../utils/statusUtils';
 
 const buildResumeUrl = (raw?: string): string | null => {
   if (!raw) return null;
@@ -37,6 +36,8 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
   onScheduleInterview,
   onSendMessage,
   onPrint,
+  onCreateJobOffer,
+  onCreateContract,
   onRestore,
 }) => {
   const [photoPreviewOpen, setPhotoPreviewOpen] = useState(false);
@@ -62,7 +63,7 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
     };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+    <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden mb-19">
       <div className="p-5">
         <div className="flex flex-col items-center text-center mb-5 mt-8">
           {data.profilePhoto ? (
@@ -149,14 +150,32 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
               onClick={onPrint}
               className="flex items-center justify-center w-8 h-8 rounded-full bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors"
             >
-              <DownloadIcon className="w-4 h-4" />
+              <PrintIcon className="w-4 h-4" />
+            </button>
+
+            <button
+              type="button"
+              title="Create Job Offer"
+              onClick={onCreateJobOffer}
+              className="flex items-center justify-center w-8 h-8 rounded-full bg-green-50 text-green-600 hover:bg-green-100 transition-colors"
+            >
+              <DocsIcon className="w-4 h-4" />
+            </button>
+
+            <button
+              type="button"
+              title="Create Contract"
+              onClick={onCreateContract}
+              className="flex items-center justify-center w-8 h-8 rounded-full bg-cyan-50 text-cyan-600 hover:bg-cyan-100 transition-colors"
+            >
+              <FileIcon className="w-4 h-4" />
             </button>
           </div>
          </div>
 
         <div className="flex justify-between items-center mb-3">
           <span className="text-sm font-semibold text-gray-800">Details</span>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <button
               type="button"
               onClick={onChangeStatus}
@@ -164,12 +183,11 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
             >
               {data.status || 'Status'}
             </button>
-            {isTrashed(applicant) && onRestore && (
+            {data.status === 'trashed' && onRestore && (
               <button
                 type="button"
                 onClick={onRestore}
                 className="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-700 hover:bg-green-200 transition-colors"
-                title={`Restore to ${getPreviousStatus(applicant)}`}
               >
                 Restore
               </button>
@@ -215,6 +233,19 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
               >
                 {data.email || '-'}
               </a>
+            )}
+          </div>
+          <div>
+            <div className="text-sm font-semibold text-gray-800 -mb-1">Date of Birth</div>
+            {isEditing ? (
+              <input
+                type="date"
+                value={data.birthDate ? data.birthDate.split('T')[0] : ''}
+                onChange={handleField('birthDate')}
+                className="w-full text-sm border-b border-gray-200 focus:border-blue-400 focus:outline-none"
+              />
+            ) : (
+              <div className="text-sm text-gray-600">{formatDate(data.birthDate)}</div>
             )}
           </div>
 
@@ -282,7 +313,7 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
                     window.open(resumeUrl, '_blank', 'noopener');
                   }
                 }}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white text-sm font-medium rounded-lg transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors"
               >
                 <svg
                   className="w-4 h-4"

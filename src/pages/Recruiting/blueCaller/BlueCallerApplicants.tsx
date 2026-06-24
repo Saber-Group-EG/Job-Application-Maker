@@ -225,7 +225,6 @@ export default function BlueCallerApplicants() {
 
   const handleCompanyChange = (companyId: string) => {
     setSelectedCompanyId(companyId);
-    setActiveTab('manual');
   };
 
   return (

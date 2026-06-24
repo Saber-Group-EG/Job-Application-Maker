@@ -98,6 +98,7 @@ export type Applicant = {
   expectedSalary?: string;
   phone: string;
   address?: string;
+  birthDate?: string;
   profilePhoto?: string;
   cvFilePath?: string;
   resume?: string;
@@ -219,6 +220,7 @@ export interface Activity {
   endedAt?: string;
   conductedBy?: string;
   interviewStatus?: string;
+  reasons?: string[];
 }
 
 export interface ActivityItem {
@@ -236,6 +238,7 @@ export interface ActivityItem {
   scheduledAt?: string;
   endedAt?: string;
   conductedBy?: string;
+  reasons?: string[];
 }
 
 export type ActivityLike = Partial<Comment & StatusHistory & Message & Interview> & {
@@ -262,6 +265,7 @@ export interface ActivityFeedProps {
   activities?: Activity[];
   mailRecords?: Array<{ createdAt: string; html: string }>;
   interviews?: Interview[];
+  company?: any;
 }
 
 // ─── JobSpec ──────────────────────────────────────────────────────────────────
@@ -317,6 +321,8 @@ export interface PersonalInfoProps {
   onSendMessage?: () => void;
   onPrint?: () => void;
   onRestore?: () => void;
+  onCreateJobOffer?: () => void;
+  onCreateContract?: () => void;
 }
 
 export type ApplicantView = Omit<Applicant, 'companyId' | 'jobPositionId'> & {
