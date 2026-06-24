@@ -339,6 +339,7 @@ const buildCustomResponseSections = (
 
     if (groupArray.length > 0 || isGroupField || looksLikeGroupValue) {
       const entries = groupArray.length > 0 ? groupArray : [{}];
+      const entryCount = entries.length;
       const META_KEYS = new Set(['type', 'inputType', 'questionType', 'kind', 'fieldType']);
       entries.forEach((item, index) => {
         const groupId = `${key}_${index}`;
@@ -387,12 +388,14 @@ const buildCustomResponseSections = (
           });
         }
         if (subQuestions.length === 0) return;
+        const suffix = entryCount > 1 ? ` #${index + 1}` : '';
+        const entryLabel = entryCount > 1 ? `${index + 1}` : '';
         questions.push({
           id: groupId,
           type: 'group',
-          text: `Entry ${index + 1}`,
+          text: entryLabel,
           groupId,
-          groupName: `${groupLabel} #${index + 1}`,
+          groupName: `${groupLabel}${suffix}`,
           questions: subQuestions,
         });
       });

@@ -520,6 +520,8 @@ export default function Applicants({
     defaultLayout || APPLICANTS_DEFAULT_LAYOUT
   );
 
+  const updateStatus = useUpdateApplicantStatus();
+
   const effectiveOnlyStatus = useMemo((): string | string[] | undefined => {
     if (onlyStatus && !(Array.isArray(onlyStatus) && onlyStatus.length === 0)) return onlyStatus;
     if (params.status) return params.status;
@@ -2695,7 +2697,6 @@ const jobOptions = useMemo(() => {
           const hasCv = Boolean(resolveCvPath(orig));
           const isTrashedApplicant = isTrashed(orig);
           const previousStatus = getPreviousStatus(orig);
-          const updateStatus = useUpdateApplicantStatus();
           const handleRestore = async (e: React.MouseEvent<HTMLButtonElement>) => {
             e.stopPropagation();
             const result = await Swal.fire({

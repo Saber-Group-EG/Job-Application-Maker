@@ -14,8 +14,10 @@ import {
 
 import { Modal } from '../../../../components/ui/modal';
 import type { Activity, ActivityFeedProps, Interview } from '../../../../types/applicants';
+import { useStatusSettings } from '../../../../hooks/useStatusSettings';
 
-const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, mailRecords = [], interviews = [] }) => {
+const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, mailRecords = [], interviews = [], company }) => {
+  const { getStatus } = useStatusSettings(company);
   const data: Activity[] = Array.isArray(activities) ? activities : [];
   const [isExpanded, setIsExpanded] = useState(true);
   const [previewHtml, setPreviewHtml] = useState('');
@@ -233,18 +235,35 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, mailRecords = [
       
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-2 flex-wrap">
-          <span
-            className="text-sm font-semibold text-gray-800 capitalize"
-            style={(activity.type === 'email' || activity.type === 'message') && activity.description ? { cursor: 'pointer' } : undefined}
-            onClick={() => {
-              if ((activity.type === 'email' || activity.type === 'message') && activity.description) {
-                setPreviewHtml(renderEmailContent(activity));
-                setShowPreview(true);
-              }
-            }}
-          >
-            {getDisplayTitle(activity)}
-          </span>
+          {activity.type === 'status_change' && activity.status ? (
+            <>
+              <span className="text-sm font-semibold text-gray-800">
+                Application status changed to
+              </span>
+              <span
+                className="inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-semibold"
+                style={{
+                  backgroundColor: getStatus(activity.status).color,
+                  color: getStatus(activity.status).textColor,
+                }}
+              >
+                {activity.status}
+              </span>
+            </>
+          ) : (
+            <span
+              className="text-sm font-semibold text-gray-800 capitalize"
+              style={(activity.type === 'email' || activity.type === 'message') && activity.description ? { cursor: 'pointer' } : undefined}
+              onClick={() => {
+                if ((activity.type === 'email' || activity.type === 'message') && activity.description) {
+                  setPreviewHtml(renderEmailContent(activity));
+                  setShowPreview(true);
+                }
+              }}
+            >
+              {getDisplayTitle(activity)}
+            </span>
+          )}
           {activity.type === 'interview' && activity.scheduledAt && (
             <span className="text-xs text-gray-400 ml-1">
               {new Date(activity.scheduledAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
@@ -288,17 +307,26 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, mailRecords = [
       {/* Rest of your content remains the same */}
       {activity.type === 'comment' && activity.comment && (
         <div className="pl-3 border-l-2 border-blue-200">
-          <p className="text-sm text-gray-700 leading-relaxed">
+          <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap break-words">
             {activity.comment}
           </p>
         </div>
       )}
 
       {activity.type === 'status_change' && activity.status && (
-        <div>
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-700 text-xs font-medium rounded-md">
-            {activity.status}
-          </span>
+        <div className="space-y-2">
+          {activity.status === 'rejected' && activity.reasons && activity.reasons.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {activity.reasons.map((reason, i) => (
+                <span
+                  key={i}
+                  className="inline-flex items-center rounded-md bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-600 ring-1 ring-inset ring-red-200"
+                >
+                  {reason}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

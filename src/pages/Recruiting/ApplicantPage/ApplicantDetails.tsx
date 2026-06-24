@@ -1,8 +1,7 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import axiosInstance from '../../../config/axios';
-import { useAuth } from '../../../context/AuthContext';
 import PersonalInfo from './components/ApplicantData/PersonalInfo';
 import ActivityFeed from './components/ActivityFeed';
 import CustomResponses from './components/ApplicantData/CustomResponses';
@@ -37,6 +36,8 @@ import CommentModal from '../../../components/modals/commentmodal';
 import MessageModal from '../../../components/modals/MessageModal';
 import InterviewSettingsModal from '../../../components/modals/InterviewSettingsModal';
 import InterviewScheduleModal from '../../../components/modals/InterviewScheduleModal';
+import JobOfferModal from '../../../components/modals/JobOffersModal/JobOffersModal';
+import JobContractModal from '../../../components/modals/ContractModal/ContractModal';
 import { Modal } from '../../../components/ui/modal';
 import { paths } from '../../../router/Paths';
 import { getErrorMessage } from '../../../utils/errorHandler';
@@ -47,11 +48,9 @@ import {
 } from './utils/customResponseUtils';
 import { buildActivities } from './utils/activityUtils';
 import { buildJobSpecItems } from './utils/jobSpecUtils';
-import { getPreviousStatus } from './utils/statusUtils';
+import { isTrashed, getPreviousStatus } from './utils/statusUtils';
 import type { JobSpecItem } from '../../../types/applicants';
 
-// Resolve a possibly-string-or-object id field (companyId, jobPositionId) into
-// a plain string. Handles arrays by returning the first resolvable id.
 const resolveId = (value: unknown): string | undefined => {
   if (!value) return undefined;
   if (Array.isArray(value)) {
@@ -70,9 +69,6 @@ const resolveId = (value: unknown): string | undefined => {
   return undefined;
 };
 
-// Resolve the sender ("from") email for a company. The modal may have already
-// picked one (customEmail) — use that; otherwise fall back to the company's
-// default mail, contact email, or the first available sender.
 const resolveSenderEmail = (
   company:
     | (Record<string, unknown> & {
@@ -120,7 +116,6 @@ const formatTime12Hour = (value: string): string => {
   return raw;
 };
 
-// Collect every scrollable ancestor so we can listen to all of them
 const getAllScrollParents = (el: HTMLElement | null): Array<HTMLElement | Window> => {
   const parents: Array<HTMLElement | Window> = [];
   let current = el?.parentElement ?? null;
@@ -135,23 +130,33 @@ const getAllScrollParents = (el: HTMLElement | null): Array<HTMLElement | Window
   return parents;
 };
 
-const Stickysidebar: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const placeholderRef = React.useRef<HTMLDivElement>(null);
-  const sidebarRef = React.useRef<HTMLDivElement>(null);
+const StickyTopBar: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const placeholderRef = useRef<HTMLDivElement>(null);
+  const barRef = useRef<HTMLDivElement>(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const placeholder = placeholderRef.current;
-    const sidebar = sidebarRef.current;
-    if (!placeholder || !sidebar) return;
+    const bar = barRef.current;
+    if (!placeholder || !bar) return;
 
-    const TOP_OFFSET = 24;
+    const getTopOffset = (): number => {
+      const header =
+        (document.querySelector('header') as HTMLElement | null) ??
+        (document.querySelector('[class*="AppHeader"]') as HTMLElement | null) ??
+        (document.querySelector('[class*="header"]') as HTMLElement | null) ??
+        (document.querySelector('nav') as HTMLElement | null);
+      const h = header ? header.getBoundingClientRect().bottom : 0;
+      return Math.max(h, 0);
+    };
 
     const resetPosition = () => {
-      sidebar.style.position = '';
-      sidebar.style.top = '';
-      sidebar.style.left = '';
-      sidebar.style.width = '';
-      sidebar.style.zIndex = '';
+      bar.style.position = '';
+      bar.style.top = '';
+      bar.style.left = '';
+      bar.style.width = '';
+      bar.style.zIndex = '';
+      bar.style.paddingTop = '';
+      bar.style.paddingBottom = '';
       placeholder.style.minHeight = '';
     };
 
@@ -161,28 +166,21 @@ const Stickysidebar: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         return;
       }
       if (placeholder.offsetParent === null) return;
-      const rect = placeholder.getBoundingClientRect();
-      const sidebarHeight = sidebar.offsetHeight;
-      const windowHeight = window.innerHeight;
 
+      const TOP_OFFSET = getTopOffset();
+      const rect = placeholder.getBoundingClientRect();
       if (rect.top <= TOP_OFFSET) {
         const width = placeholder.offsetWidth;
         const left = rect.left;
-        const maxTop = windowHeight - sidebarHeight - 16;
-        const top = Math.min(TOP_OFFSET, maxTop);
-        sidebar.style.position = 'fixed';
-        sidebar.style.top = `${top}px`;
-        sidebar.style.left = `${left}px`;
-        sidebar.style.width = `${width}px`;
-        sidebar.style.zIndex = '20';
-        placeholder.style.minHeight = `${sidebarHeight}px`;
+        bar.style.position = 'fixed';
+        bar.style.top = `${TOP_OFFSET}px`;
+        bar.style.left = `${left}px`;
+        bar.style.width = `${width}px`;
+        bar.style.zIndex = '1000';
+        bar.style.paddingTop = '20px';
+        placeholder.style.minHeight = `${bar.scrollHeight}px`;
       } else {
-        sidebar.style.position = '';
-        sidebar.style.top = '';
-        sidebar.style.left = '';
-        sidebar.style.width = '';
-        sidebar.style.zIndex = '';
-        placeholder.style.minHeight = '';
+        resetPosition();
       }
     };
 
@@ -203,8 +201,115 @@ const Stickysidebar: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   }, []);
 
   return (
+    <div ref={placeholderRef}>
+      <div ref={barRef} className="bg-gray-50/95 backdrop-blur-sm">
+        {children}
+      </div>
+    </div>
+  );
+};
+
+const Stickysidebar: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const placeholderRef = React.useRef<HTMLDivElement>(null);
+  const sidebarRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const placeholder = placeholderRef.current;
+    const sidebar = sidebarRef.current;
+    if (!placeholder || !sidebar) return;
+
+    // Measure actual header bottom so sidebar never slides under it
+    const getTopOffset = (): number => {
+      const header =
+        (document.querySelector('header') as HTMLElement | null) ??
+        (document.querySelector('[class*="AppHeader"]') as HTMLElement | null) ??
+        (document.querySelector('[class*="header"]') as HTMLElement | null) ??
+        (document.querySelector('nav') as HTMLElement | null);
+      const h = header ? header.getBoundingClientRect().bottom : 0;
+      return Math.max(h, 0);
+    };
+
+    const resetPosition = () => {
+      sidebar.style.position = '';
+      sidebar.style.top = '';
+      sidebar.style.left = '';
+      sidebar.style.width = '';
+      sidebar.style.overflowY = '';
+      sidebar.style.maxHeight = '';
+      sidebar.style.transform = '';
+      sidebar.style.transformOrigin = '';
+      sidebar.style.zIndex = '';
+      placeholder.style.minHeight = '';
+    };
+
+    const update = () => {
+      if (window.innerWidth < 1024) {
+        resetPosition();
+        return;
+      }
+      if (placeholder.offsetParent === null) return;
+
+      const TOP_OFFSET = getTopOffset();
+      const rect = placeholder.getBoundingClientRect();
+      const windowHeight = window.innerHeight;
+      const width = placeholder.offsetWidth;
+      const left = rect.left;
+      const availableHeight = windowHeight - TOP_OFFSET - 8;
+
+      sidebar.style.position = 'fixed';
+      sidebar.style.top = `${TOP_OFFSET + 95}px`;
+      sidebar.style.left = `${left}px`;
+      sidebar.style.width = `${width}px`;
+      sidebar.style.overflowY = 'auto';
+      sidebar.style.maxHeight = `${availableHeight - 80}px`;
+      sidebar.style.zIndex = '20';
+      placeholder.style.minHeight = `${sidebar.scrollHeight}px`;
+    };
+
+    const scrollParents = getAllScrollParents(placeholder);
+    scrollParents.forEach(p => p.addEventListener('scroll', update, { passive: true }));
+    window.addEventListener('resize', update, { passive: true });
+
+    const ro = new ResizeObserver(update);
+    ro.observe(placeholder);
+
+    update();
+
+    const handleWheel = (e: WheelEvent) => {
+      if (window.innerWidth < 1024) return;
+      // Let native scroll handle events inside the sidebar
+      if (sidebar.contains(e.target as Node)) return;
+      const scrollEl = document.scrollingElement || document.documentElement;
+      const isPageAtBottom = scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight < 5;
+      const hasHiddenContent = sidebar.scrollHeight > sidebar.clientHeight;
+      if (!hasHiddenContent) return;
+
+      if (e.deltaY > 0) {
+        if (isPageAtBottom) {
+          e.preventDefault();
+          if (sidebar.scrollTop < sidebar.scrollHeight - sidebar.clientHeight) {
+            sidebar.scrollBy({ top: Math.min(e.deltaY, 120), behavior: 'auto' });
+          }
+        }
+      } else if (isPageAtBottom && sidebar.scrollTop > 0) {
+        e.preventDefault();
+        sidebar.scrollBy({ top: -Math.min(Math.abs(e.deltaY), 120), behavior: 'auto' });
+      }
+    };
+
+    document.addEventListener('wheel', handleWheel, { passive: false });
+
+    return () => {
+      scrollParents.forEach(p => p.removeEventListener('scroll', update));
+      window.removeEventListener('resize', update);
+      ro.disconnect();
+      document.removeEventListener('wheel', handleWheel);
+    };
+  }, []);
+
+  return (
     <div ref={placeholderRef} className="lg:w-72 xl:w-80 flex-shrink-0 self-start">
-      <div ref={sidebarRef} className="space-y-4 w-full">
+      <div ref={sidebarRef} className="no-scrollbar space-y-4 w-full">
         {children}
       </div>
     </div>
@@ -214,9 +319,6 @@ const Stickysidebar: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 const ApplicantDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-
-  const { hasPermission } = useAuth();
-  const canRestore = hasPermission('Restore Applicant', 'write') || hasPermission('Restore Applicant', 'create');
 
   const { data: applicant, isLoading: isApplicantLoading, isFetching: isApplicantFetching, isError, error, refetch } = useApplicant(id || '');
   const updateApplicant = useUpdateApplicant();
@@ -251,13 +353,9 @@ const ApplicantDetails: React.FC = () => {
 
   const { data: fetchedJobPosition, isLoading: isJobPositionLoading, isFetching: isJobPositionFetching } = useJobPosition(applicantJobPositionId, {
     enabled: !!applicantJobPositionId,
-    useInitialData: false,  // bypass stale list cache to ensure jobSpecs (with weights) are present
+    useInitialData: false,
   });
 
-  // The applicant's `companyId` is sometimes empty in the API response, but the
-  // job position always carries the company reference. Match the main branch's
-  // `jobPosCompanyId` resolution so we can still find the company for the
-  // `/mail` payload.
   const jobPosCompanyId = useMemo(() => {
     const fromApplicant = (() => {
       if (!applicant) return '';
@@ -282,16 +380,16 @@ const ApplicantDetails: React.FC = () => {
     }
     return '';
   }, [applicant, fetchedJobPosition]);
+
   const jobCustomFields = useMemo<unknown[]>(
     () => extractCustomFieldsFromJobPosition(fetchedJobPosition),
     [fetchedJobPosition],
   );
-  const { data: fetchedCompany, isLoading: isCompanyLoading, isFetching: isCompanyFetching} = useCompany(jobPosCompanyId || applicantCompanyId, {
+
+  const { data: fetchedCompany, isLoading: isCompanyLoading, isFetching: isCompanyFetching } = useCompany(jobPosCompanyId || applicantCompanyId, {
     enabled: !!(jobPosCompanyId || applicantCompanyId),
   });
 
-  // Also load the list (super admin has empty user.companies, so useCompanies() calls the list endpoint).
-  // The list response carries the full `address` array, which the detail endpoint omits.
   const { data: companiesList = [] } = useCompanies();
   const companyFromList = useMemo(() => {
     if (!applicantCompanyId) return null;
@@ -303,26 +401,13 @@ const ApplicantDetails: React.FC = () => {
     const detail: any = fetchedCompany || {};
     const list: any = companyFromList || {};
     const merged: any = { ...list, ...detail };
-
-    // Address: prefer detail if non-empty, else fall back to list
     const detailHasAddress = Array.isArray(detail.address) && detail.address.length > 0;
     const listHasAddress = Array.isArray(list.address) && list.address.length > 0;
-    if (detailHasAddress) {
-      merged.address = detail.address;
-    } else if (listHasAddress) {
-      merged.address = list.address;
-    } else if (detail.address !== undefined) {
-      merged.address = detail.address;
-    } else if (list.address !== undefined) {
-      merged.address = list.address;
-    }
-
-    if (!merged.addresses && list.addresses) {
-      merged.addresses = list.addresses;
-    }
-    // Settings (incl. email templates) — prefer detail if it has any
-    // mailSettings/emailTemplates, else fall back to the list (the list
-    // endpoint usually carries the full settings object).
+    if (detailHasAddress) merged.address = detail.address;
+    else if (listHasAddress) merged.address = list.address;
+    else if (detail.address !== undefined) merged.address = detail.address;
+    else if (list.address !== undefined) merged.address = list.address;
+    if (!merged.addresses && list.addresses) merged.addresses = list.addresses;
     const detailHasMailSettings =
       detail.settings?.mailSettings &&
       (Array.isArray(detail.settings.mailSettings.emailTemplates) ||
@@ -335,26 +420,19 @@ const ApplicantDetails: React.FC = () => {
         list.settings.mailSettings.defaultMail ||
         Array.isArray(list.settings.mailSettings.availableMails) ||
         list.settings.mailSettings.companyDomain);
-    if (detailHasMailSettings) {
-      merged.settings = detail.settings;
-    } else if (listHasMailSettings) {
-      merged.settings = list.settings;
-    } else if (!merged.settings || Object.keys(merged.settings || {}).length === 0) {
+    if (detailHasMailSettings) merged.settings = detail.settings;
+    else if (listHasMailSettings) merged.settings = list.settings;
+    else if (!merged.settings || Object.keys(merged.settings || {}).length === 0) {
       if (list.settings) merged.settings = list.settings;
     }
-    if (!merged.location && list.location) {
-      merged.location = list.location;
-    }
-    if (!merged.locations && list.locations) {
-      merged.locations = list.locations;
-    }
-    if (!merged.officeAddress && list.officeAddress) {
-      merged.officeAddress = list.officeAddress;
-    }
+    if (!merged.location && list.location) merged.location = list.location;
+    if (!merged.locations && list.locations) merged.locations = list.locations;
+    if (!merged.officeAddress && list.officeAddress) merged.officeAddress = list.officeAddress;
     return merged;
   }, [fetchedCompany, companyFromList]);
 
   const [comment, setComment] = useState('');
+  const commentTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [commentForm, setCommentForm] = useState({ text: '' });
   const [commentError, setCommentError] = useState('');
   const [activeTab, setActiveTab] = useState<'details' | 'interview' | 'history'>('details');
@@ -369,17 +447,23 @@ const ApplicantDetails: React.FC = () => {
       return next;
     });
   }, [activeTab]);
+
+  useEffect(() => {
+    const textarea = commentTextareaRef.current;
+    if (textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = `${textarea.scrollHeight}px`;
+    }
+  }, [comment]);
+
+
+
   const [isEditing, setIsEditing] = useState(false);
   const [editedApplicant, setEditedApplicant] = useState<Partial<Applicant> | null>(null);
   const [editedSections, setEditedSections] = useState<ResponseSection[]>([]);
   const [editedSpecAnswers, setEditedSpecAnswers] = useState<Record<string, boolean>>({});
-
   const [showStatusModal, setShowStatusModal] = useState(false);
-  const [statusForm, setStatusForm] = useState<{ status: string; notes?: string; reasons?: string[] }>({
-    status: '',
-    notes: '',
-    reasons: [],
-  });
+  const [statusForm, setStatusForm] = useState<{ status: string; notes?: string; reasons?: string[] }>({ status: '', notes: '', reasons: [] });
   const [statusError, setStatusError] = useState('');
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [showMessageModal, setShowMessageModal] = useState(false);
@@ -387,53 +471,28 @@ const ApplicantDetails: React.FC = () => {
   const [showInterviewSettingsModal, setShowInterviewSettingsModal] = useState(false);
   const [selectedInterview, setSelectedInterview] = useState<Interview | null>(null);
   const [autoSelectInterviewId, setAutoSelectInterviewId] = useState<string | null>(null);
-
   const [formResetKey, setFormResetKey] = useState(0);
   const [interviewForm, setInterviewForm] = useState<{
-    date: string;
-    time: string;
-    description: string;
-    comment: string;
-    location: string;
-    link: string;
-    type: 'phone' | 'video' | 'in-person';
-    conductedBy?: string;
-  }>({
-    date: '',
-    time: '',
-    description: '',
-    comment: '',
-    location: '',
-    link: '',
-    type: 'phone',
-  });
+    date: string; time: string; description: string; comment: string;
+    location: string; link: string; type: 'phone' | 'video' | 'in-person'; conductedBy?: string;
+  }>({ date: '', time: '', description: '', comment: '', location: '', link: '', type: 'phone' });
   const [interviewError, setInterviewError] = useState('');
   const [isSubmittingInterview, setIsSubmittingInterview] = useState(false);
-  const [notificationChannels, setNotificationChannels] = useState({
-    email: true,
-    sms: false,
-    whatsapp: false,
-  });
-  const [emailOption, setEmailOption] = useState<'company' | 'user' | 'custom' | 'new'>(
-    'company'
-  );
+  const [notificationChannels, setNotificationChannels] = useState({ email: true, sms: false, whatsapp: false });
+  const [emailOption, setEmailOption] = useState<'company' | 'user' | 'custom' | 'new'>('company');
   const [customEmail, setCustomEmail] = useState('');
-  const [phoneOption, setPhoneOption] = useState<
-    'company' | 'user' | 'whatsapp' | 'custom'
-  >('company');
+  const [phoneOption, setPhoneOption] = useState<'company' | 'user' | 'whatsapp' | 'custom'>('company');
   const [customPhone, setCustomPhone] = useState('');
   const [messageTemplate, setMessageTemplate] = useState('');
   const [interviewEmailSubject, setInterviewEmailSubject] = useState('Interview Invitation');
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
+  const [showJobOfferModal, setShowJobOfferModal] = useState(false);
+  const [showContractModal, setShowContractModal] = useState(false);
 
   useEffect(() => {
     if (showStatusModal && applicant) {
-      setStatusForm({
-        status: applicant.status || '',
-        notes: '',
-        reasons: [],
-      });
+      setStatusForm({ status: applicant.status || '', notes: '', reasons: [] });
       setStatusError('');
     }
   }, [showStatusModal, applicant]);
@@ -463,22 +522,13 @@ const ApplicantDetails: React.FC = () => {
         return true;
       }
       return false;
-    } catch (e) {
-      void e;
-      return false;
-    }
+    } catch (e) { void e; return false; }
   };
 
   const buildInterviewEmailHtml = useCallback((opts: {
-    subject: string;
-    jobTitle: string;
-    rawMessage: string;
-    applicantName?: string;
-    interviewDate?: string;
-    interviewTime?: string;
-    interviewType?: string;
-    interviewLocation?: string;
-    interviewAddress?: string;
+    subject: string; jobTitle: string; rawMessage: string; applicantName?: string;
+    interviewDate?: string; interviewTime?: string; interviewType?: string;
+    interviewLocation?: string; interviewAddress?: string;
   }): string => {
     const { subject, rawMessage, applicantName, jobTitle, interviewDate, interviewTime, interviewType, interviewLocation, interviewAddress } = opts;
     const replacements: Record<string, string> = {
@@ -495,164 +545,78 @@ const ApplicantDetails: React.FC = () => {
     let processedBody = rawMessage || '';
     tokens.forEach((token) => {
       const value = replacements[token];
-      const variants = [
-        token,
-        token.toLowerCase(),
-        token.charAt(0).toUpperCase() + token.slice(1).toLowerCase(),
-        token.toLowerCase().replace(/\s/g, ''),
-      ];
+      const variants = [token, token.toLowerCase(), token.charAt(0).toUpperCase() + token.slice(1).toLowerCase(), token.toLowerCase().replace(/\s/g, '')];
       variants.forEach((v) => {
         const regex = new RegExp(v.replace(/[{}]/g, '\\$&'), 'gi');
         processedSubject = processedSubject.replace(regex, value);
         processedBody = processedBody.replace(regex, value);
       });
     });
-
     const urlRegex = /(https?:\/\/[^\s<]+|www\.[^\s<]+)/gi;
     processedBody = processedBody.replace(urlRegex, (url) => {
       const href = url.toLowerCase().startsWith('http') ? url : `https://${url}`;
       return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" style="color:#3b82f6;text-decoration:underline;">${escapeHtml(url)}</a>`;
     });
-
-    const sanitized = processedBody;
-    const hasHtml = sanitized.indexOf('<') !== -1;
+    const hasHtml = processedBody.indexOf('<') !== -1;
     const bodyHtml = hasHtml
-      ? sanitized
-      : sanitized
-          .split(/\r?\n/)
-          .map((p) => p.trim())
-          .filter((p) => p.length > 0)
-          .map((p) => `<p style="margin:0 0 12px;color:#444;">${escapeHtml(p)}</p>`)
-          .join('');
-
+      ? processedBody
+      : processedBody.split(/\r?\n/).map((p) => p.trim()).filter((p) => p.length > 0)
+          .map((p) => `<p style="margin:0 0 12px;color:#444;">${escapeHtml(p)}</p>`).join('');
     return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${escapeHtml(processedSubject)}</title>
-</head>
+<html><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>${escapeHtml(processedSubject)}</title></head>
 <body style="font-family: Arial, sans-serif; padding: 20px; margin: 0; background-color: #f5f5f5;">
   <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden;">
     <div style="background-color: #ffffff; border-bottom: 1px solid #e5e7eb; padding: 24px 30px; text-align: center;">
       <h1 style="color: #111827; margin: 0; font-size: 22px; font-weight: 700;">${escapeHtml(processedSubject)}</h1>
     </div>
-    <div style="padding: 30px;">
-      <div style="font-size: 16px; line-height: 1.6; color: #444;">${bodyHtml}</div>
-    </div>
+    <div style="padding: 30px;"><div style="font-size: 16px; line-height: 1.6; color: #444;">${bodyHtml}</div></div>
   </div>
-</body>
-</html>`;
+</body></html>`;
   }, []);
 
   const sendInterviewNotification = useCallback(
     async (snapshot: {
-      subject: string;
-      template: string;
-      customEmail: string;
-      interviewDate?: string;
-      interviewTime?: string;
-      interviewType?: string;
-      interviewLocation?: string;
-      interviewAddress?: string;
+      subject: string; template: string; customEmail: string;
+      interviewDate?: string; interviewTime?: string; interviewType?: string;
+      interviewLocation?: string; interviewAddress?: string;
     }) => {
       if (!applicant || !id) return;
-
       const toEmail = (applicant as { email?: string }).email;
       if (!toEmail) {
-        await Swal.fire({
-          title: 'Email Skipped',
-          text: 'Interview scheduled, but the applicant has no email address on file, so no notification email was sent.',
-          icon: 'warning',
-          confirmButtonColor: '#3085d6',
-        });
+        await Swal.fire({ title: 'Email Skipped', text: 'Interview scheduled, but the applicant has no email address on file.', icon: 'warning', confirmButtonColor: '#3085d6' });
         return;
       }
-
       const fromEmail = resolveSenderEmail(companyWithAddress as never, snapshot.customEmail);
       if (!fromEmail) {
-        await Swal.fire({
-          title: 'Email Skipped',
-          text: 'Interview scheduled, but no sender email is configured for this company. To send notification emails, please select a sender in the Schedule Interview modal or configure the company default email in Mail Settings.',
-          icon: 'warning',
-          confirmButtonColor: '#3085d6',
-        });
+        await Swal.fire({ title: 'Email Skipped', text: 'Interview scheduled, but no sender email is configured for this company.', icon: 'warning', confirmButtonColor: '#3085d6' });
         return;
       }
-
       const jobTitle = getJobTitle().en || '';
       const applicantName = (applicant as { fullName?: string }).fullName || 'Candidate';
-
-      const interviewDate = snapshot.interviewDate || '';
-      const interviewTime = snapshot.interviewTime || '';
-      const interviewType = snapshot.interviewType || '';
-      const interviewLocation = snapshot.interviewLocation || '';
-      const interviewAddress = snapshot.interviewAddress || '';
-
-      const typeLabel = interviewType === 'in-person' ? 'In-person' :
-                        interviewType.charAt(0).toUpperCase() + interviewType.slice(1);
-
+      const typeLabel = (snapshot.interviewType || '') === 'in-person' ? 'In-person'
+        : (snapshot.interviewType || '').charAt(0).toUpperCase() + (snapshot.interviewType || '').slice(1);
       const subjectBase = snapshot.subject || 'Interview Invitation';
       const processedSubject = subjectBase
         .replace(/\{\{\s*candidateName\s*\}\}/gi, applicantName)
         .replace(/\{\{\s*(?:position|jobTitle)\s*\}\}/gi, jobTitle)
-        .replace(/\{\{\s*InterviewDate\s*\}\}/gi, interviewDate)
-        .replace(/\{\{\s*interviewTime\s*\}\}/gi, interviewTime)
+        .replace(/\{\{\s*InterviewDate\s*\}\}/gi, snapshot.interviewDate || '')
+        .replace(/\{\{\s*interviewTime\s*\}\}/gi, snapshot.interviewTime || '')
         .replace(/\{\{\s*interviewType\s*\}\}/gi, typeLabel)
-        .replace(/\{\{\s*location\s*\}\}/gi, interviewLocation)
-        .replace(/\{\{\s*address\s*\}\}/gi, interviewAddress);
-
+        .replace(/\{\{\s*location\s*\}\}/gi, snapshot.interviewLocation || '')
+        .replace(/\{\{\s*address\s*\}\}/gi, snapshot.interviewAddress || '');
       const emailHtml = buildInterviewEmailHtml({
-        subject: subjectBase,
-        jobTitle,
-        rawMessage: snapshot.template || '',
-        applicantName,
-        interviewDate,
-        interviewTime,
-        interviewType: typeLabel,
-        interviewLocation,
-        interviewAddress,
+        subject: subjectBase, jobTitle, rawMessage: snapshot.template || '', applicantName,
+        interviewDate: snapshot.interviewDate, interviewTime: snapshot.interviewTime,
+        interviewType: typeLabel, interviewLocation: snapshot.interviewLocation, interviewAddress: snapshot.interviewAddress,
       });
-
-      const jobPositionId =
-        resolveId((applicant as { jobPositionId?: unknown }).jobPositionId) ||
-        resolveId((applicant as { jobPosition?: unknown }).jobPosition);
-
-      const resolvedCompanyId =
-        (companyWithAddress as { _id?: string } | null)?._id ||
-        jobPosCompanyId ||
-        applicantCompanyId ||
-        resolveId((applicant as { companyId?: unknown }).companyId);
-
+      const jobPositionId = resolveId((applicant as { jobPositionId?: unknown }).jobPositionId) || resolveId((applicant as { jobPosition?: unknown }).jobPosition);
+      const resolvedCompanyId = (companyWithAddress as { _id?: string } | null)?._id || jobPosCompanyId || applicantCompanyId || resolveId((applicant as { companyId?: unknown }).companyId);
       try {
-        await sendEmailMutation.mutateAsync({
-          company: resolvedCompanyId,
-          jobPosition: jobPositionId,
-          applicant: applicant._id,
-          to: toEmail,
-          from: fromEmail,
-          subject: processedSubject,
-          html: emailHtml,
-        });
-
-        // Best-effort: log the email to the applicant's message history.
-        try {
-          await sendMessageMutation.mutateAsync({
-            id,
-            data: { type: 'email', content: snapshot.template || '' },
-          });
-        } catch {
-          // History logging is non-critical; ignore.
-        }
+        await sendEmailMutation.mutateAsync({ company: resolvedCompanyId, jobPosition: jobPositionId, applicant: applicant._id, to: toEmail, from: fromEmail, subject: processedSubject, html: emailHtml });
+        try { await sendMessageMutation.mutateAsync({ id, data: { type: 'email', content: snapshot.template || '' } }); } catch { /* non-critical */ }
       } catch (mailErr) {
-        // The interview is already scheduled — only the email failed.
         const msg = getErrorMessage(mailErr);
-        await Swal.fire({
-          title: 'Interview Scheduled',
-          text: `The interview was scheduled, but the notification email failed: ${msg}`,
-          icon: 'warning',
-          confirmButtonColor: '#3085d6',
-        });
+        await Swal.fire({ title: 'Interview Scheduled', text: `The interview was scheduled, but the notification email failed: ${msg}`, icon: 'warning', confirmButtonColor: '#3085d6' });
         setInterviewError(`Interview scheduled, but email failed: ${msg}`);
       }
     },
@@ -662,20 +626,14 @@ const ApplicantDetails: React.FC = () => {
   const handleScheduleInterviewSubmit = async () => {
     if (!id || !applicant) return;
     setIsSubmittingInterview(true);
-
-    // Snapshot the email-related state BEFORE we reset the form below — we
-    // still need these values to send the email after the schedule succeeds.
     const emailSnapshot = {
-      subject: interviewEmailSubject,
-      template: messageTemplate,
-      customEmail,
+      subject: interviewEmailSubject, template: messageTemplate, customEmail,
       interviewDate: interviewForm.date || '',
       interviewTime: interviewForm.time ? formatTime12Hour(interviewForm.time) : '',
       interviewType: interviewForm.type || 'phone',
       interviewLocation: interviewForm.link || '',
       interviewAddress: interviewForm.location || '',
     };
-
     try {
       let scheduledAt: string | undefined;
       if (interviewForm.date && interviewForm.time) {
@@ -686,69 +644,34 @@ const ApplicantDetails: React.FC = () => {
       } else if (interviewForm.date) {
         scheduledAt = `${interviewForm.date}T00:00:00`;
       }
-
       const interviewData: ScheduleInterviewRequest = {
-        scheduledAt,
-        description: interviewForm.description || undefined,
-        type: interviewForm.type || undefined,
-        location: interviewForm.location || undefined,
-        videoLink: interviewForm.link || undefined,
-        notes: interviewForm.comment || undefined,
-        conductedBy: interviewForm.conductedBy || undefined,
+        scheduledAt, description: interviewForm.description || undefined, type: interviewForm.type || undefined,
+        location: interviewForm.location || undefined, videoLink: interviewForm.link || undefined,
+        notes: interviewForm.comment || undefined, conductedBy: interviewForm.conductedBy || undefined,
         status: 'scheduled',
         notifications: {
-          channels: {
-            email: notificationChannels.email,
-            sms: notificationChannels.sms,
-            whatsapp: notificationChannels.whatsapp,
-          },
-          emailOption,
-          customEmail: customEmail || undefined,
-          phoneOption,
-          customPhone: customPhone || undefined,
+          channels: { email: notificationChannels.email, sms: notificationChannels.sms, whatsapp: notificationChannels.whatsapp },
+          emailOption, customEmail: customEmail || undefined, phoneOption, customPhone: customPhone || undefined,
         },
       };
-
       const result = await scheduleInterviewMutation.mutateAsync({ id, data: interviewData });
       const updatedApplicant = result as { interviews?: Interview[] } | undefined;
-      const created = (updatedApplicant?.interviews || [])
-        .slice()
-        .sort((a, b) => {
-          const aTime = new Date(a.createdAt || a.scheduledAt || 0).getTime();
-          const bTime = new Date(b.createdAt || b.scheduledAt || 0).getTime();
-          return bTime - aTime;
-        })[0];
-
-      setInterviewForm({
-        date: '',
-        time: '',
-        description: '',
-        comment: '',
-        location: '',
-        link: '',
-        type: 'phone',
-      });
+      const created = (updatedApplicant?.interviews || []).slice().sort((a, b) => {
+        const aTime = new Date(a.createdAt || a.scheduledAt || 0).getTime();
+        const bTime = new Date(b.createdAt || b.scheduledAt || 0).getTime();
+        return bTime - aTime;
+      })[0];
+      setInterviewForm({ date: '', time: '', description: '', comment: '', location: '', link: '', type: 'phone' });
       setNotificationChannels({ email: true, sms: false, whatsapp: false });
-      setEmailOption('company');
-      setCustomEmail('');
-      setPhoneOption('company');
-      setCustomPhone('');
-      setMessageTemplate('');
-      setInterviewEmailSubject('Interview Invitation');
+      setEmailOption('company'); setCustomEmail(''); setPhoneOption('company'); setCustomPhone('');
+      setMessageTemplate(''); setInterviewEmailSubject('Interview Invitation');
       setFormResetKey((prev) => prev + 1);
       setShowScheduleModal(false);
-
       setActiveTab('interview');
-      if (created && (created._id || created.id)) {
-        setAutoSelectInterviewId(String(created._id || created.id));
-      }
-
-      if (notificationChannels.email) {
-        await sendInterviewNotification(emailSnapshot);
-      }
+      if (created && (created._id || created.id)) setAutoSelectInterviewId(String(created._id || created.id));
+      if (notificationChannels.email) await sendInterviewNotification(emailSnapshot);
     } catch (err) {
-      const msg = getErrorMessage(err);
-      setInterviewError(msg);
+      setInterviewError(getErrorMessage(err));
     } finally {
       setIsSubmittingInterview(false);
     }
@@ -756,78 +679,32 @@ const ApplicantDetails: React.FC = () => {
 
   const handleStatusSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!id || !statusForm.status) {
-      setStatusError('Please select a status before submitting.');
-      return;
-    }
+    if (!id || !statusForm.status) { setStatusError('Please select a status before submitting.'); return; }
     try {
-      const payload: { status: string; notes?: string; reasons?: string[] } = {
-        status: statusForm.status,
-      };
+      const payload: { status: string; notes?: string; reasons?: string[] } = { status: statusForm.status };
       if (statusForm.notes && statusForm.notes.trim()) payload.notes = statusForm.notes.trim();
-      if (statusForm.status === 'rejected' && statusForm.reasons && statusForm.reasons.length) {
-        payload.reasons = statusForm.reasons;
-      }
+      if (statusForm.status === 'rejected' && statusForm.reasons && statusForm.reasons.length) payload.reasons = statusForm.reasons;
       await updateStatus.mutateAsync({ id, data: payload });
       setShowStatusModal(false);
-    } catch {
-      // toast handled by mutation
-    }
-  };
-
-  const handleRestore = async () => {
-    if (!id || !applicant) return;
-    const previousStatus = getPreviousStatus(applicant);
-    const result = await Swal.fire({
-      title: 'Restore applicant?',
-      text: `This will restore the applicant to "${previousStatus}" status.`,
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonColor: '#22c55e',
-      cancelButtonColor: '#6b7280',
-      confirmButtonText: 'Restore',
-      cancelButtonText: 'Cancel',
-    });
-    if (!result.isConfirmed) return;
-    try {
-      await updateStatus.mutateAsync({ id, data: { status: previousStatus } });
-    } catch {
-      // toast handled by mutation
-    }
+    } catch { /* toast handled by mutation */ }
   };
 
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!commentForm.text.trim() || !id) {
-      setCommentError('Please enter a comment.');
-      return;
-    }
+    if (!commentForm.text.trim() || !id) { setCommentError('Please enter a comment.'); return; }
     try {
       await addComment.mutateAsync({ id, data: { comment: commentForm.text.trim() } });
-      setCommentForm({ text: '' });
-      setCommentError('');
-      setShowCommentModal(false);
-    } catch {
-      // toast handled by mutation
-    }
+      setCommentForm({ text: '' }); setCommentError(''); setShowCommentModal(false);
+    } catch { /* toast handled by mutation */ }
   };
 
   useEffect(() => {
     if (applicant) {
-      setEditedApplicant({
-        fullName: applicant.fullName,
-        firstName: applicant.firstName,
-        lastName: applicant.lastName,
-        email: applicant.email,
-        phone: applicant.phone,
-        address: applicant.address,
-      });
+      setEditedApplicant({ fullName: applicant.fullName, firstName: applicant.firstName, lastName: applicant.lastName, email: applicant.email, phone: applicant.phone, address: applicant.address });
       setEditedSections(buildCustomResponseSections(applicant, jobCustomFields));
       const specs = buildJobSpecItems(applicant, fetchedJobPosition);
       const initial: Record<string, boolean> = {};
-      specs.forEach((s) => {
-        initial[s.id] = s.answer;
-      });
+      specs.forEach((s) => { initial[s.id] = s.answer; });
       setEditedSpecAnswers(initial);
     }
   }, [applicant, jobCustomFields, fetchedJobPosition]);
@@ -864,9 +741,7 @@ const ApplicantDetails: React.FC = () => {
     const base = buildJobSpecItems(applicant, fetchedJobPosition);
     if (!isEditing) return base;
     return base.map((item) =>
-      Object.prototype.hasOwnProperty.call(editedSpecAnswers, item.id)
-        ? { ...item, answer: editedSpecAnswers[item.id] }
-        : item,
+      Object.prototype.hasOwnProperty.call(editedSpecAnswers, item.id) ? { ...item, answer: editedSpecAnswers[item.id] } : item,
     );
   }, [applicant, fetchedJobPosition, isEditing, editedSpecAnswers]);
 
@@ -879,16 +754,11 @@ const ApplicantDetails: React.FC = () => {
     try {
       await addComment.mutateAsync({ id, data: { comment: comment.trim() } });
       setComment('');
-    } catch {
-      // mutation already shows toast
-    }
+    } catch { /* mutation already shows toast */ }
   };
 
   const handleEdit = () => {
-    if (isEditing && id && applicant) {
-      handleSave();
-      return;
-    }
+    if (isEditing && id && applicant) { handleSave(); return; }
     setIsEditing(true);
   };
 
@@ -903,24 +773,15 @@ const ApplicantDetails: React.FC = () => {
         phone: editedApplicant?.phone ?? applicant.phone,
         address: editedApplicant?.address ?? applicant.address,
       };
-      if (Object.keys(editedApplicant || {}).length > 0) {
-        Object.assign(payload, editedApplicant);
-      }
-
+      if (Object.keys(editedApplicant || {}).length > 0) Object.assign(payload, editedApplicant);
       const readLeafValue = (q: { type?: string; value?: unknown; selectedValue?: unknown; checked?: unknown; values?: unknown }): unknown => {
         switch (q.type) {
-          case 'dropdown':
-          case 'radio':
-            return q.selectedValue ?? '';
-          case 'checkbox':
-            return Boolean(q.checked);
-          case 'tags':
-            return Array.isArray(q.values) ? q.values : [];
-          default:
-            return q.value ?? '';
+          case 'dropdown': case 'radio': return q.selectedValue ?? '';
+          case 'checkbox': return Boolean(q.checked);
+          case 'tags': return Array.isArray(q.values) ? q.values : [];
+          default: return q.value ?? '';
         }
       };
-
       const customResponses: Record<string, unknown> = {};
       editedSections.forEach((section) => {
         const groups = new Map<string, Record<string, unknown>[]>();
@@ -931,9 +792,7 @@ const ApplicantDetails: React.FC = () => {
             const groupKey = group.groupId.replace(/_\d+$/, '');
             const entry: Record<string, unknown> = {};
             (group.questions || []).forEach((sq) => {
-              const subKey = sq.id.startsWith(group.groupId + '_')
-                ? sq.id.slice(group.groupId.length + 1)
-                : sq.id;
+              const subKey = sq.id.startsWith(group.groupId + '_') ? sq.id.slice(group.groupId.length + 1) : sq.id;
               entry[subKey] = readLeafValue(sq);
             });
             const arr = groups.get(groupKey) ?? [];
@@ -945,48 +804,24 @@ const ApplicantDetails: React.FC = () => {
           if (!leaf.id) return;
           customResponses[leaf.id] = readLeafValue(leaf);
         });
-        groups.forEach((entries, key) => {
-          customResponses[key] = entries.length === 1 ? entries[0] : entries;
-        });
+        groups.forEach((entries, key) => { customResponses[key] = entries.length === 1 ? entries[0] : entries; });
       });
-      if (Object.keys(customResponses).length > 0) {
-        payload.customResponses = customResponses;
-      }
-
-      const jobSpecsResponses = Object.entries(editedSpecAnswers).map(([jobSpecId, answer]) => ({
-        jobSpecId,
-        answer,
-      }));
-      if (jobSpecsResponses.length > 0) {
-        payload.jobSpecsResponses = jobSpecsResponses;
-      }
-
+      if (Object.keys(customResponses).length > 0) payload.customResponses = customResponses;
+      const jobSpecsResponses = Object.entries(editedSpecAnswers).map(([jobSpecId, answer]) => ({ jobSpecId, answer }));
+      if (jobSpecsResponses.length > 0) payload.jobSpecsResponses = jobSpecsResponses;
       await updateApplicant.mutateAsync({ id, data: payload as Parameters<typeof updateApplicant.mutateAsync>[0]['data'] });
-      setEditedApplicant(null);
-      setEditedSpecAnswers({});
-      setIsEditing(false);
-    } catch {
-      // toast handled by mutation
-    }
+      setEditedApplicant(null); setEditedSpecAnswers({}); setIsEditing(false);
+    } catch { /* toast handled by mutation */ }
   };
 
   const handleCancel = () => {
     setIsEditing(false);
     if (applicant) {
-      setEditedApplicant({
-        fullName: applicant.fullName,
-        firstName: applicant.firstName,
-        lastName: applicant.lastName,
-        email: applicant.email,
-        phone: applicant.phone,
-        address: applicant.address,
-      });
+      setEditedApplicant({ fullName: applicant.fullName, firstName: applicant.firstName, lastName: applicant.lastName, email: applicant.email, phone: applicant.phone, address: applicant.address });
       setEditedSections(buildCustomResponseSections(applicant, jobCustomFields));
       const specs = buildJobSpecItems(applicant, fetchedJobPosition);
       const reset: Record<string, boolean> = {};
-      specs.forEach((s) => {
-        reset[s.id] = s.answer;
-      });
+      specs.forEach((s) => { reset[s.id] = s.answer; });
       setEditedSpecAnswers(reset);
     }
   };
@@ -1012,40 +847,44 @@ const ApplicantDetails: React.FC = () => {
     }
   };
 
+  const handleRestore = async () => {
+    if (!id || !applicant) return;
+    const prevStatus = getPreviousStatus(applicant);
+    const result = await Swal.fire({
+      title: 'Restore applicant?',
+      text: `This will restore the applicant to "${prevStatus}" status.`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#22c55e',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Restore',
+      cancelButtonText: 'Cancel',
+    });
+    if (!result.isConfirmed) return;
+    try {
+      await updateStatus.mutateAsync({ id, data: { status: prevStatus } });
+    } catch {
+      // toast handled by mutation
+    }
+  };
+
   const handlePrint = useCallback(async () => {
     if (!applicant) return;
-    Swal.fire({
-      title: 'Generating PDF',
-      text: 'Please wait while the applicant profile is being generated...',
-      allowOutsideClick: false,
-      allowEscapeKey: false,
-      showConfirmButton: false,
-      didOpen: () => Swal.showLoading(),
-    });
+    Swal.fire({ title: 'Generating PDF', text: 'Please wait while the applicant profile is being generated...', allowOutsideClick: false, allowEscapeKey: false, showConfirmButton: false, didOpen: () => Swal.showLoading() });
     try {
       await generateApplicantPdf(applicant, sections, jobSpecItems, fetchedJobPosition, companyWithAddress);
       Swal.close();
     } catch {
       Swal.close();
-      await Swal.fire({
-        title: 'Error',
-        text: 'Failed to generate the PDF. Please try again.',
-        icon: 'error',
-        confirmButtonColor: '#3085d6',
-      });
+      await Swal.fire({ title: 'Error', text: 'Failed to generate the PDF. Please try again.', icon: 'error', confirmButtonColor: '#3085d6' });
     }
   }, [applicant, sections, jobSpecItems, fetchedJobPosition, companyWithAddress]);
 
-  // Only block the whole page on the *initial* load (no cached data yet).
-  // `isLoading` is true only when there is no cached data AND a fetch is in
-  // flight. Background revalidation (`isFetching`) is intentionally ignored
-  // so navigating back / switching tabs shows cached data instantly.
   const isInitialPageLoad =
     (isApplicantLoading && !applicant) ||
     (!!applicantJobPositionId && isJobPositionLoading && !fetchedJobPosition) ||
     (!!applicantCompanyId && isCompanyLoading && !fetchedCompany);
 
-  // Silence unused-variable warnings for fetching flags we deliberately ignore.
   void isApplicantFetching;
   void isJobPositionFetching;
   void isCompanyFetching;
@@ -1067,347 +906,134 @@ const ApplicantDetails: React.FC = () => {
             {(error as { message?: string } | null | undefined)?.message || 'We could not load this applicant.'}
           </p>
           <div className="flex justify-center gap-3">
-            <button
-              onClick={() => refetch()}
-              className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
-            >
-              Retry
-            </button>
-            <button
-              onClick={() => navigate(paths.applicants.root)}
-              className="px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700"
-            >
-              Back to list
-            </button>
+            <button onClick={() => refetch()} className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">Retry</button>
+            <button onClick={() => navigate(paths.applicants.root)} className="px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700">Back to list</button>
           </div>
         </div>
       </div>
     );
   }
 
+  const tabBar = (
+    <div className="flex overflow-x-auto overflow-y-hidden">
+      <button onClick={() => setActiveTab('details')} className={`px-4 lg:px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${activeTab === 'details' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>Details</button>
+      <button onClick={() => setActiveTab('history')} className={`px-4 lg:px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${activeTab === 'history' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>History</button>
+      <button onClick={() => setActiveTab('interview')} className={`px-4 lg:px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${activeTab === 'interview' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>Interview Questions</button>
+    </div>
+  );
+
+  const sharedSidebar = (
+    <Stickysidebar>
+      <PersonalInfo
+        applicant={applicant}
+        isEditing={false}
+        onChangeStatus={() => setShowStatusModal(true)}
+        onScheduleInterview={() => setShowScheduleModal(true)}
+        onSendMessage={() => setShowMessageModal(true)}
+        onPrint={handlePrint}
+        onCreateJobOffer={() => setShowJobOfferModal(true)}
+        onCreateContract={() => setShowContractModal(true)}
+        onRestore={handleRestore}
+      />
+    </Stickysidebar>
+  );
+
   return (
-    <div className="bg-gray-50 p-6">
-      <div className="max-w-8xl mx-auto">
-        <div className="mb-4">
-  <div className="flex items-center justify-between">
-    {/* Breadcrumb on the left */}
-    <div className="flex items-center gap-2 text-sm text-gray-500">
-      <span onClick={() => navigate(paths.applicants.root)} className="hover:text-gray-700 cursor-pointer">
-        Applicants
-      </span>
-      <span>-›</span>
-      <span className="text-gray-800">{applicant.fullName || 'Applicant Details'}</span>
-    </div>
-    
-    {/* Buttons on the right */}
-    <div className="flex">
-      <button
-        onClick={handleEdit}
-        className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-      >
-        {isEditing ? 'Save' : 'Edit'}
-      </button>
-      {isEditing && (
-        <button
-          onClick={handleCancel}
-          className="ml-2 px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors"
-        >
-          Cancel
-        </button>
-      )}
-      <button
-        onClick={handleDelete}
-        className="ml-2 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors"
-      >
-        Delete
-      </button>
-    </div>
-  </div>
-</div>
-
-   
-
-
-
-        <div hidden={activeTab !== 'details'}>
-          <div className="flex flex-col lg:flex-row gap-6 mb-6 items-start">
-            {/* ── Left sidebar — fixed positioning via JS scroll listener ── */}
-            <Stickysidebar>
-              <PersonalInfo
-                applicant={applicant}
-                isEditing={isEditing}
-                editedApplicant={editedApplicant}
-                onChange={setEditedApplicant}
-                onChangeStatus={() => setShowStatusModal(true)}
-                onScheduleInterview={() => setShowScheduleModal(true)}
-                onSendMessage={() => setShowMessageModal(true)}
-                onPrint={handlePrint}
-                onRestore={canRestore ? handleRestore : undefined}
-              />
-              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 space-y-3">
-                <button
-                  type="button"
-                  className="w-full px-4 py-2.5 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
-                >
-                  Send Job Offer
-                </button>
-                <button
-                  type="button"
-                  className="w-full px-4 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Send Contract
-                </button>
-              </div>
-            </Stickysidebar>
-       
-            
-            <div className="flex-1 min-w-0 space-y-6">
-               <div className="flex items-center justify-between border-b border-gray-200 mb-2">
-<div className="flex overflow-x-auto overflow-y-hidden">
-              <button
-                onClick={() => setActiveTab('details')}
-                className={`px-4 lg:px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
-                  activeTab === 'details'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Details
-              </button>
-              <button
-                onClick={() => setActiveTab('interview')}
-                className={`px-4 lg:px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
-                  activeTab === 'interview'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Interview Questions
-              </button>
-              <button
-                onClick={() => setActiveTab('history')}
-                className={`px-4 lg:px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
-                  activeTab === 'history'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                History
-              </button>
+    <div className="bg-gray-50">
+      <div className="max-w-8xl mx-auto p-6">
+        <StickyTopBar>
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between py-3 gap-2">
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <span onClick={() => navigate(paths.applicants.root)} className="hover:text-gray-700 cursor-pointer">Applicants</span>
+              <span>-›</span>
+              <span className="text-gray-800 font-medium">{applicant.fullName || 'Applicant Details'}</span>
             </div>
-           <button
-             onClick={() => setShowStatusModal(true)}
-             className="hidden lg:inline-flex px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors"
-           >
-             Change Status
-           </button>
-         </div>
-         <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6 transition-all duration-200">
-  {/* Header with title and button on the same row */}
-  <div className="flex items-center justify-between mb-4">
-    <h3 className="text-base font-semibold text-gray-900 flex items-center gap-2">
-      <span className="w-1 h-5 bg-blue-500 rounded-full"></span>
-      Add Comment
-    </h3>
-    
-    <button
-      onClick={handleAddComment}
-      disabled={addComment.isPending || !comment.trim()}
-      className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white text-sm font-semibold rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-sm"
-    >
-      {addComment.isPending ? (
-        <span className="flex items-center gap-2">
-          <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          Adding...
-        </span>
-      ) : (
-        'Add Comment'
-      )}
-    </button>
-  </div>
-  
-  {/* Textarea below, taking full width */}
-  <textarea
-    value={comment}
-    onChange={(e) => setComment(e.target.value)}
-    placeholder="Write a thoughtful comment..."
-    className="w-full px-4 py-3 text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 resize-none transition-all duration-200 placeholder:text-gray-400"
-    rows={3}
-  />
-</div> 
+            <div className="flex flex-wrap gap-2 justify-end">
+              <button onClick={() => setShowStatusModal(true)} className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors">Change Status</button>
+
+              <button onClick={handleEdit} className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors">{isEditing ? 'Save' : 'Edit'}</button>
+              {isEditing && <button onClick={handleCancel} className="px-3 py-1.5 bg-gray-600 text-white text-xs font-medium rounded-lg hover:bg-gray-700 transition-colors">Cancel</button>}
+              <button onClick={handleDelete} className="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition-colors">Delete</button>
+            </div>
+          </div>
+        </StickyTopBar>
+
+        {/* ── DETAILS TAB ── */}
+        <div hidden={activeTab !== 'details'}>
+          <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-6 mb-6">
+            <div className="lg:w-72 xl:w-80 min-w-0">
+              <Stickysidebar>
+                <PersonalInfo
+                  applicant={applicant}
+                  isEditing={isEditing}
+                  editedApplicant={editedApplicant}
+                  onChange={setEditedApplicant}
+                  onChangeStatus={() => setShowStatusModal(true)}
+                  onScheduleInterview={() => setShowScheduleModal(true)}
+                  onSendMessage={() => setShowMessageModal(true)}
+                  onPrint={handlePrint}
+                  onCreateJobOffer={() => setShowJobOfferModal(true)}
+                  onCreateContract={() => setShowContractModal(true)}
+                  onRestore={handleRestore}
+                />
+              </Stickysidebar>
+            </div>
+            <div className="min-w-0 flex flex-col gap-6">
+              <div className="flex items-center justify-between border-b border-gray-200">{tabBar}</div>
+              <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6 transition-all duration-200">
+                <div className="relative">
+                  <textarea
+                    ref={commentTextareaRef}
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    placeholder="Write a thoughtful comment..."
+                    className="w-full block px-4 py-3 pr-12 text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 resize-none transition-all duration-200 placeholder:text-gray-400 min-h-[44px]"
+                    rows={1}
+                    style={{ height: 'auto', overflow: 'hidden', scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && comment.trim()) { e.preventDefault(); handleAddComment(); } }}
+                  />
+                  <button onClick={handleAddComment} disabled={addComment.isPending || !comment.trim()} className="absolute right-3 inset-y-0 my-auto p-1.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed h-fit" aria-label="Add comment">
+                    {addComment.isPending ? (
+                      <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    ) : (
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"></path></svg>
+                    )}
+                  </button>
+                </div>
+              </div>
               <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
-                <JobSpec
-                  specs={jobSpecItems}
-                  jobPosition={fetchedJobPosition}
-                  editable={isEditing}
-                  onSpecChange={handleSpecAnswerChange}
-                />
+                <JobSpec specs={jobSpecItems} jobPosition={fetchedJobPosition} editable={isEditing} onSpecChange={handleSpecAnswerChange} />
               </div>
               <div className="bg-white rounded-lg shadow-sm border border-gray-100">
-                <ActivityFeed activities={activities} mailRecords={applicantMailRecords} interviews={applicant?.interviews} />
+                <ActivityFeed activities={activities} mailRecords={applicantMailRecords} interviews={applicant?.interviews} company={companyWithAddress} />
               </div>
-              <div className="bg-white rounded-lg shadow-sm border border-gray-100">
-                <CustomResponses
-                  isEditable={isEditing}
-                  sections={sections}
-                  onSectionsChange={setEditedSections}
-                />
+              <div className="bg-white rounded-lg shadow-sm border border-gray-100 flex-1 p-4">
+                <CustomResponses isEditable={isEditing} sections={sections} onSectionsChange={setEditedSections} />
               </div>
             </div>
           </div>
         </div>
 
+        {/* ── INTERVIEW TAB ── */}
         {visitedTabs.has('interview') && (
           <div hidden={activeTab !== 'interview'}>
             <div className="flex flex-col lg:flex-row gap-6 mb-6 items-start">
-              <Stickysidebar>
-                <PersonalInfo
-                  applicant={applicant}
-                  isEditing={false}
-                  onChangeStatus={() => setShowStatusModal(true)}
-                  onScheduleInterview={() => setShowScheduleModal(true)}
-                  onSendMessage={() => setShowMessageModal(true)}
-                  onPrint={handlePrint}
-                  onRestore={canRestore ? handleRestore : undefined}
-                />
-                <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 space-y-3">
-                  <button
-                    type="button"
-                    className="w-full px-4 py-2.5 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
-                  >
-                    Send Job Offer
-                  </button>
-                  <button
-                    type="button"
-                    className="w-full px-4 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Send Contract
-                  </button>
-                </div>
-              </Stickysidebar>
+              {sharedSidebar}
               <div className="flex-1 min-w-0 space-y-6">
-                <div className="flex items-center justify-between border-b border-gray-200 mb-6">
-                  <div className="flex overflow-x-auto overflow-y-hidden">
-                    <button
-                      onClick={() => setActiveTab('details')}
-                      className={`px-4 lg:px-5 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
-                        activeTab === 'details'
-                          ? 'border-blue-600 text-blue-600'
-                          : 'border-transparent text-gray-500 hover:text-gray-700'
-                      }`}
-                    >
-                      Details
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('interview')}
-                      className={`px-4 lg:px-5 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
-                        activeTab === 'interview'
-                          ? 'border-blue-600 text-blue-600'
-                          : 'border-transparent text-gray-500 hover:text-gray-700'
-                      }`}
-                    >
-                      Interview Questions
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('history')}
-                      className={`px-4 lg:px-5 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
-                        activeTab === 'history'
-                          ? 'border-blue-600 text-blue-600'
-                          : 'border-transparent text-gray-500 hover:text-gray-700'
-                      }`}
-                    >
-                      History
-                    </button>
-                  </div>
-                  <button
-                    onClick={() => setShowStatusModal(true)}
-                    className="hidden lg:inline-flex px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Change Status
-                  </button>
-                </div>
-                <InterviewQuestions
-                  applicantId={id}
-                  onRequestScheduleInterview={() => setShowScheduleModal(true)}
-                  autoSelectInterviewId={autoSelectInterviewId}
-                />
+                <div className="flex items-center justify-between border-b border-gray-200 mb-6">{tabBar}</div>
+                <InterviewQuestions applicantId={id} onRequestScheduleInterview={() => setShowScheduleModal(true)} autoSelectInterviewId={autoSelectInterviewId} />
               </div>
             </div>
           </div>
         )}
 
+        {/* ── HISTORY TAB ── */}
         {visitedTabs.has('history') && (
           <div hidden={activeTab !== 'history'}>
             <div className="flex flex-col lg:flex-row gap-6 mb-6 items-start">
-              <Stickysidebar>
-                <PersonalInfo
-                  applicant={applicant}
-                  isEditing={false}
-                  onChangeStatus={() => setShowStatusModal(true)}
-                  onScheduleInterview={() => setShowScheduleModal(true)}
-                  onSendMessage={() => setShowMessageModal(true)}
-                  onPrint={handlePrint}
-                  onRestore={canRestore ? handleRestore : undefined}
-                />
-                <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 space-y-3">
-                  <button
-                    type="button"
-                    className="w-full px-4 py-2.5 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
-                  >
-                    Send Job Offer
-                  </button>
-                  <button
-                    type="button"
-                    className="w-full px-4 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Send Contract
-                  </button>
-                </div>
-              </Stickysidebar>
+              {sharedSidebar}
               <div className="flex-1 min-w-0 space-y-6">
-                <div className="flex items-center justify-between border-b border-gray-200 mb-6">
-                  <div className="flex overflow-x-auto overflow-y-hidden">
-                    <button
-                      onClick={() => setActiveTab('details')}
-                      className={`px-4 lg:px-5 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
-                        activeTab === 'details'
-                          ? 'border-blue-600 text-blue-600'
-                          : 'border-transparent text-gray-500 hover:text-gray-700'
-                      }`}
-                    >
-                      Details
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('interview')}
-                      className={`px-4 lg:px-5 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
-                        activeTab === 'interview'
-                          ? 'border-blue-600 text-blue-600'
-                          : 'border-transparent text-gray-500 hover:text-gray-700'
-                      }`}
-                    >
-                      Interview Questions
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('history')}
-                      className={`px-4 lg:px-5 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
-                        activeTab === 'history'
-                          ? 'border-blue-600 text-blue-600'
-                          : 'border-transparent text-gray-500 hover:text-gray-700'
-                      }`}
-                    >
-                      History
-                    </button>
-                  </div>
-                  <button
-                    onClick={() => setShowStatusModal(true)}
-                    className="hidden lg:inline-flex px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Change Status
-                  </button>
-                </div>
+                <div className="flex items-center justify-between border-b border-gray-200 mb-6">{tabBar}</div>
                 <History applicant={applicant} loading={isApplicantLoading} />
               </div>
             </div>
@@ -1417,125 +1043,68 @@ const ApplicantDetails: React.FC = () => {
 
       <StatusChangeModal
         isOpen={showStatusModal}
-        onClose={() => {
-          if (updateStatus.isPending) return;
-          setShowStatusModal(false);
-          setStatusError('');
-        }}
-        statusForm={statusForm}
-        setStatusForm={setStatusForm}
-        statusError={statusError}
-        setStatusError={setStatusError}
-        handleStatusChange={handleStatusSubmit}
-        isSubmittingStatus={updateStatus.isPending}
-        companyId={applicantCompanyId}
-        companySettings={companyWithAddress}
+        onClose={() => { if (updateStatus.isPending) return; setShowStatusModal(false); setStatusError(''); }}
+        statusForm={statusForm} setStatusForm={setStatusForm} statusError={statusError} setStatusError={setStatusError}
+        handleStatusChange={handleStatusSubmit} isSubmittingStatus={updateStatus.isPending}
+        companyId={applicantCompanyId} companySettings={companyWithAddress}
         jobIds={applicantJobPositionId ? [applicantJobPositionId] : []}
         jobs={fetchedJobPosition ? [fetchedJobPosition] : []}
       />
-
       <CommentModal
         isOpen={showCommentModal}
-        onClose={() => {
-          if (addComment.isPending) return;
-          setShowCommentModal(false);
-          setCommentError('');
-        }}
-        commentForm={commentForm}
-        setCommentForm={setCommentForm}
-        commentError={commentError}
-        setCommentError={setCommentError}
-        handleCommentSubmit={handleCommentSubmit}
-        isSubmittingComment={addComment.isPending}
+        onClose={() => { if (addComment.isPending) return; setShowCommentModal(false); setCommentError(''); }}
+        commentForm={commentForm} setCommentForm={setCommentForm} commentError={commentError}
+        setCommentError={setCommentError} handleCommentSubmit={handleCommentSubmit} isSubmittingComment={addComment.isPending}
       />
-
-      <MessageModal
-        isOpen={showMessageModal}
-        onClose={() => setShowMessageModal(false)}
-        applicant={applicant}
-        id={id || ''}
-        company={companyWithAddress}
-      />
-
+      <MessageModal isOpen={showMessageModal} onClose={() => setShowMessageModal(false)} applicant={applicant} id={id || ''} company={companyWithAddress} />
       <InterviewScheduleModal
         isOpen={showScheduleModal}
-        onClose={() => {
-          if (isSubmittingInterview) return;
-          setShowScheduleModal(false);
-        }}
-        formResetKey={formResetKey}
-        interviewForm={interviewForm}
-        setInterviewForm={setInterviewForm}
-        interviewError={interviewError}
-        setInterviewError={setInterviewError}
-        handleInterviewSubmit={handleScheduleInterviewSubmit}
-        fillCompanyAddress={fillCompanyAddress}
-        notificationChannels={notificationChannels}
-        setNotificationChannels={setNotificationChannels}
-        emailOption={emailOption}
-        setEmailOption={setEmailOption}
-        customEmail={customEmail}
-        setCustomEmail={setCustomEmail}
-        phoneOption={phoneOption}
-        setPhoneOption={setPhoneOption}
-        customPhone={customPhone}
-        setCustomPhone={setCustomPhone}
-        messageTemplate={messageTemplate}
-        setMessageTemplate={setMessageTemplate}
-        interviewEmailSubject={interviewEmailSubject}
-        setInterviewEmailSubject={setInterviewEmailSubject}
-        isSubmittingInterview={isSubmittingInterview}
-        setIsSubmittingInterview={setIsSubmittingInterview}
-        setShowPreviewModal={setShowPreviewModal}
-        setPreviewHtml={setPreviewHtml}
-        buildInterviewEmailHtml={buildInterviewEmailHtml}
-        getJobTitle={getJobTitle}
-        applicant={applicant}
-        companyData={companyWithAddress}
+        onClose={() => { if (isSubmittingInterview) return; setShowScheduleModal(false); }}
+        formResetKey={formResetKey} interviewForm={interviewForm} setInterviewForm={setInterviewForm}
+        interviewError={interviewError} setInterviewError={setInterviewError}
+        handleInterviewSubmit={handleScheduleInterviewSubmit} fillCompanyAddress={fillCompanyAddress}
+        notificationChannels={notificationChannels} setNotificationChannels={setNotificationChannels}
+        emailOption={emailOption} setEmailOption={setEmailOption} customEmail={customEmail} setCustomEmail={setCustomEmail}
+        phoneOption={phoneOption} setPhoneOption={setPhoneOption} customPhone={customPhone} setCustomPhone={setCustomPhone}
+        messageTemplate={messageTemplate} setMessageTemplate={setMessageTemplate}
+        interviewEmailSubject={interviewEmailSubject} setInterviewEmailSubject={setInterviewEmailSubject}
+        isSubmittingInterview={isSubmittingInterview} setIsSubmittingInterview={setIsSubmittingInterview}
+        setShowPreviewModal={setShowPreviewModal} setPreviewHtml={setPreviewHtml}
+        buildInterviewEmailHtml={buildInterviewEmailHtml} getJobTitle={getJobTitle}
+        applicant={applicant} companyData={companyWithAddress}
       />
-
-      <Modal
-        isOpen={showPreviewModal}
-        onClose={() => {
-          setShowPreviewModal(false);
-          setPreviewHtml('');
-        }}
-        className="max-w-2xl p-6"
-      >
+      <Modal isOpen={showPreviewModal} onClose={() => { setShowPreviewModal(false); setPreviewHtml(''); }} className="max-w-2xl p-6">
         <div className="space-y-4">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Email Preview</h2>
-          <div
-            className="border rounded p-4 bg-white dark:bg-gray-800"
-            style={{ maxHeight: '70vh', overflow: 'auto' }}
-          >
+          <div className="border rounded p-4 bg-white dark:bg-gray-800" style={{ maxHeight: '70vh', overflow: 'auto' }}>
             <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
           </div>
           <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={() => {
-                setShowPreviewModal(false);
-                setPreviewHtml('');
-              }}
-              className="rounded-lg bg-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-300"
-            >
-              Close
-            </button>
+            <button type="button" onClick={() => { setShowPreviewModal(false); setPreviewHtml(''); }} className="rounded-lg bg-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-300">Close</button>
           </div>
         </div>
       </Modal>
-
       <InterviewSettingsModal
         isOpen={showInterviewSettingsModal}
-        onClose={() => {
-          setShowInterviewSettingsModal(false);
-          setSelectedInterview(null);
-        }}
-        applicant={applicant}
-        selectedInterview={selectedInterview}
-        setSelectedInterview={setSelectedInterview}
-        setShowInterviewSettingsModal={setShowInterviewSettingsModal}
-        updateInterviewMutation={updateInterviewStatusMutation}
+        onClose={() => { setShowInterviewSettingsModal(false); setSelectedInterview(null); }}
+        applicant={applicant} selectedInterview={selectedInterview} setSelectedInterview={setSelectedInterview}
+        setShowInterviewSettingsModal={setShowInterviewSettingsModal} updateInterviewMutation={updateInterviewStatusMutation}
+      />
+      <JobOfferModal
+        isOpen={showJobOfferModal}
+        onClose={() => setShowJobOfferModal(false)}
+        mode="offer"
+        companyId={applicantCompanyId || jobPosCompanyId || ''}
+        applicantId={id || null}
+        jobPositionId={applicantJobPositionId || null}
+      />
+      <JobContractModal
+        isOpen={showContractModal}
+        onClose={() => setShowContractModal(false)}
+        mode="contract"
+        companyId={applicantCompanyId || jobPosCompanyId || ''}
+        applicantId={id || null}
+        jobPositionId={applicantJobPositionId || null}
       />
     </div>
   );
