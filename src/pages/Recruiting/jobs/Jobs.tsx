@@ -26,6 +26,7 @@ import {
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import { useAuth } from '../../../context/AuthContext';
 import { useLocale } from '../../../context/LocaleContext';
+import { useCompanyFilter } from '../../../context/CompanyFilterContext';
 import { toPlainString } from '../../../utils/strings';
 import Switch from '../../../components/form/switch/Switch';
 import { jobPositionsService } from '../../../services/jobPositionsService';
@@ -439,10 +440,10 @@ export default function Jobs() {
   const canWrite = hasPermission('Job Position Management', 'write');
   const canManageJobs = canCreate && canWrite;
 
+  const { selectedCompanyId } = useCompanyFilter();
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [companyFilter, setCompanyFilter] = useState<string>('all');
   const [orderedJobIds, setOrderedJobIds] = useState<string[]>([]);
   const [isSavingOrder, setIsSavingOrder] = useState(false);
   const [activeDragJob, setActiveDragJob] = useState<any | null>(null);
@@ -742,21 +743,6 @@ export default function Jobs() {
     navigate(`/create-job?id=${job._id}`, { state: { job } });
   };
 
-  const companyOptions = useMemo(() => {
-    const map = new Map<string, string>();
-    (orderedJobs || []).forEach((job: any) => {
-      const cid = getJobCompanyId(job) || 'unassigned';
-      if (!map.has(cid)) {
-        map.set(
-          cid,
-          job?.companyId?.name ||
-            (cid === 'unassigned' ? t('jobsUnassigned', 'jobs') : t('jobsCompany', 'jobs'))
-        );
-      }
-    });
-    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
-  }, [orderedJobs]);
-
   const filteredJobs = useMemo(() => {
     return orderedJobs.filter((job: any) => {
       const title = getTranslation(job.title, '', locale).toLowerCase();
@@ -775,11 +761,11 @@ export default function Jobs() {
 
       const companyIdForJob = getJobCompanyId(job) || 'unassigned';
       const matchesCompany =
-        companyFilter === 'all' || companyIdForJob === companyFilter;
+        !selectedCompanyId || companyIdForJob === selectedCompanyId;
 
       return matchesSearch && matchesStatus && matchesCompany;
     });
-  }, [orderedJobs, searchTerm, statusFilter, companyFilter]);
+  }, [orderedJobs, searchTerm, statusFilter, selectedCompanyId]);
 
   const jobsGroupedByCompany = useMemo(() => {
     if (!Array.isArray(orderedJobs) || orderedJobs.length === 0) return [];
@@ -985,19 +971,6 @@ export default function Jobs() {
           </div>
 
           <div className="h-6 w-px bg-slate-200 dark:bg-slate-700" />
-
-          <select
-            value={companyFilter}
-            onChange={(e) => setCompanyFilter(e.target.value)}
-            className="rounded-xl border-none bg-transparent py-2 pl-2 pr-8 text-sm font-medium text-slate-600 outline-none focus:ring-0 dark:text-slate-400"
-          >
-            <option value="all">{t('jobsAllCompanies', 'jobs')}</option>
-            {companyOptions.map((c: any) => (
-              <option key={c.id} value={c.id}>
-                {getTranslation(c.name, '', locale)}
-              </option>
-            ))}
-          </select>
 
           <select
             value={statusFilter}

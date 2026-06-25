@@ -5,6 +5,7 @@ import { useCompanies } from "../../../../hooks/queries/useCompanies";
 import { useJobPositions } from "../../../../hooks/queries/useJobPositions";
 import { useAuth } from "../../../../context/AuthContext";
 import { useLocale } from "../../../../context/LocaleContext";
+import { useCompanyFilter } from "../../../../context/CompanyFilterContext";
 import LoadingSpinner from "../../../../components/common/LoadingSpinner";
 import { useQueryClient } from '@tanstack/react-query';
 import { applicantsKeys } from '../../../../hooks/queries/useApplicants';
@@ -149,10 +150,9 @@ export default function ApplicantsMobilePage(): JSX.Element {
     );
   }
 
+  const { selectedCompanyId } = useCompanyFilter();
   const [query, setQuery] = useState(initialMobileFilters.query);
-  const [companyFilters, setCompanyFilters] = useState<string[]>(
-    initialMobileFilters.companyFilters
-  );
+  const companyFilters = useMemo(() => selectedCompanyId ? [selectedCompanyId] : [] as string[], [selectedCompanyId]);
   const [jobFilters, setJobFilters] = useState<string[]>(
     initialMobileFilters.jobFilters
   );
@@ -210,17 +210,6 @@ export default function ApplicantsMobilePage(): JSX.Element {
     return usercompanyId?.length ? usercompanyId : undefined;
   }, [user?._id, user?.roleId?.name, user?.companies]);
 
-  const singleAssignedCompanyId = useMemo(() => {
-    if (!Array.isArray(companyId) || companyId.length !== 1) return undefined;
-    return String(companyId[0]);
-  }, [companyId]);
-
-  useEffect(() => {
-    if (!singleAssignedCompanyId) return;
-    if (companyFilters.length === 1 && companyFilters[0] === singleAssignedCompanyId) return;
-    setCompanyFilters([singleAssignedCompanyId]);
-  }, [singleAssignedCompanyId, companyFilters]);
-
   const availableCompanyIds = useMemo(() => (companies || []).map((c: any) => c._id || c.id).filter(Boolean), [companies]);
 
   const primarySelectedCompany =
@@ -254,13 +243,7 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
     const next = typeof updater === 'function' ? updater(columnFilters) : updater;
     _setColumnFilters(next);
     try {
-      const comp = Array.isArray(next) ? next.find((c: any) => c.id === 'companyId') : undefined;
       const job = Array.isArray(next) ? next.find((c: any) => c.id === 'jobPositionId') : undefined;
-      if (comp) {
-        setCompanyFilters(toStringArray(comp.value));
-      } else {
-        setCompanyFilters([]);
-      }
       if (job) {
         setJobFilters(toStringArray(job.value));
       } else {
@@ -341,40 +324,25 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
   }, [applicants, companyFilters, jobFilters, jobPositionMap, hasSearchQuery]);
 
 
-  // Keep selected job filters valid for selected companies.
-  useEffect(() => {
-    if (companyFilters.length === 0) return;
-    setJobFilters((prev) => {
-      const next = prev.filter((jobId) => {
-        const job = jobPositionMap[jobId];
-        if (!job) return false;
-        const raw = job?.companyId || job?.company || job?.companyObj;
-        const cid = typeof raw === 'string' ? raw : raw?._id || raw?.id || '';
-        return cid ? companyFilters.includes(String(cid)) : false;
-      });
-      return next.length === prev.length ? prev : next;
-    });
-  }, [companyFilters, jobPositionMap]);
 
-  // Sync company/job filters with the column filter model used by custom modal.
+
+  // Sync job filters with the column filter model used by custom modal.
   useEffect(() => {
     _setColumnFilters((prev) => {
       const base = Array.isArray(prev)
-        ? prev.filter((p: any) => p.id !== 'companyId' && p.id !== 'jobPositionId')
+        ? prev.filter((p: any) => p.id !== 'jobPositionId')
         : [];
-      if (companyFilters.length > 0) base.push({ id: 'companyId', value: companyFilters });
       if (jobFilters.length > 0) base.push({ id: 'jobPositionId', value: jobFilters });
       if (JSON.stringify(prev || []) === JSON.stringify(base)) return prev;
       return base;
     });
-  }, [companyFilters, jobFilters]);
+  }, [jobFilters]);
 
   // Persist filters and list preferences so they survive entering applicant details and coming back.
   useEffect(() => {
     try {
       const mobileState = {
         query,
-        companyFilters,
         jobFilters,
         statusFilters,
         genderFilters,
@@ -396,7 +364,6 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
     } catch (e) {}
   }, [
     query,
-    companyFilters,
     jobFilters,
     statusFilters,
     genderFilters,
@@ -1317,48 +1284,6 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
           </div>
 
           <div className="p-4 space-y-4 max-h-[70vh] overflow-y-auto">
-            {/* Company Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">{t('company', 'applicants')}</label>
-              <div className="rounded-xl border border-gray-200 bg-gray-50 p-2">
-                <p className="mb-2 text-xs text-gray-500">
-                    {singleAssignedCompanyId
-                      ? t('selectedAuto', 'applicants')
-                      : companyFilters.length
-                        ? t('selected', 'applicants', { count: companyFilters.length })
-                        : t('allCompanies', 'applicants')}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {companies.map((c: any) => {
-                    const cid = String(c._id || c.id || '');
-                    const selected = companyFilters.includes(cid);
-                    const isLockedSingleCompany =
-                      !!singleAssignedCompanyId && cid === singleAssignedCompanyId;
-                    return (
-                      <button
-                        key={cid}
-                        type="button"
-                        disabled={isLockedSingleCompany}
-                        onClick={() => {
-                          if (isLockedSingleCompany) return;
-                          setCompanyFilters((prev) => {
-                            if (selected) return prev.filter((id) => id !== cid);
-                            return [...prev, cid];
-                          });
-                        }}
-                        className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-                          selected
-                            ? 'border-brand-500 bg-brand-50 text-brand-700'
-                            : 'border-gray-300 bg-white text-gray-700'
-                        } ${isLockedSingleCompany ? 'cursor-not-allowed opacity-80' : ''}`}
-                      >
-                        {toPlainString(c?.name) || toPlainString(c?.companyName) || toPlainString(c?.title)}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
 
             {/* Job Filter */}
             <div>
@@ -1479,7 +1404,6 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
             {/* Clear Filters Button */}
             <button
               onClick={() => {
-                setCompanyFilters(singleAssignedCompanyId ? [singleAssignedCompanyId] : []);
                 setJobFilters([]);
                 setStatusFilters([]);
                 setGenderFilters([]);

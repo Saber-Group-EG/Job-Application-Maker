@@ -4,6 +4,7 @@ import AppHeader from "./AppHeader";
 import Backdrop from "./Backdrop";
 import AppSidebar from "./AppSidebar";
 import { useLocale } from "../context/LocaleContext";
+import { CompanyFilterProvider } from "../context/CompanyFilterContext";
 
 const LayoutContent: React.FC = () => {
   const { isExpanded, isHovered, isMobileOpen } = useSidebar();
@@ -31,10 +32,18 @@ const LayoutContent: React.FC = () => {
   );
 };
 
+const LayoutContainer: React.FC = () => {
+  return (
+    <CompanyFilterProvider>
+      <LayoutContent />
+    </CompanyFilterProvider>
+  );
+};
+
 const AppLayout: React.FC = () => {
   return (
     <SidebarProvider>
-      <LayoutContent />
+      <LayoutContainer />
     </SidebarProvider>
   );
 };

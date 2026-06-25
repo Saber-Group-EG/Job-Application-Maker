@@ -8,6 +8,7 @@ import axiosInstance from '../../../../config/axios';
 import Swal from '../../../../utils/swal';
 import { useAuth } from '../../../../context/AuthContext';
 import { useLocale } from '../../../../context/LocaleContext';
+import { useCompanyFilter } from '../../../../context/CompanyFilterContext';
 import {
   useApplicants,
   useJobPositions,
@@ -584,8 +585,10 @@ export default function Applicants({
     [user]
   );
 
+  const { selectedCompanyId: globalSelectedCompanyId } = useCompanyFilter();
   const companyId = useMemo(() => {
     if (companyIdOverride !== undefined) return companyIdOverride as any;
+    if (globalSelectedCompanyId) return [globalSelectedCompanyId];
     if (!user) return undefined;
     const roleName = user?.roleId?.name?.toLowerCase();
     const isSuperAdminRole = roleName === 'super admin';
@@ -594,7 +597,7 @@ export default function Applicants({
     );
     if (isSuperAdminRole) return undefined;
     return userCompanyId?.length ? userCompanyId : undefined;
-  }, [companyIdOverride, user]);
+  }, [companyIdOverride, user, globalSelectedCompanyId]);
 const [excludeModes] = useState<Record<string, boolean>>({});
 
   const [offerModalOpen, setOfferModalOpen] = useState(false);

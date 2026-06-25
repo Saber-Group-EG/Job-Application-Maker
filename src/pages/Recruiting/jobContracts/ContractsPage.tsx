@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useCompanies } from '../../../hooks/queries/useCompanies';
+import { useCompanyFilter } from '../../../context/CompanyFilterContext';
 import { jobContractsService } from '../../../services/contractsService';
 import type {
   JobContract,
@@ -110,6 +111,7 @@ export default function JobContractsPage() {
     hasPermission('Company Management', 'write') ||
     hasPermission('Settings Management', 'write');
 
+  const { selectedCompanyId } = useCompanyFilter();
   const companyId: string[] = companies.map((c) => c._id);
 
   // ── View state ─────────────────────────────────────────────────────────
@@ -118,7 +120,6 @@ export default function JobContractsPage() {
     null
   );
   const [cloneSource, setCloneSource] = useState<JobContract | null>(null);
-  const [companyFilter, setCompanyFilter] = useState<string>('all');
 
   // ── Filters ────────────────────────────────────────────────────────────
   const [page, setPage] = useState(1);
@@ -133,7 +134,7 @@ export default function JobContractsPage() {
   const debouncedSearch = useDebounce(search, 500);
 
   const queryParams = {
-    companyId: companyFilter === 'all' ? companyId : [companyFilter],
+    companyId: selectedCompanyId ? [selectedCompanyId] : companyId,
     isTemplate: false as const,
     PageCount: LIMIT,
     page,
@@ -167,7 +168,7 @@ export default function JobContractsPage() {
   // Reset page on filter change
   useEffect(() => {
     setPage(1);
-  }, [statusFilter, debouncedSearch, companyFilter]);
+  }, [statusFilter, debouncedSearch, selectedCompanyId]);
 
   // ── Mutations ──────────────────────────────────────────────────────────
   const deleteMutation = useDeleteJobContract();
@@ -316,27 +317,6 @@ export default function JobContractsPage() {
                   className="w-full rounded-full border border-slate-200 bg-slate-50 py-2 pl-10 pr-4 text-sm focus:border-brand-300 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-slate-700 dark:bg-slate-800/50 dark:text-white"
                 />
               </div>
-
-              {/* Company filter */}
-              {companies.length > 1 && (
-                <select
-                  value={companyFilter}
-                  onChange={(e) => {
-                    setCompanyFilter(e.target.value);
-                    setPage(1);
-                  }}
-                  className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 focus:border-brand-300 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-300"
-                >
-                  <option value="all">{t('allCompanies', 'jobContracts')}</option>
-                  {companies.map((c) => (
-                    <option key={c._id} value={c._id}>
-                      {typeof c.name === 'string'
-                        ? c.name
-                        : c.name?.en || c.name?.ar}
-                    </option>
-                  ))}
-                </select>
-              )}
 
               {canWrite && (
                 <button

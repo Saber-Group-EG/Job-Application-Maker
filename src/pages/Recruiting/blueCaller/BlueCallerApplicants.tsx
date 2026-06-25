@@ -2,7 +2,6 @@
 // BlueCallerApplicants.tsx - Main Component
 import { useEffect, useState, useMemo } from 'react';
 import {
-  ChevronDown,
   FileSpreadsheet,
   Sparkles,
   UserPlus,
@@ -19,6 +18,7 @@ import type { JobPosition } from '../../../types/jobPositions';
 import ManualInsert from './components/ManualInsert';
 import BulkInsert from './components/BulkInsert';
 import { useLocale } from '../../../context/LocaleContext';
+import { useCompanyFilter } from '../../../context/CompanyFilterContext';
 
 type TabKey = 'manual' | 'bulk';
 
@@ -65,8 +65,9 @@ export default function BlueCallerApplicants() {
   const { user } = useAuth();
   const { t } = useLocale();
 
+  const { selectedCompanyId: ctxCompanyId, setSelectedCompanyId, companies: contextCompanies } = useCompanyFilter();
+  const selectedCompanyId = ctxCompanyId ?? '';
   const [activeTab, setActiveTab] = useState<TabKey>('manual');
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
   const [companies, setCompanies] = useState<Company[]>([]);
   const [jobPositions, setJobPositions] = useState<JobPosition[]>([]);
   const [existingApplicants, setExistingApplicants] = useState<Applicant[]>([]);
@@ -152,7 +153,7 @@ export default function BlueCallerApplicants() {
 
         if (mounted) {
           setCompanies(Array.from(uniqueCompanies.values()));
-          if (uniqueCompanies.size === 1) {
+          if (uniqueCompanies.size === 1 && !selectedCompanyId) {
             const [firstCompanyId] = Array.from(uniqueCompanies.keys());
             setSelectedCompanyId(firstCompanyId);
           }
@@ -223,10 +224,6 @@ export default function BlueCallerApplicants() {
     return () => { mounted = false; };
   }, [selectedCompanyId]);
 
-  const handleCompanyChange = (companyId: string) => {
-    setSelectedCompanyId(companyId);
-  };
-
   return (
     <div
       className={`min-h-screen bg-gray-100 px-4 py-6 text-gray-900 sm:px-6 lg:px-8`}
@@ -258,34 +255,7 @@ export default function BlueCallerApplicants() {
                 {t('description', 'blueCaller')}
               </p>
             </div>
-            <div className="min-w-fit space-y-3">
-              <label className="block text-sm font-semibold text-white">
-                {t('selectCompanyLabel', 'blueCaller')}
-              </label>
-              <div className="relative w-full sm:w-80">
-                <select
-                  value={selectedCompanyId}
-                  onChange={(e) => handleCompanyChange(e.target.value)}
-                  className="w-full appearance-none rounded-2xl border border-white/40 bg-white/20 px-4 py-3 pr-12 text-white backdrop-blur outline-none transition hover:bg-white/30 focus:border-white/60 focus:ring-2 focus:ring-white/30"
-                >
-                  <option value="" className="text-gray-900 bg-white">
-                    {loadingCompanies
-                      ? t('loadingCompanies', 'blueCaller')
-                      : t('selectCompanyPlaceholder', 'blueCaller')}
-                  </option>
-                  {companies.map((company) => (
-                    <option
-                      key={company._id}
-                      value={company._id}
-                      className="text-gray-900 bg-white"
-                    >
-                      {company.nameEN || company._id}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-white" />
-              </div>
-            </div>
+
           </div>
         </section>
 

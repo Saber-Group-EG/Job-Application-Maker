@@ -33,6 +33,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { createPortal } from "react-dom";
+import { useCompanyFilter } from '../../../context/CompanyFilterContext';
 
 type LeadStatus = {
   name: string;
@@ -323,62 +324,26 @@ DragOverlayItem.displayName = 'DragOverlayItem';
 
 type Props = {
   companyId?: string;
-  hideCompanySelector?: boolean;
   embedded?: boolean;
 };
 
 export default function StatusLabelsSettings({
-  companyId,
-  hideCompanySelector,
+  companyId: _companyId,
   embedded,
 }: Props = {}) {
+  const { hasPermission } = useAuth();
   const { t } = useLocale();
-  const { user, hasPermission } = useAuth();
-  const queryClient = useQueryClient();
   const { data: companies = [] } = useCompanies();
-  const [selectedCompanyId, setSelectedCompanyId] = useState<
-    string | undefined
-  >(companyId ?? undefined);
+  const { selectedCompanyId } = useCompanyFilter();
+  const queryClient = useQueryClient();
   const updateMutation = useUpdateCompanyStatuses();
   const [activeId, setActiveId] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  const isSuperAdmin = !!user?.roleId?.name
-    ?.toString()
-    .toLowerCase()
-    .includes('admin');
-  const userCompaniesIds = (user?.companies ?? [])
-    .map((c: any) =>
-      typeof c.companyId === 'string' ? c.companyId : c.companyId?._id
-    )
-    .filter(Boolean) as string[];
-  const computedShowSelector = isSuperAdmin || userCompaniesIds.length > 1;
-  const showSelector = hideCompanySelector ? false : computedShowSelector;
-
-  useEffect(() => {
-    if (companyId && selectedCompanyId !== companyId) {
-      setSelectedCompanyId(companyId);
-      return;
-    }
-
-    if (!selectedCompanyId && companies.length > 0) {
-      if (!computedShowSelector && userCompaniesIds.length === 1) {
-        setSelectedCompanyId(userCompaniesIds[0]);
-        return;
-      }
-      setSelectedCompanyId((companies[0] as any)?._id);
-    }
-  }, [
-    companies,
-    selectedCompanyId,
-    computedShowSelector,
-    userCompaniesIds,
-    companyId,
-  ]);
-
+  const effectiveCompanyId = selectedCompanyId ?? (companies as any[])[0]?._id;
   const selectedCompany = useMemo(
-    () => (companies as any[]).find((c) => c._id === selectedCompanyId),
-    [companies, selectedCompanyId]
+    () => (companies as any[]).find((c) => c._id === effectiveCompanyId),
+    [companies, effectiveCompanyId]
   );
 
   // Get statuses directly from the selected company (from /auth/me data)
@@ -668,41 +633,6 @@ export default function StatusLabelsSettings({
 
           <div className="grid grid-cols-1 gap-6 p-6 xl:grid-cols-12">
             <div className="space-y-6 xl:col-span-4">
-              {showSelector && (
-                <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-700/50 dark:bg-slate-800/40">
-                  <div className="mb-3 flex items-center gap-2">
-                    <div className="flex size-8 items-center justify-center rounded-lg bg-violet-500/10 text-violet-500">
-                      <Settings className="size-4" />
-                    </div>
-                    <h3 className="text-lg font-semibold tracking-tight">
-                      {t('statusSettings.companySelectorTitle', 'settings')}
-                    </h3>
-                  </div>
-                  <div className="relative">
-                    <select
-                      value={selectedCompanyId}
-                      onChange={(e) => setSelectedCompanyId(e.target.value)}
-                      className="w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 pr-10 text-sm font-medium outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800"
-                    >
-                      {companies.map((c: any) => (
-                        <option
-                          key={c._id}
-                          value={c._id}
-                          className="font-medium"
-                        >
-                          {(typeof c.name === 'object' ? c.name.en : c.name) ||
-                            t('statusSettings.unnamedCompany', 'settings')}
-                        </option>
-                      ))}
-                    </select>
-                    <ArrowRight className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 rotate-90 text-slate-400" />
-                  </div>
-                  <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-                    {t('statusSettings.companySelectorHelp', 'settings')}
-                  </p>
-                </div>
-              )}
-
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                 <div className="mb-4 flex items-center gap-3">
                   <div className="flex size-10 items-center justify-center rounded-lg bg-blue-500/10 text-blue-500">

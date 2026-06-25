@@ -5,10 +5,14 @@ import { ThemeToggleButton } from "../components/common/ThemeToggleButton";
 // import NotificationDropdown from "../components/header/NotificationDropdown";
 import UserDropdown from "../components/header/UserDropdown";
 import { useLocale } from "../context/LocaleContext";
+import { useCompanyFilter } from "../context/CompanyFilterContext";
+import { X } from "lucide-react";
 
 const AppHeader: React.FC = () => {
   const [isApplicationMenuOpen, setApplicationMenuOpen] = useState(false);
+  const [isCompanyDropdownOpen, setIsCompanyDropdownOpen] = useState(false);
   const { locale, setLocale, t, dir } = useLocale();
+  const { selectedCompanyId, setSelectedCompanyId, resetFilter, companyOptions, isMultiCompany, companyMap } = useCompanyFilter();
 
   const { isMobileOpen, toggleSidebar, toggleMobileSidebar } = useSidebar();
 
@@ -25,6 +29,7 @@ const AppHeader: React.FC = () => {
   };
 
   const inputRef = useRef<HTMLInputElement>(null);
+  const companyDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -40,6 +45,22 @@ const AppHeader: React.FC = () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (companyDropdownRef.current && !companyDropdownRef.current.contains(e.target as Node)) {
+        setIsCompanyDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedCompany = selectedCompanyId ? companyMap[selectedCompanyId] : null;
+  const selectedName = selectedCompany
+    ? (locale === 'ar' && selectedCompany?.name?.ar ? selectedCompany.name.ar : (typeof selectedCompany?.name === 'string' ? selectedCompany.name : selectedCompany?.name?.en || ''))
+    : t('allCompanies', 'common');
+  const selectedLogo = selectedCompany?.logoPath;
 
   return (
     <header className="sticky top-0 flex w-full bg-white border-gray-200 z-50 dark:border-gray-800 dark:bg-gray-900 lg:border-b">
@@ -115,6 +136,87 @@ const AppHeader: React.FC = () => {
               {locale === 'en' ? 'AR' : 'EN'}
             </span>
           </button>
+          {isMultiCompany && (
+            <div className="flex items-center gap-1" ref={companyDropdownRef}>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsCompanyDropdownOpen(!isCompanyDropdownOpen)}
+                  className="flex w-56 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-gray-200"
+                >
+                  {selectedLogo && !isCompanyDropdownOpen ? (
+                    <img
+                      src={selectedLogo.replace('/upload/', '/upload/q_10,w_32/')}
+                      alt=""
+                      className="size-5 shrink-0 rounded object-cover"
+                    />
+                  ) : (
+                    <div className="flex size-5 shrink-0 items-center justify-center rounded bg-slate-200 text-[11px] font-bold leading-none text-slate-600 dark:bg-slate-600 dark:text-slate-300">
+                      {isCompanyDropdownOpen ? '▼' : (selectedName || '?').charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <span className="flex-1 truncate text-left">{selectedName}</span>
+                </button>
+
+                  {isCompanyDropdownOpen && (
+                  <div className="absolute right-0 z-30 mt-1 w-64 overflow-auto rounded-lg border border-slate-200 bg-white p-1 shadow-lg dark:border-slate-700 dark:bg-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => { setSelectedCompanyId(null); setIsCompanyDropdownOpen(false); }}
+                      className={`flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm transition ${
+                        !selectedCompanyId
+                          ? 'bg-slate-200 text-slate-800 dark:bg-slate-600 dark:text-slate-100'
+                          : 'text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700/50'
+                      }`}
+                    >
+                      {t('allCompanies', 'common')}
+              i      </button>
+                    {companyOptions.map((c) => {
+                      const name = locale === 'ar' && c.titleAr ? c.titleAr : c.title;
+                      return (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => { setSelectedCompanyId(c.id); setIsCompanyDropdownOpen(false); }}
+                          className={`flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm transition ${
+                            selectedCompanyId === c.id
+                              ? 'bg-slate-200 text-slate-800 dark:bg-slate-600 dark:text-slate-100'
+                              : 'text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700/50'
+                          }`}
+                        >
+                          {c.logoPath ? (
+                            <img
+                              src={c.logoPath.replace('/upload/', '/upload/q_10,w_32/')}
+                              alt=""
+                              className="size-6 shrink-0 rounded object-cover"
+                            />
+                          ) : (
+                            <div className={`flex size-6 shrink-0 items-center justify-center rounded text-[10px] font-bold uppercase ${
+                              selectedCompanyId === c.id
+                                ? 'bg-slate-300 text-slate-800 dark:bg-slate-500 dark:text-white'
+                                : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+                            }`}>
+                              {name.charAt(0)}
+                            </div>
+                          )}
+                          <span className="flex-1 truncate">{name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+              {selectedCompanyId && (
+                <button
+                  onClick={() => { resetFilter(); setIsCompanyDropdownOpen(false); }}
+                  className="flex items-center justify-center rounded-lg border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800"
+                  title={t('clear', 'common')}
+                >
+                  <X className="size-3.5" />
+                </button>
+              )}
+            </div>
+          )}
           <ThemeToggleButton />
           <UserDropdown />
         </div>
