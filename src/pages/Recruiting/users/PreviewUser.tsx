@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useParams, useNavigate } from "react-router";
+import { useLocale } from "../../../context/LocaleContext";
 import PageMeta from "../../../components/common/PageMeta";
 import LoadingSpinner from "../../../components/common/LoadingSpinner";
 import { 
@@ -32,6 +33,7 @@ type UserCompanyView = {
 };
 
 export default function PreviewUser() {
+  const { t } = useLocale();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
@@ -49,12 +51,12 @@ export default function PreviewUser() {
 
   // Get role name
   const roleName = useMemo(() => {
-    if (!user) return "Unauthorized Access";
+    if (!user) return t('previewUnauthorized', 'users');
     if (typeof user.roleId === "object" && user.roleId) {
       return toPlainString((user.roleId as any).name);
     }
     const role = roles.find((r) => r._id === user.roleId);
-    return role ? toPlainString((role as any).name) : "Standard Company";
+    return role ? toPlainString((role as any).name) : t('previewStandardRole', 'users');
   }, [user, roles]);
 
   // Transform company assignments
@@ -102,7 +104,7 @@ export default function PreviewUser() {
       .map((userCompany: any) => {
         const companyId = typeof userCompany.companyId === "string" ? userCompany.companyId : userCompany.companyId?._id;
         const companyObj = companies.find((c) => c._id === companyId);
-        const companyName = companyObj ? toPlainString(companyObj.name) : "Unassigned";
+        const companyName = companyObj ? toPlainString(companyObj.name) : t('previewUnassigned', 'users');
 
         const userDepts = (userCompany.departments || []).map((dept: any) =>
           resolveDepartmentName(dept, companyObj)
@@ -120,21 +122,21 @@ export default function PreviewUser() {
         <div className="size-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto ring-4 ring-red-500/5 transition-transform duration-700 hover:rotate-12">
           <ShieldAlert className="size-10 text-red-500" />
         </div>
-        <h2 className="text-3xl font-black dark:text-white tracking-tight">Company Missing</h2>
-        <p className="text-gray-500 font-medium">The personnel record you are attempting to access has been revoked or lost.</p>
+        <h2 className="text-3xl font-black dark:text-white tracking-tight">{t('previewNotFoundTitle', 'users')}</h2>
+        <p className="text-gray-500 font-medium">{t('previewNotFoundText', 'users')}</p>
         <button onClick={() => navigate("/users")} className="px-10 py-4 bg-brand-500 text-white font-black rounded-3xl shadow-xl shadow-brand-500/30 hover:scale-105 active:scale-95 transition-all">
-          Return to Hub
+          {t('previewReturnButton', 'users')}
         </button>
       </div>
     </div>
   );
 
-  const userName = toPlainString(user.fullName || user.name || "Anonymous Persona");
+  const userName = toPlainString(user.fullName || user.name || t('previewAnonymous', 'users'));
   const isActive = user.isActive !== false;
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0F172A] p-4 sm:p-8 text-slate-900 dark:text-slate-100">
-      <PageMeta title={`Personnel Profile - ${userName}`} description="Detailed overview of user authentication and organizational access" />
+      <PageMeta title={t('previewMetaTitle', 'users', { name: userName })} description={t('previewMetaDescription', 'users')} />
       
       <div className="max-w-6xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-1000">
         {/* Navigation & Actions */}
@@ -146,7 +148,7 @@ export default function PreviewUser() {
             <div className="size-12 bg-white/60 dark:bg-white/5 backdrop-blur-xl border border-white/20 rounded-2xl flex items-center justify-center shadow-sm group-hover:-translate-x-1 group-hover:bg-brand-500 group-hover:text-white transition-all">
               <ChevronLeft className="size-5" />
             </div>
-            <span className="font-black text-xs uppercase tracking-widest text-gray-400 group-hover:text-brand-500 transition-colors">Back to Records</span>
+            <span className="font-black text-xs uppercase tracking-widest text-gray-400 group-hover:text-brand-500 transition-colors">{t('previewBackButton', 'users')}</span>
           </button>
           
           <button 
@@ -154,7 +156,7 @@ export default function PreviewUser() {
             className="flex items-center gap-3 px-8 py-4 bg-brand-500 text-white rounded-[2rem] font-black tracking-widest uppercase text-xs shadow-xl shadow-brand-500/30 hover:scale-105 active:scale-95 transition-all"
           >
             <Pencil className="size-4" />
-            Edit
+            {t('previewEditButton', 'users')}
           </button>
         </div>
 
@@ -177,7 +179,7 @@ export default function PreviewUser() {
               <div className="space-y-2">
                 <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] mb-4 ${isActive ? "bg-green-500/10 text-green-600 border border-green-500/20" : "bg-red-500/10 text-red-600 border border-red-500/20"}`}>
                   <Clock className="size-3" />
-                  Status: {isActive ? "Active Duty" : "Revoked"}
+                  {t('previewStatusLabel', 'users')}: {isActive ? t('previewStatusActive', 'users') : t('previewStatusRevoked', 'users')}
                 </div>
                 <h1 className="text-5xl md:text-6xl font-black tracking-tighter text-gray-900 dark:text-white">
                   {userName}
@@ -185,11 +187,11 @@ export default function PreviewUser() {
                 <div className="flex flex-wrap justify-center lg:justify-start gap-4 pt-2">
                   <div className="flex items-center gap-2 px-3 py-1 bg-brand-500/5 border border-brand-500/10 rounded-xl text-xs font-bold text-brand-500">
                     <Shield className="size-3.5" />
-                    Level: {roleName}
+                    {t('previewLevelLabel', 'users', { role: roleName })}
                   </div>
                   <div className="flex items-center gap-2 px-3 py-1 bg-blue-500/5 border border-blue-500/10 rounded-xl text-xs font-bold text-blue-500">
                     <Calendar className="size-3.5" />
-                    Added: {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "System Launch"}
+                    {t('previewAddedLabel', 'users', { date: user.createdAt ? new Date(user.createdAt).toLocaleDateString() : t('previewAddedSystem', 'users') })}
                   </div>
                 </div>
               </div>
@@ -197,14 +199,14 @@ export default function PreviewUser() {
             
             <div className="grid grid-cols-2 gap-4">
               <div className="p-6 bg-white/40 dark:bg-black/20 rounded-[2.5rem] border border-white/20 min-w-[140px] text-center">
-                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Reach</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{t('previewReachLabel', 'users')}</span>
                 <p className="text-3xl font-black dark:text-white pt-1">{userCompanies.length}</p>
-                <span className="text-[10px] text-gray-400 font-bold italic">Affiliations</span>
+                <span className="text-[10px] text-gray-400 font-bold italic">{t('previewAffiliationsLabel', 'users')}</span>
               </div>
               <div className="p-6 bg-white/40 dark:bg-black/20 rounded-[2.5rem] border border-white/20 min-w-[140px] text-center">
-                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Security</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{t('previewSecurityLabel', 'users')}</span>
                 <p className="text-3xl font-black dark:text-white pt-1">92%</p>
-                <span className="text-[10px] text-gray-400 font-bold italic">Integrity</span>
+                <span className="text-[10px] text-gray-400 font-bold italic">{t('previewIntegrityLabel', 'users')}</span>
               </div>
             </div>
           </div>
@@ -217,21 +219,21 @@ export default function PreviewUser() {
             <div className="bg-white/60 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 p-10 rounded-[4rem] shadow-xl">
               <h3 className="text-xl font-black flex items-center gap-3 mb-10 tracking-tight">
                 <Shield className="size-6 text-brand-500" />
-                Personal Information
+                {t('previewPersonalInfo', 'users')}
               </h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                 <div className="group space-y-4">
                   <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
                     <div className="size-1.5 bg-brand-500 rounded-full" />
-                    Authentication Channel
+                    {t('previewAuthChannel', 'users')}
                   </span>
                   <div className="flex items-center gap-4 p-5 bg-white/40 dark:bg-black/20 rounded-3xl border border-white/20 group-hover:border-brand-500/30 transition-all shadow-sm">
                     <div className="size-12 bg-white dark:bg-white/5 rounded-2xl flex items-center justify-center text-brand-500 shadow-inner group-hover:scale-110 transition-transform">
                       <Mail className="size-5" />
                     </div>
                     <div>
-                      <p className="text-xs font-black text-gray-400 uppercase tracking-tighter">Primary Email</p>
+                      <p className="text-xs font-black text-gray-400 uppercase tracking-tighter">{t('previewPrimaryEmail', 'users')}</p>
                       <p className="text-base font-bold dark:text-gray-100 truncate max-w-[200px]">{user.email}</p>
                     </div>
                   </div>
@@ -240,15 +242,15 @@ export default function PreviewUser() {
                 <div className="group space-y-4">
                   <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
                     <div className="size-1.5 bg-blue-500 rounded-full" />
-                    Communication Relay
+                    {t('previewCommRelay', 'users')}
                   </span>
                   <div className="flex items-center gap-4 p-5 bg-white/40 dark:bg-black/20 rounded-3xl border border-white/20 group-hover:border-blue-500/30 transition-all shadow-sm">
                     <div className="size-12 bg-white dark:bg-white/5 rounded-2xl flex items-center justify-center text-blue-500 shadow-inner group-hover:scale-110 transition-transform">
                       <Phone className="size-5" />
                     </div>
                     <div>
-                      <p className="text-xs font-black text-gray-400 uppercase tracking-tighter">Secure Line</p>
-                      <p className="text-base font-bold dark:text-gray-100">{user.phone || "No line connected"}</p>
+                      <p className="text-xs font-black text-gray-400 uppercase tracking-tighter">{t('previewSecureLine', 'users')}</p>
+                      <p className="text-base font-bold dark:text-gray-100">{user.phone || t('previewNoLine', 'users')}</p>
                     </div>
                   </div>
                 </div>
@@ -259,7 +261,7 @@ export default function PreviewUser() {
             <div className="space-y-6">
               <h3 className="text-xl font-black flex items-center gap-3 px-4 tracking-tight">
                 <Building2 className="size-6 text-purple-500" />
-                Company Section
+                {t('previewCompanySection', 'users')}
               </h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -267,7 +269,7 @@ export default function PreviewUser() {
                   <div key={idx} className="relative group bg-white/60 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 p-8 rounded-[3.5rem] shadow-sm hover:shadow-2xl transition-all duration-500 cursor-default">
                     {assignment.isPrimary && (
                       <div className="absolute top-6 right-8 px-3 py-1 bg-purple-500 text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-lg shadow-purple-500/30 animate-pulse">
-                        Primary HQ
+                        {t('previewPrimaryHQ', 'users')}
                       </div>
                     )}
                     
@@ -278,12 +280,12 @@ export default function PreviewUser() {
                       
                       <div className="space-y-1">
                         <h4 className="text-2xl font-black tracking-tight dark:text-white leading-none">{assignment.companyName}</h4>
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-[0.1em]">Authenticated Affiliate</p>
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-[0.1em]">{t('previewAffiliateLabel', 'users')}</p>
                       </div>
 
                       <div className="space-y-3 pt-4 border-t border-slate-100 dark:border-white/5">
                         <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                          Mapped Sections ({assignment.departments.length})
+                          {t('previewMappedSections', 'users', { count: assignment.departments.length })}
                         </span>
                         <div className="flex flex-wrap gap-2">
                           {assignment.departments.map((dept, dIdx) => (
@@ -293,7 +295,7 @@ export default function PreviewUser() {
                             </div>
                           ))}
                           {assignment.departments.length === 0 && (
-                            <p className="text-xs font-medium text-gray-400 italic">No departmental clusters mapped.</p>
+                            <p className="text-xs font-medium text-gray-400 italic">{t('previewNoDepartments', 'users')}</p>
                           )}
                         </div>
                       </div>
@@ -306,7 +308,7 @@ export default function PreviewUser() {
                     <div className="size-20 rounded-full bg-slate-100 dark:bg-white/5 mx-auto mb-6 flex items-center justify-center">
                       <Building2 className="size-10 text-slate-300 dark:text-slate-700 opacity-30" />
                     </div>
-                    <p className="text-gray-400 font-black text-sm uppercase tracking-widest">No Organizational Ties Discovered</p>
+                    <p className="text-gray-400 font-black text-sm uppercase tracking-widest">{t('previewNoOrganizationalTies', 'users')}</p>
                   </div>
                 )}
               </div>
@@ -318,12 +320,12 @@ export default function PreviewUser() {
             
 
             <div className="bg-white/60 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 p-10 rounded-[4rem] shadow-xl">
-              <h3 className="text-lg font-black tracking-tight mb-8">System Activity</h3>
+              <h3 className="text-lg font-black tracking-tight mb-8">{t('previewSystemActivity', 'users')}</h3>
               <div className="space-y-8">
                 {[
-                  { label: "Profile Updated", date: "2 Hours Ago", icon: Calendar, color: "text-brand-500" },
-                  { label: "Matrix Sync", date: "Yesterday", icon: CheckCircle2, color: "text-green-500" },
-                  { label: "Authentication", date: "March 15, 2026", icon: Shield, color: "text-blue-500" }
+                  { label: t('previewActivityProfileUpdated', 'users'), date: "2 Hours Ago", icon: Calendar, color: "text-brand-500" },
+                  { label: t('previewActivityMatrixSync', 'users'), date: "Yesterday", icon: CheckCircle2, color: "text-green-500" },
+                  { label: t('previewActivityAuthentication', 'users'), date: "March 15, 2026", icon: Shield, color: "text-blue-500" }
                 ].map((item, i) => (
                   <div key={i} className="flex gap-5 items-start group cursor-default">
                     <div className={`mt-1 p-2.5 rounded-xl bg-slate-100 dark:bg-white/5 ${item.color} group-hover:scale-110 transition-transform`}>
@@ -337,7 +339,7 @@ export default function PreviewUser() {
                 ))}
               </div>
               <button className="w-full mt-10 py-4 bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-gray-400 rounded-3xl font-black text-[10px] uppercase tracking-widest border border-slate-200 dark:border-white/5 hover:bg-brand-500 hover:text-white hover:border-brand-500 transition-all">
-                Full Audit Trail
+                {t('previewFullAuditTrail', 'users')}
               </button>
             </div>
           </div>

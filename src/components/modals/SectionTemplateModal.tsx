@@ -24,6 +24,7 @@ import type {
   SectionTemplateItem,
 } from '../../types/companies';
 import { translateText } from '../../utils/translate';
+import { useLocale } from '../../context/LocaleContext';
 
 // ─── tiny uid ─────────────────────────────────────────────────────────────────
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -51,6 +52,7 @@ function CategoryCombobox({
   onChange: (v: string) => void;
   existingCategories: string[];
 }) {
+  const { t } = useLocale();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState(value);
   const ref = useRef<HTMLDivElement>(null);
@@ -87,7 +89,7 @@ function CategoryCombobox({
         <input
           className={inputCls}
           value={query}
-          placeholder="e.g. Legal, Benefits, Terms…"
+          placeholder={t('categoryPlaceholder', 'modals')}
           onFocus={() => setOpen(true)}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -153,6 +155,7 @@ function SortableItemRow({
   onPatch: (patch: Partial<SectionTemplateItem>) => void;
   onRemove: () => void;
 }) {
+  const { t: tRow } = useLocale();
   const {
     attributes,
     listeners,
@@ -191,7 +194,7 @@ function SortableItemRow({
           rows={2}
           value={item.en}
           onChange={(e) => onPatch({ en: e.target.value })}
-          placeholder="Item text (EN)"
+          placeholder={tRow('itemTextEn', 'modals')}
         />
         <div className="relative">
           <textarea
@@ -199,23 +202,23 @@ function SortableItemRow({
             rows={2}
             value={item.ar}
             onChange={(e) => onPatch({ ar: e.target.value })}
-            placeholder="نص العنصر"
+            placeholder={tRow('itemTextAr', 'modals')}
             dir="rtl"
           />
           <button
             type="button"
             onClick={async () => {
               if (item.en.trim()) {
-                const t = await translateText(item.en, 'en', 'ar');
-                if (t) onPatch({ ar: t });
+                const tText = await translateText(item.en, 'en', 'ar');
+                if (tText) onPatch({ ar: tText });
               } else if (item.ar.trim()) {
-                const t = await translateText(item.ar, 'ar', 'en');
-                if (t) onPatch({ en: t });
+                const tText = await translateText(item.ar, 'ar', 'en');
+                if (tText) onPatch({ en: tText });
               }
             }}
             disabled={!item.en.trim() && !item.ar.trim()}
             className="absolute right-1.5 top-1.5 flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
-            title={item.en.trim() ? 'Translate EN → AR' : 'Translate AR → EN'}
+            title={item.en.trim() ? tRow('translateEnToAr', 'modals') : tRow('translateArToEn', 'modals')}
           >
             <Languages className="size-3" />
           </button>
@@ -240,6 +243,7 @@ export default function SectionTemplateModal({
   editing,
   existingCategories,
 }: Props) {
+  const { t } = useLocale();
   const [category, setCategory] = useState('');
   const [titleEn, setTitleEn] = useState('');
   const [titleAr, setTitleAr] = useState('');
@@ -365,7 +369,7 @@ export default function SectionTemplateModal({
         {/* header */}
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-800">
           <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
-            {editing ? 'Edit Section Template' : 'New Section Template'}
+            {editing ? t('editSectionTemplate', 'modals') : t('newSectionTemplate', 'modals')}
           </h2>
           <div className="flex items-center gap-2">
             <button
@@ -373,15 +377,15 @@ export default function SectionTemplateModal({
               onClick={translateAll}
               disabled={translatingAll}
               className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-brand-50 hover:text-brand-600 disabled:opacity-50 dark:border-slate-700 dark:hover:bg-brand-500/10 dark:hover:text-brand-400"
-              title="Translate all EN fields to AR"
-            >
-              {translatingAll ? (
-                <div className="size-3.5 animate-spin rounded-full border-2 border-slate-400/30 border-t-slate-400" />
-              ) : (
-                <Languages className="size-3.5" />
-              )}
-              Translate All
-            </button>
+              title={t('translateEnToAr', 'modals')}
+              >
+                {translatingAll ? (
+                  <div className="size-3.5 animate-spin rounded-full border-2 border-slate-400/30 border-t-slate-400" />
+                ) : (
+                  <Languages className="size-3.5" />
+                )}
+                {t('translateAll', 'modals')}
+              </button>
             <button
               type="button"
               onClick={onClose}
@@ -396,7 +400,7 @@ export default function SectionTemplateModal({
         <div className="flex-1 space-y-5 overflow-y-auto p-5">
           {/* Category */}
           <div>
-            <Label>Category</Label>
+            <Label>{t('category', 'modals')}</Label>
             <CategoryCombobox
               value={category}
               onChange={setCategory}
@@ -407,17 +411,17 @@ export default function SectionTemplateModal({
           {/* Title */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label>Title (EN)</Label>
+              <Label>{t('titleEn', 'modals')}</Label>
               <input
                 className={inputCls}
                 value={titleEn}
                 onChange={(e) => setTitleEn(e.target.value)}
-                placeholder="e.g. Terms & Conditions"
+                placeholder={t('titleEnPlaceholder', 'modals')}
               />
             </div>
             <div>
               <div className="flex items-center justify-between">
-                <Label>Title (AR)</Label>
+                <Label>{t('titleAr', 'modals')}</Label>
                 <button
                   type="button"
                   onClick={async () => {
@@ -431,7 +435,7 @@ export default function SectionTemplateModal({
                   }}
                   disabled={!titleEn.trim() && !titleAr.trim()}
                   className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
-                  title={titleEn.trim() ? 'Translate EN → AR' : 'Translate AR → EN'}
+                  title={titleEn.trim() ? t('translateEnToAr', 'modals') : t('translateArToEn', 'modals')}
                 >
                   <Languages className="size-3" />
                 </button>
@@ -440,7 +444,7 @@ export default function SectionTemplateModal({
                 className={inputCls}
                 value={titleAr}
                 onChange={(e) => setTitleAr(e.target.value)}
-                placeholder="الشروط والأحكام"
+                placeholder={t('titleArPlaceholder', 'modals')}
                 dir="rtl"
               />
             </div>
@@ -448,7 +452,7 @@ export default function SectionTemplateModal({
 
           {/* Items */}
           <div>
-            <Label>Items</Label>
+            <Label>{t('items', 'modals')}</Label>
             <div className="space-y-2">
               <DndContext
                 sensors={sensors}
@@ -490,7 +494,7 @@ export default function SectionTemplateModal({
                 onClick={addItem}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-500 transition hover:border-brand-400 hover:text-brand-600 dark:border-slate-600 dark:hover:border-brand-500 dark:hover:text-brand-300"
               >
-                <Plus className="size-3.5" /> Add Item
+                <Plus className="size-3.5" /> {t('addItem', 'modals')}
               </button>
             </div>
           </div>
@@ -503,7 +507,7 @@ export default function SectionTemplateModal({
             onClick={onClose}
             className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800"
           >
-            Cancel
+            {t('cancel', 'modals')}
           </button>
           <button
             type="button"
@@ -511,7 +515,7 @@ export default function SectionTemplateModal({
             disabled={!titleEn.trim() && !titleAr.trim()}
             className="rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {editing ? 'Save Changes' : 'Add Template'}
+            {editing ? t('saveChanges', 'modals') : t('addTemplate', 'modals')}
           </button>
         </div>
       </div>

@@ -10,6 +10,7 @@ import {
   Timer,
 } from 'lucide-react';
 import { formatTimer } from '../utils/interviewUtils';
+import { useLocale } from '../../../../../../context/LocaleContext';
 import type { FieldSaveStatus } from '../hooks/useInterviewActions';
 
 export type InterviewHeaderProps = {
@@ -47,16 +48,17 @@ export const InterviewHeader = ({
   onEnd,
   onSaveProgress,
 }: InterviewHeaderProps) => {
+  const { t } = useLocale();
   const statusBadge = useMemo(() => {
     const status = String(interviewStatus || '').toLowerCase();
     if (status === 'completed' || isEnded) {
-      return { label: 'Completed', classes: 'bg-emerald-500/20 text-emerald-50' };
+      return { label: t('completed', 'interview'), classes: 'bg-emerald-500/20 text-emerald-50' };
     }
     if (status === 'in_progress' || isStarted) {
-      return { label: 'In progress', classes: 'bg-amber-400/20 text-amber-50' };
+      return { label: t('inProgress', 'interview'), classes: 'bg-amber-400/20 text-amber-50' };
     }
-    return { label: 'Scheduled', classes: 'bg-white/15 text-white' };
-  }, [interviewStatus, isStarted, isEnded]);
+    return { label: t('scheduled', 'interview'), classes: 'bg-white/15 text-white' };
+  }, [interviewStatus, isStarted, isEnded, t]);
 
   return (
     <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-5 py-4">
@@ -67,14 +69,14 @@ export const InterviewHeader = ({
           className="inline-flex items-center gap-1.5 text-white/90 hover:text-white text-sm font-medium group"
         >
           <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
-          Back
+          {t('back', 'interview')}
         </button>
         <div className="flex items-center gap-2 flex-wrap">
           <div
             className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${
               isEnded ? 'bg-white/15' : 'bg-white/25 ring-1 ring-white/40'
             }`}
-            title={isEnded ? 'Final interview duration' : 'Live duration since the interview started'}
+            title={isEnded ? t('finalInterviewDuration', 'interview') : t('liveDurationSinceStarted', 'interview')}
           >
             {isEnded ? (
               <StopCircle className="h-3.5 w-3.5 text-white" />
@@ -87,7 +89,7 @@ export const InterviewHeader = ({
           </div>
           <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/20 text-xs text-white font-medium">
             <FileText className="h-3.5 w-3.5" />
-            {answered}/{total} answered
+            {t('nAnsweredOfTotal', 'interview', { answered, total })}
           </div>
           <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${statusBadge.classes}`}>
             {statusBadge.label}
@@ -95,19 +97,19 @@ export const InterviewHeader = ({
           {fieldSaveStatus === 'saving' && (
             <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-400/20 text-amber-50 text-[11px] font-medium">
               <span className="h-1.5 w-1.5 rounded-full bg-amber-200 animate-pulse" />
-              Saving…
+              {t('saving', 'interview')}
             </div>
           )}
           {fieldSaveStatus === 'saved' && (
             <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-400/20 text-emerald-50 text-[11px] font-medium">
               <CheckCircle2 className="h-3 w-3" />
-              Saved
+              {t('saved', 'interview')}
             </div>
           )}
           {fieldSaveStatus === 'error' && (
             <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-400/20 text-red-50 text-[11px] font-medium">
               <AlertCircle className="h-3 w-3" />
-              Save failed
+              {t('saveFailed', 'interview')}
             </div>
           )}
           {false && canSaveProgress && (
@@ -116,10 +118,10 @@ export const InterviewHeader = ({
               onClick={onSaveProgress}
               disabled={isMutating}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/20 text-white text-xs font-semibold hover:bg-white/30 transition-colors shadow-sm disabled:opacity-50"
-              title="Save current progress to the backend"
+              title={t('saveCurrentProgress', 'interview')}
             >
               <Save className="h-3.5 w-3.5" />
-              Save Progress
+              {t('saveProgress', 'interview')}
             </button>
           )}
           {canStart && (
@@ -128,10 +130,10 @@ export const InterviewHeader = ({
               onClick={onStart}
               disabled={isMutating}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500 text-white text-xs font-semibold hover:bg-emerald-600 transition-colors shadow-sm disabled:opacity-50"
-              title="Start the interview timer"
+              title={t('startTheInterviewTimer', 'interview')}
             >
               <Play className="h-3.5 w-3.5" />
-              Start Interview
+              {t('startInterview', 'interview')}
             </button>
           )}
           {canEnd && (
@@ -140,10 +142,10 @@ export const InterviewHeader = ({
               onClick={onEnd}
               disabled={isMutating}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-500 text-white text-xs font-semibold hover:bg-red-600 transition-colors shadow-sm disabled:opacity-50"
-              title="Stop the timer and submit the answers"
+              title={t('stopTheTimerAndSubmit', 'interview')}
             >
               <StopCircle className="h-3.5 w-3.5" />
-              End Interview
+              {t('endInterview', 'interview')}
             </button>
           )}
         </div>

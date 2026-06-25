@@ -1,0 +1,20 @@
+{
+  "applicant": "Applicant",
+  "fullName": "Full name",
+  "positionAppliedFor": "Position Applied For",
+  "scheduleInterview": "Schedule Interview",
+  "sendMessage": "Send Message",
+  "print": "Print",
+  "createJobOffer": "Create Job Offer",
+  "createContract": "Create Contract",
+  "details": "Details",
+  "dateOfBirth": "Date of Birth",
+  "selectGender": "Select Gender",
+  "male": "Male",
+  "female": "Female",
+  "address": "Address",
+  "resumeCv": "Resume / CV",
+  "noResumeAttached": "No resume attached",
+  "submittedAt": "Submitted At",
+  "downloadCv": "Download CV"
+}

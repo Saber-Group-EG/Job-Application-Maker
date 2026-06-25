@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router";
 import { useAuth } from "../../../context/AuthContext";
+import { useLocale } from "../../../context/LocaleContext";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
 import LoadingSpinner from "../../../components/common/LoadingSpinner";
@@ -29,6 +30,7 @@ import {
 import Swal from '../../../utils/swal';
 
 export default function Users() {
+  const { t, locale } = useLocale();
   const navigate = useNavigate();
   const { hasPermission, user: authUser } = useAuth();
 
@@ -117,20 +119,20 @@ export default function Users() {
 
   const handleDeleteUser = async (user: any) => {
     const result = await Swal.fire({
-      title: "Deactivate User?",
-      text: `Are you sure you want to remove access for ${toPlainString(user.fullName || user.name)}?`,
+      title: t('deactivateConfirmTitle', 'users'),
+      text: t('deactivateConfirmText', 'users', { name: toPlainString(user.fullName || user.name) }),
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#ef4444",
-      confirmButtonText: "Yes, deactivate"
+      confirmButtonText: t('deactivateConfirmButton', 'users')
     });
 
     if (result.isConfirmed) {
       try {
         await deleteUserMutation.mutateAsync(user._id);
-        Swal.fire({ title: "Deactivated", icon: "success", timer: 1500, showConfirmButton: false });
+        Swal.fire({ title: t('deactivatedSuccess', 'users'), icon: "success", timer: 1500, showConfirmButton: false });
       } catch (err: any) {
-        Swal.fire("Error", err.message || "Failed to deactivate user", "error");
+        Swal.fire(t('deactivateError', 'users'), err.message || t('deactivateErrorText', 'users'), "error");
       }
     }
   };
@@ -142,8 +144,8 @@ export default function Users() {
           <div className="size-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto">
             <Shield className="size-10 text-red-500" />
           </div>
-          <h1 className="text-2xl font-black dark:text-white">Access Restricted</h1>
-          <p className="text-gray-500 max-w-xs mx-auto font-medium">Your account does not have the necessary clearance to view the personnel directory.</p>
+          <h1 className="text-2xl font-black dark:text-white">{t('accessDeniedTitle', 'users')}</h1>
+          <p className="text-gray-500 max-w-xs mx-auto font-medium">{t('accessDeniedText', 'users')}</p>
         </div>
       </div>
     );
@@ -151,17 +153,17 @@ export default function Users() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0F172A] p-4 sm:p-8 text-slate-900 dark:text-slate-100">
-      <PageMeta title="Personnel Directory | Job Application Maker" description="Manage system users and access" />
-      <PageBreadcrumb pageTitle="Personnel directory" />
+      <PageMeta title={t('metaTitle', 'users')} description={t('metaDescription', 'users')} />
+      <PageBreadcrumb pageTitle={t('pageTitle', 'users')} />
 
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Header Section */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div>
             <h1 className="text-3xl font-black bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400 bg-clip-text text-transparent tracking-tight">
-              Personnel Directory
+              {t('pageHeading', 'users')}
             </h1>
-            <p className="mt-1 text-gray-500 dark:text-gray-400 font-medium italic">Oversee system authentication and organizational access</p>
+            <p className="mt-1 text-gray-500 dark:text-gray-400 font-medium italic">{t('pageSubtitle', 'users')}</p>
           </div>
           
           <div className="flex flex-wrap items-center gap-3">
@@ -169,7 +171,7 @@ export default function Users() {
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Find by name or email..."
+                placeholder={t('searchPlaceholder', 'users')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-11 pr-4 py-3 bg-white/60 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-[1.25rem] focus:ring-2 focus:ring-brand-500/20 outline-none transition-all dark:text-white placeholder:text-gray-400 font-medium"
@@ -181,7 +183,7 @@ export default function Users() {
                 className="flex items-center gap-2 px-6 py-3 bg-brand-500 text-white rounded-[1.25rem] font-bold shadow-xl shadow-brand-500/20 hover:scale-105 active:scale-95 transition-all"
               >
                 <UserPlus className="size-5" />
-                Create User
+                {t('createUser', 'users')}
               </button>
             )}
           </div>
@@ -192,7 +194,7 @@ export default function Users() {
           <div className="md:col-span-3 flex flex-wrap gap-4 items-center bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 p-4 rounded-[2rem] shadow-sm">
             <div className="flex items-center gap-2 px-3 text-gray-400">
               <Filter className="size-4" />
-              <span className="text-xs font-black uppercase tracking-widest">Filters</span>
+              <span className="text-xs font-black uppercase tracking-widest">{t('filtersLabel', 'users')}</span>
             </div>
             
             <select 
@@ -200,7 +202,7 @@ export default function Users() {
               onChange={(e) => setRoleFilter(e.target.value)}
               className="bg-white dark:bg-black/20 border border-white/20 dark:border-white/5 rounded-xl px-4 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-brand-500/20 transition-all cursor-pointer"
             >
-              <option value="all">All Access Levels</option>
+              <option value="all">{t('filterAllAccessLevels', 'users')}</option>
               {roles.map((role) => (
                 <option key={role._id} value={role._id}>{toPlainString((role as any).name)}</option>
               ))}
@@ -211,19 +213,19 @@ export default function Users() {
               onChange={(e) => setStatusFilter(e.target.value)}
               className="bg-white dark:bg-black/20 border border-white/20 dark:border-white/5 rounded-xl px-4 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-brand-500/20 transition-all cursor-pointer"
             >
-              <option value="all">All Statuses</option>
-              <option value="active">Active Personnel</option>
-              <option value="inactive">Deactivated Accounts</option>
+              <option value="all">{t('filterAllStatuses', 'users')}</option>
+              <option value="active">{t('filterActive', 'users')}</option>
+              <option value="inactive">{t('filterInactive', 'users')}</option>
             </select>
 
             <div className="ml-auto flex items-center gap-2 px-4 py-2 bg-brand-500/10 text-brand-500 rounded-xl border border-brand-500/20">
               <UserCheck className="size-4" />
-              <span className="text-sm font-black tabular-nums">{filteredBySearchAndRole.length} Found</span>
+              <span className="text-sm font-black tabular-nums">{t('resultsFound', 'users', { count: filteredBySearchAndRole.length })}</span>
             </div>
           </div>
 
           <div className="bg-gradient-to-br from-brand-500 to-brand-600 p-6 rounded-[2rem] shadow-xl shadow-brand-500/20 flex flex-col justify-between">
-            <span className="text-[10px] font-black text-white/60 uppercase tracking-widest">Global Headcount</span>
+            <span className="text-[10px] font-black text-white/60 uppercase tracking-widest">{t('globalHeadcount', 'users')}</span>
             <div className="flex items-end justify-between">
               <span className="text-4xl font-black text-white tabular-nums">{rawUsers.length}</span>
               <Shield className="size-8 text-white/30" />
@@ -239,7 +241,7 @@ export default function Users() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {paginatedUsers.map((user: any) => {
-              const roleName = user.roleId?.name || toPlainString((roles.find(r => r._id === (user.roleId?._id || user.roleId)) as any)?.name || "User");
+              const roleName = user.roleId?.name || toPlainString((roles.find(r => r._id === (user.roleId?._id || user.roleId)) as any)?.name || t('userRoleLabel', 'users'));
               const isActive = user.isActive !== false;
               
               return (
@@ -284,7 +286,7 @@ export default function Users() {
 
                     <div className="space-y-1">
                       <h3 className="text-lg font-black text-gray-900 dark:text-white line-clamp-1 tracking-tight">
-                        {toPlainString(user.fullName || user.name || "Unknown")}
+                        {toPlainString(user.fullName || user.name || t('unknownUser', 'users'))}
                       </h3>
                       <div className="flex items-center gap-2 text-xs font-bold text-gray-400 italic">
                         <Shield className="size-3 text-brand-500" />
@@ -299,20 +301,20 @@ export default function Users() {
                       </div>
                       <div className="flex items-center gap-3 text-sm font-medium text-gray-500 dark:text-gray-400">
                         <Phone className="size-4 opacity-50" />
-                        <span className="truncate">{user.phone || "No secure line"}</span>
+                        <span className="truncate">{user.phone || t('noSecureLine', 'users')}</span>
                       </div>
                       <div className="flex items-center gap-3 text-sm font-medium text-gray-500 dark:text-gray-400">
                         <Building2 className="size-4 opacity-50" />
-                        <span className="truncate">{user.companies?.length || 0} Companies</span>
+                        <span className="truncate">{t('companiesCount', 'users', { count: user.companies?.length || 0 })}</span>
                       </div>
                     </div>
 
                     <div className="flex items-center justify-between pt-2">
                       <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md ${isActive ? "bg-green-500/10 text-green-600" : "bg-red-500/10 text-red-600"}`}>
-                        {isActive ? "Active Duty" : "Revoked"}
+                        {isActive ? t('activeDuty', 'users') : t('revoked', 'users')}
                       </span>
                       <div className="flex items-center gap-1 text-brand-500 font-black text-[10px] uppercase tracking-widest group-hover:gap-2 transition-all">
-                        Details <ArrowRight className="size-3" />
+                        {t('detailsLabel', 'users')} <ArrowRight className="size-3" />
                       </div>
                     </div>
                   </div>
@@ -325,8 +327,8 @@ export default function Users() {
                 <div className="size-20 rounded-full bg-slate-100 dark:bg-white/5 mx-auto mb-6 flex items-center justify-center">
                   <UserMinus className="size-10 text-slate-300 dark:text-slate-700" />
                 </div>
-                <h3 className="text-xl font-black text-gray-900 dark:text-white">No Personnel Found</h3>
-                <p className="text-gray-500 dark:text-gray-400 font-medium max-w-xs mx-auto mt-2">The search criteria did not match any active or historical records in our directory.</p>
+                <h3 className="text-xl font-black text-gray-900 dark:text-white">{t('noPersonnelFound', 'users')}</h3>
+                <p className="text-gray-500 dark:text-gray-400 font-medium max-w-xs mx-auto mt-2">{t('noPersonnelFoundText', 'users')}</p>
               </div>
             )}
           </div>
@@ -340,17 +342,17 @@ export default function Users() {
               onClick={() => setPage(p => Math.max(1, p - 1))}
               className="size-12 rounded-2xl bg-white/60 dark:bg-white/5 backdrop-blur-md border border-white/20 flex items-center justify-center disabled:opacity-30 hover:bg-brand-500 hover:text-white transition-all shadow-sm"
             >
-              <ChevronLeft className="size-5" />
+              {locale === 'ar' ? <ChevronRight className="size-5" /> : <ChevronLeft className="size-5" />}
             </button>
             <div className="px-6 py-3 bg-white/60 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl font-black tracking-widest text-sm uppercase">
-              Phase {page} <span className="opacity-30 mx-2">/</span> {totalPages}
+              {t('phaseLabel', 'users', { page })} <span className="opacity-30 mx-2">/</span> {totalPages}
             </div>
             <button 
               disabled={page === totalPages}
               onClick={() => setPage(p => Math.min(totalPages, p + 1))}
               className="size-12 rounded-2xl bg-white/60 dark:bg-white/5 backdrop-blur-md border border-white/20 flex items-center justify-center disabled:opacity-30 hover:bg-brand-500 hover:text-white transition-all shadow-sm"
             >
-              <ChevronRight className="size-5" />
+              {locale === 'ar' ? <ChevronLeft className="size-5" /> : <ChevronRight className="size-5" />}
             </button>
           </div>
         )}

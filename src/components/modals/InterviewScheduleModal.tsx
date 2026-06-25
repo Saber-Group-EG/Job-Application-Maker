@@ -11,6 +11,7 @@ import { EmailTemplate } from '../../services/companiesService';
 import { useAuth } from '../../context/AuthContext';
 import { useUsers, useCompanies } from '../../hooks/queries';
 import { resolveCompanyAddress } from '../../utils/companyAddress';
+import { useLocale } from '../../context/LocaleContext';
 
 // Simple HTML escape utility
 function escapeHtml(str: string) {
@@ -122,6 +123,7 @@ export default function InterviewScheduleModal(props: Props) {
 
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   const { user } = useAuth();
+  const { t } = useLocale();
 
   const emailTemplates: EmailTemplate[] = useMemo(() => {
     const company = companyData || (applicant && (applicant.company || applicant.companyObj));
@@ -290,7 +292,7 @@ export default function InterviewScheduleModal(props: Props) {
 
   const formatTime12Hour = (value: string): string => {
     const raw = String(value || '').trim();
-    if (!raw) return '[Interview Time]';
+    if (!raw) return '[' + t('interviewTime', 'modals') + ']';
     if (raw.startsWith('{{') && raw.endsWith('}}')) return raw;
     if (raw.startsWith('[') && raw.endsWith(']')) return raw;
 
@@ -374,10 +376,10 @@ export default function InterviewScheduleModal(props: Props) {
       : '{{InterviewDate}}';
     const interviewTime = bulkMode
       ? '{{interviewTime}}'
-      : formatTime12Hour(interviewForm.time || '[Interview Time]');
+      : formatTime12Hour(interviewForm.time || '[' + t('interviewTime', 'modals') + ']');
     const interviewType = interviewForm.type || 'phone';
-    const typeLabel = interviewType.charAt(0).toUpperCase() + interviewType.slice(1);
-    const location = (interviewForm.location || '').trim() || '[Location]';
+    const typeLabel = t(interviewType, 'modals');
+    const location = (interviewForm.location || '').trim() || '[' + t('openLocation', 'modals') + ']';
     const link = (interviewForm.link || '').trim();
     const interviewDescription = (interviewForm.description || '').trim();
     const interviewComment = (interviewForm.comment || '').trim();
@@ -408,14 +410,14 @@ export default function InterviewScheduleModal(props: Props) {
       }
 
       if (normalizedRaw && isUrl(normalizedRaw)) {
-        return { addressValue: '[Address]', locationUrl: normalizedRaw };
+        return { addressValue: '[' + t('addressOptional', 'modals') + ']', locationUrl: normalizedRaw };
       }
 
       if (normalizedRaw) {
         return { addressValue: normalizedRaw, locationUrl: '' };
       }
 
-      return { addressValue: '[Address]', locationUrl: '' };
+      return { addressValue: '[' + t('addressOptional', 'modals') + ']', locationUrl: '' };
     };
     
     const makeLinkHtml = (lnk: string) => {
@@ -437,15 +439,15 @@ export default function InterviewScheduleModal(props: Props) {
       const { addressValue, locationUrl } = resolveAddressAndUrl();
       const locationHtml = locationUrl ? makeLocationHtml(locationUrl) : '';
       const detailLines = [
-        `Date: ${esc(interviewDate)}`,
-        `Time: ${esc(interviewTime)}`,
-        `Type: ${esc(typeLabel)}`,
-        `Address: ${esc(addressValue)}`,
+        `${t('interviewDate', 'modals')}: ${esc(interviewDate)}`,
+        `${t('interviewTime', 'modals')}: ${esc(interviewTime)}`,
+        `${t('interviewType', 'modals')}: ${esc(typeLabel)}`,
+        `${t('addressOptional', 'modals')}: ${esc(addressValue)}`,
       ];
-      if (locationHtml) detailLines.push(`Location: ${locationHtml}`);
-      if (link) detailLines.push(`Video Link: ${makeLinkHtml(link)}`);
-      if (interviewDescription) detailLines.push(`Description: ${esc(interviewDescription)}`);
-      if (interviewComment) detailLines.push(`Comment: ${esc(interviewComment)}`);
+      if (locationHtml) detailLines.push(`${t('openLocation', 'modals')}: ${locationHtml}`);
+      if (link) detailLines.push(`${t('videoLinkOptional', 'modals')}: ${makeLinkHtml(link)}`);
+      if (interviewDescription) detailLines.push(`${t('description', 'modals')}: ${esc(interviewDescription)}`);
+      if (interviewComment) detailLines.push(`${t('comment', 'modals')}: ${esc(interviewComment)}`);
       const detailsBlock = detailLines.map((line) => `<p>${line}</p>`).join('');
 
       return (
@@ -457,23 +459,23 @@ export default function InterviewScheduleModal(props: Props) {
       );
     } else if (channels.whatsapp) {
       const detailLines = [
-        `📅 Date: ${interviewDate}`,
-        `⏰ Time: ${interviewTime}`,
-        `🧭 Type: ${typeLabel}`,
-        `📍 Location: ${location}`,
+        `${t('interviewDate', 'modals')}: ${interviewDate}`,
+        `${t('interviewTime', 'modals')}: ${interviewTime}`,
+        `${t('interviewType', 'modals')}: ${typeLabel}`,
+        `${t('openLocation', 'modals')}: ${location}`,
       ];
-      if (link) detailLines.push(`🎥 Video Link: ${link}`);
-      if (interviewDescription) detailLines.push(`📝 Description: ${interviewDescription}`);
-      if (interviewComment) detailLines.push(`💬 Comment: ${interviewComment}`);
+      if (link) detailLines.push(`${t('videoLinkOptional', 'modals')}: ${link}`);
+      if (interviewDescription) detailLines.push(`${t('description', 'modals')}: ${interviewDescription}`);
+      if (interviewComment) detailLines.push(`${t('comment', 'modals')}: ${interviewComment}`);
 
       return `Hi ${applicantName}! 👋\n\nGreat news! We'd like to invite you for an interview for the position of ${positionTitle}.\n\nInterview details:\n${detailLines.join('\n')}\n\nPlease confirm if you're available. Looking forward to meeting you!`;
     } else if (channels.sms) {
-      const detailParts = [`Date: ${interviewDate}`, `Time: ${interviewTime}`, `Type: ${typeLabel}`, `Location: ${location}`];
-      if (link) detailParts.push(`Video Link: ${link}`);
-      if (interviewDescription) detailParts.push(`Description: ${interviewDescription}`);
+      const detailParts = [`${t('interviewDate', 'modals')}: ${interviewDate}`, `${t('interviewTime', 'modals')}: ${interviewTime}`, `${t('interviewType', 'modals')}: ${typeLabel}`, `${t('openLocation', 'modals')}: ${location}`];
+      if (link) detailParts.push(`${t('videoLinkOptional', 'modals')}: ${link}`);
+      if (interviewDescription) detailParts.push(`${t('description', 'modals')}: ${interviewDescription}`);
 
       return `Hi ${applicantName}, you're invited for an interview for ${positionTitle}. Interview details: ${detailParts.join(' | ')}.${
-        interviewComment ? ` Comment: ${interviewComment}.` : ''
+        interviewComment ? ` ${t('comment', 'modals')}: ${interviewComment}.` : ''
       } Please confirm. - HR Team`;
     }
 
@@ -503,13 +505,13 @@ export default function InterviewScheduleModal(props: Props) {
             day: 'numeric',
           });
         })()
-      : 'No Date Set';
+      : t('interviewDate', 'modals');
     
     const locationUrl = interviewForm.location || '';
     const addressLabel = getAddressLabelFromLocation(locationUrl);
     
     const createClickableLocation = (url: string, text?: string) => {
-      if (!url) return '[No Location]';
+      if (!url) return '[' + t('openLocation', 'modals') + ']';
       const displayText = text || url;
       const normalizedUrl = url.startsWith('http') ? url : `https://${url}`;
       return `<a href="${normalizedUrl}" target="_blank" rel="noopener noreferrer" style="color: #3b82f6; text-decoration: underline;">${escapeHtml(displayText)}</a>`;
@@ -581,14 +583,14 @@ export default function InterviewScheduleModal(props: Props) {
               }
             }
             
-            return '[Position]';
+            return '[' + t('interviewType', 'modals') + ']';
           } catch (error) {
             console.error('Error getting job title:', error);
-            return '[Position]';
+            return '[' + t('interviewType', 'modals') + ']';
           }
         })();
 
-        let interviewTimeDisplay = interviewForm.time || 'No Time Set';
+        let interviewTimeDisplay = interviewForm.time || t('interviewTime', 'modals');
         if (bulkMode && intervalMinutes && index > 0 && interviewForm.time) {
           const [hours, minutes] = interviewForm.time.split(':').map(Number);
           const totalMinutes = (hours * 60) + minutes + (index * intervalMinutes);
@@ -597,13 +599,12 @@ export default function InterviewScheduleModal(props: Props) {
           interviewTimeDisplay = `${String(newHours).padStart(2, '0')}:${String(newMinutes).padStart(2, '0')}`;
         }
         
-        const formattedTime = interviewTimeDisplay !== 'No Time Set' ? formatTime12Hour(interviewTimeDisplay) : 'No Time Set';
+        const formattedTime = interviewTimeDisplay !== t('interviewTime', 'modals') ? formatTime12Hour(interviewTimeDisplay) : t('interviewTime', 'modals');
         
         const interviewType = interviewForm.type || 'phone';
-        const typeLabel = interviewType === 'in-person' ? 'In-person' : 
-                          interviewType.charAt(0).toUpperCase() + interviewType.slice(1);
+        const typeLabel = t(interviewType, 'modals');
         
-        let processedSubject = interviewEmailSubject || 'Interview Invitation';
+        let processedSubject = interviewEmailSubject || t('scheduleInterview', 'modals');
         let processedBody = messageTemplate || '';
         
         const clickableLocation = createClickableLocation(locationUrl, locationUrl);
@@ -615,7 +616,7 @@ export default function InterviewScheduleModal(props: Props) {
           .replace(/\{\{\s*interviewTime\s*\}\}/gi, formattedTime)
           .replace(/\{\{\s*interviewType\s*\}\}/gi, typeLabel)
           .replace(/\{\{\s*location\s*\}\}/gi, clickableLocation)
-          .replace(/\{\{\s*address\s*\}\}/gi, addressLabel || '[Address]');
+          .replace(/\{\{\s*address\s*\}\}/gi, addressLabel || '[' + t('addressOptional', 'modals') + ']');
         
         let bodyWithReplacements = processedBody;
         bodyWithReplacements = bodyWithReplacements
@@ -625,13 +626,13 @@ export default function InterviewScheduleModal(props: Props) {
           .replace(/\{\{\s*interviewTime\s*\}\}/gi, escapeHtml(formattedTime))
           .replace(/\{\{\s*interviewType\s*\}\}/gi, escapeHtml(typeLabel))
           .replace(/\{\{\s*location\s*\}\}/gi, clickableLocation)
-          .replace(/\{\{\s*address\s*\}\}/gi, escapeHtml(addressLabel || '[Address]'));
+          .replace(/\{\{\s*address\s*\}\}/gi, escapeHtml(addressLabel || '[' + t('addressOptional', 'modals') + ']'));
         
         return `
           <div style="margin-bottom: 40px; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; page-break-inside: avoid;">
             <div style="background-color: #f3f4f6; padding: 12px 20px; border-bottom: 1px solid #e5e7eb;">
               <h3 style="margin: 0; font-size: 14px; color: #374151;">
-                📧 ${escapeHtml(applicantName)}${jobTitle !== '[Position]' ? ` - ${escapeHtml(jobTitle)}` : ''}
+                📧 ${escapeHtml(applicantName)}${jobTitle !== '[' + t('interviewType', 'modals') + ']' ? ` - ${escapeHtml(jobTitle)}` : ''}
               </h3>
               <div style="margin-top: 5px; font-size: 12px; color: #6b7280;">
                 Time: ${escapeHtml(formattedTime)} | Date: ${escapeHtml(baseInterviewDate)}
@@ -656,7 +657,7 @@ export default function InterviewScheduleModal(props: Props) {
         <head>
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Bulk Email Preview - ${recipients.length} Recipients</title>
+          <title>${t('scheduleBulkPreviewTitle', 'modals')} - ${recipients.length} Recipients</title>
           <style>
             body { font-family: Arial, sans-serif; padding: 20px; margin: 0; background-color: #f5f5f5; }
             .container { max-width: 700px; margin: 0 auto; }
@@ -708,35 +709,34 @@ export default function InterviewScheduleModal(props: Props) {
       const interviewDate = baseInterviewDate;
       const interviewTime = interviewForm.time 
         ? formatTime12Hour(interviewForm.time)
-        : 'No Time Set';
+        : t('interviewTime', 'modals');
       
       const interviewType = interviewForm.type || 'phone';
-      const typeLabel = interviewType === 'in-person' ? 'In-person' : 
-                        interviewType.charAt(0).toUpperCase() + interviewType.slice(1);
+      const typeLabel = t(interviewType, 'modals');
       
-      let processedSubject = interviewEmailSubject || 'Interview Invitation';
+      let processedSubject = interviewEmailSubject || t('scheduleInterview', 'modals');
       let processedBody = messageTemplate || '';
       
       const clickableLocation = createClickableLocation(locationUrl, locationUrl);
       
       processedSubject = processedSubject
         .replace(/\{\{\s*candidateName\s*\}\}/gi, escapeHtml(applicantName))
-        .replace(/\{\{\s*(?:position|jobTitle)\s*\}\}/gi, escapeHtml(jobTitle || '[Position]'))
+        .replace(/\{\{\s*(?:position|jobTitle)\s*\}\}/gi, escapeHtml(jobTitle || '[' + t('interviewType', 'modals') + ']'))
         .replace(/\{\{\s*InterviewDate\s*\}\}/gi, escapeHtml(interviewDate))
         .replace(/\{\{\s*interviewTime\s*\}\}/gi, escapeHtml(interviewTime))
         .replace(/\{\{\s*interviewType\s*\}\}/gi, escapeHtml(typeLabel))
-        .replace(/\{\{\s*location\s*\}\}/gi, escapeHtml(locationUrl || '[Location URL]'))
-        .replace(/\{\{\s*address\s*\}\}/gi, escapeHtml(addressLabel || '[Address]'));
+        .replace(/\{\{\s*location\s*\}\}/gi, escapeHtml(locationUrl || '[' + t('openLocation', 'modals') + ']'))
+        .replace(/\{\{\s*address\s*\}\}/gi, escapeHtml(addressLabel || '[' + t('addressOptional', 'modals') + ']'));
       
       let bodyWithReplacements = processedBody;
       bodyWithReplacements = bodyWithReplacements
         .replace(/\{\{\s*candidateName\s*\}\}/gi, escapeHtml(applicantName))
-        .replace(/\{\{\s*(?:position|jobTitle)\s*\}\}/gi, escapeHtml(jobTitle || '[Position]'))
+        .replace(/\{\{\s*(?:position|jobTitle)\s*\}\}/gi, escapeHtml(jobTitle || '[' + t('interviewType', 'modals') + ']'))
         .replace(/\{\{\s*InterviewDate\s*\}\}/gi, escapeHtml(interviewDate))
         .replace(/\{\{\s*interviewTime\s*\}\}/gi, escapeHtml(interviewTime))
         .replace(/\{\{\s*interviewType\s*\}\}/gi, escapeHtml(typeLabel))
         .replace(/\{\{\s*location\s*\}\}/gi, clickableLocation)
-        .replace(/\{\{\s*address\s*\}\}/gi, escapeHtml(addressLabel || '[Address]'));
+        .replace(/\{\{\s*address\s*\}\}/gi, escapeHtml(addressLabel || '[' + t('addressOptional', 'modals') + ']'));
       
       const previewHtmlContent = `
         <!DOCTYPE html>
@@ -744,7 +744,7 @@ export default function InterviewScheduleModal(props: Props) {
         <head>
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Email Preview</title>
+          <title>${t('emailPreview', 'modals')}</title>
           <style>
             body { font-family: Arial, sans-serif; padding: 20px; margin: 0; background-color: #f5f5f5; }
             .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
@@ -879,7 +879,7 @@ export default function InterviewScheduleModal(props: Props) {
       const local = newLocalEmail.trim();
       const domain = domainForDisplay;
       if (!domain) {
-        setInterviewError('Company domain not configured. Please set a domain in mail settings first.');
+        setInterviewError(t('companyDomainRequired', 'modals'));
         return;
       }
       
@@ -890,16 +890,15 @@ export default function InterviewScheduleModal(props: Props) {
       setCustomEmail(newEmail);
     }
 
-    // Validate required conductedBy field
     if (!interviewForm?.conductedBy && !bulkMode) {
-      setInterviewError('Please select who will conduct the interview');
+      setInterviewError(t('requiredConductedBy', 'modals'));
       return;
     }
 
     try {
       await handleInterviewSubmit(e);
     } catch (err: any) {
-      const msg = (err && (err.message || err.response?.data?.message)) || 'Failed to schedule interview.';
+      const msg = (err && (err.message || err.response?.data?.message)) || t('scheduleError', 'modals');
       setInterviewError(String(msg));
     }
   };
@@ -958,13 +957,13 @@ export default function InterviewScheduleModal(props: Props) {
 
   const templateOptions = useMemo(() => {
     return [
-      { value: '', label: '-- Select a template --' },
-      ...emailTemplates.map((t: EmailTemplate) => ({ 
-        value: t._id || '', 
-        label: t.name 
+      { value: '', label: t('selectTemplate', 'modals') },
+      ...emailTemplates.map((tpl: EmailTemplate) => ({ 
+        value: tpl._id || '', 
+        label: tpl.name 
       }))
     ];
-  }, [emailTemplates]);
+  }, [emailTemplates, t]);
 
 
 
@@ -973,19 +972,19 @@ export default function InterviewScheduleModal(props: Props) {
       <form key={`interview-form-${formResetKey}`} onSubmit={onSubmit} className="flex flex-col px-2">
         <div>
             <h5 className="mb-2 font-semibold text-gray-800 text-xl dark:text-white/90 lg:text-2xl">
-              {bulkMode ? `Schedule Interviews (${bulkCount})` : 'Schedule Interview'}
+              {bulkMode ? t('scheduleInterviews', 'modals', { count: bulkCount }) : t('scheduleInterview', 'modals')}
             </h5>
             <p className="text-sm text-gray-500 dark:text-gray-400">
               {bulkMode
-                ? 'Set up interview timing and notifications for all selected applicants'
-                : 'Set up an interview and choose notification preferences'}
+                ? t('scheduleBulkDesc', 'modals')
+                : t('scheduleDesc', 'modals')}
             </p>
         </div>
 
         {interviewError && (
           <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
             <div className="flex items-start justify-between">
-              <p className="text-sm text-red-600 dark:text-red-400"><strong>Error:</strong> {interviewError}</p>
+              <p className="text-sm text-red-600 dark:text-red-400"><strong>{t('error', 'modals')}:</strong> {interviewError}</p>
               <button type="button" onClick={() => setInterviewError('')} className="ml-3 text-red-400 hover:text-red-600 dark:hover:text-red-300">✕</button>
             </div>
           </div>
@@ -994,15 +993,15 @@ export default function InterviewScheduleModal(props: Props) {
         {/* Template Selector */}
         {emailTemplates.length > 0 && notificationChannels.email && (
           <div className="mt-4">
-            <Label htmlFor="template-select">Load Email Template</Label>
+            <Label htmlFor="template-select">{t('loadEmailTemplate', 'modals')}</Label>
             <Select
               options={templateOptions}
               value={selectedTemplateId}
               onChange={(value) => handleTemplateSelect(value as string)}
-              placeholder="Select a template to load"
+              placeholder={t('selectTemplateToLoad', 'modals')}
             />
             <p className="mt-1 text-xs text-gray-500">
-              Select a template to automatically fill the subject and body with HTML formatting preserved
+              {t('templateAutoFillHtml', 'modals')}
             </p>
           </div>
         )}
@@ -1010,26 +1009,26 @@ export default function InterviewScheduleModal(props: Props) {
         <div className="mt-6 space-y-4">
           <div className={`grid grid-cols-1 gap-4 ${bulkMode ? 'sm:grid-cols-4' : 'sm:grid-cols-3'}`}>
             <div>
-              <DatePicker id="interview-date" label="Interview Date" placeholder="Select interview date" onChange={handleDateChange} />
+              <DatePicker id="interview-date" label={t('interviewDate', 'modals')} placeholder={t('selectInterviewDate', 'modals')} onChange={handleDateChange} />
             </div>
             <div>
              <div onClick={(e) => e.stopPropagation()}>
               <DatePicker 
                 id="interview-time" 
-                label="Interview Time" 
+                label={t('interviewTime', 'modals')} 
                 mode="time" 
-                placeholder="Select interview time" 
+                placeholder={t('selectInterviewTime', 'modals')} 
                 onChange={handleTimeChange} 
               />
             </div>
             </div>
             <div>
-              <Label htmlFor="interview-type">Interview Type</Label>
-              <Select options={[{ value: 'phone', label: 'Phone' },{ value: 'video', label: 'Video' },{ value: 'in-person', label: 'In-Person' }]} placeholder="Select interview type" onChange={(value: any) => setInterviewForm({ ...interviewForm, type: value })} />
+              <Label htmlFor="interview-type">{t('interviewType', 'modals')}</Label>
+              <Select options={[{ value: 'phone', label: t('phone', 'modals') },{ value: 'video', label: t('video', 'modals') },{ value: 'in-person', label: t('inPerson', 'modals') }]} placeholder={t('interviewType', 'modals')} onChange={(value: any) => setInterviewForm({ ...interviewForm, type: value })} />
             </div>
             {bulkMode && (
               <div>
-                <Label htmlFor="interview-interval">Interval (minutes)</Label>
+                <Label htmlFor="interview-interval">{t('intervalMinutes', 'modals')}</Label>
                 <Input
                   id="interview-interval"
                   type="number"
@@ -1048,113 +1047,113 @@ export default function InterviewScheduleModal(props: Props) {
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <Label htmlFor="interview-location-select">Address (Optional)</Label>
+              <Label htmlFor="interview-location-select">{t('addressOptional', 'modals')}</Label>
               {companyAddressOptions.length > 0 ? (
                 <>
                   <Select
                     options={companyAddressOptions}
                     value={currentLocationHref || ''}
-                    placeholder="Select company address"
+                    placeholder={t('selectCompanyAddress', 'modals')}
                     onChange={(value: any) => {
                       setInterviewForm({ ...interviewForm, location: value });
                       setInterviewError('');
                     }}
                   />
-                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">Selecting an address will automatically use its location URL in the email.</p>
+                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">{t('addressAutoUse', 'modals')}</p>
                 </>
               ) : (
                 <>
-                  <Input id="interview-location-select" type="text" value={fallbackAddressInputValue} onChange={(e: any) => setInterviewForm({ ...interviewForm, location: e.target.value })} placeholder="Office address or meeting room" />
+                  <Input id="interview-location-select" type="text" value={fallbackAddressInputValue} onChange={(e: any) => setInterviewForm({ ...interviewForm, location: e.target.value })} placeholder={t('officeAddressPlaceholder', 'modals')} />
                   <div className="mt-2">
                     <button type="button" onClick={() => {
                       const result = fillCompanyAddress?.();
                       if (result === false) {
-                        setInterviewError('No company address found for this company.');
+                        setInterviewError(t('noCompanyAddress', 'modals'));
                       } else {
                         setInterviewError('');
                       }
-                    }} className="text-sm text-brand-600 hover:underline">Use company address</button>
+                    }} className="text-sm text-brand-600 hover:underline">{t('useCompanyAddress', 'modals')}</button>
                   </div>
                 </>
               )}
 
               {currentLocationHref ? (
                 <div className="mt-2">
-                  <a href={currentLocationHref} target="_blank" rel="noopener noreferrer" className="text-sm text-brand-600 hover:underline">Open location</a>
+                  <a href={currentLocationHref} target="_blank" rel="noopener noreferrer" className="text-sm text-brand-600 hover:underline">{t('openLocation', 'modals')}</a>
                 </div>
               ) : null}
             </div>
             {interviewForm.type === 'video' && (
               <div>
-                <Label htmlFor="interview-link">Video Link (Optional)</Label>
+                <Label htmlFor="interview-link">{t('videoLinkOptional', 'modals')}</Label>
                 <div className="flex items-center gap-3">
-                  <Input id="interview-link" type="url" value={interviewForm.link} onChange={(e: any) => setInterviewForm({ ...interviewForm, link: e.target.value })} placeholder="https://meet.example.com/..." />
+                  <Input id="interview-link" type="url" value={interviewForm.link} onChange={(e: any) => setInterviewForm({ ...interviewForm, link: e.target.value })} placeholder={t('videoLinkPlaceholder', 'modals')} />
                   {currentVideoHref ? (
-                    <a href={currentVideoHref} target="_blank" rel="noopener noreferrer" className="text-sm text-brand-600 hover:underline">Open video</a>
+                    <a href={currentVideoHref} target="_blank" rel="noopener noreferrer" className="text-sm text-brand-600 hover:underline">{t('openVideo', 'modals')}</a>
                   ) : null}
                 </div>
               </div>
             )}
             <div>
-              <Label htmlFor="interview-conducted-by">Conducted By</Label>
+              <Label htmlFor="interview-conducted-by">{t('conductedBy', 'modals')}</Label>
               <Select
                 options={[
-                  { value: user?._id || '', label: toPlainString(user?.fullName || user?.name || user?.email || 'Current User') },
+                  { value: user?._id || '', label: toPlainString(user?.fullName || user?.name || user?.email || t('conductedBy', 'modals')) },
                   ...companyUsers.filter((u: any) => u._id !== user?._id).map((u: any) => ({ 
                     value: u._id, 
                     label: toPlainString(u.fullName || u.name || u.email || u.username || u._id) 
                   }))
                 ]}
                 value={interviewForm.conductedBy || user?._id || ''}
-                placeholder="Select interviewer"
+                placeholder={t('selectInterviewer', 'modals')}
                 onChange={(value: any) => { 
                   setInterviewForm({ ...interviewForm, conductedBy: value }); 
                   setInterviewError(''); 
                 }}
               />
-              <p className="mt-1 text-xs text-gray-500">Required — who will conduct the interview</p>
-              {isLoadingUsers && <p className="mt-1 text-xs text-gray-400">Loading users...</p>}
+              <p className="mt-1 text-xs text-gray-500">{t('requiredConductedBy', 'modals')}</p>
+              {isLoadingUsers && <p className="mt-1 text-xs text-gray-400">{t('loadingUsers', 'modals')}</p>}
             </div>
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <Label htmlFor="interview-description">Description</Label>
-              <TextArea value={interviewForm.description} onChange={(value: any) => setInterviewForm({ ...interviewForm, description: value })} placeholder="e.g., Technical Interview, HR Round" rows={2} />
+              <Label htmlFor="interview-description">{t('description', 'modals')}</Label>
+              <TextArea value={interviewForm.description} onChange={(value: any) => setInterviewForm({ ...interviewForm, description: value })} placeholder={t('descriptionPlaceholder', 'modals')} rows={2} />
             </div>
             <div>
-              <Label htmlFor="interview-comment">Comment</Label>
-              <TextArea value={interviewForm.comment} onChange={(value: any) => setInterviewForm({ ...interviewForm, comment: value })} placeholder="Add notes about this interview" rows={2} />
+              <Label htmlFor="interview-comment">{t('comment', 'modals')}</Label>
+              <TextArea value={interviewForm.comment} onChange={(value: any) => setInterviewForm({ ...interviewForm, comment: value })} placeholder={t('commentPlaceholder2', 'modals')} rows={2} />
             </div>
           </div>
 
           <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4 dark:border-gray-700 dark:bg-gray-800/30">
-            <h3 className="mb-3 text-base font-medium text-gray-800 dark:text-white/90">Notification Settings</h3>
+            <h3 className="mb-3 text-base font-medium text-gray-800 dark:text-white/90">{t('notificationSettings', 'modals')}</h3>
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">Send notification via:</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">{t('sendNotificationVia', 'modals')}:</label>
               <div className="flex flex-wrap gap-3">
                 <label className="group relative inline-flex items-center gap-3 cursor-pointer rounded-lg border border-gray-300 bg-white px-4 py-2.5 transition-all hover:border-brand-400 hover:bg-brand-50/50 dark:border-gray-600 dark:bg-gray-800 dark:hover:border-brand-600 dark:hover:bg-brand-900/20">
                   <input type="radio" name="notificationChannel" checked={notificationChannels.email} onChange={() => { const nextChannels = { email: true, sms: false, whatsapp: false }; setNotificationChannels(nextChannels); setEmailOption('company'); setMessageTemplate(generateMessageTemplate(nextChannels)); setSelectedTemplateId(''); }} className="peer sr-only" />
                   <div className="h-5 w-5 rounded-full border-2 border-gray-300 bg-white transition-all peer-checked:border-brand-600 peer-checked:bg-brand-600 dark:border-gray-600 dark:bg-gray-700 dark:peer-checked:border-brand-500 dark:peer-checked:bg-brand-500 flex items-center justify-center"><div className="h-2 w-2 rounded-full bg-white scale-0 peer-checked:scale-100 transition-transform"></div></div>
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">📧 Email</span>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">📧 {t('email', 'modals')}</span>
                 </label>
                 <label className="group relative inline-flex items-center gap-3 cursor-pointer rounded-lg border border-gray-300 bg-white px-4 py-2.5 transition-all hover:border-brand-400 hover:bg-brand-50/50 dark:border-gray-600 dark:bg-gray-800 dark:hover:border-brand-600 dark:hover:bg-brand-900/20">
                   <input type="radio" name="notificationChannel" checked={notificationChannels.sms} onChange={() => { const nextChannels = { email: false, sms: true, whatsapp: false }; setNotificationChannels(nextChannels); setPhoneOption('company'); setMessageTemplate(generateMessageTemplate(nextChannels)); setSelectedTemplateId(''); }} className="peer sr-only" />
                   <div className="h-5 w-5 rounded-full border-2 border-gray-300 bg-white transition-all peer-checked:border-brand-600 peer-checked:bg-brand-600 dark:border-gray-600 dark:bg-gray-700 dark:peer-checked:border-brand-500 dark:peer-checked:bg-brand-500 flex items-center justify-center"><div className="h-2 w-2 rounded-full bg-white scale-0 peer-checked:scale-100 transition-transform"></div></div>
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">💬 SMS</span>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">💬 {t('sms', 'modals')}</span>
                 </label>
                 <label className="group relative inline-flex items-center gap-3 cursor-pointer rounded-lg border border-gray-300 bg-white px-4 py-2.5 transition-all hover:border-brand-400 hover:bg-brand-50/50 dark:border-gray-600 dark:bg-gray-800 dark:hover:border-brand-600 dark:hover:bg-brand-900/20">
                   <input type="radio" name="notificationChannel" checked={notificationChannels.whatsapp} onChange={() => { const nextChannels = { email: false, sms: false, whatsapp: true }; setNotificationChannels(nextChannels); setMessageTemplate(generateMessageTemplate(nextChannels)); setSelectedTemplateId(''); }} className="peer sr-only" />
                   <div className="h-5 w-5 rounded-full border-2 border-gray-300 bg-white transition-all peer-checked:border-brand-600 peer-checked:bg-brand-600 dark:border-gray-600 dark:bg-gray-700 dark:peer-checked:border-brand-500 dark:peer-checked:bg-brand-500 flex items-center justify-center"><div className="h-2 w-2 rounded-full bg-white scale-0 peer-checked:scale-100 transition-transform"></div></div>
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">📱 WhatsApp</span>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">📱 {t('whatsapp', 'modals')}</span>
                 </label>
               </div>
 
               <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {notificationChannels.email && (
                   <div className="space-y-2">
-                    <Label htmlFor="email-option">Email Address</Label>
-                    <Select options={[{ value: 'company', label: 'Company Email' },{ value: 'new', label: 'New Email' }]} value={emailOption} placeholder="Select email option" onChange={(value: any) => {
+                    <Label htmlFor="email-option">{t('sender', 'modals')}</Label>
+                    <Select options={[{ value: 'company', label: t('senderEmailOption', 'modals') },{ value: 'new', label: t('email', 'modals') }]} value={emailOption} placeholder={t('sender', 'modals')} onChange={(value: any) => {
                       setEmailOption(value);
                       if (value !== 'new') setNewLocalEmail('');
                       if (value === 'company') {
@@ -1169,18 +1168,18 @@ export default function InterviewScheduleModal(props: Props) {
                         {domainForDisplay ? (
                           <div className="text-sm text-gray-600">@{domainForDisplay}</div>
                         ) : (
-                          <div className="text-sm text-amber-600">⚠️ No company domain configured</div>
+                          <div className="text-sm text-amber-600">⚠️ {t('companyDomainRequired', 'modals')}</div>
                         )}
                       </div>
                     )}
 
                     {emailOption !== 'new' && (
                       <div className="mt-3">
-                        <Label htmlFor="sender-select">Available Sender Addresses</Label>
+                        <Label htmlFor="sender-select">{t('senderEmailOption', 'modals')}</Label>
                         <Select
-                          options={senderOptions.length > 0 ? senderOptions : [{ value: '', label: 'No available senders' }]}
+                          options={senderOptions.length > 0 ? senderOptions : [{ value: '', label: t('sender', 'modals') }]}
                           value={customEmail || ''}
-                          placeholder="Select sender"
+                          placeholder={t('sender', 'modals')}
                           onChange={(value: any) => {
                             setCustomEmail(value);
                             setEmailOption('company');
@@ -1190,7 +1189,7 @@ export default function InterviewScheduleModal(props: Props) {
                     )}
 
                     <div className="mt-3">
-                      <Label htmlFor="selected-sender">Selected Sender</Label>
+                      <Label htmlFor="selected-sender">{t('sender', 'modals')}</Label>
                       <Input
                         id="selected-sender"
                         type="text"
@@ -1209,7 +1208,7 @@ export default function InterviewScheduleModal(props: Props) {
 
                 {(notificationChannels.sms || notificationChannels.whatsapp) && (
                   <div className="space-y-2">
-                    <Label htmlFor="phone-option">Phone Number</Label>
+                    <Label htmlFor="phone-option">{t('sms', 'modals')}</Label>
                     {notificationChannels.sms ? (
                       <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-600 dark:bg-gray-700/50"><p className="text-sm font-medium text-gray-700 dark:text-gray-300">Company Number (SMS)</p><p className="text-xs text-gray-500 dark:text-gray-400 mt-1">SMS will be sent from the company number only</p></div>
                     ) : (
@@ -1226,7 +1225,7 @@ export default function InterviewScheduleModal(props: Props) {
             {(notificationChannels.email || notificationChannels.sms || notificationChannels.whatsapp) && (
               <div className="mt-4">
                 <Label htmlFor="message-template">Message Template
-                  <button type="button" onClick={handleRegenerateTemplate} className="ml-2 text-xs text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300">🔄 Regenerate</button>
+                  <button type="button" onClick={handleRegenerateTemplate} className="ml-2 text-xs text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300">🔄 {t('loadTemplate', 'modals')}</button>
                 </Label>
                 {notificationChannels.email ? (
                   <>
@@ -1234,16 +1233,16 @@ export default function InterviewScheduleModal(props: Props) {
                       <Label htmlFor="interview-subject">Email Subject</Label>
                       <Input id="interview-subject" type="text" value={interviewEmailSubject} onChange={(e: any) => setInterviewEmailSubject(e.target.value)} placeholder="Email subject" />
                       <p className="mt-1 text-xs text-gray-500">
-  Available variables: {'{{candidateName}}'}, {'{{jobTitle}}'}, {'{{InterviewDate}}'}, {'{{interviewTime}}'}, {'{{interviewType}}'}, {'{{location}}'}, {'{{address}}'}
+  {t('availableVariables', 'modals')}: {'{{candidateName}}'}, {'{{jobTitle}}'}, {'{{InterviewDate}}'}, {'{{interviewTime}}'}, {'{{interviewType}}'}, {'{{location}}'}, {'{{address}}'}
 </p>
                     </div>
                     <div className="mt-3">
                       <QuillEditor value={messageTemplate} onChange={(content: string) => setMessageTemplate(content)} />
                       <p className="mt-1 text-xs text-gray-500">
-                        Available variables: {'{{candidateName}}'}, {'{{jobTitle}}'}, {'{{InterviewDate}}'}, {'{{interviewTime}}'}, {'{{interviewType}}'}
+                        {t('availableVariables', 'modals')}: {'{{candidateName}}'}, {'{{jobTitle}}'}, {'{{InterviewDate}}'}, {'{{interviewTime}}'}, {'{{interviewType}}'}
                       </p>
                       <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded text-xs">
-  <strong>Quick Insert:</strong>{' '}
+  <strong>{t('quickInsert', 'modals')}:</strong>{' '}
   <button type="button" onClick={() => setMessageTemplate(messageTemplate + '{{candidateName}}')} className="text-blue-600 hover:underline mx-1">{'{{candidateName}}'}</button>
   <button type="button" onClick={() => setMessageTemplate(messageTemplate + '{{jobTitle}}')} className="text-blue-600 hover:underline mx-1">{'{{jobTitle}}'}</button>
   <button type="button" onClick={() => setMessageTemplate(messageTemplate + '{{InterviewDate}}')} className="text-blue-600 hover:underline mx-1">{'{{InterviewDate}}'}</button>
@@ -1258,7 +1257,7 @@ export default function InterviewScheduleModal(props: Props) {
                   <>
                     <QuillEditor value={messageTemplate} onChange={(content: string) => setMessageTemplate(content)} />
                     <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded text-xs">
-                      <strong>Quick Insert:</strong>{' '}
+                      <strong>{t('quickInsert', 'modals')}:</strong>{' '}
                       <button type="button" onClick={() => setMessageTemplate(messageTemplate + '{{candidateName}}')} className="text-blue-600 hover:underline mx-1">{'{{candidateName}}'}</button>
                       <button type="button" onClick={() => setMessageTemplate(messageTemplate + '{{jobTitle}}')} className="text-blue-600 hover:underline mx-1">{'{{jobTitle}}'}</button>
                       <button type="button" onClick={() => setMessageTemplate(messageTemplate + '{{InterviewDate}}')} className="text-blue-600 hover:underline mx-1">{'{{InterviewDate}}'}</button>
@@ -1274,13 +1273,13 @@ export default function InterviewScheduleModal(props: Props) {
         </div>
 
         <div className="flex items-center gap-3 mt-6 sm:justify-end">
-          <button type="button" onClick={onClose} disabled={isSubmittingInterview} className="flex w-full justify-center rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] sm:w-auto">Cancel</button>
+          <button type="button" onClick={onClose} disabled={isSubmittingInterview} className="flex w-full justify-center rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] sm:w-auto">{t('cancel', 'modals')}</button>
           <button 
             type="button" 
             onClick={handlePreview}
             className="flex w-full justify-center rounded-lg border border-stroke px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-strokedark dark:hover:bg-gray-800 sm:w-auto"
           >
-            {bulkMode ? 'Preview All Emails' : 'Preview Email'}
+            {bulkMode ? t('scheduleBulkPreviewTitle', 'modals') : t('previewEmail', 'modals')}
           </button>
           <button type="submit" disabled={isSubmittingInterview} className="flex w-full justify-center items-center gap-2 rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed sm:w-auto">
             {isSubmittingInterview ? (
@@ -1289,10 +1288,10 @@ export default function InterviewScheduleModal(props: Props) {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <span>Scheduling...</span>
+                <span>{t('scheduleInterview', 'modals')}...</span>
               </>
             ) : (
-              <span>Schedule Interview</span>
+              <span>{t('scheduleInterview', 'modals')}</span>
             )}
           </button>
         </div>

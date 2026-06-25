@@ -8,6 +8,7 @@ import type {
 } from "../../types/roles";
 import { ApiError } from "../../services/companiesService";
 import Swal from "../../utils/swal";
+import { useLocale } from "../../context/LocaleContext";
 
 // Query keys
 export const rolesKeys = {
@@ -67,6 +68,7 @@ export function useRolePermissions(roleId: string, options?: { enabled?: boolean
 // Create role
 export function useCreateRole() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: (data: CreateRoleRequest) => rolesService.createRole(data),
@@ -78,10 +80,10 @@ export function useCreateRole() {
       });
       
       queryClient.invalidateQueries({ queryKey: rolesKeys.lists() });
-      showSuccessToast("Role created successfully");
+      showSuccessToast(t('roleCreated', 'common'), t);
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, "Failed to create role");
+      showErrorToast(error.message, t('roleCreateFailed', 'common'), t);
     },
   });
 }
@@ -89,6 +91,7 @@ export function useCreateRole() {
 // Update role
 export function useUpdateRole() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateRoleRequest }) =>
@@ -103,10 +106,10 @@ export function useUpdateRole() {
         return old.map(role => role._id === id ? updatedRole : role);
       });
       
-      showSuccessToast("Role updated successfully");
+      showSuccessToast(t('roleUpdated', 'common'), t);
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, "Failed to update role");
+      showErrorToast(error.message, t('roleUpdateFailed', 'common'), t);
     },
   });
 }
@@ -114,6 +117,7 @@ export function useUpdateRole() {
 // Delete role
 export function useDeleteRole() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: (id: string) => rolesService.deleteRole(id),
@@ -127,10 +131,10 @@ export function useDeleteRole() {
       // Remove detail cache
       queryClient.removeQueries({ queryKey: rolesKeys.detail(id) });
       
-      showSuccessToast("Role deleted successfully");
+      showSuccessToast(t('roleDeleted', 'common'), t);
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, "Failed to delete role");
+      showErrorToast(error.message, t('roleDeleteFailed', 'common'), t);
     },
   });
 }
@@ -138,6 +142,7 @@ export function useDeleteRole() {
 // Assign permissions to role
 export function useAssignPermissionsToRole() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: ({ roleId, permissions }: { roleId: string; permissions: string[] }) =>
@@ -149,10 +154,10 @@ export function useAssignPermissionsToRole() {
       // Update role detail cache
       queryClient.setQueryData(rolesKeys.detail(roleId), updatedRole);
       
-      showSuccessToast("Permissions assigned successfully");
+      showSuccessToast(t('permissionsAssigned', 'common'), t);
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, "Failed to assign permissions");
+      showErrorToast(error.message, t('permissionsAssignFailed', 'common'), t);
     },
   });
 }
@@ -160,6 +165,7 @@ export function useAssignPermissionsToRole() {
 // Remove permission from role
 export function useRemovePermissionFromRole() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: ({ roleId, permissionId }: { roleId: string; permissionId: string }) =>
@@ -168,18 +174,18 @@ export function useRemovePermissionFromRole() {
       // Invalidate permissions cache
       queryClient.invalidateQueries({ queryKey: rolesKeys.rolePermissions(roleId) });
       
-      showSuccessToast("Permission removed successfully");
+      showSuccessToast(t('permissionRemoved', 'common'), t);
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, "Failed to remove permission");
+      showErrorToast(error.message, t('permissionRemoveFailed', 'common'), t);
     },
   });
 }
 
 // ===== Toast Helpers =====
-function showSuccessToast(message: string) {
+function showSuccessToast(message: string, t: (key: string, ns?: string) => string) {
   Swal.fire({
-    title: "Success",
+    title: t('success', 'common'),
     text: message,
     icon: "success",
     timer: 1500,
@@ -187,9 +193,9 @@ function showSuccessToast(message: string) {
   });
 }
 
-function showErrorToast(message: string, fallback: string) {
+function showErrorToast(message: string, fallback: string, t: (key: string, ns?: string) => string) {
   Swal.fire({
-    title: "Error",
+    title: t('error', 'common'),
     text: message || fallback,
     icon: "error",
   });

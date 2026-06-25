@@ -26,6 +26,7 @@ import {
 } from '../../../../../hooks/queries/useApplicants';
 import type { Applicant, Interview } from '../../../../../types/applicants';
 import Swal from '../../../../../utils/swal';
+import { useLocale } from '../../../../../context/LocaleContext';
 import { paths } from '../../../../../router/Paths';
 import JobOfferHistory from './JobOfferHistory';
 import ContractHistory from './ContractHistory';
@@ -49,16 +50,22 @@ type HistorySubTab = 'previous' | 'offers' | 'contracts' | 'interviews';
 
 type TabConfig = {
   key: HistorySubTab;
-  label: string;
   icon: React.ComponentType<{ className?: string }>;
 };
 
 const SUB_TABS: TabConfig[] = [
-  { key: 'previous', label: 'Previous Entries', icon: HistoryIcon },
-  { key: 'interviews', label: 'Completed Interviews', icon: CheckCircle2 },
-  { key: 'offers', label: 'Job Offers', icon: Briefcase },
-  { key: 'contracts', label: 'Job Contracts', icon: FileSignature },
+  { key: 'previous', icon: HistoryIcon },
+  { key: 'interviews', icon: CheckCircle2 },
+  { key: 'offers', icon: Briefcase },
+  { key: 'contracts', icon: FileSignature },
 ];
+
+const SUB_TAB_LABEL_KEYS: Record<HistorySubTab, string> = {
+  previous: 'previousEntries',
+  interviews: 'completedInterviews',
+  offers: 'jobOffers',
+  contracts: 'jobContracts',
+};
 
 function isJobOffer(obj: unknown): obj is JobOffer {
   if (!obj || typeof obj !== 'object') return false;
@@ -161,6 +168,7 @@ function getApplicantCompanyId(applicantItem: Record<string, unknown>): string {
 export default function History({ applicant, loading = false }: Props) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { t } = useLocale();
   const applicantId = String(applicant?._id || '');
   const applicantPhone = useMemo(
     () => applicant?.phone || '',
@@ -360,12 +368,12 @@ export default function History({ applicant, loading = false }: Props) {
     const interviewId = String(interview?._id || interview?.id || '');
     if (!applicantId || !interviewId) return;
     const result = await Swal.fire({
-      title: 'Delete interview?',
-      text: 'This action cannot be undone.',
+      title: t('deleteInterviewTitle', 'applicants'),
+      text: t('actionCannotBeUndone', 'common'),
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonText: 'Delete',
-      cancelButtonText: 'Cancel',
+      confirmButtonText: t('delete', 'common'),
+      cancelButtonText: t('cancel', 'common'),
       confirmButtonColor: '#dc2626',
     });
     if (!result.isConfirmed) return;
@@ -424,14 +432,15 @@ export default function History({ applicant, loading = false }: Props) {
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
       <div className="px-5 pt-5 pb-3 border-b border-gray-100">
-        <h3 className="text-base font-semibold text-gray-800">History</h3>
+        <h3 className="text-base font-semibold text-gray-800">{t('heading', 'history')}</h3>
         <p className="text-sm text-gray-400 mt-0.5">
-          Previous entries, job offers, and contracts linked to this applicant
+          {t('description', 'history')}
         </p>
       </div>
 
       <div className="flex border-b border-gray-200 md:overflow-x-auto xl:overflow-x-visible px-5">
-        {SUB_TABS.map(({ key, label, icon: Icon }) => {
+        {SUB_TABS.map(({ key, icon: Icon }) => {
+          const label = t(SUB_TAB_LABEL_KEYS[key], 'history');
           const isActive = activeSubTab === key;
           return (
             <button

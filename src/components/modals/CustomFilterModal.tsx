@@ -30,6 +30,7 @@ import {
 } from "@mui/material";
 import { styled } from '@mui/material/styles';
 import { useAuth } from '../../context/AuthContext';
+import { useLocale } from '../../context/LocaleContext';
 
 // Icons
 import CloseIcon from '@mui/icons-material/Close';
@@ -332,6 +333,7 @@ const CustomFilterModal: React.FC<Props> = ({
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isVerySmall = useMediaQuery('(max-width:425px)');
   const { user } = useAuth();
+  const { t } = useLocale();
   const [modalSelectedJobIds, setModalSelectedJobIds] = useState<string[]>([]);
   const [modalSelectedCompanyIds, setModalSelectedCompanyIds] = useState<string[]>([]);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
@@ -517,7 +519,7 @@ const CustomFilterModal: React.FC<Props> = ({
             <TextField
             size="small"
             type="number"
-            label="Min"
+            label={t('min', 'modals')}
             value={Number.isFinite(range[0]) ? range[0] : ''}
             onChange={(e) => {
               const v = e.target.value === '' ? observedMin : Number(e.target.value);
@@ -548,7 +550,7 @@ const CustomFilterModal: React.FC<Props> = ({
           <TextField
             size="small"
             type="number"
-            label="Max"
+            label={t('max', 'modals')}
             value={Number.isFinite(range[1]) ? range[1] : ''}
             onChange={(e) => {
               const v = e.target.value === '' ? observedMax : Number(e.target.value);
@@ -578,7 +580,7 @@ const CustomFilterModal: React.FC<Props> = ({
 
           <Box sx={{ flex: 1 }}>
             <Typography variant="caption" color="text.secondary">
-              Range: {Number(range[0]).toLocaleString()} — {Number(range[1]).toLocaleString()}
+              {t('range', 'modals', { min: Number(range[0]).toLocaleString(), max: Number(range[1]).toLocaleString() })}
             </Typography>
           </Box>
         </Box>
@@ -815,7 +817,7 @@ const CustomFilterModal: React.FC<Props> = ({
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <FilterListIcon sx={{ color: brandMain }} />
           <Typography variant="h6" sx={{ fontWeight: 700 }}>
-            Custom Filter Settings
+            {t('customFilterSettings', 'modals')}
           </Typography>
           {activeFilterCount > 0 && (
             <Badge
@@ -846,7 +848,7 @@ const CustomFilterModal: React.FC<Props> = ({
               >
                 <SectionTitle>
                   <BusinessIcon />
-                  <Typography variant="h6">Companies</Typography>
+                  <Typography variant="h6">{t('companies', 'modals')}</Typography>
                 </SectionTitle>
                 <IconButton size="small">
                   {expandedSections.companies ? <ExpandLessIcon /> : <ExpandMoreIcon />}
@@ -891,7 +893,7 @@ const CustomFilterModal: React.FC<Props> = ({
             >
               <SectionTitle>
                 <WorkIcon />
-                <Typography variant="h6">Job Positions</Typography>
+                <Typography variant="h6">{t('jobPositions', 'modals')}</Typography>
               </SectionTitle>
               <IconButton size="small">
                 {expandedSections.jobs ? <ExpandLessIcon /> : <ExpandMoreIcon />}
@@ -906,7 +908,7 @@ const CustomFilterModal: React.FC<Props> = ({
                     icon={<InfoIcon />}
                     sx={{ borderRadius: 2 }}
                   >
-                    Select one or more companies to display their jobs.
+                    {t('selectCompaniesJobs', 'modals')}
                   </Alert>
                 ) : (
                   <Stack spacing={2}>
@@ -939,7 +941,7 @@ const CustomFilterModal: React.FC<Props> = ({
                             </Typography>
                             {jobs.length === 0 ? (
                               <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                                No jobs for this company.
+                                {t('noJobsCompany', 'modals')}
                               </Typography>
                             ) : (
                               <FormGroup sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 1 }}>
@@ -985,7 +987,7 @@ const CustomFilterModal: React.FC<Props> = ({
             >
               <SectionTitle>
                 <PersonIcon />
-                <Typography variant="h6">Personal Information</Typography>
+                <Typography variant="h6">{t('personalInformation', 'modals')}</Typography>
               </SectionTitle>
               <IconButton size="small">
                 {expandedSections.personal ? <ExpandLessIcon /> : <ExpandMoreIcon />}
@@ -998,7 +1000,7 @@ const CustomFilterModal: React.FC<Props> = ({
                 <Box>
                   <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
                     <WcIcon fontSize="small" color="primary" />
-                    Gender
+                    {t('gender', 'modals')}
                   </Typography>
                   <FormGroup sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 2 }}>
                     {(genderOptions || []).map((opt: any) => {
@@ -1047,7 +1049,7 @@ const CustomFilterModal: React.FC<Props> = ({
                 <Box>
                   <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
                     <CakeIcon fontSize="small" color="primary" />
-                    Birth Date
+                    {t('birthDate', 'modals')}
                   </Typography>
                   <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, alignItems: { sm: 'center' } }}>
                     {(() => {
@@ -1059,7 +1061,7 @@ const CustomFilterModal: React.FC<Props> = ({
                           <TextField
                             size="small"
                             type="number"
-                            label="Year"
+                            label={t('year', 'modals')}
                             value={yearVal}
                             onChange={(e) => {
                               const nv = e.target.value;
@@ -1109,8 +1111,8 @@ const CustomFilterModal: React.FC<Props> = ({
                             }}
                             size="small"
                           >
-                            <StyledToggleButton value="after">After</StyledToggleButton>
-                            <StyledToggleButton value="before">Before</StyledToggleButton>
+                            <StyledToggleButton value="after">{t('after', 'modals')}</StyledToggleButton>
+                            <StyledToggleButton value="before">{t('before', 'modals')}</StyledToggleButton>
                           </ToggleButtonGroup>
                           {yearVal && (
                             <Button
@@ -1121,7 +1123,7 @@ const CustomFilterModal: React.FC<Props> = ({
                                 setCustomFilters(prev => prev.filter((p: any) => p.fieldId !== '__birthdate'));
                               }}
                             >
-                              Clear
+                              {t('clear', 'modals')}
                             </Button>
                           )}
                         </>
@@ -1134,7 +1136,7 @@ const CustomFilterModal: React.FC<Props> = ({
                 <Box>
                   <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
                     <DescriptionIcon fontSize="small" color="primary" />
-                    CV Status
+                    {t('cvStatus', 'modals')}
                   </Typography>
                   <Box sx={{ display: 'flex', gap: 2 }}>
                     {(() => {
@@ -1164,7 +1166,7 @@ const CustomFilterModal: React.FC<Props> = ({
                               });
                             }}
                           >
-                            Has CV
+                            {t('hasCv', 'modals')}
                           </StyledToggleButton>
                           <StyledToggleButton
                             value="no"
@@ -1183,7 +1185,7 @@ const CustomFilterModal: React.FC<Props> = ({
                               });
                             }}
                           >
-                            No CV
+                            {t('noCv', 'modals')}
                           </StyledToggleButton>
                         </ToggleButtonGroup>
                       );
@@ -1195,7 +1197,7 @@ const CustomFilterModal: React.FC<Props> = ({
                 <Box>
                   <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
                     <LocationOnIcon fontSize="small" color="primary" />
-                    Address
+                    {t('address', 'modals')}
                   </Typography>
                   {(() => {
                     const existing = customFilters.find((cf: any) => cf.fieldId === '__address') || {};
@@ -1204,7 +1206,7 @@ const CustomFilterModal: React.FC<Props> = ({
                       <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start', flexDirection: { xs: 'column', sm: 'row' } }}>
                         <TextField
                           size="small"
-                          label="Address"
+                          label={t('address', 'modals')}
                           multiline
                           rows={3}
                           value={addrVal}
@@ -1224,7 +1226,7 @@ const CustomFilterModal: React.FC<Props> = ({
                               return next;
                             });
                           }}
-                          placeholder="Search by address (city, street, area)..."
+                          placeholder={t('addressPlaceholder', 'modals')}
                           sx={{ flex: 1, minWidth: 200 }}
                         />
                         {addrVal ? (
@@ -1236,7 +1238,7 @@ const CustomFilterModal: React.FC<Props> = ({
                               setCustomFilters((prev) => prev.filter((p: any) => p.fieldId !== '__address'));
                             }}
                           >
-                            Clear
+                            {t('clear', 'modals')}
                           </Button>
                         ) : null}
                       </Box>
@@ -1294,7 +1296,7 @@ const CustomFilterModal: React.FC<Props> = ({
                   <Box>
                     <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
                       <DescriptionIcon fontSize="small" color="primary" />
-                      Expected Salary
+                      {t('salary', 'modals')}
                     </Typography>
                     <Box>
                       {(() => {
@@ -1503,7 +1505,7 @@ const CustomFilterModal: React.FC<Props> = ({
           fullWidth={isMobile}
           sx={{ borderRadius: 2 }}
         >
-          Clear All
+          {t('clear', 'modals')}
         </Button>
         <Button
           variant="outlined"

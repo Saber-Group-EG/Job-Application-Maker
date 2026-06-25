@@ -14,6 +14,7 @@ import type {
 } from "../../types/applicants";
 import { ApiError } from "../../services/companiesService";
 import Swal from "../../utils/swal";
+import { useLocale } from "../../context/LocaleContext";
 
 // Query keys
 export const applicantsKeys = {
@@ -254,16 +255,17 @@ export function useApplicantStatuses(params?: {
 // Batch update applicant status
 export function useBatchUpdateApplicantStatus() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: (updates: Array<{ applicantId: string; status: string; notes?: string; reasons?: string[] }>) =>
       applicantsService.batchUpdateStatus(updates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: applicantsKeys.lists() });
-      showSuccessToast("Statuses updated successfully");
+      showSuccessToast(t('statusesUpdated', 'common'), t);
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, "Failed to update statuses");
+      showErrorToast(error.message, t('statusesUpdateFailed', 'common'), t);
     },
   });
 }
@@ -271,15 +273,16 @@ export function useBatchUpdateApplicantStatus() {
 // Create applicant
 export function useCreateApplicant() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: (data: CreateApplicantRequest) => applicantsService.createApplicant(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: applicantsKeys.lists() });
-      showSuccessToast("Applicant created successfully");
+      showSuccessToast(t('applicantCreated', 'common'), t);
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, "Failed to create applicant");
+      showErrorToast(error.message, t('applicantCreateFailed', 'common'), t);
     },
   });
 }
@@ -287,6 +290,7 @@ export function useCreateApplicant() {
 // Update applicant
 export function useUpdateApplicant() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateApplicantRequest }) =>
@@ -317,10 +321,10 @@ export function useUpdateApplicant() {
         queryClient.invalidateQueries({ queryKey: applicantsKeys.lists() });
       }
 
-      showSuccessToast("Applicant updated successfully");
+      showSuccessToast(t('applicantUpdated', 'common'), t);
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, "Failed to update applicant");
+      showErrorToast(error.message, t('applicantUpdateFailed', 'common'), t);
     },
   });
 }
@@ -344,6 +348,7 @@ export function useMarkApplicantSeen() {
 // Update applicant status
 export function useUpdateApplicantStatus() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateStatusRequest }) =>
@@ -388,7 +393,7 @@ export function useUpdateApplicantStatus() {
         queryClient.setQueryData(applicantsKeys.detail(id), updatedApplicant);
       }
 
-      showSuccessToast("Status updated successfully");
+      showSuccessToast(t('statusUpdated', 'common'), t);
     },
     onError: (error: ApiError, { id }, context) => {
       if (context?.previousDetail) {
@@ -401,7 +406,7 @@ export function useUpdateApplicantStatus() {
           }
         });
       }
-      showErrorToast(error.message, "Failed to update status");
+      showErrorToast(error.message, t('statusUpdateFailed', 'common'), t);
     },
   });
 }
@@ -409,6 +414,7 @@ export function useUpdateApplicantStatus() {
 // Delete applicant
 export function useDeleteApplicant() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: (id: string) => applicantsService.deleteApplicant(id),
@@ -422,10 +428,10 @@ export function useDeleteApplicant() {
       // Remove detail cache
       queryClient.removeQueries({ queryKey: applicantsKeys.detail(id) });
       
-      showSuccessToast("Applicant deleted successfully");
+      showSuccessToast(t('applicantDeleted', 'common'), t);
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, "Failed to delete applicant");
+      showErrorToast(error.message, t('applicantDeleteFailed', 'common'), t);
     },
   });
 }
@@ -433,6 +439,7 @@ export function useDeleteApplicant() {
 // Schedule interview
 export function useScheduleInterview() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: ScheduleInterviewRequest }) =>
@@ -441,10 +448,10 @@ export function useScheduleInterview() {
       mergeApplicantResponseIntoCache(queryClient, id, response, {
         appendKey: 'interviews',
       });
-      showSuccessToast("Interview scheduled successfully");
+      showSuccessToast(t('interviewScheduled', 'common'), t);
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, "Failed to schedule interview");
+      showErrorToast(error.message, t('interviewScheduleFailed', 'common'), t);
     },
   });
 }
@@ -452,16 +459,17 @@ export function useScheduleInterview() {
 // Schedule bulk interviews
 export function useScheduleBulkInterviews() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: (payload: { interviews: Array<any> } | Array<any>) =>
       applicantsService.scheduleBulkInterviews(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: applicantsKeys.lists() });
-      showSuccessToast("Interviews scheduled successfully");
+      showSuccessToast(t('interviewsScheduled', 'common'), t);
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, "Failed to schedule interviews");
+      showErrorToast(error.message, t('interviewsScheduleFailed', 'common'), t);
     },
   });
 }
@@ -469,6 +477,7 @@ export function useScheduleBulkInterviews() {
 // Update interview status
 export function useUpdateInterviewStatus() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: ({ applicantId, interviewId, data }: {
@@ -506,7 +515,7 @@ export function useUpdateInterviewStatus() {
         const { applicantId } = _variables;
         queryClient.setQueryData(applicantsKeys.detail(applicantId), previous);
       }
-      showErrorToast(error.message, "Failed to update interview status");
+      showErrorToast(error.message, t('interviewUpdateFailed', 'common'), t);
     },
   });
 }
@@ -514,6 +523,7 @@ export function useUpdateInterviewStatus() {
 // Delete interview
 export function useDeleteInterview() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: ({ applicantId, interviewId }: {
@@ -523,10 +533,10 @@ export function useDeleteInterview() {
     onSuccess: (updatedApplicant, { applicantId }) => {
       queryClient.setQueryData(applicantsKeys.detail(applicantId), updatedApplicant);
       queryClient.invalidateQueries({ queryKey: applicantsKeys.detail(applicantId) });
-      showSuccessToast("Interview deleted successfully");
+      showSuccessToast(t('interviewDeleted', 'common'), t);
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, "Failed to delete interview");
+      showErrorToast(error.message, t('interviewDeleteFailed', 'common'), t);
     },
   });
 }
@@ -534,6 +544,7 @@ export function useDeleteInterview() {
 // Add comment
 export function useAddComment() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: AddCommentRequest }) =>
@@ -542,10 +553,10 @@ export function useAddComment() {
       mergeApplicantResponseIntoCache(queryClient, id, response, {
         appendKey: 'comments',
       });
-      showSuccessToast("Comment added");
+      showSuccessToast(t('commentAdded', 'common'), t);
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, "Failed to add comment");
+      showErrorToast(error.message, t('commentAddFailed', 'common'), t);
     },
   });
 }
@@ -553,16 +564,17 @@ export function useAddComment() {
 // Send message
 export function useSendMessage() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: SendMessageRequest }) =>
       applicantsService.sendMessage(id, data),
     onSuccess: (response, { id }) => {
       mergeApplicantResponseIntoCache(queryClient, id, response);
-      showSuccessToast("Message sent successfully");
+      showSuccessToast(t('messageSent', 'common'), t);
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, "Failed to send message");
+      showErrorToast(error.message, t('messageSendFailed', 'common'), t);
     },
   });
 }
@@ -599,9 +611,9 @@ export function useApplicantsByPhone(phone?: string, options?: { enabled?: boole
 }
 
 // ===== Toast Helpers =====
-function showSuccessToast(message: string) {
+function showSuccessToast(message: string, t: (key: string, ns?: string) => string) {
   Swal.fire({
-    title: "Success",
+    title: t('success', 'common'),
     text: message,
     icon: "success",
     timer: 1500,
@@ -609,9 +621,9 @@ function showSuccessToast(message: string) {
   });
 }
 
-function showErrorToast(message: string, fallback: string) {
+function showErrorToast(message: string, fallback: string, t: (key: string, ns?: string) => string) {
   Swal.fire({
-    title: "Error",
+    title: t('error', 'common'),
     text: message || fallback,
     icon: "error",
   });

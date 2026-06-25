@@ -28,6 +28,7 @@ import { useCompanies } from '../../../hooks/queries/useCompanies';
 import { useJobPositions } from '../../../hooks/queries/useJobPositions';
 import { useApplicants } from '../../../hooks/queries/useApplicants';
 import { useAuth } from '../../../context/AuthContext';
+import { useLocale } from '../../../context/LocaleContext';
 
 type MailStatus = 'queued' | 'delivery delayed' | 'sent' | 'delivered' | 'opened' | 'clicked' | 'bounced' | 'failed';
 
@@ -104,14 +105,14 @@ type UiMailRecord = {
 };
 
 const STATUS_OPTIONS: Array<{ key: 'all' | MailStatus; label: string; icon: any }> = [
-    { key: 'all', label: 'All', icon: Inbox },
-    { key: 'queued', label: 'Queued', icon: Clock },
-    { key: 'delivery delayed', label: 'Delayed', icon: AlertCircle },
-    { key: 'delivered', label: 'Delivered', icon: CheckCircle2 },
-    { key: 'opened', label: 'Opened', icon: Eye },
-    { key: 'clicked', label: 'Clicked', icon: MousePointerClick },
-    { key: 'bounced', label: 'Bounced', icon: XCircle },
-    { key: 'failed', label: 'Failed', icon: AlertCircle },
+    { key: 'all', label: 'statusAll', icon: Inbox },
+    { key: 'queued', label: 'statusQueued', icon: Clock },
+    { key: 'delivery delayed', label: 'statusDelayed', icon: AlertCircle },
+    { key: 'delivered', label: 'statusDelivered', icon: CheckCircle2 },
+    { key: 'opened', label: 'statusOpened', icon: Eye },
+    { key: 'clicked', label: 'statusClicked', icon: MousePointerClick },
+    { key: 'bounced', label: 'statusBounced', icon: XCircle },
+    { key: 'failed', label: 'statusFailed', icon: AlertCircle },
 ];
 
 const MAIL_POLL_INTERVAL_MS = 30 * 1000;
@@ -125,7 +126,7 @@ const formatDateTime = (value: string) =>
         minute: '2-digit',
     });
 
-const formatRelativeTime = (value: string) => {
+const formatRelativeTime = (value: string, t?: (key: string, ns?: string, params?: Record<string, string | number>) => string) => {
     const date = new Date(value);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
@@ -133,29 +134,29 @@ const formatRelativeTime = (value: string) => {
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
 
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    return `${diffDays}d ago`;
+    if (diffMins < 1) return t ? t('justNow', 'mailPreview') : 'Just now';
+    if (diffMins < 60) return t ? t('minsAgo', 'mailPreview', { mins: diffMins }) : `${diffMins}m ago`;
+    if (diffHours < 24) return t ? t('hoursAgo', 'mailPreview', { hours: diffHours }) : `${diffHours}h ago`;
+    return t ? t('daysAgo', 'mailPreview', { days: diffDays }) : `${diffDays}d ago`;
 };
 
 const stripHtml = (html: string) => html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 
 const isInvalidNameToken = (value: string) => /^(undefined|null|unknown|n\/a|na)$/i.test(value.trim());
 
-const getApplicantNameFromHtml = (html: string) => {
+const getApplicantNameFromHtml = (html: string, t?: (key: string, ns?: string) => string) => {
     const match = html.match(/Dear\s+([^,<]+)[,:]?/i);
     const parsedName = match?.[1]?.trim() || '';
-    if (!parsedName || isInvalidNameToken(parsedName)) return 'Unknown Applicant';
+    if (!parsedName || isInvalidNameToken(parsedName)) return t ? t('unknownApplicant', 'mailPreview') : 'Unknown Applicant';
     return parsedName;
 };
 
-const getFallbackNameFromEmail = (email: string) => {
-    if (!email) return 'Unknown Applicant';
+const getFallbackNameFromEmail = (email: string, t?: (key: string, ns?: string) => string) => {
+    if (!email) return t ? t('unknownApplicant', 'mailPreview') : 'Unknown Applicant';
     const localPart = email.split('@')[0]?.trim();
-    if (!localPart) return 'Unknown Applicant';
+    if (!localPart) return t ? t('unknownApplicant', 'mailPreview') : 'Unknown Applicant';
     const normalized = localPart.replace(/[._-]+/g, ' ').trim();
-    if (!normalized || isInvalidNameToken(normalized)) return 'Unknown Applicant';
+    if (!normalized || isInvalidNameToken(normalized)) return t ? t('unknownApplicant', 'mailPreview') : 'Unknown Applicant';
     return normalized;
 };
 
@@ -189,31 +190,31 @@ const resolveUiStatus = (mail: ApiMailRecord): MailStatus => {
     }
 };
 
-const buildEvents = (mail: ApiMailRecord): MailEvent[] => {
+const buildEvents = (mail: ApiMailRecord, t?: (key: string, ns?: string) => string): MailEvent[] => {
     const events: MailEvent[] = [
-        { id: `${mail._id}-q`, type: 'queued', at: mail.createdAt, detail: 'Mail queued.' },
-        { id: `${mail._id}-a`, type: 'provider_accepted', at: mail.updatedAt, detail: 'Provider accepted.' },
+        { id: `${mail._id}-q`, type: 'queued', at: mail.createdAt, detail: t ? t('eventQueued', 'mailPreview') : 'Mail queued.' },
+        { id: `${mail._id}-a`, type: 'provider_accepted', at: mail.updatedAt, detail: t ? t('eventProviderAccepted', 'mailPreview') : 'Provider accepted.' },
     ];
-    if (mail.deliveredAt) events.push({ id: `${mail._id}-d`, type: 'delivered', at: mail.deliveredAt, detail: 'Delivered.' });
-    if (mail.openedAt) events.push({ id: `${mail._id}-o`, type: 'open', at: mail.openedAt, detail: 'Opened.' });
-    if (mail.clickedAt) events.push({ id: `${mail._id}-c`, type: 'click', at: mail.clickedAt, detail: 'Clicked.' });
-    if (mail.bouncedAt) events.push({ id: `${mail._id}-b`, type: 'bounce', at: mail.bouncedAt, detail: 'Bounced.' });
-    if (mail.complainedAt) events.push({ id: `${mail._id}-cp`, type: 'complaint', at: mail.complainedAt, detail: 'Complaint.' });
+    if (mail.deliveredAt) events.push({ id: `${mail._id}-d`, type: 'delivered', at: mail.deliveredAt, detail: t ? t('eventDelivered', 'mailPreview') : 'Delivered.' });
+    if (mail.openedAt) events.push({ id: `${mail._id}-o`, type: 'open', at: mail.openedAt, detail: t ? t('eventOpened', 'mailPreview') : 'Opened.' });
+    if (mail.clickedAt) events.push({ id: `${mail._id}-c`, type: 'click', at: mail.clickedAt, detail: t ? t('eventClicked', 'mailPreview') : 'Clicked.' });
+    if (mail.bouncedAt) events.push({ id: `${mail._id}-b`, type: 'bounce', at: mail.bouncedAt, detail: t ? t('eventBounced', 'mailPreview') : 'Bounced.' });
+    if (mail.complainedAt) events.push({ id: `${mail._id}-cp`, type: 'complaint', at: mail.complainedAt, detail: t ? t('eventComplaint', 'mailPreview') : 'Complaint.' });
     return events.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
 };
 
-const toUiRecord = (mail: ApiMailRecord): UiMailRecord => {
+const toUiRecord = (mail: ApiMailRecord, t?: (key: string, ns?: string) => string): UiMailRecord => {
     const status = resolveUiStatus(mail);
     return {
         id: mail._id,
         applicantId: extractId(mail.applicant),
-        applicantName: getApplicantNameFromHtml(mail.html),
+        applicantName: getApplicantNameFromHtml(mail.html, t),
         applicantEmail: mail.to,
         applicantJobPositionId: extractId(mail.jobPosition),
         applicantAssignedJobId: null,
-        applicantAssignedJobTitle: 'Unknown Job',
+        applicantAssignedJobTitle: t ? t('unknownJob', 'mailPreview') : 'Unknown Job',
         applicantAssignedCompanyId: null,
-        applicantAssignedCompanyName: 'Unknown',
+        applicantAssignedCompanyName: t ? t('unknownCompany', 'mailPreview') : 'Unknown',
         companyId: extractId(mail.company) || String(mail.company || ''),
         senderId: extractId(mail.sentBy) || String(mail.sentBy || ''),
         sender: mail.from,
@@ -232,7 +233,7 @@ const toUiRecord = (mail: ApiMailRecord): UiMailRecord => {
         bouncedAt: mail.bouncedAt,
         complainedAt: mail.complainedAt,
         webhookEvents: mail.webhookEvents,
-        events: buildEvents(mail),
+        events: buildEvents(mail, t),
         raw: mail,
     };
 };
@@ -333,6 +334,7 @@ const SidebarNavItem = ({ icon: Icon, label, count, active }: { icon: any; label
 );
 
 export default function MailPreview() {
+    const { t } = useLocale();
     const { user } = useAuth();
     const roleName = user?.roleId?.name?.toLowerCase();
     const isSuperAdmin = roleName === 'super admin' || roleName === 'admin';
@@ -366,10 +368,10 @@ export default function MailPreview() {
     const companyNameById = useMemo(() => {
         const map = new Map<string, string>();
         (companies || []).forEach((company: any) => {
-            map.set(company._id, toDisplayText(company?.name, 'Unknown Company'));
+            map.set(company._id, toDisplayText(company?.name, t('unknownCompany', 'mailPreview')));
         });
         return map;
-    }, [companies]);
+    }, [companies, t]);
 
     useEffect(() => {
         if (availableCompanyIds.length === 1) {
@@ -409,10 +411,10 @@ export default function MailPreview() {
     const jobTitleById = useMemo(() => {
         const map = new Map<string, string>();
         (jobPositions || []).forEach((job: any) => {
-            if (job?._id) map.set(job._id, toDisplayText((job as any)?.title || (job as any)?.name, 'Untitled Job'));
+            if (job?._id) map.set(job._id, toDisplayText((job as any)?.title || (job as any)?.name, t('untitledJob', 'mailPreview')));
         });
         return map;
-    }, [jobPositions]);
+    }, [jobPositions, t]);
 
     const applicantCompanyIds = useMemo(() => {
         if (!isSuperAdmin && assignedCompanyIds.length > 0) return assignedCompanyIds;
@@ -478,49 +480,54 @@ export default function MailPreview() {
         refetchIntervalInBackground: true,
     });
 
+    const unknownApplicantLabel = useMemo(() => t('unknownApplicant', 'mailPreview'), [t]);
+
     const knownNameByApplicantId = useMemo(() => {
         const map = new Map<string, string>();
         (apiResponse?.data || []).forEach((mail) => {
             const applicantId = extractId((mail as any)?.applicant);
             const parsedName = getApplicantNameFromHtml((mail as any)?.html || '');
-            if (applicantId && parsedName !== 'Unknown Applicant' && !isInvalidNameToken(parsedName)) {
+            if (applicantId && parsedName !== unknownApplicantLabel && !isInvalidNameToken(parsedName)) {
                 map.set(applicantId, parsedName);
             }
         });
         return map;
-    }, [apiResponse]);
+    }, [apiResponse, unknownApplicantLabel]);
 
     const knownNameByEmail = useMemo(() => {
         const map = new Map<string, string>();
         (apiResponse?.data || []).forEach((mail) => {
             const email = String((mail as any)?.to || '').trim().toLowerCase();
             const parsedName = getApplicantNameFromHtml((mail as any)?.html || '');
-            if (email && parsedName !== 'Unknown Applicant' && !isInvalidNameToken(parsedName)) {
+            if (email && parsedName !== unknownApplicantLabel && !isInvalidNameToken(parsedName)) {
                 if (!map.has(email)) map.set(email, parsedName);
             }
         });
         return map;
-    }, [apiResponse]);
+    }, [apiResponse, unknownApplicantLabel]);
 
     const uiRecords = useMemo(() => {
         if (isLoading || !apiResponse) return [];
         return (apiResponse.data || []).map((mail) => {
-            const base = toUiRecord(mail);
+            const base = toUiRecord(mail, t);
             const matchedApplicant = base.applicantId ? applicantById.get(base.applicantId) : null;
             const hasLinkedApplicant = !!base.applicantId;
+            const unknownJobLabel = t('unknownJob', 'mailPreview');
+            const unknownApplicantLabel = t('unknownApplicant', 'mailPreview');
+            const unknownCompanyLabel = t('unknownCompany', 'mailPreview');
             const applicantJobPositionId = getApplicantJobPositionId(matchedApplicant) || base.applicantJobPositionId || null;
             const applicantAssignedJobTitle = getApplicantJobTitle(matchedApplicant) ||
-                (applicantJobPositionId ? jobTitleById.get(applicantJobPositionId) || applicantJobPositionId : 'Unknown Job');
+                (applicantJobPositionId ? jobTitleById.get(applicantJobPositionId) || applicantJobPositionId : unknownJobLabel);
             const userFullName = toDisplayText(matchedApplicant?.fullName || matchedApplicant?.name, '');
-            const parsedHtmlName = base.applicantName !== 'Unknown Applicant' && !isInvalidNameToken(base.applicantName) ? base.applicantName : '';
+            const parsedHtmlName = base.applicantName !== unknownApplicantLabel && !isInvalidNameToken(base.applicantName) ? base.applicantName : '';
             const knownByApplicantId = base.applicantId ? knownNameByApplicantId.get(base.applicantId) || '' : '';
             const knownByEmail = knownNameByEmail.get(String(base.applicantEmail || '').trim().toLowerCase()) || '';
-            const fallbackName = getFallbackNameFromEmail(base.applicantEmail);
+            const fallbackName = getFallbackNameFromEmail(base.applicantEmail, t);
             const shouldWaitForApplicantLookup = hasLinkedApplicant && !matchedApplicant && (!isApplicantsFetched || isApplicantsLoading || isApplicantsFetching);
             const applicantName = userFullName || parsedHtmlName || knownByApplicantId || knownByEmail ||
-                (shouldWaitForApplicantLookup ? 'Loading recipient...' : (hasLinkedApplicant ? 'Unknown Applicant' : fallbackName));
+                (shouldWaitForApplicantLookup ? t('loadingRecipient', 'mailPreview') : (hasLinkedApplicant ? unknownApplicantLabel : fallbackName));
             const assignedCompanyId = getApplicantCompanyId(matchedApplicant) || base.companyId || null;
-            const assignedCompanyName = assignedCompanyId ? companyNameById.get(assignedCompanyId) || assignedCompanyId : 'Unknown Company';
+            const assignedCompanyName = assignedCompanyId ? companyNameById.get(assignedCompanyId) || assignedCompanyId : unknownCompanyLabel;
 
             return {
                 ...base,
@@ -532,7 +539,7 @@ export default function MailPreview() {
                 applicantAssignedCompanyName: assignedCompanyName,
             };
         });
-    }, [apiResponse, applicantById, companyNameById, jobTitleById, knownNameByApplicantId, knownNameByEmail, isApplicantsLoading, isApplicantsFetching, isApplicantsFetched]);
+    }, [apiResponse, applicantById, companyNameById, jobTitleById, knownNameByApplicantId, knownNameByEmail, isApplicantsLoading, isApplicantsFetching, isApplicantsFetched, t]);
 
     const filteredMails = useMemo(() => uiRecords
         .filter((m) => {
@@ -590,7 +597,7 @@ export default function MailPreview() {
     if (view === 'list') {
         return (
             <div className="mx-auto flex h-full max-h-screen flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
-                <PageMeta title="Mail IQ - Inbox" description="Intelligence Center" />
+                <PageMeta title={t('pageTitle', 'mailPreview')} description={t('pageDesc', 'mailPreview')} />
 
                 <div className="flex h-full flex-1 overflow-hidden">
                     {/* Sidebar */}
@@ -599,7 +606,7 @@ export default function MailPreview() {
                             <div className="mb-6 flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <Mail className="h-6 w-6 text-brand-600" />
-                                    <span className="text-lg font-bold text-slate-800 dark:text-white">Messages</span>
+                                    <span className="text-lg font-bold text-slate-800 dark:text-white">{t('sidebarTitle', 'mailPreview')}</span>
                                 </div>
                                 <button className="rounded-lg bg-brand-600 p-2 text-white transition hover:bg-brand-700">
                                     <PlusCircle className="h-4 w-4" />
@@ -608,20 +615,20 @@ export default function MailPreview() {
 
                             <div className="space-y-6">
                                 <div>
-                                    <SidebarNavItem icon={Inbox} label="Inbox" count={filteredMails.length} active={statusFilter === 'all'} />
-                                    <SidebarNavItem icon={Star} label="Marked" count={filteredMails.filter(m => m.score > 90).length} />
-                                    <SidebarNavItem icon={FileText} label="Draft" count={0} />
-                                    <SidebarNavItem icon={Send} label="Sent" />
-                                    <SidebarNavItem icon={Trash2} label="Trash" />
+                                    <SidebarNavItem icon={Inbox} label={t('sidebarInbox', 'mailPreview')} count={filteredMails.length} active={statusFilter === 'all'} />
+                                    <SidebarNavItem icon={Star} label={t('sidebarMarked', 'mailPreview')} count={filteredMails.filter(m => m.score > 90).length} />
+                                    <SidebarNavItem icon={FileText} label={t('sidebarDraft', 'mailPreview')} count={0} />
+                                    <SidebarNavItem icon={Send} label={t('sidebarSent', 'mailPreview')} />
+                                    <SidebarNavItem icon={Trash2} label={t('sidebarTrash', 'mailPreview')} />
                                 </div>
 
                                 <div>
-                                    <div className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Custom Work</div>
-                                    <SidebarNavItem icon={Tag} label="Partnership" count={6} />
-                                    <SidebarNavItem icon={Tag} label="In Progress" />
+                                    <div className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-slate-400">{t('sidebarCustomWork', 'mailPreview')}</div>
+                                    <SidebarNavItem icon={Tag} label={t('sidebarPartnership', 'mailPreview')} count={6} />
+                                    <SidebarNavItem icon={Tag} label={t('sidebarInProgress', 'mailPreview')} />
                                     <button className="mt-2 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-brand-600 transition hover:bg-brand-50 dark:text-brand-400 dark:hover:bg-brand-500/10">
                                         <PlusCircle className="h-3.5 w-3.5" />
-                                        <span>Add Label</span>
+                                        <span>{t('sidebarAddLabel', 'mailPreview')}</span>
                                     </button>
                                 </div>
                             </div>
@@ -631,12 +638,12 @@ export default function MailPreview() {
                     {/* Main Content - Email List */}
                     <div className="flex flex-1 flex-col overflow-hidden">
                         {/* Top Bar */}
-                        <div className="flex flex-shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6 py-3 dark:border-slate-800 dark:bg-slate-900">
-                            <div className="flex items-center gap-4">
-                                <button className="rounded-md p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">
+                        <div className="flex flex-shrink-0 flex-col gap-2 border-b border-slate-200 bg-white px-4 py-2 dark:border-slate-800 dark:bg-slate-900 lg:flex-row lg:items-center lg:justify-between lg:px-6 lg:py-3">
+                            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+                                <button className="hidden shrink-0 rounded-md p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 lg:block">
                                     <Filter className="h-4 w-4" />
                                 </button>
-                                <div className="h-6 w-px bg-slate-300 dark:bg-slate-700" />
+                                <div className="hidden h-6 w-px shrink-0 bg-slate-300 dark:bg-slate-700 lg:block" />
                                 <div className="flex items-center gap-2">
                                     {STATUS_OPTIONS.map((opt) => {
                                         const count = getStatusCount(opt.key);
@@ -644,14 +651,14 @@ export default function MailPreview() {
                                             <button
                                                 key={opt.key}
                                                 onClick={() => setStatusFilter(opt.key as any)}
-                                                className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${statusFilter === opt.key
+                                                className={`inline-flex items-center gap-1.5 shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-all ${statusFilter === opt.key
                                                         ? 'bg-brand-600 text-white shadow-sm'
                                                         : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
                                                     }`}
                                             >
-                                                {opt.label}
+                                                {t(opt.label, 'mailPreview')}
                                                 {count > 0 && statusFilter !== opt.key && (
-                                                    <span className="ml-1.5 rounded-full bg-slate-300 px-1.5 py-0.5 text-[10px] text-slate-700 dark:bg-slate-600 dark:text-slate-200">
+                                                    <span className="rounded-full bg-slate-300 px-1.5 py-0.5 text-[10px] text-slate-700 dark:bg-slate-600 dark:text-slate-200">
                                                         {count}
                                                     </span>
                                                 )}
@@ -660,13 +667,13 @@ export default function MailPreview() {
                                     })}
                                 </div>
                             </div>
-                            <div className="relative">
+                            <div className="relative w-full lg:w-auto">
                                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                                 <input
                                     value={searchTerm}
                                     onChange={e => setSearchTerm(e.target.value)}
-                                    placeholder="Search inbox"
-                                    className="w-80 rounded-full border border-slate-200 bg-slate-50 py-2 pl-10 pr-4 text-sm focus:border-brand-300 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-slate-700 dark:bg-slate-800/50 dark:text-white"
+                                    placeholder={t('searchPlaceholder', 'mailPreview')}
+                                    className="w-full rounded-full border border-slate-200 bg-slate-50 py-2 pl-10 pr-4 text-sm focus:border-brand-300 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-slate-700 dark:bg-slate-800/50 dark:text-white lg:w-80"
                                 />
                             </div>
                         </div>
@@ -679,9 +686,9 @@ export default function MailPreview() {
                                         <div className="rounded-full bg-slate-100 p-4 dark:bg-slate-800">
                                             <Mail className="h-8 w-8 text-slate-400" />
                                         </div>
-                                        <h3 className="mt-4 text-lg font-medium text-slate-900 dark:text-white">No messages found</h3>
+                                        <h3 className="mt-4 text-lg font-medium text-slate-900 dark:text-white">{t('emptyTitle', 'mailPreview')}</h3>
                                         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                                            {searchTerm || statusFilter !== 'all' ? 'Try adjusting your filters' : 'Your inbox is empty'}
+                                            {searchTerm || statusFilter !== 'all' ? t('emptyDescFilter', 'mailPreview') : t('emptyDescEmpty', 'mailPreview')}
                                         </p>
                                     </div>
                                 ) : (
@@ -708,10 +715,10 @@ export default function MailPreview() {
                                                 </div>
                                                 <div className="flex flex-col items-end gap-1">
                                                     <span className="whitespace-nowrap text-[10px] font-medium text-slate-400">
-                                                        {formatRelativeTime(mail.createdAt)}
+                                                        {formatRelativeTime(mail.createdAt, t)}
                                                     </span>
                                                     <span className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider ${statusChipClasses[mail.status].bg} ${statusChipClasses[mail.status].text}`}>
-                                                        {mail.status === 'delivery delayed' ? 'delayed' : mail.status}
+                                                        {mail.status === 'delivery delayed' ? t('statusDelayed', 'mailPreview') : mail.status}
                                                     </span>
                                                 </div>
                                             </div>
@@ -729,17 +736,17 @@ export default function MailPreview() {
                                         className="flex items-center gap-1 rounded-md px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-100 disabled:opacity-40 dark:text-slate-400 dark:hover:bg-slate-800"
                                     >
                                         <ChevronLeft className="h-4 w-4" />
-                                        Previous
+                                        {t('previous', 'mailPreview')}
                                     </button>
                                     <span className="text-sm text-slate-500 dark:text-slate-400">
-                                        {mailPage} of {totalMailPages}
+                                        {t('paginationInfo', 'mailPreview', { page: mailPage, totalPages: totalMailPages })}
                                     </span>
                                     <button
                                         disabled={mailPage === totalMailPages}
                                         onClick={() => setMailPage(p => Math.min(totalMailPages, p + 1))}
                                         className="flex items-center gap-1 rounded-md px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-100 disabled:opacity-40 dark:text-slate-400 dark:hover:bg-slate-800"
                                     >
-                                        Next
+                                        {t('next', 'mailPreview')}
                                         <ChevronRight className="h-4 w-4" />
                                     </button>
                                 </div>
@@ -755,7 +762,7 @@ export default function MailPreview() {
     if (view === 'detail' && selectedMail) {
         return (
             <div className="mx-auto flex h-full max-h-screen flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
-                <PageMeta title={`Mail IQ - ${selectedMail.subject}`} description="Email Details" />
+                <PageMeta title={t('detailPageTitle', 'mailPreview', { subject: selectedMail.subject })} description={t('detailPageDesc', 'mailPreview')} />
 
                 <div className="flex h-full flex-1 overflow-hidden">
                     {/* Sidebar (minimized in detail view) */}
@@ -764,7 +771,7 @@ export default function MailPreview() {
                             <div className="mb-6 flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <Mail className="h-6 w-6 text-brand-600" />
-                                    <span className="text-lg font-bold text-slate-800 dark:text-white">Messages</span>
+                                    <span className="text-lg font-bold text-slate-800 dark:text-white">{t('sidebarTitle', 'mailPreview')}</span>
                                 </div>
                             </div>
                         </div>
@@ -779,7 +786,7 @@ export default function MailPreview() {
                                 className="flex items-center gap-2 text-sm font-medium text-slate-600 transition hover:text-brand-600 dark:text-slate-400 dark:hover:text-brand-400"
                             >
                                 <ArrowLeft className="h-4 w-4" />
-                                Back to inbox
+                                {t('backToInbox', 'mailPreview')}
                             </button>
                         </div>
 
@@ -792,13 +799,13 @@ export default function MailPreview() {
                                     <p className="text-xs text-slate-500 dark:text-slate-400">{selectedMail.applicantEmail}</p>
                                 </div>
                                 <div className={`rounded-full px-3 py-1 text-xs font-medium ${statusChipClasses[selectedMail.status].bg} ${statusChipClasses[selectedMail.status].text}`}>
-                                    {selectedMail.status}
+                                    {selectedMail.status === 'delivery delayed' ? t('statusDelayed', 'mailPreview') : selectedMail.status}
                                 </div>
                             </div>
                             <div className="mt-3 flex items-center gap-4 text-xs text-slate-400">
                                 <span>{formatDateTime(selectedMail.createdAt)}</span>
                                 <span>•</span>
-                                <span>To: {selectedMail.applicantEmail}</span>
+                                <span>{t('to', 'mailPreview', { email: selectedMail.applicantEmail })}</span>
                             </div>
                         </div>
 
@@ -817,7 +824,7 @@ export default function MailPreview() {
                         <div className="border-t border-slate-200 p-6 dark:border-slate-800">
                             <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
                                 <Clock3 className="h-4 w-4" />
-                                Activity Timeline
+                                {t('activityTimeline', 'mailPreview')}
                             </h3>
                             <div className="space-y-4">
                                 {selectedMail.events.map((event, idx) => (
@@ -843,7 +850,7 @@ export default function MailPreview() {
                         {/* Raw Metadata */}
                         <details className="border-t border-slate-200 p-6 dark:border-slate-800">
                             <summary className="cursor-pointer text-sm font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400">
-                                View Raw Metadata
+                                {t('viewRawMetadata', 'mailPreview')}
                             </summary>
                             <pre className="mt-4 max-h-96 overflow-auto rounded-lg bg-slate-100 p-4 text-xs dark:bg-slate-800">
                                 {JSON.stringify(selectedMail.raw, null, 2)}

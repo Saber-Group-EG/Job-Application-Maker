@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { ArrowLeft, Building2, CheckCircle2, Library, Play, Save } from 'lucide-react';
 import type { PoolGroup } from '../hooks/useQuestionPool';
 import type { InterviewAnswer } from '../../../../../../types/applicants';
+import { useLocale } from '../../../../../../context/LocaleContext';
 
 export type QuestionPickerViewProps = {
   pool: PoolGroup[];
@@ -26,6 +27,7 @@ export const QuestionPickerView = ({
   isSaving,
   scheduledAtLabel,
 }: QuestionPickerViewProps) => {
+  const { t } = useLocale();
   const selectedCount = selectedKeys.length;
   const totalQuestions = useMemo(
     () =>
@@ -49,9 +51,9 @@ export const QuestionPickerView = ({
       <div className="bg-gradient-to-r from-slate-900 to-slate-800 px-6 py-7">
         <div className="flex items-center justify-between mb-2 gap-3 flex-wrap">
           <div>
-            <h3 className="text-2xl font-bold text-white">Pick Interview Questions</h3>
+            <h3 className="text-2xl font-bold text-white">{t('pickInterviewQuestions', 'interview')}</h3>
             <p className="text-slate-300 mt-1 text-sm">
-              Scheduled for {scheduledAtLabel} — select whole groups to attach to this interview.
+              {t('scheduledForLabel', 'interview', { label: scheduledAtLabel })}
             </p>
           </div>
           <button
@@ -60,32 +62,32 @@ export const QuestionPickerView = ({
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 text-white text-xs font-medium hover:bg-white/20 transition-colors"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            Back
+            {t('back', 'interview')}
           </button>
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
           <span className="px-3 py-1 bg-white/10 rounded-full text-xs text-white">
-            {selectedCount} group{selectedCount === 1 ? '' : 's'} selected
+            {t('nGroupsSelected', 'interview', { count: selectedCount })}
           </span>
           <span className="px-3 py-1 bg-white/10 rounded-full text-xs text-white">
-            {totalQuestions} question{totalQuestions === 1 ? '' : 's'}
+            {t('nQuestions', 'interview', { count: totalQuestions })}
           </span>
           <span className="px-3 py-1 bg-white/10 rounded-full text-xs text-white">
-            {totalScore} pts total
+            {t('nPtsTotal', 'interview', { count: totalScore })}
           </span>
         </div>
       </div>
       <div className="p-6">
         {isLoading ? (
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
-            Loading question library…
+            {t('loadingQuestionLibrary', 'interview')}
           </div>
         ) : pool.length === 0 ? (
           <div className="rounded-xl border border-dashed border-slate-300 px-6 py-10 text-center">
             <Library className="mx-auto mb-3 h-10 w-10 text-slate-300" />
-            <p className="text-sm font-medium text-slate-500">No question groups are available yet.</p>
+            <p className="text-sm font-medium text-slate-500">{t('noQuestionGroupsAvailable', 'interview')}</p>
             <p className="mt-1 text-xs text-slate-400">
-              Add groups in Company Interview Settings or in the Saved Questions library, then come back to pick them.
+              {t('addGroupsInCompanySettings', 'interview')}
             </p>
           </div>
         ) : (
@@ -94,7 +96,7 @@ export const QuestionPickerView = ({
               const isSelected = selectedKeys.includes(group.key);
               const groupTotal = group.questions.reduce((s, q) => s + (q.score || 0), 0);
               const SourceIcon = group.source === 'company' ? Building2 : Library;
-              const sourceLabel = group.source === 'company' ? 'Company Library' : 'My Library';
+              const sourceLabel = group.source === 'company' ? t('companyLibrary', 'interview') : t('myLibrary', 'interview');
               return (
                 <div
                   key={group.key}
@@ -125,8 +127,7 @@ export const QuestionPickerView = ({
                       <div>
                         <p className="text-sm font-bold text-slate-800">{group.name}</p>
                         <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
-                          {sourceLabel} · {group.questions.length} question
-                          {group.questions.length === 1 ? '' : 's'} · {groupTotal} pts
+                          {sourceLabel} · {t('nQuestionsCount', 'interview', { count: group.questions.length })} · {groupTotal} pts
                         </p>
                       </div>
                     </div>
@@ -140,7 +141,7 @@ export const QuestionPickerView = ({
       </div>
       <div className="px-6 pb-6 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
         <p className="text-xs text-slate-500">
-          You can edit groups later from the interview header.
+          {t('youCanEditGroupsLater', 'interview')}
         </p>
         <div className="flex items-center gap-2">
           <button
@@ -150,7 +151,7 @@ export const QuestionPickerView = ({
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white border border-slate-300 text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Save className="h-3.5 w-3.5" />
-            Save Questions
+            {t('saveQuestions', 'interview')}
           </button>
           <button
             type="button"
@@ -159,7 +160,7 @@ export const QuestionPickerView = ({
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Play className="h-3.5 w-3.5" />
-            Save &amp; Start Interview
+            {t('saveAndStartInterview', 'interview')}
           </button>
         </div>
       </div>

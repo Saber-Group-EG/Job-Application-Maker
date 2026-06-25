@@ -3,6 +3,7 @@ import { Building2, ChevronDown, ChevronUp, Library, Trash2 } from 'lucide-react
 import { QuestionRow } from './QuestionRow';
 import type { InterviewAnswer } from '../../../../../../types/applicants';
 import { computeTotalScore, getQuestionId } from '../utils/interviewUtils';
+import { useLocale } from '../../../../../../context/LocaleContext';
 
 export type QuestionGroupCardProps = {
   groupKey: string;
@@ -38,6 +39,7 @@ export const QuestionGroupCard = ({
   onRemove,
   onDeleteQuestion,
 }: QuestionGroupCardProps) => {
+  const { t } = useLocale();
   const SourceIcon = source === 'company' ? Building2 : Library;
   const totalScore = useMemo(() => computeTotalScore(questions), [questions]);
   const achieved = useMemo(
@@ -80,9 +82,9 @@ export const QuestionGroupCard = ({
           <div className="min-w-0">
             <p className="text-sm font-bold text-slate-800 truncate">{groupName}</p>
             <p className="text-xs text-slate-500">
-              {questions.length} question{questions.length === 1 ? '' : 's'}
+              {t('nQuestionsCount', 'interview', { count: questions.length })}
               <span className="text-slate-400 mx-1.5">·</span>
-              {source === 'company' ? 'Company Library' : 'My Library'}
+              {source === 'company' ? t('companyLibrary', 'interview') : t('myLibrary', 'interview')}
             </p>
           </div>
         </button>
@@ -90,7 +92,7 @@ export const QuestionGroupCard = ({
         <div className="flex items-center gap-4 flex-shrink-0">
           <div className="text-right hidden sm:block">
             <p className="text-[10px] uppercase tracking-wider text-slate-400 leading-none mb-0.5">
-              Score
+              {t('score', 'interview')}
             </p>
             <p className="text-xs font-bold text-slate-800 tabular-nums leading-none">
               {achieved}
@@ -99,7 +101,7 @@ export const QuestionGroupCard = ({
           </div>
           <div className="text-right hidden sm:block">
             <p className="text-[10px] uppercase tracking-wider text-slate-400 leading-none mb-0.5">
-              Answered
+              {t('answered', 'interview')}
             </p>
             <p className="text-xs font-bold text-slate-800 tabular-nums leading-none">
               {answered}/{questions.length}
@@ -124,7 +126,7 @@ export const QuestionGroupCard = ({
                 onRemove();
               }}
               className="p-1.5 rounded-md text-red-500 hover:bg-red-50 transition-colors"
-              title="Remove this group from the interview"
+              title={t('removeThisGroup', 'interview')}
             >
               <Trash2 className="h-4 w-4" />
             </button>
@@ -133,7 +135,7 @@ export const QuestionGroupCard = ({
             type="button"
             onClick={onToggle}
             className="p-1 rounded text-slate-400 hover:text-slate-600 transition-colors"
-            title={isOpen ? 'Collapse' : 'Expand'}
+            title={isOpen ? t('collapse', 'interview') : t('expand', 'interview')}
           >
             {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </button>

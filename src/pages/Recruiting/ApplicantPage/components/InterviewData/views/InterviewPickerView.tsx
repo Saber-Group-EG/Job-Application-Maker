@@ -1,5 +1,6 @@
 import { ArrowLeft, Briefcase, Calendar } from 'lucide-react';
 import type { Interview } from '../../../../../../types/applicants';
+import { useLocale } from '../../../../../../context/LocaleContext';
 
 export type InterviewPickerViewProps = {
   interviews: Interview[];
@@ -7,9 +8,9 @@ export type InterviewPickerViewProps = {
   onPick: (interview: Interview) => void;
 };
 
-const statusLabel = (status: string): string => {
+const statusLabel = (status: string, t: (key: string, ns?: string, params?: Record<string, string | number>) => string): string => {
   const s = String(status || '').toLowerCase();
-  if (s === 'in_progress') return 'Progressing';
+  if (s === 'in_progress') return t('progressing', 'interview');
   return s;
 };
 
@@ -21,8 +22,8 @@ const statusClasses = (status: string): string => {
   return 'bg-slate-100 text-slate-700';
 };
 
-const formatDate = (iso: string | undefined): string => {
-  if (!iso) return 'Unknown date';
+const formatDate = (iso: string | undefined, t: (key: string, ns?: string, params?: Record<string, string | number>) => string): string => {
+  if (!iso) return t('unknownDate', 'interview');
   try {
     return new Date(iso).toLocaleString('en-US', {
       month: 'short',
@@ -32,7 +33,7 @@ const formatDate = (iso: string | undefined): string => {
       minute: '2-digit',
     });
   } catch {
-    return 'Unknown date';
+    return t('unknownDate', 'interview');
   }
 };
 
@@ -40,29 +41,30 @@ export const InterviewPickerView = ({
   interviews,
   onBack,
   onPick,
-}: InterviewPickerViewProps) => (
+}: InterviewPickerViewProps) => {
+  const { t } = useLocale();
+  return (
   <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
     <div className="bg-gradient-to-r from-slate-900 to-slate-800 px-6 py-8">
       <div className="flex items-center justify-between mb-2">
-        <h3 className="text-2xl font-bold text-white">Existing Interviews</h3>
+        <h3 className="text-2xl font-bold text-white">{t('existingInterviews', 'interview')}</h3>
         <button
           type="button"
           onClick={onBack}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 text-white text-xs font-medium hover:bg-white/20 transition-colors"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          Back
+          {t('back', 'interview')}
         </button>
       </div>
       <p className="text-slate-300">
-        {interviews.length} interview{interviews.length === 1 ? '' : 's'} found. Select one to
-        review its questions.
+        {t('nInterviewsFound', 'interview', { count: interviews.length })}
       </p>
     </div>
     <div className="p-6">
       {interviews.length === 0 ? (
         <p className="text-center text-slate-500 py-12">
-          No scheduled interviews. Schedule one to begin.
+          {t('noScheduledInterviews', 'interview')}
         </p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -89,33 +91,33 @@ export const InterviewPickerView = ({
                     </div>
                     <div>
                       <p className="text-sm font-bold text-slate-800">
-                        Interview #{interviews.length - idx}
+                        {t('interviewNumber', 'interview', { number: interviews.length - idx })}
                       </p>
                       <p className="text-xs text-slate-500 flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
-                        {formatDate(interview.scheduledAt)}
+                        {formatDate(interview.scheduledAt, t)}
                       </p>
                     </div>
                   </div>
                   <span
                     className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${statusClasses(status)}`}
                   >
-                    {statusLabel(status)}
+                    {statusLabel(status, t)}
                   </span>
                 </div>
                 <div className="grid grid-cols-3 gap-2 mb-3">
                   <div className="bg-slate-50 rounded-lg p-2 text-center">
-                    <p className="text-[10px] text-slate-500">Type</p>
+                    <p className="text-[10px] text-slate-500">{t('type', 'interview')}</p>
                     <p className="text-xs font-bold text-slate-800 capitalize">
                       {interview.type || '-'}
                     </p>
                   </div>
                   <div className="bg-slate-50 rounded-lg p-2 text-center">
-                    <p className="text-[10px] text-slate-500">Questions</p>
+                    <p className="text-[10px] text-slate-500">{t('questions', 'interview')}</p>
                     <p className="text-xs font-bold text-slate-800">{questionCount}</p>
                   </div>
                   <div className="bg-slate-50 rounded-lg p-2 text-center">
-                    <p className="text-[10px] text-slate-500">Score</p>
+                    <p className="text-[10px] text-slate-500">{t('score', 'interview')}</p>
                     <p className="text-xs font-bold text-blue-600 tabular-nums">
                       {achieved}/{total}
                     </p>
@@ -139,4 +141,5 @@ export const InterviewPickerView = ({
       )}
     </div>
   </div>
-);
+  );
+};

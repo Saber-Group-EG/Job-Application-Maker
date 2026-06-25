@@ -1,8 +1,11 @@
 import { useMutation } from '@tanstack/react-query';
 import axiosInstance from '../../config/axios';
 import Swal from 'sweetalert2';
+import { useLocale } from '../../context/LocaleContext';
 
 export function useSendEmail() {
+  const { t } = useLocale();
+
   return useMutation({
     mutationFn: (emailData: {
       company?: string;
@@ -36,27 +39,27 @@ export function useSendEmail() {
       if (error?.response?.status === 429) {
         const errorMessage = error?.response?.data?.message || 
           error?.response?.data?.error ||
-          'You have reached the email sending limit. Please try again later.';
+          t('emailLimitMsg', 'common');
         
         Swal.fire({
-          title: 'Email Limit Reached',
+          title: t('emailLimitReached', 'common'),
           text: errorMessage,
           icon: 'warning',
           confirmButtonColor: '#3085d6',
-          confirmButtonText: 'OK',
+          confirmButtonText: t('ok', 'common'),
         });
       }
       
       // Check for other errors
       if (error?.response?.status === 400) {
-        const errorMessage = error?.response?.data?.message || 'Invalid email request. Please check your email settings.';
+        const errorMessage = error?.response?.data?.message || t('emailInvalidMsg', 'common');
         
         Swal.fire({
-          title: 'Email Error',
+          title: t('emailError', 'common'),
           text: errorMessage,
           icon: 'error',
           confirmButtonColor: '#3085d6',
-          confirmButtonText: 'OK',
+          confirmButtonText: t('ok', 'common'),
         });
       }
     },
@@ -64,6 +67,8 @@ export function useSendEmail() {
 }
 
 export function useSendBatchEmail() {
+  const { t } = useLocale();
+
   return useMutation({
     mutationFn: (payload: { company?: string; batch?: any } | any) => {
       // Normalize payload to { company, batch: [...] }.
@@ -77,7 +82,7 @@ export function useSendBatchEmail() {
       }
 
       if (!body.company) {
-        throw new Error('Company is required for batch email');
+        throw new Error(t('companyRequired', 'common'));
       }
 
       // Strip surrounding angle brackets from `from` addresses (e.g. "<a@b.com>")
@@ -104,14 +109,14 @@ export function useSendBatchEmail() {
       if (error?.response?.status === 429) {
         const errorMessage = error?.response?.data?.message ||
           error?.response?.data?.error ||
-          'You have reached the email sending limit. Please try again later.';
+          t('emailLimitMsg', 'common');
 
         Swal.fire({
-          title: 'Email Limit Reached',
+          title: t('emailLimitReached', 'common'),
           text: errorMessage,
           icon: 'warning',
           confirmButtonColor: '#3085d6',
-          confirmButtonText: 'OK',
+          confirmButtonText: t('ok', 'common'),
         });
         return;
       }
@@ -119,11 +124,11 @@ export function useSendBatchEmail() {
       // Check for authentication/authorization errors
       if (error?.response?.status === 401 || error?.response?.status === 403) {
         Swal.fire({
-          title: 'Authentication Error',
-          text: 'You are not authorized to send emails. Please check your email settings.',
+          title: t('authError', 'common'),
+          text: t('authErrorMsg', 'common'),
           icon: 'error',
           confirmButtonColor: '#3085d6',
-          confirmButtonText: 'OK',
+          confirmButtonText: t('ok', 'common'),
         });
         return;
       }
@@ -132,14 +137,14 @@ export function useSendBatchEmail() {
       if (error?.response?.status >= 400 && error?.response?.status < 500) {
         const errorMessage = error?.response?.data?.message ||
           error?.response?.data?.error ||
-          'Invalid email request. Please check your email settings.';
+          t('emailInvalidMsg', 'common');
 
         Swal.fire({
-          title: 'Email Error',
+          title: t('emailError', 'common'),
           text: errorMessage,
           icon: 'error',
           confirmButtonColor: '#3085d6',
-          confirmButtonText: 'OK',
+          confirmButtonText: t('ok', 'common'),
         });
         return;
       }
@@ -147,11 +152,11 @@ export function useSendBatchEmail() {
       // Server errors
       if (error?.response?.status >= 500) {
         Swal.fire({
-          title: 'Server Error',
-          text: 'An error occurred while sending emails. Please try again later.',
+          title: t('serverError', 'common'),
+          text: t('serverErrorMsg', 'common'),
           icon: 'error',
           confirmButtonColor: '#3085d6',
-          confirmButtonText: 'OK',
+          confirmButtonText: t('ok', 'common'),
         });
         return;
       }
@@ -159,22 +164,22 @@ export function useSendBatchEmail() {
       // Network or other errors
       if (error?.code === 'ERR_NETWORK') {
         Swal.fire({
-          title: 'Network Error',
-          text: 'Unable to connect to the server. Please check your internet connection.',
+          title: t('networkError', 'common'),
+          text: t('networkErrorMsg', 'common'),
           icon: 'error',
           confirmButtonColor: '#3085d6',
-          confirmButtonText: 'OK',
+          confirmButtonText: t('ok', 'common'),
         });
         return;
       }
 
       // Fallback for any other errors
       Swal.fire({
-        title: 'Email Error',
-        text: error?.message || 'An unexpected error occurred while sending emails.',
+        title: t('emailError', 'common'),
+        text: error?.message || t('unexpectedError', 'common'),
         icon: 'error',
         confirmButtonColor: '#3085d6',
-        confirmButtonText: 'OK',
+        confirmButtonText: t('ok', 'common'),
       });
     },
   });

@@ -1,4 +1,4 @@
-﻿import { useMemo, useState, useEffect, useRef } from "react";
+﻿import { useMemo, useState, useEffect, useRef, type ReactNode } from "react";
 import Swal from '../../../utils/swal';
 import { useNavigate, useSearchParams, useLocation } from "react-router";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
@@ -13,6 +13,7 @@ import MultiSelect from "../../../components/form/MultiSelect";
 import { PlusIcon, TrashBinIcon, CheckCircleIcon } from "../../../icons";
 import { Languages } from 'lucide-react';
 import { useAuth } from "../../../context/AuthContext";
+import { useLocale } from "../../../context/LocaleContext";
 import { jobPositionsService } from "../../../services/jobPositionsService";
 import {
   useCompanies,
@@ -24,6 +25,23 @@ import { useCreateJobPosition, useUpdateJobPosition, useJobPositions } from "../
 import { toPlainString } from "../../../utils/strings";
 import { translateText } from "../../../utils/translate";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 
 type JobSpec = {
@@ -116,55 +134,55 @@ const getDefaultFieldConfig = (): FieldConfig => ({
   expectedSalary: { visible: false, required: false },
 });
 
-const applicantFieldConfigMeta: Array<{
+const getApplicantFieldConfigMeta = (t: (key: string, ns?: string) => string): Array<{
   key: keyof FieldConfig;
   label: string;
   description: string;
-}> = [
+}> => [
   {
     key: "fullName",
-    label: "Full Name",
-    description: "Candidate legal name field.",
+    label: t('createFieldFullName', 'jobs'),
+    description: t('createFieldFullNameDesc', 'jobs'),
   },
   {
     key: "email",
-    label: "Email",
-    description: "Primary contact email address.",
+    label: t('createFieldEmail', 'jobs'),
+    description: t('createFieldEmailDesc', 'jobs'),
   },
   {
     key: "phone",
-    label: "Phone",
-    description: "Phone number used for recruiter outreach.",
+    label: t('createFieldPhone', 'jobs'),
+    description: t('createFieldPhoneDesc', 'jobs'),
   },
   {
     key: "gender",
-    label: "Gender",
-    description: "Demographic gender selection field.",
+    label: t('createFieldGender', 'jobs'),
+    description: t('createFieldGenderDesc', 'jobs'),
   },
   {
     key: "birthDate",
-    label: "Birth Date",
-    description: "Candidate date of birth field.",
+    label: t('createFieldBirthDate', 'jobs'),
+    description: t('createFieldBirthDateDesc', 'jobs'),
   },
   {
     key: "address",
-    label: "Address",
-    description: "Current residence details.",
+    label: t('createFieldAddress', 'jobs'),
+    description: t('createFieldAddressDesc', 'jobs'),
   },
   {
     key: "profilePhoto",
-    label: "Profile Photo",
-    description: "Profile image upload control.",
+    label: t('createFieldPhoto', 'jobs'),
+    description: t('createFieldPhotoDesc', 'jobs'),
   },
   {
     key: "cvFilePath",
-    label: "CV Upload",
-    description: "Resume or CV file attachment.",
+    label: t('createFieldCv', 'jobs'),
+    description: t('createFieldCvDesc', 'jobs'),
   },
   {
     key: "expectedSalary",
-    label: "Expected Salary",
-    description: "Candidate salary expectation input.",
+    label: t('createFieldSalary', 'jobs'),
+    description: t('createFieldSalaryDesc', 'jobs'),
   },
 ];
 const normalizeFieldConfig = (
@@ -285,32 +303,50 @@ type JobForm = {
   workArrangement: WorkArrangement;
 };
 
-const inputTypeOptions = [
-  { value: "text", label: "Text" },
-  { value: "number", label: "Number" },
-  { value: "email", label: "Email" },
-  { value: "date", label: "Date" },
-  { value: "url", label: "URL" },
-  { value: "checkbox", label: "Checkbox" },
-  { value: "radio", label: "Radio" },
-  { value: "dropdown", label: "Dropdown" },
-  { value: "textarea", label: "Textarea" },
-  { value: "tags", label: "Tags (Multiple Values)" },
-  { value: "repeatable_group", label: "Group Field (Multiple Questions)" },
+const inputTypeOptions = (t: (key: string, ns?: string) => string) => [
+  { value: "text", label: t('createInputTypeText', 'jobs') },
+  { value: "number", label: t('createInputTypeNumber', 'jobs') },
+  { value: "email", label: t('createInputTypeEmail', 'jobs') },
+  { value: "date", label: t('createInputTypeDate', 'jobs') },
+  { value: "url", label: t('createInputTypeUrl', 'jobs') },
+  { value: "checkbox", label: t('createInputTypeCheckbox', 'jobs') },
+  { value: "radio", label: t('createInputTypeRadio', 'jobs') },
+  { value: "dropdown", label: t('createInputTypeDropdown', 'jobs') },
+  { value: "textarea", label: t('createInputTypeTextarea', 'jobs') },
+  { value: "tags", label: t('createInputTypeTags', 'jobs') },
+  { value: "repeatable_group", label: t('createInputTypeGroup', 'jobs') },
 ];
 
-const subFieldTypeOptions = [
-  { value: "text", label: "Text" },
-  { value: "textarea", label: "Textarea" },
-  { value: "number", label: "Number" },
-  { value: "email", label: "Email" },
-  { value: "date", label: "Date" },
-  { value: "radio", label: "Radio" },
-  { value: "dropdown", label: "Dropdown" },
-  { value: "checkbox", label: "Checkbox" },
-  { value: "url", label: "URL" },
-  { value: "tags", label: "Tags" },
+const subFieldTypeOptions = (t: (key: string, ns?: string) => string) => [
+  { value: "text", label: t('createInputTypeText', 'jobs') },
+  { value: "textarea", label: t('createInputTypeTextarea', 'jobs') },
+  { value: "number", label: t('createInputTypeNumber', 'jobs') },
+  { value: "email", label: t('createInputTypeEmail', 'jobs') },
+  { value: "date", label: t('createInputTypeDate', 'jobs') },
+  { value: "radio", label: t('createInputTypeRadio', 'jobs') },
+  { value: "dropdown", label: t('createInputTypeDropdown', 'jobs') },
+  { value: "checkbox", label: t('createInputTypeCheckbox', 'jobs') },
+  { value: "url", label: t('createInputTypeUrl', 'jobs') },
+  { value: "tags", label: t('createInputTypeTags', 'jobs') },
 ];
+
+function SortableCustomFieldCard({ id, children, dragHandle }: { id: string; children: ReactNode; dragHandle: ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 50 : 1,
+  };
+  return (
+    <div ref={setNodeRef} style={style} className="relative">
+      <div {...attributes} {...listeners} className="absolute left-2 top-1/2 z-10 -translate-y-1/2 cursor-grab active:cursor-grabbing">
+        {dragHandle}
+      </div>
+      {children}
+    </div>
+  );
+}
 
 export default function CreateJob() {
   const queryClient = useQueryClient();
@@ -318,8 +354,9 @@ export default function CreateJob() {
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const editJobId = searchParams.get("id");
-  const jobFromState = location.state?.job; // Get job data from navigation state
+  const jobFromState = location.state?.job;
   const { user } = useAuth();
+  const { t, locale } = useLocale();
   // Handle different admin role formats - roleId can be an object with name property
   const userRole = user?.role ? String(user.role).toLowerCase() : undefined;
 
@@ -548,7 +585,7 @@ export default function CreateJob() {
     }
     if (err.response?.data?.message) return err.response.data.message;
     if (err.message) return err.message;
-    return "An unexpected error occurred";
+    return t('createErrorOccurred', 'jobs');
   };
   const companyAutoSet = useRef(false);
   const jobDataLoaded = useRef(false);
@@ -1184,6 +1221,26 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
     setShowRecommendedPanel(false);
   };
 
+  // Drag-and-drop sensor for custom fields
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleCustomFieldDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (active.id !== over?.id) {
+      const oldIndex = jobForm.customFields.findIndex((f) => f.fieldId === active.id);
+      const newIndex = jobForm.customFields.findIndex((f) => f.fieldId === over?.id);
+      if (oldIndex !== -1 && newIndex !== -1) {
+        setJobForm((prev) => ({
+          ...prev,
+          customFields: arrayMove(prev.customFields, oldIndex, newIndex),
+        }));
+      }
+    }
+  };
+
   const handleRemoveCustomField = (index: number) => {
     setJobForm((prev) => ({
       ...prev,
@@ -1478,150 +1535,148 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
   setIsSubmitting(true);
 
   try {
-    // Validate required fields
     if (!jobForm.companyId) {
-      const errorMsg = "Please select a company before submitting.";
+      const errorMsg = t('createValSelectCompany', 'jobs');
       setFormError(errorMsg);
-      setJobStatus(`Error: ${errorMsg}`);
+      setJobStatus(t('createErrorPrefix', 'jobs', { msg: errorMsg }));
       setIsSubmitting(false);
       await Swal.fire({
-        title: "Validation Error",
+        title: t('createValidationError', 'jobs'),
         text: errorMsg,
         icon: "error",
-        confirmButtonText: "OK",
+        confirmButtonText: t('createOk', 'jobs'),
       });
       return;
     }
 
     if (!jobForm.departmentId) {
-      const errorMsg = "Please select a department before submitting.";
+      const errorMsg = t('createValSelectDept', 'jobs');
       setFormError(errorMsg);
-      setJobStatus(`Error: ${errorMsg}`);
+      setJobStatus(t('createErrorPrefix', 'jobs', { msg: errorMsg }));
       setIsSubmitting(false);
       await Swal.fire({
-        title: "Validation Error",
+        title: t('createValidationError', 'jobs'),
         text: errorMsg,
         icon: "error",
-        confirmButtonText: "OK",
+        confirmButtonText: t('createOk', 'jobs'),
       });
       return;
     }
 
     if (!isEditMode && !jobForm.jobCode?.trim()) {
-      const errorMsg = "Job code is required.";
+      const errorMsg = t('createValCodeRequired', 'jobs');
       setFormError(errorMsg);
-      setJobStatus(`Error: ${errorMsg}`);
+      setJobStatus(t('createErrorPrefix', 'jobs', { msg: errorMsg }));
       setIsSubmitting(false);
       await Swal.fire({
-        title: "Validation Error",
+        title: t('createValidationError', 'jobs'),
         text: errorMsg,
         icon: "error",
-        confirmButtonText: "OK",
+        confirmButtonText: t('createOk', 'jobs'),
       });
       return;
     }
 
     if (!jobForm.title?.trim() || (jobForm.bilingual && !jobForm.titleAr?.trim())) {
-      const errorMsg = jobForm.bilingual 
-        ? "Job title (both English and Arabic) is required."
-        : "Job title is required.";
+      const errorMsg = jobForm.bilingual
+        ? t('createValTitleBilingual', 'jobs')
+        : t('createValTitleRequired', 'jobs');
       setFormError(errorMsg);
-      setJobStatus(`Error: ${errorMsg}`);
+      setJobStatus(t('createErrorPrefix', 'jobs', { msg: errorMsg }));
       setIsSubmitting(false);
       await Swal.fire({
-        title: "Validation Error",
+        title: t('createValidationError', 'jobs'),
         text: errorMsg,
         icon: "error",
-        confirmButtonText: "OK",
+        confirmButtonText: t('createOk', 'jobs'),
       });
       return;
     }
 
     if (!jobForm.employmentType) {
-      const errorMsg = "Employment type is required.";
+      const errorMsg = t('createValEmploymentType', 'jobs');
       setFormError(errorMsg);
-      setJobStatus(`Error: ${errorMsg}`);
+      setJobStatus(t('createErrorPrefix', 'jobs', { msg: errorMsg }));
       setIsSubmitting(false);
       await Swal.fire({
-        title: "Validation Error",
+        title: t('createValidationError', 'jobs'),
         text: errorMsg,
         icon: "error",
-        confirmButtonText: "OK",
+        confirmButtonText: t('createOk', 'jobs'),
       });
       return;
     }
 
     if (!jobForm.workArrangement) {
-      const errorMsg = "Work arrangement is required.";
+      const errorMsg = t('createValWorkArrangement', 'jobs');
       setFormError(errorMsg);
-      setJobStatus(`Error: ${errorMsg}`);
+      setJobStatus(t('createErrorPrefix', 'jobs', { msg: errorMsg }));
       setIsSubmitting(false);
       await Swal.fire({
-        title: "Validation Error",
+        title: t('createValidationError', 'jobs'),
         text: errorMsg,
         icon: "error",
-        confirmButtonText: "OK",
+        confirmButtonText: t('createOk', 'jobs'),
       });
       return;
     }
 
     if (!isEditMode && jobsLoading) {
-      const errorMsg = "Please wait, loading existing company jobs to assign order.";
+      const errorMsg = t('createValWaitLoading', 'jobs');
       setFormError(errorMsg);
-      setJobStatus(`Error: ${errorMsg}`);
+      setJobStatus(t('createErrorPrefix', 'jobs', { msg: errorMsg }));
       setIsSubmitting(false);
       await Swal.fire({
-        title: "Please wait",
+        title: t('createPleaseWait', 'jobs'),
         text: errorMsg,
         icon: "info",
-        confirmButtonText: "OK",
+        confirmButtonText: t('createOk', 'jobs'),
       });
       return;
     }
 
     if (!jobForm.registrationStart) {
-      const errorMsg = "Registration start date is required.";
+      const errorMsg = t('createValStartDate', 'jobs');
       setFormError(errorMsg);
-      setJobStatus(`Error: ${errorMsg}`);
+      setJobStatus(t('createErrorPrefix', 'jobs', { msg: errorMsg }));
       setIsSubmitting(false);
       await Swal.fire({
-        title: "Validation Error",
+        title: t('createValidationError', 'jobs'),
         text: errorMsg,
         icon: "error",
-        confirmButtonText: "OK",
+        confirmButtonText: t('createOk', 'jobs'),
       });
       return;
     }
 
     if (!jobForm.registrationEnd) {
-      const errorMsg = "Registration end date is required.";
+      const errorMsg = t('createValEndDate', 'jobs');
       setFormError(errorMsg);
-      setJobStatus(`Error: ${errorMsg}`);
+      setJobStatus(t('createErrorPrefix', 'jobs', { msg: errorMsg }));
       setIsSubmitting(false);
       await Swal.fire({
-        title: "Validation Error",
+        title: t('createValidationError', 'jobs'),
         text: errorMsg,
         icon: "error",
-        confirmButtonText: "OK",
+        confirmButtonText: t('createOk', 'jobs'),
       });
       return;
     }
 
-    // Validate repeatable_group fields have labels
     const emptyGroupFieldLabels = jobForm.customFields
       .map((field, index) => ({ field, index }))
       .filter(({ field }) => field.inputType === "repeatable_group" && !field.label.trim());
     
     if (emptyGroupFieldLabels.length > 0) {
-      const errorMsg = `Group Field #${emptyGroupFieldLabels[0].index + 1} must have a label.`;
+      const errorMsg = t('createValGroupFieldLabel', 'jobs', { number: emptyGroupFieldLabels[0].index + 1 });
       setFormError(errorMsg);
-      setJobStatus(`Error: ${errorMsg}`);
+      setJobStatus(t('createErrorPrefix', 'jobs', { msg: errorMsg }));
       setIsSubmitting(false);
       await Swal.fire({
-        title: "Validation Error",
+        title: t('createValidationError', 'jobs'),
         text: errorMsg,
         icon: "error",
-        confirmButtonText: "OK",
+        confirmButtonText: t('createOk', 'jobs'),
       });
       return;
     }
@@ -1703,18 +1758,15 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
     payload.bilingual = jobForm.bilingual;
 
     if (isEditMode && editJobId) {
-      // Update existing job
       await updateJobMutation.mutateAsync({ id: editJobId, data: payload });
-      setJobStatus("Job updated successfully");
+      setJobStatus(t('createUpdatedSuccess', 'jobs'));
       
-      // Invalidate and refetch jobs to refresh the list
       await queryClient.invalidateQueries({ queryKey: ['jobPositions'] });
       await queryClient.refetchQueries({ queryKey: ['jobPositions'] });
       
-      // Show success toast
       Swal.fire({
-        title: "Success!",
-        text: "Job updated successfully.",
+        title: t('createSuccess', 'jobs'),
+        text: t('createUpdatedSuccess', 'jobs'),
         icon: "success",
         position: "top-end",
         timer: 1500,
@@ -1725,31 +1777,25 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
         },
       });
       
-      // Navigate after a short delay to ensure refetch completes
       setTimeout(() => {
         navigate("/jobs");
       }, 500);
     } else {
-      // Ensure backend receives creator info
       try {
         const createdBy = (user as any)?._id ?? (user as any)?.id ?? undefined;
         if (createdBy) payload.createdBy = createdBy;
       } catch (e) {
-        // ignore
       }
       
-      // Create new job with optimistic update
       await createJobMutation.mutateAsync(payload);
-      setJobStatus("Job created successfully");
+      setJobStatus(t('createCreatedSuccess', 'jobs'));
       
-      // Invalidate and refetch jobs to refresh the list
       await queryClient.invalidateQueries({ queryKey: ['jobPositions'] });
       await queryClient.refetchQueries({ queryKey: ['jobPositions'] });
       
-      // Show success toast
       Swal.fire({
-        title: "Success!",
-        text: "Job created successfully.",
+        title: t('createSuccess', 'jobs'),
+        text: t('createCreatedSuccess', 'jobs'),
         icon: "success",
         position: "top-end",
         timer: 1500,
@@ -1760,7 +1806,6 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
         },
       });
       
-      // Navigate after a short delay to ensure refetch completes
       setTimeout(() => {
         navigate("/jobs");
       }, 500);
@@ -1768,15 +1813,14 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
   } catch (err) {
     const errorMsg = getErrorMessage(err);
     setFormError(errorMsg);
-    setJobStatus(`Error: ${errorMsg}`);
+    setJobStatus(t('createErrorPrefix', 'jobs', { msg: errorMsg }));
     console.error(`Error ${isEditMode ? "updating" : "creating"} job:`, err);
     
-    // Show error toast
     await Swal.fire({
-      title: "Error!",
+      title: t('createErrorTitle', 'jobs'),
       text: errorMsg,
       icon: "error",
-      confirmButtonText: "OK",
+      confirmButtonText: t('createOk', 'jobs'),
     });
   } finally {
     setIsSubmitting(false);
@@ -1793,10 +1837,8 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
   return (
     <div className="space-y-6">
       <PageMeta
-        title={`${isEditMode ? "Edit" : "Create"} Job | Saber Group - Hiring Management System`}
-        description={`${
-          isEditMode ? "Edit an existing" : "Create a new"
-        } job posting for your company`}
+        title={t('createPageTitle', 'jobs', { mode: isEditMode ? t('createEdit', 'jobs') : t('createCreate', 'jobs') })}
+        description={t('createPageDesc', 'jobs', { mode: isEditMode ? t('createEdit', 'jobs') : t('createCreate', 'jobs') })}
       />
 
       <div className="flex items-center gap-4">
@@ -1818,16 +1860,16 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
               d="M15 19l-7-7 7-7"
             />
           </svg>
-          Back to Jobs
+          {t('createBackToJobs', 'jobs')}
         </button>
       </div>
 
-      <PageBreadcrumb pageTitle={isEditMode ? "Edit Job" : "Create Job"} />
+      <PageBreadcrumb pageTitle={t('createBreadcrumb', 'jobs', { mode: isEditMode ? t('createEdit', 'jobs') : t('createCreate', 'jobs') })} />
 
       {isLoading ? (
         <LoadingSpinner
           fullPage
-          message={isEditMode ? "Loading job data..." : "Loading form..."}
+          message={isEditMode ? t('createLoadingJobData', 'jobs') : t('createLoadingForm', 'jobs')}
         />
       ) : (
         <form onSubmit={handleSubmit} className="space-y-8">
@@ -1860,19 +1902,19 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
           {/* Job Duplication */}
           {!isEditMode && (
             <div className="group relative overflow-hidden rounded-3xl border border-blue-100 bg-gradient-to-br from-blue-50/50 to-white p-6 shadow-sm transition-all hover:shadow-md dark:border-blue-900/20 dark:from-blue-900/5 dark:to-gray-900">
-              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <div className="absolute top-0 ltr:right-0 rtl:left-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                 <svg className="size-12 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
                 </svg>
               </div>
               <div className="relative">
                 <Label htmlFor="duplicateJob" className="mb-3 block text-sm font-semibold text-blue-900 dark:text-blue-300">
-                  Quick Start: Duplicate existing job
+                  {t('createQuickStart', 'jobs')}
                 </Label>
                 <div className="max-w-2xl">
                   <Select
                     options={[
-                      { value: "", label: "-- Start from scratch --" },
+                      { value: "", label: t('createStartScratch', 'jobs') },
                       ...allJobs.map((job: any) => ({
                         value: job._id,
                         label: `${toPlainString(job.title)} - ${toPlainString((job as any).companyId?.name || '')}`,
@@ -1880,13 +1922,13 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                     ]}
                     value={selectedJobId}
                     onChange={handleJobSelect}
-                    placeholder="Select a job to duplicate"
+                    placeholder={t('createSelectJobDuplicate', 'jobs')}
                   />
                 </div>
                 {jobsLoading && (
                   <div className="mt-3 flex items-center gap-2 text-sm text-blue-600 animate-pulse">
                     <div className="h-4 w-4 rounded-full border-2 border-blue-600 border-t-transparent animate-spin" />
-                    Loading jobs...
+                    {t('createLoadingJobs', 'jobs')}
                   </div>
                 )}
                 {selectedJobId && (
@@ -1894,7 +1936,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                     <svg className="size-4" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                     </svg>
-                    Job templates loaded successfully. You can now refine the details below.
+                    {t('createTemplatesLoaded', 'jobs')}
                   </div>
                 )}
               </div>
@@ -1906,10 +1948,10 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
             <div className="mb-6 flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                  {"Company & Organization"}
+                  {t('createCompanyOrg', 'jobs')}
                 </h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {isEditMode ? "Assigned department for this position" : "Specify where this position belongs"}
+                  {isEditMode ? t('createCompanyOrgDescEdit', 'jobs') : t('createCompanyOrgDescCreate', 'jobs')}
                 </p>
               </div>
               <div className="rounded-xl bg-brand-50 p-2.5 text-brand-600 dark:bg-brand-500/10">
@@ -1922,11 +1964,11 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
             <div className={`grid grid-cols-1 gap-6 ${!isEditMode && shouldShowCompanyField ? 'md:grid-cols-2' : ''}`}>
               {(
                 <div className="space-y-2">
-                  <Label htmlFor="companyId" required>Target Company</Label>
+                  <Label htmlFor="companyId" required>{t('createTargetCompany', 'jobs')}</Label>
                   {companies.length > 0 ? (
                   <Select
                       options={companies}
-                      placeholder="Select company"
+                      placeholder={t('createSelectCompany', 'jobs')}
                       value={jobForm.companyId}
                       onChange={(value) => {
                         handleInputChange("companyId", value);
@@ -1945,25 +1987,25 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                     />
                   ) : (
                     <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-gray-500 dark:border-gray-700 dark:bg-gray-800/50">
-                      No companies available
+                      {t('createNoCompanies', 'jobs')}
                     </div>
                   )}
                 </div>
               )}
               <div className="space-y-2">
-                <Label htmlFor="departmentId" required>Department</Label>
+                <Label htmlFor="departmentId" required>{t('createDepartment', 'jobs')}</Label>
                 <div className={departmentSelectDisabled ? "opacity-50 grayscale pointer-events-none" : ""}>
                   <Select
                     options={departments}
                     value={jobForm.departmentId}
                     placeholder={
                       departmentsLoading
-                        ? "Loading departments..."
+                        ? t('createLoadingDepts', 'jobs')
                         : !jobForm.companyId && shouldFetchAllDepartments
-                        ? "Select company first"
+                        ? t('createSelectCompanyFirst', 'jobs')
                         : departments.length === 0
-                        ? "No departments available"
-                        : "Select department"
+                        ? t('createNoDepts', 'jobs')
+                        : t('createSelectDept', 'jobs')
                     }
                     onChange={(value) => {
                       if (!departmentSelectDisabled) handleInputChange("departmentId", value);
@@ -1979,8 +2021,8 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
           <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:border-gray-800 dark:bg-gray-900">
             <div className="mb-6 flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Basic Information</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Core details and multilingual settings</p>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">{t('createBasicInfo', 'jobs')}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{t('createBasicInfoDesc', 'jobs')}</p>
               </div>
               <div className="rounded-xl bg-orange-50 p-2.5 text-orange-600 dark:bg-orange-500/10">
                 <svg className="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1993,7 +2035,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
               <div className="flex flex-wrap items-center gap-6 rounded-2xl bg-gray-50 p-4 dark:bg-gray-800/50">
                 <div className="flex items-center gap-3">
                   <Switch
-                    label="Bilingual (English & Arabic)"
+                    label={t('createBilingual', 'jobs')}
                     checked={jobForm.bilingual}
                     onChange={(checked) => handleInputChange("bilingual", checked)}
                   />
@@ -2008,50 +2050,50 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                       className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-brand-50 hover:text-brand-600 disabled:opacity-50 dark:border-slate-700 dark:hover:bg-brand-500/10 dark:hover:text-brand-400"
                     >
                       <Languages className="size-3.5" />
-                      Translate All
+                      {t('createTranslateAll', 'jobs')}
                     </button>
                   </>
                 )}
                 <div className="h-8 w-px bg-gray-200 dark:bg-gray-700 hidden sm:block" />
                 <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                  Currently viewing: {jobForm.bilingual ? 
-                    <span className="inline-flex items-center gap-1.5 text-brand-600"><span className="flex h-2 w-2 rounded-full bg-brand-500" />Bilingual Mode</span> : 
-                    <span className="inline-flex items-center gap-1.5 text-gray-600"><span className="flex h-2 w-2 rounded-full bg-gray-400" />English Only</span>
+                  {t('createCurrentlyViewing', 'jobs')} {jobForm.bilingual ? 
+                    <span className="inline-flex items-center gap-1.5 text-brand-600"><span className="flex h-2 w-2 rounded-full bg-brand-500" />{t('createBilingualMode', 'jobs')}</span> : 
+                    <span className="inline-flex items-center gap-1.5 text-gray-600"><span className="flex h-2 w-2 rounded-full bg-gray-400" />{t('createEnglishOnly', 'jobs')}</span>
                   }
                 </span>
               </div>
 
               {!isEditMode && (
                 <div className="max-w-md space-y-2">
-                  <Label htmlFor="jobCode" required>Position Reference Code</Label>
+                  <Label htmlFor="jobCode" required>{t('createPositionCode', 'jobs')}</Label>
                   <Input
                     id="jobCode"
                     value={jobForm.jobCode}
                     onChange={(e) => handleInputChange("jobCode", e.target.value)}
-                    placeholder="Auto-generated (e.g., TECH-2024-001)"
+                    placeholder={t('createPositionCodePlaceholder', 'jobs')}
                     required
                   />
                   <p className="text-xs text-gray-500 italic">
-                    Unique identifier used for tracking this recruitment cycle.
+                    {t('createPositionCodeHelp', 'jobs')}
                   </p>
                 </div>
               )}
 
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="title" required>Job Title {jobForm.bilingual && "(EN)"}</Label>
+                <div className={`space-y-2 ${locale === 'ar' ? 'order-2' : 'order-1'}`}>
+                  <Label htmlFor="title" required>{t('createJobTitle', 'jobs')} {jobForm.bilingual && "(EN)"}</Label>
                   <Input
                     id="title"
                     value={jobForm.title}
                     onChange={(e) => handleInputChange("title", e.target.value)}
-                    placeholder="e.g. Senior Frontend Developer"
+                    placeholder={t('createJobTitlePlaceholder', 'jobs')}
                     required
                   />
                 </div>
                 {jobForm.bilingual && (
-                  <div className="space-y-2" dir="rtl">
+                  <div className={`space-y-2 ${locale === 'ar' ? 'order-1' : 'order-2'}`} dir="rtl">
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="titleAr" required className="text-right block w-full">مسمى الوظيفة (بالعربية)</Label>
+                      <Label htmlFor="titleAr" required className="text-right block w-full">{locale === 'ar' ? 'مسمى الوظيفة (بالعربية)' : t('createJobTitle', 'jobs') + ' (AR)'}</Label>
                       <button
                         type="button"
                         onClick={async () => {
@@ -2065,7 +2107,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                         }}
                         disabled={!jobForm.title.trim() && !jobForm.titleAr.trim()}
                         className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
-                        title={jobForm.title.trim() ? 'Translate EN → AR' : 'Translate AR → EN'}
+                        title={jobForm.title.trim() ? t('createTranslateEnAr', 'jobs') : t('createTranslateArEn', 'jobs')}
                       >
                         <Languages className="size-3" />
                       </button>
@@ -2083,19 +2125,19 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
               </div>
 
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="description">Job Description {jobForm.bilingual && "(EN)"}</Label>
+                <div className={`space-y-2 ${locale === 'ar' ? 'order-2' : 'order-1'}`}>
+                  <Label htmlFor="description">{t('createJobDescLabel', 'jobs')} {jobForm.bilingual && "(EN)"}</Label>
                   <TextArea
                     value={jobForm.description}
                     onChange={(value) => handleInputChange("description", value)}
-                    placeholder="Outline the primary responsibilities and goals..."
+                    placeholder={t('createJobDescPlaceholder', 'jobs')}
                     rows={6}
                   />
                 </div>
                 {jobForm.bilingual && (
-                  <div className="space-y-2" dir="rtl">
+                  <div className={`space-y-2 ${locale === 'ar' ? 'order-1' : 'order-2'}`} dir="rtl">
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="descriptionAr" className="text-right block w-full">وصف الوظيفة (بالعربية)</Label>
+                      <Label htmlFor="descriptionAr" className="text-right block w-full">{locale === 'ar' ? 'وصف الوظيفة (بالعربية)' : t('createJobDescLabel', 'jobs') + ' (AR)'}</Label>
                       <button
                         type="button"
                         onClick={async () => {
@@ -2109,7 +2151,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                         }}
                         disabled={!jobForm.description.trim() && !jobForm.descriptionAr.trim()}
                         className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
-                        title={jobForm.description.trim() ? 'Translate EN → AR' : 'Translate AR → EN'}
+                        title={jobForm.description.trim() ? t('createTranslateEnAr', 'jobs') : t('createTranslateArEn', 'jobs')}
                       >
                         <Languages className="size-3" />
                       </button>
@@ -2130,11 +2172,11 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                   <svg className="size-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <h4 className="font-semibold text-gray-900 dark:text-white text-sm uppercase tracking-wider">Compensation & Availability</h4>
+                  <h4 className="font-semibold text-gray-900 dark:text-white text-sm uppercase tracking-wider">{t('createCompensation', 'jobs')}</h4>
                 </div>
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
                   <div className="space-y-2">
-                    <Label htmlFor="salary">Salary (Base Monthly)</Label>
+                    <Label htmlFor="salary">{t('createSalaryBase', 'jobs')}</Label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
                       <Input
@@ -2143,12 +2185,12 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                         className="pl-7"
                         value={jobForm.salary}
                         onChange={(e) => handleInputChange("salary", Number(e.target.value))}
-                        placeholder="0.00"
+                        placeholder={t('createSalaryPlaceholder', 'jobs')}
                       />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="openPositions">Total Vacancies</Label>
+                    <Label htmlFor="openPositions">{t('createTotalVacancies', 'jobs')}</Label>
                     <Input
                       id="openPositions"
                       type="number"
@@ -2160,12 +2202,12 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                   <div className="flex flex-col justify-end gap-4 pb-1">
                     <div className="group/toggle relative">
                       <Switch
-                        label="Salary Visible"
+                        label={t('createSalaryVisible', 'jobs')}
                         checked={jobForm.salaryVisible}
                         onChange={(checked) => handleInputChange("salaryVisible", checked)}
                       />
                       <p className="mt-1.5 ml-11 text-[11px] leading-relaxed text-gray-500 dark:text-gray-400 opacity-70 group-hover/toggle:opacity-100 transition-opacity">
-                        Show the salary range on the public job listing page.
+                        {t('createSalaryVisibleHelp', 'jobs')}
                       </p>
                     </div>
                   </div>
@@ -2183,14 +2225,14 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                     />
                   </svg>
                   <h4 className="font-semibold text-gray-900 dark:text-white text-sm uppercase tracking-wider">
-                    Applicant Base Field Configuration
+                    {t('createFieldConfig', 'jobs')}
                   </h4>
                 </div>
                 <p className="mb-4 text-xs text-gray-500 dark:text-gray-400">
-                  Control which default applicant fields are shown in the application form and which ones are mandatory.
+                  {t('createFieldConfigDesc', 'jobs')}
                 </p>
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                  {applicantFieldConfigMeta.map((item) => {
+                  {getApplicantFieldConfigMeta(t).map((item) => {
                     const rule = jobForm.fieldConfig[item.key];
 
                     return (
@@ -2200,18 +2242,17 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                       >
                         <div className="mb-3">
                           <p className="text-sm font-semibold text-gray-900 dark:text-white">{item.label}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">{item.description}</p>
                         </div>
                         <div className="flex flex-wrap items-center gap-4">
                           <Switch
-                            label="Visible"
+                            label={t('createVisible', 'jobs')}
                             checked={rule.visible}
                             onChange={(checked) =>
                               handleFieldConfigChange(item.key, "visible", checked)
                             }
                           />
                           <Switch
-                            label="Required"
+                            label={t('createRequired', 'jobs')}
                             checked={rule.required}
                             disabled={!rule.visible}
                             onChange={(checked) =>
@@ -2227,30 +2268,30 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
 
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="employmentType" required>Employment Type Style</Label>
+                  <Label htmlFor="employmentType" required>{t('createEmploymentType', 'jobs')}</Label>
                   <Select
                     options={[
-                      { value: "full-time", label: "Full-time" },
-                      { value: "part-time", label: "Part-time" },
-                      { value: "contract", label: "Contract" },
-                      { value: "internship", label: "Internship" },
+                      { value: "full-time", label: t('createFullTime', 'jobs') },
+                      { value: "part-time", label: t('createPartTime', 'jobs') },
+                      { value: "contract", label: t('createContract', 'jobs') },
+                      { value: "internship", label: t('createInternship', 'jobs') },
                     ]}
                     value={jobForm.employmentType}
-                    placeholder="Select option"
+                    placeholder={t('createSelectOption', 'jobs')}
                     onChange={(val) => handleInputChange("employmentType", val)}
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="workArrangement" required>Workspace Policy</Label>
+                  <Label htmlFor="workArrangement" required>{t('createWorkspacePolicy', 'jobs')}</Label>
                   <Select
                     options={[
-                      { value: "on-site", label: "On-site" },
-                      { value: "remote", label: "Remote" },
-                      { value: "hybrid", label: "Hybrid" },
+                      { value: "on-site", label: t('createOnSite', 'jobs') },
+                      { value: "remote", label: t('createRemote', 'jobs') },
+                      { value: "hybrid", label: t('createHybrid', 'jobs') },
                     ]}
                     value={jobForm.workArrangement}
-                    placeholder="Select arrangement"
+                    placeholder={t('createSelectArrangement', 'jobs')}
                     onChange={(val) => handleInputChange("workArrangement", val)}
                     required
                   />
@@ -2259,7 +2300,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
 
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="registrationStart" required>Recruitment Opening</Label>
+                  <Label htmlFor="registrationStart" required>{t('createRegOpen', 'jobs')}</Label>
                   <Input
                     id="registrationStart"
                     type="date"
@@ -2270,7 +2311,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="registrationEnd" required>Application Deadline</Label>
+                  <Label htmlFor="registrationEnd" required>{t('createRegDeadline', 'jobs')}</Label>
                   <Input
                     id="registrationEnd"
                     type="date"
@@ -2287,11 +2328,11 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                   {jobForm.companyId ? (
                     <>
                       <MultiSelect
-                        label="Allowed Statuses"
+                        label={t('createAllowedStatuses', 'jobs')}
                         options={allowedStatusOptions}
                         value={jobForm.allowedStatuses}
                         onChange={(selected) => handleInputChange("allowedStatuses", selected)}
-                        placeholder={allowedStatusOptions.length > 0 ? "Select statuses" : "No company statuses available"}
+                        placeholder={allowedStatusOptions.length > 0 ? t('createSelectStatuses', 'jobs') : t('createNoStatuses', 'jobs')}
                         disabled={allowedStatusOptions.length === 0}
                       />
                       {jobForm.allowedStatuses.length > 0 && (
@@ -2313,7 +2354,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                                   style={{ backgroundColor: status.color || '#e0e0e0' }}
                                 />
                                 <span className="font-medium text-gray-700 dark:text-gray-300">
-                                  {toPlainString(status?.name) || 'Unknown'}
+                                    {toPlainString(status?.name) || t('createUnknownStatus', 'jobs')}
                                 </span>
                               </div>
                             );
@@ -2323,19 +2364,19 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                     </>
                   ) : (
                     <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-gray-500 dark:border-gray-700 dark:bg-gray-800/50">
-                      Select a company first to choose allowed statuses.
+                      {t('createSelectCompanyForStatuses', 'jobs')}
                     </div>
                   )}
                 </div>
                 <div className="space-y-2">
                   <div className="group/toggle relative rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
                     <Switch
-                      label="Hide After Registration End"
+                      label={t('createHideAfterEnd', 'jobs')}
                       checked={jobForm.hideAfterRegistrationEnd}
                       onChange={(checked) => handleInputChange("hideAfterRegistrationEnd", checked)}
                     />
                     <p className="mt-1.5 ml-11 text-[11px] leading-relaxed text-gray-500 dark:text-gray-400 opacity-70 group-hover/toggle:opacity-100 transition-opacity">
-                      Hide this job from public listings after the application deadline passes.
+                      {t('createHideAfterEndHelp', 'jobs')}
                     </p>
                   </div>
                 </div>
@@ -2347,8 +2388,8 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
           <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:border-gray-800 dark:bg-gray-900">
             <div className="mb-6 flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Terms and Conditions</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Add mandatory requirements or legal fine print</p>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">{t('createTerms', 'jobs')}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{t('createTermsDesc', 'jobs')}</p>
               </div>
               <div className="rounded-xl bg-purple-50 p-2.5 text-purple-600 dark:bg-purple-500/10">
                 <svg className="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -2360,8 +2401,8 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
             <div className="space-y-6">
               <div className="rounded-2xl bg-gray-50 p-5 dark:bg-gray-800/50">
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label>New Term {jobForm.bilingual && "(EN)"}</Label>
+                  <div className={`space-y-2 ${locale === 'ar' ? 'order-2' : 'order-1'}`}>
+                    <Label>{t('createNewTerm', 'jobs')} {jobForm.bilingual && "(EN)"}</Label>
                     <Input
                       value={newTerm}
                       onChange={(e) => setNewTerm(e.target.value)}
@@ -2371,13 +2412,13 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                           handleAddTerm();
                         }
                       }}
-                      placeholder={jobForm.bilingual ? "Enter English term..." : "Enter requirement..."}
+                      placeholder={jobForm.bilingual ? t('createTermEnPlaceholder', 'jobs') : t('createTermPlaceholder', 'jobs')}
                     />
                   </div>
                   {jobForm.bilingual && (
-                    <div className="space-y-2" dir="rtl">
+                    <div className={`space-y-2 ${locale === 'ar' ? 'order-1' : 'order-2'}`} dir="rtl">
                       <div className="flex items-center justify-between">
-                        <Label className="text-right block w-full">الشرط الجديد (بالعربية)</Label>
+                        <Label className="text-right block w-full">{locale === 'ar' ? 'الشرط الجديد (بالعربية)' : t('createNewTerm', 'jobs') + ' (AR)'}</Label>
                         <button
                           type="button"
                           onClick={async () => {
@@ -2391,7 +2432,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                           }}
                           disabled={!newTerm.trim() && !newTermAr.trim()}
                           className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
-                          title={newTerm.trim() ? 'Translate EN → AR' : 'Translate AR → EN'}
+                          title={newTerm.trim() ? t('createTranslateEnAr', 'jobs') : t('createTranslateArEn', 'jobs')}
                         >
                           <Languages className="size-3" />
                         </button>
@@ -2418,7 +2459,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                     className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-brand-500/20 transition-all hover:bg-brand-600 hover:shadow-brand-500/40 active:scale-95"
                   >
                     <PlusIcon className="size-4" />
-                    Add Term
+                    {t('createAddTerm', 'jobs')}
                   </button>
                 </div>
               </div>
@@ -2477,7 +2518,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                                 }}
                                 disabled={!term.trim() && !(jobForm.termsAndConditionsAr[index] || "").trim()}
                                 className="absolute left-1.5 top-1/2 -translate-y-1/2 flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
-                                title={term.trim() ? 'Translate EN → AR' : 'Translate AR → EN'}
+                                title={term.trim() ? t('createTranslateEnAr', 'jobs') : t('createTranslateArEn', 'jobs')}
                               >
                                 <Languages className="size-3" />
                               </button>
@@ -2491,7 +2532,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                             className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-emerald-600"
                           >
                             <CheckCircleIcon className="size-4" />
-                            Confirm Changes
+                            {t('createConfirmChanges', 'jobs')}
                           </button>
                         </div>
                       </div>
@@ -2504,7 +2545,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                           <div className="space-y-1.5">
                             <div className="text-sm font-medium text-gray-900 dark:text-white">
                               {jobForm.bilingual && <span className="text-[10px] uppercase tracking-wider text-gray-400 mr-2">EN:</span>}
-                              {term || <em className="text-gray-400">Empty description</em>}
+                              {term || <em className="text-gray-400">{t('createEmptyTerm', 'jobs')}</em>}
                             </div>
                             {jobForm.bilingual && (
                               <div className="text-sm font-medium text-gray-700 dark:text-gray-300" dir="rtl">
@@ -2519,7 +2560,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                             type="button"
                             onClick={() => setEditingTermIndex(index)}
                             className="rounded-lg p-2 text-blue-600 transition hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-500/10"
-                            title="Quick Edit"
+                            title={t('createQuickEdit', 'jobs')}
                           >
                             <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -2529,7 +2570,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                             type="button"
                             onClick={() => handleRemoveTerm(index)}
                             className="rounded-lg p-2 text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10"
-                            title="Delete"
+                            title={t('createDelete', 'jobs')}
                           >
                             <TrashBinIcon className="size-4" />
                           </button>
@@ -2546,8 +2587,8 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
           <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:border-gray-800 dark:bg-gray-900">
             <div className="mb-6 flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Job Specifications</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Define evaluation criteria and their relative weights</p>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">{t('createSpecs', 'jobs')}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{t('createSpecsDesc', 'jobs')}</p>
               </div>
               <div className="rounded-xl bg-blue-50 p-2.5 text-blue-600 dark:bg-blue-500/10">
                 <svg className="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -2562,9 +2603,9 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                   {editingSpecIndex === index ? (
                     <div className="rounded-2xl border border-blue-200 bg-blue-50/30 p-4 dark:border-blue-800/30 dark:bg-blue-900/10 space-y-4">
                       <div className="grid grid-cols-1 gap-4 md:grid-cols-12 items-end">
-                        <div className="md:col-span-11 grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label>Specification Name {jobForm.bilingual && "(EN)"}</Label>
+                        <div className="md:col-span-10 grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className={`space-y-2 ${locale === 'ar' ? 'order-2' : 'order-1'}`}>
+                            <Label>{t('createSpecName', 'jobs')} {jobForm.bilingual && "(EN)"}</Label>
                             <Input
                               value={spec.spec}
                               onChange={(e) => handleJobSpecChange(index, "spec", e.target.value)}
@@ -2572,9 +2613,9 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                             />
                           </div>
                           {jobForm.bilingual && (
-                            <div className="space-y-2" dir="rtl">
+                            <div className={`space-y-2 ${locale === 'ar' ? 'order-1' : 'order-2'}`} dir="rtl">
                               <div className="flex items-center justify-between">
-                                <Label className="text-right block w-full">اسم المواصفة (بالعربية)</Label>
+                                <Label className="text-right block w-full">{locale === 'ar' ? 'اسم المواصفة (بالعربية)' : t('createSpecName', 'jobs') + ' (AR)'}</Label>
                                 <button
                                   type="button"
                                   onClick={async () => {
@@ -2588,7 +2629,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                                   }}
                                   disabled={!spec.spec.trim() && !spec.specAr?.trim()}
                                   className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
-                                  title={spec.spec.trim() ? 'Translate EN → AR' : 'Translate AR → EN'}
+                                  title={spec.spec.trim() ? t('createTranslateEnAr', 'jobs') : t('createTranslateArEn', 'jobs')}
                                 >
                                   <Languages className="size-3" />
                                 </button>
@@ -2601,8 +2642,8 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                             </div>
                           )}
                         </div>
-                        <div className="md:col-span-1 space-y-2 min-w-[100px]">
-                          <Label>Weight %</Label>
+                        <div className="md:col-span-2 space-y-2">
+                          <Label>{t('createWeightPercent', 'jobs')}</Label>
                           <Input
                             type="number"
                             value={spec.weight}
@@ -2619,7 +2660,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                           className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-4 py-2 text-xs font-bold text-white transition hover:bg-emerald-600 shadow-md shadow-emerald-500/20"
                         >
                           <CheckCircleIcon className="size-4" />
-                          Update Spec
+                          {t('createUpdateSpec', 'jobs')}
                         </button>
                       </div>
                     </div>
@@ -2634,7 +2675,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                             <div className="flex-1">
                               <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
                                 {jobForm.bilingual && <span className="text-[10px] uppercase text-gray-400 mr-2">EN:</span>}
-                                {spec.spec || <em className="text-gray-400 font-normal italic">Undefined Requirement</em>}
+                                {spec.spec || <em className="text-gray-400 font-normal italic">{t('createUndefinedSpec', 'jobs')}</em>}
                               </p>
                               {jobForm.bilingual && (
                                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400 truncate" dir="rtl">
@@ -2644,7 +2685,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                               )}
                             </div>
                             <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 w-fit">
-                              <span className="text-xs font-bold uppercase tracking-wider">Weight</span>
+                              <span className="text-xs font-bold uppercase tracking-wider">{t('createWeight', 'jobs')}</span>
                               <span className="text-sm font-black">{spec.weight}%</span>
                             </div>
                           </div>
@@ -2680,11 +2721,11 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                   className="inline-flex items-center gap-2 rounded-xl bg-white border border-gray-200 px-6 py-3 text-sm font-bold text-gray-700 shadow-sm transition-all hover:bg-gray-50 hover:border-brand-300 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
                 >
                   <PlusIcon className="size-5 text-brand-500" />
-                  Add New Specification
+                  {t('createAddSpec', 'jobs')}
                 </button>
                 <div className="flex flex-col items-end">
                   <div className="flex items-center gap-3">
-                    <span className="text-xs font-bold uppercase tracking-widest text-gray-500">Cumulative Weight</span>
+                    <span className="text-xs font-bold uppercase tracking-widest text-gray-500">{t('createCumulativeWeight', 'jobs')}</span>
                     <div className={`flex items-center gap-2 rounded-lg px-4 py-2 text-lg font-black ${
                       totalWeight === 100
                         ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400"
@@ -2698,7 +2739,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                       <svg className="size-3" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                       </svg>
-                      Attention: Specifications must total 100%
+                      {t('createSpecsTotalWarning', 'jobs')}
                     </p>
                   )}
                 </div>
@@ -2710,8 +2751,8 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
           <div className="group relative overflow-visible rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:border-gray-800 dark:bg-gray-900">
             <div className="mb-6 flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Custom Form Fields</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Personalize the application form for candidates</p>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">{t('createCustomFields', 'jobs')}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{t('createCustomFieldsDesc', 'jobs')}</p>
               </div>
               <div className="rounded-xl bg-orange-50 p-2.5 text-orange-600 dark:bg-orange-500/10">
                 <svg className="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -2727,7 +2768,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                   className="flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-brand-500/20 transition-all hover:bg-brand-600 active:scale-95"
                 >
                   <PlusIcon className="size-4" />
-                  New Custom Field
+                  {t('createNewField', 'jobs')}
                 </button>
                 <div className="flex gap-2 relative">
                   <button
@@ -2738,7 +2779,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                     <svg className="size-4 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                     </svg>
-                    Recommended
+                    {t('createRecommended', 'jobs')}
                   </button>
 
                   <button
@@ -2749,13 +2790,13 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                     <svg className="size-4 text-brand-500" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" />
                     </svg>
-                    Saved Fields
+                    {t('createSavedFields', 'jobs')}
                   </button>
 
                   {/* Panels - Enhanced UI */}
                   {showSavedPanel && (
                     <div className="absolute left-0 top-full mt-2 w-80 rounded-2xl border border-gray-200 bg-white p-5 shadow-2xl z-50 animate-in zoom-in-95 duration-200 dark:border-gray-700 dark:bg-gray-900">
-                      <h4 className="mb-4 text-xs font-black uppercase tracking-widest text-gray-400">Library of Saved Fields</h4>
+                      <h4 className="mb-4 text-xs font-black uppercase tracking-widest text-gray-400">{t('createSavedFieldsLibrary', 'jobs')}</h4>
                       <div className="max-h-80 overflow-auto scrollbar-hide space-y-3">
                         {savedFieldsLoading ? (
                           <div className="flex justify-center p-4">
@@ -2793,7 +2834,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                           onClick={() => { setSelectedSaved([]); setShowSavedPanel(false); }}
                           className="rounded-lg px-4 py-2 text-xs font-bold text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
                         >
-                          Cancel
+                          {t('createCancel', 'jobs')}
                         </button>
                         <button
                           type="button"
@@ -2801,7 +2842,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                           disabled={selectedSaved.length === 0}
                           className="rounded-lg bg-brand-500 px-4 py-2 text-xs font-bold text-white transition hover:bg-brand-600 disabled:opacity-30"
                         >
-                          Add Selected ({selectedSaved.length})
+                          {t('createAddSelected', 'jobs', { count: selectedSaved.length })}
                         </button>
                       </div>
                     </div>
@@ -2809,7 +2850,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
 
                   {showRecommendedPanel && (
                     <div className="absolute left-0 top-full mt-2 w-80 rounded-2xl border border-gray-200 bg-white p-5 shadow-2xl z-50 animate-in zoom-in-95 duration-200 dark:border-gray-700 dark:bg-gray-900">
-                      <h4 className="mb-4 text-xs font-black uppercase tracking-widest text-orange-500">Expert Recommended</h4>
+                      <h4 className="mb-4 text-xs font-black uppercase tracking-widest text-orange-500">{t('createRecommendedPanel', 'jobs')}</h4>
                       <div className="max-h-80 overflow-auto scrollbar-hide space-y-3">
                         {recommendedLoading ? (
                           <div className="flex justify-center p-4">
@@ -2847,7 +2888,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                           onClick={() => { setSelectedRecommended([]); setShowRecommendedPanel(false); }}
                           className="rounded-lg px-4 py-2 text-xs font-bold text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
                         >
-                          Cancel
+                          {t('createCancel', 'jobs')}
                         </button>
                         <button
                           type="button"
@@ -2855,7 +2896,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                           disabled={selectedRecommended.length === 0}
                           className="rounded-lg bg-orange-500 px-4 py-2 text-xs font-bold text-white transition hover:bg-orange-600 disabled:opacity-30"
                         >
-                          Add Strategic Fields ({selectedRecommended.length})
+                          {t('createAddStrategic', 'jobs', { count: selectedRecommended.length })}
                         </button>
                       </div>
                     </div>
@@ -2863,13 +2904,21 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                 </div>
             </div>
 
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleCustomFieldDragEnd}>
+              <SortableContext items={jobForm.customFields.map(f => f.fieldId)} strategy={verticalListSortingStrategy}>
             <div className="grid grid-cols-1 gap-6">
               {jobForm.customFields.map((field, fieldIndex) => {
                 const isCollapsed = collapsedFields.has(fieldIndex);
                 return (
+                  <SortableCustomFieldCard key={field.fieldId} id={field.fieldId} dragHandle={
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-sm ring-1 ring-gray-200 transition-all hover:scale-110 dark:bg-gray-800 dark:ring-gray-700 cursor-grab active:cursor-grabbing">
+                      <svg className="size-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M7 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4z" />
+                      </svg>
+                    </div>
+                  }>
                   <div
-                    key={field.fieldId}
-                    className="group/field relative overflow-hidden rounded-2xl border border-gray-100 bg-gray-50/50 p-5 transition-all hover:border-brand-100 hover:bg-white hover:shadow-lg dark:border-gray-800 dark:bg-gray-900/40"
+                    className="group/field relative overflow-hidden rounded-2xl border border-gray-100 bg-gray-50/50 p-5 pl-14 transition-all hover:border-brand-100 hover:bg-white hover:shadow-lg dark:border-gray-800 dark:bg-gray-900/40"
                   >
                     <div className="absolute left-0 top-0 h-full w-1 bg-brand-500 opacity-0 transition-opacity group-hover/field:opacity-100" />
                     
@@ -2891,15 +2940,15 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                             </svg>
                           </button>
                           <div>
-                            <span className="text-[10px] font-black uppercase tracking-widest text-brand-500">Form Element {fieldIndex + 1}</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-brand-500">{t('createFormElement', 'jobs', { number: fieldIndex + 1 })}</span>
                             <h4 className="text-base font-bold text-gray-900 dark:text-white">
-                              {field.label || <em className="font-normal text-gray-400 italic">Untitled Field</em>}
+                              {field.label || <em className="font-normal text-gray-400 italic">{t('createUntitledField', 'jobs')}</em>}
                             </h4>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
                           <div className={`rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-wider ${field.isRequired ? 'bg-red-50 text-red-600 dark:bg-red-900/20' : 'bg-gray-100 text-gray-500 dark:bg-gray-800'}`}>
-                            {field.isRequired ? 'Required' : 'Optional'}
+                            {field.isRequired ? t('createRequiredBadge', 'jobs') : t('createOptionalBadge', 'jobs')}
                           </div>
                           <button
                             type="button"
@@ -2914,19 +2963,19 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                       {!isCollapsed && (
                         <div className="animate-in slide-in-from-top-2 duration-300 space-y-6 pt-4 border-t border-gray-100 dark:border-gray-800">
                           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                            <div className="space-y-2">
-                              <Label htmlFor={`field-label-${fieldIndex}`}>Display Label {jobForm.bilingual && "(EN)"}</Label>
+                            <div className={`space-y-2 ${locale === 'ar' ? 'order-2' : 'order-1'}`}>
+                              <Label htmlFor={`field-label-${fieldIndex}`}>{t('createDisplayLabel', 'jobs')} {jobForm.bilingual && "(EN)"}</Label>
                               <Input
                                 id={`field-label-${fieldIndex}`}
                                 value={field.label}
                                 onChange={(e) => handleCustomFieldChange(fieldIndex, "label", e.target.value)}
-                                placeholder="e.g. Years of Experience"
+                                placeholder={t('createLabelPlaceholder', 'jobs')}
                               />
                             </div>
                             {jobForm.bilingual && (
-                              <div className="space-y-2" dir="rtl">
+                              <div className={`space-y-2 ${locale === 'ar' ? 'order-1' : 'order-2'}`} dir="rtl">
                                 <div className="flex items-center justify-between">
-                                  <Label htmlFor={`field-label-ar-${fieldIndex}`} className="text-right block w-full">تسمية الحقل (بالعربية)</Label>
+                                  <Label htmlFor={`field-label-ar-${fieldIndex}`} className="text-right block w-full">{locale === 'ar' ? 'تسمية الحقل (بالعربية)' : t('createDisplayLabel', 'jobs') + ' (AR)'}</Label>
                                   <button
                                     type="button"
                                     onClick={async () => {
@@ -2940,7 +2989,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                                     }}
                                     disabled={!field.label.trim() && !field.labelAr?.trim()}
                                     className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
-                                    title={field.label.trim() ? 'Translate EN → AR' : 'Translate AR → EN'}
+                                    title={field.label.trim() ? t('createTranslateEnAr', 'jobs') : t('createTranslateArEn', 'jobs')}
                                   >
                                     <Languages className="size-3" />
                                   </button>
@@ -2958,16 +3007,16 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
 
                           <div className="grid grid-cols-1 gap-6 md:grid-cols-3 items-end">
                             <div className="space-y-2">
-                              <Label htmlFor={`field-type-${fieldIndex}`}>Field Type</Label>
+                              <Label htmlFor={`field-type-${fieldIndex}`}>{t('createFieldType', 'jobs')}</Label>
                               <Select
-                                options={inputTypeOptions}
+                                options={inputTypeOptions(t)}
                                 value={field.inputType}
-                                placeholder="Select Component"
+                                placeholder={t('createSelectComponent', 'jobs')}
                                 onChange={(value) => handleCustomFieldChange(fieldIndex, "inputType", value)}
                               />
                             </div>
                             <div className="space-y-2 text-center">
-                              <Label htmlFor={`field-display-order-${fieldIndex}`}>Sequence</Label>
+                              <Label htmlFor={`field-display-order-${fieldIndex}`}>{t('createSequence', 'jobs')}</Label>
                               <div className="flex justify-center">
                                 <Input
                                   id={`field-display-order-${fieldIndex}`}
@@ -2981,7 +3030,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                             </div>
                             <div className="flex h-[44px] items-center justify-center rounded-xl bg-gray-100/50 px-4 dark:bg-gray-800/50">
                               <Switch
-                                label="Required"
+                                label={t('createRequired', 'jobs')}
                                 checked={field.isRequired}
                                 onChange={(checked) => handleCustomFieldChange(fieldIndex, "isRequired", checked)}
                               />
@@ -2991,7 +3040,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                           {field.inputType === "number" && (
                             <div className="grid grid-cols-2 gap-6 rounded-2xl bg-brand-50/30 p-4 dark:bg-brand-500/5">
                               <div className="space-y-2">
-                                <Label htmlFor={`field-min-${fieldIndex}`}>Minimum Threshold</Label>
+                                <Label htmlFor={`field-min-${fieldIndex}`}>{t('createMinThreshold', 'jobs')}</Label>
                                 <Input
                                   id={`field-min-${fieldIndex}`}
                                   type="number"
@@ -3000,7 +3049,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                                 />
                               </div>
                               <div className="space-y-2">
-                                <Label htmlFor={`field-max-${fieldIndex}`}>Maximum Limit</Label>
+                                <Label htmlFor={`field-max-${fieldIndex}`}>{t('createMaxLimit', 'jobs')}</Label>
                                 <Input
                                   id={`field-max-${fieldIndex}`}
                                   type="number"
@@ -3013,19 +3062,19 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
 
                           {(field.inputType === "checkbox" || field.inputType === "radio" || field.inputType === "dropdown") && (
                             <div className="rounded-2xl border border-gray-100 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
-                              <Label className="mb-4 block text-xs font-black uppercase tracking-wider text-gray-400">Response Options {jobForm.bilingual && "(EN)"}</Label>
+                              <Label className="mb-4 block text-xs font-black uppercase tracking-wider text-gray-400">{t('createResponseOptions', 'jobs')} {jobForm.bilingual && "(EN)"}</Label>
                               <div className={`grid gap-4 items-end mb-4 ${jobForm.bilingual ? 'md:grid-cols-2' : ''}`}>
-                                <div className="space-y-2">
+                                <div className={`space-y-2 ${locale === 'ar' ? 'order-2' : 'order-1'}`}>
                                   <Input
                                     value={newChoice[fieldIndex] || ""}
                                     onChange={(e) => setNewChoice(prev => ({ ...prev, [fieldIndex]: e.target.value }))}
                                     onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddChoice(fieldIndex))}
-                                    placeholder="English Choice..."
+                                    placeholder={t('createChoicePlaceholder', 'jobs')}
                                   />
                                 </div>
                                 {jobForm.bilingual && (
-                                  <div className="relative" dir="rtl">
-                                    <Label className="mb-2 block text-right text-xs font-black uppercase tracking-wider text-gray-400">خيارات الاستجابة (بالعربية)</Label>
+                                  <div className={`relative ${locale === 'ar' ? 'order-1' : 'order-2'}`} dir="rtl">
+                                    <Label className="mb-2 block text-right text-xs font-black uppercase tracking-wider text-gray-400">{locale === 'ar' ? 'خيارات الاستجابة (بالعربية)' : t('createResponseOptions', 'jobs') + ' (AR)'}</Label>
                                     <div className="space-y-2">
                                       <Input
                                         value={newChoiceAr[fieldIndex] || ""}
@@ -3050,7 +3099,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                                       }}
                                       disabled={!(newChoice[fieldIndex] || "").trim() && !(newChoiceAr[fieldIndex] || "").trim()}
                                       className="absolute left-1.5 top-1/2 -translate-y-1/2 flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
-                                      title={(newChoice[fieldIndex] || "").trim() ? 'Translate EN → AR' : 'Translate AR → EN'}
+                                       title={(newChoice[fieldIndex] || "").trim() ? t('createTranslateEnAr', 'jobs') : t('createTranslateArEn', 'jobs')}
                                     >
                                       <Languages className="size-3" />
                                     </button>
@@ -3063,7 +3112,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                                 className="inline-flex items-center gap-2 rounded-xl bg-gray-900 px-4 py-2 text-xs font-bold text-white transition hover:bg-black dark:bg-brand-500 dark:hover:bg-brand-600"
                               >
                                 <PlusIcon className="size-3" />
-                                Save Choice
+                                {t('createSaveChoice', 'jobs')}
                               </button>
 
                               <div className="mt-6 flex flex-wrap gap-2">
@@ -3095,8 +3144,8 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                             <div className="rounded-2xl border-2 border-dashed border-brand-100 bg-brand-50/20 p-6 dark:border-brand-900/20 dark:bg-brand-500/5">
                               <div className="mb-6 flex items-center justify-between">
                                 <div>
-                                  <h5 className="text-sm font-black uppercase tracking-widest text-brand-600">Sub-Question Matrix</h5>
-                                  <p className="text-xs text-brand-500/70">Fields inside this repeatable section</p>
+                                  <h5 className="text-sm font-black uppercase tracking-widest text-brand-600">{t('createSubQuestionMatrix', 'jobs')}</h5>
+                                  <p className="text-xs text-brand-500/70">{t('createSubQuestionDesc', 'jobs')}</p>
                                 </div>
                                 <button
                                   type="button"
@@ -3104,7 +3153,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                                   className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-brand-500/20 hover:bg-brand-600"
                                 >
                                   <PlusIcon className="size-3" />
-                                  Add Sub-Field
+                                  {t('createAddSubField', 'jobs')}
                                 </button>
                               </div>
 
@@ -3115,7 +3164,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                                     className="relative rounded-xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900"
                                   >
                                     <div className="mb-4 flex items-center justify-between">
-                                      <span className="text-[10px] font-bold text-gray-400 uppercase">Sub-Field #{subFieldIndex + 1}</span>
+                                      <span className="text-[10px] font-bold text-gray-400 uppercase">{t('createSubField', 'jobs', { number: subFieldIndex + 1 })}</span>
                                       <button
                                         type="button"
                                         onClick={() => handleRemoveSubField(fieldIndex, subFieldIndex)}
@@ -3127,19 +3176,19 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
 
                                     <div className="space-y-4">
                                       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                        <div className="space-y-1">
-                                          <Label className="text-[11px] font-bold text-gray-500">Label (EN)</Label>
+                                        <div className={`space-y-1 ${locale === 'ar' ? 'order-2' : 'order-1'}`}>
+                                          <Label className="text-[11px] font-bold text-gray-500">{t('createSubFieldLabelEn', 'jobs')}</Label>
                                           <Input
                                             value={subField.label}
                                             onChange={(e) => handleSubFieldChange(fieldIndex, subFieldIndex, "label", e.target.value)}
-                                            placeholder="Question label..."
+                                            placeholder={t('createSubFieldLabelPlaceholder', 'jobs')}
                                             className="h-9 text-sm"
                                           />
                                         </div>
                                         {jobForm.bilingual && (
-                                          <div className="space-y-1" dir="rtl">
+                                          <div className={`space-y-1 ${locale === 'ar' ? 'order-1' : 'order-2'}`} dir="rtl">
                                             <div className="flex items-center justify-between">
-                                              <Label className="text-[11px] font-bold text-gray-500">Label (AR)</Label>
+                                              <Label className="text-[11px] font-bold text-gray-500">{t('createSubFieldLabelAr', 'jobs')}</Label>
                                               <button
                                                 type="button"
                                                 onClick={async () => {
@@ -3153,7 +3202,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                                                 }}
                                                 disabled={!subField.label.trim() && !subField.labelAr?.trim()}
                                                 className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
-                                                title={subField.label.trim() ? 'Translate EN → AR' : 'Translate AR → EN'}
+                                                title={subField.label.trim() ? t('createTranslateEnAr', 'jobs') : t('createTranslateArEn', 'jobs')}
                                               >
                                                 <Languages className="size-3" />
                                               </button>
@@ -3170,16 +3219,16 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
 
                                       <div className="grid grid-cols-2 gap-4 items-end">
                                         <div className="space-y-1">
-                                          <Label className="text-[11px] font-bold text-gray-500">Input Type</Label>
+                                          <Label className="text-[11px] font-bold text-gray-500">{t('createSubFieldInputType', 'jobs')}</Label>
                                           <Select
-                                            options={subFieldTypeOptions}
+                                            options={subFieldTypeOptions(t)}
                                             value={subField.inputType}
                                             onChange={(value) => handleSubFieldChange(fieldIndex, subFieldIndex, "inputType", value)}
                                           />
                                         </div>
                                         <div className="flex h-[40px] items-center px-3 rounded-lg bg-gray-50 dark:bg-gray-800/50">
                                           <Switch
-                                            label="Required"
+                                            label={t('createRequired', 'jobs')}
                                             checked={subField.isRequired}
                                             onChange={(checked) => handleSubFieldChange(fieldIndex, subFieldIndex, "isRequired", checked)}
                                           />
@@ -3189,15 +3238,17 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                                       {(subField.inputType === "radio" || subField.inputType === "checkbox" || subField.inputType === "dropdown") && (
                                         <div className="mt-4 pt-4 border-t border-gray-50 dark:border-gray-800">
                                           <div className="grid gap-4 md:grid-cols-2 mb-3">
-                                            <Input
-                                              value={newSubFieldChoice[`${fieldIndex}-${subFieldIndex}`] || ""}
-                                              onChange={(e) => setNewSubFieldChoice(prev => ({ ...prev, [`${fieldIndex}-${subFieldIndex}`]: e.target.value }))}
-                                              onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddSubFieldChoice(fieldIndex, subFieldIndex))}
-                                              placeholder="English choice..."
-                                              className="h-8 text-xs"
-                                            />
+                                            <div className={locale === 'ar' ? 'order-2' : 'order-1'}>
+                                              <Input
+                                                value={newSubFieldChoice[`${fieldIndex}-${subFieldIndex}`] || ""}
+                                                onChange={(e) => setNewSubFieldChoice(prev => ({ ...prev, [`${fieldIndex}-${subFieldIndex}`]: e.target.value }))}
+                                                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddSubFieldChoice(fieldIndex, subFieldIndex))}
+                                                placeholder={t('createSubFieldChoicePlaceholder', 'jobs')}
+                                                className="h-8 text-xs"
+                                              />
+                                            </div>
                                             {jobForm.bilingual && (
-                                              <div className="relative" dir="rtl">
+                                              <div className={`relative ${locale === 'ar' ? 'order-1' : 'order-2'}`} dir="rtl">
                                                 <Input
                                                   value={newSubFieldChoiceAr[`${fieldIndex}-${subFieldIndex}`] || ""}
                                                   onChange={(e) => setNewSubFieldChoiceAr(prev => ({ ...prev, [`${fieldIndex}-${subFieldIndex}`]: e.target.value }))}
@@ -3221,7 +3272,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                                                   }}
                                                   disabled={!(newSubFieldChoice[`${fieldIndex}-${subFieldIndex}`] || "").trim() && !(newSubFieldChoiceAr[`${fieldIndex}-${subFieldIndex}`] || "").trim()}
                                                   className="absolute left-1.5 top-1/2 -translate-y-1/2 flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
-                                                  title={(newSubFieldChoice[`${fieldIndex}-${subFieldIndex}`] || "").trim() ? 'Translate EN → AR' : 'Translate AR → EN'}
+                                                  title={(newSubFieldChoice[`${fieldIndex}-${subFieldIndex}`] || "").trim() ? t('createTranslateEnAr', 'jobs') : t('createTranslateArEn', 'jobs')}
                                                 >
                                                   <Languages className="size-3" />
                                                 </button>
@@ -3233,7 +3284,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                                             onClick={() => handleAddSubFieldChoice(fieldIndex, subFieldIndex)}
                                             className="text-[10px] font-black uppercase text-brand-600 hover:text-brand-700 flex items-center gap-1"
                                           >
-                                            <PlusIcon className="size-3" /> Add Choice
+                                             <PlusIcon className="size-3" /> {t('createSubFieldAddChoice', 'jobs')}
                                           </button>
                                           <div className="mt-3 flex flex-wrap gap-2">
                                             {subField.choices?.map((choice, choiceIndex) => (
@@ -3255,17 +3306,20 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                       )}
                     </div>
                   </div>
+                  </SortableCustomFieldCard>
                 );
               })}
             </div>
+              </SortableContext>
+            </DndContext>
           </div>
 
           {/* Submit and Preview */}
           <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-8 shadow-sm transition-all hover:shadow-xl dark:border-gray-800 dark:bg-gray-900">
             <div className="flex flex-col items-center gap-6">
               <div className="text-center">
-                <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-wider">Ready to Finalize?</h3>
-                <p className="mt-1 text-sm text-gray-500">Ensure all mandatory fields and specifications are defined before proceeding.</p>
+                <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-wider">{t('createReadyToFinalize', 'jobs')}</h3>
+                <p className="mt-1 text-sm text-gray-500">{t('createReadyDesc', 'jobs')}</p>
               </div>
               
               <div className="flex flex-wrap items-center justify-center gap-4">
@@ -3281,12 +3335,12 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
-                      {isEditMode ? "Propagating Changes..." : "Publishing Job..."}
+                      {isEditMode ? t('createPropagating', 'jobs') : t('createPublishing', 'jobs')}
                     </>
                   ) : (
                     <>
                       <CheckCircleIcon className="size-6 transition-transform group-hover:scale-110" />
-                      {isEditMode ? "Save Changes" : "Launch Position"}
+                      {isEditMode ? t('createSaveChanges', 'jobs') : t('createLaunchPosition', 'jobs')}
                     </>
                   )}
                 </button>

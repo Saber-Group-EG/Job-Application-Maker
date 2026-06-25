@@ -7,6 +7,7 @@ import { getErrorMessage } from '../../utils/errorHandler';
 import Label from '../form/Label';
 import Select from '../form/Select';
 import Input from '../form/input/InputField';
+import { useLocale } from '../../context/LocaleContext';
 
 import 'quill/dist/quill.snow.css';
 
@@ -76,6 +77,8 @@ const BulkMessageModal = ({
   const [showPreview, setShowPreview] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+
+  const { t } = useLocale();
 
   const sendBatch = useSendBatchEmail();
   const sendMessageMutation = useSendMessage();
@@ -508,8 +511,8 @@ const BulkMessageModal = ({
       await Promise.allSettled(messagePromises);
 
       await Swal.fire({ 
-        title: 'Success', 
-        text: `Email sent to ${recipients.length} recipient(s) and saved to message history`, 
+        title: t('success', 'modals'), 
+        text: t('successEmailSent', 'modals', { count: recipients.length }), 
         icon: 'success', 
         timer: 2000, 
         showConfirmButton: false 
@@ -526,10 +529,10 @@ const BulkMessageModal = ({
 
   const templateOptions = useMemo(() => {
     return [
-      { value: '', label: '-- Select a template --' },
-      ...emailTemplates.map((t: any) => ({ 
-        value: t._id || '', 
-        label: t.name 
+      { value: '', label: t('selectTemplate', 'modals') },
+      ...emailTemplates.map((tmpl: any) => ({ 
+        value: tmpl._id || '', 
+        label: tmpl.name 
       }))
     ];
   }, [emailTemplates]);
@@ -547,12 +550,12 @@ const BulkMessageModal = ({
     <>
       <Modal isOpen={isOpen} onClose={() => { onClose(); setError(''); }} className="max-w-2xl p-6" closeOnBackdrop={false}>
         <form onSubmit={handleSubmit} className="space-y-6">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Send Email To {recipients.length} recipient(s)</h2>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t('bulkMessageTitle', 'modals', { count: recipients.length })}</h2>
         
           {error && (
             <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
               <div className="flex items-start justify-between">
-                <p className="text-sm text-red-600 dark:text-red-400"><strong>Error:</strong> {error}</p>
+                <p className="text-sm text-red-600 dark:text-red-400"><strong>{t('error', 'modals')}</strong> {error}</p>
                 <button type="button" onClick={() => setError('')} className="ml-3 text-red-400 hover:text-red-600 dark:hover:text-red-300">✕</button>
               </div>
             </div>
@@ -561,40 +564,40 @@ const BulkMessageModal = ({
           {/* Template Selector */}
           {emailTemplates.length > 0 && (
             <div>
-              <Label htmlFor="template-select">Load Template</Label>
+              <Label htmlFor="template-select">{t('loadTemplate', 'modals')}</Label>
               <Select
                 options={templateOptions}
                 value={selectedTemplateId}
                 onChange={(value) => handleTemplateSelect(value as string)}
-                placeholder="Select a template to load"
+                placeholder={t('selectTemplateToLoad', 'modals')}
               />
               <p className="mt-1 text-xs text-gray-500">
-                Select a template to automatically fill the subject and body
+                {t('selectTemplateAutoFill', 'modals')}
               </p>
             </div>
           )}
 
           <div>
-            <Label>Subject *</Label>
+            <Label>{t('subject', 'modals')}</Label>
             <p className="mt-1 text-xs text-gray-500 mb-2">
-              Available variables: {'{{candidateName}}'}, {'{{position}}'} or {'{{jobTitle}}'}
+              {t('availableVariables', 'modals')}
             </p>
-            <Input value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} placeholder="Subject" />
+            <Input value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} placeholder={t('subject', 'modals')} />
           </div>
 
           <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4 dark:border-gray-700 dark:bg-gray-800/30">
-            <h3 className="mb-2 text-base font-medium text-gray-800 dark:text-white/90">Sender</h3>
+            <h3 className="mb-2 text-base font-medium text-gray-800 dark:text-white/90">{t('sender', 'modals')}</h3>
             <div className="space-y-3">
               <div>
-                <Label htmlFor="email-option">Email From</Label>
+                <Label htmlFor="email-option">{t('emailFrom', 'modals')}</Label>
                 <Select
-                  options={[{ value: 'company', label: `${getCompanyName()} Email` }, { value: 'new', label: 'New Email' }]}
+                  options={[{ value: 'company', label: t('companyEmail', 'modals', { company: getCompanyName() }) }, { value: 'new', label: t('newEmail', 'modals') }]}
                   value={emailOption}
                   onChange={(v: any) => {
                     setEmailOption(v);
                     if (v !== 'new') setNewLocalEmail('');
                   }}
-                  placeholder="Select sender option"
+                  placeholder={t('selectSenderOption', 'modals')}
                 />
               </div>
 
@@ -607,18 +610,18 @@ const BulkMessageModal = ({
 
               {emailOption !== 'new' && (
                 <div>
-                  <Label>Available Sender Addresses</Label>
+                  <Label>{t('availableSenderAddresses', 'modals')}</Label>
                   <Select
-                    options={senderOptions.length > 0 ? senderOptions : [{ value: '', label: 'No available senders' }]}
+                    options={senderOptions.length > 0 ? senderOptions : [{ value: '', label: t('noAvailableSenders', 'modals') }]}
                     value={customEmail || ''}
                     onChange={(v: any) => { setCustomEmail(v); setEmailOption('available'); }}
-                    placeholder="Select sender"
+                    placeholder={t('selectSenderOption', 'modals')}
                   />
                 </div>
               )}
 
               <div>
-                <Label>Selected Sender</Label>
+                <Label>{t('selectedSender', 'modals')}</Label>
                 <Input value={
                   emailOption === 'new' && newLocalEmail
                     ? `${newLocalEmail}@${companyDomain || 'company.com'}`
@@ -629,13 +632,13 @@ const BulkMessageModal = ({
           </div>
 
           <div>
-            <Label>Body *</Label>
+            <Label>{t('body', 'modals')}</Label>
             <p className="mt-1 text-xs text-gray-500 mb-2">
-              Available variables: {'{{candidateName}}'}, {'{{position}}'} or {'{{jobTitle}}'}
+              {t('availableVariables', 'modals')}
             </p>
             <QuillEditor value={form.body} onChange={(v) => setForm({ ...form, body: v })} />
             <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded text-xs">
-              <strong>Quick Insert:</strong>{' '}
+              <strong>{t('quickInsert', 'modals')}</strong>{' '}
               <button 
                 type="button"
                 onClick={() => setForm({ ...form, body: form.body + '{{candidateName}}' })}
@@ -661,7 +664,7 @@ const BulkMessageModal = ({
           </div>
 
           <div className="flex justify-end gap-3">
-            <button type="button" onClick={() => onClose()} className="rounded-lg border border-stroke px-6 py-2" disabled={isSubmitting}>Cancel</button>
+            <button type="button" onClick={() => onClose()} className="rounded-lg border border-stroke px-6 py-2" disabled={isSubmitting}>{t('cancel', 'modals')}</button>
 
             <button
                 type="button"
@@ -669,10 +672,10 @@ const BulkMessageModal = ({
                 className="rounded-lg border border-stroke px-6 py-2 hover:bg-gray-100 dark:border-strokedark dark:hover:bg-gray-800"
                 disabled={isSubmitting}
               >
-                Preview Email
+                {t('previewEmail', 'modals')}
             </button>
 
-            <button type="submit" className="rounded-lg bg-purple-600 px-6 py-2 text-white" disabled={isSubmitting}>{isSubmitting ? 'Sending...' : `Send to ${recipients.length}`}</button>
+            <button type="submit" className="rounded-lg bg-purple-600 px-6 py-2 text-white" disabled={isSubmitting}>{isSubmitting ? t('sending', 'modals') : t('sendTo', 'modals', { count: recipients.length })}</button>
           </div>
         </form>
       </Modal>
@@ -683,7 +686,7 @@ const BulkMessageModal = ({
         className="max-w-3xl p-6"
       >
         <div className="space-y-4">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Email Preview</h2>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t('emailPreview', 'modals')}</h2>
           <div className="border rounded p-2 bg-white dark:bg-gray-800" style={{ maxHeight: '70vh', overflow: 'auto' }}>
             <iframe
               srcDoc={previewHtml}
@@ -697,7 +700,7 @@ const BulkMessageModal = ({
               onClick={() => setShowPreview(false)}
               className="rounded-lg border border-stroke px-4 py-2 hover:bg-gray-100 dark:border-strokedark dark:hover:bg-gray-800"
             >
-              Close
+              {t('close', 'modals')}
             </button>
           </div>
         </div>

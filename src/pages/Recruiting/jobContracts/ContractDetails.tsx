@@ -15,6 +15,7 @@ import type {
   ContractStatus,
 } from '../../../services/contractsService';
 import { STATUS_CHIP, CONTRACT_TYPE_COLORS } from './ContractsPage';
+import { useLocale } from '../../../context/LocaleContext';
 import { ContractActions } from './ContractActions';
 
 export function ContractDetail({
@@ -34,6 +35,7 @@ export function ContractDetail({
   onClone: (c: JobContract) => void;
   onStatusChange: (id: string, status: ContractStatus) => void;
 }) {
+  const { t } = useLocale();
   const chip = STATUS_CHIP[contract.status];
 
   const applicantName =
@@ -64,7 +66,7 @@ export function ContractDetail({
             className="flex items-center gap-2 text-sm font-medium text-slate-600 transition hover:text-brand-600 dark:text-slate-400 dark:hover:text-brand-400"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to contracts
+            {t('backToContracts', 'jobContracts')}
           </button>
 
           <div className="flex items-center gap-2">
@@ -76,21 +78,21 @@ export function ContractDetail({
                 <button
                   onClick={() => onEdit(contract)}
                   className="flex size-8 items-center justify-center rounded-lg border border-slate-200 text-slate-400 transition hover:border-brand-300 hover:bg-brand-50 hover:text-brand-600 dark:border-slate-700"
-                  title="Edit"
+                  title={t('edit', 'jobContracts')}
                 >
                   <Pencil className="size-3.5" />
                 </button>
                 <button
                   onClick={() => onClone(contract)}
                   className="flex size-8 items-center justify-center rounded-lg border border-slate-200 text-slate-400 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-600 dark:border-slate-700"
-                  title="Clone"
+                  title={t('clone', 'jobContracts')}
                 >
                   <Copy className="size-3.5" />
                 </button>
                 <button
                   onClick={() => onDelete(contract._id)}
                   className="flex size-8 items-center justify-center rounded-lg border border-slate-200 text-slate-400 transition hover:border-red-300 hover:bg-red-50 hover:text-red-600 dark:border-slate-700"
-                  title="Delete"
+                  title={t('delete', 'jobContracts')}
                 >
                   <Trash2 className="size-3.5" />
                 </button>
@@ -124,7 +126,7 @@ export function ContractDetail({
               {contract.probationPeriod != null && (
                 <span className="flex items-center gap-1 text-xs text-slate-500">
                   <Clock className="size-3.5" />
-                  {contract.probationPeriod}mo probation
+                  {t('moProbation', 'jobContracts', { months: contract.probationPeriod })}
                 </span>
               )}
             </div>
@@ -167,7 +169,7 @@ export function ContractDetail({
           </div>
           <div className="text-right text-xs text-slate-400">
             <p>
-              Created by{' '}
+              {t('createdBy', 'jobContracts')}{' '}
               <span className="font-medium text-slate-600 dark:text-slate-300">
                 {contract.createdBy?.fullName ?? '—'}
               </span>
@@ -181,12 +183,12 @@ export function ContractDetail({
       <div className="border-b border-slate-200 p-6 dark:border-slate-800">
         <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
           <Calendar className="h-4 w-4" />
-          Contract Period
+          {t('contractPeriod', 'jobContracts')}
         </h3>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           <div className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/40">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-              Start Date
+              {t('startDate', 'jobContracts')}
             </p>
             <p className="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-200">
               {formatDate(contract.startDate) ?? '—'}
@@ -194,20 +196,19 @@ export function ContractDetail({
           </div>
           <div className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/40">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-              End Date
+              {t('endDate', 'jobContracts')}
             </p>
             <p className="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-200">
-              {formatDate(contract.endDate) ?? 'Open-ended'}
+              {formatDate(contract.endDate) ?? t('openEnded', 'jobContracts')}
             </p>
           </div>
           {contract.probationPeriod != null && (
             <div className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/40">
               <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                Probation
+                {t('probation', 'jobContracts')}
               </p>
               <p className="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-200">
-                {contract.probationPeriod} month
-                {contract.probationPeriod !== 1 ? 's' : ''}
+                {contract.probationPeriod} {contract.probationPeriod !== 1 ? t('months', 'jobContracts') : t('month', 'jobContracts')}
               </p>
             </div>
           )}
@@ -219,7 +220,7 @@ export function ContractDetail({
         <div className="border-b border-slate-200 p-6 dark:border-slate-800">
           <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
             <Gift className="h-4 w-4" />
-            Benefits
+            {t('benefits', 'jobContracts')}
           </h3>
           <div className="space-y-2">
             {contract.benefits.map((b, i) => (
@@ -246,7 +247,7 @@ export function ContractDetail({
         <div className="border-b border-slate-200 p-6 dark:border-slate-800">
           <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
             <FileText className="h-4 w-4" />
-            Contract Sections
+            {t('contractSections', 'jobContracts')}
           </h3>
           <div className="space-y-4">
             {contract.sections
@@ -279,7 +280,7 @@ export function ContractDetail({
         <div className="border-b border-slate-200 p-6 dark:border-slate-800">
           <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
             <Clock3 className="h-4 w-4" />
-            Internal Notes (EN)
+            {t('internalNotesEn', 'jobContracts')}
           </h3>
           <p className="text-sm text-slate-600 dark:text-slate-400">
             {contract.notes.en}
@@ -290,7 +291,7 @@ export function ContractDetail({
         <div className="border-b border-slate-200 p-6 dark:border-slate-800">
           <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
             <Clock3 className="h-4 w-4" />
-            Internal Notes (AR)
+            {t('internalNotesAr', 'jobContracts')}
           </h3>
           <p className="text-sm text-slate-600 dark:text-slate-400">
             {contract.notes.ar}
@@ -302,14 +303,14 @@ export function ContractDetail({
       <div className="p-6">
         <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
           <Clock3 className="h-4 w-4" />
-          Timeline
+          {t('timeline', 'jobContracts')}
         </h3>
         <div className="space-y-4">
           {[
-            { label: 'Created', date: contract.createdAt },
-            { label: 'Sent', date: contract.sentAt },
-            { label: 'Signed', date: contract.signedAt },
-            { label: 'Expires', date: contract.expiresAt },
+            { label: t('timelineCreated', 'jobContracts'), date: contract.createdAt },
+            { label: t('timelineSent', 'jobContracts'), date: contract.sentAt },
+            { label: t('timelineSigned', 'jobContracts'), date: contract.signedAt },
+            { label: t('timelineExpires', 'jobContracts'), date: contract.expiresAt },
           ]
             .filter((e) => e.date)
             .map((event, idx, arr) => (

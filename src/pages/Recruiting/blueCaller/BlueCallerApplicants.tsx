@@ -18,6 +18,7 @@ import type { Applicant } from '../../../types/applicants';
 import type { JobPosition } from '../../../types/jobPositions';
 import ManualInsert from './components/ManualInsert';
 import BulkInsert from './components/BulkInsert';
+import { useLocale } from '../../../context/LocaleContext';
 
 type TabKey = 'manual' | 'bulk';
 
@@ -62,6 +63,7 @@ function getApiErrorMessage(error: unknown, fallback = 'An unexpected error occu
 
 export default function BlueCallerApplicants() {
   const { user } = useAuth();
+  const { t } = useLocale();
 
   const [activeTab, setActiveTab] = useState<TabKey>('manual');
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
@@ -158,10 +160,10 @@ export default function BlueCallerApplicants() {
       } catch (error) {
         if (mounted) {
           await Swal.fire({
-            title: 'Load failed',
-            text: getApiErrorMessage(error, 'Failed to load companies.'),
+            title: t('loadFailed', 'common'),
+            text: getApiErrorMessage(error, t('failedToLoadCompanies', 'common')),
             icon: 'error',
-            confirmButtonText: 'Close',
+            confirmButtonText: t('close', 'common'),
           });
         }
       } finally {
@@ -204,13 +206,13 @@ export default function BlueCallerApplicants() {
       } catch (error) {
         if (!mounted) return;
         await Swal.fire({
-          title: 'Load failed',
+          title: t('loadFailed', 'common'),
           text: getApiErrorMessage(
             error,
-            'Failed to load applicants or job positions.'
+            t('failedToLoadData', 'common')
           ),
           icon: 'error',
-          confirmButtonText: 'Close',
+          confirmButtonText: t('close', 'common'),
         });
       } finally {
         if (mounted) setLoadingJobs(false);
@@ -230,8 +232,8 @@ export default function BlueCallerApplicants() {
       className={`min-h-screen bg-gray-100 px-4 py-6 text-gray-900 sm:px-6 lg:px-8`}
     >
       <PageMeta
-        title="BlueCaller Applicants | Recruiting"
-        description="Insert applicants manually or from Excel using a brand-themed dashboard."
+        title={t('pageMetaTitle', 'blueCaller')}
+        description={t('pageMetaDesc', 'blueCaller')}
       />
 
       <div className="mx-auto max-w-7xl space-y-6">
@@ -247,20 +249,18 @@ export default function BlueCallerApplicants() {
             <div className="max-w-3xl space-y-3">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-medium backdrop-blur">
                 <Sparkles className="h-4 w-4" />
-                BlueCaller Applicants
+                {t('badgeText', 'blueCaller')}
               </div>
               <h1 className="text-3xl font-bold tracking-tight sm:text-4xl text-white">
-                Insert applicants with a focused admin workflow.
+                {t('heading', 'blueCaller')}
               </h1>
               <p className="max-w-2xl text-sm text-white/90 sm:text-base">
-                Select a company, add applicants manually or bulk import from
-                Excel, validate everything up front, and submit clean payloads
-                to the API.
+                {t('description', 'blueCaller')}
               </p>
             </div>
             <div className="min-w-fit space-y-3">
               <label className="block text-sm font-semibold text-white">
-                Select Company
+                {t('selectCompanyLabel', 'blueCaller')}
               </label>
               <div className="relative w-full sm:w-80">
                 <select
@@ -270,8 +270,8 @@ export default function BlueCallerApplicants() {
                 >
                   <option value="" className="text-gray-900 bg-white">
                     {loadingCompanies
-                      ? 'Loading companies...'
-                      : 'Select a company'}
+                      ? t('loadingCompanies', 'blueCaller')
+                      : t('selectCompanyPlaceholder', 'blueCaller')}
                   </option>
                   {companies.map((company) => (
                     <option
@@ -296,8 +296,8 @@ export default function BlueCallerApplicants() {
           <div className="grid grid-cols-2 gap-2 sm:w-fit">
             {(
               [
-                { key: 'manual', icon: UserPlus, label: 'Manual Insert' },
-                { key: 'bulk', icon: FileSpreadsheet, label: 'Bulk Insert' },
+                { key: 'manual', icon: UserPlus, label: t('tabManualInsert', 'blueCaller') },
+                { key: 'bulk', icon: FileSpreadsheet, label: t('tabBulkInsert', 'blueCaller') },
               ] as const
             ).map(({ key, icon: Icon, label }) => (
               <button
@@ -324,11 +324,10 @@ export default function BlueCallerApplicants() {
           >
             <Building2 className="mx-auto h-12 w-12 text-gray-300" />
             <p className="mt-4 text-lg font-semibold text-gray-700">
-              Please select a company to proceed
+              {t('noCompanySelectedHeading', 'blueCaller')}
             </p>
             <p className="mt-2 text-sm text-gray-500">
-              Choose a company from the dropdown above to start inserting
-              applicants.
+              {t('noCompanySelectedDesc', 'blueCaller')}
             </p>
           </div>
         ) : activeTab === 'manual' ? (

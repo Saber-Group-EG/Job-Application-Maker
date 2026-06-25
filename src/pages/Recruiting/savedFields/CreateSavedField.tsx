@@ -12,35 +12,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import { savedFieldsKeys } from "../../../hooks/queries/useUsers";
 import Swal from '../../../utils/swal';
 import { getErrorResponse} from "../../../utils/errorHandler";
-
-const inputTypeOptions = [
-  { value: "text", label: "Text" },
-  { value: "textarea", label: "Textarea" },
-  { value: "number", label: "Number" },
-  { value: "email", label: "Email" },
-  { value: "date", label: "Date" },
-  { value: "url", label: "URL" },
-  { value: "checkbox", label: "Checkbox" },
-  { value: "radio", label: "Radio" },
-  { value: "dropdown", label: "Dropdown" },
-  { value: "tags", label: "Tags" },
-  { value: "repeatable_group", label: "Group Field" },
-];
-
-const subFieldTypeOptions = [
-  { value: "text", label: "Text" },
-  { value: "textarea", label: "Textarea" },
-  { value: "number", label: "Number" },
-  { value: "email", label: "Email" },
-  { value: "date", label: "Date" },
-  { value: "url", label: "URL" },
-  { value: "checkbox", label: "Checkbox" },
-  { value: "radio", label: "Radio" },
-  { value: "dropdown", label: "Dropdown" },
-  { value: "tags", label: "Tags" },
-];
+import { useLocale } from '../../../context/LocaleContext';
 
 export default function CreateSavedField() {
+  const { t } = useLocale();
   const { state } = useLocation();
   const navigate = useNavigate();
   const editingField = state?.field;
@@ -177,7 +152,7 @@ export default function CreateSavedField() {
     const choiceTypes = ["radio", "dropdown", "checkbox"];
     if (choiceTypes.includes(inputType)) {
       if (!choices || choices.length === 0) {
-        Swal.fire({ title: "Validation", text: "Please add at least one choice for this field.", icon: "warning" });
+        Swal.fire({ title: t('validationError', 'savedFields'), text: t('validationChoiceRequired', 'savedFields'), icon: "warning" });
         return;
       }
     }
@@ -186,7 +161,7 @@ export default function CreateSavedField() {
       if (choiceTypes.includes(sf.inputType)) {
         if (!Array.isArray(sf.choices) || sf.choices.length === 0) {
           const label = typeof sf.label === "string" ? sf.label : (sf.label?.en || sf.label?.ar || `#${i + 1}`);
-          Swal.fire({ title: "Validation", text: `Please add at least one choice for group field "${label}".`, icon: "warning" });
+          Swal.fire({ title: t('validationError', 'savedFields'), text: t('validationGroupChoiceRequired', 'savedFields', { label }), icon: "warning" });
           return;
         }
       }
@@ -218,29 +193,29 @@ export default function CreateSavedField() {
       if (editingField) {
         const updated = await updateMutation.mutateAsync({ fieldId: editingField.fieldId, data: payload });
         qc.setQueryData(savedFieldsKeys.list(), (old: any) => (old || []).map((f: any) => (f.fieldId === editingField.fieldId ? { ...f, ...updated } : f)));
-        Swal.fire({ title: "Updated", icon: "success", timer: 1000, showConfirmButton: false });
+        Swal.fire({ title: t('updatedSuccess', 'savedFields'), icon: "success", timer: 1000, showConfirmButton: false });
         navigate(-1);
       } else {
         const created = await createMutation.mutateAsync(payload);
         qc.setQueryData(savedFieldsKeys.list(), (old: any) => [created, ...(old || [])]);
-        Swal.fire({ title: "Created", icon: "success", timer: 1000, showConfirmButton: false });
+        Swal.fire({ title: t('createdSuccess', 'savedFields'), icon: "success", timer: 1000, showConfirmButton: false });
         navigate(-1);
       }
     } catch (err: any) {
       const resp = getErrorResponse(err);
-      Swal.fire({ title: "Error", text: resp.message || String(err), icon: "error" });
+      Swal.fire({ title: t('errorGeneric', 'savedFields'), text: resp.message || String(err), icon: "error" });
     }
   };
 
   return (
     <div className="mx-auto max-w-[1000px] space-y-8 pb-20">
       <PageMeta
-        title={editingField ? "Edit Saved Field" : "Create Saved Field"}
-        description="Configure a reusable field template with bilingual support."
+        title={editingField ? t('editMetaTitle', 'savedFields') : t('createMetaTitle', 'savedFields')}
+        description={t('createMetaDescription', 'savedFields')}
       />
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <PageBreadcrumb pageTitle={editingField ? "Edit Field Template" : "New Field Template"} />
+        <PageBreadcrumb pageTitle={editingField ? t('editMetaTitle', 'savedFields') : t('createMetaTitle', 'savedFields')} />
         <button
           onClick={() => navigate(-1)}
           className="inline-flex items-center gap-2 self-start rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition-all hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800/50"
@@ -248,7 +223,7 @@ export default function CreateSavedField() {
           <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
           </svg>
-          Back
+          {t('backButton', 'savedFields')}
         </button>
       </div>
 
@@ -256,8 +231,8 @@ export default function CreateSavedField() {
         <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:border-gray-800 dark:bg-gray-900">
           <div className="mb-8 flex items-center justify-between">
             <div>
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white">Field Company</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Basic identification and display labels</p>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">{t('fieldConfiguration', 'savedFields')}</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">{t('fieldConfigurationDesc', 'savedFields')}</p>
             </div>
             <div className="rounded-2xl bg-brand-50 p-3 text-brand-600 dark:bg-brand-500/10">
               <svg className="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -269,22 +244,22 @@ export default function CreateSavedField() {
           <div className="space-y-8">
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="labelEn" required>Display Label (EN)</Label>
+                <Label htmlFor="labelEn" required>{t('displayLabelEn', 'savedFields')}</Label>
                 <Input
                   id="labelEn"
                   value={labelEn}
                   onChange={(e: any) => setLabelEn(e.target.value)}
-                  placeholder="e.g. Years of Experience"
+                  placeholder={t('labelEnPlaceholder', 'savedFields')}
                   required
                 />
               </div>
               <div className="space-y-2" dir="rtl">
-                <Label htmlFor="labelAr" required className="block w-full text-right">عنوان الحقل (بالعربية)</Label>
+                <Label htmlFor="labelAr" required className="block w-full text-right">{t('displayLabelAr', 'savedFields')}</Label>
                 <Input
                   id="labelAr"
                   value={labelAr}
                   onChange={(e: any) => setLabelAr(e.target.value)}
-                  placeholder="مثال: سنوات الخبرة"
+                  placeholder={t('labelArPlaceholder', 'savedFields')}
                   required
                   className="text-right"
                 />
@@ -295,31 +270,43 @@ export default function CreateSavedField() {
 
             <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
               <div className="space-y-3">
-                <Label>Input Behavior</Label>
+                <Label>{t('inputBehavior', 'savedFields')}</Label>
                 <div className="flex flex-col gap-4 rounded-2xl bg-gray-50/50 p-4 dark:bg-gray-800/30">
                   <div className="group/toggle relative">
                     <Switch 
                       checked={isRequired} 
                       onChange={(val: boolean) => setIsRequired(val)} 
-                      label="Required Field"
+                      label={t('requiredField', 'savedFields')}
                     />
                     <p className="ml-11 mt-1 text-[11px] text-gray-500 opacity-70 group-hover/toggle:opacity-100 transition-opacity">
-                      Applicants cannot submit the form without filling this field.
+                      {t('requiredHint', 'savedFields')}
                     </p>
                   </div>
                 </div>
               </div>
 
               <div className="space-y-3">
-                <Label htmlFor="inputType">Data Type</Label>
+                <Label htmlFor="inputType">{t('dataType', 'savedFields')}</Label>
                 <Select
-                  options={inputTypeOptions}
+                  options={[
+  { value: "text", label: t('typeText', 'savedFields') },
+  { value: "textarea", label: t('typeTextarea', 'savedFields') },
+  { value: "number", label: t('typeNumber', 'savedFields') },
+  { value: "email", label: t('typeEmail', 'savedFields') },
+  { value: "date", label: t('typeDate', 'savedFields') },
+  { value: "url", label: t('typeUrl', 'savedFields') },
+  { value: "checkbox", label: t('typeCheckbox', 'savedFields') },
+  { value: "radio", label: t('typeRadio', 'savedFields') },
+  { value: "dropdown", label: t('typeDropdown', 'savedFields') },
+  { value: "tags", label: t('typeTags', 'savedFields') },
+  { value: "repeatable_group", label: t('typeRepeatableGroup', 'savedFields') },
+]}
                   value={inputType}
                   onChange={(v: string) => setInputType(v)}
-                  placeholder="Select input type"
+                  placeholder={t('selectInputType', 'savedFields')}
                 />
                 <p className="text-[11px] text-gray-500 italic">
-                  Defines how the input will be rendered to the applicant.
+                  {t('dataTypeHint', 'savedFields')}
                 </p>
               </div>
             </div>
@@ -327,21 +314,21 @@ export default function CreateSavedField() {
             {inputType === "number" && (
               <div className="animate-in slide-in-from-top-2 flex gap-4 rounded-2xl border border-blue-100 bg-blue-50/30 p-4 dark:border-blue-900/30 dark:bg-blue-900/10">
                 <div className="flex-1 space-y-2">
-                  <Label>Minimum Allowed</Label>
+                  <Label>{t('minimumAllowed', 'savedFields')}</Label>
                   <Input 
                     type="number" 
                     value={minValue ?? ""} 
                     onChange={(e: any) => setMinValue(e.target.value ? Number(e.target.value) : undefined)} 
-                    placeholder="None"
+                    placeholder={t('nonePlaceholder', 'savedFields')}
                   />
                 </div>
                 <div className="flex-1 space-y-2">
-                  <Label>Maximum Allowed</Label>
+                  <Label>{t('maximumAllowed', 'savedFields')}</Label>
                   <Input 
                     type="number" 
                     value={maxValue ?? ""} 
                     onChange={(e: any) => setMaxValue(e.target.value ? Number(e.target.value) : undefined)} 
-                    placeholder="None"
+                    placeholder={t('nonePlaceholder', 'savedFields')}
                   />
                 </div>
               </div>
@@ -353,8 +340,8 @@ export default function CreateSavedField() {
           <div className="animate-in fade-in slide-in-from-bottom-4 group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:border-gray-800 dark:bg-gray-900">
             <div className="mb-6 flex items-center justify-between">
               <div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white">Options & Choices</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Manage the available selections for this field</p>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">{t('optionsChoices', 'savedFields')}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{t('optionsChoicesDesc', 'savedFields')}</p>
               </div>
               <div className="rounded-2xl bg-amber-50 p-3 text-amber-600 dark:bg-amber-500/10">
                 <svg className="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -367,18 +354,18 @@ export default function CreateSavedField() {
               <div className="rounded-2xl bg-gray-50 p-5 dark:bg-gray-800/50">
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label>New Choice (EN)</Label>
+                    <Label>{t('newChoiceEn', 'savedFields')}</Label>
                     <Input 
-                      placeholder="e.g. Beginner" 
+                      placeholder={t('newChoiceEnPlaceholder', 'savedFields')} 
                       value={newChoiceEn} 
                       onChange={(e: any) => setNewChoiceEn(e.target.value)} 
                       onKeyDown={(e: any) => { if (e.key === "Enter") { e.preventDefault(); addChoice(); } }} 
                     />
                   </div>
                   <div className="space-y-2" dir="rtl">
-                    <Label className="block w-full text-right">خيار جديد (بالعربية)</Label>
+                    <Label className="block w-full text-right">{t('newChoiceAr', 'savedFields')}</Label>
                     <Input 
-                      placeholder="مثال: مبتدئ" 
+                      placeholder={t('newChoiceArPlaceholder', 'savedFields')} 
                       value={newChoiceAr} 
                       onChange={(e: any) => setNewChoiceAr(e.target.value)} 
                       onKeyDown={(e: any) => { if (e.key === "Enter") { e.preventDefault(); addChoice(); } }}
@@ -393,7 +380,7 @@ export default function CreateSavedField() {
                     className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-brand-500/20 transition-all hover:bg-brand-600 hover:shadow-brand-500/40 active:scale-95"
                   >
                     <PlusIcon className="size-4" />
-                    Append Choice
+                    {t('appendChoice', 'savedFields')}
                   </button>
                 </div>
               </div>
@@ -427,14 +414,14 @@ export default function CreateSavedField() {
                             onClick={handleUpdateChoice} 
                             className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400"
                           >
-                            <CheckCircleIcon className="size-3" /> Save
+                            <CheckCircleIcon className="size-3" /> {t('saveChoice', 'savedFields')}
                           </button>
                           <button 
                             type="button" 
                             onClick={handleCancelEditChoice}
                             className="text-xs font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                           >
-                            Cancel
+                            {t('cancelChoice', 'savedFields')}
                           </button>
                         </div>
                       </div>
@@ -473,8 +460,8 @@ export default function CreateSavedField() {
           <div className="animate-in fade-in slide-in-from-bottom-4 group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:border-gray-800 dark:bg-gray-900">
             <div className="mb-8 flex items-center justify-between">
               <div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white">Nested Fields Configuration</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Define the schema for the repeatable group</p>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">{t('nestedFieldsConfig', 'savedFields')}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{t('nestedFieldsConfigDesc', 'savedFields')}</p>
               </div>
               <div className="rounded-2xl bg-indigo-50 p-3 text-indigo-600 dark:bg-indigo-500/10">
                 <svg className="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -507,7 +494,7 @@ export default function CreateSavedField() {
                       </div>
                       <div>
                         <span className="font-semibold text-gray-900 dark:text-white">
-                          {(typeof sf.label === "string" ? sf.label : sf.label?.en) || `Untitled Field ${idx + 1}`}
+                          {(typeof sf.label === "string" ? sf.label : sf.label?.en) || t('untitledSubField', 'savedFields', { index: idx + 1 })}
                         </span>
                         <span className="ml-2 rounded-md bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:bg-gray-800">
                           {sf.inputType}
@@ -536,18 +523,18 @@ export default function CreateSavedField() {
                       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                         <div className="space-y-4">
                           <div className="space-y-2">
-                            <Label>Label (EN)</Label>
+                            <Label>{t('labelEn', 'savedFields')}</Label>
                             <Input
                               value={typeof sf.label === "string" ? sf.label : (sf.label?.en || "")}
                               onChange={(e: any) => {
                                 const base = typeof sf.label === "string" ? { en: sf.label } : (sf.label || {});
                                 updateSubField(idx, { label: { ...base, en: e.target.value } });
                               }}
-                              placeholder="e.g. Skill Name"
+                              placeholder={t('labelEnPlaceholder', 'savedFields')}
                             />
                           </div>
                           <div className="space-y-2" dir="rtl">
-                            <Label className="block w-full text-right">عنوان الحقل (بالعربية)</Label>
+                            <Label className="block w-full text-right">{t('labelAr', 'savedFields')}</Label>
                             <Input
                               value={typeof sf.label === "string" ? "" : (sf.label?.ar ?? "")}
                               onChange={(e: any) => {
@@ -560,16 +547,27 @@ export default function CreateSavedField() {
                         </div>
                         <div className="space-y-4">
                           <div className="space-y-2">
-                            <Label>Field Type</Label>
+                            <Label>{t('fieldType', 'savedFields')}</Label>
                             <Select
-                              options={subFieldTypeOptions}
+                              options={[
+  { value: "text", label: t('typeText', 'savedFields') },
+  { value: "textarea", label: t('typeTextarea', 'savedFields') },
+  { value: "number", label: t('typeNumber', 'savedFields') },
+  { value: "email", label: t('typeEmail', 'savedFields') },
+  { value: "date", label: t('typeDate', 'savedFields') },
+  { value: "url", label: t('typeUrl', 'savedFields') },
+  { value: "checkbox", label: t('typeCheckbox', 'savedFields') },
+  { value: "radio", label: t('typeRadio', 'savedFields') },
+  { value: "dropdown", label: t('typeDropdown', 'savedFields') },
+  { value: "tags", label: t('typeTags', 'savedFields') },
+]}
                               value={sf.inputType}
                               onChange={(v: string) => updateSubField(idx, { inputType: v })}
                             />
                           </div>
                           <div className="pt-4">
                             <Switch 
-                              label="Is Required"
+                              label={t('isRequired', 'savedFields')}
                               checked={!!sf.isRequired}
                               onChange={(val) => updateSubField(idx, { isRequired: val })}
                             />
@@ -579,17 +577,17 @@ export default function CreateSavedField() {
 
                       {(sf.inputType === "radio" || sf.inputType === "dropdown" || sf.inputType === "checkbox") && (
                         <div className="mt-8 rounded-2xl bg-gray-50/50 p-4 dark:bg-gray-800/20">
-                          <Label className="mb-4 block text-xs font-bold uppercase tracking-widest text-gray-400">Option Management</Label>
+                          <Label className="mb-4 block text-xs font-bold uppercase tracking-widest text-gray-400">{t('optionManagement', 'savedFields')}</Label>
                           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                             <Input 
-                              placeholder="Choice (EN)" 
+                              placeholder={t('choiceEnPlaceholder', 'savedFields')} 
                               value={sf._newChoiceEn || ""} 
                               onChange={(e: any) => updateSubField(idx, { _newChoiceEn: e.target.value })} 
                               onKeyDown={(e: any) => { if (e.key === "Enter") { e.preventDefault(); const en = (sf._newChoiceEn || "").trim(); const ar = (sf._newChoiceAr || "").trim(); if (!en || !ar) return; const nextChoices = (sf.choices || []).concat([{ en, ar }]); updateSubField(idx, { choices: nextChoices, _newChoiceEn: "", _newChoiceAr: "" }); } }} 
                               className="bg-white dark:bg-gray-900"
                             />
                             <Input 
-                              placeholder="Choice (AR)" 
+                              placeholder={t('choiceArPlaceholder', 'savedFields')} 
                               value={sf._newChoiceAr || ""} 
                               onChange={(e: any) => updateSubField(idx, { _newChoiceAr: e.target.value })} 
                               onKeyDown={(e: any) => { if (e.key === "Enter") { e.preventDefault(); const en = (sf._newChoiceEn || "").trim(); const ar = (sf._newChoiceAr || "").trim(); if (!en || !ar) return; const nextChoices = (sf.choices || []).concat([{ en, ar }]); updateSubField(idx, { choices: nextChoices, _newChoiceEn: "", _newChoiceAr: "" }); } }} 
@@ -607,7 +605,7 @@ export default function CreateSavedField() {
                             }} 
                             className="mt-3 inline-flex items-center gap-1.5 text-sm font-bold text-brand-600 hover:text-brand-700 dark:text-brand-400"
                           >
-                            <PlusIcon className="size-4" /> Add Sub-option
+                            <PlusIcon className="size-4" /> {t('addSubOption', 'savedFields')}
                           </button>
 
                           <div className="mt-4 flex flex-wrap gap-2">
@@ -635,12 +633,12 @@ export default function CreateSavedField() {
                       { sf.inputType === "number" && (
                         <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
                           <div className="space-y-2">
-                            <Label>Min Value</Label>
-                            <Input type="number" value={sf.minValue ?? ""} onChange={(e: any) => updateSubField(idx, { minValue: e.target.value ? Number(e.target.value) : undefined })} placeholder="None" />
+                            <Label>{t('minValue', 'savedFields')}</Label>
+                            <Input type="number" value={sf.minValue ?? ""} onChange={(e: any) => updateSubField(idx, { minValue: e.target.value ? Number(e.target.value) : undefined })} placeholder={t('nonePlaceholder', 'savedFields')} />
                           </div>
                           <div className="space-y-2">
-                            <Label>Max Value</Label>
-                            <Input type="number" value={sf.maxValue ?? ""} onChange={(e: any) => updateSubField(idx, { maxValue: e.target.value ? Number(e.target.value) : undefined })} placeholder="None" />
+                            <Label>{t('maxValue', 'savedFields')}</Label>
+                            <Input type="number" value={sf.maxValue ?? ""} onChange={(e: any) => updateSubField(idx, { maxValue: e.target.value ? Number(e.target.value) : undefined })} placeholder={t('nonePlaceholder', 'savedFields')} />
                           </div>
                         </div>
                       )}
@@ -655,7 +653,7 @@ export default function CreateSavedField() {
                 className="flex i w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-gray-200 py-6 text-sm font-bold text-gray-500 transition-all hover:border-brand-300 hover:bg-brand-50/30 hover:text-brand-600 dark:border-gray-800 dark:hover:border-brand-800/50 dark:hover:bg-brand-500/5"
               >
                 <PlusIcon className="size-5" />
-                Add Group Field
+                {t('addGroupField', 'savedFields')}
               </button>
             </div>
           </div>
@@ -667,14 +665,14 @@ export default function CreateSavedField() {
             onClick={() => navigate(-1)}
             className="rounded-2xl bg-white/80 px-8 py-3 text-sm font-bold text-gray-700 shadow-lg backdrop-blur-md transition-all hover:bg-gray-50 dark:bg-gray-900/80 dark:text-gray-300 dark:hover:bg-gray-800"
           >
-            Cancel
+            {t('cancelButton', 'savedFields')}
           </button>
           <button
             type="submit"
             disabled={createMutation.isPending || updateMutation.isPending}
             className="flex items-center gap-2 rounded-2xl bg-brand-500 px-10 py-3 text-sm font-bold text-white shadow-xl shadow-brand-500/25 transition-all hover:bg-brand-600 hover:shadow-brand-500/40 active:scale-95 disabled:opacity-50"
           >
-            {createMutation.isPending || updateMutation.isPending ? "Saving..." : (editingField ? "Update Field" : "Save Field")}
+            {createMutation.isPending || updateMutation.isPending ? t('savingButton', 'savedFields') : (editingField ? t('updateFieldButton', 'savedFields') : t('saveFieldButton', 'savedFields'))}
           </button>
         </div>
       </form>

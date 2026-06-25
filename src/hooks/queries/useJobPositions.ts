@@ -9,6 +9,7 @@ import type {
 } from "../../types/jobPositions";
 import { ApiError } from "../../services/companiesService";
 import Swal from "../../utils/swal";
+import { useLocale } from "../../context/LocaleContext";
 
 // Query keys
 export const jobPositionsKeys = {
@@ -107,6 +108,7 @@ export function useJobPositionApplicants(id: string) {
 // Create job position
 export function useCreateJobPosition() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: (data: CreateJobPositionRequest) =>
@@ -121,10 +123,10 @@ export function useCreateJobPosition() {
       // Invalidate lists to ensure consistency
       queryClient.invalidateQueries({ queryKey: jobPositionsKeys.lists() });
       
-      showSuccessToast("Job position created successfully");
+      showSuccessToast(t('jobPositionCreated', 'common'), t);
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, "Failed to create job position");
+      showErrorToast(error.message, t('jobPositionCreateFailed', 'common'), t);
     },
   });
 }
@@ -132,6 +134,7 @@ export function useCreateJobPosition() {
 // Update job position
 export function useUpdateJobPosition() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateJobPositionRequest }) =>
@@ -146,10 +149,10 @@ export function useUpdateJobPosition() {
         return old.map(job => job._id === id ? updatedJob : job);
       });
       
-      showSuccessToast("Job position updated successfully");
+      showSuccessToast(t('jobPositionUpdated', 'common'), t);
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, "Failed to update job position");
+      showErrorToast(error.message, t('jobPositionUpdateFailed', 'common'), t);
     },
   });
 }
@@ -157,6 +160,7 @@ export function useUpdateJobPosition() {
 // Delete job position
 export function useDeleteJobPosition() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: (id: string) => jobPositionsService.deleteJobPosition(id),
@@ -170,10 +174,10 @@ export function useDeleteJobPosition() {
       // Remove detail cache
       queryClient.removeQueries({ queryKey: jobPositionsKeys.detail(id) });
       
-      showSuccessToast("Job position deleted successfully");
+      showSuccessToast(t('jobPositionDeleted', 'common'), t);
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, "Failed to delete job position");
+      showErrorToast(error.message, t('jobPositionDeleteFailed', 'common'), t);
     },
   });
 }
@@ -181,6 +185,7 @@ export function useDeleteJobPosition() {
 // Clone job position
 export function useCloneJobPosition() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: (id: string) => jobPositionsService.cloneJobPosition(id),
@@ -194,10 +199,10 @@ export function useCloneJobPosition() {
       // Invalidate lists to ensure consistency
       queryClient.invalidateQueries({ queryKey: jobPositionsKeys.lists() });
       
-      showSuccessToast("Job position cloned successfully");
+      showSuccessToast(t('jobPositionCloned', 'common'), t);
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, "Failed to clone job position");
+      showErrorToast(error.message, t('jobPositionCloneFailed', 'common'), t);
     },
   });
 }
@@ -205,6 +210,7 @@ export function useCloneJobPosition() {
 // Reorder job positions
 export function useReorderJobPositions() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: ({ 
@@ -217,18 +223,18 @@ export function useReorderJobPositions() {
     onSuccess: () => {
       // Invalidate lists to refresh order
       queryClient.invalidateQueries({ queryKey: jobPositionsKeys.lists() });
-      showSuccessToast("Job positions reordered successfully");
+      showSuccessToast(t('jobPositionsReordered', 'common'), t);
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, "Failed to reorder job positions");
+      showErrorToast(error.message, t('jobPositionsReorderFailed', 'common'), t);
     },
   });
 }
 
 // ===== Toast Helpers =====
-function showSuccessToast(message: string) {
+function showSuccessToast(message: string, t: (key: string, ns?: string) => string) {
   Swal.fire({
-    title: "Success",
+    title: t('success', 'common'),
     text: message,
     icon: "success",
     timer: 1500,
@@ -236,9 +242,9 @@ function showSuccessToast(message: string) {
   });
 }
 
-function showErrorToast(message: string, fallback: string) {
+function showErrorToast(message: string, fallback: string, t: (key: string, ns?: string) => string) {
   Swal.fire({
-    title: "Error",
+    title: t('error', 'common'),
     text: message || fallback,
     icon: "error",
   });

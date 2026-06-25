@@ -19,7 +19,7 @@ export default function UserDropdown({ compact }: { compact?: boolean } = {}) {
     <div className="relative">
       <button
         onClick={toggleDropdown}
-        className="flex items-center lg:mr-12 h-full text-gray-700 dropdown-toggle dark:text-gray-400"
+        className="flex items-center h-full text-gray-700 dropdown-toggle dark:text-gray-400"
       >
         <span className={`${compact ? 'mr-2' : 'mr-3'} overflow-hidden rounded-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 self-center ${compact ? 'h-8 w-8' : 'h-11 w-11'}`}>
           <svg

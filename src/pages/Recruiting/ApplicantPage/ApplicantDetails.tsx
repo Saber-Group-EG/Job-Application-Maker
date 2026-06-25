@@ -10,6 +10,7 @@ import InterviewQuestions from './components/InterviewData/InterviewQuestions';
 import History from './components/history/History';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import Swal from '../../../utils/swal';
+import { useLocale } from '../../../context/LocaleContext';
 import {
   useApplicant,
   useUpdateApplicant,
@@ -319,6 +320,7 @@ const Stickysidebar: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 const ApplicantDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { t } = useLocale();
 
   const { data: applicant, isLoading: isApplicantLoading, isFetching: isApplicantFetching, isError, error, refetch } = useApplicant(id || '');
   const updateApplicant = useUpdateApplicant();
@@ -484,7 +486,7 @@ const ApplicantDetails: React.FC = () => {
   const [phoneOption, setPhoneOption] = useState<'company' | 'user' | 'whatsapp' | 'custom'>('company');
   const [customPhone, setCustomPhone] = useState('');
   const [messageTemplate, setMessageTemplate] = useState('');
-  const [interviewEmailSubject, setInterviewEmailSubject] = useState('Interview Invitation');
+  const [interviewEmailSubject, setInterviewEmailSubject] = useState(t('interviewInvitation', 'applicantDetails'));
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
   const [showJobOfferModal, setShowJobOfferModal] = useState(false);
@@ -532,7 +534,7 @@ const ApplicantDetails: React.FC = () => {
   }): string => {
     const { subject, rawMessage, applicantName, jobTitle, interviewDate, interviewTime, interviewType, interviewLocation, interviewAddress } = opts;
     const replacements: Record<string, string> = {
-      '{{candidateName}}': applicantName || 'Candidate',
+      '{{candidateName}}': applicantName || t('candidate', 'applicantDetails'),
       '{{jobTitle}}': jobTitle || '',
       '{{InterviewDate}}': interviewDate || '',
       '{{interviewTime}}': interviewTime || '',
@@ -583,19 +585,29 @@ const ApplicantDetails: React.FC = () => {
       if (!applicant || !id) return;
       const toEmail = (applicant as { email?: string }).email;
       if (!toEmail) {
-        await Swal.fire({ title: 'Email Skipped', text: 'Interview scheduled, but the applicant has no email address on file.', icon: 'warning', confirmButtonColor: '#3085d6' });
+        await Swal.fire({
+          title: t('emailSkipped', 'common'),
+          text: t('emailSkippedNoEmail', 'applicants'),
+          icon: 'warning',
+          confirmButtonColor: '#3085d6',
+        });
         return;
       }
       const fromEmail = resolveSenderEmail(companyWithAddress as never, snapshot.customEmail);
       if (!fromEmail) {
-        await Swal.fire({ title: 'Email Skipped', text: 'Interview scheduled, but no sender email is configured for this company.', icon: 'warning', confirmButtonColor: '#3085d6' });
+        await Swal.fire({
+          title: t('emailSkipped', 'common'),
+          text: t('emailSkippedNoSender', 'applicants'),
+          icon: 'warning',
+          confirmButtonColor: '#3085d6',
+        });
         return;
       }
       const jobTitle = getJobTitle().en || '';
-      const applicantName = (applicant as { fullName?: string }).fullName || 'Candidate';
-      const typeLabel = (snapshot.interviewType || '') === 'in-person' ? 'In-person'
+      const applicantName = (applicant as { fullName?: string }).fullName || t('candidate', 'applicantDetails');
+      const typeLabel = (snapshot.interviewType || '') === 'in-person' ? t('inPerson', 'applicantDetails')
         : (snapshot.interviewType || '').charAt(0).toUpperCase() + (snapshot.interviewType || '').slice(1);
-      const subjectBase = snapshot.subject || 'Interview Invitation';
+      const subjectBase = snapshot.subject || t('interviewInvitation', 'applicantDetails');
       const processedSubject = subjectBase
         .replace(/\{\{\s*candidateName\s*\}\}/gi, applicantName)
         .replace(/\{\{\s*(?:position|jobTitle)\s*\}\}/gi, jobTitle)
@@ -616,7 +628,12 @@ const ApplicantDetails: React.FC = () => {
         try { await sendMessageMutation.mutateAsync({ id, data: { type: 'email', content: snapshot.template || '' } }); } catch { /* non-critical */ }
       } catch (mailErr) {
         const msg = getErrorMessage(mailErr);
-        await Swal.fire({ title: 'Interview Scheduled', text: `The interview was scheduled, but the notification email failed: ${msg}`, icon: 'warning', confirmButtonColor: '#3085d6' });
+        await Swal.fire({
+          title: t('interviewScheduled', 'common'),
+          text: t('interviewScheduledEmailFailed', 'applicants', { msg }),
+          icon: 'warning',
+          confirmButtonColor: '#3085d6',
+        });
         setInterviewError(`Interview scheduled, but email failed: ${msg}`);
       }
     },
@@ -664,7 +681,7 @@ const ApplicantDetails: React.FC = () => {
       setInterviewForm({ date: '', time: '', description: '', comment: '', location: '', link: '', type: 'phone' });
       setNotificationChannels({ email: true, sms: false, whatsapp: false });
       setEmailOption('company'); setCustomEmail(''); setPhoneOption('company'); setCustomPhone('');
-      setMessageTemplate(''); setInterviewEmailSubject('Interview Invitation');
+      setMessageTemplate(''); setInterviewEmailSubject(t('interviewInvitation', 'applicantDetails'));
       setFormResetKey((prev) => prev + 1);
       setShowScheduleModal(false);
       setActiveTab('interview');
@@ -679,7 +696,7 @@ const ApplicantDetails: React.FC = () => {
 
   const handleStatusSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!id || !statusForm.status) { setStatusError('Please select a status before submitting.'); return; }
+    if (!id || !statusForm.status) { setStatusError(t('selectStatus', 'applicants')); return; }
     try {
       const payload: { status: string; notes?: string; reasons?: string[] } = { status: statusForm.status };
       if (statusForm.notes && statusForm.notes.trim()) payload.notes = statusForm.notes.trim();
@@ -691,7 +708,7 @@ const ApplicantDetails: React.FC = () => {
 
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!commentForm.text.trim() || !id) { setCommentError('Please enter a comment.'); return; }
+    if (!commentForm.text.trim() || !id) { setCommentError(t('enterComment', 'applicantDetails')); return; }
     try {
       await addComment.mutateAsync({ id, data: { comment: commentForm.text.trim() } });
       setCommentForm({ text: '' }); setCommentError(''); setShowCommentModal(false);
@@ -829,14 +846,14 @@ const ApplicantDetails: React.FC = () => {
   const handleDelete = async () => {
     if (!id) return;
     const result = await Swal.fire({
-      title: 'Move applicant to trash?',
-      text: 'You can restore it later.',
+      title: t('deleteApplicantTitle', 'applicants'),
+      text: t('actionCannotBeUndone', 'common'),
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#dc2626',
       cancelButtonColor: '#6b7280',
-      confirmButtonText: 'Trash',
-      cancelButtonText: 'Cancel',
+      confirmButtonText: t('delete', 'common'),
+      cancelButtonText: t('cancel', 'common'),
     });
     if (!result.isConfirmed) return;
     try {
@@ -851,14 +868,14 @@ const ApplicantDetails: React.FC = () => {
     if (!id || !applicant) return;
     const prevStatus = getPreviousStatus(applicant);
     const result = await Swal.fire({
-      title: 'Restore applicant?',
-      text: `This will restore the applicant to "${prevStatus}" status.`,
+      title: t('restoreTitle', 'applicants'),
+      text: t('restoreText', 'applicants', { status: prevStatus }),
       icon: 'question',
       showCancelButton: true,
       confirmButtonColor: '#22c55e',
       cancelButtonColor: '#6b7280',
-      confirmButtonText: 'Restore',
-      cancelButtonText: 'Cancel',
+      confirmButtonText: t('restore', 'common'),
+      cancelButtonText: t('cancel', 'common'),
     });
     if (!result.isConfirmed) return;
     try {
@@ -870,13 +887,25 @@ const ApplicantDetails: React.FC = () => {
 
   const handlePrint = useCallback(async () => {
     if (!applicant) return;
-    Swal.fire({ title: 'Generating PDF', text: 'Please wait while the applicant profile is being generated...', allowOutsideClick: false, allowEscapeKey: false, showConfirmButton: false, didOpen: () => Swal.showLoading() });
+    Swal.fire({
+      title: t('generatingPdf', 'common'),
+      text: t('generatingPdfDesc', 'common'),
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      showConfirmButton: false,
+      didOpen: () => Swal.showLoading(),
+    });
     try {
       await generateApplicantPdf(applicant, sections, jobSpecItems, fetchedJobPosition, companyWithAddress);
       Swal.close();
     } catch {
       Swal.close();
-      await Swal.fire({ title: 'Error', text: 'Failed to generate the PDF. Please try again.', icon: 'error', confirmButtonColor: '#3085d6' });
+      await Swal.fire({
+        title: t('error', 'common'),
+        text: t('pdfGenerationFailed', 'common'),
+        icon: 'error',
+        confirmButtonColor: '#3085d6',
+      });
     }
   }, [applicant, sections, jobSpecItems, fetchedJobPosition, companyWithAddress]);
 
@@ -901,13 +930,13 @@ const ApplicantDetails: React.FC = () => {
     return (
       <div className="bg-gray-50 min-h-screen p-6">
         <div className="max-w-3xl mx-auto bg-white rounded-lg shadow-sm border border-gray-100 p-8 text-center">
-          <h2 className="text-lg font-semibold text-gray-800 mb-2">Applicant not found</h2>
+          <h2 className="text-lg font-semibold text-gray-800 mb-2">{t('applicantNotFound', 'applicantDetails')}</h2>
           <p className="text-sm text-gray-500 mb-4">
-            {(error as { message?: string } | null | undefined)?.message || 'We could not load this applicant.'}
+            {(error as { message?: string } | null | undefined)?.message || t('couldNotLoadApplicant', 'applicantDetails')}
           </p>
           <div className="flex justify-center gap-3">
-            <button onClick={() => refetch()} className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">Retry</button>
-            <button onClick={() => navigate(paths.applicants.root)} className="px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700">Back to list</button>
+            <button onClick={() => refetch()} className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">{t('retry', 'applicantDetails')}</button>
+            <button onClick={() => navigate(paths.applicants.root)} className="px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700">{t('backToList', 'applicantDetails')}</button>
           </div>
         </div>
       </div>
@@ -916,9 +945,9 @@ const ApplicantDetails: React.FC = () => {
 
   const tabBar = (
     <div className="flex overflow-x-auto overflow-y-hidden">
-      <button onClick={() => setActiveTab('details')} className={`px-4 lg:px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${activeTab === 'details' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>Details</button>
-      <button onClick={() => setActiveTab('history')} className={`px-4 lg:px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${activeTab === 'history' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>History</button>
-      <button onClick={() => setActiveTab('interview')} className={`px-4 lg:px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${activeTab === 'interview' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>Interview Questions</button>
+      <button onClick={() => setActiveTab('details')} className={`px-4 lg:px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${activeTab === 'details' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>{t('detailsTab', 'applicantDetails')}</button>
+      <button onClick={() => setActiveTab('history')} className={`px-4 lg:px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${activeTab === 'history' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>{t('historyTab', 'applicantDetails')}</button>
+      <button onClick={() => setActiveTab('interview')} className={`px-4 lg:px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${activeTab === 'interview' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>{t('interviewQuestionsTab', 'applicantDetails')}</button>
     </div>
   );
 
@@ -944,16 +973,16 @@ const ApplicantDetails: React.FC = () => {
         <StickyTopBar>
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between py-3 gap-2">
             <div className="flex items-center gap-2 text-sm text-gray-500">
-              <span onClick={() => navigate(paths.applicants.root)} className="hover:text-gray-700 cursor-pointer">Applicants</span>
+              <span onClick={() => navigate(paths.applicants.root)} className="hover:text-gray-700 cursor-pointer">{t('pageTitle', 'applicants')}</span>
               <span>-›</span>
-              <span className="text-gray-800 font-medium">{applicant.fullName || 'Applicant Details'}</span>
+              <span className="text-gray-800 font-medium">{applicant.fullName || t('applicantDetails', 'applicantDetails')}</span>
             </div>
             <div className="flex flex-wrap gap-2 justify-end">
-              <button onClick={() => setShowStatusModal(true)} className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors">Change Status</button>
+              <button onClick={() => setShowStatusModal(true)} className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors">{t('changeStatus', 'applicants')}</button>
 
-              <button onClick={handleEdit} className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors">{isEditing ? 'Save' : 'Edit'}</button>
-              {isEditing && <button onClick={handleCancel} className="px-3 py-1.5 bg-gray-600 text-white text-xs font-medium rounded-lg hover:bg-gray-700 transition-colors">Cancel</button>}
-              <button onClick={handleDelete} className="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition-colors">Delete</button>
+              <button onClick={handleEdit} className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors">{isEditing ? t('save', 'applicantDetails') : t('edit', 'applicantDetails')}</button>
+              {isEditing && <button onClick={handleCancel} className="px-3 py-1.5 bg-gray-600 text-white text-xs font-medium rounded-lg hover:bg-gray-700 transition-colors">{t('cancel', 'common')}</button>}
+              <button onClick={handleDelete} className="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition-colors">{t('delete', 'common')}</button>
             </div>
           </div>
         </StickyTopBar>
@@ -986,7 +1015,7 @@ const ApplicantDetails: React.FC = () => {
                     ref={commentTextareaRef}
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
-                    placeholder="Write a thoughtful comment..."
+                    placeholder={t('writeCommentPlaceholder', 'applicantDetails')}
                     className="w-full block px-4 py-3 pr-12 text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 resize-none transition-all duration-200 placeholder:text-gray-400 min-h-[44px]"
                     rows={1}
                     style={{ height: 'auto', overflow: 'hidden', scrollbarWidth: 'none', msOverflowStyle: 'none' }}
@@ -1075,12 +1104,12 @@ const ApplicantDetails: React.FC = () => {
       />
       <Modal isOpen={showPreviewModal} onClose={() => { setShowPreviewModal(false); setPreviewHtml(''); }} className="max-w-2xl p-6">
         <div className="space-y-4">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Email Preview</h2>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t('emailPreview', 'applicantDetails')}</h2>
           <div className="border rounded p-4 bg-white dark:bg-gray-800" style={{ maxHeight: '70vh', overflow: 'auto' }}>
             <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
           </div>
           <div className="flex justify-end">
-            <button type="button" onClick={() => { setShowPreviewModal(false); setPreviewHtml(''); }} className="rounded-lg bg-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-300">Close</button>
+            <button type="button" onClick={() => { setShowPreviewModal(false); setPreviewHtml(''); }} className="rounded-lg bg-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-300">{t('close', 'common')}</button>
           </div>
         </div>
       </Modal>

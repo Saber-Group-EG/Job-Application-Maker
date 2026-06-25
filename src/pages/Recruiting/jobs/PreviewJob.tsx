@@ -1,4 +1,5 @@
 ﻿import { useMemo, useState, useEffect } from "react";
+import { useLocale } from '../../../context/LocaleContext';
 import Swal from '../../../utils/swal';
 import { useParams, useNavigate, useLocation } from "react-router";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
@@ -24,8 +25,8 @@ import {
 import { toPlainString } from "../../../utils/strings";
 
 // Helper to handle multilingual objects or strings and always return plain text
-const getTranslation = (value: any, defaultValue = ""): string => {
-  const plain = toPlainString(value);
+const getTranslation = (value: any, defaultValue = "", locale?: string): string => {
+  const plain = toPlainString(value, locale);
   return plain || defaultValue;
 };
 
@@ -45,18 +46,6 @@ type FieldConfig = {
   cvFilePath: FieldConfigRule;
   expectedSalary: FieldConfigRule;
 };
-
-const previewFieldConfigItems: Array<{ key: keyof FieldConfig; label: string }> = [
-  { key: "fullName", label: "Full Name" },
-  { key: "email", label: "Email" },
-  { key: "phone", label: "Phone" },
-  { key: "gender", label: "Gender" },
-  { key: "birthDate", label: "Birth Date" },
-  { key: "address", label: "Address" },
-  { key: "profilePhoto", label: "Profile Photo" },
-  { key: "cvFilePath", label: "CV Upload" },
-  { key: "expectedSalary", label: "Expected Salary" },
-];
 
 const getDefaultFieldConfig = (): FieldConfig => ({
   fullName: { visible: true, required: true },
@@ -157,6 +146,20 @@ export default function PreviewJob() {
     [job]
   );
 
+  const { t, locale } = useLocale();
+
+  const previewFieldConfigItems: Array<{ key: keyof FieldConfig; label: string }> = [
+    { key: "fullName", label: t('previewFieldFullName', 'jobs') },
+    { key: "email", label: t('previewFieldEmail', 'jobs') },
+    { key: "phone", label: t('previewFieldPhone', 'jobs') },
+    { key: "gender", label: t('previewFieldGender', 'jobs') },
+    { key: "birthDate", label: t('previewFieldBirthDate', 'jobs') },
+    { key: "address", label: t('previewFieldAddress', 'jobs') },
+    { key: "profilePhoto", label: t('previewFieldPhoto', 'jobs') },
+    { key: "cvFilePath", label: t('previewFieldCv', 'jobs') },
+    { key: "expectedSalary", label: t('previewFieldSalary', 'jobs') },
+  ];
+
   const visibleBaseFieldCount = useMemo(
     () => previewFieldConfigItems.filter((item) => normalizedFieldConfig[item.key].visible).length,
     [normalizedFieldConfig]
@@ -208,11 +211,11 @@ export default function PreviewJob() {
     }
     const formatRelative = (d: Date) => {
       const diffSec = Math.floor((Date.now() - d.getTime()) / 1000);
-      if (diffSec < 60) return "just now";
+      if (diffSec < 60) return t('previewJustNow', 'jobs');
       const mins = Math.floor(diffSec / 60);
-      if (mins < 60) return `${mins}m ago`;
+      if (mins < 60) return t('previewMinAgo', 'jobs', { mins });
       const hours = Math.floor(mins / 60);
-      if (hours < 24) return `${hours}h ago`;
+      if (hours < 24) return t('previewHourAgo', 'jobs', { hours });
       return d.toLocaleDateString();
     };
 
@@ -236,7 +239,7 @@ export default function PreviewJob() {
       if (Array.isArray(errors)) return errors.map((e: any) => e.msg || e.message).join(", ");
       if (typeof errors === "object") return Object.entries(errors).map(([field, msg]: [string, any]) => `${field}: ${msg}`).join(", ");
     }
-    return err.response?.data?.message || err.message || "An unexpected error occurred";
+    return err.response?.data?.message || err.message || t('previewErrorFallback', 'jobs');
   };
 
   const handleEdit = () => {
@@ -260,21 +263,21 @@ export default function PreviewJob() {
   const handleDelete = async () => {
     if (!jobId) return;
     const result = await Swal.fire({
-      title: "Delete Job?",
-      text: "Are you sure you want to delete this job?",
+      title: t('previewDeleteTitle', 'jobs'),
+      text: t('previewDeleteText', 'jobs'),
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#EF4444",
       cancelButtonColor: "#6B7280",
-      confirmButtonText: "Yes, delete it!",
+      confirmButtonText: t('previewDeleteConfirm', 'jobs'),
     });
     if (!result.isConfirmed) return;
     try {
       setIsDeletingJob(true);
       await deleteJobMutation.mutateAsync(jobId);
       await Swal.fire({
-        title: "Deleted!",
-        text: "Job has been deleted successfully.",
+        title: t('previewDeletedTitle', 'jobs'),
+        text: t('previewDeletedText', 'jobs'),
         icon: "success",
         position: "center",
         timer: 1500,
@@ -283,7 +286,7 @@ export default function PreviewJob() {
       navigate("/jobs");
     } catch (err) {
       Swal.fire({
-        title: "Error",
+        title: t('previewErrorTitle', 'jobs'),
         text: getErrorMessage(err),
         icon: "error",
       });
@@ -293,7 +296,7 @@ export default function PreviewJob() {
   };
 
   const formatDate = (dateString?: string) => {
-    if (!dateString) return "N/A";
+    if (!dateString) return t('previewNa', 'jobs');
     return new Date(dateString).toLocaleDateString("en-US", {
       year: "numeric",
       month: "short",
@@ -302,38 +305,38 @@ export default function PreviewJob() {
   };
 
   const formatEmploymentType = (val: any) => {
-    if (!val) return "N/A";
+    if (!val) return t('previewNa', 'jobs');
     const s = String(val).toLowerCase();
-    if (s.includes("full")) return "Full-time";
-    if (s.includes("part")) return "Part-time";
-    if (s.includes("contract")) return "Contract";
-    if (s.includes("intern")) return "Internship";
+    if (s.includes("full")) return t('createFullTime', 'jobs');
+    if (s.includes("part")) return t('createPartTime', 'jobs');
+    if (s.includes("contract")) return t('createContract', 'jobs');
+    if (s.includes("intern")) return t('createInternship', 'jobs');
     return String(val).charAt(0).toUpperCase() + String(val).slice(1);
   };
 
   const formatInputType = (type: string) => {
     const typeMap: { [key: string]: string } = {
-      text: "Short Text",
-      textarea: "Long Text",
-      number: "Numeric",
-      email: "Email Address",
-      date: "Date Picker",
-      radio: "Single Choice",
-      dropdown: "Dropdown Menu",
-      checkbox: "Multiple Choice",
-      url: "Website URL",
-      tags: "Tag Input",
-      repeatable_group: "Grouping",
+      text: t('previewInputTypeText', 'jobs'),
+      textarea: t('previewInputTypeTextarea', 'jobs'),
+      number: t('previewInputTypeNumber', 'jobs'),
+      email: t('previewInputTypeEmail', 'jobs'),
+      date: t('previewInputTypeDate', 'jobs'),
+      radio: t('previewInputTypeRadio', 'jobs'),
+      dropdown: t('previewInputTypeDropdown', 'jobs'),
+      checkbox: t('previewInputTypeCheckbox', 'jobs'),
+      url: t('previewInputTypeUrl', 'jobs'),
+      tags: t('previewInputTypeTags', 'jobs'),
+      repeatable_group: t('previewInputTypeGroup', 'jobs'),
     };
     return typeMap[type] || type;
   };
 
-  if (isLoadingJob) {
+  if (isLoadingJob && !job) {
     return (
       <div className="space-y-6">
-        <PageMeta title="Loading..." description="Loading job details" />
-        <PageBreadcrumb pageTitle="Job Details" />
-        <LoadingSpinner fullPage message="Loading job details..." />
+        <PageMeta title={t('previewLoadingTitle', 'jobs')} description={t('previewLoadingDesc', 'jobs')} />
+        <PageBreadcrumb pageTitle={t('previewBreadcrumb', 'jobs')} />
+        <LoadingSpinner fullPage message={t('previewLoadingMsg', 'jobs')} />
       </div>
     );
   }
@@ -341,21 +344,21 @@ export default function PreviewJob() {
   if (!job) {
     return (
       <div className="space-y-6 p-4 md:p-6">
-        <PageMeta title="Job Not Found" description="Job not found" />
-        <PageBreadcrumb pageTitle="Job Details" />
+        <PageMeta title={t('previewNotFoundTitle', 'jobs')} description={t('previewNotFoundDesc', 'jobs')} />
+        <PageBreadcrumb pageTitle={t('previewBreadcrumb', 'jobs')} />
         <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 py-20 dark:border-gray-800">
           <div className="rounded-full bg-gray-50 p-4 dark:bg-gray-900">
              <InfoIcon className="size-12 text-gray-400" />
           </div>
-          <p className="mt-4 text-xl font-bold text-gray-900 dark:text-white">Job Not Found</p>
+          <p className="mt-4 text-xl font-bold text-gray-900 dark:text-white">{t('previewNotFoundTitle', 'jobs')}</p>
           <p className="mt-2 text-center text-gray-500 dark:text-gray-400 max-w-sm px-6">
-            The job you're looking for doesn't exist or might have been removed already.
+            {t('previewNotFoundText', 'jobs')}
           </p>
           <button
             onClick={() => navigate("/jobs")}
             className="mt-8 rounded-xl bg-brand-500 px-6 py-3 text-sm font-bold text-white shadow-lg transition hover:bg-brand-600 active:scale-95"
           >
-            Go Back to Job List
+            {t('previewGoBack', 'jobs')}
           </button>
         </div>
       </div>
@@ -365,8 +368,8 @@ export default function PreviewJob() {
   return (
     <div className="space-y-6 pb-20 md:pb-10">
       <PageMeta
-        title={`${getTranslation(job.title, "Job Detail")} | Preview`}
-        description={`Details for ${getTranslation(job.title, "job")}`}
+        title={`${getTranslation(job.title, t('previewUntitledPosition', 'jobs'), locale)} | ${t('previewBreadcrumb', 'jobs')}`}
+        description={t('previewDetailsFor', 'jobs', { title: getTranslation(job.title, t('previewUntitledPosition', 'jobs'), locale) })}
       />
 
       {/* Floating Mobile Action Header (Optional enhancement for UX) */}
@@ -375,12 +378,12 @@ export default function PreviewJob() {
           <AngleLeftIcon className="size-6 text-gray-600 dark:text-gray-400" />
         </button>
         <span className="font-semibold text-gray-900 dark:text-white truncate max-w-[200px]">
-          {getTranslation(job.title)}
+          {getTranslation(job.title, '', locale)}
         </span>
         <div className="flex gap-2 items-center">
            <button 
              onClick={handleUpdate} 
-             title="Update data"
+             title={t('previewUpdateData', 'jobs')}
              className={`p-2 rounded-lg transition-colors ${isJobFetching || isCompanyFetching || isDepartmentFetching ? 'text-amber-500 animate-spin' : 'text-gray-400 hover:text-brand-500'}`}
            >
              <TimeIcon className="size-5" />
@@ -395,7 +398,7 @@ export default function PreviewJob() {
           className="group flex items-center gap-2 text-sm font-medium text-gray-500 transition hover:text-brand-600 dark:text-gray-400 dark:hover:text-brand-400"
         >
           <AngleLeftIcon className="size-4 transition-transform group-hover:-translate-x-1" />
-          Back to Career List
+          {t('previewBackToList', 'jobs')}
         </button>
         
         <div className="flex items-center gap-4 text-xs text-gray-400 italic">
@@ -404,7 +407,7 @@ export default function PreviewJob() {
             className="flex items-center gap-1.5 hover:text-brand-500 transition-colors cursor-pointer group/sync"
           >
             <span className={`size-2 rounded-full ${isJobFetching || isCompanyFetching || isDepartmentFetching ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400 group-hover/sync:bg-brand-400'}`} />
-            {isJobFetching || isCompanyFetching || isDepartmentFetching ? "Syncing..." : "Synced"}
+            {isJobFetching || isCompanyFetching || isDepartmentFetching ? t('previewSyncing', 'jobs') : t('previewSynced', 'jobs')}
           </button>
           {elapsed && <span>{elapsed}</span>}
         </div>
@@ -423,15 +426,15 @@ export default function PreviewJob() {
               <div className="flex flex-wrap items-center gap-3 mb-4">
                 <span className="inline-flex items-center rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
                   <CheckCircleIcon className="mr-1 size-3.5" />
-                  Active Listing
+                  {t('previewActiveListing', 'jobs')}
                 </span>
                 <span className="inline-flex items-center rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-bold text-gray-600 dark:bg-gray-800 dark:text-gray-400">
-                   {job.jobCode || "NO-CODE"}
+                   {job.jobCode || t('previewNoCode', 'jobs')}
                 </span>
               </div>
 
               <h1 className="text-2xl font-black tracking-tight text-gray-900 sm:text-4xl dark:text-white">
-                {getTranslation(job.title, "Untitled Position")}
+                {getTranslation(job.title, t('previewUntitledPosition', 'jobs'), locale)}
               </h1>
 
               <div className="mt-6 flex flex-wrap gap-y-4 gap-x-8">
@@ -440,9 +443,9 @@ export default function PreviewJob() {
                     <UserIcon className="size-5" />
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Department</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{t('previewDepartment', 'jobs')}</p>
                     <p className="text-sm font-bold text-gray-900 dark:text-white">
-                      {toPlainString((department as any)?.name) || "Cross-functional"}
+                      {toPlainString((department as any)?.name, locale) || t('previewCrossFunctional', 'jobs')}
                     </p>
                   </div>
                 </div>
@@ -452,7 +455,7 @@ export default function PreviewJob() {
                     <TimeIcon className="size-5" />
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Type</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{t('previewType', 'jobs')}</p>
                     <p className="text-sm font-bold text-gray-900 dark:text-white">
                       {formatEmploymentType(job?.employmentType)}
                     </p>
@@ -464,7 +467,7 @@ export default function PreviewJob() {
                     <CalenderIcon className="size-5" />
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Deadline</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{t('previewDeadline', 'jobs')}</p>
                     <p className="text-sm font-bold text-gray-900 dark:text-white">
                       {formatDate(job.registrationEnd)}
                     </p>
@@ -478,11 +481,11 @@ export default function PreviewJob() {
           <section className="rounded-3xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900 md:p-8">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
                <InfoIcon className="size-5 text-brand-500" />
-               Role Overview
+               {t('previewRoleOverview', 'jobs')}
             </h2>
             <div className="prose prose-brand max-w-none dark:prose-invert">
               <div className="whitespace-pre-wrap text-gray-600 leading-relaxed dark:text-gray-400">
-                {getTranslation(job.description, "Detailed description is coming soon.")}
+                {getTranslation(job.description, t('previewDescComingSoon', 'jobs'), locale)}
               </div>
             </div>
           </section>
@@ -491,12 +494,12 @@ export default function PreviewJob() {
           <div className="grid grid-cols-1 gap-6 items-start md:grid-cols-2">
             {job.requirements && job.requirements.length > 0 && (
               <section className="rounded-3xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Requirements</h3>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">{t('previewRequirements', 'jobs')}</h3>
                 <ul className="space-y-3">
                   {job.requirements.map((req: any, i: number) => (
                     <li key={i} className="flex gap-3 text-sm text-gray-600 dark:text-gray-400">
                       <div className="mt-1 flex-shrink-0 size-1.5 rounded-full bg-brand-500" />
-                      {getTranslation(req)}
+                      {getTranslation(req, '', locale)}
                     </li>
                   ))}
                 </ul>
@@ -505,12 +508,12 @@ export default function PreviewJob() {
 
             {job.termsAndConditions && job.termsAndConditions.length > 0 && (
               <section className="rounded-3xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Terms</h3>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">{t('previewTerms', 'jobs')}</h3>
                 <ul className="space-y-3">
                   {job.termsAndConditions.map((term: any, i: number) => (
                     <li key={i} className="flex gap-3 text-sm text-gray-600 dark:text-gray-400 italic">
                        <span className="text-brand-500 font-bold">•</span>
-                       {getTranslation(term)}
+                       {getTranslation(term, '', locale)}
                     </li>
                   ))}
                 </ul>
@@ -519,34 +522,34 @@ export default function PreviewJob() {
           </div>
 
           <section className="rounded-3xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900 md:p-7">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white">Application Guidance</h3>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white">{t('previewApplicationGuidance', 'jobs')}</h3>
             <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-              Quick snapshot for recruiters and candidates before moving to the evaluation matrix.
+              {t('previewGuidanceDesc', 'jobs')}
             </p>
             <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <div className="rounded-2xl bg-gray-50 p-4 dark:bg-gray-800/60">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Open Seats</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{t('previewOpenSeats', 'jobs')}</p>
                 <p className="mt-1 text-base font-black text-gray-900 dark:text-white">{job.openPositions || 0}</p>
               </div>
               <div className="rounded-2xl bg-gray-50 p-4 dark:bg-gray-800/60">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Base Fields Visible</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{t('previewBaseFieldsVisible', 'jobs')}</p>
                 <p className="mt-1 text-base font-black text-gray-900 dark:text-white">{visibleBaseFieldCount}</p>
               </div>
               <div className="rounded-2xl bg-gray-50 p-4 dark:bg-gray-800/60">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Custom Inputs</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{t('previewCustomInputs', 'jobs')}</p>
                 <p className="mt-1 text-base font-black text-gray-900 dark:text-white">{job.customFields?.length || 0}</p>
               </div>
               <div className="rounded-2xl bg-gray-50 p-4 dark:bg-gray-800/60">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Scoring Factors</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{t('previewScoringFactors', 'jobs')}</p>
                 <p className="mt-1 text-base font-black text-gray-900 dark:text-white">{job.jobSpecs?.length || 0}</p>
               </div>
             </div>
           </section>
 
           <section className="rounded-3xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900 md:p-7">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white">Base Applicant Fields</h3>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white">{t('previewBaseFields', 'jobs')}</h3>
             <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-              Visibility and required rules configured for the default application form fields.
+              {t('previewBaseFieldsDesc', 'jobs')}
             </p>
             <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
               {previewFieldConfigItems.map((item) => {
@@ -566,7 +569,7 @@ export default function PreviewJob() {
                             : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
                         }`}
                       >
-                        {config.visible ? "Visible" : "Hidden"}
+                        {config.visible ? t('createVisible', 'jobs') : t('previewFieldHidden', 'jobs')}
                       </span>
                       <span
                         className={`rounded-md px-2 py-1 font-bold ${
@@ -575,7 +578,7 @@ export default function PreviewJob() {
                             : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
                         }`}
                       >
-                        {config.required ? "Required" : "Optional"}
+                        {config.required ? t('createRequired', 'jobs') : t('previewFieldOptional', 'jobs')}
                       </span>
                     </div>
                   </div>
@@ -589,14 +592,14 @@ export default function PreviewJob() {
         <div className="space-y-6">
           {/* Actions Card */}
           <div className="hidden md:block rounded-3xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-            <h3 className="text-sm font-bold uppercase tracking-widest text-gray-400 mb-4">Manage Position</h3>
+            <h3 className="text-sm font-bold uppercase tracking-widest text-gray-400 mb-4">{t('previewManagePosition', 'jobs')}</h3>
             <div className="space-y-3">
               <button
                 onClick={handleEdit}
                 className="flex w-full items-center justify-center gap-2 rounded-2xl bg-brand-500 py-3.5 text-sm font-bold text-white shadow-brand-100 transition hover:bg-brand-600 hover:shadow-lg dark:shadow-none"
               >
                 <PencilIcon className="size-4" />
-                Edit Job
+                {t('previewEditJob', 'jobs')}
               </button>
               <button
                 onClick={handleDelete}
@@ -604,26 +607,26 @@ export default function PreviewJob() {
                 className="flex w-full items-center justify-center gap-2 rounded-2xl border border-red-100 bg-red-50 py-3.5 text-sm font-bold text-red-600 transition hover:bg-red-100 dark:border-red-900/30 dark:bg-red-900/20 dark:text-red-400"
               >
                 <TrashBinIcon className="size-4" />
-                {isDeletingJob ? "Deleting..." : "Delete Job"}
+                {isDeletingJob ? t('previewDeleting', 'jobs') : t('previewDeleteJob', 'jobs')}
               </button>
             </div>
           </div>
 
           {/* Quick Stats Widget */}
           <div className="rounded-3xl border border-gray-200 bg-brand-500 p-6 text-white shadow-lg dark:border-gray-800">
-            <p className="text-brand-100 text-xs font-bold uppercase tracking-wider">Hiring Goal</p>
+            <p className="text-brand-100 text-xs font-bold uppercase tracking-wider">{t('previewHiringGoal', 'jobs')}</p>
             <div className="mt-2 flex items-baseline gap-2">
               <span className="text-4xl font-black">{job.openPositions || 0}</span>
-              <span className="text-brand-100 font-medium">Open Seats</span>
+              <span className="text-brand-100 font-medium">{t('previewOpenSeats', 'jobs')}</span>
             </div>
             <div className="mt-6 flex gap-4 border-t border-white/10 pt-6">
                <div className="flex-1">
-                  <p className="text-[10px] font-bold text-brand-100 uppercase mb-1">Status</p>
-                  <p className="text-sm font-bold">Internal/External</p>
+                  <p className="text-[10px] font-bold text-brand-100 uppercase mb-1">{t('previewStatus', 'jobs')}</p>
+                  <p className="text-sm font-bold">{t('previewInternalExternal', 'jobs')}</p>
                </div>
                <div className="flex-1">
-                  <p className="text-[10px] font-bold text-brand-100 uppercase mb-1">Company</p>
-                <p className="text-sm font-bold truncate">{getTranslation((company as any)?.name, "Corporate")}</p>
+                  <p className="text-[10px] font-bold text-brand-100 uppercase mb-1">{t('previewCompany', 'jobs')}</p>
+                <p className="text-sm font-bold truncate">{getTranslation((company as any)?.name, t('previewCorporate', 'jobs'), locale)}</p>
                </div>
             </div>
           </div>
@@ -636,10 +639,10 @@ export default function PreviewJob() {
                   <DollarLineIcon className="size-5" />
                 </span>
                 <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-md ${job.salaryVisible ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30' : 'bg-gray-100 text-gray-500 dark:bg-gray-800'}`}>
-                  {job.salaryVisible ? "Public" : "Confidential"}
+                  {job.salaryVisible ? t('previewPublic', 'jobs') : t('previewConfidential', 'jobs')}
                 </span>
               </div>
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Annual Compensation</p>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">{t('previewAnnualComp', 'jobs')}</p>
               <h3 className="mt-1 text-2xl font-black text-gray-900 dark:text-white">
                 ${job.salary.toLocaleString()}
               </h3>
@@ -648,16 +651,16 @@ export default function PreviewJob() {
 
           {/* Timeline Card */}
           <div className="rounded-3xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
-             <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-4">Application Period</h3>
+             <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-4">{t('previewApplicationPeriod', 'jobs')}</h3>
              <div className="space-y-4 relative before:absolute before:left-2 before:top-2 before:bottom-2 before:w-px before:bg-gray-100 dark:before:bg-gray-800">
                 <div className="pl-6 relative">
                    <div className="absolute left-0 top-1.5 size-4 -translate-x-1/2 rounded-full border-2 border-white bg-emerald-500 ring-4 ring-emerald-100 dark:border-gray-900 dark:ring-emerald-900/30" />
-                   <p className="text-xs font-bold text-gray-400 uppercase">Starts</p>
+                   <p className="text-xs font-bold text-gray-400 uppercase">{t('previewStarts', 'jobs')}</p>
                    <p className="text-sm font-bold text-gray-900 dark:text-white">{formatDate(job.registrationStart)}</p>
                 </div>
                 <div className="pl-6 relative">
                    <div className="absolute left-0 top-1.5 size-4 -translate-x-1/2 rounded-full border-2 border-white bg-amber-500 ring-4 ring-amber-100 dark:border-gray-900 dark:ring-amber-900/30" />
-                   <p className="text-xs font-bold text-gray-400 uppercase">Closes</p>
+                   <p className="text-xs font-bold text-gray-400 uppercase">{t('previewCloses', 'jobs')}</p>
                    <p className="text-sm font-bold text-gray-900 dark:text-white">{formatDate(job.registrationEnd)}</p>
                 </div>
              </div>
@@ -669,15 +672,15 @@ export default function PreviewJob() {
       {job.jobSpecs && job.jobSpecs.length > 0 && (
         <section className="rounded-3xl border border-gray-200 bg-white overflow-hidden shadow-sm dark:border-gray-800 dark:bg-gray-900">
           <div className="p-6 md:p-8 border-b dark:border-gray-800">
-             <h3 className="text-xl font-bold text-gray-900 dark:text-white">Evaluation Matrix</h3>
-             <p className="text-sm text-gray-500">Weight distribution for applicant scoring</p>
+             <h3 className="text-xl font-bold text-gray-900 dark:text-white">{t('previewEvalMatrix', 'jobs')}</h3>
+             <p className="text-sm text-gray-500">{t('previewEvalMatrixDesc', 'jobs')}</p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
                 <tr className="bg-gray-50/50 dark:bg-gray-800/50 text-[10px] font-black uppercase tracking-widest text-gray-400">
-                  <th className="px-8 py-4">Assessment Factor</th>
-                  <th className="px-8 py-4 text-center">Relative Weight</th>
+                  <th className="px-8 py-4">{t('previewAssessmentFactor', 'jobs')}</th>
+                  <th className="px-8 py-4 text-center">{t('previewRelativeWeight', 'jobs')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y dark:divide-gray-800">
@@ -685,7 +688,7 @@ export default function PreviewJob() {
                   <tr key={i} className="group hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors">
                     <td className="px-8 py-5">
                       <p className="font-bold text-gray-900 dark:text-white">
-                        {getTranslation(spec.spec, "Criterion")}
+                        {getTranslation(spec.spec, t('previewCriterion', 'jobs'), locale)}
                       </p>
                     </td>
                     <td className="px-8 py-5">
@@ -703,7 +706,7 @@ export default function PreviewJob() {
               </tbody>
               <tfoot>
                 <tr className="bg-gray-50/80 dark:bg-gray-800/80">
-                  <td className="px-8 py-4 font-black text-gray-900 dark:text-white">Overall Score Distribution</td>
+                  <td className="px-8 py-4 font-black text-gray-900 dark:text-white">{t('previewOverallScore', 'jobs')}</td>
                   <td className="px-8 py-4 text-center font-black text-brand-600 dark:text-brand-400">
                     {job.jobSpecs.reduce((sum: number, spec: any) => sum + spec.weight, 0)}%
                   </td>
@@ -719,7 +722,7 @@ export default function PreviewJob() {
         <section className="rounded-3xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900 md:p-8">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
             <CheckCircleIcon className="size-5 text-brand-500" />
-            Allowed Applicant Statuses
+            {t('previewAllowedStatuses', 'jobs')}
           </h2>
           <div className="flex flex-wrap gap-3">
             {job.allowedStatuses.map((statusId: string) => {
@@ -747,7 +750,7 @@ export default function PreviewJob() {
           </div>
           {job.allowedStatuses.some((statusId: string) => !company.settings.statuses.find((s: any) => s._id === statusId || s.id === statusId)) && (
             <p className="mt-4 text-sm text-gray-500 italic">
-              Note: Some statuses may no longer be available in company settings.
+              {t('previewStatusesNote', 'jobs')}
             </p>
           )}
         </section>
@@ -757,7 +760,7 @@ export default function PreviewJob() {
       {job.customFields && job.customFields.length > 0 && (
         <section className="space-y-4">
           <div className="flex items-baseline gap-2 px-2">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white">Dynamic Form Fields</h3>
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white">{t('previewDynamicFields', 'jobs')}</h3>
             <span className="text-xs font-bold text-gray-400">({job.customFields.length})</span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -768,32 +771,32 @@ export default function PreviewJob() {
                     {formatInputType(field.inputType)}
                   </div>
                   {field.isRequired && (
-                    <span className="text-[10px] font-bold text-red-500 uppercase">Required</span>
+                    <span className="text-[10px] font-bold text-red-500 uppercase">{t('createRequiredBadge', 'jobs')}</span>
                   )}
                 </div>
                 
                 <h4 className="font-bold text-gray-900 dark:text-white leading-tight mb-2">
-                  {getTranslation(field.label, "Custom Input")}
+                  {getTranslation(field.label, t('previewCustomInput', 'jobs'), locale)}
                 </h4>
                 
                 {field.choices && field.choices.length > 0 && (
                    <div className="mt-4 flex flex-wrap gap-1.5">
                       {field.choices.slice(0, 4).map((c: any, idx: number) => (
                         <span key={idx} className="text-[10px] font-medium px-2 py-1 rounded bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:text-brand-400">
-                          {getTranslation(c)}
+                          {getTranslation(c, '', locale)}
                         </span>
                       ))}
                       {field.choices.length > 4 && (
-                        <span className="text-[10px] font-medium px-2 py-1 text-gray-400">+{field.choices.length - 4} more</span>
+                        <span className="text-[10px] font-medium px-2 py-1 text-gray-400">{t('previewMoreChoices', 'jobs', { count: field.choices.length - 4 })}</span>
                       )}
                    </div>
                 )}
                 
                 <div className="mt-4 pt-4 border-t border-gray-50 dark:border-gray-800 flex items-center justify-between opacity-50 group-hover:opacity-100 transition-opacity">
-                   <span className="text-[10px] text-gray-400">Display Order: {field.displayOrder ?? field.order ?? 0}</span>
+                   <span className="text-[10px] text-gray-400">{t('previewDisplayOrder', 'jobs', { order: field.displayOrder ?? field.order ?? 0 })}</span>
                    <div className="flex gap-2">
-                      {field.minValue !== undefined && <span className="text-[10px] text-gray-400 italic">Min: {field.minValue}</span>}
-                      {field.maxValue !== undefined && <span className="text-[10px] text-gray-400 italic">Max: {field.maxValue}</span>}
+                      {field.minValue !== undefined && <span className="text-[10px] text-gray-400 italic">{t('previewMin', 'jobs', { value: field.minValue })}</span>}
+                      {field.maxValue !== undefined && <span className="text-[10px] text-gray-400 italic">{t('previewMax', 'jobs', { value: field.maxValue })}</span>}
                    </div>
                 </div>
               </div>

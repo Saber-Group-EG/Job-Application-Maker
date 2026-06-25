@@ -1,8 +1,9 @@
 // components/settings/ApplicantPagesSettings.tsx
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { PlusCircle, Save, Trash2, ArrowRight, Layout, ChevronDown, ChevronRight, GripVertical, Briefcase } from 'lucide-react';
+import { PlusCircle, Save, Trash2, ArrowRight, Layout, ChevronDown, ChevronRight, GripVertical } from 'lucide-react';
 import Swal from '../../../utils/swal';
+import { useLocale } from '../../../context/LocaleContext';
 import { useAuth } from '../../../context/AuthContext';
 import {
   useCompanies,
@@ -89,6 +90,7 @@ function SortablePageItem({
     id,
     disabled: !canEdit,
   });
+  const { t } = useLocale();
 
   const style = {
     transform: CSS.Translate.toString(transform),
@@ -151,6 +153,9 @@ function SortablePageItem({
           <GripVertical className="size-5" />
         </div>
         <div className="min-w-0 flex-1">
+          <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
+            {t('applicantPages.pageName', 'settings')}
+          </label>
           {editingName ? (
             <input
               ref={nameInputRef}
@@ -158,7 +163,7 @@ function SortablePageItem({
               onChange={(e) => onNameChange(e.target.value)}
               onBlur={finishEditing}
               onKeyDown={handleNameKeyDown}
-              placeholder="e.g. Active Pipeline, Shortlisted..."
+              placeholder={t('applicantPages.pageNamePlaceholder', 'settings')}
               className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-900"
             />
           ) : (
@@ -168,12 +173,12 @@ function SortablePageItem({
                 canEdit ? 'cursor-default hover:border-slate-300 hover:bg-white dark:hover:border-slate-700 dark:hover:bg-slate-900' : 'cursor-not-allowed opacity-70'
               } ${!page.name ? 'text-slate-400' : ''}`}
             >
-              {page.name || 'Double-click to set page name...'}
+              {page.name || t('applicantPages.doubleClickHint', 'settings')}
             </div>
           )}
         </div>
         <span className="shrink-0 text-xs text-slate-400">
-          {page.statuses.length} status{page.statuses.length !== 1 ? 'es' : ''}
+          {t('applicantPages.statusCount', 'settings', { count: page.statuses.length })}
         </span>
         <button
           type="button"
@@ -181,7 +186,7 @@ function SortablePageItem({
           disabled={!canEdit}
           className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300 lg:gap-2 lg:px-3 lg:py-2 lg:text-sm"
         >
-          <Trash2 className="size-3.5 lg:size-4" /> Remove
+            <Trash2 className="size-3.5 lg:size-4" /> {t('applicantPages.remove', 'settings')}
         </button>
       </div>
 
@@ -190,7 +195,7 @@ function SortablePageItem({
           {(availableJobPositions.length > 0 || jobsLoading) && (
             <>
               <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Job Positions included in this page
+                {t('applicantPages.jobPositionsIncluded', 'settings')}
               </label>
               <div className="flex flex-wrap gap-2">
                 {jobsLoading ? (
@@ -212,7 +217,6 @@ function SortablePageItem({
                             : 'border border-slate-300 bg-white text-slate-600 hover:border-brand-300 hover:text-brand-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
                         } disabled:cursor-not-allowed disabled:opacity-60`}
                       >
-                        <Briefcase className="mr-1 inline-block size-3.5" />
                         {jpTitle}
                       </button>
                     );
@@ -221,64 +225,65 @@ function SortablePageItem({
               </div>
               {!jobsLoading && (page.jobPositions ?? []).length > 0 && (
                 <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                  {(page.jobPositions ?? []).length} job position{(page.jobPositions ?? []).length > 1 ? 's' : ''} selected
+                  {t('applicantPages.jobPositionsCount', 'settings', { count: (page.jobPositions ?? []).length })}
                 </p>
               )}
               <div className="my-3 border-t border-dashed border-slate-200 dark:border-slate-700" />
             </>
           )}
 
-          {(page.jobPositions ?? []).length > 0 && (
-            <>
-              <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Statuses included in this page
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {(() => {
-                  const selectedJobIds = page.jobPositions ?? [];
-                  const allowedStatusIds = selectedJobIds.length > 0
-                    ? new Set(
-                        availableJobPositions
-                          .filter((jp: any) => selectedJobIds.includes(jp._id))
-                          .flatMap((jp: any) => jp.allowedStatuses ?? [])
-                      )
-                    : null;
-                  const allowedNames = allowedStatusIds
-                    ? new Set(
-                        [...allowedStatusIds]
-                          .map((id) => statusById[id])
-                          .filter(Boolean)
-                      )
-                    : null;
-                  const useAll = !allowedNames || allowedNames.size === 0 || (allowedNames.size === 1 && allowedNames.has('pending'));
-                  const statusesToShow = useAll ? availableStatuses : availableStatuses.filter((s) => allowedNames!.has(s));
-                  return statusesToShow.map((statusName) => {
-                    const selected = page.statuses.includes(statusName);
-                    return (
-                      <button
-                        key={statusName}
-                        type="button"
-                        onClick={() => canEdit && onToggleStatus(statusName)}
-                        disabled={!canEdit}
-                        className={`rounded-full px-3 py-1 text-sm font-medium transition ${
-                          selected
-                            ? 'bg-brand-500 text-white'
-                            : 'border border-slate-300 bg-white text-slate-600 hover:border-brand-300 hover:text-brand-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
-                        } disabled:cursor-not-allowed disabled:opacity-60`}
-                      >
-                        {statusName}
-                      </button>
-                    );
-                  });
-                })()}
-              </div>
-              {page.statuses.length > 0 && (
-                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                  {page.statuses.length} status{page.statuses.length > 1 ? 'es' : ''} selected: {' '}
-                  {page.statuses.join(', ')}
-                </p>
-              )}
-            </>
+          <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+            {t('applicantPages.statusesIncluded', 'settings')}
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {(() => {
+              const selectedJobIds = page.jobPositions ?? [];
+              const hasJobsSelected = selectedJobIds.length > 0;
+              if (!hasJobsSelected) {
+                return (
+                  <p className="text-sm text-slate-400 italic">
+                    {t('applicantPages.selectJobFirst', 'settings')}
+                  </p>
+                );
+              }
+              const allowedStatusIds = new Set(
+                availableJobPositions
+                  .filter((jp: any) => selectedJobIds.includes(jp._id))
+                  .flatMap((jp: any) => jp.allowedStatuses ?? [])
+              );
+              const allowedNames = allowedStatusIds.size > 0
+                ? new Set(
+                    [...allowedStatusIds]
+                      .map((id) => statusById[id])
+                      .filter(Boolean)
+                  )
+                : null;
+              const useAll = !allowedNames || allowedNames.size === 0 || (allowedNames.size === 1 && allowedNames.has('pending'));
+              const statusesToShow = useAll ? availableStatuses : availableStatuses.filter((s) => allowedNames!.has(s));
+              return statusesToShow.map((statusName) => {
+                const selected = page.statuses.includes(statusName);
+                return (
+                  <button
+                    key={statusName}
+                    type="button"
+                    onClick={() => canEdit && onToggleStatus(statusName)}
+                    disabled={!canEdit}
+                    className={`rounded-full px-3 py-1 text-sm font-medium transition ${
+                      selected
+                        ? 'bg-brand-500 text-white'
+                        : 'border border-slate-300 bg-white text-slate-600 hover:border-brand-300 hover:text-brand-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
+                    } disabled:cursor-not-allowed disabled:opacity-60`}
+                  >
+                    {statusName}
+                  </button>
+                );
+              });
+            })()}
+          </div>
+          {page.statuses.length > 0 && (
+            <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+              {t('applicantPages.statusCountSelected', 'settings', { count: page.statuses.length, list: page.statuses.join(', ') })}
+            </p>
           )}
         </div>
       )}
@@ -291,6 +296,7 @@ export default function ApplicantPagesSettings({
   embedded,
 }: Props = {}) {
   const { user, hasPermission } = useAuth();
+  const { t } = useLocale();
   const { data: companies = [] } = useCompanies();
 
   const isSuperAdmin = !!user?.roleId?.name
@@ -537,18 +543,18 @@ export default function ApplicantPagesSettings({
 
   const handleSave = async () => {
     if (!selectedCompanyId) {
-      Swal.fire('Validation', 'Please select a company first.', 'warning');
+      Swal.fire(t('commonValidation', 'settings'), t('applicantPages.validationSelectCompany', 'settings'), 'warning');
       return;
     }
 
     if (!settingsId) {
-      Swal.fire('Validation', 'Company settings not found. Please contact support.', 'warning');
+      Swal.fire(t('commonValidation', 'settings'), t('applicantPages.validationSettingsNotFound', 'settings'), 'warning');
       return;
     }
 
     for (let i = 0; i < pages.length; i++) {
       if (!pages[i].name.trim()) {
-        Swal.fire('Validation', `Page ${i + 1} must have a name.`, 'warning');
+        Swal.fire(t('commonValidation', 'settings'), t('applicantPages.validationPageMustHaveName', 'settings', { number: i + 1 }), 'warning');
         return;
       }
     }
@@ -568,15 +574,15 @@ export default function ApplicantPagesSettings({
       });
       setOriginalJson(JSON.stringify(pages));
       Swal.fire({
-        title: 'Saved',
+        title: t('commonSaved', 'settings'),
         icon: 'success',
         timer: 1200,
         showConfirmButton: false,
       });
     } catch (err: any) {
       Swal.fire(
-        'Failure',
-        err?.message || 'Failed to save applicant pages.',
+        t('commonFailure', 'settings'),
+        err?.message || t('applicantPages.errorSaveFailed', 'settings'),
         'error'
       );
     } finally {
@@ -595,10 +601,10 @@ export default function ApplicantPagesSettings({
       {!embedded && (
         <>
           <PageMeta
-            title="Applicant Pages | Job Application Maker"
-            description="Configure custom applicant pages per company"
+            title={t('applicantPages.pageMetaTitle', 'settings')}
+            description={t('applicantPages.pageMetaDesc', 'settings')}
           />
-          <PageBreadCrumb pageTitle="Applicant Pages" />
+          <PageBreadCrumb pageTitle={t('applicantPages.title', 'settings')} />
         </>
       )}
 
@@ -612,11 +618,10 @@ export default function ApplicantPagesSettings({
               </div>
               <div>
                 <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
-                  Applicant Pages
+                  {t('applicantPages.title', 'settings')}
                 </h1>
                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                  Create custom sidebar pages that filter applicants by one or
-                  more statuses.
+                  {t('applicantPages.description', 'settings')}
                 </p>
               </div>
             </div>
@@ -626,7 +631,7 @@ export default function ApplicantPagesSettings({
                 disabled={!canEdit}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-4 py-1.5 text-xs font-semibold text-slate-700 whitespace-nowrap transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <PlusCircle className="size-4" /> Add Page
+                <PlusCircle className="size-4" /> {t('applicantPages.addPage', 'settings')}
               </button>
               <button
                 onClick={handleSave}
@@ -638,7 +643,7 @@ export default function ApplicantPagesSettings({
                 ) : (
                   <Save className="size-3.5" />
                 )}
-                Save Changes
+                {t('applicantPages.saveChanges', 'settings')}
                 <ArrowRight className="size-3.5" />
               </button>
             </div>
@@ -647,8 +652,7 @@ export default function ApplicantPagesSettings({
           <div className="p-6">
             {availableStatuses.length === 0 && (
               <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-800/30 dark:bg-amber-950/20 dark:text-amber-400">
-                No statuses found for this company. Configure statuses first in
-                the Statuses tab.
+                {t('applicantPages.noStatusesWarning', 'settings')}
               </div>
             )}
 
@@ -656,7 +660,7 @@ export default function ApplicantPagesSettings({
               <div className="rounded-xl border border-dashed border-slate-300 px-6 py-10 text-center dark:border-slate-700">
                 <Layout className="mx-auto mb-3 size-10 text-slate-300 dark:text-slate-600" />
                 <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                  No applicant pages yet. Add a page to get started.
+                  {t('applicantPages.emptyState', 'settings')}
                 </p>
               </div>
             ) : (

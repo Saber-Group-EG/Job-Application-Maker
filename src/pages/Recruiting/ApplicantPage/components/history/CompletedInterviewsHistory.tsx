@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useLocale } from '../../../../../context/LocaleContext';
 import { useNavigate } from 'react-router';
 import {
   CheckCircle2,
@@ -65,6 +66,7 @@ export default function CompletedInterviewsHistory({
   applicantId,
   onDelete,
 }: Props) {
+  const { t } = useLocale();
   const navigate = useNavigate();
 
   const handleViewInterview = (interview: CompletedInterview) => {
@@ -102,14 +104,14 @@ export default function CompletedInterviewsHistory({
         <table className="min-w-full">
           <thead className="bg-gray-50/80 border-b border-gray-100">
             <tr>
-              <th className={TABLE_HEAD_CLASS}>Type</th>
-              <th className={TABLE_HEAD_CLASS}>Scheduled</th>
-              <th className={TABLE_HEAD_CLASS}>Started</th>
-              <th className={TABLE_HEAD_CLASS}>Ended</th>
-              <th className={TABLE_HEAD_CLASS}>Duration</th>
-              <th className={TABLE_HEAD_CLASS}>Score</th>
-              <th className={TABLE_HEAD_CLASS}>Status</th>
-              <th className={TABLE_HEAD_CLASS}>Actions</th>
+              <th className={TABLE_HEAD_CLASS}>{t('type', 'history')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('scheduled', 'history')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('started', 'history')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('ended', 'history')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('duration', 'history')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('score', 'applicants')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('status', 'applicants')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('actions', 'applicants')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
@@ -153,9 +155,9 @@ export default function CompletedInterviewsHistory({
         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100">
           <Inbox className="h-5 w-5 text-gray-400" />
         </div>
-        <p className="text-sm font-medium text-gray-700">No completed interviews</p>
+        <p className="text-sm font-medium text-gray-700">{t('noCompletedInterviews', 'history')}</p>
         <p className="text-xs text-gray-400">
-          Completed interviews for this applicant will appear here.
+          {t('noCompletedInterviewsDesc', 'history')}
         </p>
       </div>
     );
@@ -167,14 +169,14 @@ export default function CompletedInterviewsHistory({
         <table className="min-w-full divide-y divide-gray-100">
           <thead className="bg-gray-50/80">
             <tr>
-              <th className={TABLE_HEAD_CLASS}>Type</th>
-              <th className={TABLE_HEAD_CLASS}>Scheduled</th>
-              <th className={TABLE_HEAD_CLASS}>Started</th>
-              <th className={TABLE_HEAD_CLASS}>Ended</th>
-              <th className={TABLE_HEAD_CLASS}>Duration</th>
-              <th className={TABLE_HEAD_CLASS}>Score</th>
-              <th className={TABLE_HEAD_CLASS}>Status</th>
-              <th className={TABLE_HEAD_CLASS}>Actions</th>
+              <th className={TABLE_HEAD_CLASS}>{t('type', 'history')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('scheduled', 'history')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('started', 'history')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('ended', 'history')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('duration', 'history')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('score', 'applicants')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('status', 'applicants')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('actions', 'applicants')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50 bg-white">
@@ -185,7 +187,7 @@ export default function CompletedInterviewsHistory({
               const totalScore = Number(interview?.totalScore ?? 0);
               const achievedScore = Number(interview?.achievedScore ?? 0);
               const TypeIcon = getInterviewTypeIcon(interview?.type);
-              const typeLabel = toPlainString(interview?.type) || 'N/A';
+              const typeLabel = toPlainString(interview?.type) || t('nA', 'applicants');
 
               return (
                 <tr
@@ -251,7 +253,7 @@ export default function CompletedInterviewsHistory({
                         type="button"
                         onClick={() => handleViewInterview(interview)}
                         className="inline-flex h-7 w-7 items-center justify-center rounded-md text-emerald-600 transition-colors hover:bg-emerald-50"
-                        title="View interview details"
+                        title={t('viewInterviewDetails', 'history')}
                       >
                         <Eye className="h-3.5 w-3.5" />
                       </button>
@@ -259,7 +261,7 @@ export default function CompletedInterviewsHistory({
                         type="button"
                         onClick={() => handleEditInterview(interview)}
                         className="inline-flex h-7 w-7 items-center justify-center rounded-md text-blue-600 transition-colors hover:bg-blue-50"
-                        title="Edit interview"
+                        title={t('editInterview', 'history')}
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
@@ -267,7 +269,7 @@ export default function CompletedInterviewsHistory({
                         type="button"
                         onClick={() => onDelete(interview)}
                         className="inline-flex h-7 w-7 items-center justify-center rounded-md text-red-600 transition-colors hover:bg-red-50"
-                        title="Delete interview"
+                        title={t('deleteInterview', 'history')}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>

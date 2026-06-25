@@ -1,0 +1,20 @@
+{
+  "applicant": "متقدم",
+  "fullName": "الاسم الكامل",
+  "positionAppliedFor": "المنصب المتقدم له",
+  "scheduleInterview": "جدولة مقابلة",
+  "sendMessage": "إرسال رسالة",
+  "print": "طباعة",
+  "createJobOffer": "إنشاء عرض وظيفي",
+  "createContract": "إنشاء عقد",
+  "details": "التفاصيل",
+  "dateOfBirth": "تاريخ الميلاد",
+  "selectGender": "اختر الجنس",
+  "male": "ذكر",
+  "female": "أنثى",
+  "address": "العنوان",
+  "resumeCv": "السيرة الذاتية",
+  "noResumeAttached": "لا توجد سيرة ذاتية مرفقة",
+  "submittedAt": "تم الإرسال في",
+  "downloadCv": "تنزيل السيرة الذاتية"
+}

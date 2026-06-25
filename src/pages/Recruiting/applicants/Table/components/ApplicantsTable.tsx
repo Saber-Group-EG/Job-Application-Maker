@@ -9,6 +9,7 @@ import {
   type MRT_ColumnFiltersState,
 } from 'material-react-table';
 import { ThemeProvider, createTheme } from '@mui/material';
+import { useLocale } from '../../../../../context/LocaleContext';
 
 interface ApplicantsTableProps {
   // Data
@@ -66,6 +67,7 @@ export function ApplicantsTable({
   duplicatesOnlyEnabled = false,
   renderTopToolbarCustomActions,
 }: ApplicantsTableProps) {
+  const { t } = useLocale();
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   // Detect dark mode
@@ -123,6 +125,41 @@ export function ApplicantsTable({
     [isDarkMode]
   );
 
+  // MRT localization using app locale
+  const mrtLocalization = {
+    noRecordsToDisplay: t('noRecordsToDisplay', 'applicants'),
+    rowsPerPage: t('rowsPerPage', 'applicants'),
+    of: t('of', 'applicants'),
+    search: t('search', 'applicants'),
+    clearSearch: t('clearSearch', 'applicants'),
+    showHideColumns: t('showHideColumns', 'applicants'),
+    showHideSearch: t('showHideSearch', 'applicants'),
+    showHideFilters: t('showHideFilters', 'applicants'),
+    hideColumn: t('hideColumn', 'applicants'),
+    showAllColumns: t('showAllColumns', 'applicants'),
+    jumpToPage: t('jumpToPage', 'applicants'),
+    toggleSelectAll: t('toggleSelectAll', 'applicants'),
+    toggleSelectRow: t('toggleSelectRow', 'applicants'),
+    selectedCountOfRowCountRowsSelected: t('selectedCountOfRowCountRowsSelected', 'applicants'),
+    filterByColumn: t('filterByColumn', 'applicants'),
+    globalSearch: t('globalSearch', 'applicants'),
+    columnSearch: t('columnSearch', 'applicants'),
+    hideAll: t('hideAll', 'applicants'),
+    showAll: t('showAll', 'applicants'),
+    columns: t('columns', 'applicants'),
+    pin: t('pin', 'applicants'),
+    pinToLeft: t('pinToLeft', 'applicants'),
+    pinToRight: t('pinToRight', 'applicants'),
+    unpin: t('unpin', 'applicants'),
+    columnActions: t('columnActions', 'applicants'),
+    and: t('and', 'applicants'),
+    noResultsFound: t('noResultsFound', 'applicants'),
+    goToFirstPage: t('goToFirstPage', 'applicants'),
+    goToLastPage: t('goToLastPage', 'applicants'),
+    goToNextPage: t('goToNextPage', 'applicants'),
+    goToPreviousPage: t('goToPreviousPage', 'applicants'),
+  };
+
   // Create the table instance
   const table = useMaterialReactTable({
     columns,
@@ -175,6 +212,7 @@ export function ApplicantsTable({
     enableFullScreenToggle: false,
     enableColumnActions: false,
     enableColumnResizing: true,
+    localization: mrtLocalization,
     layoutMode: 'grid',
     manualPagination: false,
     manualFiltering: false,

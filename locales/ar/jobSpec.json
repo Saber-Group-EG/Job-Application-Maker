@@ -1,0 +1,17 @@
+{
+  "noJobSpecifications": "لا توجد مواصفات وظيفية",
+  "noJobSpecificationsDesc": "ليس لهذه الوظيفة مواصفات مكونة بعد.",
+  "compatibilityScore": "درجة التوافق",
+  "requirementsMet": "المتطلبات المحققة",
+  "zeroPercent": "0%",
+  "fiftyPercent": "50%",
+  "hundredPercent": "100%",
+  "weightLabel": "الوزن: {weight}%",
+  "met": "تحقق",
+  "notMet": "لم يتحقق",
+  "earnedWeightFormat": "+{weight}%",
+  "zeroEarnedWeight": "0%",
+  "ofWeight": "من {weight}%",
+  "perfectMatch": "تطابق مثالي! المرشح يستوفي جميع متطلبات الوظيفة.",
+  "noRequirementsMet": "المرشح لا يستوفي أي متطلبات."
+}

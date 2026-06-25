@@ -4,6 +4,7 @@ import { useApplicants } from "../../../../hooks/queries/useApplicants";
 import { useCompanies } from "../../../../hooks/queries/useCompanies";
 import { useJobPositions } from "../../../../hooks/queries/useJobPositions";
 import { useAuth } from "../../../../context/AuthContext";
+import { useLocale } from "../../../../context/LocaleContext";
 import LoadingSpinner from "../../../../components/common/LoadingSpinner";
 import { useQueryClient } from '@tanstack/react-query';
 import { applicantsKeys } from '../../../../hooks/queries/useApplicants';
@@ -187,6 +188,7 @@ export default function ApplicantsMobilePage(): JSX.Element {
 
   const { data: companies = [], refetch: refetchCompanies, isFetching: isCompaniesFetching } = useCompanies();
   const { user } = useAuth();
+  const { t } = useLocale();
 
   const isSuperAdmin = useMemo(() => {
     const roleName = user?.roleId?.name;
@@ -530,9 +532,9 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
     };
 
     const downloadCvForApplicant = async (a: any) => {
-      if (!a) return Swal.fire('No CV', 'No CV file available for this applicant', 'info');
+        if (!a) return Swal.fire(t('noCv', 'applicants'), t('noCvDesc', 'applicants'), 'info');
       const path = resolveCvPath(a);
-      if (!path) return Swal.fire('No CV', 'No CV file available for this applicant', 'info');
+      if (!path) return Swal.fire(t('noCv', 'applicants'), t('noCvDesc', 'applicants'), 'info');
 
       const url = (() => {
         if (!path) return null;
@@ -875,10 +877,10 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
           <div className="flex items-center justify-between mb-2">
             <div>
               <h1 className="text-xl font-bold bg-gradient-to-r from-brand-600 to-brand-700 bg-clip-text text-transparent">
-                Applicants
+                {t('pageTitle', 'applicants')}
               </h1>
               <p className="text-xs text-gray-500 mt-0.5">
-                {sortedFiltered.length} of {applicants?.length || 0} applicants
+                {sortedFiltered.length} / {applicants?.length || 0}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -904,7 +906,7 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by name, email, or phone..."
+              placeholder={t('searchPlaceholder', 'applicants')}
               className="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all"
             />
             {query && (
@@ -924,7 +926,7 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-16">
             <LoadingSpinner />
-            <p className="text-sm text-gray-500 mt-4">Loading applicants...</p>
+            <p className="text-sm text-gray-500 mt-4">{t('loadingApplicants', 'applicants')}</p>
           </div>
         ) : error ? (
           <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center">
@@ -934,7 +936,7 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
               onClick={handleRefresh}
               className="mt-3 px-4 py-2 bg-white border border-red-200 rounded-lg text-sm text-red-600 hover:bg-red-50"
             >
-              Try Again
+              {t('tryAgain', 'applicants')}
             </button>
           </div>
         ) : sortedFiltered.length === 0 ? (
@@ -942,9 +944,9 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
             <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
               <Users size={32} className="text-gray-400" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-700 mb-1">No applicants found</h3>
+            <h3 className="text-lg font-semibold text-gray-700 mb-1">{t('noApplicantsFound', 'applicants')}</h3>
             <p className="text-sm text-gray-500 text-center max-w-xs">
-              Try adjusting your filters or search query to find what you're looking for.
+              {t('noApplicantsFoundDesc', 'applicants')}
             </p>
           </div>
         ) : (
@@ -955,13 +957,13 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
                 <div className="bg-white rounded-2xl shadow-lg border border-blue-100 p-3">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium text-blue-600">
-                      {selectedApplicantIds.length} selected
+                      {t('selected', 'applicants', { count: selectedApplicantIds.length })}
                     </span>
                     <button
                       onClick={clearSelection}
                       className="text-xs text-gray-500 hover:text-gray-700"
                     >
-                      Clear
+                      {t('clear', 'applicants')}
                     </button>
                   </div>
                   <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
@@ -970,24 +972,24 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
                       className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 rounded-xl text-blue-700 text-sm whitespace-nowrap"
                     >
                       <Send size={16} />
-                      <span>Send Mail</span>
+                      <span>{t('sendMail', 'applicants')}</span>
                     </button>
                     <button
                       onClick={async () => {
                         const { value: status } = await Swal.fire({
-                          title: 'Change Status',
-                          text: `Update status for ${selectedApplicantIds.length} applicant(s)`,
+                          title: t('changeStatusTitle', 'applicants'),
+                          text: t('changeStatusText', 'applicants', { count: selectedApplicantIds.length }),
                           input: 'select',
                           inputOptions: {
-                            pending: 'Pending',
-                            interview: 'Interview',
-                            interviewed: 'Interviewed',
-                            approved: 'Approved',
-                            rejected: 'Rejected',
-                            trashed: 'Trashed'
+                            pending: t('pending', 'applicants'),
+                            interview: t('interview', 'applicants'),
+                            interviewed: t('interviewed', 'applicants'),
+                            approved: t('approved', 'applicants'),
+                            rejected: t('rejected', 'applicants'),
+                            trashed: t('trashed', 'applicants')
                           },
                           showCancelButton: true,
-                          confirmButtonText: 'Update',
+                          confirmButtonText: t('changeStatus', 'applicants'),
                         });
                         if (!status) return;
                         
@@ -995,22 +997,22 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
                           await Promise.all(selectedApplicantIds.map((id) => 
                             updateStatusMutation.mutateAsync({ id, data: { status } } as any)
                           ));
-                          Swal.fire('Success', `${selectedApplicantIds.length} applicants updated.`, 'success');
+                          Swal.fire(t('success', 'applicants'), t('statusUpdateSuccess', 'applicants', { count: selectedApplicantIds.length }), 'success');
                           clearSelection();
                         } catch (e) {
-                          Swal.fire('Error', 'Failed to update status', 'error');
+                          Swal.fire(t('error', 'applicants'), t('statusUpdateFailed', 'applicants'), 'error');
                         }
                       }}
                       className="flex items-center gap-1.5 px-3 py-2 bg-purple-50 rounded-xl text-purple-700 text-sm whitespace-nowrap"
                     >
                       <RefreshCw size={16} />
-                      <span>Status</span>
+                      <span>{t('changeStatus', 'applicants')}</span>
                     </button>
                     <button
                       onClick={async () => {
                         const result = await Swal.fire({
-                          title: 'Delete Applicants',
-                          text: `Are you sure you want to delete ${selectedApplicantIds.length} applicant(s)?`,
+                          title: t('deleteApplicantsTitle', 'applicants'),
+                          text: t('deleteApplicantsText', 'applicants', { count: selectedApplicantIds.length }),
                           icon: 'warning',
                           showCancelButton: true,
                           confirmButtonColor: '#ef4444',
@@ -1021,16 +1023,16 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
                           await Promise.all(selectedApplicantIds.map((id) => 
                             deleteMutation.mutateAsync(id)
                           ));
-                          Swal.fire('Deleted', `${selectedApplicantIds.length} applicants deleted.`, 'success');
+                          Swal.fire(t('delete', 'applicants'), t('deletedSuccess', 'applicants', { count: selectedApplicantIds.length }), 'success');
                           clearSelection();
                         } catch (e) {
-                          Swal.fire('Error', 'Failed to delete', 'error');
+                          Swal.fire(t('error', 'applicants'), t('deleteFailed', 'applicants'), 'error');
                         }
                       }}
                       className="flex items-center gap-1.5 px-3 py-2 bg-red-50 rounded-xl text-red-700 text-sm whitespace-nowrap"
                     >
                       <Trash2 size={16} />
-                      <span>Delete</span>
+                      <span>{t('delete', 'applicants')}</span>
                     </button>
                   </div>
                 </div>
@@ -1130,7 +1132,7 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
 
                           <p className="text-sm text-gray-600 mt-1 flex items-center gap-2">
                             <Mail size={14} className="text-gray-400 flex-shrink-0" />
-                            <span className="truncate">{a.email || 'No email'}</span>
+                            <span className="truncate">{a.email || t('noEmail', 'applicants')}</span>
                           </p>
                           
                           {a.phone && (
@@ -1187,7 +1189,7 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
                           className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-50 rounded-xl text-blue-700 text-sm font-medium hover:bg-blue-100 transition-colors"
                         >
                           <ExternalLink size={16} />
-                          <span>Open in new tab</span>
+                          <span>{t('openInNewTab', 'applicants')}</span>
                         </button>
                         {/* <a
                           href={`mailto:${a.email}`}
@@ -1203,7 +1205,7 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
                             className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-brand-50 rounded-xl text-brand-700 text-sm font-medium hover:bg-green-100 transition-colors"
                           >
                             <Download size={16} />
-                            <span>Download CV</span>
+                            <span>{t('downloadCv', 'applicants')}</span>
                           </button>
                         )}
                       </div>
@@ -1212,7 +1214,7 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
                       {a.submittedAt && (
                         <div className="mt-2 flex items-center justify-end gap-1 text-xs text-gray-400">
                           <Calendar size={12} />
-                          <span>Applied {new Date(a.submittedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                          <span>{t('applied', 'applicants', { date: new Date(a.submittedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) })}</span>
                         </div>
                       )}
                     </div>
@@ -1225,18 +1227,17 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
             <div className="mt-6 bg-white rounded-2xl border border-gray-200 p-4">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-sm text-gray-600">
-                  Showing {sortedFiltered.length === 0 ? 0 : (pageIndex * pageSize) + 1}-
-                  {Math.min((pageIndex + 1) * pageSize, sortedFiltered.length)} of {sortedFiltered.length}
+                  {t('showing', 'applicants', { start: sortedFiltered.length === 0 ? 0 : (pageIndex * pageSize) + 1, end: Math.min((pageIndex + 1) * pageSize, sortedFiltered.length), total: sortedFiltered.length })}
                 </span>
                 <select
                   value={pageSize}
                   onChange={(e) => { setPageSize(Number(e.target.value)); setPageIndex(0); }}
                   className="px-3 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                 >
-                  <option value={10}>10 / page</option>
-                  <option value={25}>25 / page</option>
-                  <option value={50}>50 / page</option>
-                  <option value={100}>100 / page</option>
+                  <option value={10}>{t('itemsPerPage', 'applicants', { count: 10 })}</option>
+                  <option value={25}>{t('itemsPerPage', 'applicants', { count: 25 })}</option>
+                  <option value={50}>{t('itemsPerPage', 'applicants', { count: 50 })}</option>
+                  <option value={100}>{t('itemsPerPage', 'applicants', { count: 100 })}</option>
                 </select>
               </div>
               
@@ -1247,17 +1248,17 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
                   className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-gray-50 rounded-xl text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
                 >
                   <ChevronLeft size={16} />
-                  <span>Previous</span>
+                  <span>{t('previous', 'applicants')}</span>
                 </button>
                 <span className="text-sm font-medium text-gray-700">
-                  Page {pageIndex + 1} of {totalPages}
+                  {t('page', 'applicants', { current: pageIndex + 1, total: totalPages })}
                 </span>
                 <button
                   disabled={pageIndex >= totalPages - 1}
                   onClick={() => setPageIndex((p) => Math.min(totalPages - 1, p + 1))}
                   className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-gray-50 rounded-xl text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
                 >
-                  <span>Next</span>
+                  <span>{t('next', 'applicants')}</span>
                   <ChevronRight size={16} />
                 </button>
               </div>
@@ -1271,10 +1272,10 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
               >
                 <span className="flex items-center gap-2">
                   <ArrowUpDown size={16} className="text-brand-500" />
-                  Sort by submission date
+                  {t('sortBySubmissionDate', 'applicants')}
                 </span>
                 <span className="flex items-center gap-1 text-brand-600">
-                  {submittedDesc ? 'Newest first' : 'Oldest first'}
+                  {submittedDesc ? t('newestFirst', 'applicants') : t('oldestFirst', 'applicants')}
                   {submittedDesc ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                 </span>
               </button>
@@ -1305,7 +1306,7 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
         >
           <div className="p-4 border-b border-gray-200">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">Filters</h3>
+              <h3 className="text-lg font-semibold text-gray-900">{t('filters', 'applicants')}</h3>
               <button
                 onClick={() => setFilterDrawerOpen(false)}
                 className="p-2 hover:bg-gray-100 rounded-full transition-colors"
@@ -1318,14 +1319,14 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
           <div className="p-4 space-y-4 max-h-[70vh] overflow-y-auto">
             {/* Company Filter */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Company</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t('company', 'applicants')}</label>
               <div className="rounded-xl border border-gray-200 bg-gray-50 p-2">
                 <p className="mb-2 text-xs text-gray-500">
-                  {singleAssignedCompanyId
-                    ? '1 selected (auto)'
-                    : companyFilters.length
-                      ? `${companyFilters.length} selected`
-                      : 'All companies'}
+                    {singleAssignedCompanyId
+                      ? t('selectedAuto', 'applicants')
+                      : companyFilters.length
+                        ? t('selected', 'applicants', { count: companyFilters.length })
+                        : t('allCompanies', 'applicants')}
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {companies.map((c: any) => {
@@ -1361,15 +1362,15 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
 
             {/* Job Filter */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Job Position</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t('jobPosition', 'applicants')}</label>
               {companyFilters.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-3 text-xs text-gray-500">
-                  Select one or more companies first to show related job positions.
+                  {t('selectCompaniesFirst', 'applicants')}
                 </div>
               ) : (
                 <div className="rounded-xl border border-gray-200 bg-gray-50 p-2">
                   <p className="mb-2 text-xs text-gray-500">
-                    {jobFilters.length ? `${jobFilters.length} selected` : 'All jobs'}
+                    {jobFilters.length ? t('selected', 'applicants', { count: jobFilters.length }) : t('allJobs', 'applicants')}
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {displayedJobPositions.map((j: any) => {
@@ -1402,10 +1403,10 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
 
             {/* Status Filter */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t('status', 'applicants')}</label>
               <div className="rounded-xl border border-gray-200 bg-gray-50 p-2">
                 <p className="mb-2 text-xs text-gray-500">
-                  {statusFilters.length ? `${statusFilters.length} selected` : 'All statuses'}
+                  {statusFilters.length ? t('selected', 'applicants', { count: statusFilters.length }) : t('allStatuses', 'applicants')}
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {[
@@ -1443,10 +1444,10 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
 
             {/* Gender Filter */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Gender</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t('gender', 'applicants')}</label>
               <div className="rounded-xl border border-gray-200 bg-gray-50 p-2">
                 <p className="mb-2 text-xs text-gray-500">
-                  {genderFilters.length ? `${genderFilters.length} selected` : 'All genders'}
+                  {genderFilters.length ? t('selected', 'applicants', { count: genderFilters.length }) : t('allGenders', 'applicants')}
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {genderOptions.map((g) => {
@@ -1488,7 +1489,7 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
               }}
               className="w-full px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-red-700 font-medium hover:bg-red-100 transition-colors"
             >
-              Clear All Filters
+              {t('clearAllFilters', 'applicants')}
             </button>
 
             {/* Custom Filter Settings Button */}
@@ -1500,7 +1501,7 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
               className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-700 font-medium hover:bg-gray-100 transition-colors flex items-center justify-center gap-2"
             >
               <SlidersHorizontal size={16} />
-              <span>Custom Filter Settings</span>
+              <span>{t('customFilterSettings', 'applicants')}</span>
             </button>
           </div>
         </div>
@@ -1520,7 +1521,7 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
           </button>
           <img
             src={previewPhoto}
-            alt="Applicant photo preview"
+            alt={t('applicantPhotoPreview', 'applicants')}
             className="max-h-[90vh] max-w-[90vw] object-contain rounded-2xl shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           />
@@ -1553,8 +1554,8 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
           clearSelection();
           Swal.fire({
             icon: 'success',
-            title: 'Success!',
-            text: 'Bulk message sent successfully',
+            title: t('success', 'applicants'),
+            text: t('bulkMessageSuccess', 'applicants'),
             timer: 2000,
             showConfirmButton: false
           });

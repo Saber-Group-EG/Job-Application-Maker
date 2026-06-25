@@ -8,6 +8,7 @@ import Select from '../form/Select';
 import Input from '../form/input/InputField';
 import TextArea from '../form/input/TextArea';
 import { EmailTemplate } from '../../services/companiesService';
+import { useLocale } from '../../context/LocaleContext';
 
 import 'quill/dist/quill.snow.css';
 
@@ -85,6 +86,7 @@ const MessageModal = ({
   const [showEmailPreview, setShowEmailPreview] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+  const { t } = useLocale();
 
   // Sender selection states
   const [senderOption, setSenderOption] = useState<'company' | 'available' | 'custom'>('company');
@@ -332,15 +334,15 @@ const handleTemplateSelect = (templateId: string) => {
   }
 
   const getCandidateName = () => {
-    if (!applicant) return 'Candidate';
+    if (!applicant) return t('candidate', 'modals');
     const rawName =
       (applicant.fullName && String(applicant.fullName).trim()) ||
       (applicant.applicantName && String(applicant.applicantName).trim()) ||
       (applicant.name && String(applicant.name).trim()) ||
       ((String(applicant.firstName || '') + ' ' + String(applicant.lastName || '')).trim()) ||
       (applicant.email && String(applicant.email).split('@')[0]) ||
-      'Candidate';
-    return String(rawName).trim() || 'Candidate';
+      t('candidate', 'modals');
+    return String(rawName).trim() || t('candidate', 'modals');
   };
 
   const getJobTitleFromApplicant = (): string => {
@@ -392,12 +394,12 @@ const handleTemplateSelect = (templateId: string) => {
 
   const handlePreviewEmail = () => {
     if (messageForm.type !== 'email') return;
-    if (!messageForm.body?.trim()) {
-      setMessageError('Message body is required to preview email');
+      if (!messageForm.body?.trim()) {
+      setMessageError(t('bodyRequired', 'modals'));
       return;
     }
 
-    const subjectForPreview = messageForm.subject?.trim() || 'No Subject';
+    const subjectForPreview = messageForm.subject?.trim() || t('messageSubjectPlaceholder', 'modals');
     const substitutedSubject = applyTemplateToPlain(subjectForPreview);
     const substitutedBody = applyTemplateToHtml(messageForm.body || '');
     const html = buildEmailHtml(substitutedSubject, substitutedBody);
@@ -419,11 +421,11 @@ const handleTemplateSelect = (templateId: string) => {
     if (!id || !applicant) return;
 
     if (messageForm.type === 'email' && !messageForm.subject?.trim()) {
-      setMessageError('Subject is required when sending an email');
+      setMessageError(t('subjectRequired', 'modals'));
       return;
     }
     if (!messageForm.body?.trim()) {
-      setMessageError('Message body is required');
+      setMessageError(t('bodyRequiredSubmit', 'modals'));
       return;
     }
 
@@ -453,7 +455,7 @@ const handleTemplateSelect = (templateId: string) => {
           const local = newLocalEmail.trim();
           const domainToUse = resolvedCompanyDomain || companyDomain;
           if (!domainToUse) {
-            setMessageError('Company domain not configured');
+            setMessageError(t('companyDomainRequired', 'modals'));
             setIsSubmittingMessage(false);
             return;
           }
@@ -497,8 +499,8 @@ const handleTemplateSelect = (templateId: string) => {
         onClose();
 
         await Swal.fire({
-          title: 'Success!',
-          text: 'Email sent and saved to history.',
+          title: t('success', 'modals'),
+          text: t('successEmailSentSaved', 'modals'),
           icon: 'success',
           position: 'center',
           timer: 2000,
@@ -527,14 +529,14 @@ const handleTemplateSelect = (templateId: string) => {
       >
         <form onSubmit={handleMessageSubmit} className="space-y-6">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Send Message
+            {t('sendMessage', 'modals')}
           </h2>
 
           {messageError && (
             <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
               <div className="flex items-start justify-between">
                 <p className="text-sm text-red-600 dark:text-red-400">
-                  <strong>Error:</strong> {messageError}
+                  <strong>{t('error', 'modals')}:</strong> {messageError}
                 </p>
                 <button
                   type="button"
@@ -548,15 +550,15 @@ const handleTemplateSelect = (templateId: string) => {
           )}
 
           <div>
-            <Label htmlFor="message-type">Message Type</Label>
+            <Label htmlFor="message-type">{t('messageType', 'modals')}</Label>
             <Select
               options={[
-                { value: 'email', label: '📧 Email (Will be sent & saved)' },
-                { value: 'sms', label: '💬 SMS (Soon)' },
-                { value: 'whatsapp', label: '📱 WhatsApp (Soon)' },
+                { value: 'email', label: `📧 ${t('emailSentSaved', 'modals')}` },
+                { value: 'sms', label: `💬 ${t('smsSoon', 'modals')}` },
+                { value: 'whatsapp', label: `📱 ${t('whatsappSoon', 'modals')}` },
               ]}
               value={messageForm.type}
-              placeholder="Select message type"
+              placeholder={t('messageType', 'modals')}
               onChange={(value) =>
                 setMessageForm({
                   ...messageForm,
@@ -567,7 +569,7 @@ const handleTemplateSelect = (templateId: string) => {
             />
             {messageForm.type === 'email' && (
               <p className="mt-1 text-xs text-green-600">
-                ✓ Email will be sent via email service AND saved to message history
+                ✓ {t('emailSentHistory', 'modals')}
               </p>
             )}
           </div>
@@ -575,21 +577,21 @@ const handleTemplateSelect = (templateId: string) => {
           {/* Template Selector - Only for email */}
           {messageForm.type === 'email' && emailTemplates.length > 0 && (
             <div>
-              <Label htmlFor="template-select">Load Template</Label>
+              <Label htmlFor="template-select">{t('loadTemplate', 'modals')}</Label>
               <Select
                 options={[
-                  { value: '', label: '-- Select a template --' },
-                  ...emailTemplates.map((t: EmailTemplate) => ({ 
-                    value: t._id || '', 
-                    label: t.name 
+                  { value: '', label: t('selectTemplate', 'modals') },
+                  ...emailTemplates.map((tmpl: EmailTemplate) => ({ 
+                    value: tmpl._id || '', 
+                    label: tmpl.name 
                   }))
                 ]}
                 value={selectedTemplateId}
                 onChange={(value) => handleTemplateSelect(value as string)}
-                placeholder="Select a template to load"
+                placeholder={t('selectTemplateToLoad', 'modals')}
               />
               <p className="mt-1 text-xs text-gray-500">
-                Select a template to automatically fill the subject and body
+                {t('selectTemplateAutoFill', 'modals')}
               </p>
             </div>
           )}
@@ -597,7 +599,7 @@ const handleTemplateSelect = (templateId: string) => {
           {/* Subject field - only for email */}
           {messageForm.type === 'email' && (
             <div>
-              <Label htmlFor="message-subject">Subject *</Label>
+              <Label htmlFor="message-subject">{t('messageSubject', 'modals')} *</Label>
               <Input
                 id="message-subject"
                 type="text"
@@ -605,37 +607,37 @@ const handleTemplateSelect = (templateId: string) => {
                 onChange={(e) =>
                   setMessageForm({ ...messageForm, subject: e.target.value })
                 }
-                placeholder="Message subject"
+                placeholder={t('messageSubjectPlaceholder', 'modals')}
                 required
               />
               <p className="mt-1 text-xs text-gray-500">
-                Available variables: {'{{candidateName}}'}, {'{{position}}'} or {'{{jobTitle}}'}
+                {t('availableVariables', 'modals')}: {'{{candidateName}}'}, {'{{position}}'} or {'{{jobTitle}}'}
               </p>
             </div>
           )}
 
           {messageForm.type === 'email' && (
             <div>
-              <Label>Sender</Label>
+              <Label>{t('sender', 'modals')}</Label>
               <div className="space-y-2">
                 <Select
                   options={[
-                    { value: 'available', label: 'Company mails' },
-                    { value: 'custom', label: 'New Mail' },
+                    { value: 'available', label: t('companyMails', 'modals') },
+                    { value: 'custom', label: t('newMail', 'modals') },
                   ]}
                   value={senderOption}
                   onChange={(v: any) => setSenderOption(v)}
-                  placeholder="Select sender option"
+                  placeholder={t('selectSenderOption', 'modals')}
                 />
 
                 {senderOption === 'available' && (
                   <Select
-                    options={senderOptions.length > 0 ? senderOptions : [{ value: '', label: 'No available senders' }]}
+                    options={senderOptions.length > 0 ? senderOptions : [{ value: '', label: t('noAvailableSenders', 'modals') }]}
                     value={customSender || (senderOptions[0] && senderOptions[0].value) || ''}
                     onChange={(v: any) => {
                       setCustomSender(v);
                     }}
-                    placeholder="Select sender"
+                    placeholder={t('noSenderSelected', 'modals')}
                   />
                 )}
 
@@ -651,7 +653,7 @@ const handleTemplateSelect = (templateId: string) => {
 
           {messageForm.type === 'email' && (
             <div>
-              <Label>Selected Sender</Label>
+              <Label>{t('selectedSender', 'modals')}</Label>
               <Input
                 value={
                   senderOption === 'custom' && newLocalEmail
@@ -659,19 +661,19 @@ const handleTemplateSelect = (templateId: string) => {
                     : customSender || ''
                 }
                 readOnly
-                placeholder="No sender selected"
+                placeholder={t('noSenderSelected', 'modals')}
                 className={!resolvedCompanyDomain && !companyDomain ? 'border-amber-300' : ''}
               />
               {!resolvedCompanyDomain && !companyDomain && senderOption === 'custom' && (
                 <p className="text-xs text-amber-600 mt-1">
-                  ⚠️ No company domain configured. Please add a sender from Company Settings first.
+                  {t('noDomainConfigured', 'modals')}
                 </p>
               )}
             </div>
           )}
 
           <div>
-            <Label htmlFor="message-body">Message *</Label>
+            <Label htmlFor="message-body">{t('messageBody', 'modals')}</Label>
             {messageForm.type === 'email' ? (
               <>
                 <QuillEditor
@@ -679,10 +681,10 @@ const handleTemplateSelect = (templateId: string) => {
                   onChange={(content) => setMessageForm({ ...messageForm, body: content })}
                 />
                 <p className="mt-2 text-xs text-gray-500">
-                  Available variables: {'{{candidateName}}'}, {'{{position}}'} or {'{{jobTitle}}'}
+                  {t('availableVariables', 'modals')}
                 </p>
                 <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded text-xs">
-                  <strong>Quick Insert:</strong>{' '}
+                  <strong>{t('quickInsert', 'modals')}</strong>{' '}
                   <button 
                     type="button"
                     onClick={() => setMessageForm({ ...messageForm, body: messageForm.body + '{{candidateName}}' })}
@@ -712,7 +714,7 @@ const handleTemplateSelect = (templateId: string) => {
                 onChange={(value) =>
                   setMessageForm({ ...messageForm, body: value })
                 }
-                placeholder="Enter your message to the applicant"
+                placeholder={t('messageBodyPlaceholder', 'modals')}
                 rows={5}
               />
             )}
@@ -725,7 +727,7 @@ const handleTemplateSelect = (templateId: string) => {
               className="rounded-lg border border-stroke px-6 py-2 hover:bg-gray-100 dark:border-strokedark dark:hover:bg-gray-800"
               disabled={isSubmittingMessage}
             >
-              Cancel
+              {t('cancel', 'modals')}
             </button>
             {messageForm.type === 'email' && (
               <button
@@ -734,7 +736,7 @@ const handleTemplateSelect = (templateId: string) => {
                 className="rounded-lg border border-stroke px-6 py-2 hover:bg-gray-100 dark:border-strokedark dark:hover:bg-gray-800"
                 disabled={isSubmittingMessage}
               >
-                Preview Email
+                {t('previewEmail', 'modals')}
               </button>
             )}
             <button
@@ -764,13 +766,13 @@ const handleTemplateSelect = (templateId: string) => {
                       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                     ></path>
                   </svg>
-                  <span>Sending...</span>
+                  <span>{t('sending', 'modals')}</span>
                 </>
               ) : (
                 <span>
                   {messageForm.type === 'email'
-                    ? 'Send Email & Save'
-                    : 'Send Message'}
+                    ? t('sendEmailSave', 'modals')
+                    : t('sendMessageSimple', 'modals')}
                 </span>
               )}
             </button>
@@ -786,11 +788,11 @@ const handleTemplateSelect = (templateId: string) => {
         className="max-w-3xl p-6"
       >
         <div className="space-y-4">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Email Preview</h2>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t('emailPreview', 'modals')}</h2>
           <div className="border rounded p-2 bg-white dark:bg-gray-800" style={{ maxHeight: '70vh', overflow: 'auto' }}>
             <iframe
               srcDoc={previewHtml}
-              title="Message Email Preview"
+              title={t('emailPreview', 'modals')}
               className="w-full min-h-[560px] rounded border-none"
             />
           </div>
@@ -800,7 +802,7 @@ const handleTemplateSelect = (templateId: string) => {
               onClick={() => setShowEmailPreview(false)}
               className="rounded-lg border border-stroke px-4 py-2 hover:bg-gray-100 dark:border-strokedark dark:hover:bg-gray-800"
             >
-              Close
+              {t('close', 'modals')}
             </button>
           </div>
         </div>

@@ -67,6 +67,7 @@ import {
 } from './BulkSalaryReview';
 import SectionTemplatePicker from '../../form/SectionTemplatePicker';
 import { translateText } from '../../../utils/translate';
+import { useLocale } from '../../../context/LocaleContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -150,13 +151,6 @@ export type FormState = {
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-const WORK_TYPES: { value: WorkType; label: string }[] = [
-  { value: 'full-time', label: 'Full-time' },
-  { value: 'part-time', label: 'Part-time' },
-  { value: 'contract', label: 'Contract' },
-  { value: 'internship', label: 'Internship' },
-];
 
 const CURRENCIES = ['EGP', 'USD', 'EUR', 'SAR', 'AED'];
 
@@ -254,6 +248,15 @@ export default function JobOfferModal({
   cloneFrom,
   applicantObjects,
 }: JobOfferModalProps) {
+  const { t } = useLocale();
+
+  const WORK_TYPES: { value: WorkType; label: string }[] = [
+    { value: 'full-time', label: t('fullTime', 'modals') },
+    { value: 'part-time', label: t('partTime', 'modals') },
+    { value: 'contract', label: t('contract', 'modals') },
+    { value: 'internship', label: t('internship', 'modals') },
+  ];
+
   const [form, setForm] = useState<FormState>(emptyForm);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [showSalaryReview, setShowSalaryReview] = useState(false);
@@ -575,7 +578,7 @@ export default function JobOfferModal({
 
   const handleSubmit = async () => {
     if (!form.isBulk && !form.position.en.trim() && !form.position.ar.trim()) {
-      Swal.fire('Validation', 'Position title is required.', 'warning');
+      Swal.fire(t('validation', 'modals'), t('validationPositionRequired', 'modals'), 'warning');
       return;
     }
     const willSendEmail = form.sendAsEmail && mode === 'offer';
@@ -586,8 +589,8 @@ export default function JobOfferModal({
       );
       if (missingSender) {
         Swal.fire(
-          'Validation',
-          'Please select a sender address for every company group before sending.',
+          t('validation', 'modals'),
+          t('validationSenderRequired', 'modals'),
           'warning'
         );
         return;
@@ -723,21 +726,21 @@ export default function JobOfferModal({
 
   const title = editing
     ? isTemplate
-      ? 'Edit Offer Template'
-      : 'Edit Job Offer'
+      ? t('editOfferTemplate', 'modals')
+      : t('editJobOffer', 'modals')
     : isTemplate
-      ? 'New Offer Template'
-      : 'New Job Offer';
+      ? t('newOfferTemplate', 'modals')
+      : t('newJobOffer', 'modals');
 
   const submitLabel = editing
     ? form.sendAsEmail && mode === 'offer'
-      ? 'Save & Resend'
-      : 'Save Changes'
+      ? t('saveResend', 'modals')
+      : t('saveChanges', 'modals')
     : isTemplate
-      ? 'Create Template'
+      ? t('createTemplate', 'modals')
       : form.sendAsEmail
-        ? 'Create & Send'
-        : 'Create Offer';
+        ? t('createSend', 'modals')
+        : t('createOffer', 'modals');
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -772,8 +775,8 @@ export default function JobOfferModal({
                 </h2>
                 <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
                   {isTemplate
-                    ? 'Templates can be reused when creating actual offers'
-                    : 'Fill in the details for this job offer'}
+                    ? t('templateOfferDesc', 'modals')
+                    : t('offerDesc', 'modals')}
                 </p>
               </div>
             </div>
@@ -783,14 +786,14 @@ export default function JobOfferModal({
                 onClick={translateAll}
                 disabled={translatingAll}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-brand-50 hover:text-brand-600 disabled:opacity-50 dark:border-slate-700 dark:hover:bg-brand-500/10 dark:hover:text-brand-400"
-                title="Translate all EN fields to AR"
+                title={t('translateAll', 'modals')}
               >
                 {translatingAll ? (
                   <div className="size-3.5 animate-spin rounded-full border-2 border-slate-400/30 border-t-slate-400" />
                 ) : (
                   <Languages className="size-3.5" />
                 )}
-                Translate All
+                {t('translateAll', 'modals')}
               </button>
               <button
                 type="button"
@@ -810,9 +813,9 @@ export default function JobOfferModal({
             {mode === 'offer' && !applicantId && !editing && (
               <div>
                 <ModalLabel>
-                  Applicant
+                  {t('applicant', 'modals')}
                   {form.isBulk
-                    ? `s (${form.applicantIds?.length} selected)`
+                    ? t('applicantsSelected', 'modals', { count: form.applicantIds?.length ?? 0 })
                     : ''}
                 </ModalLabel>
                 {form.isBulk ? (
@@ -820,7 +823,7 @@ export default function JobOfferModal({
                     {/* Header */}
                     <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2 dark:border-slate-700">
                       <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                        {form.applicantIds?.length} applicant(s) selected
+                        {t('applicantCount', 'modals', { count: form.applicantIds?.length ?? 0 })}
                       </p>
                       <button
                         type="button"
@@ -833,7 +836,7 @@ export default function JobOfferModal({
                         }
                         className="text-xs text-brand-600 hover:underline dark:text-brand-400"
                       >
-                        Switch to single
+                        {t('switchToSingle', 'modals')}
                       </button>
                     </div>
 
@@ -866,7 +869,7 @@ export default function JobOfferModal({
                         onClick={() => setShowSalaryReview((v) => !v)}
                         className="flex w-full items-center justify-between text-xs font-semibold text-brand-600 hover:text-brand-700 dark:text-brand-400"
                       >
-                        <span>Configure individual salaries</span>
+                        <span>{t('configureSalariesOffer', 'modals')}</span>
                         <ChevronDown
                           className={`size-3.5 transition-transform ${showSalaryReview ? 'rotate-180' : ''}`}
                         />
@@ -904,13 +907,13 @@ export default function JobOfferModal({
             {/* ── Core Info ── */}
             <SectionDivider
               icon={Briefcase}
-              title="Core Information"
+              title={t('coreInformation', 'modals')}
               description="Position title, type, and working hours"
             />
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <ModalLabel required>Position Title (EN)</ModalLabel>
+                <ModalLabel required>{t('positionTitleEn', 'modals')}</ModalLabel>
 
                 <input
                   ref={firstInputRef}
@@ -922,13 +925,13 @@ export default function JobOfferModal({
                       en: e.target.value,
                     })
                   }
-                  placeholder="e.g. Senior Sales Representative"
+                  placeholder={t('positionEnPlaceholder', 'modals')}
                 />
               </div>
 
               <div>
                 <div className="flex items-center justify-between">
-                  <ModalLabel required>Position Title (AR)</ModalLabel>
+                  <ModalLabel required>{t('positionTitleAr', 'modals')}</ModalLabel>
                   <button
                     type="button"
                     onClick={async () => {
@@ -942,7 +945,7 @@ export default function JobOfferModal({
                     }}
                     disabled={!form.position.en.trim() && !form.position.ar.trim()}
                     className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
-                    title={form.position.en.trim() ? 'Translate EN → AR' : 'Translate AR → EN'}
+                    title={form.position.en.trim() ? t('translateEnToAr', 'modals') : t('translateArToEn', 'modals')}
                   >
                     <Languages className="size-3" />
                   </button>
@@ -958,13 +961,13 @@ export default function JobOfferModal({
                       ar: e.target.value,
                     })
                   }
-                  placeholder="مندوب مبيعات أول"
+                  placeholder={t('positionArPlaceholder', 'modals')}
                 />
               </div>
             </div>
 
             <div>
-              <ModalLabel>Work Type</ModalLabel>
+              <ModalLabel>{t('workType', 'modals')}</ModalLabel>
               <select
                 className={selectCls}
                 value={form.workType}
@@ -979,7 +982,7 @@ export default function JobOfferModal({
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <ModalLabel>Work Hours</ModalLabel>
+<ModalLabel>{t('workHours', 'modals')}</ModalLabel>
                 <div className="relative">
                   <Clock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
                   <input
@@ -991,13 +994,13 @@ export default function JobOfferModal({
                         en: e.target.value,
                       })
                     }
-                    placeholder="e.g. 8 flexible hours"
+                    placeholder={t('workHoursEnPlaceholder', 'modals')}
                   />
                 </div>
               </div>
               <div>
                 <div className="flex items-center justify-between">
-                  <ModalLabel>Work Hours (AR)</ModalLabel>
+                  <ModalLabel>{t('workHours', 'modals')} (AR)</ModalLabel>
                   <button
                     type="button"
                     onClick={async () => {
@@ -1011,7 +1014,7 @@ export default function JobOfferModal({
                     }}
                     disabled={!form.workHours.en.trim() && !form.workHours.ar.trim()}
                     className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
-                    title={form.workHours.en.trim() ? 'Translate EN → AR' : 'Translate AR → EN'}
+                    title={form.workHours.en.trim() ? t('translateEnToAr', 'modals') : t('translateArToEn', 'modals')}
                   >
                     <Languages className="size-3" />
                   </button>
@@ -1028,7 +1031,7 @@ export default function JobOfferModal({
                         ar: e.target.value,
                       })
                     }
-                    placeholder="e.g. 8 ساعات مرنة"
+                    placeholder={t('workHoursArPlaceholder', 'modals')}
                   />
                 </div>
               </div>
@@ -1037,13 +1040,13 @@ export default function JobOfferModal({
             {/* ── Salary ── */}
             <SectionDivider
               icon={DollarSign}
-              title="Salary"
-              description="Basic salary and currency"
+              title={t('basicSalary', 'modals')}
+              description={t('salaryDesc', 'modals')}
             />
 
             <div className="grid grid-cols-[1fr_120px] gap-4">
               <div>
-                <ModalLabel>Basic Salary</ModalLabel>
+                <ModalLabel>{t('basicSalary', 'modals')}</ModalLabel>
                 <div className="relative">
                   <DollarSign className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
                   <input
@@ -1064,7 +1067,7 @@ export default function JobOfferModal({
                 </div>
               </div>
               <div>
-                <ModalLabel>Currency</ModalLabel>
+                <ModalLabel>{t('currency', 'modals')}</ModalLabel>
                 <select
                   className={selectCls}
                   value={form.salaryCurrency}
@@ -1082,8 +1085,8 @@ export default function JobOfferModal({
             {/* ── Commissions ── */}
             <SectionDivider
               icon={Percent}
-              title="Commission Tiers"
-              description="Structured commission rules for this offer"
+              title={t('commissionTiers', 'modals')}
+              description={t('commissionTiersDesc', 'modals')}
             />
 
             <div className="space-y-3">
@@ -1120,11 +1123,11 @@ export default function JobOfferModal({
                             <div className="flex items-center gap-2">
                               <GripVertical className="size-4 text-brand-500" />
                               <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                                Tier {form.commissions.indexOf(c) + 1}
+                                {t('tier', 'modals', { index: form.commissions.indexOf(c) + 1 })}
                               </span>
                             </div>
                             <div className="mt-2 text-sm font-medium text-slate-700 dark:text-slate-200">
-                              {c.label.en || c.label.ar || 'Untitled'}
+                              {c.label.en || c.label.ar || t('untitledOffer', 'modals')}
                             </div>
                           </div>
                         );
@@ -1140,15 +1143,15 @@ export default function JobOfferModal({
                 className="inline-flex items-center gap-2 rounded-lg border border-dashed border-slate-300 px-3 py-2 text-sm font-semibold text-slate-500 transition hover:border-brand-400 hover:text-brand-600 dark:border-slate-600 dark:text-slate-400 dark:hover:border-brand-500 dark:hover:text-brand-300"
               >
                 <Plus className="size-4" />
-                Add Commission Tier
+                {t('addCommissionTier', 'modals')}
               </button>
             </div>
 
             {/* ── Offer Sections ── */}
             <SectionDivider
               icon={Hash}
-              title="Offer Sections"
-              description="Custom bilingual content blocks (benefits, terms, etc.)"
+              title={t('offerSections', 'modals')}
+              description={t('offerSectionsDesc', 'modals')}
             />
 
             <div className="space-y-3">
@@ -1203,7 +1206,7 @@ export default function JobOfferModal({
                   className="inline-flex items-center gap-2 rounded-lg border border-dashed border-slate-300 px-3 py-2 text-sm font-semibold text-slate-500 transition hover:border-brand-400 hover:text-brand-600 dark:border-slate-600 dark:text-slate-400 dark:hover:border-brand-500 dark:hover:text-brand-300"
                 >
                   <Plus className="size-4" />
-                  Add Section
+                  {t('addSection', 'modals')}
                 </button>
                 <button
                   type="button"
@@ -1211,7 +1214,7 @@ export default function JobOfferModal({
                   className="inline-flex items-center gap-2 rounded-lg border border-dashed border-indigo-300 px-3 py-2 text-sm font-semibold text-indigo-500 transition hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-600 dark:border-indigo-500/40 dark:text-indigo-400 dark:hover:border-indigo-400 dark:hover:bg-indigo-500/10"
                 >
                   <Layers className="size-4" />
-                  From Templates
+                  {t('fromTemplates', 'modals')}
                 </button>
               </div>
               <SectionTemplatePicker
@@ -1227,13 +1230,13 @@ export default function JobOfferModal({
             {/* ── Internal Notes ── */}
             <SectionDivider
               icon={StickyNote}
-              title="Internal Notes"
-              description="Only visible to your team"
+              title={t('internalNotes', 'modals')}
+              description={t('internalNotesDesc', 'modals')}
             />
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <ModalLabel>Notes (EN)</ModalLabel>
+                <ModalLabel>{t('notesEn', 'modals')}</ModalLabel>
 
                 <textarea
                   className={`${inputCls} resize-none`}
@@ -1245,13 +1248,13 @@ export default function JobOfferModal({
                       en: e.target.value,
                     })
                   }
-                  placeholder="Any internal notes..."
+                  placeholder={t('notesEnPlaceholder', 'modals')}
                 />
               </div>
 
               <div>
                 <div className="flex items-center justify-between">
-                  <ModalLabel>Notes (AR)</ModalLabel>
+                  <ModalLabel>{t('notesAr', 'modals')}</ModalLabel>
                   <button
                     type="button"
                     onClick={async () => {
@@ -1265,7 +1268,7 @@ export default function JobOfferModal({
                     }}
                     disabled={!form.notes.en.trim() && !form.notes.ar.trim()}
                     className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
-                    title={form.notes.en.trim() ? 'Translate EN → AR' : 'Translate AR → EN'}
+                    title={form.notes.en.trim() ? t('translateEnToAr', 'modals') : t('translateArToEn', 'modals')}
                   >
                     <Languages className="size-3" />
                   </button>
@@ -1282,7 +1285,7 @@ export default function JobOfferModal({
                       ar: e.target.value,
                     })
                   }
-                  placeholder="أي ملاحظات داخلية..."
+                  placeholder={t('notesArPlaceholder', 'modals')}
                 />
               </div>
             </div>
@@ -1320,19 +1323,20 @@ export default function JobOfferModal({
                 </div>
                 <Mail className="size-3.5 text-slate-400" />
                 <span className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                  Send as email
+                  {t('sendAsEmail', 'modals')}
                 </span>
                 {editing && editing.lastEmailSentAt && (
                   <span className="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
-                    Last sent{' '}
-                    {new Date(editing.lastEmailSentAt).toLocaleDateString(
-                      undefined,
-                      {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                      }
-                    )}
+                    {t('lastSent', 'modals', {
+                      date: new Date(editing.lastEmailSentAt).toLocaleDateString(
+                        undefined,
+                        {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                        }
+                      ),
+                    })}
                   </span>
                 )}
               </label>
@@ -1346,7 +1350,7 @@ export default function JobOfferModal({
                 onClick={onClose}
                 className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
               >
-                Cancel
+                {t('cancel', 'modals')}
               </button>
               <button
                 type="button"
