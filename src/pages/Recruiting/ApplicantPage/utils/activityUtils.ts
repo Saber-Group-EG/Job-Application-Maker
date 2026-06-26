@@ -89,7 +89,7 @@ const buildActivities = (
       ...base,
       type: 'message',
       title: (() => {
-        const msgType = entry.type || 'internal';
+        const msgType = (entry.type || 'internal') as string;
         const typeLabel = msgType === 'internal'
           ? (t ? t('internal', 'activity') : 'Internal')
           : msgType === 'external'

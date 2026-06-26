@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { CalenderIcon, ChatIcon, PrintIcon, DocsIcon, FileIcon } from '../../../../../icons';
+import { CalenderIcon, ChatIcon, DownloadIcon,  } from '../../../../../icons';
 import type { Applicant, ApplicantView, PersonalInfoProps } from '../../../../../types/applicants';
 import { toPlainString } from '../../../../../utils/strings';
-import { useLocale } from '../../../../../context/LocaleContext';
 
 const buildResumeUrl = (raw?: string): string | null => {
   if (!raw) return null;
@@ -14,11 +13,11 @@ const buildResumeUrl = (raw?: string): string | null => {
   return `/${trimmed}`;
 };
 
-const formatDate = (value: string | undefined, locale: string): string => {
+const formatDate = (value?: string): string => {
   if (!value) return '-';
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' });
+  return d.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
 };
 
 const getInitials = (name: string): string => {
@@ -37,12 +36,8 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
   onScheduleInterview,
   onSendMessage,
   onPrint,
-  onCreateJobOffer,
-  onCreateContract,
-  onRestore,
 }) => {
   const [photoPreviewOpen, setPhotoPreviewOpen] = useState(false);
-  const { t, locale } = useLocale();
 
   const data: ApplicantView = {
     ...(applicant as ApplicantView),
@@ -52,7 +47,7 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
   const fullName = String(
     data.fullName ||
       `${data.firstName || ''} ${data.lastName || ''}`.trim() ||
-      t('applicant', 'personalInfo')
+      'Applicant'
   );
   const resumeUrl = buildResumeUrl(data.cvFilePath || data.resume);
   const submittedAt = data.submittedAt || data.createdAt;
@@ -65,7 +60,7 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
     };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden mb-19">
+    <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
       <div className="p-5">
         <div className="flex flex-col items-center text-center mb-5 mt-8">
           {data.profilePhoto ? (
@@ -114,7 +109,7 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
               type="text"
               value={data.fullName || ''}
               onChange={handleField('fullName')}
-              placeholder={t('fullName', 'personalInfo')}
+              placeholder="Full name"
               className="w-full text-center text-lg font-bold text-gray-800 border-b border-gray-200 focus:border-blue-400 focus:outline-none mb-1"
             />
           ) : (
@@ -123,14 +118,14 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
 
           <p className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors mt-2">
             {(typeof data.jobPositionId === 'object'
-              ? toPlainString(data.jobPositionId?.title, locale)
-              : null) || t('positionAppliedFor', 'personalInfo')}
+              ? toPlainString(data.jobPositionId?.title)
+              : null) || 'Position Applied For'}
           </p>
 
           <div className="flex items-center justify-center gap-3 mt-3 mb-3">
             <button
               type="button"
-              title={t('scheduleInterview', 'personalInfo')}
+              title="Schedule Interview"
               onClick={onScheduleInterview}
               className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
             >
@@ -139,7 +134,7 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
            
             <button
               type="button"
-              title={t('sendMessage', 'personalInfo')}
+              title="Send Message"
               onClick={onSendMessage}
               className="flex items-center justify-center w-8 h-8 rounded-full bg-purple-50 text-purple-600 hover:bg-purple-100 transition-colors"
             >
@@ -148,60 +143,31 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
 
             <button
               type="button"
-              title={t('print', 'personalInfo')}
+              title="Print"
               onClick={onPrint}
               className="flex items-center justify-center w-8 h-8 rounded-full bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors"
             >
-              <PrintIcon className="w-4 h-4" />
-            </button>
-
-            <button
-              type="button"
-              title={t('createJobOffer', 'personalInfo')}
-              onClick={onCreateJobOffer}
-              className="flex items-center justify-center w-8 h-8 rounded-full bg-green-50 text-green-600 hover:bg-green-100 transition-colors"
-            >
-              <DocsIcon className="w-4 h-4" />
-            </button>
-
-            <button
-              type="button"
-              title={t('createContract', 'personalInfo')}
-              onClick={onCreateContract}
-              className="flex items-center justify-center w-8 h-8 rounded-full bg-cyan-50 text-cyan-600 hover:bg-cyan-100 transition-colors"
-            >
-              <FileIcon className="w-4 h-4" />
+              <DownloadIcon className="w-4 h-4" />
             </button>
           </div>
          </div>
 
         <div className="flex justify-between items-center mb-3">
-          <span className="text-sm font-semibold text-gray-800">{t('details', 'personalInfo')}</span>
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={onChangeStatus}
-              className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
-            >
-              {data.status || t('status', 'applicants')}
-            </button>
-            {data.status === 'trashed' && onRestore && (
-              <button
-                type="button"
-                onClick={onRestore}
-                className="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-700 hover:bg-green-200 transition-colors"
-              >
-                {t('restore', 'common')}
-              </button>
-            )}
-          </div>
+          <span className="text-sm font-semibold text-gray-800">Details</span>
+          <button
+            type="button"
+            onClick={onChangeStatus}
+            className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
+          >
+            {data.status || 'Status'}
+          </button>
         </div>
 
         <div className="border-t border-gray-200 mb-5 mt-5" />
 
         <div className="space-y-4">
           <div>
-            <div className="text-sm font-semibold text-gray-800 -mb-1">{t('phone', 'applicants')}</div>
+            <div className="text-sm font-semibold text-gray-800 -mb-1">Phone</div>
             {isEditing ? (
               <input
                 type="tel"
@@ -220,7 +186,7 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
           </div>
 
           <div>
-            <div className="text-sm font-semibold text-gray-800 -mb-1">{t('email', 'applicants')}</div>
+            <div className="text-sm font-semibold text-gray-800 -mb-1">Email</div>
             {isEditing ? (
               <input
                 type="email"
@@ -237,39 +203,26 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
               </a>
             )}
           </div>
-          <div>
-            <div className="text-sm font-semibold text-gray-800 -mb-1">{t('dateOfBirth', 'personalInfo')}</div>
-            {isEditing ? (
-              <input
-                type="date"
-                value={data.birthDate ? data.birthDate.split('T')[0] : ''}
-                onChange={handleField('birthDate')}
-                className="w-full text-sm border-b border-gray-200 focus:border-blue-400 focus:outline-none"
-              />
-            ) : (
-              <div className="text-sm text-gray-600">{formatDate(data.birthDate, locale)}</div>
-            )}
-          </div>
 
           <div>
-            <div className="text-sm font-semibold text-gray-800 -mb-1">{t('gender', 'applicants')}</div>
+            <div className="text-sm font-semibold text-gray-800 -mb-1">Gender</div>
             {isEditing ? (
               <select
                 value={data.gender || ''}
                 onChange={handleField('gender')}
                 className="w-full text-sm border-b border-gray-200 focus:border-blue-400 focus:outline-none"
               >
-                <option value="">{t('selectGender', 'personalInfo')}</option>
-                <option value="Male">{t('male', 'personalInfo')}</option>
-                <option value="Female">{t('female', 'personalInfo')}</option>
+                <option value="">Select Gender</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
               </select>
             ) : (
-              <div className="text-sm text-gray-600">{['Male', 'Female'].includes(data.gender) ? t(data.gender.toLowerCase(), 'personalInfo') : data.gender || '-'}</div>
+              <div className="text-sm text-gray-600">{data.gender || '-'}</div>
             )}
           </div>
 
           <div>
-            <div className="text-sm font-semibold text-gray-800 -mb-1">{t('address', 'personalInfo')}</div>
+            <div className="text-sm font-semibold text-gray-800 -mb-1">Address</div>
             {isEditing ? (
               <textarea
                 value={data.address || ''}
@@ -282,7 +235,7 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
             )}
           </div>
 
-          <div className="text-sm font-semibold text-gray-800 -mb-0.5">{t('expectedSalary', 'applicants')}</div>
+          <div className="text-sm font-semibold text-gray-800 -mb-0.5">Expected Salary</div>
           {isEditing ? (
             <input
               type="text"
@@ -295,7 +248,7 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
           )}
 
           <div>
-            <div className="text-sm font-semibold text-gray-800 mb-1">{t('resumeCv', 'personalInfo')}</div>
+            <div className="text-sm font-semibold text-gray-800 mb-1">Resume / CV</div>
             {resumeUrl ? (
               <button
                 type="button"
@@ -330,16 +283,16 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
                     d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
                   />
                 </svg>
-                <span>{t('downloadCv', 'applicants')}</span>
+                <span>Download CV</span>
               </button>
             ) : (
-              <span className="text-sm text-gray-400">{t('noResumeAttached', 'personalInfo')}</span>
+              <span className="text-sm text-gray-400">No resume attached</span>
             )}
           </div>
 
           <div>
-            <div className="text-sm font-semibold text-gray-800 -mb-1">{t('submittedAt', 'personalInfo')}</div>
-            <div className="text-sm text-gray-600">{formatDate(submittedAt, locale)}</div>
+            <div className="text-sm font-semibold text-gray-800 -mb-1">Submitted At</div>
+            <div className="text-sm text-gray-600">{formatDate(submittedAt)}</div>
           </div>
         </div>
       </div>

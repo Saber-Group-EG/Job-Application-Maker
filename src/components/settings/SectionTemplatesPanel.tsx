@@ -144,7 +144,7 @@ export default function SectionTemplatesPanel({
   onSave,
   isSaving,
 }: Props) {
-  const { t, locale } = useLocale();
+  const { t } = useLocale();
   const [local, setLocal] = useState<SectionTemplate[]>(() =>
     templates.map((t) => ({ ...t, _id: t._id ?? uid() }))
   );

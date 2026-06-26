@@ -98,7 +98,7 @@ export default function ContractPreview({ isOpen, onClose, contract }: Props) {
                 <div className="rounded-lg border border-slate-100 p-3 text-sm text-slate-700 dark:border-slate-700 dark:text-slate-300">
                   <p>
                     <span className="font-semibold">{t('type', 'modals')}</span>{' '}
-                    {contract?.contractType ? t(contract.contractType.replace(/-([a-z])/g, (_, c) => c.toUpperCase()), 'modals') : '—'}
+                    {contract?.contractType ? t(contract.contractType.replace(/-([a-z])/g, (_: string, c: string) => c.toUpperCase()), 'modals') : '—'}
                   </p>
                   <p>
                     <span className="font-semibold">{t('status', 'modals')}</span>{' '}

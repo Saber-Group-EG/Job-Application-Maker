@@ -26,9 +26,9 @@ import {
   ToggleButtonGroup,
   alpha,
   useTheme,
-  Zoom
+  Zoom,
 } from "@mui/material";
-import { styled, ThemeProvider, createTheme } from '@mui/material/styles';
+import { styled } from '@mui/material/styles';
 import { useLocale } from '../../context/LocaleContext';
 
 // Icons
@@ -116,6 +116,7 @@ const FilterChip = styled(Chip)(({ theme }) => ({
 }));
 
 const StyledToggleButton = styled(ToggleButton)(({ theme }) => ({
+  borderRadius: '8px ',
   padding: '4px 12px',
   fontSize: '0.85rem',
   fontWeight: 500,
@@ -129,41 +130,28 @@ const StyledToggleButton = styled(ToggleButton)(({ theme }) => ({
   },
 }));
 
-const ToggleGroup = React.forwardRef(function ToggleGroup(
-  { dir: dirProp, children, ...props }: any,
-  ref: any
-) {
-  const theme = useTheme();
-  const borderColor = theme?.palette?.divider || 'rgba(0, 0, 0, 0.12)';
-  return (
-    <ToggleButtonGroup
-      ref={ref}
-      sx={{
-        '& .MuiToggleButtonGroup-firstButton': {
-          borderTopLeftRadius: dirProp === 'rtl' ? 0 : 8,
-          borderBottomLeftRadius: dirProp === 'rtl' ? 0 : 8,
-          borderTopRightRadius: dirProp === 'rtl' ? 8 : 0,
-          borderBottomRightRadius: dirProp === 'rtl' ? 8 : 0,
-        },
-        '& .MuiToggleButtonGroup-lastButton': {
-          borderTopLeftRadius: dirProp === 'rtl' ? 8 : 0,
-          borderBottomLeftRadius: dirProp === 'rtl' ? 8 : 0,
-          borderTopRightRadius: dirProp === 'rtl' ? 0 : 8,
-          borderBottomRightRadius: dirProp === 'rtl' ? 0 : 8,
-          ...(dirProp === 'rtl' && { borderLeft: `1px solid ${borderColor} !important` }),
-        },
-        '& .MuiToggleButtonGroup-middleButton': {
-          borderRadius: 0,
-        },
-        '& .MuiToggleButtonGroup-grouped:not(:last-of-type)': {
-          [dirProp === 'rtl' ? 'borderLeft' : 'borderRight']: 0,
-        },
-      }}
-      {...props}
-    >
-      {children}
-    </ToggleButtonGroup>
-  );
+const ToggleGroup = styled(ToggleButtonGroup)({
+  '& .MuiToggleButtonGroup-firstButton': {
+    borderStartStartRadius: '8px',
+    borderEndStartRadius: '8px',
+    borderStartEndRadius: '0',
+    borderEndEndRadius: '0',
+  },
+  '& .MuiToggleButtonGroup-lastButton': {
+    borderStartStartRadius: '0',
+    borderEndStartRadius: '0',
+    borderStartEndRadius: '8px',
+    borderEndEndRadius: '8px',
+  },
+  '& .MuiToggleButtonGroup-middleButton': {
+    borderRadius: '0',
+  },
+  '& .MuiToggleButtonGroup-grouped': {
+    borderRadius: '0',
+    '&:not(:last-of-type)': {
+      borderInlineEnd: '0',
+    },
+  },
 });
 
 // Helper functions remain the same
@@ -368,7 +356,7 @@ const CustomFilterModal: React.FC<Props> = ({
   const isVerySmall = useMediaQuery('(max-width:425px)');
   const { t, locale, dir } = useLocale();
   const [modalSelectedJobIds, setModalSelectedJobIds] = useState<string[]>([]);
-  const [selectedFilterCompanyIds, setSelectedFilterCompanyIds] = useState<string[]>([]);
+  const [selectedFilterCompanyId, setSelectedFilterCompanyId] = useState<string>('');
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     jobs: true,
     personal: true,
@@ -535,9 +523,8 @@ const CustomFilterModal: React.FC<Props> = ({
 
     const clampValue = (v: number) => Math.min(Math.max(Number.isFinite(v) ? v : 0, observedMin), observedMax);
 
-    const ltrTheme = createTheme({ ...theme, direction: 'ltr' });
     return (
-      <Box dir="ltr">
+      <Box>
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 1, flexWrap: 'wrap' }}>
             <TextField
             size="small"
@@ -608,23 +595,21 @@ const CustomFilterModal: React.FC<Props> = ({
           </Box>
         </Box>
 
-        <ThemeProvider theme={ltrTheme}>
-          <Slider
-            step={1}
-            value={range}
-            onChange={(_, val) => setRange(val as [number,number])}
-            onChangeCommitted={(_, val) => {
-              const v = val as [number,number];
-              commitRange(v);
-            }}
-            min={observedMin}
-            max={observedMax}
-            valueLabelDisplay="off"
-            valueLabelFormat={(v) => Number(v).toLocaleString()}
-            disableSwap
-            sx={{ mt: 2 }}
-          />
-        </ThemeProvider>
+        <Slider
+          step={1}
+          value={range}
+          onChange={(_, val) => setRange(val as [number,number])}
+          onChangeCommitted={(_, val) => {
+            const v = val as [number,number];
+            commitRange(v);
+          }}
+          min={observedMin}
+          max={observedMax}
+          valueLabelDisplay="off"
+          valueLabelFormat={(v) => Number(v).toLocaleString()}
+          disableSwap
+          sx={{ mt: 2 }}
+        />
       </Box>
     );
   };
@@ -654,7 +639,7 @@ const CustomFilterModal: React.FC<Props> = ({
     setCustomFilters([]);
     setModalSelectedJobIds([]);
     setColumnFilters(prev => {
-      const next = [];
+      const next = Array.isArray(prev) ? prev.filter((p: any) => p.id !== 'jobPositionId') : prev;
       try {
         const raw = sessionStorage.getItem('applicants_table_state');
         const parsed = raw ? JSON.parse(raw) : {};
@@ -870,15 +855,13 @@ const CustomFilterModal: React.FC<Props> = ({
                         <FormGroup sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 1 }}>
                           {companiesList.map((c: any) => {
                             const cid = String(c._id || c.id || '');
-                            const isCompanySelected = selectedFilterCompanyIds.includes(cid);
+                            const isCompanySelected = selectedFilterCompanyId === cid;
                             return (
                               <FilterChip
                                 key={cid}
                                 label={getDisplayText(c.name || c.companyName || c.title || cid)}
                                 onClick={() => {
-                                  setSelectedFilterCompanyIds(prev =>
-                                    isCompanySelected ? prev.filter((x) => x !== cid) : [...prev, cid]
-                                  );
+                                  setSelectedFilterCompanyId(isCompanySelected ? '' : cid);
                                   setModalSelectedJobIds([]);
                                 }}
                                 color={isCompanySelected ? 'primary' : 'default'}
@@ -891,10 +874,8 @@ const CustomFilterModal: React.FC<Props> = ({
                           })}
                         </FormGroup>
 
-                        {selectedFilterCompanyIds.length > 0 ? (() => {
-                          const filtered = (jobPositions || []).filter((job: any) =>
-                            selectedFilterCompanyIds.includes(String(getCid(job)))
-                          );
+                        {selectedFilterCompanyId ? (() => {
+                          const filtered = (jobPositions || []).filter((job: any) => String(getCid(job)) === selectedFilterCompanyId);
                           if (filtered.length === 0) {
                             return (
                               <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', textAlign: 'center', py: 2 }}>
@@ -977,7 +958,6 @@ const CustomFilterModal: React.FC<Props> = ({
                       return (
                         <FormControlLabel
                           key={opt.id}
-                          labelPlacement={dir === 'rtl' ? 'start' : 'end'}
                           control={
                             <Checkbox
                               size="small"
@@ -1057,7 +1037,7 @@ const CustomFilterModal: React.FC<Props> = ({
                               ),
                             }}
                           />
-                          <ToggleGroup dir={dir}
+                          <ToggleGroup
                             value={modeVal}
                             exclusive
                             onChange={(_, newMode) => {
@@ -1112,7 +1092,7 @@ const CustomFilterModal: React.FC<Props> = ({
                       const isHas = existing.value === true;
                       const isNo = existing.value === false;
                       return (
-                        <ToggleGroup dir={dir}
+                        <ToggleGroup
                           value={isHas ? 'has' : isNo ? 'no' : null}
                           exclusive
                           size="small"
@@ -1225,7 +1205,7 @@ const CustomFilterModal: React.FC<Props> = ({
                         const existing = customFilters.find((cf: any) => cf.fieldId === '__duplicates_only') || {};
                         const isEnabled = existing.value === true;
                         return (
-                          <ToggleGroup dir={dir} value={isEnabled ? 'duplicates' : 'all'} exclusive size="small">
+                          <ToggleGroup value={isEnabled ? 'duplicates' : 'all'} exclusive size="small">
                             <StyledToggleButton
                               value="all"
                               onClick={() => {
@@ -1407,7 +1387,7 @@ const CustomFilterModal: React.FC<Props> = ({
                                   </Box>
                                 ) : (
                                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                    <ToggleGroup dir={dir} value={existing.value === true ? 'has' : existing.value === false ? 'no' : null} exclusive size="small">
+                                    <ToggleGroup value={existing.value === true ? 'has' : existing.value === false ? 'no' : null} exclusive size="small">
                                       <StyledToggleButton
                                         value="has"
                                         onClick={() => {
@@ -1468,37 +1448,33 @@ const CustomFilterModal: React.FC<Props> = ({
           variant="outlined"
           color="error"
           onClick={handleClearAll}
+          {...(dir === 'rtl' ? { endIcon: <ClearIcon /> } : { startIcon: <ClearIcon /> })}
           fullWidth={isMobile}
-          sx={{ borderRadius: 2, px: 2 }}
+          sx={{ borderRadius: 2 }}
         >
-          <Box sx={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
-            {dir === 'rtl' ? <>{t('clear', 'modals')}<ClearIcon fontSize="small" /></> : <><ClearIcon fontSize="small" />{t('clear', 'modals')}</>}
-          </Box>
+          {t('clear', 'modals')}
         </Button>
         <Button
           variant="outlined"
           onClick={handleRevert}
+          {...(dir === 'rtl' ? { endIcon: <RefreshIcon /> } : { startIcon: <RefreshIcon /> })}
           fullWidth={isMobile}
-          sx={{ borderRadius: 2, px: 2 }}
+          sx={{ borderRadius: 2 }}
         >
-          <Box sx={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
-            {dir === 'rtl' ? <>{t('revert', 'modals')}<RefreshIcon fontSize="small" /></> : <><RefreshIcon fontSize="small" />{t('revert', 'modals')}</>}
-          </Box>
+          {t('revert', 'modals')}
         </Button>
         <Button
           variant="contained"
           color="primary"
           onClick={handleSave}
+          {...(dir === 'rtl' ? { endIcon: <SaveIcon /> } : { startIcon: <SaveIcon /> })}
           fullWidth={isMobile}
           sx={{ 
             borderRadius: 2,
-            px: 2,
             background: `linear-gradient(135deg, ${brandMain}, ${(theme.palette as any).brand?.dark ?? theme.palette.primary.dark})`,
           }}
         >
-          <Box sx={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
-            {dir === 'rtl' ? <>{t('saveFilters', 'modals')}<SaveIcon fontSize="small" /></> : <><SaveIcon fontSize="small" />{t('saveFilters', 'modals')}</>}
-          </Box>
+          {t('saveFilters', 'modals')}
         </Button>
       </DialogActions>
     </Dialog>

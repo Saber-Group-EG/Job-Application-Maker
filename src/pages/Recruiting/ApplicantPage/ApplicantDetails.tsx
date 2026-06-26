@@ -10,12 +10,12 @@ import InterviewQuestions from './components/InterviewData/InterviewQuestions';
 import History from './components/history/History';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import Swal from '../../../utils/swal';
-import { useLocale } from '../../../context/LocaleContext';
 import {
   useApplicant,
   useUpdateApplicant,
   useUpdateApplicantStatus,
   useAddComment,
+  useDeleteApplicant,
   useJobPosition,
   useCompany,
   useCompanies,
@@ -49,7 +49,6 @@ import {
 } from './utils/customResponseUtils';
 import { buildActivities } from './utils/activityUtils';
 import { buildJobSpecItems } from './utils/jobSpecUtils';
-import { getPreviousStatus } from './utils/statusUtils';
 import type { JobSpecItem } from '../../../types/applicants';
 
 const resolveId = (value: unknown): string | undefined => {
@@ -101,7 +100,7 @@ const escapeHtml = (s: string): string =>
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 
-const formatTime12Hour = (value: string, t?: (key: string, ns?: string, params?: Record<string, string | number>) => string): string => {
+const formatTime12Hour = (value: string): string => {
   const raw = String(value || '').trim();
   if (!raw) return '';
   const hhmmMatch = raw.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
@@ -109,9 +108,7 @@ const formatTime12Hour = (value: string, t?: (key: string, ns?: string, params?:
     const hours = Number(hhmmMatch[1]);
     const minutes = Number(hhmmMatch[2]);
     if (!Number.isNaN(hours) && !Number.isNaN(minutes) && hours >= 0 && hours < 24 && minutes >= 0 && minutes < 60) {
-      const am = t ? t('am', 'common') : 'AM';
-      const pm = t ? t('pm', 'common') : 'PM';
-      const period = hours >= 12 ? pm : am;
+      const period = hours >= 12 ? 'PM' : 'AM';
       const hour12 = hours % 12 === 0 ? 12 : hours % 12;
       return `${hour12}:${String(minutes).padStart(2, '0')} ${period}`;
     }
@@ -213,106 +210,15 @@ const StickyTopBar: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 };
 
 const Stickysidebar: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const placeholderRef = React.useRef<HTMLDivElement>(null);
-  const sidebarRef = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    const placeholder = placeholderRef.current;
-    const sidebar = sidebarRef.current;
-    if (!placeholder || !sidebar) return;
-
-    // Measure actual header bottom so sidebar never slides under it
-    const getTopOffset = (): number => {
-      const header =
-        (document.querySelector('header') as HTMLElement | null) ??
-        (document.querySelector('[class*="AppHeader"]') as HTMLElement | null) ??
-        (document.querySelector('[class*="header"]') as HTMLElement | null) ??
-        (document.querySelector('nav') as HTMLElement | null);
-      const h = header ? header.getBoundingClientRect().bottom : 0;
-      return Math.max(h, 0);
-    };
-
-    const resetPosition = () => {
-      sidebar.style.position = '';
-      sidebar.style.top = '';
-      sidebar.style.left = '';
-      sidebar.style.width = '';
-      sidebar.style.overflowY = '';
-      sidebar.style.maxHeight = '';
-      sidebar.style.transform = '';
-      sidebar.style.transformOrigin = '';
-      sidebar.style.zIndex = '';
-      placeholder.style.minHeight = '';
-    };
-
-    const update = () => {
-      if (window.innerWidth < 1024) {
-        resetPosition();
-        return;
-      }
-      if (placeholder.offsetParent === null) return;
-
-      const TOP_OFFSET = getTopOffset();
-      const rect = placeholder.getBoundingClientRect();
-      const windowHeight = window.innerHeight;
-      const width = placeholder.offsetWidth;
-      const left = rect.left;
-      const availableHeight = windowHeight - TOP_OFFSET - 8;
-
-      sidebar.style.position = 'fixed';
-      sidebar.style.top = `${TOP_OFFSET + 95}px`;
-      sidebar.style.left = `${left}px`;
-      sidebar.style.width = `${width}px`;
-      sidebar.style.overflowY = 'auto';
-      sidebar.style.maxHeight = `${availableHeight - 80}px`;
-      sidebar.style.zIndex = '20';
-      placeholder.style.minHeight = `${sidebar.scrollHeight}px`;
-    };
-
-    const scrollParents = getAllScrollParents(placeholder);
-    scrollParents.forEach(p => p.addEventListener('scroll', update, { passive: true }));
-    window.addEventListener('resize', update, { passive: true });
-
-    const ro = new ResizeObserver(update);
-    ro.observe(placeholder);
-
-    update();
-
-    const handleWheel = (e: WheelEvent) => {
-      if (window.innerWidth < 1024) return;
-      // Let native scroll handle events inside the sidebar
-      if (sidebar.contains(e.target as Node)) return;
-      const scrollEl = document.scrollingElement || document.documentElement;
-      const isPageAtBottom = scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight < 5;
-      const hasHiddenContent = sidebar.scrollHeight > sidebar.clientHeight;
-      if (!hasHiddenContent) return;
-
-      if (e.deltaY > 0) {
-        if (isPageAtBottom) {
-          e.preventDefault();
-          if (sidebar.scrollTop < sidebar.scrollHeight - sidebar.clientHeight) {
-            sidebar.scrollBy({ top: Math.min(e.deltaY, 120), behavior: 'auto' });
-          }
-        }
-      } else if (isPageAtBottom && sidebar.scrollTop > 0) {
-        e.preventDefault();
-        sidebar.scrollBy({ top: -Math.min(Math.abs(e.deltaY), 120), behavior: 'auto' });
-      }
-    };
-
-    document.addEventListener('wheel', handleWheel, { passive: false });
-
-    return () => {
-      scrollParents.forEach(p => p.removeEventListener('scroll', update));
-      window.removeEventListener('resize', update);
-      ro.disconnect();
-      document.removeEventListener('wheel', handleWheel);
-    };
-  }, []);
-
   return (
-    <div ref={placeholderRef} className="lg:w-72 xl:w-80 flex-shrink-0 self-start">
-      <div ref={sidebarRef} className="no-scrollbar space-y-4 w-full">
+    <div
+      className="lg:w-72 xl:w-80 flex-shrink-0 self-stretch"
+      // self-stretch makes this column as tall as the main content column
+    >
+      <div
+        className="sticky top-20 max-h-[calc(100vh-5rem-1rem)] overflow-y-auto no-scrollbar space-y-4"
+        // sticky inside the tall column — stops when column ends = when CustomResponses ends
+      >
         {children}
       </div>
     </div>
@@ -322,12 +228,12 @@ const Stickysidebar: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 const ApplicantDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { t, locale } = useLocale();
 
   const { data: applicant, isLoading: isApplicantLoading, isFetching: isApplicantFetching, isError, error, refetch } = useApplicant(id || '');
   const updateApplicant = useUpdateApplicant();
   const updateStatus = useUpdateApplicantStatus();
   const addComment = useAddComment();
+  const deleteApplicant = useDeleteApplicant();
   const scheduleInterviewMutation = useScheduleInterview();
   const updateInterviewStatusMutation = useUpdateInterviewStatus();
   const sendEmailMutation = useSendEmail();
@@ -460,8 +366,6 @@ const ApplicantDetails: React.FC = () => {
     }
   }, [comment]);
 
-
-
   const [isEditing, setIsEditing] = useState(false);
   const [editedApplicant, setEditedApplicant] = useState<Partial<Applicant> | null>(null);
   const [editedSections, setEditedSections] = useState<ResponseSection[]>([]);
@@ -488,7 +392,7 @@ const ApplicantDetails: React.FC = () => {
   const [phoneOption, setPhoneOption] = useState<'company' | 'user' | 'whatsapp' | 'custom'>('company');
   const [customPhone, setCustomPhone] = useState('');
   const [messageTemplate, setMessageTemplate] = useState('');
-  const [interviewEmailSubject, setInterviewEmailSubject] = useState(t('interviewInvitation', 'applicantDetails'));
+  const [interviewEmailSubject, setInterviewEmailSubject] = useState('Interview Invitation');
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
   const [showJobOfferModal, setShowJobOfferModal] = useState(false);
@@ -501,7 +405,7 @@ const ApplicantDetails: React.FC = () => {
     }
   }, [showStatusModal, applicant]);
 
-  const getJobTitle = useCallback((): { en: string; ar?: string } => {
+  const getJobTitle = useCallback((): { en: string } => {
     if (!applicant) return { en: '' };
     const jobPos =
       fetchedJobPosition ||
@@ -511,11 +415,8 @@ const ApplicantDetails: React.FC = () => {
     if (jobPos && (jobPos as { title?: unknown }).title) {
       const title = (jobPos as { title?: unknown }).title;
       if (typeof title === 'string') return { en: title };
-      if (typeof title === 'object') {
-        return {
-          en: (title as { en?: string }).en || '',
-          ar: (title as { ar?: string }).ar || undefined,
-        };
+      if (typeof title === 'object' && (title as { en?: string })?.en) {
+        return { en: (title as { en?: string }).en || '' };
       }
     }
     return { en: '' };
@@ -539,7 +440,7 @@ const ApplicantDetails: React.FC = () => {
   }): string => {
     const { subject, rawMessage, applicantName, jobTitle, interviewDate, interviewTime, interviewType, interviewLocation, interviewAddress } = opts;
     const replacements: Record<string, string> = {
-      '{{candidateName}}': applicantName || t('candidate', 'applicantDetails'),
+      '{{candidateName}}': applicantName || 'Candidate',
       '{{jobTitle}}': jobTitle || '',
       '{{InterviewDate}}': interviewDate || '',
       '{{interviewTime}}': interviewTime || '',
@@ -590,34 +491,19 @@ const ApplicantDetails: React.FC = () => {
       if (!applicant || !id) return;
       const toEmail = (applicant as { email?: string }).email;
       if (!toEmail) {
-        await Swal.fire({
-          title: t('emailSkipped', 'common'),
-          text: t('emailSkippedNoEmail', 'applicants'),
-          icon: 'warning',
-          confirmButtonColor: '#3085d6',
-        });
+        await Swal.fire({ title: 'Email Skipped', text: 'Interview scheduled, but the applicant has no email address on file.', icon: 'warning', confirmButtonColor: '#3085d6' });
         return;
       }
       const fromEmail = resolveSenderEmail(companyWithAddress as never, snapshot.customEmail);
       if (!fromEmail) {
-        await Swal.fire({
-          title: t('emailSkipped', 'common'),
-          text: t('emailSkippedNoSender', 'applicants'),
-          icon: 'warning',
-          confirmButtonColor: '#3085d6',
-        });
+        await Swal.fire({ title: 'Email Skipped', text: 'Interview scheduled, but no sender email is configured for this company.', icon: 'warning', confirmButtonColor: '#3085d6' });
         return;
       }
-      const jobTitleObj = getJobTitle();
-      const jobTitle = locale === 'ar' ? (jobTitleObj.ar || jobTitleObj.en) : (jobTitleObj.en || jobTitleObj.ar || '');
-      const applicantName = (applicant as { fullName?: string }).fullName || t('candidate', 'applicantDetails');
-      const interviewTypeLabels: Record<string, string> = {
-        phone: t('phone', 'modals'),
-        video: t('video', 'modals'),
-        'in-person': t('inPerson', 'modals'),
-      };
-      const typeLabel = interviewTypeLabels[snapshot.interviewType || ''] || (snapshot.interviewType || '').charAt(0).toUpperCase() + (snapshot.interviewType || '').slice(1);
-      const subjectBase = snapshot.subject || t('interviewInvitation', 'applicantDetails');
+      const jobTitle = getJobTitle().en || '';
+      const applicantName = (applicant as { fullName?: string }).fullName || 'Candidate';
+      const typeLabel = (snapshot.interviewType || '') === 'in-person' ? 'In-person'
+        : (snapshot.interviewType || '').charAt(0).toUpperCase() + (snapshot.interviewType || '').slice(1);
+      const subjectBase = snapshot.subject || 'Interview Invitation';
       const processedSubject = subjectBase
         .replace(/\{\{\s*candidateName\s*\}\}/gi, applicantName)
         .replace(/\{\{\s*(?:position|jobTitle)\s*\}\}/gi, jobTitle)
@@ -638,12 +524,7 @@ const ApplicantDetails: React.FC = () => {
         try { await sendMessageMutation.mutateAsync({ id, data: { type: 'email', content: snapshot.template || '' } }); } catch { /* non-critical */ }
       } catch (mailErr) {
         const msg = getErrorMessage(mailErr);
-        await Swal.fire({
-          title: t('interviewScheduled', 'common'),
-          text: t('interviewScheduledEmailFailed', 'applicants', { msg }),
-          icon: 'warning',
-          confirmButtonColor: '#3085d6',
-        });
+        await Swal.fire({ title: 'Interview Scheduled', text: `The interview was scheduled, but the notification email failed: ${msg}`, icon: 'warning', confirmButtonColor: '#3085d6' });
         setInterviewError(`Interview scheduled, but email failed: ${msg}`);
       }
     },
@@ -656,7 +537,7 @@ const ApplicantDetails: React.FC = () => {
     const emailSnapshot = {
       subject: interviewEmailSubject, template: messageTemplate, customEmail,
       interviewDate: interviewForm.date || '',
-      interviewTime: interviewForm.time ? formatTime12Hour(interviewForm.time, t) : '',
+      interviewTime: interviewForm.time ? formatTime12Hour(interviewForm.time) : '',
       interviewType: interviewForm.type || 'phone',
       interviewLocation: interviewForm.link || '',
       interviewAddress: interviewForm.location || '',
@@ -691,7 +572,7 @@ const ApplicantDetails: React.FC = () => {
       setInterviewForm({ date: '', time: '', description: '', comment: '', location: '', link: '', type: 'phone' });
       setNotificationChannels({ email: true, sms: false, whatsapp: false });
       setEmailOption('company'); setCustomEmail(''); setPhoneOption('company'); setCustomPhone('');
-      setMessageTemplate(''); setInterviewEmailSubject(t('interviewInvitation', 'applicantDetails'));
+      setMessageTemplate(''); setInterviewEmailSubject('Interview Invitation');
       setFormResetKey((prev) => prev + 1);
       setShowScheduleModal(false);
       setActiveTab('interview');
@@ -706,7 +587,7 @@ const ApplicantDetails: React.FC = () => {
 
   const handleStatusSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!id || !statusForm.status) { setStatusError(t('selectStatus', 'applicants')); return; }
+    if (!id || !statusForm.status) { setStatusError('Please select a status before submitting.'); return; }
     try {
       const payload: { status: string; notes?: string; reasons?: string[] } = { status: statusForm.status };
       if (statusForm.notes && statusForm.notes.trim()) payload.notes = statusForm.notes.trim();
@@ -718,7 +599,7 @@ const ApplicantDetails: React.FC = () => {
 
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!commentForm.text.trim() || !id) { setCommentError(t('enterComment', 'applicantDetails')); return; }
+    if (!commentForm.text.trim() || !id) { setCommentError('Please enter a comment.'); return; }
     try {
       await addComment.mutateAsync({ id, data: { comment: commentForm.text.trim() } });
       setCommentForm({ text: '' }); setCommentError(''); setShowCommentModal(false);
@@ -728,7 +609,7 @@ const ApplicantDetails: React.FC = () => {
   useEffect(() => {
     if (applicant) {
       setEditedApplicant({ fullName: applicant.fullName, firstName: applicant.firstName, lastName: applicant.lastName, email: applicant.email, phone: applicant.phone, address: applicant.address });
-      setEditedSections(buildCustomResponseSections(applicant, jobCustomFields, t));
+      setEditedSections(buildCustomResponseSections(applicant, jobCustomFields));
       const specs = buildJobSpecItems(applicant, fetchedJobPosition);
       const initial: Record<string, boolean> = {};
       specs.forEach((s) => { initial[s.id] = s.answer; });
@@ -759,10 +640,10 @@ const ApplicantDetails: React.FC = () => {
       .map((mail) => ({ createdAt: mail.createdAt, html: mail.html }));
   }, [mailApiResponse, applicant]);
 
-  const activities = useMemo<Activity[]>(() => buildActivities(applicant, t), [applicant, t]);
+  const activities = useMemo<Activity[]>(() => buildActivities(applicant), [applicant]);
   const sections = useMemo<ResponseSection[]>(
-    () => (isEditing ? editedSections : buildCustomResponseSections(applicant, jobCustomFields, t)),
-    [isEditing, editedSections, applicant, jobCustomFields, t]
+    () => (isEditing ? editedSections : buildCustomResponseSections(applicant, jobCustomFields)),
+    [isEditing, editedSections, applicant, jobCustomFields]
   );
   const jobSpecItems = useMemo<JobSpecItem[]>(() => {
     const base = buildJobSpecItems(applicant, fetchedJobPosition);
@@ -845,7 +726,7 @@ const ApplicantDetails: React.FC = () => {
     setIsEditing(false);
     if (applicant) {
       setEditedApplicant({ fullName: applicant.fullName, firstName: applicant.firstName, lastName: applicant.lastName, email: applicant.email, phone: applicant.phone, address: applicant.address });
-      setEditedSections(buildCustomResponseSections(applicant, jobCustomFields, t));
+      setEditedSections(buildCustomResponseSections(applicant, jobCustomFields));
       const specs = buildJobSpecItems(applicant, fetchedJobPosition);
       const reset: Record<string, boolean> = {};
       specs.forEach((s) => { reset[s.id] = s.answer; });
@@ -855,67 +736,20 @@ const ApplicantDetails: React.FC = () => {
 
   const handleDelete = async () => {
     if (!id) return;
-    const result = await Swal.fire({
-      title: t('deleteApplicantTitle', 'applicants'),
-      text: t('actionCannotBeUndone', 'common'),
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#dc2626',
-      cancelButtonColor: '#6b7280',
-      confirmButtonText: t('delete', 'common'),
-      cancelButtonText: t('cancel', 'common'),
-    });
+    const result = await Swal.fire({ title: 'Delete applicant?', text: 'This action cannot be undone.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#dc2626', cancelButtonColor: '#6b7280', confirmButtonText: 'Delete', cancelButtonText: 'Cancel' });
     if (!result.isConfirmed) return;
-    try {
-      await updateStatus.mutateAsync({ id, data: { status: 'trashed' } });
-      navigate(paths.applicants.root);
-    } catch {
-      // toast handled by mutation
-    }
-  };
-
-  const handleRestore = async () => {
-    if (!id || !applicant) return;
-    const prevStatus = getPreviousStatus(applicant);
-    const result = await Swal.fire({
-      title: t('restoreTitle', 'applicants'),
-      text: t('restoreText', 'applicants', { status: prevStatus }),
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonColor: '#22c55e',
-      cancelButtonColor: '#6b7280',
-      confirmButtonText: t('restore', 'common'),
-      cancelButtonText: t('cancel', 'common'),
-    });
-    if (!result.isConfirmed) return;
-    try {
-      await updateStatus.mutateAsync({ id, data: { status: prevStatus } });
-    } catch {
-      // toast handled by mutation
-    }
+    try { await deleteApplicant.mutateAsync(id); navigate(paths.applicants.root); } catch { /* toast handled by mutation */ }
   };
 
   const handlePrint = useCallback(async () => {
     if (!applicant) return;
-    Swal.fire({
-      title: t('generatingPdf', 'common'),
-      text: t('generatingPdfDesc', 'common'),
-      allowOutsideClick: false,
-      allowEscapeKey: false,
-      showConfirmButton: false,
-      didOpen: () => Swal.showLoading(),
-    });
+    Swal.fire({ title: 'Generating PDF', text: 'Please wait while the applicant profile is being generated...', allowOutsideClick: false, allowEscapeKey: false, showConfirmButton: false, didOpen: () => Swal.showLoading() });
     try {
-      await generateApplicantPdf(applicant, sections, jobSpecItems, fetchedJobPosition, companyWithAddress, t, locale);
+      await generateApplicantPdf(applicant, sections, jobSpecItems, fetchedJobPosition, companyWithAddress);
       Swal.close();
     } catch {
       Swal.close();
-      await Swal.fire({
-        title: t('error', 'common'),
-        text: t('pdfGenerationFailed', 'common'),
-        icon: 'error',
-        confirmButtonColor: '#3085d6',
-      });
+      await Swal.fire({ title: 'Error', text: 'Failed to generate the PDF. Please try again.', icon: 'error', confirmButtonColor: '#3085d6' });
     }
   }, [applicant, sections, jobSpecItems, fetchedJobPosition, companyWithAddress]);
 
@@ -940,13 +774,13 @@ const ApplicantDetails: React.FC = () => {
     return (
       <div className="bg-gray-50 min-h-screen p-6">
         <div className="max-w-3xl mx-auto bg-white rounded-lg shadow-sm border border-gray-100 p-8 text-center">
-          <h2 className="text-lg font-semibold text-gray-800 mb-2">{t('applicantNotFound', 'applicantDetails')}</h2>
+          <h2 className="text-lg font-semibold text-gray-800 mb-2">Applicant not found</h2>
           <p className="text-sm text-gray-500 mb-4">
-            {(error as { message?: string } | null | undefined)?.message || t('couldNotLoadApplicant', 'applicantDetails')}
+            {(error as { message?: string } | null | undefined)?.message || 'We could not load this applicant.'}
           </p>
           <div className="flex justify-center gap-3">
-            <button onClick={() => refetch()} className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">{t('retry', 'applicantDetails')}</button>
-            <button onClick={() => navigate(paths.applicants.root)} className="px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700">{t('backToList', 'applicantDetails')}</button>
+            <button onClick={() => refetch()} className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">Retry</button>
+            <button onClick={() => navigate(paths.applicants.root)} className="px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700">Back to list</button>
           </div>
         </div>
       </div>
@@ -955,9 +789,9 @@ const ApplicantDetails: React.FC = () => {
 
   const tabBar = (
     <div className="flex overflow-x-auto overflow-y-hidden">
-      <button onClick={() => setActiveTab('details')} className={`px-4 lg:px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${activeTab === 'details' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>{t('detailsTab', 'applicantDetails')}</button>
-      <button onClick={() => setActiveTab('history')} className={`px-4 lg:px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${activeTab === 'history' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>{t('historyTab', 'applicantDetails')}</button>
-      <button onClick={() => setActiveTab('interview')} className={`px-4 lg:px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${activeTab === 'interview' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>{t('interviewQuestionsTab', 'applicantDetails')}</button>
+      <button onClick={() => setActiveTab('details')} className={`px-4 lg:px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${activeTab === 'details' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>Details</button>
+      <button onClick={() => setActiveTab('history')} className={`px-4 lg:px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${activeTab === 'history' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>History</button>
+      <button onClick={() => setActiveTab('interview')} className={`px-4 lg:px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${activeTab === 'interview' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>Interview Questions</button>
     </div>
   );
 
@@ -972,7 +806,6 @@ const ApplicantDetails: React.FC = () => {
         onPrint={handlePrint}
         onCreateJobOffer={() => setShowJobOfferModal(true)}
         onCreateContract={() => setShowContractModal(true)}
-        onRestore={handleRestore}
       />
     </Stickysidebar>
   );
@@ -981,78 +814,93 @@ const ApplicantDetails: React.FC = () => {
     <div className="bg-gray-50">
       <div className="max-w-8xl mx-auto p-6">
         <StickyTopBar>
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between py-3 gap-2">
+          <div className="flex items-center justify-between py-3">
             <div className="flex items-center gap-2 text-sm text-gray-500">
-              <span onClick={() => navigate(paths.applicants.root)} className="hover:text-gray-700 cursor-pointer">{t('pageTitle', 'applicants')}</span>
+              <span onClick={() => navigate(paths.applicants.root)} className="hover:text-gray-700 cursor-pointer">Applicants</span>
               <span>-›</span>
-              <span className="text-gray-800 font-medium">{applicant.fullName || t('applicantDetails', 'applicantDetails')}</span>
+              <span className="text-gray-800">{applicant.fullName || 'Applicant Details'}</span>
             </div>
-            <div className="flex flex-wrap gap-2 justify-end">
-              <button onClick={() => setShowStatusModal(true)} className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors">{t('changeStatus', 'applicants')}</button>
-
-              <button onClick={handleEdit} className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors">{isEditing ? t('save', 'applicantDetails') : t('edit', 'applicantDetails')}</button>
-              {isEditing && <button onClick={handleCancel} className="px-3 py-1.5 bg-gray-600 text-white text-xs font-medium rounded-lg hover:bg-gray-700 transition-colors">{t('cancel', 'common')}</button>}
-              <button onClick={handleDelete} className="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition-colors">{t('delete', 'common')}</button>
+            <div className="flex">
+              <button onClick={() => setShowStatusModal(true)} className="mr-2 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors">Change Status</button>
+              <button onClick={handleEdit} className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors">{isEditing ? 'Save' : 'Edit'}</button>
+              {isEditing && <button onClick={handleCancel} className="ml-2 px-3 py-1.5 bg-gray-600 text-white text-xs font-medium rounded-lg hover:bg-gray-700 transition-colors">Cancel</button>}
+              <button onClick={handleDelete} className="ml-2 px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition-colors">Delete</button>
             </div>
           </div>
         </StickyTopBar>
 
-        {/* ── DETAILS TAB ── */}
-        <div hidden={activeTab !== 'details'}>
-          <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-6 mb-6">
-            <div className="lg:w-72 xl:w-80 min-w-0">
-              <Stickysidebar>
-                <PersonalInfo
-                  applicant={applicant}
-                  isEditing={isEditing}
-                  editedApplicant={editedApplicant}
-                  onChange={setEditedApplicant}
-                  onChangeStatus={() => setShowStatusModal(true)}
-                  onScheduleInterview={() => setShowScheduleModal(true)}
-                  onSendMessage={() => setShowMessageModal(true)}
-                  onPrint={handlePrint}
-                  onCreateJobOffer={() => setShowJobOfferModal(true)}
-                  onCreateContract={() => setShowContractModal(true)}
-                  onRestore={handleRestore}
-                />
-              </Stickysidebar>
-            </div>
-            <div className="min-w-0 flex flex-col gap-6">
-              <div className="flex items-center justify-between border-b border-gray-200">{tabBar}</div>
-              <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6 transition-all duration-200">
-                <div className="relative">
-                  <textarea
-                    ref={commentTextareaRef}
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                    placeholder={t('writeCommentPlaceholder', 'applicantDetails')}
-                    className={`w-full block px-4 py-3 ${locale === 'ar' ? 'pl-12' : 'pr-12'} text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 resize-none transition-all duration-200 placeholder:text-gray-400 min-h-[44px]`}
-                    rows={1}
-                    style={{ height: 'auto', overflow: 'hidden', scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && comment.trim()) { e.preventDefault(); handleAddComment(); } }}
-                  />
-                  <button onClick={handleAddComment} disabled={addComment.isPending || !comment.trim()} className={`absolute ${locale === 'ar' ? 'left-3' : 'right-3'} inset-y-0 my-auto p-1.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed h-fit`} aria-label="Add comment">
-                    {addComment.isPending ? (
-                      <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                    ) : (
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"></path></svg>
-                    )}
-                  </button>
-                </div>
-              </div>
-              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
-                <JobSpec specs={jobSpecItems} jobPosition={fetchedJobPosition} editable={isEditing} onSpecChange={handleSpecAnswerChange} />
-              </div>
-              <ActivityFeed activities={activities} mailRecords={applicantMailRecords} interviews={applicant?.interviews} company={companyWithAddress} />
-              {sections.length > 0 && <CustomResponses isEditable={isEditing} sections={sections} onSectionsChange={setEditedSections} />}
-            </div>
-          </div>
+
+
+    {/* ── DETAILS TAB ── */}
+<div hidden={activeTab !== 'details'}>
+  <div className="flex flex-col lg:flex-row gap-6 mb-6">
+    <Stickysidebar>
+      <PersonalInfo
+        applicant={applicant}
+        isEditing={isEditing}
+        editedApplicant={editedApplicant}
+        onChange={setEditedApplicant}
+        onChangeStatus={() => setShowStatusModal(true)}
+        onScheduleInterview={() => setShowScheduleModal(true)}
+        onSendMessage={() => setShowMessageModal(true)}
+        onPrint={handlePrint}
+        onCreateJobOffer={() => setShowJobOfferModal(true)}
+        onCreateContract={() => setShowContractModal(true)}
+      />
+    </Stickysidebar>
+    
+    {/* Main content - make it a flex column that fills height */}
+    <div className="flex-1 min-w-0 flex flex-col">
+      {/* Tab bar */}
+      <div className="flex items-center justify-between border-b border-gray-200 mb-2 flex-shrink-0">
+        {tabBar}
+      </div>
+      
+      {/* Comment textarea - fixed height */}
+      <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6 transition-all duration-200 flex-shrink-0">
+        <div className="relative">
+          <textarea
+            ref={commentTextareaRef}
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            placeholder="Write a thoughtful comment..."
+            className="w-full block px-4 py-3 pr-12 text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 resize-none transition-all duration-200 placeholder:text-gray-400 min-h-[44px]"
+            rows={1}
+            style={{ height: 'auto', overflow: 'hidden', scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && comment.trim()) { e.preventDefault(); handleAddComment(); } }}
+          />
+          <button onClick={handleAddComment} disabled={addComment.isPending || !comment.trim()} className="absolute right-3 inset-y-0 my-auto p-1.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed h-fit" aria-label="Add comment">
+            {addComment.isPending ? (
+              <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+            ) : (
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"></path></svg>
+            )}
+          </button>
         </div>
+      </div>
+      
+      {/* JobSpec - fixed height */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 flex-shrink-0">
+        <JobSpec specs={jobSpecItems} jobPosition={fetchedJobPosition} editable={isEditing} onSpecChange={handleSpecAnswerChange} />
+      </div>
+      
+      {/* ActivityFeed - fixed height */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-100 flex-shrink-0">
+        <ActivityFeed activities={activities} mailRecords={applicantMailRecords} interviews={applicant?.interviews} company={companyWithAddress} />
+      </div>
+      
+      {/* CustomResponses - grows to fill remaining space */}
+      <div data-custom-responses className="bg-white rounded-lg shadow-sm border border-gray-100 flex-1 flex flex-col">
+        <CustomResponses isEditable={isEditing} sections={sections} onSectionsChange={setEditedSections} />
+      </div>
+    </div>
+  </div>
+</div>
 
         {/* ── INTERVIEW TAB ── */}
         {visitedTabs.has('interview') && (
           <div hidden={activeTab !== 'interview'}>
-            <div className="flex flex-col lg:flex-row gap-6 mb-6 items-start">
+            <div className="flex flex-col lg:flex-row gap-6 mb-6">
               {sharedSidebar}
               <div className="flex-1 min-w-0 space-y-6">
                 <div className="flex items-center justify-between border-b border-gray-200 mb-6">{tabBar}</div>
@@ -1065,7 +913,7 @@ const ApplicantDetails: React.FC = () => {
         {/* ── HISTORY TAB ── */}
         {visitedTabs.has('history') && (
           <div hidden={activeTab !== 'history'}>
-            <div className="flex flex-col lg:flex-row gap-6 mb-6 items-start">
+            <div className="flex flex-col lg:flex-row gap-6 mb-6">
               {sharedSidebar}
               <div className="flex-1 min-w-0 space-y-6">
                 <div className="flex items-center justify-between border-b border-gray-200 mb-6">{tabBar}</div>
@@ -1110,12 +958,12 @@ const ApplicantDetails: React.FC = () => {
       />
       <Modal isOpen={showPreviewModal} onClose={() => { setShowPreviewModal(false); setPreviewHtml(''); }} className="max-w-2xl p-6">
         <div className="space-y-4">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t('emailPreview', 'applicantDetails')}</h2>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Email Preview</h2>
           <div className="border rounded p-4 bg-white dark:bg-gray-800" style={{ maxHeight: '70vh', overflow: 'auto' }}>
             <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
           </div>
           <div className="flex justify-end">
-            <button type="button" onClick={() => { setShowPreviewModal(false); setPreviewHtml(''); }} className="rounded-lg bg-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-300">{t('close', 'common')}</button>
+            <button type="button" onClick={() => { setShowPreviewModal(false); setPreviewHtml(''); }} className="rounded-lg bg-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-300">Close</button>
           </div>
         </div>
       </Modal>

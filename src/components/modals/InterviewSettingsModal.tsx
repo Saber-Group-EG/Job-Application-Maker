@@ -38,7 +38,7 @@ export default function InterviewSettingsModal({
               value={selectedInterview?._id}
               options={applicant.interviews.map((iv: any) => ({
                 value: iv._id,
-                label: `${iv.type ? t(iv.type.replace(/-([a-z])/g, (_, c) => c.toUpperCase()), 'modals') : t('interview', 'completedInterview')} - ${iv.scheduledAt ? new Date(iv.scheduledAt).toLocaleString(locale) : t('notScheduled', 'modals')}${iv.status ? ` - ${t(iv.status.replace(/_([a-z])/g, (_, c) => c.toUpperCase()), 'modals')}` : ''}`,
+                label: `${iv.type ? t(iv.type.replace(/-([a-z])/g, (_: string, c: string) => c.toUpperCase()), 'modals') : t('interview', 'completedInterview')} - ${iv.scheduledAt ? new Date(iv.scheduledAt).toLocaleString(locale) : t('notScheduled', 'modals')}${iv.status ? ` - ${t(iv.status.replace(/_([a-z])/g, (_: string, c: string) => c.toUpperCase()), 'modals')}` : ''}`,
               }))}
               onChange={(val) => {
                 const found = applicant.interviews?.find((it: any) => it._id === val) || null;
@@ -54,10 +54,10 @@ export default function InterviewSettingsModal({
               <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">{t('currentInterview', 'modals')}</h3>
               <div className="space-y-1 text-sm">
                 <p className="text-gray-600 dark:text-gray-400"><span className="font-medium">{t('date', 'modals')}</span>{' '}{selectedInterview.scheduledAt ? new Date(selectedInterview.scheduledAt).toLocaleString(locale) : t('notScheduled', 'modals')}</p>
-                <p className="text-gray-600 dark:text-gray-400"><span className="font-medium">{t('type', 'modals')}</span>{' '}{selectedInterview.type ? t(selectedInterview.type.replace(/-([a-z])/g, (_, c) => c.toUpperCase()), 'modals') : t('notScheduled', 'modals')}</p>
+                <p className="text-gray-600 dark:text-gray-400"><span className="font-medium">{t('type', 'modals')}</span>{' '}{selectedInterview.type ? t(selectedInterview.type.replace(/-([a-z])/g, (_: string, c: string) => c.toUpperCase()), 'modals') : t('notScheduled', 'modals')}</p>
                 <p className="text-gray-600 dark:text-gray-400"><span className="font-medium">{t('status', 'modals')}</span>{' '}
                   <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize ${selectedInterview.status === 'completed' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : selectedInterview.status === 'cancelled' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'}`}>
-                    {t((selectedInterview.status || 'scheduled').replace(/_([a-z])/g, (_, c) => c.toUpperCase()), 'modals')}
+                    {t((selectedInterview.status || 'scheduled').replace(/_([a-z])/g, (_: string, c: string) => c.toUpperCase()), 'modals')}
                   </span>
                 </p>
               </div>

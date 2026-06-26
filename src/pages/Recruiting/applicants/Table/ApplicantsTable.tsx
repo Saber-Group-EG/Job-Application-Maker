@@ -2025,7 +2025,6 @@ const jobOptions = useMemo(() => {
               isArrayColumn={isArrayColumn}
               countsMap={countsMap}
               title={label}
-              isDarkMode={isDarkMode}
             />
           </Popover>
         </div>
