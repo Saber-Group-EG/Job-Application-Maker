@@ -21,5 +21,15 @@
   "taskAt": "Task at {time} by",
   "updatedAt": "Updated at {time} by",
   "emailPreview": "Email Preview",
-  "close": "Close"
+  "close": "Close",
+  "statusChangedTo": "Application status changed to {status}",
+  "commentAdded": "Comment added",
+  "internal": "Internal",
+  "external": "External",
+  "messageTitle": "{type} message",
+  "progressing": "Progressing",
+  "interviewWithStatus": "Interview {status}",
+  "applicationSubmitted": "Application submitted",
+  "applicant": "Applicant",
+  "system": "System"
 }

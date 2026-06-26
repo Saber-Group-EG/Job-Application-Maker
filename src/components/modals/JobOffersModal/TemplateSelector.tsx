@@ -10,7 +10,7 @@ export function TemplateSelector({
 }: {
   onSelect: (template: JobOffer) => void;
 }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const [open, setOpen] = useState(false);
   const { data } = useCompanies();
   const companyId = data?.map((c) => c._id);
@@ -70,10 +70,10 @@ export function TemplateSelector({
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-slate-800 dark:text-slate-200">
-                    {tmpl.position.en || tmpl.position.ar || t('untitledOffer', 'modals')}
+                    {locale === 'ar' ? (tmpl.position.ar || tmpl.position.en || t('untitledOffer', 'modals')) : (tmpl.position.en || tmpl.position.ar || t('untitledOffer', 'modals'))}
                   </p>
                   <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-400">
-                    <span>{tmpl.workType}</span>
+                    <span>{t(tmpl.workType === 'full-time' ? 'fullTime' : tmpl.workType === 'part-time' ? 'partTime' : tmpl.workType || '', 'modals')}</span>
                     {tmpl.salary.basic != null && (
                       <>
                         <span>·</span>

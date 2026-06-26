@@ -169,6 +169,13 @@ const buildJobSpecItems = (
             s?.name ??
             'Specification'
         ),
+        ar: toPlainString(
+          (typeof s?.spec === 'object' && s?.spec !== null ? (s.spec as { ar?: unknown }).ar : undefined) ??
+            (typeof s?.title === 'object' ? (s.title as { ar?: unknown }).ar : undefined) ??
+            (typeof s?.label === 'object' ? (s.label as { ar?: unknown }).ar : undefined) ??
+            (typeof s?.name === 'object' ? (s.name as { ar?: unknown }).ar : undefined) ??
+            ''
+        ),
       },
       weight,
     };

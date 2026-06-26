@@ -126,6 +126,7 @@ export function normalizeGenderForExport(raw: any): string {
 // Format date for export
 export function formatDateForExport(
   dateString: string | undefined | null,
+  locale?: string,
   options?: ExportOptions
 ): string {
   if (!dateString) return '-';
@@ -144,14 +145,14 @@ export function formatDateForExport(
   // If it's a date-only string (no time component), parse manually
   if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
     const [year, month, day] = dateString.split('-').map(Number);
-    return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+    return new Date(year, month - 1, day).toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
     });
   }
   
-  return date.toLocaleDateString('en-US', {
+  return date.toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',

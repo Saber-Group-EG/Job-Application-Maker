@@ -149,7 +149,7 @@ export function useBulkActions({
   queryClient,
   onClearSelection,
 }: UseBulkActionsProps): UseBulkActionsReturn {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   // Mutations
   const batchUpdateStatusMutation = useBatchUpdateApplicantStatus();
   const scheduleBulkInterviewsMutation = useScheduleBulkInterviews();
@@ -225,7 +225,7 @@ export function useBulkActions({
     const updates = selectedApplicantIds.map((applicantId) => ({
       applicantId: applicantId,
       status: 'trashed',
-      notes: `Moved to trash on ${new Date().toLocaleDateString()}`,
+      notes: `Moved to trash on ${new Date().toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US')}`,
     }));
 
     try {
@@ -342,7 +342,7 @@ export function useBulkActions({
         const updates = selectedApplicantIds.map((applicantId) => ({
           applicantId: applicantId,
           status: action,
-          notes: `Bulk status change to ${action} on ${new Date().toLocaleDateString()}`,
+          notes: `Bulk status change to ${action} on ${new Date().toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US')}`,
         }));
         
         await batchUpdateStatusMutation.mutateAsync(updates);
@@ -520,13 +520,13 @@ export function useBulkActions({
     const items = selectedApplicantsForInterview.map((candidate, index) => {
       const scheduled = new Date(baseDate.getTime() + index * bulkInterviewIntervalMinutes * 60000);
       
-      const interviewDate = scheduled.toLocaleDateString('en-US', {
+      const interviewDate = scheduled.toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
       });
       
-      const interviewTime = scheduled.toLocaleTimeString('en-US', {
+      const interviewTime = scheduled.toLocaleTimeString(locale === 'ar' ? 'ar-EG' : 'en-US', {
         hour: 'numeric',
         minute: '2-digit',
         hour12: true,
@@ -601,7 +601,7 @@ export function useBulkActions({
           .map((item: any) => ({
             applicantId: item.applicantId,
             status: 'interview',
-            notes: `Status updated to interview on ${new Date().toLocaleDateString()} (bulk interview scheduling)`,
+            notes: `Status updated to interview on ${new Date().toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US')} (bulk interview scheduling)`,
           }));
         
         if (statusUpdates.length > 0) {

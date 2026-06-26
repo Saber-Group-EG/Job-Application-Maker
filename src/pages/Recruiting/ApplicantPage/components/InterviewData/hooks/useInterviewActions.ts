@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import Swal from '../../../../../../utils/swal';
+import { useLocale } from '../../../../../../context/LocaleContext';
 import { useUpdateInterviewStatus } from '../../../../../../hooks/queries';
 import type {
   Applicant,
@@ -38,6 +39,7 @@ export const useInterviewActions = ({
   interview,
   onQuestionsPersisted,
 }: UseInterviewActionsOptions) => {
+  const { t } = useLocale();
   const mutation = useUpdateInterviewStatus();
   const [isPickerSaving, setIsPickerSaving] = useState(false);
   const [fieldSaveStatus] = useState<FieldSaveStatus>('idle');
@@ -62,8 +64,8 @@ export const useInterviewActions = ({
       if (builtQuestions.length === 0 && !allowEmpty) {
         await Swal.fire({
           icon: 'warning',
-          title: 'No questions built',
-          text: 'The selected groups contain no usable questions.',
+          title: t('noQuestionsBuilt', 'interview'),
+          text: t('questionsEmptyDescription', 'interview'),
         });
         return false;
       }
@@ -120,11 +122,11 @@ export const useInterviewActions = ({
       if (!applicantId || !interviewId) return false;
       const confirm = await Swal.fire({
         icon: 'question',
-        title: 'End interview?',
-        text: 'This will stop the timer and submit the answers to the backend.',
+        title: t('endInterview', 'interview'),
+        text: t('endInterviewDescription', 'interview'),
         showCancelButton: true,
-        confirmButtonText: 'Yes, end interview',
-        cancelButtonText: 'Cancel',
+        confirmButtonText: t('endInterviewConfirm', 'interview'),
+        cancelButtonText: t('cancel', 'common'),
         confirmButtonColor: '#dc2626',
       });
       if (!confirm.isConfirmed) return false;

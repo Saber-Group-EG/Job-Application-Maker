@@ -290,7 +290,7 @@ export default function JobContractModal({
   applicantObjects,
   defaults,
 }: JobContractModalProps) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const [form, setForm] = useState<FormState>(emptyForm);
   const [showSalaryReview, setShowSalaryReview] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -1174,7 +1174,7 @@ export default function JobContractModal({
                             <div className="flex items-center gap-2">
                               <GripVertical className="size-4 text-brand-500" />
                               <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                                {s.title.en || s.title.ar || `Section ${form.sections.indexOf(s) + 1}`}
+                                {locale === 'ar' ? (s.title.ar || s.title.en || `Section ${form.sections.indexOf(s) + 1}`) : (s.title.en || s.title.ar || `Section ${form.sections.indexOf(s) + 1}`)}
                               </span>
                             </div>
                           </div>

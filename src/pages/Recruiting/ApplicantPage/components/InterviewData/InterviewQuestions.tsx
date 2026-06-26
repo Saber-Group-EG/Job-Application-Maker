@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useLocale } from '../../../../../context/LocaleContext';
 import type {
   Applicant,
   Interview,
@@ -18,10 +19,11 @@ import { QuestionPickerView } from './views/QuestionPickerView';
 import { SelectionView } from './views/SelectionView';
 import type { PoolGroup } from './hooks/useQuestionPool';
 
-const formatScheduledAt = (iso: string | undefined): string => {
-  if (!iso) return 'an unscheduled time';
+const formatScheduledAt = (iso: string | undefined, locale: string, t?: (key: string, ns?: string, params?: Record<string, string | number>) => string): string => {
+  const fallback = t ? t('unscheduledTime', 'interview') : 'an unscheduled time';
+  if (!iso) return fallback;
   try {
-    return new Date(iso).toLocaleString('en-US', {
+    return new Date(iso).toLocaleString(locale === 'ar' ? 'ar-EG' : 'en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
@@ -29,7 +31,7 @@ const formatScheduledAt = (iso: string | undefined): string => {
       minute: '2-digit',
     });
   } catch {
-    return 'an unscheduled time';
+    return fallback;
   }
 };
 
@@ -39,6 +41,7 @@ const InterviewQuestions = ({
   autoSelectInterviewId = null,
 }: InterviewQuestionsProps) => {
   const queryClient = useQueryClient();
+  const { t, locale } = useLocale();
   const state = useInterviewState(applicantId, autoSelectInterviewId);
   const actions = useInterviewActions({
     applicantId,
@@ -419,7 +422,7 @@ const InterviewQuestions = ({
         onSaveOnly={handleSaveQuestions}
         onSaveAndStart={handleSaveAndStart}
         isSaving={actions.isPickerSaving || actions.isMutating}
-        scheduledAtLabel={formatScheduledAt(state.selectedInterview.scheduledAt)}
+        scheduledAtLabel={formatScheduledAt(state.selectedInterview.scheduledAt, locale, t)}
       />
     );
   }

@@ -248,7 +248,7 @@ const CompletedInterviewDetails: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
 
   const passedInterview = (location.state as { interview?: CompletedInterview; mode?: string } | null)
     ?.interview;
@@ -439,10 +439,7 @@ const CompletedInterviewDetails: React.FC = () => {
 
   const status = String(interview.status || 'completed').toLowerCase();
   const typeLabel = interview.type
-    ? String(interview.type)
-        .replace(/_/g, ' ')
-        .replace(/-/g, ' ')
-        .replace(/\b\w/g, (c) => c.toUpperCase())
+    ? t(interview.type.replace(/-([a-z])/g, (_, c) => c.toUpperCase()), 'modals')
     : t('interview', 'completedInterview');
   const conductedByLabel = toUserLabel(interview.conductedBy);
   const interviewerLabels = Array.isArray(interview.interviewers)
@@ -529,7 +526,7 @@ const CompletedInterviewDetails: React.FC = () => {
                 ) : (
                   <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${status === 'completed' ? 'bg-emerald-500/20 text-emerald-50' : 'bg-white/15 text-white'}`}>
                     <CheckCircle2 className="h-3.5 w-3.5" />
-                    {status === 'completed' ? t('statusCompleted', 'completedInterview') : status}
+                    {(() => { const opt = STATUS_OPTIONS.find(o => o.value === status); return opt ? t(opt.labelKey, 'completedInterview') : status; })()}
                   </span>
                 )}
               </div>
@@ -571,7 +568,7 @@ const CompletedInterviewDetails: React.FC = () => {
             <div className="bg-white p-4 text-center">
               <Clock className="h-4 w-4 text-gray-500 mx-auto mb-1" />
               <p className="text-sm font-semibold text-gray-800 tabular-nums">
-                {interview?.startedAt ? new Date(interview.startedAt).toLocaleString() : t('na', 'completedInterview')}
+                {interview?.startedAt ? new Date(interview.startedAt).toLocaleString(locale) : t('na', 'completedInterview')}
               </p>
             </div>
           </div>
@@ -591,19 +588,19 @@ const CompletedInterviewDetails: React.FC = () => {
             <InfoTile
               icon={<Calendar className="h-4 w-4" />}
               label={t('scheduledAt', 'completedInterview')}
-              value={formatDate(interview.scheduledAt)}
+              value={formatDate(interview.scheduledAt, locale)}
               accent="purple"
             />
             <InfoTile
               icon={<Calendar className="h-4 w-4" />}
               label={t('startedAt', 'completedInterview')}
-              value={formatDate(interview.startedAt)}
+              value={formatDate(interview.startedAt, locale)}
               accent="green"
             />
             <InfoTile
               icon={<Calendar className="h-4 w-4" />}
               label={t('endedAt', 'completedInterview')}
-              value={formatDate(interview.endedAt)}
+              value={formatDate(interview.endedAt, locale)}
               accent="amber"
             />
             {conductedByLabel && (

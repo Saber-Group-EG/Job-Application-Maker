@@ -16,6 +16,7 @@ interface ExcludableMultiSelectFilterProps {
   isArrayColumn?: boolean;
   countsMap?: Map<string, number>;
   title?: string;
+  isDarkMode?: boolean;
 }
 
 export const ExcludableMultiSelectFilter = ({
@@ -26,7 +27,9 @@ export const ExcludableMultiSelectFilter = ({
   isArrayColumn = false,
   countsMap,
   title,
+  isDarkMode = false,
 }: ExcludableMultiSelectFilterProps) => {
+  const bc = (light: string, dark: string) => isDarkMode ? dark : light;
   const currentValue = (header.column.getFilterValue() as string[]) ?? [];
   const facetedMap = countsMap ?? header.column.getFacetedUniqueValues();
 

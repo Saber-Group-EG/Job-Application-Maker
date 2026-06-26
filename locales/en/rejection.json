@@ -19,5 +19,10 @@
   "rejectedApplicant_plural": "{count} rejected applicants",
   "reasonPrefix": "Reason: {reason}",
   "xaxisTitle": "Number of rejections",
-  "seriesName": "Rejected applicants"
+  "seriesName": "Rejected applicants",
+  "showAll": "Show All",
+  "showTop": "Show Top 10",
+  "allReasons": "All {count} reasons",
+  "topReasonsShort": "Top {count}",
+  "showLess": "Show less"
 }

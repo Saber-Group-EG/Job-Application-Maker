@@ -14,11 +14,11 @@ const buildResumeUrl = (raw?: string): string | null => {
   return `/${trimmed}`;
 };
 
-const formatDate = (value?: string): string => {
+const formatDate = (value: string | undefined, locale: string): string => {
   if (!value) return '-';
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
+  return d.toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' });
 };
 
 const getInitials = (name: string): string => {
@@ -42,7 +42,7 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
   onRestore,
 }) => {
   const [photoPreviewOpen, setPhotoPreviewOpen] = useState(false);
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
 
   const data: ApplicantView = {
     ...(applicant as ApplicantView),
@@ -123,7 +123,7 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
 
           <p className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors mt-2">
             {(typeof data.jobPositionId === 'object'
-              ? toPlainString(data.jobPositionId?.title)
+              ? toPlainString(data.jobPositionId?.title, locale)
               : null) || t('positionAppliedFor', 'personalInfo')}
           </p>
 
@@ -247,7 +247,7 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
                 className="w-full text-sm border-b border-gray-200 focus:border-blue-400 focus:outline-none"
               />
             ) : (
-              <div className="text-sm text-gray-600">{formatDate(data.birthDate)}</div>
+              <div className="text-sm text-gray-600">{formatDate(data.birthDate, locale)}</div>
             )}
           </div>
 
@@ -264,7 +264,7 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
                 <option value="Female">{t('female', 'personalInfo')}</option>
               </select>
             ) : (
-              <div className="text-sm text-gray-600">{data.gender || '-'}</div>
+              <div className="text-sm text-gray-600">{['Male', 'Female'].includes(data.gender) ? t(data.gender.toLowerCase(), 'personalInfo') : data.gender || '-'}</div>
             )}
           </div>
 
@@ -339,7 +339,7 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
 
           <div>
             <div className="text-sm font-semibold text-gray-800 -mb-1">{t('submittedAt', 'personalInfo')}</div>
-            <div className="text-sm text-gray-600">{formatDate(submittedAt)}</div>
+            <div className="text-sm text-gray-600">{formatDate(submittedAt, locale)}</div>
           </div>
         </div>
       </div>

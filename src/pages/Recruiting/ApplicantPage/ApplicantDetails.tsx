@@ -101,7 +101,7 @@ const escapeHtml = (s: string): string =>
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 
-const formatTime12Hour = (value: string): string => {
+const formatTime12Hour = (value: string, t?: (key: string, ns?: string, params?: Record<string, string | number>) => string): string => {
   const raw = String(value || '').trim();
   if (!raw) return '';
   const hhmmMatch = raw.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
@@ -109,7 +109,9 @@ const formatTime12Hour = (value: string): string => {
     const hours = Number(hhmmMatch[1]);
     const minutes = Number(hhmmMatch[2]);
     if (!Number.isNaN(hours) && !Number.isNaN(minutes) && hours >= 0 && hours < 24 && minutes >= 0 && minutes < 60) {
-      const period = hours >= 12 ? 'PM' : 'AM';
+      const am = t ? t('am', 'common') : 'AM';
+      const pm = t ? t('pm', 'common') : 'PM';
+      const period = hours >= 12 ? pm : am;
       const hour12 = hours % 12 === 0 ? 12 : hours % 12;
       return `${hour12}:${String(minutes).padStart(2, '0')} ${period}`;
     }
@@ -320,7 +322,7 @@ const Stickysidebar: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 const ApplicantDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
 
   const { data: applicant, isLoading: isApplicantLoading, isFetching: isApplicantFetching, isError, error, refetch } = useApplicant(id || '');
   const updateApplicant = useUpdateApplicant();
@@ -499,7 +501,7 @@ const ApplicantDetails: React.FC = () => {
     }
   }, [showStatusModal, applicant]);
 
-  const getJobTitle = useCallback((): { en: string } => {
+  const getJobTitle = useCallback((): { en: string; ar?: string } => {
     if (!applicant) return { en: '' };
     const jobPos =
       fetchedJobPosition ||
@@ -509,8 +511,11 @@ const ApplicantDetails: React.FC = () => {
     if (jobPos && (jobPos as { title?: unknown }).title) {
       const title = (jobPos as { title?: unknown }).title;
       if (typeof title === 'string') return { en: title };
-      if (typeof title === 'object' && (title as { en?: string })?.en) {
-        return { en: (title as { en?: string }).en || '' };
+      if (typeof title === 'object') {
+        return {
+          en: (title as { en?: string }).en || '',
+          ar: (title as { ar?: string }).ar || undefined,
+        };
       }
     }
     return { en: '' };
@@ -603,10 +608,15 @@ const ApplicantDetails: React.FC = () => {
         });
         return;
       }
-      const jobTitle = getJobTitle().en || '';
+      const jobTitleObj = getJobTitle();
+      const jobTitle = locale === 'ar' ? (jobTitleObj.ar || jobTitleObj.en) : (jobTitleObj.en || jobTitleObj.ar || '');
       const applicantName = (applicant as { fullName?: string }).fullName || t('candidate', 'applicantDetails');
-      const typeLabel = (snapshot.interviewType || '') === 'in-person' ? t('inPerson', 'applicantDetails')
-        : (snapshot.interviewType || '').charAt(0).toUpperCase() + (snapshot.interviewType || '').slice(1);
+      const interviewTypeLabels: Record<string, string> = {
+        phone: t('phone', 'modals'),
+        video: t('video', 'modals'),
+        'in-person': t('inPerson', 'modals'),
+      };
+      const typeLabel = interviewTypeLabels[snapshot.interviewType || ''] || (snapshot.interviewType || '').charAt(0).toUpperCase() + (snapshot.interviewType || '').slice(1);
       const subjectBase = snapshot.subject || t('interviewInvitation', 'applicantDetails');
       const processedSubject = subjectBase
         .replace(/\{\{\s*candidateName\s*\}\}/gi, applicantName)
@@ -646,7 +656,7 @@ const ApplicantDetails: React.FC = () => {
     const emailSnapshot = {
       subject: interviewEmailSubject, template: messageTemplate, customEmail,
       interviewDate: interviewForm.date || '',
-      interviewTime: interviewForm.time ? formatTime12Hour(interviewForm.time) : '',
+      interviewTime: interviewForm.time ? formatTime12Hour(interviewForm.time, t) : '',
       interviewType: interviewForm.type || 'phone',
       interviewLocation: interviewForm.link || '',
       interviewAddress: interviewForm.location || '',
@@ -718,7 +728,7 @@ const ApplicantDetails: React.FC = () => {
   useEffect(() => {
     if (applicant) {
       setEditedApplicant({ fullName: applicant.fullName, firstName: applicant.firstName, lastName: applicant.lastName, email: applicant.email, phone: applicant.phone, address: applicant.address });
-      setEditedSections(buildCustomResponseSections(applicant, jobCustomFields));
+      setEditedSections(buildCustomResponseSections(applicant, jobCustomFields, t));
       const specs = buildJobSpecItems(applicant, fetchedJobPosition);
       const initial: Record<string, boolean> = {};
       specs.forEach((s) => { initial[s.id] = s.answer; });
@@ -749,10 +759,10 @@ const ApplicantDetails: React.FC = () => {
       .map((mail) => ({ createdAt: mail.createdAt, html: mail.html }));
   }, [mailApiResponse, applicant]);
 
-  const activities = useMemo<Activity[]>(() => buildActivities(applicant), [applicant]);
+  const activities = useMemo<Activity[]>(() => buildActivities(applicant, t), [applicant, t]);
   const sections = useMemo<ResponseSection[]>(
-    () => (isEditing ? editedSections : buildCustomResponseSections(applicant, jobCustomFields)),
-    [isEditing, editedSections, applicant, jobCustomFields]
+    () => (isEditing ? editedSections : buildCustomResponseSections(applicant, jobCustomFields, t)),
+    [isEditing, editedSections, applicant, jobCustomFields, t]
   );
   const jobSpecItems = useMemo<JobSpecItem[]>(() => {
     const base = buildJobSpecItems(applicant, fetchedJobPosition);
@@ -835,7 +845,7 @@ const ApplicantDetails: React.FC = () => {
     setIsEditing(false);
     if (applicant) {
       setEditedApplicant({ fullName: applicant.fullName, firstName: applicant.firstName, lastName: applicant.lastName, email: applicant.email, phone: applicant.phone, address: applicant.address });
-      setEditedSections(buildCustomResponseSections(applicant, jobCustomFields));
+      setEditedSections(buildCustomResponseSections(applicant, jobCustomFields, t));
       const specs = buildJobSpecItems(applicant, fetchedJobPosition);
       const reset: Record<string, boolean> = {};
       specs.forEach((s) => { reset[s.id] = s.answer; });
@@ -896,7 +906,7 @@ const ApplicantDetails: React.FC = () => {
       didOpen: () => Swal.showLoading(),
     });
     try {
-      await generateApplicantPdf(applicant, sections, jobSpecItems, fetchedJobPosition, companyWithAddress);
+      await generateApplicantPdf(applicant, sections, jobSpecItems, fetchedJobPosition, companyWithAddress, t, locale);
       Swal.close();
     } catch {
       Swal.close();
@@ -1016,12 +1026,12 @@ const ApplicantDetails: React.FC = () => {
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
                     placeholder={t('writeCommentPlaceholder', 'applicantDetails')}
-                    className="w-full block px-4 py-3 pr-12 text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 resize-none transition-all duration-200 placeholder:text-gray-400 min-h-[44px]"
+                    className={`w-full block px-4 py-3 ${locale === 'ar' ? 'pl-12' : 'pr-12'} text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 resize-none transition-all duration-200 placeholder:text-gray-400 min-h-[44px]`}
                     rows={1}
                     style={{ height: 'auto', overflow: 'hidden', scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                     onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && comment.trim()) { e.preventDefault(); handleAddComment(); } }}
                   />
-                  <button onClick={handleAddComment} disabled={addComment.isPending || !comment.trim()} className="absolute right-3 inset-y-0 my-auto p-1.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed h-fit" aria-label="Add comment">
+                  <button onClick={handleAddComment} disabled={addComment.isPending || !comment.trim()} className={`absolute ${locale === 'ar' ? 'left-3' : 'right-3'} inset-y-0 my-auto p-1.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed h-fit`} aria-label="Add comment">
                     {addComment.isPending ? (
                       <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                     ) : (
@@ -1033,12 +1043,8 @@ const ApplicantDetails: React.FC = () => {
               <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
                 <JobSpec specs={jobSpecItems} jobPosition={fetchedJobPosition} editable={isEditing} onSpecChange={handleSpecAnswerChange} />
               </div>
-              <div className="bg-white rounded-lg shadow-sm border border-gray-100">
-                <ActivityFeed activities={activities} mailRecords={applicantMailRecords} interviews={applicant?.interviews} company={companyWithAddress} />
-              </div>
-              <div className="bg-white rounded-lg shadow-sm border border-gray-100 flex-1 p-4">
-                <CustomResponses isEditable={isEditing} sections={sections} onSectionsChange={setEditedSections} />
-              </div>
+              <ActivityFeed activities={activities} mailRecords={applicantMailRecords} interviews={applicant?.interviews} company={companyWithAddress} />
+              {sections.length > 0 && <CustomResponses isEditable={isEditing} sections={sections} onSectionsChange={setEditedSections} />}
             </div>
           </div>
         </div>

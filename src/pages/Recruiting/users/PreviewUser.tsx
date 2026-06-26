@@ -33,7 +33,7 @@ type UserCompanyView = {
 };
 
 export default function PreviewUser() {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
@@ -191,7 +191,7 @@ export default function PreviewUser() {
                   </div>
                   <div className="flex items-center gap-2 px-3 py-1 bg-blue-500/5 border border-blue-500/10 rounded-xl text-xs font-bold text-blue-500">
                     <Calendar className="size-3.5" />
-                    {t('previewAddedLabel', 'users', { date: user.createdAt ? new Date(user.createdAt).toLocaleDateString() : t('previewAddedSystem', 'users') })}
+                    {t('previewAddedLabel', 'users', { date: user.createdAt ? new Date(user.createdAt).toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US') : t('previewAddedSystem', 'users') })}
                   </div>
                 </div>
               </div>

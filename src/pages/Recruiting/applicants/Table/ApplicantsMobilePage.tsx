@@ -188,7 +188,7 @@ export default function ApplicantsMobilePage(): JSX.Element {
 
   const { data: companies = [], refetch: refetchCompanies, isFetching: isCompaniesFetching } = useCompanies();
   const { user } = useAuth();
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
 
   const isSuperAdmin = useMemo(() => {
     const roleName = user?.roleId?.name;
@@ -1181,7 +1181,7 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
                       {a.submittedAt && (
                         <div className="mt-2 flex items-center justify-end gap-1 text-xs text-gray-400">
                           <Calendar size={12} />
-                          <span>{t('applied', 'applicants', { date: new Date(a.submittedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) })}</span>
+                          <span>{t('applied', 'applicants', { date: new Date(a.submittedAt).toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', { month: 'short', day: 'numeric', year: 'numeric' }) })}</span>
                         </div>
                       )}
                     </div>
@@ -1393,7 +1393,7 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
                             : 'border-gray-300 bg-white text-gray-700'
                         }`}
                       >
-                        {g.title}
+                        {['Male', 'Female'].includes(g.title) ? t(g.title.toLowerCase(), 'personalInfo') : g.title}
                       </button>
                     );
                   })}

@@ -21,14 +21,14 @@ import {
   Alert,
   InputAdornment,
   FormGroup,
- 
+
   ToggleButton,
   ToggleButtonGroup,
   alpha,
   useTheme,
   Zoom
 } from "@mui/material";
-import { styled } from '@mui/material/styles';
+import { styled, ThemeProvider, createTheme } from '@mui/material/styles';
 import { useLocale } from '../../context/LocaleContext';
 
 // Icons
@@ -116,7 +116,6 @@ const FilterChip = styled(Chip)(({ theme }) => ({
 }));
 
 const StyledToggleButton = styled(ToggleButton)(({ theme }) => ({
-  borderRadius: 8,
   padding: '4px 12px',
   fontSize: '0.85rem',
   fontWeight: 500,
@@ -129,6 +128,43 @@ const StyledToggleButton = styled(ToggleButton)(({ theme }) => ({
     },
   },
 }));
+
+const ToggleGroup = React.forwardRef(function ToggleGroup(
+  { dir: dirProp, children, ...props }: any,
+  ref: any
+) {
+  const theme = useTheme();
+  const borderColor = theme?.palette?.divider || 'rgba(0, 0, 0, 0.12)';
+  return (
+    <ToggleButtonGroup
+      ref={ref}
+      sx={{
+        '& .MuiToggleButtonGroup-firstButton': {
+          borderTopLeftRadius: dirProp === 'rtl' ? 0 : 8,
+          borderBottomLeftRadius: dirProp === 'rtl' ? 0 : 8,
+          borderTopRightRadius: dirProp === 'rtl' ? 8 : 0,
+          borderBottomRightRadius: dirProp === 'rtl' ? 8 : 0,
+        },
+        '& .MuiToggleButtonGroup-lastButton': {
+          borderTopLeftRadius: dirProp === 'rtl' ? 8 : 0,
+          borderBottomLeftRadius: dirProp === 'rtl' ? 8 : 0,
+          borderTopRightRadius: dirProp === 'rtl' ? 0 : 8,
+          borderBottomRightRadius: dirProp === 'rtl' ? 0 : 8,
+          ...(dirProp === 'rtl' && { borderLeft: `1px solid ${borderColor} !important` }),
+        },
+        '& .MuiToggleButtonGroup-middleButton': {
+          borderRadius: 0,
+        },
+        '& .MuiToggleButtonGroup-grouped:not(:last-of-type)': {
+          [dirProp === 'rtl' ? 'borderLeft' : 'borderRight']: 0,
+        },
+      }}
+      {...props}
+    >
+      {children}
+    </ToggleButtonGroup>
+  );
+});
 
 // Helper functions remain the same
 export const normalizeLabelSimple = (l: any) => (l || '').toString().replace(/\u200E|\u200F/g, '').replace(/[^\w\u0600-\u06FF\s]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -330,8 +366,9 @@ const CustomFilterModal: React.FC<Props> = ({
   const brandMain = (theme.palette as any).brand?.main ?? theme.palette.primary.main;
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isVerySmall = useMediaQuery('(max-width:425px)');
-  const { t } = useLocale();
+  const { t, locale, dir } = useLocale();
   const [modalSelectedJobIds, setModalSelectedJobIds] = useState<string[]>([]);
+  const [selectedFilterCompanyIds, setSelectedFilterCompanyIds] = useState<string[]>([]);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     jobs: true,
     personal: true,
@@ -362,8 +399,13 @@ const CustomFilterModal: React.FC<Props> = ({
     if (typeof v === 'string') return v;
     if (typeof v === 'number') return String(v);
     if (typeof v === 'object') {
-      if (typeof v.en === 'string' && v.en.trim()) return v.en;
-      if (typeof v.ar === 'string' && v.ar.trim()) return v.ar;
+      if (locale === 'ar') {
+        if (typeof v.ar === 'string' && v.ar.trim()) return v.ar;
+        if (typeof v.en === 'string' && v.en.trim()) return v.en;
+      } else {
+        if (typeof v.en === 'string' && v.en.trim()) return v.en;
+        if (typeof v.ar === 'string' && v.ar.trim()) return v.ar;
+      }
       if (typeof v.name === 'string' && v.name.trim()) return v.name;
       if (typeof v.companyName === 'string' && v.companyName.trim()) return v.companyName;
       if (v.title && typeof v.title === 'string') return v.title;
@@ -493,8 +535,9 @@ const CustomFilterModal: React.FC<Props> = ({
 
     const clampValue = (v: number) => Math.min(Math.max(Number.isFinite(v) ? v : 0, observedMin), observedMax);
 
+    const ltrTheme = createTheme({ ...theme, direction: 'ltr' });
     return (
-      <Box>
+      <Box dir="ltr">
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 1, flexWrap: 'wrap' }}>
             <TextField
             size="small"
@@ -565,21 +608,23 @@ const CustomFilterModal: React.FC<Props> = ({
           </Box>
         </Box>
 
-        <Slider
-          step={1}
-          value={range}
-          onChange={(_, val) => setRange(val as [number,number])}
-          onChangeCommitted={(_, val) => {
-            const v = val as [number,number];
-            commitRange(v);
-          }}
-          min={observedMin}
-          max={observedMax}
-          valueLabelDisplay="off"
-          valueLabelFormat={(v) => Number(v).toLocaleString()}
-          disableSwap
-          sx={{ mt: 2 }}
-        />
+        <ThemeProvider theme={ltrTheme}>
+          <Slider
+            step={1}
+            value={range}
+            onChange={(_, val) => setRange(val as [number,number])}
+            onChangeCommitted={(_, val) => {
+              const v = val as [number,number];
+              commitRange(v);
+            }}
+            min={observedMin}
+            max={observedMax}
+            valueLabelDisplay="off"
+            valueLabelFormat={(v) => Number(v).toLocaleString()}
+            disableSwap
+            sx={{ mt: 2 }}
+          />
+        </ThemeProvider>
       </Box>
     );
   };
@@ -609,7 +654,7 @@ const CustomFilterModal: React.FC<Props> = ({
     setCustomFilters([]);
     setModalSelectedJobIds([]);
     setColumnFilters(prev => {
-      const next = Array.isArray(prev) ? prev.filter((p: any) => p.id !== 'jobPositionId') : prev;
+      const next = [];
       try {
         const raw = sessionStorage.getItem('applicants_table_state');
         const parsed = raw ? JSON.parse(raw) : {};
@@ -809,7 +854,6 @@ const CustomFilterModal: React.FC<Props> = ({
               <Box sx={{ mt: 2 }}>
                 <Stack spacing={2}>
                   {(() => {
-                    const jobsByCompany: Record<string, any[]> = {};
                     const getCid = (job: any) => {
                       const rawCid = job.companyId || job.company || job.companyObj;
                       if (!rawCid) return '';
@@ -817,66 +861,85 @@ const CustomFilterModal: React.FC<Props> = ({
                       return rawCid._id || rawCid.id || '';
                     };
                     const getJid = (job: any) => (typeof job._id === 'string' ? job._id : (job._id?._id || job._id?.id || job.id || '')) || '';
-                    
-                    (jobPositions || []).forEach((job: any) => {
-                      const cid = String(getCid(job) || '');
-                      if (!cid) return;
-                      if (!jobsByCompany[cid]) jobsByCompany[cid] = [];
-                      jobsByCompany[cid].push(job);
-                    });
 
-                    const companyIds = Object.keys(jobsByCompany);
-                    if (companyIds.length === 0) {
-                      return (
-                        <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', textAlign: 'center', py: 2 }}>
-                          {t('noJobsCompany', 'modals')}
+                    return (
+                      <>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: 'text.secondary', fontSize: '0.75rem' }}>
+                          {t('company', 'modals')}
                         </Typography>
-                      );
-                    }
+                        <FormGroup sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 1 }}>
+                          {companiesList.map((c: any) => {
+                            const cid = String(c._id || c.id || '');
+                            const isCompanySelected = selectedFilterCompanyIds.includes(cid);
+                            return (
+                              <FilterChip
+                                key={cid}
+                                label={getDisplayText(c.name || c.companyName || c.title || cid)}
+                                onClick={() => {
+                                  setSelectedFilterCompanyIds(prev =>
+                                    isCompanySelected ? prev.filter((x) => x !== cid) : [...prev, cid]
+                                  );
+                                  setModalSelectedJobIds([]);
+                                }}
+                                color={isCompanySelected ? 'primary' : 'default'}
+                                variant={isCompanySelected ? 'filled' : 'outlined'}
+                                className={isCompanySelected ? 'active' : ''}
+                                icon={isCompanySelected ? <CheckCircleIcon /> : undefined}
+                                size="small"
+                              />
+                            );
+                          })}
+                        </FormGroup>
 
-                    return companyIds.map((selCid) => {
-                      const jobs = jobsByCompany[String(selCid)] || [];
-                      const comp = companiesList.find((c: any) => String(c._id || c.id) === String(selCid));
-                      const compTitle = comp ? getDisplayText(comp.name || comp.companyName || comp.title || comp.title?.en || selCid) : selCid;
-                      
-                      return (
-                        <Paper key={selCid} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-                          <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: brandMain }}>
-                            {compTitle}
+                        {selectedFilterCompanyIds.length > 0 ? (() => {
+                          const filtered = (jobPositions || []).filter((job: any) =>
+                            selectedFilterCompanyIds.includes(String(getCid(job)))
+                          );
+                          if (filtered.length === 0) {
+                            return (
+                              <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', textAlign: 'center', py: 2 }}>
+                                {t('noJobsCompany', 'modals')}
+                              </Typography>
+                            );
+                          }
+                          return (
+                            <>
+                              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: 'text.secondary', fontSize: '0.75rem' }}>
+                                {t('jobPositions', 'modals')}
+                              </Typography>
+                              <FormGroup sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 1 }}>
+                                {filtered.map((job: any) => {
+                                  const jid = String(getJid(job));
+                                  const title = getDisplayText(job.title || job.name || jid) || jid;
+                                  const isSelected = modalSelectedJobIds.includes(String(jid));
+                                  return (
+                                    <FilterChip
+                                      key={jid}
+                                      label={title}
+                                      onClick={() => {
+                                        setModalSelectedJobIds(prev => {
+                                          if (isSelected) return prev.filter((x) => x !== String(jid));
+                                          return [...prev, String(jid)];
+                                        });
+                                      }}
+                                      color={isSelected ? 'primary' : 'default'}
+                                      variant={isSelected ? 'filled' : 'outlined'}
+                                      className={isSelected ? 'active' : ''}
+                                      icon={isSelected ? <CheckCircleIcon /> : undefined}
+                                      size="small"
+                                    />
+                                  );
+                                })}
+                              </FormGroup>
+                            </>
+                          );
+                        })() : (
+                          <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', textAlign: 'center', py: 2 }}>
+                            {t('selectCompaniesJobs', 'modals')}
                           </Typography>
-                          {jobs.length === 0 ? (
-                            <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                              {t('noJobsCompany', 'modals')}
-                            </Typography>
-                          ) : (
-                            <FormGroup sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 1 }}>
-                              {jobs.map((job: any) => {
-                                const jid = String(getJid(job));
-                                const title = getDisplayText(job.title || job.name || jid) || jid;
-                                const isSelected = modalSelectedJobIds.includes(String(jid));
-                                return (
-                                  <FilterChip
-                                    key={jid}
-                                    label={title}
-                                    onClick={() => {
-                                      setModalSelectedJobIds(prev => {
-                                        if (isSelected) return prev.filter((x) => x !== String(jid));
-                                        return [...prev, String(jid)];
-                                      });
-                                    }}
-                                    color={isSelected ? 'primary' : 'default'}
-                                    variant={isSelected ? 'filled' : 'outlined'}
-                                    className={isSelected ? 'active' : ''}
-                                    icon={isSelected ? <CheckCircleIcon /> : undefined}
-                                    size="small"
-                                  />
-                                );
-                              })}
-                            </FormGroup>
-                          )}
-                        </Paper>
-                      );
-                    });
+                        )}
+                      </>
+                    );
                   })()}
                 </Stack>
               </Box>
@@ -914,6 +977,7 @@ const CustomFilterModal: React.FC<Props> = ({
                       return (
                         <FormControlLabel
                           key={opt.id}
+                          labelPlacement={dir === 'rtl' ? 'start' : 'end'}
                           control={
                             <Checkbox
                               size="small"
@@ -942,7 +1006,7 @@ const CustomFilterModal: React.FC<Props> = ({
                               }}
                             />
                           }
-                          label={<Typography variant="body2">{opt.title}</Typography>}
+                          label={<Typography variant="body2">{['Male', 'Female'].includes(opt.title) ? t(opt.title.toLowerCase(), 'personalInfo') : opt.title}</Typography>}
                         />
                       );
                     })}
@@ -993,7 +1057,7 @@ const CustomFilterModal: React.FC<Props> = ({
                               ),
                             }}
                           />
-                          <ToggleButtonGroup
+                          <ToggleGroup dir={dir}
                             value={modeVal}
                             exclusive
                             onChange={(_, newMode) => {
@@ -1017,7 +1081,7 @@ const CustomFilterModal: React.FC<Props> = ({
                           >
                             <StyledToggleButton value="after">{t('after', 'modals')}</StyledToggleButton>
                             <StyledToggleButton value="before">{t('before', 'modals')}</StyledToggleButton>
-                          </ToggleButtonGroup>
+                          </ToggleGroup>
                           {yearVal && (
                             <Button
                               size="small"
@@ -1048,7 +1112,7 @@ const CustomFilterModal: React.FC<Props> = ({
                       const isHas = existing.value === true;
                       const isNo = existing.value === false;
                       return (
-                        <ToggleButtonGroup
+                        <ToggleGroup dir={dir}
                           value={isHas ? 'has' : isNo ? 'no' : null}
                           exclusive
                           size="small"
@@ -1091,7 +1155,7 @@ const CustomFilterModal: React.FC<Props> = ({
                           >
                             {t('noCv', 'modals')}
                           </StyledToggleButton>
-                        </ToggleButtonGroup>
+                        </ToggleGroup>
                       );
                     })()}
                   </Box>
@@ -1154,14 +1218,14 @@ const CustomFilterModal: React.FC<Props> = ({
                   <Box>
                     <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
                       <FilterListIcon fontSize="small" color="primary" />
-                      Show All Duplicates
+                      {t('showAllDuplicates', 'modals')}
                     </Typography>
                     <Box sx={{ display: 'flex', gap: 2 }}>
                       {(() => {
                         const existing = customFilters.find((cf: any) => cf.fieldId === '__duplicates_only') || {};
                         const isEnabled = existing.value === true;
                         return (
-                          <ToggleButtonGroup value={isEnabled ? 'duplicates' : 'all'} exclusive size="small">
+                          <ToggleGroup dir={dir} value={isEnabled ? 'duplicates' : 'all'} exclusive size="small">
                             <StyledToggleButton
                               value="all"
                               onClick={() => {
@@ -1170,7 +1234,7 @@ const CustomFilterModal: React.FC<Props> = ({
                                 );
                               }}
                             >
-                              All
+                              {t('all', 'modals')}
                             </StyledToggleButton>
                             <StyledToggleButton
                               value="duplicates"
@@ -1188,9 +1252,9 @@ const CustomFilterModal: React.FC<Props> = ({
                                 });
                               }}
                             >
-                              Only Duplicates
+                              {t('onlyDuplicates', 'modals')}
                             </StyledToggleButton>
-                          </ToggleButtonGroup>
+                          </ToggleGroup>
                         );
                       })()}
                     </Box>
@@ -1224,7 +1288,7 @@ const CustomFilterModal: React.FC<Props> = ({
             >
               <SectionTitle>
                 <FilterListIcon />
-                <Typography variant="h6">Custom Fields</Typography>
+                <Typography variant="h6">{t('customFields', 'modals')}</Typography>
               </SectionTitle>
               <IconButton size="small">
                 {expandedSections.custom ? <ExpandLessIcon /> : <ExpandMoreIcon />}
@@ -1239,7 +1303,7 @@ const CustomFilterModal: React.FC<Props> = ({
                     icon={<InfoIcon />}
                     sx={{ borderRadius: 2 }}
                   >
-                    Select one or more jobs to display their custom fields.
+                    {t('selectJobsForFields', 'modals')}
                   </Alert>
                 ) : (
                   (() => {
@@ -1272,7 +1336,7 @@ const CustomFilterModal: React.FC<Props> = ({
                     if (!fields.length) {
                       return (
                         <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', textAlign: 'center', py: 3 }}>
-                          No custom fields found for selected jobs.
+                          {t('noCustomFieldsFound', 'modals')}
                         </Typography>
                       );
                     }
@@ -1303,13 +1367,13 @@ const CustomFilterModal: React.FC<Props> = ({
                             return (
                               <Paper key={saveFieldId} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
                                 <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2, color: brandMain }}>
-                                  {f.label?.en || f.label?.ar || 'Custom Field'}
+                                  {f.label?.en || f.label?.ar || t('customField', 'modals')}
                                 </Typography>
 
                                 {/* If field has explicit choices, render them as selectable chips (multi-select) */}
                                 {Array.isArray(f.choices) && f.choices.length > 0 ? (
                                   <Box>
-                                    <Typography variant="body2" sx={{ mb: 1 }}>Select options:</Typography>
+                                    <Typography variant="body2" sx={{ mb: 1 }}>{t('selectOptions', 'modals')}</Typography>
                                     <FormGroup sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 1 }}>
                                       {f.choices
                                         .map((c: any) => ({ id: c.en || c.ar || String(c), title: `${c.en || ''}${c.ar ? ' / ' + c.ar : ''}` }))
@@ -1342,9 +1406,8 @@ const CustomFilterModal: React.FC<Props> = ({
                                     </FormGroup>
                                   </Box>
                                 ) : (
-                                  // Default: Has / No presence toggle for any custom field without explicit choices
                                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                    <ToggleButtonGroup value={existing.value === true ? 'has' : existing.value === false ? 'no' : null} exclusive size="small">
+                                    <ToggleGroup dir={dir} value={existing.value === true ? 'has' : existing.value === false ? 'no' : null} exclusive size="small">
                                       <StyledToggleButton
                                         value="has"
                                         onClick={() => {
@@ -1357,7 +1420,7 @@ const CustomFilterModal: React.FC<Props> = ({
                                           });
                                         }}
                                       >
-                                        Has
+                                        {t('has', 'modals')}
                                       </StyledToggleButton>
                                       <StyledToggleButton
                                         value="no"
@@ -1371,9 +1434,9 @@ const CustomFilterModal: React.FC<Props> = ({
                                           });
                                         }}
                                       >
-                                        No
+                                        {t('no', 'modals')}
                                       </StyledToggleButton>
-                                    </ToggleButtonGroup>
+                                    </ToggleGroup>
                                   </Box>
                                 )}
                               </Paper>
@@ -1405,33 +1468,37 @@ const CustomFilterModal: React.FC<Props> = ({
           variant="outlined"
           color="error"
           onClick={handleClearAll}
-          startIcon={<ClearIcon />}
           fullWidth={isMobile}
-          sx={{ borderRadius: 2 }}
+          sx={{ borderRadius: 2, px: 2 }}
         >
-          {t('clear', 'modals')}
+          <Box sx={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+            {dir === 'rtl' ? <>{t('clear', 'modals')}<ClearIcon fontSize="small" /></> : <><ClearIcon fontSize="small" />{t('clear', 'modals')}</>}
+          </Box>
         </Button>
         <Button
           variant="outlined"
           onClick={handleRevert}
-          startIcon={<RefreshIcon />}
           fullWidth={isMobile}
-          sx={{ borderRadius: 2 }}
+          sx={{ borderRadius: 2, px: 2 }}
         >
-          Revert
+          <Box sx={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+            {dir === 'rtl' ? <>{t('revert', 'modals')}<RefreshIcon fontSize="small" /></> : <><RefreshIcon fontSize="small" />{t('revert', 'modals')}</>}
+          </Box>
         </Button>
         <Button
           variant="contained"
           color="primary"
           onClick={handleSave}
-          startIcon={<SaveIcon />}
           fullWidth={isMobile}
           sx={{ 
             borderRadius: 2,
+            px: 2,
             background: `linear-gradient(135deg, ${brandMain}, ${(theme.palette as any).brand?.dark ?? theme.palette.primary.dark})`,
           }}
         >
-          Save Filters
+          <Box sx={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+            {dir === 'rtl' ? <>{t('saveFilters', 'modals')}<SaveIcon fontSize="small" /></> : <><SaveIcon fontSize="small" />{t('saveFilters', 'modals')}</>}
+          </Box>
         </Button>
       </DialogActions>
     </Dialog>

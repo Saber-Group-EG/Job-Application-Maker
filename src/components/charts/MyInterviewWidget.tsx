@@ -35,14 +35,14 @@ const getStatusStyle = (s: string, t: (key: string, ns?: string) => string) => {
   return { ...style, label: getStatusLabel(s, t) };
 };
 
-function formatDate(dateStr: string) {
+function formatDate(dateStr: string, locale: string) {
   const d = new Date(dateStr);
   return {
-    dayName:  d.toLocaleDateString('en-US', { weekday: 'short' }),
+    dayName:  d.toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', { weekday: 'short' }),
     day:      d.getDate(),
-    month:    d.toLocaleDateString('en-US', { month: 'short' }),
-    time:     d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-    full:     d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
+    month:    d.toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', { month: 'short' }),
+    time:     d.toLocaleTimeString(locale === 'ar' ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' }),
+    full:     d.toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
   };
 }
 
@@ -67,9 +67,9 @@ function getRelativeDay(dateStr: string, t: (key: string, ns?: string) => string
 
 // ─── Timeline card (future) ──────────────────────────────────────────────────
 
-function TimelineCard({ interview, t }: { interview: any; t: (key: string, ns?: string) => string }) {
+function TimelineCard({ interview, t, locale }: { interview: any; t: (key: string, ns?: string) => string; locale: string }) {
   const navigate = useNavigate();
-  const d = formatDate(interview.scheduledAt);
+  const d = formatDate(interview.scheduledAt, locale);
   const style = getStatusStyle(interview.status, t);
   const relDay = getRelativeDay(interview.scheduledAt, t);
 
@@ -133,7 +133,7 @@ function TimelineCard({ interview, t }: { interview: any; t: (key: string, ns?: 
             {interview.type && (
               <span className="flex items-center gap-1">
                 <ChatIcon className="size-3.5" />
-                {interview.type}
+                {t(interview.type === 'in-person' ? 'inPerson' : interview.type, 'modals')}
               </span>
             )}
             {interview.location && (
@@ -159,9 +159,9 @@ function TimelineCard({ interview, t }: { interview: any; t: (key: string, ns?: 
 
 // ─── Past interviews table row ───────────────────────────────────────────────
 
-function PastRow({ interview, t }: { interview: any; t: (key: string, ns?: string) => string }) {
+function PastRow({ interview, t, locale }: { interview: any; t: (key: string, ns?: string) => string; locale: string }) {
   const navigate = useNavigate();
-  const d = formatDate(interview.scheduledAt);
+  const d = formatDate(interview.scheduledAt, locale);
   const style = getStatusStyle(interview.status, t);
 
   return (
@@ -180,7 +180,7 @@ function PastRow({ interview, t }: { interview: any; t: (key: string, ns?: strin
         {interview.jobPosition?.name ?? '—'}
       </td>
       <td className="py-3 px-4 text-sm text-gray-500 dark:text-gray-400">
-        {interview.type ?? '—'}
+        {t(interview.type === 'in-person' ? 'inPerson' : interview.type || '', 'modals')}
       </td>
       <td className="py-3 px-4">
         <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${style.badge}`}>
@@ -194,7 +194,7 @@ function PastRow({ interview, t }: { interview: any; t: (key: string, ns?: strin
 // ─── Main widget ─────────────────────────────────────────────────────────────
 
 export default function InterviewScheduleWidget() {
-  const { t } = useLocale();
+  const { t, dir, locale } = useLocale();
   const [direction, setDirection] = useState<'future' | 'past'>('future');
   const [page, setPage] = useState(1);
   const queryClient = useQueryClient();
@@ -316,18 +316,18 @@ export default function InterviewScheduleWidget() {
           // Timeline
           <div className="p-5">
             {interviews.map((interview: any) => (
-              <TimelineCard key={interview.interviewId} interview={interview} t={t} />
+              <TimelineCard key={interview.interviewId} interview={interview} t={t} locale={locale} />
             ))}
           </div>
         ) : (
           // Past table
           <>
             <div className="overflow-x-auto">
-              <table className="w-full text-left">
+              <table className="w-full text-start" dir={dir}>
                 <thead>
                   <tr className="border-b border-gray-100 dark:border-gray-800">
                     {['date', 'applicant', 'position', 'type', 'status'].map((h) => (
-                      <th key={h} className="py-2.5 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      <th key={h} className="py-2.5 px-4 text-start text-xs font-semibold text-gray-500 uppercase tracking-wider">
                         {t(h, 'interview')}
                       </th>
                     ))}
@@ -335,7 +335,7 @@ export default function InterviewScheduleWidget() {
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                   {interviews.map((interview: any) => (
-                    <PastRow key={interview.interviewId} interview={interview} t={t} />
+                    <PastRow key={interview.interviewId} interview={interview} t={t} locale={locale} />
                   ))}
                 </tbody>
               </table>

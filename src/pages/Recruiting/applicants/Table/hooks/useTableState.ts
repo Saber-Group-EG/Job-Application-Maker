@@ -18,7 +18,6 @@ export function useTableState({
   const navState = (location.state as any);
   const isReturningFromDetails = navState?.returnToApplicants === true;
   const hasInitializedFromNav = useRef(false);
-  const isUpdatingFromInternal = useRef(false);
   
   const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>(() => {
     if (isReturningFromDetails && navState?.columnFilters && !hasInitializedFromNav.current) {
@@ -68,16 +67,12 @@ export function useTableState({
   }, []);
   
   const resetToDefault = useCallback(() => {
-    isUpdatingFromInternal.current = true;
     setRowSelection({});
     setColumnFilters([]);
     setSorting([{ id: 'submittedAt', desc: true }]);
     setPagination({ pageIndex: 0, pageSize: 10 });
     setCustomFilters([]);
     clearPersistedState();
-    setTimeout(() => {
-      isUpdatingFromInternal.current = false;
-    }, 100);
   }, [clearPersistedState]);
   
   // Persist state effect
@@ -111,9 +106,6 @@ export function useTableState({
   const prevFiltersKeyRef = useRef<string | null>(null);
   
   useEffect(() => {
-    // Skip if this is an internal update
-    if (isUpdatingFromInternal.current) return;
-    
     const serialize = (filters: unknown): unknown => {
       if (!Array.isArray(filters)) return [];
       return filters.map((f) => {
@@ -134,20 +126,11 @@ export function useTableState({
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
   }, [columnFilters, customFilters]);
   
-  // Wrap setColumnFilters to mark internal updates - MUST be after all hooks
-  const handleSetColumnFilters = useCallback((updater: any) => {
-    isUpdatingFromInternal.current = true;
-    setColumnFilters(updater);
-    setTimeout(() => {
-      isUpdatingFromInternal.current = false;
-    }, 100);
-  }, []);
-  
   return {
     rowSelection,
     setRowSelection,
     columnFilters,
-    setColumnFilters: handleSetColumnFilters,
+    setColumnFilters,
     sorting,
     setSorting,
     pagination,

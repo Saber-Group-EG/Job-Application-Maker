@@ -43,7 +43,7 @@ export function OfferDetail({
   onConvertToContract: (offer: JobOffer) => void;
   canCreateContract: boolean;
 }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const chip = STATUS_CHIP[offer.status];
   const applicantName = offer.applicantId?.fullName;
   const applicantEmail = offer.applicantId?.email;
@@ -111,13 +111,15 @@ export function OfferDetail({
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-              {offer.position?.en} {offer.position.ar && ` / ${offer.position.ar}`}
+              {locale === 'ar' ? (offer.position?.ar || offer.position?.en) : (offer.position?.en || offer.position?.ar)}
             </h2>
             {showCompany && (
               <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
                 <Briefcase className="size-3.5" />
                 <span className="font-medium">
-                  {(offer.companyId as { name: { en: string } }).name.en}
+                  {locale === 'ar'
+                    ? ((offer.companyId as any)?.name?.ar || (offer.companyId as any)?.name?.en || '')
+                    : ((offer.companyId as any)?.name?.en || (offer.companyId as any)?.name?.ar || '')}
                 </span>
               </div>
             )}
@@ -125,12 +127,19 @@ export function OfferDetail({
               <span
                 className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${WORK_TYPE_COLORS[offer.workType]}`}
               >
-                {offer.workType}
+                {t(
+                  offer.workType === 'full-time'
+                    ? 'fullTime'
+                    : offer.workType === 'part-time'
+                      ? 'partTime'
+                      : offer.workType || '',
+                  'modals',
+                )}
               </span>
               {offer.workHours && (
                 <span className="flex items-center gap-1 text-xs text-slate-500">
                   <Clock className="size-3.5" />
-                  {offer.workHours?.en} {offer.workHours.ar && ` / ${offer.workHours.ar}`}
+                  {locale === 'ar' ? (offer.workHours?.ar || offer.workHours?.en) : (offer.workHours?.en || offer.workHours?.ar)}
                 </span>
               )}
               {offer.salary.basic != null && (
@@ -161,7 +170,10 @@ export function OfferDetail({
               ] as OfferStatus[]
             ).map((s) => (
               <option key={s} value={s}>
-                {s.charAt(0).toUpperCase() + s.slice(1)}
+                {t(
+                  `status${s.charAt(0).toUpperCase() + s.slice(1)}` as const,
+                  'jobOffers',
+                )}
               </option>
             ))}
           </select>
@@ -188,7 +200,7 @@ export function OfferDetail({
               </span>
             </p>
             <p className="mt-0.5">
-              {new Date(offer.createdAt).toLocaleDateString('en-US', {
+              {new Date(offer.createdAt).toLocaleDateString(locale, {
                 month: 'short',
                 day: '2-digit',
                 year: 'numeric',
@@ -200,7 +212,7 @@ export function OfferDetail({
         {offer.lastEmailSentAt && (
           <p className="mt-3 text-xs text-slate-400 dark:text-slate-500">
             {t('lastEmailed', 'jobOffers')}{' '}
-            {new Date(offer.lastEmailSentAt!).toLocaleDateString(undefined, {
+            {new Date(offer.lastEmailSentAt!).toLocaleDateString(locale, {
               day: 'numeric',
               month: 'short',
               year: 'numeric',
@@ -224,10 +236,10 @@ export function OfferDetail({
               >
                 <div>
                   <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
-                    {c.label?.en} {c.label.ar && ` / ${c.label.ar}`}
+                    {locale === 'ar' ? (c.label?.ar || c.label?.en) : (c.label?.en || c.label?.ar)}
                   </p>
                   {c.condition && (
-                    <p className="text-xs text-slate-400">{c.condition?.en} {c.condition.ar && ` / ${c.condition.ar}`}</p>
+                    <p className="text-xs text-slate-400">{locale === 'ar' ? (c.condition?.ar || c.condition?.en) : (c.condition?.en || c.condition?.ar)}</p>
                   )}
                 </div>
                 <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
@@ -254,7 +266,7 @@ export function OfferDetail({
               .map((section, i) => (
                 <div key={i}>
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                    {section.title?.en || section.title?.ar}
+                    {locale === 'ar' ? (section.title?.ar || section.title?.en) : (section.title?.en || section.title?.ar)}
                   </p>
                   <ul className="space-y-1">
                     {section.items.map((item, j) => (
@@ -263,7 +275,7 @@ export function OfferDetail({
                         className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-400"
                       >
                         <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-400" />
-                        {item.en || item.ar}
+                        {locale === 'ar' ? (item.ar || item.en) : (item.en || item.ar)}
                       </li>
                     ))}
                   </ul>
@@ -326,7 +338,7 @@ export function OfferDetail({
                     {event.label}
                   </p>
                   <p className="text-sm text-slate-700 dark:text-slate-300">
-                    {new Date(event.date!).toLocaleString('en-US', {
+                    {new Date(event.date!).toLocaleString(locale, {
                       month: 'short',
                       day: '2-digit',
                       hour: '2-digit',

@@ -13,7 +13,7 @@ const renderValue = (val: any) => toPlainString(val) || '—';
 export default function ContractPreview({ isOpen, onClose, contract }: Props) {
   if (!isOpen) return null;
 
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const companyName = typeof contract?.companyId === 'string'
     ? contract?.companyId
     : toPlainString(contract?.companyId?.name);
@@ -98,28 +98,28 @@ export default function ContractPreview({ isOpen, onClose, contract }: Props) {
                 <div className="rounded-lg border border-slate-100 p-3 text-sm text-slate-700 dark:border-slate-700 dark:text-slate-300">
                   <p>
                     <span className="font-semibold">{t('type', 'modals')}</span>{' '}
-                    {renderValue(contract?.contractType)}
+                    {contract?.contractType ? t(contract.contractType.replace(/-([a-z])/g, (_, c) => c.toUpperCase()), 'modals') : '—'}
                   </p>
                   <p>
                     <span className="font-semibold">{t('status', 'modals')}</span>{' '}
-                    {renderValue(contract?.status)}
+                    {contract?.status ? t(`status${contract.status.charAt(0).toUpperCase() + contract.status.slice(1)}`, 'jobContracts') : '—'}
                   </p>
                   {contract?.startDate && (
                     <p>
                       <span className="font-semibold">{t('start', 'modals')}</span>{' '}
-                      {new Date(contract.startDate).toLocaleDateString()}
+                      {new Date(contract.startDate).toLocaleDateString(locale)}
                     </p>
                   )}
                   {contract?.endDate && (
                     <p>
                       <span className="font-semibold">{t('end', 'modals')}</span>{' '}
-                      {new Date(contract.endDate).toLocaleDateString()}
+                      {new Date(contract.endDate).toLocaleDateString(locale)}
                     </p>
                   )}
                   {contract?.signedAt && (
                     <p>
                       <span className="font-semibold">{t('signed', 'modals')}</span>{' '}
-                      {new Date(contract.signedAt).toLocaleString()}
+                      {new Date(contract.signedAt).toLocaleString(locale)}
                     </p>
                   )}
                 </div>

@@ -18,7 +18,7 @@ import type { Activity, ActivityFeedProps, Interview } from '../../../../types/a
 import { useStatusSettings } from '../../../../hooks/useStatusSettings';
 
 const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, mailRecords = [], interviews = [], company }) => {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const { getStatus } = useStatusSettings(company);
   const data: Activity[] = Array.isArray(activities) ? activities : [];
   const [isExpanded, setIsExpanded] = useState(true);
@@ -74,12 +74,12 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, mailRecords = [
     const diffHours = Math.floor(absDiffMs / 3600000);
     const diffDays = Math.floor(absDiffMs / 86400000);
 
-    if (diffMs < 0) return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    if (diffMs < 0) return date.toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     if (diffMins < 1) return t('justNow', 'activity');
     if (diffMins < 60) return t('minAgo', 'activity', { diffMins });
     if (diffHours < 24) return diffHours === 1 ? t('hourAgo', 'activity', { hours: diffHours }) : t('hoursAgo', 'activity', { hours: diffHours });
     if (diffDays < 7) return diffDays === 1 ? t('dayAgo', 'activity', { days: diffDays }) : t('daysAgo', 'activity', { days: diffDays });
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return date.toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', { month: 'short', day: 'numeric' });
   };
 
   const findMatchingInterview = (activityTimestamp: string): Interview | null => {
@@ -101,13 +101,13 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, mailRecords = [
   const substituteInterviewVars = (html: string, interview: Interview): string => {
     let result = html;
 
-    const interviewType = interview.type || '';
+    const interviewType = t(interview.type === 'in-person' ? 'inPerson' : interview.type || '', 'modals');
     result = result.replace(/\{\{interviewType\}\}/gi, interviewType);
 
     if (interview.scheduledAt) {
       const d = new Date(interview.scheduledAt);
-      const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-      const timeStr = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      const dateStr = d.toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const timeStr = d.toLocaleTimeString(locale === 'ar' ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' });
       result = result.replace(/\{\{InterviewDate\}\}/g, dateStr);
       result = result.replace(/\{\{interviewDate\}\}/gi, dateStr);
       result = result.replace(/\{\{interviewTime\}\}/gi, timeStr);
@@ -183,7 +183,7 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, mailRecords = [
       <div className="p-5 border-b border-gray-100">
         <button
           onClick={() => setIsExpanded((prev) => !prev)}
-          className="w-full flex items-center justify-between text-left"
+          className="w-full flex items-center justify-between text-start"
         >
           <div>
             <h3 className="text-base font-semibold text-gray-800">{t('activityFeed', 'activity')}</h3>
@@ -236,10 +236,10 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, mailRecords = [
       </div>
       
       <div className="flex items-start justify-between">
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap mb-2">
           {activity.type === 'status_change' && activity.status ? (
             <>
-              <span className="text-sm font-semibold text-gray-800">
+              <span className="text-sm font-semibold text-gray-800 ">
                 {t('applicationStatusChangedTo', 'activity')}
               </span>
               <span
@@ -268,12 +268,12 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, mailRecords = [
           )}
           {activity.type === 'interview' && activity.scheduledAt && (
             <span className="text-xs text-gray-400 ml-1">
-              {new Date(activity.scheduledAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              {new Date(activity.scheduledAt).toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
             </span>
           )}
           {activity.type === 'interview' && activity.interviewStatus === 'completed' && activity.endedAt && (
             <span className="text-xs text-gray-500">
-              {t('endedOn', 'activity', { date: new Date(activity.endedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) })}
+              {t('endedOn', 'activity', { date: new Date(activity.endedAt).toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', { month: 'short', day: 'numeric', year: 'numeric' }) })}
             </span>
           )}
           {activity.type === 'interview' && activity.interviewStatus === 'completed' && activity.conductedBy && (
@@ -287,14 +287,14 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, mailRecords = [
 
       <div className="flex items-center gap-2 mb-3">
         <span className="text-xs font-medium text-gray-600">
-          {activity.type === 'comment' && t('commentedAt', 'activity', { time: new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) })}
-          {activity.type === 'status_change' && t('statusChangedAt', 'activity', { time: new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) })}
-          {activity.type === 'interview' && activity.interviewStatus === 'completed' && t('interviewCompletedAt', 'activity', { time: new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) })}
-          {activity.type === 'interview' && activity.interviewStatus !== 'completed' && t('interviewScheduledAt', 'activity', { time: new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) })}
-          {(activity.type === 'email' || activity.type === 'message') && t('sentAt', 'activity', { time: new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) })}
-          {activity.type === 'application' && t('submittedAt', 'activity', { time: new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) })}
-          {activity.type === 'task' && t('taskAt', 'activity', { time: new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) })}
-          {!['comment', 'status_change', 'interview', 'email', 'message', 'application', 'task'].includes(activity.type) && t('updatedAt', 'activity', { time: new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) })}
+          {activity.type === 'comment' && t('commentedAt', 'activity', { time: new Date(activity.timestamp).toLocaleTimeString(locale === 'ar' ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' }) })}
+          {activity.type === 'status_change' && t('statusChangedAt', 'activity', { time: new Date(activity.timestamp).toLocaleTimeString(locale === 'ar' ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' }) })}
+          {activity.type === 'interview' && activity.interviewStatus === 'completed' && t('interviewCompletedAt', 'activity', { time: new Date(activity.timestamp).toLocaleTimeString(locale === 'ar' ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' }) })}
+          {activity.type === 'interview' && activity.interviewStatus !== 'completed' && t('interviewScheduledAt', 'activity', { time: new Date(activity.timestamp).toLocaleTimeString(locale === 'ar' ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' }) })}
+          {(activity.type === 'email' || activity.type === 'message') && t('sentAt', 'activity', { time: new Date(activity.timestamp).toLocaleTimeString(locale === 'ar' ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' }) })}
+          {activity.type === 'application' && t('submittedAt', 'activity', { time: new Date(activity.timestamp).toLocaleTimeString(locale === 'ar' ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' }) })}
+          {activity.type === 'task' && t('taskAt', 'activity', { time: new Date(activity.timestamp).toLocaleTimeString(locale === 'ar' ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' }) })}
+          {!['comment', 'status_change', 'interview', 'email', 'message', 'application', 'task'].includes(activity.type) && t('updatedAt', 'activity', { time: new Date(activity.timestamp).toLocaleTimeString(locale === 'ar' ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' }) })}
         </span>
         <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
           <User className="h-3.5 w-3.5 text-gray-500" />

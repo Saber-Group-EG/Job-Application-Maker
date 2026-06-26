@@ -118,6 +118,7 @@
   "status": "Status:",
   "updateStatus": "Update Status",
   "scheduled": "Scheduled",
+  "inProgress": "In Progress",
   "completed": "Completed",
   "cancelled": "Cancelled",
   "successStatusUpdated": "Interview status updated to scheduled.",
@@ -353,5 +354,17 @@
   "deleteSectionTitle": "Delete Section Template?",
   "deleteSectionText": "This will remove it from the template library.",
   "delete": "Delete",
-  "itemCount": "{count} item(s)"
+  "itemCount": "{count} item(s)",
+  "showAllDuplicates": "Show All Duplicates",
+  "all": "All",
+  "onlyDuplicates": "Only Duplicates",
+  "customFields": "Custom Fields",
+  "selectJobsForFields": "Select one or more jobs to display their custom fields.",
+  "noCustomFieldsFound": "No custom fields found for selected jobs.",
+  "customField": "Custom Field",
+  "selectOptions": "Select options:",
+  "has": "Has",
+  "no": "No",
+  "revert": "Revert",
+  "saveFilters": "Save Filters"
 }

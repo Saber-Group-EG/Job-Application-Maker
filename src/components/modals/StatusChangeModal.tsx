@@ -44,14 +44,14 @@ export default function StatusChangeModal({
       rawStatusOptions && rawStatusOptions.length > 0
         ? rawStatusOptions
         : [
-            { value: 'pending',     label: 'Pending',     text: 'Pending',     color: '#FEF3C7', textColor: '#92400E', description: 'Pending leads awaiting triage.' },
-            { value: 'approved',    label: 'Approved',    text: 'Approved',    color: '#D1FAE5', textColor: '#065F46', description: 'Approved leads ready for next steps.' },
-            { value: 'interview',   label: 'Interview',   text: 'Interview',   color: '#DBEAFE', textColor: '#1E40AF', description: 'Scheduled for interview.' },
-            { value: 'interviewed', label: 'Interviewed', text: 'Interviewed', color: '#DBEAFE', textColor: '#065F46', description: 'Interview completed.' },
-            { value: 'rejected',    label: 'Rejected',    text: 'Rejected',    color: '#FEE2E2', textColor: '#991B1B', description: 'Not a fit / disqualified.' },
-            { value: 'trashed',     label: 'Trashed',     text: 'Trashed',     color: '#6B7280', textColor: '#FFFFFF', description: 'Removed or archived applications.' },
+            { value: 'pending',     label: t('pending', 'applicants'),     text: t('pending', 'applicants'),     color: '#FEF3C7', textColor: '#92400E', description: 'Pending leads awaiting triage.' },
+            { value: 'approved',    label: t('approved', 'applicants'),    text: t('approved', 'applicants'),    color: '#D1FAE5', textColor: '#065F46', description: 'Approved leads ready for next steps.' },
+            { value: 'interview',   label: t('interview', 'applicants'),   text: t('interview', 'applicants'),   color: '#DBEAFE', textColor: '#1E40AF', description: 'Scheduled for interview.' },
+            { value: 'interviewed', label: t('interviewed', 'applicants'), text: t('interviewed', 'applicants'), color: '#DBEAFE', textColor: '#065F46', description: 'Interview completed.' },
+            { value: 'rejected',    label: t('rejected', 'applicants'),    text: t('rejected', 'applicants'),    color: '#FEE2E2', textColor: '#991B1B', description: 'Not a fit / disqualified.' },
+            { value: 'trashed',     label: t('trashed', 'applicants'),     text: t('trashed', 'applicants'),     color: '#6B7280', textColor: '#FFFFFF', description: 'Removed or archived applications.' },
           ],
-    [rawStatusOptions]
+    [rawStatusOptions, t]
   );
 
   // ─── Job-specific status filtering ───────────────────────────────────────────

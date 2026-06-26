@@ -29,7 +29,7 @@ export default function PreviousEntriesHistory({
   applicants,
   onSelectApplicant,
 }: Props) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
 
   if (isLoading) {
     return (
@@ -108,13 +108,13 @@ export default function PreviousEntriesHistory({
             {applicants.map((prev, index) => {
               const status = prev?.status || 'pending';
               const appliedDate =
-                formatDateOnly(prev?.submittedAt) ||
-                formatDateOnly(prev?.createdAt) ||
-                formatDateOnly(prev?.appliedAt);
+                formatDateOnly(prev?.submittedAt, locale) ||
+                formatDateOnly(prev?.createdAt, locale) ||
+                formatDateOnly(prev?.appliedAt, locale);
               const jobPosition =
                 typeof prev?.jobPositionId === 'string'
                   ? prev.jobPositionId
-                  : toPlainString(prev?.jobPositionId?.title);
+                  : toPlainString(prev?.jobPositionId?.title, locale);
               const rejectReasons = prev?.statusHistory
                 ?.filter((h) => h.status === 'rejected' && h.reasons?.length)
                 .flatMap((h) => h.reasons!)
@@ -166,7 +166,7 @@ export default function PreviousEntriesHistory({
                         status,
                       )}`}
                     >
-                      {status}
+                      {{ pending: t('pending', 'applicants'), interview: t('interview', 'applicants'), interviewed: t('interviewed', 'applicants'), approved: t('approved', 'applicants'), rejected: t('rejected', 'applicants') }[status] || status}
                     </span>
                   </td>
                   <td className={BODY_CELL_SECONDARY}>

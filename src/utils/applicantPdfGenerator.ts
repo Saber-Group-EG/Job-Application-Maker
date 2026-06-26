@@ -6,11 +6,11 @@ import { toPlainString } from './strings';
 const esc = (s: string): string =>
   String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-const formatDate = (dateStr?: string): string => {
+const formatDate = (dateStr?: string, locale?: string): string => {
   if (!dateStr) return '—';
   try {
     const d = new Date(dateStr);
-    return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    return isNaN(d.getTime()) ? '—' : d.toLocaleDateString(locale || 'en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   } catch { return '—'; }
 };
 
@@ -39,19 +39,34 @@ const tableHead = (cols: string[]): string =>
 const wrap = (content: string): string =>
   `<div style="font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;color:#111827;font-size:12px;line-height:1.4;background:#fff;padding:0;width:660px;">${content}</div>`;
 
-const buildPage1Html = (applicant: Applicant, jobPosition?: any, company?: any): string => {
-  const now = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+const tOpt = (key: string, ns: string, t?: (key: string, ns?: string, params?: Record<string, string | number>) => string): string =>
+  t ? t(key, ns) : key;
 
+const buildPage1Html = (
+  applicant: Applicant,
+  jobPosition?: any,
+  company?: any,
+  t?: (key: string, ns?: string, params?: Record<string, string | number>) => string,
+  locale?: string
+): string => {
+  const now = new Date().toLocaleDateString(locale || 'en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+  const genderLabel = applicant.gender
+    ? tOpt(applicant.gender.toLowerCase(), 'personalInfo', t)
+    : '—';
+  const statusLabel = applicant.status
+    ? tOpt(applicant.status.toLowerCase(), 'applicants', t)
+    : '—';
   const rows = [
-    ['Full Name', applicant.fullName || '—'],
-    ['Email', applicant.email || '—'],
-    ['Phone', applicant.phone || '—'],
-    ['Address', applicant.address || '—'],
-    ['Gender', applicant.gender ? applicant.gender.charAt(0).toUpperCase() + applicant.gender.slice(1) : '—'],
-    ['Status', applicant.status ? applicant.status.charAt(0).toUpperCase() + applicant.status.slice(1) : '—'],
-    ['Source', applicant.source || '—'],
-    ['Expected Salary', applicant.expectedSalary || '—'],
-    ['Date Applied', formatDate(applicant.submittedAt || applicant.createdAt)],
+    [tOpt('fullName', 'personalInfo', t), applicant.fullName || '—'],
+    [tOpt('email', 'personalInfo', t), applicant.email || '—'],
+    [tOpt('phone', 'personalInfo', t), applicant.phone || '—'],
+    [tOpt('address', 'personalInfo', t), applicant.address || '—'],
+    [tOpt('gender', 'personalInfo', t), genderLabel],
+    [tOpt('status', 'applicants', t), statusLabel],
+    [tOpt('source', 'personalInfo', t), applicant.source || '—'],
+    [tOpt('expectedSalary', 'personalInfo', t), applicant.expectedSalary || '—'],
+    [tOpt('dateApplied', 'personalInfo', t), formatDate(applicant.submittedAt || applicant.createdAt, locale)],
   ];
   const tableRows = rows.map(([l, v]) => infoRow(l, v)).join('');
 
@@ -65,22 +80,22 @@ const buildPage1Html = (applicant: Applicant, jobPosition?: any, company?: any):
   return wrap(`
     <div style="padding:35px 40px 20px;">
       <div style="text-align:center;margin-bottom:24px;padding-bottom:14px;border-bottom:3px solid #1a56db;">
-        <div style="margin:0 0 4px;font-size:24px;font-weight:800;color:#1e3a5f;letter-spacing:-0.01em;">Applicant Profile</div>
+        <div style="margin:0 0 4px;font-size:24px;font-weight:800;color:#1e3a5f;letter-spacing:-0.01em;">${tOpt('applicantProfile', 'personalInfo', t)}</div>
         <div style="margin:0 0 2px;font-size:13px;color:#6b7280;">${esc(resolveCompanyName(company))}</div>
-        <div style="margin:0;font-size:10px;color:#9ca3af;">Generated ${now}</div>
+        <div style="margin:0;font-size:10px;color:#9ca3af;">${tOpt('generated', 'personalInfo', t)} ${now}</div>
       </div>
 
       ${photoHtml}
 
       <div style="margin-bottom:20px;">
-        ${sectionHead('Personal Information')}
+        ${sectionHead(tOpt('personalInformation', 'personalInfo', t))}
         <table style="width:100%;border-collapse:collapse;">${tableRows}</table>
       </div>
 
       <div>
-        ${sectionHead('Position Applied For')}
+        ${sectionHead(tOpt('positionAppliedFor', 'personalInfo', t))}
         <table style="width:100%;border-collapse:collapse;"><tbody>
-          ${infoRow('Job Title', resolveJobTitle(applicant, jobPosition))}
+          ${infoRow(tOpt('jobTitle', 'personalInfo', t), resolveJobTitle(applicant, jobPosition))}
         </tbody></table>
       </div>
     </div>
@@ -121,10 +136,12 @@ export async function generateApplicantPdf(
   jobSpecs: JobSpecItem[],
   jobPosition?: any,
   company?: any,
+  t?: (key: string, ns?: string, params?: Record<string, string | number>) => string,
+  locale?: string,
 ): Promise<void> {
   const pages: { html: string; label: string }[] = [];
 
-  pages.push({ html: buildPage1Html(applicant, jobPosition, company), label: 'page1' });
+  pages.push({ html: buildPage1Html(applicant, jobPosition, company, t, locale), label: 'page1' });
 
   const customRespSection = sections.find(s => s.id === 'applicant_responses' || s.title.toLowerCase().includes('response'));
 
@@ -132,7 +149,7 @@ export async function generateApplicantPdf(
     const parts: string[] = [];
 
     if (customRespSection?.questions.length) {
-      parts.push(sectionHead('Application Responses'));
+      parts.push(sectionHead(t ? t('applicationResponses', 'personalInfo') : 'Application Responses'));
 
       const simpleQuestions = customRespSection.questions.filter((q: any) => q.type !== 'group');
       const groupQuestions = customRespSection.questions.filter((q: any) => q.type === 'group');
@@ -141,7 +158,7 @@ export async function generateApplicantPdf(
         const rows = simpleQuestions.map((q: any) => {
           let ans = '';
           switch (q.type) {
-            case 'checkbox': ans = q.checked ? 'Yes' : 'No'; break;
+            case 'checkbox': ans = q.checked ? (t ? t('yes', 'personalInfo') : 'Yes') : (t ? t('no', 'personalInfo') : 'No'); break;
             case 'radio':
             case 'dropdown': ans = q.selectedValue || '—'; break;
             case 'tags': ans = Array.isArray(q.values) ? q.values.join(', ') : '—'; break;
@@ -159,7 +176,7 @@ export async function generateApplicantPdf(
         const subRows = (gq.questions || []).map((sq: any) => {
           let ans = '';
           switch (sq.type) {
-            case 'checkbox': ans = sq.checked ? 'Yes' : 'No'; break;
+            case 'checkbox': ans = sq.checked ? (t ? t('yes', 'personalInfo') : 'Yes') : (t ? t('no', 'personalInfo') : 'No'); break;
             case 'radio':
             case 'dropdown': ans = sq.selectedValue || '—'; break;
             case 'tags': ans = Array.isArray(sq.values) ? sq.values.join(', ') : '—'; break;
@@ -180,10 +197,15 @@ export async function generateApplicantPdf(
     }
 
     if (jobSpecs.length) {
+      const yesLabel = t ? t('yes', 'personalInfo') : 'Yes';
+      const noLabel = t ? t('no', 'personalInfo') : 'No';
       const specsRows = jobSpecs.map(s =>
-        `<tr><td style="padding:5px 8px;color:#374151;border-bottom:1px solid #e5e7eb;font-size:11px;">${esc(s.spec.en)}</td><td style="padding:5px 8px;border-bottom:1px solid #e5e7eb;text-align:center;">${s.answer ? badge('Yes', '#dcfce7', '#166534') : badge('No', '#fee2e2', '#991b1b')}</td><td style="padding:5px 8px;color:#6b7280;border-bottom:1px solid #e5e7eb;text-align:center;font-size:11px;">${s.weight || 0}</td></tr>`
+        `<tr><td style="padding:5px 8px;color:#374151;border-bottom:1px solid #e5e7eb;font-size:11px;">${esc(s.spec.en)}</td><td style="padding:5px 8px;border-bottom:1px solid #e5e7eb;text-align:center;">${s.answer ? badge(yesLabel, '#dcfce7', '#166534') : badge(noLabel, '#fee2e2', '#991b1b')}</td><td style="padding:5px 8px;color:#6b7280;border-bottom:1px solid #e5e7eb;text-align:center;font-size:11px;">${s.weight || 0}</td></tr>`
       ).join('');
-      parts.push(`<div style="margin-top:${customRespSection?.questions.length ? 14 : 0}px;">${sectionHead('Job Specifications')}<table style="width:100%;border-collapse:collapse;">${tableHead(['Specification', 'Answer', 'Weight'])}<tbody>${specsRows}</tbody></table></div>`);
+      const specLabel = t ? t('specification', 'personalInfo') : 'Specification';
+      const ansLabel = t ? t('answer', 'personalInfo') : 'Answer';
+      const wgtLabel = t ? t('weight', 'personalInfo') : 'Weight';
+      parts.push(`<div style="margin-top:${customRespSection?.questions.length ? 14 : 0}px;">${sectionHead(t ? t('jobSpecifications', 'personalInfo') : 'Job Specifications')}<table style="width:100%;border-collapse:collapse;">${tableHead([specLabel, ansLabel, wgtLabel])}<tbody>${specsRows}</tbody></table></div>`);
     }
 
     if (parts.length) pages.push({ html: wrap(parts.join('')), label: 'page2' });
@@ -193,28 +215,48 @@ export async function generateApplicantPdf(
     const stCol: Record<string, [string, string]> = { scheduled: ['#dbeafe', '#1e40af'], in_progress: ['#fef3c7', '#92400e'], completed: ['#dcfce7', '#166534'], cancelled: ['#fee2e2', '#991b1b'] };
     const rows = applicant.interviews.map(iv => {
       const [bg, fg] = stCol[iv.status || 'scheduled'] || ['#f3f4f6', '#374151'];
-      return `<tr><td style="padding:5px 8px;color:#111827;border-bottom:1px solid #e5e7eb;font-size:11px;">${formatDate(iv.scheduledAt || iv.createdAt)}</td><td style="padding:5px 8px;border-bottom:1px solid #e5e7eb;">${badge((iv.status || 'scheduled').replace('_', ' '), bg, fg)}</td><td style="padding:5px 8px;color:#374151;border-bottom:1px solid #e5e7eb;font-size:11px;">${iv.type || '—'}</td><td style="padding:5px 8px;color:#374151;border-bottom:1px solid #e5e7eb;text-align:center;font-size:11px;">${iv.achievedScore ?? '—'}/${iv.totalScore ?? '—'}</td></tr>`;
+      return `<tr><td style="padding:5px 8px;color:#111827;border-bottom:1px solid #e5e7eb;font-size:11px;">${formatDate(iv.scheduledAt || iv.createdAt, locale)}</td><td style="padding:5px 8px;border-bottom:1px solid #e5e7eb;">${badge((iv.status || 'scheduled').replace('_', ' '), bg, fg)}</td><td style="padding:5px 8px;color:#374151;border-bottom:1px solid #e5e7eb;font-size:11px;">${iv.type || '—'}</td><td style="padding:5px 8px;color:#374151;border-bottom:1px solid #e5e7eb;text-align:center;font-size:11px;">${iv.achievedScore ?? '—'}/${iv.totalScore ?? '—'}</td></tr>`;
     }).join('');
-    pages.push({ html: buildTableHtml(`Interviews (${applicant.interviews.length})`, ['Date', 'Status', 'Type', 'Score'], rows), label: 'interviews' });
+    const ivTitle = `${t ? t('interviews', 'personalInfo') : 'Interviews'} (${applicant.interviews.length})`;
+    const ivDate = t ? t('date', 'personalInfo') : 'Date';
+    const ivStatus = t ? t('status', 'applicants') : 'Status';
+    const ivType = t ? t('type', 'modals') : 'Type';
+    const ivScore = t ? t('score', 'personalInfo') : 'Score';
+    pages.push({ html: buildTableHtml(ivTitle, [ivDate, ivStatus, ivType, ivScore], rows), label: 'interviews' });
   }
 
   if (applicant.messages?.length) {
-    const tl: Record<string, string> = { email: 'Email', sms: 'SMS', whatsapp: 'WhatsApp', internal: 'Note' };
-    const rows = applicant.messages.map(m => `<tr><td style="padding:5px 8px;color:#374151;border-bottom:1px solid #e5e7eb;font-size:11px;">${tl[m.type] || m.type}</td><td style="padding:5px 8px;color:#111827;border-bottom:1px solid #e5e7eb;font-size:11px;">${esc(m.subject || '—')}</td><td style="padding:5px 8px;color:#6b7280;border-bottom:1px solid #e5e7eb;font-size:10px;">${formatDate(m.sentAt)}</td></tr>`).join('');
-    pages.push({ html: buildTableHtml(`Messages (${applicant.messages.length})`, ['Type', 'Subject', 'Date'], rows), label: 'messages' });
+    const tl: Record<string, string> = {
+      email: t ? t('email', 'modals') : 'Email',
+      sms: t ? t('sms', 'modals') : 'SMS',
+      whatsapp: t ? t('whatsapp', 'modals') : 'WhatsApp',
+      internal: t ? t('note', 'personalInfo') : 'Note',
+    };
+    const rows = applicant.messages.map(m => `<tr><td style="padding:5px 8px;color:#374151;border-bottom:1px solid #e5e7eb;font-size:11px;">${tl[m.type] || m.type}</td><td style="padding:5px 8px;color:#111827;border-bottom:1px solid #e5e7eb;font-size:11px;">${esc(m.subject || '—')}</td><td style="padding:5px 8px;color:#6b7280;border-bottom:1px solid #e5e7eb;font-size:10px;">${formatDate(m.sentAt, locale)}</td></tr>`).join('');
+    const msgTitle = `${t ? t('messages', 'personalInfo') : 'Messages'} (${applicant.messages.length})`;
+    const msgType = t ? t('type', 'modals') : 'Type';
+    const msgSubject = t ? t('subject', 'personalInfo') : 'Subject';
+    const msgDate = t ? t('date', 'personalInfo') : 'Date';
+    pages.push({ html: buildTableHtml(msgTitle, [msgType, msgSubject, msgDate], rows), label: 'messages' });
   }
 
   if (applicant.comments?.length) {
+    const unknownLabel = 'Unknown';
+    const internalLabel = t ? t('internal', 'activity') : 'Internal';
     const rows = applicant.comments.map(c => {
       const author = typeof c.commentedBy === 'object' && c.commentedBy
-        ? toPlainString((c.commentedBy as any).fullName || (c.commentedBy as any).name || 'Unknown')
-        : typeof c.commentedBy === 'string' ? c.commentedBy : c.author || 'Unknown';
+        ? toPlainString((c.commentedBy as any).fullName || (c.commentedBy as any).name || unknownLabel)
+        : typeof c.commentedBy === 'string' ? c.commentedBy : c.author || unknownLabel;
       const tag = c.isInternal
-        ? `<span style="display:inline-block;padding:0 4px;border-radius:5px;font-size:8px;font-weight:600;background:#fef3c7;color:#92400e;margin-left:3px;">Internal</span>`
+        ? `<span style="display:inline-block;padding:0 4px;border-radius:5px;font-size:8px;font-weight:600;background:#fef3c7;color:#92400e;margin-left:3px;">${internalLabel}</span>`
         : '';
-      return `<tr><td style="padding:5px 8px;color:#374151;border-bottom:1px solid #e5e7eb;font-size:10px;white-space:nowrap;">${esc(author)}${tag}</td><td style="padding:5px 8px;color:#111827;border-bottom:1px solid #e5e7eb;font-size:11px;">${esc(c.comment || c.text || '')}</td><td style="padding:5px 8px;color:#6b7280;border-bottom:1px solid #e5e7eb;font-size:10px;white-space:nowrap;">${formatDate(c.commentedAt || c.changedAt)}</td></tr>`;
+      return `<tr><td style="padding:5px 8px;color:#374151;border-bottom:1px solid #e5e7eb;font-size:10px;white-space:nowrap;">${esc(author)}${tag}</td><td style="padding:5px 8px;color:#111827;border-bottom:1px solid #e5e7eb;font-size:11px;">${esc(c.comment || c.text || '')}</td><td style="padding:5px 8px;color:#6b7280;border-bottom:1px solid #e5e7eb;font-size:10px;white-space:nowrap;">${formatDate(c.commentedAt || c.changedAt, locale)}</td></tr>`;
     }).join('');
-    pages.push({ html: buildTableHtml(`Comments (${applicant.comments.length})`, ['Author', 'Comment', 'Date'], rows), label: 'comments' });
+    const cmtTitle = `${t ? t('comments', 'personalInfo') : 'Comments'} (${applicant.comments.length})`;
+    const cmtAuthor = t ? t('author', 'personalInfo') : 'Author';
+    const cmtComment = t ? t('comment', 'personalInfo') : 'Comment';
+    const cmtDate = t ? t('date', 'personalInfo') : 'Date';
+    pages.push({ html: buildTableHtml(cmtTitle, [cmtAuthor, cmtComment, cmtDate], rows), label: 'comments' });
   }
 
 
