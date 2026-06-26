@@ -260,6 +260,10 @@ export function ContractDetail({
             {contract.sections
               .slice()
               .sort((a, b) => a.displayOrder - b.displayOrder)
+              .filter((s) => {
+                if (locale === 'ar') return s.title?.ar || s.items?.some((it) => it.ar);
+                return s.title?.en || s.items?.some((it) => it.en);
+              })
               .map((section, i) => (
                 <div key={i}>
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -283,28 +287,29 @@ export function ContractDetail({
       )}
 
       {/* Notes */}
-      {contract.notes?.en && (
-        <div className="border-b border-slate-200 p-6 dark:border-slate-800">
-          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
-            <Clock3 className="h-4 w-4" />
-            {t('internalNotesEn', 'jobContracts')}
-          </h3>
-          <p className="text-sm text-slate-600 dark:text-slate-400">
-            {contract.notes.en}
-          </p>
-        </div>
-      )}
-      {contract.notes?.ar && (
-        <div className="border-b border-slate-200 p-6 dark:border-slate-800">
-          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
-            <Clock3 className="h-4 w-4" />
-            {t('internalNotesAr', 'jobContracts')}
-          </h3>
-          <p className="text-sm text-slate-600 dark:text-slate-400">
-            {contract.notes.ar}
-          </p>
-        </div>
-      )}
+      {locale === 'ar'
+        ? contract.notes?.ar && (
+            <div className="border-b border-slate-200 p-6 dark:border-slate-800">
+              <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
+                <Clock3 className="h-4 w-4" />
+                {t('internalNotes', 'jobContracts')}
+              </h3>
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                {contract.notes.ar}
+              </p>
+            </div>
+          )
+        : contract.notes?.en && (
+            <div className="border-b border-slate-200 p-6 dark:border-slate-800">
+              <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
+                <Clock3 className="h-4 w-4" />
+                {t('internalNotes', 'jobContracts')}
+              </h3>
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                {contract.notes.en}
+              </p>
+            </div>
+          )}
 
       {/* Timeline */}
       <div className="p-6">

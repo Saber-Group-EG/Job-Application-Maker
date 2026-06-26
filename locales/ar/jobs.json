@@ -193,7 +193,7 @@
   "createSubQuestionDesc": "الحقول داخل هذا القسم القابل للتكرار",
   "createAddSubField": "إضافة حقل فرعي",
   "createSubField": "حقل فرعي #{number}",
-  "createSubFieldLabelEn": "التسمية (إنج)",
+  "createSubFieldLabelEn": "التسمية (الانجليزيه)",
   "createSubFieldLabelPlaceholder": "نص السؤال...",
   "createSubFieldLabelAr": "التسمية (عربي)",
   "createSubFieldInputType": "نوع الإدخال",
