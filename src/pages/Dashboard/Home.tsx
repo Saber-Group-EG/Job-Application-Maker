@@ -6,6 +6,7 @@ import { useApplicantStatuses } from '../../hooks/queries/useApplicants';
 import { useCompanies } from '../../hooks/queries/useCompanies';
 import { useStatusSettings } from '../../hooks/useStatusSettings';
 import { useLocale } from '../../context/LocaleContext';
+import { useCompanyFilter } from '../../context/CompanyFilterContext';
 import {
   TimeIcon,
   ChatIcon,
@@ -68,11 +69,9 @@ function getCompanyIdFromUser(
 
 export default function Home() {
   const navigate = useNavigate();
-  const [selectedCompanyId, setSelectedCompanyId] = useState<
-    string | undefined
-  >(undefined);
+  const { selectedCompanyId: globalSelectedCompanyId } = useCompanyFilter();
   const { user } = useAuth();
-  const { t, locale } = useLocale();
+  const { t } = useLocale();
 
   const isSuperAdmin = useMemo(() => {
     const roleName = user?.roleId?.name?.toLowerCase();
@@ -96,31 +95,22 @@ export default function Home() {
       : userCompanyIds
   );
 
-  const showCompanySelector = companies.length > 1;
-
-  // Auto-select the first company whenever companies load and nothing is selected
-  useEffect(() => {
-    if (companies.length > 0 && !selectedCompanyId) {
-      setSelectedCompanyId(companies[0]._id);
-    }
-  }, [companies, selectedCompanyId]);
-
   // Determine companyId for the query
   const companyIds = useMemo(() => {
-    return getCompanyIdFromUser(user, selectedCompanyId);
-  }, [user, selectedCompanyId]);
+    return getCompanyIdFromUser(user, globalSelectedCompanyId ?? undefined);
+  }, [user, globalSelectedCompanyId]);
 
   // Get the selected company object for status settings
   const selectedCompany = useMemo(() => {
-    if (selectedCompanyId && companies.length > 0) {
-      return companies.find((c: any) => c._id === selectedCompanyId);
+    if (globalSelectedCompanyId && companies.length > 0) {
+      return companies.find((c: any) => c._id === globalSelectedCompanyId);
     }
     // If user is not super admin, get their first company
     if (!isSuperAdmin && companies.length > 0) {
       return companies[0];
     }
     return null;
-  }, [selectedCompanyId, companies, isSuperAdmin]);
+  }, [globalSelectedCompanyId, companies, isSuperAdmin]);
 
   // Get status settings (colors, display names) for the selected company
   const { statusOptions, getColor } = useStatusSettings(selectedCompany);
@@ -183,9 +173,8 @@ export default function Home() {
 
   // Handle card click to navigate to applicants page with status filter
   const handleStatusCardClick = (statusName: string) => {
-    // For non-super admin or when a specific company is selected
-    if (selectedCompanyId) {
-      navigate(`/applicants/company/${selectedCompanyId}/status/${statusName.toLowerCase()}`);
+    if (globalSelectedCompanyId) {
+      navigate(`/applicants/company/${globalSelectedCompanyId}/status/${statusName.toLowerCase()}`);
     } else {
       const searchParams = new URLSearchParams();
       searchParams.append('status', statusName.toLowerCase());
@@ -195,8 +184,8 @@ export default function Home() {
   };
 
   const handleTotalCardClick = () => {
-    if (selectedCompanyId) {
-      navigate(`/applicants/company/${selectedCompanyId}`);
+    if (globalSelectedCompanyId) {
+      navigate(`/applicants/company/${globalSelectedCompanyId}`);
     } else {
       const searchParams = new URLSearchParams();
       navigate(`/applicants?${searchParams.toString()}`);
@@ -249,28 +238,6 @@ export default function Home() {
 
       <div className="space-y-6">
         <div className="grid grid-cols-12 gap-4 md:gap-6 items-end">
-          {/* Company selector for super admin or users with multiple companies */}
-          {showCompanySelector && (
-            <div className="col-span-12 sm:col-span-6 md:col-span-4 lg:col-span-3">
-              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-                {t('company', 'home')}
-              </label>
-              <select
-                value={selectedCompanyId || ''}
-                onChange={(e) => setSelectedCompanyId(e.target.value || undefined)}
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm shadow-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-800"
-              >
-                
-                {companies.map((c: any) => (
-                  <option key={c._id} value={c._id}>
-                    {typeof c.name === 'object' ? c.name[locale] || c.name.en : c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-
           <div className="col-span-12 sm:col-span-12 md:col-span-12 lg:col-span-6">
             <div className="flex flex-wrap items-center gap-3">
               <div className="text-sm text-gray-500">{t('showing', 'home')}</div>

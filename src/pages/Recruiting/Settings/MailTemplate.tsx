@@ -1,7 +1,7 @@
 // pages/Settings/EmailTemplates.tsx
 import React, { useState, useEffect} from "react";
 import {
-  PlusCircle, Save, Trash2, Edit, Copy, Mail, Eye, X, ChevronDown, Building2
+  PlusCircle, Save, Trash2, Edit, Copy, Mail, Eye, X
 } from "lucide-react";
 import Swal from "../../../utils/swal";
 import { useAuth } from "../../../context/AuthContext";
@@ -16,6 +16,7 @@ import {
 } from "../../../hooks/queries/useCompanies";
 import Label from "../../../components/form/Label";
 import Input from "../../../components/form/input/InputField";
+import { useCompanyFilter } from '../../../context/CompanyFilterContext';
 
 function QuillEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const containerRef = React.useRef<HTMLDivElement | null>(null);
@@ -233,31 +234,27 @@ function TemplateFormModal({
 }
 
 export default function EmailTemplates({
-  companyId,
+  companyId: _companyId,
   embedded = false
 }: {
   companyId?: string;
-  hideCompanySelector?: boolean;
   embedded?: boolean;
 }) {
   const { user, hasPermission } = useAuth();
   const { t } = useLocale();
   const { data: companies = [] } = useCompanies();
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string | undefined>(companyId ?? undefined);
+  const { selectedCompanyId } = useCompanyFilter();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<any | null>(null);
-  const [isCompanyDropdownOpen, setIsCompanyDropdownOpen] = useState(false);
 
-  const isSuperAdmin = !!user?.roleId?.name?.toString().toLowerCase().includes("admin");
   const userCompanyIds = (user?.companies ?? [])
     .map((c: any) => typeof c.companyId === "string" ? c.companyId : c.companyId?._id)
     .filter(Boolean) as string[];
 
+  const isSuperAdmin = !!user?.roleId?.name?.toString().toLowerCase().includes("admin");
   const availableCompanies = isSuperAdmin
     ? (companies as any[])
     : (companies as any[]).filter((c) => userCompanyIds.includes(c._id));
-
-  const showSelector = isSuperAdmin || userCompanyIds.length > 1;
 
   const canEdit = !!hasPermission && (
     hasPermission("Company Management", "write") ||
@@ -265,19 +262,9 @@ export default function EmailTemplates({
     hasPermission("Settings Management", "create")
   );
 
-  useEffect(() => {
-    if (selectedCompanyId) return;
-    if (companyId) { 
-      setSelectedCompanyId(companyId); 
-      return; 
-    }
-    if (availableCompanies.length > 0) {
-      setSelectedCompanyId(availableCompanies[0]._id);
-    }
-  }, [availableCompanies, companyId, selectedCompanyId]);
-
   // Get the selected company and its settings ID
-  const selectedCompany = availableCompanies.find((c: any) => c._id === selectedCompanyId);
+  const effectiveCompanyId = selectedCompanyId ?? availableCompanies[0]?._id;
+  const selectedCompany = availableCompanies.find((c: any) => c._id === effectiveCompanyId);
   const settingsId = selectedCompany?.settings?._id;
   const templates: any[] = selectedCompany?.settings?.mailSettings?.emailTemplates ?? [];
 
@@ -318,12 +305,6 @@ export default function EmailTemplates({
     });
   };
 
-  const getCompanyName = (company: any): string => {
-    if (!company) return "";
-    if (typeof company.name === "string") return company.name;
-    return company.name?.en || company.name?.ar || t('mailTemplates.unnamedCompany', 'settings');
-  };
-
   return (
     <div className={embedded ? "space-y-6" : "min-h-screen bg-slate-50 p-4 dark:bg-slate-950"}>
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -350,88 +331,7 @@ export default function EmailTemplates({
         </div>
 
         <div className="p-6">
-          {showSelector && (
-            <div className="mb-6 rounded-xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-700/50 dark:bg-slate-800/40">
-              <div className="mb-3 flex items-center gap-2">
-                <div className="flex size-8 items-center justify-center rounded-lg bg-violet-500/10 text-violet-500">
-                  <Building2 className="size-4" />
-                </div>
-                <h3 className="text-lg font-semibold tracking-tight">{t('mailTemplates.companySelectorTitle', 'settings')}</h3>
-              </div>
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setIsCompanyDropdownOpen(!isCompanyDropdownOpen)}
-                  className="flex w-full items-center gap-3 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800"
-                >
-                  {(selectedCompany as any)?.logoPath ? (
-                    <img
-                      src={(selectedCompany as any).logoPath.replace('/upload/', '/upload/q_10,w_48/')}
-                      alt={getCompanyName(selectedCompany)}
-                      className="size-7 shrink-0 rounded-md object-cover"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="flex size-7 items-center justify-center rounded-md bg-brand-500/10 text-[11px] font-bold uppercase text-brand-600 dark:text-brand-400">
-                      {(getCompanyName(selectedCompany) || '?').charAt(0)}
-                    </div>
-                  )}
-                  <span className="flex-1 truncate text-left">
-                    {getCompanyName(selectedCompany) || t('mailTemplates.selectCompanyPlaceholder', 'settings')}
-                  </span>
-                  <ChevronDown className="size-4 text-slate-400" />
-                </button>
 
-                {isCompanyDropdownOpen && (
-                  <>
-                    <div className="fixed inset-0 z-10" onClick={() => setIsCompanyDropdownOpen(false)} />
-                    <div className="absolute left-0 right-0 z-20 mt-1 max-h-60 overflow-auto rounded-lg border border-slate-200 bg-white p-1 shadow-lg dark:border-slate-700 dark:bg-slate-800">
-                      {availableCompanies.map((company) => {
-                        const companyName = getCompanyName(company);
-                        const isSelected = company._id === selectedCompanyId;
-                        const logoPath = (company as any).logoPath;
-                        return (
-                          <button
-                            key={company._id}
-                            type="button"
-                            onClick={() => {
-                              setSelectedCompanyId(company._id);
-                              setIsCompanyDropdownOpen(false);
-                            }}
-                            className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm transition ${
-                              isSelected
-                                ? 'bg-brand-500/10 text-brand-700 dark:bg-brand-500/20 dark:text-brand-300'
-                                : 'text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700/50'
-                            }`}
-                          >
-                            {logoPath ? (
-                              <img
-                                src={logoPath.replace('/upload/', '/upload/q_10,w_48/')}
-                                alt={companyName}
-                                className="size-7 shrink-0 rounded-md object-cover"
-                                loading="lazy"
-                              />
-                            ) : (
-                              <div
-                                className={`flex size-7 items-center justify-center rounded-md text-[11px] font-bold uppercase ${
-                                  isSelected
-                                    ? 'bg-brand-500 text-white'
-                                    : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
-                                }`}
-                              >
-                                {companyName.charAt(0)}
-                              </div>
-                            )}
-                            <span className="flex-1 truncate">{companyName}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          )}
 
           {templates.length === 0 ? (
             <div className="text-center py-12">

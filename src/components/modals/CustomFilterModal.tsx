@@ -29,13 +29,11 @@ import {
   Zoom
 } from "@mui/material";
 import { styled } from '@mui/material/styles';
-import { useAuth } from '../../context/AuthContext';
 import { useLocale } from '../../context/LocaleContext';
 
 // Icons
 import CloseIcon from '@mui/icons-material/Close';
 import FilterListIcon from '@mui/icons-material/FilterList';
-import BusinessIcon from '@mui/icons-material/Business';
 import WorkIcon from '@mui/icons-material/Work';
 import PersonIcon from '@mui/icons-material/Person';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
@@ -332,30 +330,24 @@ const CustomFilterModal: React.FC<Props> = ({
   const brandMain = (theme.palette as any).brand?.main ?? theme.palette.primary.main;
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isVerySmall = useMediaQuery('(max-width:425px)');
-  const { user } = useAuth();
   const { t } = useLocale();
   const [modalSelectedJobIds, setModalSelectedJobIds] = useState<string[]>([]);
-  const [modalSelectedCompanyIds, setModalSelectedCompanyIds] = useState<string[]>([]);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    companies: true,
     jobs: true,
     personal: true,
     custom: true
   });
   const [activeFilterCount, setActiveFilterCount] = useState(0);
 
-  const userAssignedCompanyIds = (user?.companies?.map((c: any) => (typeof c.companyId === 'string' ? c.companyId : c.companyId?._id)).filter(Boolean)) || [];
-  const isSingleAssignedCompany = Array.isArray(userAssignedCompanyIds) && userAssignedCompanyIds.length === 1;
-
   useEffect(() => {
     // Count active filters
     let count = customFilters.length;
-    if (modalSelectedCompanyIds.length > 0) count++;
     if (modalSelectedJobIds.length > 0) count++;
     setActiveFilterCount(count);
-  }, [customFilters, modalSelectedCompanyIds, modalSelectedJobIds]);
+  }, [customFilters, modalSelectedJobIds]);
 
-  const deriveCompaniesList = (c: any): any[] => {
+  const companiesList = (() => {
+    const c = companies as any;
     if (!c) return [];
     if (Array.isArray(c)) return c;
     if (Array.isArray(c.data)) return c.data;
@@ -363,8 +355,7 @@ const CustomFilterModal: React.FC<Props> = ({
     if (Array.isArray(c.rows)) return c.rows;
     if (Array.isArray(c.companies)) return c.companies;
     return [];
-  };
-  const companiesList = deriveCompaniesList(companies);
+  })();
 
   const getDisplayText = (v: any): string => {
     if (v === undefined || v === null) return '';
@@ -385,17 +376,6 @@ const CustomFilterModal: React.FC<Props> = ({
     try {
       const jf = Array.isArray(columnFilters) ? columnFilters.find((c: any) => c.id === 'jobPositionId') : undefined;
       if (jf && Array.isArray(jf.value)) setModalSelectedJobIds(jf.value.map(String));
-      const cf = Array.isArray(columnFilters) ? columnFilters.find((c: any) => c.id === 'companyId') : undefined;
-      if (cf && Array.isArray(cf.value)) setModalSelectedCompanyIds(cf.value.map(String));
-      else {
-        try {
-          if (isSingleAssignedCompany) {
-            setModalSelectedCompanyIds([String(userAssignedCompanyIds[0])]);
-          }
-        } catch (e) {
-          // ignore
-        }
-      }
     } catch (e) {
       // ignore
     }
@@ -628,9 +608,8 @@ const CustomFilterModal: React.FC<Props> = ({
   const handleClearAll = () => {
     setCustomFilters([]);
     setModalSelectedJobIds([]);
-    setModalSelectedCompanyIds([]);
     setColumnFilters(prev => {
-      const next = Array.isArray(prev) ? prev.filter((p: any) => p.id !== 'jobPositionId' && p.id !== 'companyId') : prev;
+      const next = Array.isArray(prev) ? prev.filter((p: any) => p.id !== 'jobPositionId') : prev;
       try {
         const raw = sessionStorage.getItem('applicants_table_state');
         const parsed = raw ? JSON.parse(raw) : {};
@@ -744,41 +723,13 @@ const CustomFilterModal: React.FC<Props> = ({
   const handleSave = () => {
     onClose();
     setColumnFilters(prev => {
-      const base = Array.isArray(prev) ? prev.filter((p: any) => p.id !== 'jobPositionId' && p.id !== 'companyId') : [];
+      const base = Array.isArray(prev) ? prev.filter((p: any) => p.id !== 'jobPositionId') : [];
       const next = Array.isArray(base) ? [...base] : [];
 
-      const selectedCompanyIds = Array.from(new Set((modalSelectedCompanyIds || []).map(String).filter(Boolean)));
       const selectedJobIds = Array.from(new Set((modalSelectedJobIds || []).map(String).filter(Boolean)));
 
-      const getId = (v: any) => (typeof v === 'string' ? v : v?._id ?? v?.id ?? '');
-      const validJobIds = new Set<string>();
-      (jobPositions || []).forEach((job: any) => {
-        const jobId = String(getId(job._id) || getId(job.id) || '');
-        if (!jobId) return;
-
-        // If no company is selected, keep all chosen jobs.
-        if (selectedCompanyIds.length === 0) {
-          validJobIds.add(jobId);
-          return;
-        }
-
-        const companyRaw = job?.companyId || job?.company || job?.companyObj;
-        const companyId = String(getId(companyRaw) || '');
-        if (companyId && selectedCompanyIds.includes(companyId)) {
-          validJobIds.add(jobId);
-        }
-      });
-
-      const sanitizedJobIds = selectedJobIds.filter((jid) =>
-        selectedCompanyIds.length > 0 ? validJobIds.has(jid) : true
-      );
-
-      // For users assigned to one company, avoid writing a company column filter.
-      if (!isSingleAssignedCompany && selectedCompanyIds.length > 0) {
-        next.push({ id: 'companyId', value: selectedCompanyIds });
-      }
-      if (sanitizedJobIds.length > 0) {
-        next.push({ id: 'jobPositionId', value: sanitizedJobIds });
+      if (selectedJobIds.length > 0) {
+        next.push({ id: 'jobPositionId', value: selectedJobIds });
       }
 
       try {
@@ -839,52 +790,6 @@ const CustomFilterModal: React.FC<Props> = ({
         }}
       >
         <Stack spacing={2}>
-          {/* Companies Section */}
-          {!isSingleAssignedCompany && (
-            <FilterSection elevation={0}>
-              <Box 
-                sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
-                onClick={() => toggleSection('companies')}
-              >
-                <SectionTitle>
-                  <BusinessIcon />
-                  <Typography variant="h6">{t('companies', 'modals')}</Typography>
-                </SectionTitle>
-                <IconButton size="small">
-                  {expandedSections.companies ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                </IconButton>
-              </Box>
-              
-              <Collapse in={expandedSections.companies}>
-                <Box sx={{ mt: 2 }}>
-                  <FormGroup sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 1 }}>
-                    {companiesList.map((comp: any) => {
-                      const cid = (comp._id || comp.id) || '';
-                      const title = getDisplayText(comp?.name || comp?.companyName || comp?.title || comp?.title?.en || cid) || cid;
-                      const isSelected = modalSelectedCompanyIds.includes(String(cid));
-                      return (
-                        <FilterChip
-                          key={cid}
-                          label={title}
-                          onClick={() => {
-                            setModalSelectedCompanyIds(prev => {
-                              if (isSelected) return prev.filter((x) => x !== String(cid));
-                              return [...prev, String(cid)];
-                            });
-                          }}
-                          color={isSelected ? 'primary' : 'default'}
-                          variant={isSelected ? 'filled' : 'outlined'}
-                          className={isSelected ? 'active' : ''}
-                          icon={isSelected ? <CheckCircleIcon /> : undefined}
-                        />
-                      );
-                    })}
-                  </FormGroup>
-                </Box>
-              </Collapse>
-            </FilterSection>
-          )}
-
           {/* Jobs Section */}
           <FilterSection elevation={0}>
             <Box 
@@ -902,79 +807,78 @@ const CustomFilterModal: React.FC<Props> = ({
             
             <Collapse in={expandedSections.jobs}>
               <Box sx={{ mt: 2 }}>
-                {modalSelectedCompanyIds.length === 0 ? (
-                  <Alert 
-                    severity="info" 
-                    icon={<InfoIcon />}
-                    sx={{ borderRadius: 2 }}
-                  >
-                    {t('selectCompaniesJobs', 'modals')}
-                  </Alert>
-                ) : (
-                  <Stack spacing={2}>
-                    {(() => {
-                      const jobsByCompany: Record<string, any[]> = {};
-                      const getCid = (job: any) => {
-                        const rawCid = job.companyId || job.company || job.companyObj;
-                        if (!rawCid) return '';
-                        if (typeof rawCid === 'string') return rawCid;
-                        return rawCid._id || rawCid.id || '';
-                      };
-                      const getJid = (job: any) => (typeof job._id === 'string' ? job._id : (job._id?._id || job._id?.id || job.id || '')) || '';
-                      
-                      (jobPositions || []).forEach((job: any) => {
-                        const cid = String(getCid(job) || '');
-                        if (!cid) return;
-                        if (!jobsByCompany[cid]) jobsByCompany[cid] = [];
-                        jobsByCompany[cid].push(job);
-                      });
+                <Stack spacing={2}>
+                  {(() => {
+                    const jobsByCompany: Record<string, any[]> = {};
+                    const getCid = (job: any) => {
+                      const rawCid = job.companyId || job.company || job.companyObj;
+                      if (!rawCid) return '';
+                      if (typeof rawCid === 'string') return rawCid;
+                      return rawCid._id || rawCid.id || '';
+                    };
+                    const getJid = (job: any) => (typeof job._id === 'string' ? job._id : (job._id?._id || job._id?.id || job.id || '')) || '';
+                    
+                    (jobPositions || []).forEach((job: any) => {
+                      const cid = String(getCid(job) || '');
+                      if (!cid) return;
+                      if (!jobsByCompany[cid]) jobsByCompany[cid] = [];
+                      jobsByCompany[cid].push(job);
+                    });
 
-                      return modalSelectedCompanyIds.map((selCid) => {
-                        const jobs = jobsByCompany[String(selCid)] || [];
-                        const comp = companiesList.find((c: any) => String(c._id || c.id) === String(selCid));
-                        const compTitle = comp ? getDisplayText(comp.name || comp.companyName || comp.title || comp.title?.en || selCid) : selCid;
-                        
-                        return (
-                          <Paper key={selCid} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-                            <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: brandMain }}>
-                              {compTitle}
+                    const companyIds = Object.keys(jobsByCompany);
+                    if (companyIds.length === 0) {
+                      return (
+                        <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', textAlign: 'center', py: 2 }}>
+                          {t('noJobsCompany', 'modals')}
+                        </Typography>
+                      );
+                    }
+
+                    return companyIds.map((selCid) => {
+                      const jobs = jobsByCompany[String(selCid)] || [];
+                      const comp = companiesList.find((c: any) => String(c._id || c.id) === String(selCid));
+                      const compTitle = comp ? getDisplayText(comp.name || comp.companyName || comp.title || comp.title?.en || selCid) : selCid;
+                      
+                      return (
+                        <Paper key={selCid} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: brandMain }}>
+                            {compTitle}
+                          </Typography>
+                          {jobs.length === 0 ? (
+                            <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                              {t('noJobsCompany', 'modals')}
                             </Typography>
-                            {jobs.length === 0 ? (
-                              <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                                {t('noJobsCompany', 'modals')}
-                              </Typography>
-                            ) : (
-                              <FormGroup sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 1 }}>
-                                {jobs.map((job: any) => {
-                                  const jid = String(getJid(job));
-                                  const title = getDisplayText(job.title || job.name || jid) || jid;
-                                  const isSelected = modalSelectedJobIds.includes(String(jid));
-                                  return (
-                                    <FilterChip
-                                      key={jid}
-                                      label={title}
-                                      onClick={() => {
-                                        setModalSelectedJobIds(prev => {
-                                          if (isSelected) return prev.filter((x) => x !== String(jid));
-                                          return [...prev, String(jid)];
-                                        });
-                                      }}
-                                      color={isSelected ? 'primary' : 'default'}
-                                      variant={isSelected ? 'filled' : 'outlined'}
-                                      className={isSelected ? 'active' : ''}
-                                      icon={isSelected ? <CheckCircleIcon /> : undefined}
-                                      size="small"
-                                    />
-                                  );
-                                })}
-                              </FormGroup>
-                            )}
-                          </Paper>
-                        );
-                      });
-                    })()}
-                  </Stack>
-                )}
+                          ) : (
+                            <FormGroup sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 1 }}>
+                              {jobs.map((job: any) => {
+                                const jid = String(getJid(job));
+                                const title = getDisplayText(job.title || job.name || jid) || jid;
+                                const isSelected = modalSelectedJobIds.includes(String(jid));
+                                return (
+                                  <FilterChip
+                                    key={jid}
+                                    label={title}
+                                    onClick={() => {
+                                      setModalSelectedJobIds(prev => {
+                                        if (isSelected) return prev.filter((x) => x !== String(jid));
+                                        return [...prev, String(jid)];
+                                      });
+                                    }}
+                                    color={isSelected ? 'primary' : 'default'}
+                                    variant={isSelected ? 'filled' : 'outlined'}
+                                    className={isSelected ? 'active' : ''}
+                                    icon={isSelected ? <CheckCircleIcon /> : undefined}
+                                    size="small"
+                                  />
+                                );
+                              })}
+                            </FormGroup>
+                          )}
+                        </Paper>
+                      );
+                    });
+                  })()}
+                </Stack>
               </Box>
             </Collapse>
           </FilterSection>

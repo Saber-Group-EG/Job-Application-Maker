@@ -29,6 +29,7 @@ import { useJobPositions } from '../../../hooks/queries/useJobPositions';
 import { useApplicants } from '../../../hooks/queries/useApplicants';
 import { useAuth } from '../../../context/AuthContext';
 import { useLocale } from '../../../context/LocaleContext';
+import { useCompanyFilter } from '../../../context/CompanyFilterContext';
 
 type MailStatus = 'queued' | 'delivery delayed' | 'sent' | 'delivered' | 'opened' | 'clicked' | 'bounced' | 'failed';
 
@@ -320,7 +321,12 @@ const getApplicantJobTitle = (applicantRecord: any): string | null => {
 };
 
 const SidebarNavItem = ({ icon: Icon, label, count, active }: { icon: any; label: string; count?: number; active?: boolean }) => (
-    <div className={`flex cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-sm transition-all ${active ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-400' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'}`}>
+    <button
+        className={`flex w-full cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-sm transition-all ${active ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-400' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'}`}
+        role="tab"
+        aria-selected={active}
+        tabIndex={active ? 0 : -1}
+    >
         <div className="flex items-center gap-3">
             <Icon className="h-4 w-4" />
             <span className="font-medium">{label}</span>
@@ -330,7 +336,7 @@ const SidebarNavItem = ({ icon: Icon, label, count, active }: { icon: any; label
                 {count}
             </span>
         )}
-    </div>
+    </button>
 );
 
 export default function MailPreview() {
@@ -344,7 +350,8 @@ export default function MailPreview() {
     const [selectedMailId, setSelectedMailId] = useState<string | null>(null);
 
     // Filters
-    const [selectedCompanyId, setSelectedCompanyId] = useState<string>('all');
+    const { selectedCompanyId: globalSelectedCompanyId } = useCompanyFilter();
+    const selectedCompanyId = globalSelectedCompanyId ?? 'all';
     const [selectedJobId, setSelectedJobId] = useState<string>('all');
     const [statusFilter, setStatusFilter] = useState<'all' | MailStatus>('all');
     const [searchTerm, setSearchTerm] = useState('');
@@ -374,26 +381,8 @@ export default function MailPreview() {
     }, [companies, t]);
 
     useEffect(() => {
-        if (availableCompanyIds.length === 1) {
-            const onlyCompanyId = availableCompanyIds[0];
-            if (selectedCompanyId !== onlyCompanyId) {
-                setSelectedCompanyId(onlyCompanyId);
-                setSelectedJobId('all');
-            }
-            return;
-        }
-
-        if (availableCompanyIds.length === 0 && selectedCompanyId !== 'all') {
-            setSelectedCompanyId('all');
-            setSelectedJobId('all');
-            return;
-        }
-
-        if (availableCompanyIds.length > 1 && selectedCompanyId !== 'all' && !availableCompanyIds.includes(selectedCompanyId)) {
-            setSelectedCompanyId('all');
-            setSelectedJobId('all');
-        }
-    }, [availableCompanyIds, selectedCompanyId]);
+        setSelectedJobId('all');
+    }, [selectedCompanyId]);
 
     const jobPositionParams = useMemo(() => {
         if (isSuperAdmin) {
@@ -613,7 +602,7 @@ export default function MailPreview() {
                                 </button>
                             </div>
 
-                            <div className="space-y-6">
+                            <div className="space-y-6" role="tablist" aria-label={t('sidebarTitle', 'mailPreview')}>
                                 <div>
                                     <SidebarNavItem icon={Inbox} label={t('sidebarInbox', 'mailPreview')} count={filteredMails.length} active={statusFilter === 'all'} />
                                     <SidebarNavItem icon={Star} label={t('sidebarMarked', 'mailPreview')} count={filteredMails.filter(m => m.score > 90).length} />

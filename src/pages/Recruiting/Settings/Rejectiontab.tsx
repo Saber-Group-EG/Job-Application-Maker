@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
 	ArrowRight,
 	Ban,
-	Building2,
 	CircleCheckBig,
 	PlusCircle,
 	Save,
@@ -39,12 +38,12 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { createPortal } from "react-dom";
+import { useCompanyFilter } from '../../../context/CompanyFilterContext';
 
 type Props = {
 	companyId?: string;
 	onSaved?: (rejectReasons: string[]) => void;
 	onChange?: (rejectReasons: string[]) => void;
-	hideCompanySelector?: boolean;
 	embedded?: boolean;
 };
 
@@ -193,23 +192,16 @@ function DragOverlayItem({ reason, index }: { reason: string; index: number }) {
 }
 
 export default function RejectionTab({
-	companyId,
+	companyId: _companyId,
 	onSaved,
 	onChange,
-	hideCompanySelector = false,
 	embedded = false,
 }: Props) {
-	const { user, hasPermission } = useAuth();
+	const { hasPermission } = useAuth();
 	const { t } = useLocale();
 	const { data: companies = [], isLoading: isCompaniesLoading } = useCompanies();
 
-	const isSuperAdmin = !!user?.roleId?.name?.toString().toLowerCase().includes("admin");
-
-	const userCompanyIds = (user?.companies ?? [])
-		.map((c: any) =>
-			typeof c.companyId === "string" ? c.companyId : c.companyId?._id
-		)
-		.filter(Boolean) as string[];
+	const { selectedCompanyId } = useCompanyFilter();
 
 	const canRead =
 		hasPermission("Company Management", "read") ||
@@ -218,17 +210,14 @@ export default function RejectionTab({
 		hasPermission("Company Management", "write") ||
 		hasPermission("Settings Management", "write") ||
 		hasPermission("Settings Management", "create");
-
-	const showSelector = !hideCompanySelector && (isSuperAdmin || userCompanyIds.length > 1);
-
-	const [selectedCompanyId, setSelectedCompanyId] = useState<string | undefined>(companyId);
 	const [rejectReasons, setRejectReasons] = useState<ReasonItem[]>([]);
 	const [isSaving, setIsSaving] = useState(false);
 	const [activeId, setActiveId] = useState<string | null>(null);
 
+	const effectiveCompanyId = selectedCompanyId ?? (companies as CompanyShape[])[0]?._id;
 	const selectedCompany = useMemo(
-		() => (companies as CompanyShape[]).find((company) => company._id === selectedCompanyId),
-		[companies, selectedCompanyId]
+		() => (companies as CompanyShape[]).find((company) => company._id === effectiveCompanyId),
+		[companies, effectiveCompanyId]
 	);
 
 	const updateRejectionReasonsMutation = useUpdateCompanyRejectionReasons();
@@ -246,21 +235,6 @@ export default function RejectionTab({
 	}, [selectedCompany]);
 
 	const isLoading = isCompaniesLoading;
-
-	useEffect(() => {
-		if (companyId && companyId !== selectedCompanyId) {
-			setSelectedCompanyId(companyId);
-			return;
-		}
-
-		if (!selectedCompanyId && companies.length > 0) {
-			if (!showSelector && userCompanyIds.length === 1) {
-				setSelectedCompanyId(userCompanyIds[0]);
-				return;
-			}
-			setSelectedCompanyId((companies[0] as CompanyShape)?._id);
-		}
-	}, [companyId, companies, selectedCompanyId, showSelector, userCompanyIds]);
 
 	useEffect(() => {
 		setRejectReasons(derivedRejectReasons.map((value) => ({
@@ -458,39 +432,7 @@ export default function RejectionTab({
 				</div>
 
 				<div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
-					{showSelector && (
-						<div className="space-y-6 xl:col-span-3">
-							<div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-700/50 dark:bg-slate-800/40">
-								<div className="mb-3 flex items-center gap-2">
-									<div className="flex size-8 items-center justify-center rounded-lg bg-violet-500/10 text-violet-500">
-										<Building2 className="size-4" />
-									</div>
-                  <h3 className="text-lg font-semibold tracking-tight">{t('rejectionTab.companySelectorTitle', 'settings')}</h3>
-								</div>
-
-								<div className="relative">
-									<select
-										value={selectedCompanyId || ""}
-										onChange={(e) => setSelectedCompanyId(e.target.value || undefined)}
-										className="w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 pr-10 text-sm font-medium outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800"
-									>
-										{(companies as CompanyShape[]).map((company) => (
-											<option key={company._id} value={company._id}>
-												{getCompanyName(company, t)}
-											</option>
-										))}
-									</select>
-									<ArrowRight className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 rotate-90 text-slate-400" />
-								</div>
-
-              <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-                {t('rejectionTab.companySelectorHelp', 'settings')}
-              </p>
-							</div>
-						</div>
-					)}
-
-					<div className={showSelector ? "xl:col-span-9" : "xl:col-span-12"}>
+						<div className="xl:col-span-12">
 						<div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
 							<div className="flex flex-col gap-3 border-b border-slate-200 p-6 dark:border-slate-800 sm:flex-row sm:items-start sm:justify-between">
 								<div className="flex items-center gap-3">

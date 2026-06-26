@@ -13,10 +13,21 @@ export function SidebarNavItem({
   active?: boolean;
   onClick?: () => void;
 }) {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onClick?.();
+    }
+  };
+
   return (
-    <div
+    <button
       onClick={onClick}
-      className={`flex cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-sm transition-all ${
+      onKeyDown={handleKeyDown}
+      role="tab"
+      aria-selected={active}
+      tabIndex={active ? 0 : -1}
+      className={`flex w-full cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-sm transition-all ${
         active
           ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-400'
           : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
@@ -37,6 +48,6 @@ export function SidebarNavItem({
           {count}
         </span>
       )}
-    </div>
+    </button>
   );
 }

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import {
-  Building2,
   Ban,
   ClipboardList,
   PlusCircle,
@@ -38,6 +37,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { createPortal } from 'react-dom';
+import { useCompanyFilter } from '../../../context/CompanyFilterContext';
 import Swal from '../../../utils/swal';
 import PageMeta from '../../../components/common/PageMeta';
 import PageBreadCrumb from '../../../components/common/PageBreadCrumb';
@@ -312,12 +312,6 @@ export default function InterviewCompanySettingsPage() {
     .toLowerCase()
     .includes('admin');
 
-  const userCompanyIds = (user?.companies ?? [])
-    .map((c: any) =>
-      typeof c.companyId === 'string' ? c.companyId : c.companyId?._id
-    )
-    .filter(Boolean) as string[];
-
   const canRead =
     hasPermission('Company Management', 'read') ||
     hasPermission('Settings Management', 'read');
@@ -326,14 +320,9 @@ export default function InterviewCompanySettingsPage() {
     hasPermission('Settings Management', 'write') ||
     hasPermission('Settings Management', 'create');
 
-  const showSelector = isSuperAdmin || userCompanyIds.length > 1;
-
-  const [selectedCompanyId, setSelectedCompanyId] = useState<
-    string | undefined
-  >(undefined);
+  const { selectedCompanyId } = useCompanyFilter();
   const [groups, setGroups] = useState<InterviewGroup[]>([]);
   const [activeQuestionId, setActiveQuestionId] = useState<string | null>(null);
-  const [isCompanyDropdownOpen, setIsCompanyDropdownOpen] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -370,12 +359,13 @@ export default function InterviewCompanySettingsPage() {
   const isOffersTab = activeTab === 'job-offers';
   const isContractsTab = activeTab === 'contracts';
 
+  const effectiveCompanyId = selectedCompanyId ?? (companies as CompanyShape[])[0]?._id;
   const selectedCompany = useMemo(
     () =>
       (companies as CompanyShape[]).find(
-        (company) => company._id === selectedCompanyId
+        (company) => company._id === effectiveCompanyId
       ),
-    [companies, selectedCompanyId]
+    [companies, effectiveCompanyId]
   );
 
   const updateInterviewMutation = useUpdateCompanyInterviewSettings();
@@ -384,8 +374,8 @@ export default function InterviewCompanySettingsPage() {
     data: interviewSettingsFromQuery,
     isLoading: isInterviewLoading,
     isFetching: isInterviewFetching,
-  } = useCompanyInterviewSettings(selectedCompanyId, {
-    enabled: !!selectedCompanyId && !isSuperAdmin,
+  } = useCompanyInterviewSettings(effectiveCompanyId, {
+    enabled: !!effectiveCompanyId && !isSuperAdmin,
   });
 
   // Fixed: Use correct precedence with parentheses
@@ -398,16 +388,6 @@ export default function InterviewCompanySettingsPage() {
   const isLoading = isSuperAdmin
     ? isCompaniesLoading
     : isInterviewLoading || isInterviewFetching;
-
-  useEffect(() => {
-    if (!selectedCompanyId && companies.length > 0) {
-      if (!showSelector && userCompanyIds.length === 1) {
-        setSelectedCompanyId(userCompanyIds[0]);
-        return;
-      }
-      setSelectedCompanyId((companies[0] as CompanyShape)?._id);
-    }
-  }, [companies, selectedCompanyId, showSelector, userCompanyIds]);
 
   useEffect(() => {
     const normalized = normalizeGroups(derivedInterviewSettings?.groups);
@@ -584,7 +564,7 @@ export default function InterviewCompanySettingsPage() {
   };
 
   const handleSaveAll = async () => {
-    if (!selectedCompanyId) {
+    if (!effectiveCompanyId) {
       Swal.fire(t('commonValidation', 'settings'), t('interviewCompany.validationSelectCompany', 'settings'), 'warning');
       return;
     }
@@ -818,109 +798,8 @@ export default function InterviewCompanySettingsPage() {
         </div>
 
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
-          <div
-            className={
-              showSelector && !isEmailTemplatesTab
-                ? 'space-y-6 xl:col-span-3'
-                : 'hidden'
-            }
-          >
-            {showSelector && !isEmailTemplatesTab && (
-              <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-700/50 dark:bg-slate-800/40">
-                <div className="mb-3 flex items-center gap-2">
-                  <div className="flex size-8 items-center justify-center rounded-lg bg-violet-500/10 text-violet-500">
-                    <Building2 className="size-4" />
-                  </div>
-                  <h3 className="text-lg font-semibold tracking-tight">
-                    {t('interviewCompany.companySelectorTitle', 'settings')}
-                  </h3>
-                </div>
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setIsCompanyDropdownOpen(!isCompanyDropdownOpen)}
-                    className="flex w-full items-center gap-3 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800"
-                  >
-                    {(selectedCompany as any)?.logoPath ? (
-                      <img
-                        src={(selectedCompany as any).logoPath.replace('/upload/', '/upload/q_10,w_48/')}
-                        alt={getCompanyName(selectedCompany)}
-                        className="size-7 shrink-0 rounded-md object-cover"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="flex size-7 items-center justify-center rounded-md bg-brand-500/10 text-[11px] font-bold uppercase text-brand-600 dark:text-brand-400">
-                        {(getCompanyName(selectedCompany) || '?').charAt(0)}
-                      </div>
-                    )}
-                    <span className="flex-1 truncate text-left">
-                      {getCompanyName(selectedCompany) || t('interviewCompany.selectCompanyPlaceholder', 'settings')}
-                    </span>
-                    <ChevronDown className="size-4 text-slate-400" />
-                  </button>
 
-                  {isCompanyDropdownOpen && (
-                    <>
-                      <div className="fixed inset-0 z-10" onClick={() => setIsCompanyDropdownOpen(false)} />
-                      <div className="absolute left-0 right-0 z-20 mt-1 max-h-60 overflow-auto rounded-lg border border-slate-200 bg-white p-1 shadow-lg dark:border-slate-700 dark:bg-slate-800">
-                        {(companies as CompanyShape[]).map((company) => {
-                          const companyName = getCompanyName(company);
-                          const isSelected = company._id === selectedCompanyId;
-                          const logoPath = (company as any).logoPath;
-                          return (
-                            <button
-                              key={company._id}
-                              type="button"
-                              onClick={() => {
-                                setSelectedCompanyId(company._id);
-                                setIsCompanyDropdownOpen(false);
-                              }}
-                              className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm transition ${
-                                isSelected
-                                  ? 'bg-brand-500/10 text-brand-700 dark:bg-brand-500/20 dark:text-brand-300'
-                                  : 'text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700/50'
-                              }`}
-                            >
-                              {logoPath ? (
-                                <img
-                                  src={logoPath.replace('/upload/', '/upload/q_10,w_48/')}
-                                  alt={companyName}
-                                  className="size-7 shrink-0 rounded-md object-cover"
-                                  loading="lazy"
-                                />
-                              ) : (
-                                <div
-                                  className={`flex size-7 items-center justify-center rounded-md text-[11px] font-bold uppercase ${
-                                    isSelected
-                                      ? 'bg-brand-500 text-white'
-                                      : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
-                                  }`}
-                                >
-                                  {companyName.charAt(0)}
-                                </div>
-                              )}
-                              <span className="flex-1 truncate">{companyName}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </>
-                  )}
-                </div>
-                <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-                  {t('interviewCompany.companySelectorHelp', 'settings')}
-                </p>
-              </div>
-            )}
-          </div>
-
-          <div
-            className={
-              showSelector && !isEmailTemplatesTab
-                ? 'xl:col-span-9'
-                : 'xl:col-span-12'
-            }
-          >
+          <div className="xl:col-span-12">
             {isInterviewGroupsTab ? (
               <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
                 <div className="flex flex-col gap-3 border-b border-slate-200 p-6 dark:border-slate-800 sm:flex-row sm:items-start sm:justify-between">
@@ -1117,33 +996,21 @@ export default function InterviewCompanySettingsPage() {
                 </div>
               </div>
             ) : isRejectionTab ? (
-              <RejectionTab
-                companyId={selectedCompanyId}
-                hideCompanySelector
-                embedded
-              />
+              <RejectionTab embedded />
             ) : isApplicantStatusTab ? (
-              <StatusSettings
-                companyId={selectedCompanyId}
-                hideCompanySelector
-                embedded
-              />
+              <StatusSettings embedded />
             ) : isEmailTemplatesTab ? (
-              <EmailTemplates
-                companyId={selectedCompanyId}
-                hideCompanySelector
-                embedded
-              />
+              <EmailTemplates embedded />
             ) : isApplicantPagesTab ? (
               <ApplicantPagesSettings
-                companyId={selectedCompanyId}
+                companyId={effectiveCompanyId}
                 hideCompanySelector={true}
                 embedded
               />
             ) : isContractsTab ? (
-              <ContractsTab companyId={selectedCompanyId!} hideCompanySelector={true} embedded />
+              <ContractsTab companyId={effectiveCompanyId!} hideCompanySelector={true} embedded />
             ) : isOffersTab ? (
-              <JobOffersTab companyId={selectedCompanyId!} hideCompanySelector={true} embedded />
+              <JobOffersTab companyId={effectiveCompanyId!} hideCompanySelector={true} embedded />
             ) : null}
           </div>
         </div>
