@@ -2025,6 +2025,7 @@ const jobOptions = useMemo(() => {
               isArrayColumn={isArrayColumn}
               countsMap={countsMap}
               title={label}
+              isDarkMode={isDarkMode}
             />
           </Popover>
         </div>
@@ -2815,6 +2816,7 @@ const jobOptions = useMemo(() => {
       canRestore,
       dir,
       unfilteredCounts,
+      isDarkMode,
     ]
   );
 
