@@ -34,7 +34,7 @@ const Home = () => {
           {software.subtitle}
         </p>
 
-        <div className="max-w-lg mb-6">
+        <div className="max-w-lg mb-8">
           {software.items.map((p) => (
             <Link
               key={p.name}
@@ -71,7 +71,25 @@ const Home = () => {
             </Link>
           ))}
         </div>
-      </div>
+
+        {/* Features grid */}
+        {software.features && (
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            {software.features.map((f, i) => (
+              <div
+                key={i}
+                className="bg-white/80 dark:bg-dark-800/80 border border-light-200/50 dark:border-dark-700/50 rounded-xl p-5 hover:border-primary-500/30 transition-colors"
+              >
+                <h4 className="text-sm font-bold text-light-900 dark:text-white mb-1.5">
+                  {f.title}
+                </h4>
+                <p className="text-xs text-light-500 dark:text-light-400 leading-relaxed">
+                  {f.desc}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
 
       {/* Stats strip */}
       <div className="max-w-5xl mx-auto px-4 md:px-6 py-16 border-t border-light-200/60 dark:border-dark-700/60">
@@ -108,6 +126,7 @@ const Home = () => {
             {closing.cta}
           </Link>
         </div>
+      </div>
       </div>
     </section>
   );
