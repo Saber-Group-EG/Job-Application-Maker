@@ -188,5 +188,15 @@
   "insertedSuccessfully": "تم إدراج {count} متقدم(ين) بنجاح.",
   "duplicateWarning": "تم إرسال {count} مكرر(ين) مع تحذيرات.",
   "continueAnyway": "متابعة",
-  "configurationUpdateFailed": "فشل تحديث الإعدادات"
+  "configurationUpdateFailed": "فشل تحديث الإعدادات",
+  "selectOption": "اختر خياراً",
+  "typeAndPressEnter": "اكتب واضغط Enter...",
+  "am": "ص",
+  "pm": "م",
+  "applicationResponses": "استجابات التقديم",
+  "applicationResponsesDesc": "استجابات الحقول المخصصة المقدمة مع الطلب",
+  "editProfile": "تعديل الملف الشخصي",
+  "accountSettings": "إعدادات الحساب",
+  "support": "الدعم",
+  "signOut": "تسجيل الخروج"
 }

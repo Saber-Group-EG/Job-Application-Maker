@@ -85,7 +85,7 @@ export function ResendModal({
   companies: Company[];
   onClose: () => void;
 }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const sendEmailMutation = useSendEmail();
   const updateMutation = useUpdateJobOffer();
   const [emailLang, setEmailLang] = useState<'en' | 'ar'>('en');
@@ -192,7 +192,7 @@ export function ResendModal({
                   {t('resendModalTitle', 'jobOffers')}
                 </h2>
                 <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                  {offer.position.en} {offer.position.ar && ` / ${offer.position.ar}`}
+                  {locale === 'ar' ? (offer.position?.ar || offer.position?.en) : (offer.position?.en || offer.position?.ar)}
                 </p>
               </div>
             </div>

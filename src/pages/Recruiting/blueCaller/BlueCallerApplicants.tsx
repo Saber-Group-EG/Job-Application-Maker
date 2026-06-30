@@ -226,7 +226,7 @@ export default function BlueCallerApplicants() {
 
   return (
     <div
-      className={`min-h-screen bg-gray-100 px-4 py-6 text-gray-900 sm:px-6 lg:px-8`}
+      className={`min-h-screen bg-gray-100 px-4 py-6 text-gray-900 sm:px-6 lg:px-8 dark:bg-gray-900 dark:text-gray-100`}
     >
       <PageMeta
         title={t('pageMetaTitle', 'blueCaller')}
@@ -261,7 +261,7 @@ export default function BlueCallerApplicants() {
 
         {/* Tab switcher */}
         <div
-          className={`rounded-2xl border ${themeColors.borderPrimary} bg-white p-2 shadow-sm`}
+          className={`rounded-2xl border ${themeColors.borderPrimary} bg-white p-2 shadow-sm dark:bg-gray-800`}
         >
           <div className="grid grid-cols-2 gap-2 sm:w-fit">
             {(
@@ -277,7 +277,7 @@ export default function BlueCallerApplicants() {
                 className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition ${
                   activeTab === key
                     ? `${themeColors.bgPrimary} text-white shadow-lg`
-                    : `${themeColors.bgLight} ${themeColors.textPrimary} hover:bg-gray-200`
+                    : `${themeColors.bgLight} dark:bg-gray-700 ${themeColors.textPrimary} dark:text-brand-300 hover:bg-gray-200 dark:hover:bg-gray-600`
                 }`}
               >
                 <Icon className="h-4 w-4" />
@@ -290,13 +290,13 @@ export default function BlueCallerApplicants() {
         {/* No company selected guard */}
         {!selectedCompanyId ? (
           <div
-            className={`rounded-3xl border ${themeColors.borderPrimary} bg-white p-8 text-center shadow-xl`}
+            className={`rounded-3xl border ${themeColors.borderPrimary} bg-white p-8 text-center shadow-xl dark:bg-gray-800`}
           >
-            <Building2 className="mx-auto h-12 w-12 text-gray-300" />
-            <p className="mt-4 text-lg font-semibold text-gray-700">
+            <Building2 className="mx-auto h-12 w-12 text-gray-300 dark:text-gray-500" />
+            <p className="mt-4 text-lg font-semibold text-gray-700 dark:text-gray-200">
               {t('noCompanySelectedHeading', 'blueCaller')}
             </p>
-            <p className="mt-2 text-sm text-gray-500">
+            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
               {t('noCompanySelectedDesc', 'blueCaller')}
             </p>
           </div>

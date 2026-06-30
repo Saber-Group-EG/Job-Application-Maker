@@ -118,6 +118,7 @@
   "status": "الحالة:",
   "updateStatus": "تحديث الحالة",
   "scheduled": "مجدولة",
+  "inProgress": "قيد التقدم",
   "completed": "مكتملة",
   "cancelled": "ملغاة",
   "successStatusUpdated": "تم تحديث حالة المقابلة إلى مجدولة.",
@@ -353,5 +354,17 @@
   "selectApplicant": "اختر متقدم...",
   "searchByName": "اكتب للبحث بالاسم أو البريد الإلكتروني...",
   "startTypingSearch": "ابدأ الكتابة للبحث عن المتقدمين",
-  "noApplicantsFound": "لا يوجد متقدمين لـ \"{search}\""
+  "noApplicantsFound": "لا يوجد متقدمين لـ \"{search}\"",
+  "showAllDuplicates": "عرض كل المكررات",
+  "all": "الكل",
+  "onlyDuplicates": "المكررات فقط",
+  "customFields": "حقول مخصصة",
+  "selectJobsForFields": "اختر وظيفة أو أكثر لعرض حقولها المخصصة.",
+  "noCustomFieldsFound": "لم يتم العثور على حقول مخصصة للوظائف المحددة.",
+  "customField": "حقل مخصص",
+  "selectOptions": "اختر خيارات:",
+  "has": "موجود",
+  "no": "غير موجود",
+  "revert": "عكس",
+  "saveFilters": "حفظ التصفية"
 }

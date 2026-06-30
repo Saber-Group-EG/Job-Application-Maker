@@ -10,7 +10,10 @@ export type InterviewPickerViewProps = {
 
 const statusLabel = (status: string, t: (key: string, ns?: string, params?: Record<string, string | number>) => string): string => {
   const s = String(status || '').toLowerCase();
-  if (s === 'in_progress') return t('progressing', 'interview');
+  if (s === 'scheduled') return t('scheduled', 'interview');
+  if (s === 'in_progress') return t('inProgress', 'interview');
+  if (s === 'completed') return t('completed', 'interview');
+  if (s === 'cancelled') return t('cancelled', 'interview');
   return s;
 };
 
@@ -22,10 +25,10 @@ const statusClasses = (status: string): string => {
   return 'bg-slate-100 text-slate-700';
 };
 
-const formatDate = (iso: string | undefined, t: (key: string, ns?: string, params?: Record<string, string | number>) => string): string => {
+const formatDate = (iso: string | undefined, t: (key: string, ns?: string, params?: Record<string, string | number>) => string, locale?: string): string => {
   if (!iso) return t('unknownDate', 'interview');
   try {
-    return new Date(iso).toLocaleString('en-US', {
+    return new Date(iso).toLocaleString(locale || 'en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
@@ -42,7 +45,7 @@ export const InterviewPickerView = ({
   onBack,
   onPick,
 }: InterviewPickerViewProps) => {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   return (
   <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
     <div className="bg-gradient-to-r from-slate-900 to-slate-800 px-6 py-8">
@@ -95,7 +98,7 @@ export const InterviewPickerView = ({
                       </p>
                       <p className="text-xs text-slate-500 flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
-                        {formatDate(interview.scheduledAt, t)}
+                        {formatDate(interview.scheduledAt, t, locale)}
                       </p>
                     </div>
                   </div>
@@ -108,8 +111,8 @@ export const InterviewPickerView = ({
                 <div className="grid grid-cols-3 gap-2 mb-3">
                   <div className="bg-slate-50 rounded-lg p-2 text-center">
                     <p className="text-[10px] text-slate-500">{t('type', 'interview')}</p>
-                    <p className="text-xs font-bold text-slate-800 capitalize">
-                      {interview.type || '-'}
+                    <p className="text-xs font-bold text-slate-800">
+                      {interview.type ? t(interview.type === 'in-person' ? 'inPerson' : interview.type, 'modals') : '-'}
                     </p>
                   </div>
                   <div className="bg-slate-50 rounded-lg p-2 text-center">

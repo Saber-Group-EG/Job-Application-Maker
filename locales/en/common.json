@@ -188,5 +188,15 @@
   "insertedSuccessfully": "{count} applicant(s) inserted successfully.",
   "duplicateWarning": "{count} duplicate(s) were submitted with warnings.",
   "continueAnyway": "Continue",
-  "configurationUpdateFailed": "Failed to update configuration"
+  "configurationUpdateFailed": "Failed to update configuration",
+  "selectOption": "Select an option",
+  "typeAndPressEnter": "Type and press Enter...",
+  "am": "AM",
+  "pm": "PM",
+  "applicationResponses": "Application Responses",
+  "applicationResponsesDesc": "Custom field responses submitted with the application",
+  "editProfile": "Edit profile",
+  "accountSettings": "Account settings",
+  "support": "Support",
+  "signOut": "Sign out"
 }

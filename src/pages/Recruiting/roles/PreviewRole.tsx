@@ -34,7 +34,7 @@ import {
 } from "lucide-react";
 
 export default function PreviewRole() {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -287,7 +287,7 @@ export default function PreviewRole() {
               <div className="flex flex-wrap gap-6 pt-2">
                 <div className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest">
                   <Calendar className="size-4 text-brand-500" />
-                  {t('previewDeployedLabel', 'roles')}: <span className="text-gray-700 dark:text-gray-300">{role.createdAt ? new Date(role.createdAt).toLocaleDateString() : t('previewHistorical', 'roles')}</span>
+                  {t('previewDeployedLabel', 'roles')}: <span className="text-gray-700 dark:text-gray-300">{role.createdAt ? new Date(role.createdAt).toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US') : t('previewHistorical', 'roles')}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest">
                   <Layers className="size-4 text-purple-500" />

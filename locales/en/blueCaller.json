@@ -55,6 +55,7 @@
   "genderLabel": "Gender",
   "male": "Male",
   "female": "Female",
+  "templateGenderNote": "Required – Male / Female",
   "expectedSalaryLabel": "Expected Salary",
   "salaryPlaceholder": "4000",
   "profilePhotoLabel": "Profile Photo",

@@ -59,7 +59,7 @@ function TemplateCard({
   onClone: (id: string) => void;
   onDelete: (id: string) => void;
 }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const workTypeLabels = {
     'full-time': t('jobOffers.fullTime', 'settings'),
     'part-time': t('jobOffers.partTime', 'settings'),
@@ -122,7 +122,7 @@ function TemplateCard({
         {offer.workHours && (offer.workHours.en || offer.workHours.ar) && (
           <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
             <Clock className="size-3.5 shrink-0" />
-            <span>{offer.workHours.en ?? offer.workHours.ar}</span>
+            <span>{locale === 'ar' ? (offer.workHours.ar ?? offer.workHours.en) : (offer.workHours.en ?? offer.workHours.ar)}</span>
           </div>
         )}
         {offer.commissions.length > 0 && (

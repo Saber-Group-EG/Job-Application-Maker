@@ -31,7 +31,7 @@ import {
 export default function Companies() {
   const navigate = useNavigate();
   const { user, hasPermission } = useAuth();
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
 
   // Check permissions
   const canRead = hasPermission("Company Management", "read");
@@ -92,7 +92,7 @@ export default function Companies() {
   const handleDeleteCompany = async (company: any) => {
     const result = await Swal.fire({
       title: t('deleteTitle', 'companies'),
-      text: t('deleteText', 'companies', { name: toPlainString(company.name) }),
+      text: t('deleteText', 'companies', { name: toPlainString(company.name, locale) }),
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#ef4444",
@@ -258,7 +258,7 @@ export default function Companies() {
 
                     <div className="space-y-1">
                       <h3 className="text-lg font-black text-gray-900 dark:text-white line-clamp-1 tracking-tight">
-                        {toPlainString(company.name)}
+                        {toPlainString(company.name, locale)}
                       </h3>
                       <div className="flex items-center gap-1.5 text-xs font-bold text-brand-500 px-2.5 py-1 bg-brand-500/10 rounded-full w-fit">
                         <Users className="size-3" />

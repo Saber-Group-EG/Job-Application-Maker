@@ -27,7 +27,7 @@ export default function JobOfferHistory({
   offers,
   onSelectOffer,
 }: Props) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
 
   if (isLoading) {
     return (
@@ -102,10 +102,10 @@ export default function JobOfferHistory({
               const companyName =
                 typeof offer?.companyId === 'string'
                   ? offer?.companyId
-                  : toPlainString(offer?.companyId?.name) || t('nA', 'applicants');
+                  : toPlainString(offer?.companyId?.name, locale) || t('nA', 'applicants');
               const position =
-                toPlainString(offer?.position) ||
-                toPlainString(offer?.jobPositionId?.title) ||
+                toPlainString(offer?.position, locale) ||
+                toPlainString(offer?.jobPositionId?.title, locale) ||
                 t('nA', 'applicants');
 
               return (
@@ -134,11 +134,11 @@ export default function JobOfferHistory({
                         status,
                       )}`}
                     >
-                      {status}
+                      {{ draft: t('statusDraft', 'jobOffers'), sent: t('statusSent', 'jobOffers'), accepted: t('statusAccepted', 'jobOffers'), rejected: t('statusRejected', 'jobOffers'), expired: t('statusExpired', 'jobOffers') }[status] || status}
                     </span>
                   </td>
                   <td className={BODY_CELL_SECONDARY}>
-                    {formatDate(offer?.sentAt || undefined) || (
+                    {formatDate(offer?.sentAt || undefined, locale) || (
                       <span className="text-gray-300">—</span>
                     )}
                   </td>

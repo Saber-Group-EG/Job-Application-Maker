@@ -123,7 +123,7 @@ export default function InterviewScheduleModal(props: Props) {
 
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   const { user } = useAuth();
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
 
   const emailTemplates: EmailTemplate[] = useMemo(() => {
     const company = companyData || (applicant && (applicant.company || applicant.companyObj));
@@ -309,7 +309,7 @@ export default function InterviewScheduleModal(props: Props) {
 
     const parsed = new Date(`1970-01-01T${raw}`);
     if (!Number.isNaN(parsed.getTime())) {
-      return parsed.toLocaleTimeString('en-US', {
+      return parsed.toLocaleTimeString(locale, {
         hour: 'numeric',
         minute: '2-digit',
         hour12: true,
@@ -365,7 +365,7 @@ export default function InterviewScheduleModal(props: Props) {
       ? (() => {
           const [year, month, day] = interviewForm.date.split('-');
           const date = new Date(Date.UTC(parseInt(year), parseInt(month) - 1, parseInt(day)));
-          return date.toLocaleDateString('en-US', {
+          return date.toLocaleDateString(locale, {
             weekday: 'long',
             year: 'numeric',
             month: 'long',
@@ -498,7 +498,7 @@ export default function InterviewScheduleModal(props: Props) {
       ? (() => {
           const [year, month, day] = interviewForm.date.split('-');
           const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-          return date.toLocaleDateString('en-US', {
+          return date.toLocaleDateString(locale, {
             weekday: 'long',
             year: 'numeric',
             month: 'long',

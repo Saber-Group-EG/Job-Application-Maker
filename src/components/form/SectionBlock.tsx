@@ -8,6 +8,7 @@ import {
   uid,
 } from '../modals/JobOffersModal/JobOffersModal';
 import { translateText } from '../../utils/translate';
+import { useLocale } from '../../context/LocaleContext';
 
 const inputCls =
   'w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-brand-400';
@@ -35,6 +36,8 @@ export function SectionBlock({
   onDuplicate: () => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
+
+  const { locale } = useLocale();
 
   const {
     attributes,
@@ -96,7 +99,7 @@ export function SectionBlock({
             <ChevronUp className="size-4 shrink-0 text-slate-400" />
           )}
           <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-            {section.title.en || section.title.ar || `Section ${index + 1}`}
+            {locale === 'ar' ? (section.title.ar || section.title.en || `Section ${index + 1}`) : (section.title.en || section.title.ar || `Section ${index + 1}`)}
           </span>
           <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-500 dark:bg-slate-700 dark:text-slate-400">
             {section.items.length} item{section.items.length !== 1 ? 's' : ''}

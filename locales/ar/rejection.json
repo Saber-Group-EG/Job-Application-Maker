@@ -19,5 +19,10 @@
   "rejectedApplicant_plural": "{count} متقدمين مرفوضين",
   "reasonPrefix": "السبب: {reason}",
   "xaxisTitle": "عدد حالات الرفض",
-  "seriesName": "المتقدمون المرفوضون"
+  "seriesName": "المتقدمون المرفوضون",
+  "showAll": "عرض الكل",
+  "showTop": "عرض أهم 10",
+  "allReasons": "جميع الأسباب ({count})",
+  "topReasonsShort": "أهم {count}",
+  "showLess": "عرض أقل"
 }

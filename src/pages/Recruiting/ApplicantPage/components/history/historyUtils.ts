@@ -1,6 +1,6 @@
-export const formatDate = (dateString?: string) => {
+export const formatDate = (dateString?: string, locale?: string) => {
   if (!dateString) return '';
-  return new Date(dateString).toLocaleString('en-US', {
+  return new Date(dateString).toLocaleString(locale || 'en-US', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -9,9 +9,9 @@ export const formatDate = (dateString?: string) => {
   });
 };
 
-export const formatDateOnly = (dateString?: string) => {
+export const formatDateOnly = (dateString?: string, locale?: string) => {
   if (!dateString) return '';
-  return new Date(dateString).toLocaleDateString('en-US', {
+  return new Date(dateString).toLocaleDateString(locale || 'en-US', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',

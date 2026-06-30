@@ -232,6 +232,7 @@ export function useJobOfferEmail({
   applicantObjects?: ApplicantObject[];
   jobPositionId?: string | null;
 }) {
+  const { locale } = useLocale();
   const sendEmailMutation = useSendEmail();
   const sendBatchEmailMutation = useSendBatchEmail();
 
@@ -271,7 +272,7 @@ export function useJobOfferEmail({
     const cid = recipient.jobPositionId?.companyId._id!;
     const rawSender =
       form.senderByCompany[cid] || sendersByCompany[cid]?.[0] || '';
-    const positionLabel = form.position.en || form.position.ar;
+    const positionLabel = locale === 'ar' ? (form.position.ar || form.position.en) : (form.position.en || form.position.ar);
     await sendEmailMutation.mutateAsync({
       company: cid,
       applicant: recipient._id,
@@ -291,7 +292,7 @@ export function useJobOfferEmail({
 
   const sendBulkOfferEmail = async () => {
     if (!applicantObjects?.length) return;
-    const positionLabel = form.position.en || form.position.ar;
+    const positionLabel = locale === 'ar' ? (form.position.ar || form.position.en) : (form.position.en || form.position.ar);
     await Promise.all(
       Object.entries(groupedByCompany).map(([cid, { applicants }]) => {
         const rawSender =

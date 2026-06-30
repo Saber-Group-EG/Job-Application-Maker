@@ -10,7 +10,6 @@ import {
   Trash2,
   Video,
 } from 'lucide-react';
-import { toPlainString } from '../../../../../utils/strings';
 import { paths } from '../../../../../router/Paths';
 import { formatDate, getStatusColor } from './historyUtils';
 import type { Interview } from '../../../../../types/applicants';
@@ -66,7 +65,7 @@ export default function CompletedInterviewsHistory({
   applicantId,
   onDelete,
 }: Props) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const navigate = useNavigate();
 
   const handleViewInterview = (interview: CompletedInterview) => {
@@ -187,7 +186,7 @@ export default function CompletedInterviewsHistory({
               const totalScore = Number(interview?.totalScore ?? 0);
               const achievedScore = Number(interview?.achievedScore ?? 0);
               const TypeIcon = getInterviewTypeIcon(interview?.type);
-              const typeLabel = toPlainString(interview?.type) || t('nA', 'applicants');
+              const typeLabel = interview?.type ? t(interview.type === 'in-person' ? 'inPerson' : interview.type, 'modals') : t('nA', 'applicants');
 
               return (
                 <tr
@@ -204,17 +203,17 @@ export default function CompletedInterviewsHistory({
                     </div>
                   </td>
                   <td className={BODY_CELL_SECONDARY}>
-                    {formatDate(interview?.scheduledAt) || (
+                    {formatDate(interview?.scheduledAt, locale) || (
                       <span className="text-gray-300">\u2014</span>
                     )}
                   </td>
                   <td className={BODY_CELL_SECONDARY}>
-                    {formatDate(interview?.startedAt) || (
+                    {formatDate(interview?.startedAt, locale) || (
                       <span className="text-gray-300">\u2014</span>
                     )}
                   </td>
                   <td className={BODY_CELL_SECONDARY}>
-                    {formatDate(interview?.endedAt) || (
+                    {formatDate(interview?.endedAt, locale) || (
                       <span className="text-gray-300">\u2014</span>
                     )}
                   </td>
@@ -241,7 +240,7 @@ export default function CompletedInterviewsHistory({
                       )}`}
                     >
                       <CheckCircle2 className="h-3 w-3" />
-                      {status}
+                      {{ scheduled: t('scheduled', 'interview'), in_progress: t('inProgress', 'interview'), completed: t('completed', 'interview'), cancelled: t('cancelled', 'interview') }[status] || status}
                     </span>
                   </td>
                   <td className={BODY_CELL_SECONDARY}>

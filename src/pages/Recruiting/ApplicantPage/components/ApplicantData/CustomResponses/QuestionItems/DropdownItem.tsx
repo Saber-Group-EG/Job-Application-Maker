@@ -1,6 +1,7 @@
 // Components/QuestionItems/DropdownItem.tsx
 import React from 'react';
 import { ChevronDown, Check } from 'lucide-react';
+import { useLocale } from '../../../../../../../context/LocaleContext';
 import type { DropdownQuestion } from '../../../../../../../types/applicants';
 import type { QuestionHandlers } from './types';
 
@@ -8,6 +9,7 @@ export const DropdownItem: React.FC<{
   question: DropdownQuestion; 
   handlers: Pick<QuestionHandlers, 'isEditable' | 'openDropdownId' | 'dropdownRefs' | 'onToggleDropdown' | 'onDropdownSelect'>;
 }> = ({ question, handlers }) => {
+  const { t } = useLocale();
   const isOpen = handlers.openDropdownId === question.id;
   
   return (
@@ -34,7 +36,7 @@ export const DropdownItem: React.FC<{
         }`}
       >
         <span className={question.selectedValue ? 'text-gray-700' : 'text-gray-400'}>
-          {question.selectedValue ?? 'Select an option'}
+          {question.selectedValue ?? t('selectOption', 'common')}
         </span>
         <ChevronDown className={`h-4 w-4 text-gray-400 transition-all duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>

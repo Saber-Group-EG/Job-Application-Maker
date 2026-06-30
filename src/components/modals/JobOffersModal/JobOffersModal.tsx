@@ -248,7 +248,7 @@ export default function JobOfferModal({
   cloneFrom,
   applicantObjects,
 }: JobOfferModalProps) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
 
   const WORK_TYPES: { value: WorkType; label: string }[] = [
     { value: 'full-time', label: t('fullTime', 'modals') },
@@ -1127,7 +1127,7 @@ export default function JobOfferModal({
                               </span>
                             </div>
                             <div className="mt-2 text-sm font-medium text-slate-700 dark:text-slate-200">
-                              {c.label.en || c.label.ar || t('untitledOffer', 'modals')}
+                              {locale === 'ar' ? (c.label.ar || c.label.en || t('untitledOffer', 'modals')) : (c.label.en || c.label.ar || t('untitledOffer', 'modals'))}
                             </div>
                           </div>
                         );
@@ -1188,7 +1188,7 @@ export default function JobOfferModal({
                             <div className="flex items-center gap-2">
                               <GripVertical className="size-4 text-brand-500" />
                               <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                                {s.title.en || s.title.ar || `Section ${form.sections.indexOf(s) + 1}`}
+                                {locale === 'ar' ? (s.title.ar || s.title.en || `Section ${form.sections.indexOf(s) + 1}`) : (s.title.en || s.title.ar || `Section ${form.sections.indexOf(s) + 1}`)}
                               </span>
                             </div>
                           </div>

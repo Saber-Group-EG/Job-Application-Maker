@@ -11,7 +11,7 @@ export function ContractTemplateSelector({
   onSelect: (template: JobContract) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const { data } = useCompanies();
   const companyId = data?.map((c) => c._id);
   const { data: templatesData, isLoading } = useJobContractTemplates(companyId);
@@ -70,10 +70,10 @@ export function ContractTemplateSelector({
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-slate-800 dark:text-slate-200">
-                    {tmpl.position.en || tmpl.position.ar || t('untitledContract', 'modals')}
+                    {locale === 'ar' ? (tmpl.position.ar || tmpl.position.en || t('untitledContract', 'modals')) : (tmpl.position.en || tmpl.position.ar || t('untitledContract', 'modals'))}
                   </p>
                   <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-400">
-                    <span>{tmpl.contractType}</span>
+                    <span>{t(tmpl.contractType === 'fixed-term' ? 'fixedTerm' : tmpl.contractType || '', 'modals')}</span>
                     {tmpl.salary.basic != null && (
                       <>
                         <span>·</span>

@@ -1,6 +1,7 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
 import { useCompanies } from '../hooks/queries/useCompanies';
 import { useAuth } from './AuthContext';
+import { toPlainString } from '../utils/strings';
 
 
 type CompanyOption = {
@@ -50,8 +51,8 @@ export function CompanyFilterProvider({ children }: { children: ReactNode }) {
       })
       .map((c: any) => {
         const raw = c?.name;
-        const title = typeof raw === 'string' ? raw : (raw?.en || raw?.ar || '');
-        const titleAr = raw?.ar || '';
+        const title = typeof raw === 'string' ? raw : toPlainString(raw, 'en');
+        const titleAr = typeof raw === 'string' ? raw : toPlainString(raw, 'ar');
         return {
           id: c._id,
           title,

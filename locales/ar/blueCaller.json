@@ -55,6 +55,7 @@
   "genderLabel": "الجنس",
   "male": "ذكر",
   "female": "أنثى",
+  "templateGenderNote": "مطلوب – ذكر / أنثى",
   "expectedSalaryLabel": "الراتب المتوقع",
   "salaryPlaceholder": "4000",
   "profilePhotoLabel": "الصورة الشخصية",
