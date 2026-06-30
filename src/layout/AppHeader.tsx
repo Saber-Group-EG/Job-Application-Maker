@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import i18n from "../pages/Landing/i18n/index";
 
 import { useSidebar } from "../context/SidebarContext";
 import { ThemeToggleButton } from "../components/common/ThemeToggleButton";
@@ -128,7 +129,12 @@ const AppHeader: React.FC = () => {
           } items-center justify-end w-full gap-2 px-3 py-3 lg:flex shadow-theme-md lg:shadow-none`}
         >
           <button
-            onClick={() => setLocale(locale === 'en' ? 'ar' : 'en')}
+            onClick={() => {
+              const newLang = locale === 'en' ? 'ar' : 'en';
+              setLocale(newLang);
+              localStorage.setItem('landing-lang', newLang);
+              i18n.changeLanguage(newLang);
+            }}
             className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-100 dark:text-gray-400 dark:border-gray-800 dark:hover:bg-gray-800"
             aria-label={t('language', 'common')}
           >

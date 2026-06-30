@@ -1,0 +1,96 @@
+{
+  "badge": "Who We Are",
+  "title": "Saber Group — Creative Marketing, Measurable Growth",
+  "subtitle": "We design and deliver bold, creative marketing campaigns that elevate brands and drive measurable growth.",
+
+  "mission": "To elevate brands through strategically crafted campaigns that blend creativity, data, and meaningful customer experiences.",
+
+  "stats": {
+    "developments": "Campaigns Delivered",
+    "units": "Campaigns Executed",
+    "years": "Years in Operation",
+    "awards": "Industry Awards",
+    "cities": "Markets Served",
+    "valueGrowth": "Average Campaign ROI"
+  },
+
+  "values": {
+    "title": "What We Stand For",
+    "subtitle": "Our values guide everything we do—from how we work with partners to how we build communities.",
+    "craftsmanship": {
+      "title": "Creativity",
+      "description": "We obsess over creative detail — from concept to execution — to create memorable brand experiences."
+    },
+    "sustainability": {
+      "title": "Sustainability",
+      "description": "We design and build with the future in mind — reducing waste, improving efficiency, and creating healthier spaces."
+    },
+    "community": {
+      "title": "Community",
+      "description": "We build engaged communities around brands — fostering connection, loyalty, and long-term value."
+    },
+    "transparency": {
+      "title": "Transparency",
+      "description": "Clear communication and straightforward contracts — so partners and buyers always know what to expect."
+    }
+  },
+
+  "team": {
+    "title": "The Team",
+    "subtitle": "Experienced professionals delivering quality at every step.",
+    "ahmed": {
+      "name": "Ahmed Saber",
+      "role": "Founder & CEO",
+      "bio": "Founder with a vision to build creative work that drives brand growth across the region."
+    },
+    "mona": {
+      "name": "Mona El-Banna",
+      "role": "Head of Development",
+      "bio": "Leads project delivery and construction excellence to ensure timelines and quality are met."
+    },
+    "samir": {
+      "name": "Samir Khaled",
+      "role": "Chief Architect",
+      "bio": "Designs human-centered buildings that balance aesthetics, function, and sustainability."
+    },
+    "noha": {
+      "name": "Noha Ibrahim",
+      "role": "Sales & Customer Experience",
+      "bio": "Ensures homebuyers have a smooth experience from inquiry through handover."
+    }
+  },
+
+  "journey": {
+    "title": "Our Journey",
+    "founded": {
+      "title": "Founded",
+      "description": "Saber Group started with a small team and a big ambition: craft quality developments that uplift communities."
+    },
+    "firstProject": {
+      "title": "First Campaign",
+      "description": "Launched our first signature campaign, establishing our standard for creativity and impact."
+    },
+    "masterplan": {
+      "title": "Masterplan Projects",
+      "description": "Launched mixed-use masterplan projects focusing on connectivity, green spaces, and local commerce."
+    },
+    "recognition": {
+      "title": "Industry Recognition",
+      "description": "Earned awards for design excellence and sustainable building practices."
+    },
+    "expansion": {
+      "title": "Regional Growth",
+      "description": "Expanded to new cities and increased our pipeline of developments across the region."
+    }
+  },
+
+  "partners": {
+    "title": "Selected Partners & Contractors"
+  },
+
+  "cta": {
+    "title": "Ready to Write Your Success Story?",
+    "subtitle": "Let's collaborate to create something amazing for your project.",
+    "button": "Start a Conversation"
+  }
+}

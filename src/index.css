@@ -70,6 +70,58 @@ a svg path {
   --color-brand-900: #470908;
   --color-brand-950: #161950;
 
+  /* ===========================
+     Saber Group COLOR SYSTEM
+     =========================== */
+
+  /* --- Primary Brand --- */
+  --color-primary-50: #fef2f2;
+  --color-primary-100: #ffe1e1;
+  --color-primary-200: #ffc9c8;
+  --color-primary-300: #ffa4a2;
+  --color-primary-400: #f5413e;
+  --color-primary-500: #e42e2b;
+  --color-primary-600: #bf1916;
+  --color-primary-700: #9e1816;
+  --color-primary-800: #831b19;
+  --color-primary-900: #470908;
+
+  /* --- Secondary Deep Tone (Luxury) --- */
+  --color-secondary-50: #eaecde;
+  --color-secondary-100: #cfdcd9;
+  --color-secondary-200: #9eb9b3;
+  --color-secondary-300: #6c968d;
+  --color-secondary-400: #3b7367;
+  --color-secondary-500: #0b1f1a;
+  --color-secondary-600: #081815;
+  --color-secondary-700: #06110f;
+  --color-secondary-800: #040b0a;
+  --color-secondary-900: #020504;
+
+  /* --- Neutral / Backgrounds --- */
+  --color-light-50: #f7faf9;
+  --color-light-100: #eef3f2;
+  --color-light-200: #dce7e5;
+  --color-light-300: #c8d8d4;
+  --color-light-400: #a2b3ae;
+  --color-light-500: #7c8e89;
+  --color-light-600: #5a6f6a;
+  --color-light-700: #414f4c;
+  --color-light-800: #293432;
+  --color-light-900: #0f1413;
+
+  /* --- Dark Mode (Charcoal Luxury) --- */
+  --color-dark-950: #050505;
+  --color-dark-900: #0a0a0a;
+  --color-dark-800: #141414;
+  --color-dark-700: #1e1e1e;
+  --color-dark-600: #2a2a2a;
+  --color-dark-500: #3d3d3d;
+  --color-dark-400: #525252;
+  --color-dark-300: #a3a3a3;
+  --color-dark-200: #d4d4d4;
+  --color-dark-50: #f6f6f6;
+
   --color-blue-light-25: #f5fbff;
   --color-blue-light-50: #fff0f0;
   --color-blue-light-100: #ffdede;

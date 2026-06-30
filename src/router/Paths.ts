@@ -5,7 +5,18 @@ export const paths = {
   },
 
   dashboard: {
+    home: '/home',
+  },
+
+  landing: {
     home: '/',
+    about: '/about',
+    services: '/services',
+    contact: '/contact',
+    joinUs: '/join-us',
+    policies: '/policies',
+    terms: '/terms',
+    address: '/address',
   },
 
   recruiting: {

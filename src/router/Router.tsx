@@ -5,6 +5,17 @@ import ProtectedRoute from './ProtectedRoute';
 import PermissionProtectedRoute from './PermissionProtectedRoute';
 import { paths, patterns } from './Paths';
 
+// Landing pages
+const LandingLayout = lazy(() => import('../pages/Landing/LandingLayout'));
+const LandingHome = lazy(() => import('../pages/Landing/pages/Home'));
+const LandingServices = lazy(() => import('../pages/Landing/pages/Services'));
+const LandingAbout = lazy(() => import('../pages/Landing/pages/AboutUs'));
+const LandingContact = lazy(() => import('../pages/Landing/pages/Contact'));
+const LandingPolicies = lazy(() => import('../pages/Landing/pages/Policies'));
+const LandingTerms = lazy(() => import('../pages/Landing/pages/TermsAndConditions'));
+const LandingJoinUs = lazy(() => import('../pages/Landing/pages/JoinUs'));
+const LandingAddress = lazy(() => import('../pages/Landing/pages/Address'));
+
 const SignIn = lazy(() => import('../pages/AuthPages/SignIn'));
 const SignUp = lazy(() => import('../pages/AuthPages/SignUp'));
 const NotFound = lazy(() => import('../pages/OtherPage/NotFound'));
@@ -104,18 +115,26 @@ export default function App() {
       <ScrollToTop />
       <Suspense fallback={<div className="min-h-screen" />}>
         <Routes>
-          {/* Public Routes */}
+          {/* Public Landing Routes */}
+          <Route element={<LandingLayout />}>
+            <Route index element={<LandingHome />} />
+            <Route path={paths.landing.services} element={<LandingServices />} />
+            <Route path={paths.landing.about} element={<LandingAbout />} />
+            <Route path={paths.landing.contact} element={<LandingContact />} />
+            <Route path={paths.landing.joinUs} element={<LandingJoinUs />} />
+            <Route path={paths.landing.policies} element={<LandingPolicies />} />
+            <Route path={paths.landing.terms} element={<LandingTerms />} />
+            <Route path={paths.landing.address} element={<LandingAddress />} />
+          </Route>
+
+          {/* Auth Routes */}
           <Route path={paths.auth.signIn} element={<SignIn />} />
           <Route path={paths.auth.signUp} element={<SignUp />} />
-          <Route
-            path="/"
-            element={<Navigate to={paths.auth.signIn} replace />}
-          />
 
           {/* Protected Routes */}
           <Route element={<ProtectedRoute />}>
             <Route element={<AppLayout />}>
-              <Route index element={<Home />} />
+              <Route path={paths.dashboard.home} element={<Home />} />
 
               {/* Recruiting */}
               <Route path={paths.recruiting.root} element={<CreateCompany />} />

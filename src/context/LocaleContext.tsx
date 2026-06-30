@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
+import i18n from '../pages/Landing/i18n/index';
 
 import enSidebar from '../../locales/en/sidebar.json';
 import arSidebar from '../../locales/ar/sidebar.json';
@@ -48,6 +49,8 @@ import enApplicantDetails from '../../locales/en/applicantDetails.json';
 import arApplicantDetails from '../../locales/ar/applicantDetails.json';
 import enPersonalInfo from '../../locales/en/personalInfo.json';
 import arPersonalInfo from '../../locales/ar/personalInfo.json';
+import enLanding from '../../locales/en/landing.json';
+import arLanding from '../../locales/ar/landing.json';
 
 type Locale = 'en' | 'ar';
 
@@ -59,8 +62,8 @@ interface LocaleContextType {
 }
 
 const translations: Record<Locale, Record<string, Record<string, string>>> = {
-  en: { sidebar: enSidebar, common: enCommon, home: enHome, interview: enInterview, rejection: enRejection, applicants: enApplicants, companies: enCompanies, settings: enSettings, jobs: enJobs, jobContracts: enJobContracts, jobOffers: enJobOffers, mailPreview: enMailPreview, savedFields: enSavedFields, roles: enRoles, systemSettings: enSystemSettings, users: enUsers, modals: enModals, completedInterview: enCompletedInterview, activity: enActivity, jobSpec: enJobSpec, history: enHistory, blueCaller: enBlueCaller, applicantDetails: enApplicantDetails, personalInfo: enPersonalInfo },
-  ar: { sidebar: arSidebar, common: arCommon, home: arHome, interview: arInterview, rejection: arRejection, applicants: arApplicants, companies: arCompanies, settings: arSettings, jobs: arJobs, jobContracts: arJobContracts, jobOffers: arJobOffers, mailPreview: arMailPreview, savedFields: arSavedFields, roles: arRoles, systemSettings: arSystemSettings, users: arUsers, modals: arModals, completedInterview: arCompletedInterview, activity: arActivity, jobSpec: arJobSpec, history: arHistory, blueCaller: arBlueCaller, applicantDetails: arApplicantDetails, personalInfo: arPersonalInfo },
+  en: { sidebar: enSidebar, common: enCommon, home: enHome, interview: enInterview, rejection: enRejection, applicants: enApplicants, companies: enCompanies, settings: enSettings, jobs: enJobs, jobContracts: enJobContracts, jobOffers: enJobOffers, mailPreview: enMailPreview, savedFields: enSavedFields, roles: enRoles, systemSettings: enSystemSettings, users: enUsers, modals: enModals, completedInterview: enCompletedInterview, activity: enActivity, jobSpec: enJobSpec, history: enHistory, blueCaller: enBlueCaller, applicantDetails: enApplicantDetails, personalInfo: enPersonalInfo, landing: enLanding },
+  ar: { sidebar: arSidebar, common: arCommon, home: arHome, interview: arInterview, rejection: arRejection, applicants: arApplicants, companies: arCompanies, settings: arSettings, jobs: arJobs, jobContracts: arJobContracts, jobOffers: arJobOffers, mailPreview: arMailPreview, savedFields: arSavedFields, roles: arRoles, systemSettings: arSystemSettings, users: arUsers, modals: arModals, completedInterview: arCompletedInterview, activity: arActivity, jobSpec: arJobSpec, history: arHistory, blueCaller: arBlueCaller, applicantDetails: arApplicantDetails, personalInfo: arPersonalInfo, landing: arLanding },
 };
 
 const LocaleContext = createContext<LocaleContextType | undefined>(undefined);
@@ -74,7 +77,7 @@ export const useLocale = () => {
 };
 
 const getInitialLocale = (): Locale => {
-  const stored = localStorage.getItem('locale');
+  const stored = localStorage.getItem('locale') || localStorage.getItem('landing-lang');
   if (stored === 'ar' || stored === 'en') return stored;
   return 'en';
 };
@@ -103,6 +106,17 @@ export const LocaleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     document.documentElement.dir = dir;
     document.documentElement.lang = locale;
   }, [dir, locale]);
+
+  useEffect(() => {
+    const handler = (lang: string) => {
+      if (lang === 'ar' || lang === 'en') {
+        setLocaleState(lang);
+        localStorage.setItem('locale', lang);
+      }
+    };
+    i18n.on('languageChanged', handler);
+    return () => { i18n.off('languageChanged', handler); };
+  }, []);
 
   return (
     <LocaleContext.Provider value={{ locale, setLocale, dir, t }}>
