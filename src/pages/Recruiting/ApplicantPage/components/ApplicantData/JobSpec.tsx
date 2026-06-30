@@ -28,7 +28,7 @@ const getSpecText = (item: any): string => {
 };
 
 const JobSpec: React.FC<JobSpecProps> = ({ specs: providedSpecs, jobPosition, editable = false, onSpecChange }) => {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   // ── Build weight map from jobPosition ONLY (ignores item.weight) ──
   // Keyed by spec TEXT (not ID) because applicant.jobSpecsWithDetails.jobSpecId
   // does NOT match jobPosition.jobSpecs._id in the API payload.
@@ -177,7 +177,7 @@ const JobSpec: React.FC<JobSpecProps> = ({ specs: providedSpecs, jobPosition, ed
                     <Layers className="h-5 w-5" />
                   </div>
                   <div className="flex-1">
-                    <h4 className="text-base font-semibold text-gray-800">{item.spec.en}</h4>
+                    <h4 className="text-base font-semibold text-gray-800">{locale === 'ar' ? (item.spec?.ar || item.spec?.en) : (item.spec?.en || item.spec?.ar)}</h4>
                     <div className="flex items-center gap-3 mt-1">
                       <span className="text-xs font-medium text-gray-500">{t('weightLabel', 'jobSpec', { weight: item.weight })}</span>
                       {editable ? (

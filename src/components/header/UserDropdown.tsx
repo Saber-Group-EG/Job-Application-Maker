@@ -3,10 +3,12 @@ import { DropdownItem } from "../ui/dropdown/DropdownItem";
 import { Dropdown } from "../ui/dropdown/Dropdown";
 import { Link } from "react-router";
 import { useAuth } from "../../context/AuthContext";
+import { useLocale } from "../../context/LocaleContext";
 
 export default function UserDropdown({ compact }: { compact?: boolean } = {}) {
   const [isOpen, setIsOpen] = useState(false);
   const { user } = useAuth();
+  const { t } = useLocale();
 
   function toggleDropdown() {
     setIsOpen(!isOpen);
@@ -15,6 +17,7 @@ export default function UserDropdown({ compact }: { compact?: boolean } = {}) {
   function closeDropdown() {
     setIsOpen(false);
   }
+
   return (
     <div className="relative">
       <button
@@ -62,13 +65,13 @@ export default function UserDropdown({ compact }: { compact?: boolean } = {}) {
       <Dropdown
         isOpen={isOpen}
         onClose={closeDropdown}
-        className="absolute right-0 mt-[17px] flex w-[260px] flex-col rounded-2xl border border-gray-200 bg-white p-3 shadow-theme-lg dark:border-gray-800 dark:bg-gray-dark"
+        className="absolute end-0 mt-[17px] flex min-w-[320px] w-[380px] max-w-[90vw] flex-col rounded-2xl border border-gray-200 bg-white p-4 shadow-theme-lg dark:border-gray-800 dark:bg-gray-dark"
       >
-        <div>
-          <span className="block font-medium text-gray-700 text-theme-sm dark:text-gray-400">
+        <div className="px-1">
+          <span className="block font-semibold text-gray-800 text-base dark:text-gray-200">
             {user?.fullName || 'User'}
           </span>
-          <span className="mt-0.5 block text-theme-xs text-gray-500 dark:text-gray-400">
+          <span className="mt-0.5 block text-sm text-gray-500 dark:text-gray-400">
             {user?.email || ''}
           </span>
         </div>
@@ -78,13 +81,13 @@ export default function UserDropdown({ compact }: { compact?: boolean } = {}) {
             <DropdownItem
               onItemClick={closeDropdown}
               tag="a"
-              to="/profile"
-              className="flex items-center gap-3 px-3 py-2 font-medium text-gray-700 rounded-lg group text-theme-sm hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300"
+              to="/profile/edit"
+              className="flex items-center gap-4 px-4 py-3 font-medium text-gray-700 rounded-xl group text-sm hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300 transition-all duration-200"
             >
               <svg
-                className="fill-gray-500 group-hover:fill-gray-700 dark:fill-gray-400 dark:group-hover:fill-gray-300"
-                width="24"
-                height="24"
+                className="fill-gray-500 group-hover:fill-gray-700 dark:fill-gray-400 dark:group-hover:fill-gray-300 flex-shrink-0"
+                width="22"
+                height="22"
                 viewBox="0 0 24 24"
                 fill="none"
                 xmlns="http://www.w3.org/2000/svg"
@@ -96,20 +99,20 @@ export default function UserDropdown({ compact }: { compact?: boolean } = {}) {
                   fill=""
                 />
               </svg>
-              Edit profile
+              <span>              {t('editProfile', 'common')}</span>
             </DropdownItem>
           </li>
           <li>
             <DropdownItem
               onItemClick={closeDropdown}
               tag="a"
-              to="/profile"
-              className="flex items-center gap-3 px-3 py-2 font-medium text-gray-700 rounded-lg group text-theme-sm hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300"
+              to="/account-settings"
+              className="flex items-center gap-4 px-4 py-3 font-medium text-gray-700 rounded-xl group text-sm hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300 transition-all duration-200"
             >
               <svg
-                className="fill-gray-500 group-hover:fill-gray-700 dark:fill-gray-400 dark:group-hover:fill-gray-300"
-                width="24"
-                height="24"
+                className="fill-gray-500 group-hover:fill-gray-700 dark:fill-gray-400 dark:group-hover:fill-gray-300 flex-shrink-0"
+                width="22"
+                height="22"
                 viewBox="0 0 24 24"
                 fill="none"
                 xmlns="http://www.w3.org/2000/svg"
@@ -121,20 +124,20 @@ export default function UserDropdown({ compact }: { compact?: boolean } = {}) {
                   fill=""
                 />
               </svg>
-              Account settings
+              <span>              {t('accountSettings', 'common')}</span>
             </DropdownItem>
           </li>
           <li>
             <DropdownItem
               onItemClick={closeDropdown}
               tag="a"
-              to="/profile"
-              className="flex items-center gap-3 px-3 py-2 font-medium text-gray-700 rounded-lg group text-theme-sm hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300"
+              to="/support"
+              className="flex items-center gap-4 px-4 py-3 font-medium text-gray-700 rounded-xl group text-sm hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300 transition-all duration-200"
             >
               <svg
-                className="fill-gray-500 group-hover:fill-gray-700 dark:fill-gray-400 dark:group-hover:fill-gray-300"
-                width="24"
-                height="24"
+                className="fill-gray-500 group-hover:fill-gray-700 dark:fill-gray-400 dark:group-hover:fill-gray-300 flex-shrink-0"
+                width="22"
+                height="22"
                 viewBox="0 0 24 24"
                 fill="none"
                 xmlns="http://www.w3.org/2000/svg"
@@ -146,18 +149,20 @@ export default function UserDropdown({ compact }: { compact?: boolean } = {}) {
                   fill=""
                 />
               </svg>
-              Support
+              <span>              {t('support', 'common')}</span>
             </DropdownItem>
           </li>
         </ul>
+        
         <Link
           to="/signin"
-          className="flex items-center gap-3 px-3 py-2 mt-3 font-medium text-gray-700 rounded-lg group text-theme-sm hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300"
+          onClick={closeDropdown}
+          className="flex items-center gap-4 px-4 py-3 mt-2 font-medium text-gray-700 rounded-xl group text-sm hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300 transition-all duration-200"
         >
           <svg
-            className="fill-gray-500 group-hover:fill-gray-700 dark:group-hover:fill-gray-300"
-            width="24"
-            height="24"
+            className="fill-gray-500 group-hover:fill-gray-700 dark:group-hover:fill-gray-300 flex-shrink-0"
+            width="22"
+            height="22"
             viewBox="0 0 24 24"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
@@ -169,7 +174,7 @@ export default function UserDropdown({ compact }: { compact?: boolean } = {}) {
               fill=""
             />
           </svg>
-          Sign out
+          <span>          {t('signOut', 'common')}</span>
         </Link>
       </Dropdown>
     </div>

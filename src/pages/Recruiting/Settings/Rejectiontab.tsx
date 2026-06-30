@@ -71,9 +71,10 @@ const normalizeRejectReasons = (reasons: unknown): string[] => {
 		.filter(Boolean);
 };
 
-const getCompanyName = (company: CompanyShape | undefined, t: (key: string, ns: string) => string): string => {
+const getCompanyName = (company: CompanyShape | undefined, t: (key: string, ns: string) => string, locale?: string): string => {
 	if (!company) return t('rejectionTab.noCompany', 'settings');
 	if (typeof company.name === "string") return company.name;
+	if (locale === 'ar') return company.name?.ar || company.name?.en || t('rejectionTab.unnamedCompany', 'settings');
 	return company.name?.en || company.name?.ar || t('rejectionTab.unnamedCompany', 'settings');
 };
 
@@ -198,7 +199,7 @@ export default function RejectionTab({
 	embedded = false,
 }: Props) {
 	const { hasPermission } = useAuth();
-	const { t } = useLocale();
+	const { t, locale } = useLocale();
 	const { data: companies = [], isLoading: isCompaniesLoading } = useCompanies();
 
 	const { selectedCompanyId } = useCompanyFilter();
@@ -407,7 +408,7 @@ export default function RejectionTab({
 								{t('rejectionTab.statCompany', 'settings')}
 							</p>
 							<p className="mt-1 truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
-								{getCompanyName(selectedCompany, t)}
+								{getCompanyName(selectedCompany, t, locale)}
 							</p>
 						</div>
 

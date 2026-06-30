@@ -170,9 +170,9 @@ const normalizeFieldConfig = (job: any): FieldConfig => {
   };
 };
 
-const formatDate = (dateString?: string) => {
+const formatDate = (dateString?: string, locale?: string) => {
   if (!dateString) return 'N/A';
-  return new Date(dateString).toLocaleDateString('en-US', {
+  return new Date(dateString).toLocaleDateString(locale || 'en-US', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -274,11 +274,11 @@ function SortableJobCard({
         </div>
         <div className="flex items-center gap-2 text-sm text-slate-500">
           <MapPinIcon className="size-4" />
-          <span>{job.workArrangement || t('jobsRemoteOffice', 'jobs')}</span>
+          <span>{({ 'on-site': t('createOnSite', 'jobs'), remote: t('createRemote', 'jobs'), hybrid: t('createHybrid', 'jobs') } as Record<string, string>)[job.workArrangement] || job.workArrangement || t('jobsRemoteOffice', 'jobs')}</span>
         </div>
         <div className="flex items-center gap-2 text-sm text-slate-500">
           <CalendarIcon className="size-4" />
-          <span>{t('jobsCreatedAt', 'jobs', { date: formatDate(job.createdAt) })}</span>
+          <span>{t('jobsCreatedAt', 'jobs', { date: formatDate(job.createdAt, locale) })}</span>
         </div>
       </div>
 
@@ -393,7 +393,7 @@ function SortableJobRow({
           </div>
           <div className="flex items-center gap-1.5 text-xs text-slate-500">
             <MapPinIcon className="size-3.5" />
-            {job.workArrangement || t('jobsOffice', 'jobs')}
+            {({ 'on-site': t('createOnSite', 'jobs'), remote: t('createRemote', 'jobs'), hybrid: t('createHybrid', 'jobs') } as Record<string, string>)[job.workArrangement] || job.workArrangement || t('jobsOffice', 'jobs')}
           </div>
         </div>
       </td>

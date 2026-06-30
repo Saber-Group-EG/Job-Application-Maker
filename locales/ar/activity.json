@@ -21,5 +21,15 @@
   "taskAt": "مهمة في {time} بواسطة",
   "updatedAt": "تم التحديث في {time} بواسطة",
   "emailPreview": "معاينة البريد الإلكتروني",
-  "close": "إغلاق"
+  "close": "إغلاق",
+  "statusChangedTo": "تم تغيير حالة الطلب إلى {status}",
+  "commentAdded": "تمت إضافة تعليق",
+  "internal": "داخلي",
+  "external": "خارجي",
+  "messageTitle": "رسالة {type}",
+  "progressing": "قيد التقدم",
+  "interviewWithStatus": "مقابلة {status}",
+  "applicationSubmitted": "تم تقديم الطلب",
+  "applicant": "متقدم",
+  "system": "النظام"
 }

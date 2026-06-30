@@ -33,7 +33,7 @@ const defaultRoleForm: RoleForm = {
 };
 
 export default function Permissions() {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const navigate = useNavigate();
   const { hasPermission } = useAuth();
 
@@ -487,7 +487,7 @@ export default function Permissions() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
                           <Calendar className="size-3" />
-                          {role.createdAt ? new Date(role.createdAt).toLocaleDateString() : t('rolesSystemBase', 'roles')}
+                          {role.createdAt ? new Date(role.createdAt).toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US') : t('rolesSystemBase', 'roles')}
                         </div>
                         <div className="flex items-center gap-1 text-brand-500 font-black text-xs uppercase tracking-[0.15em] group-hover:gap-3 transition-all duration-300">
                           {t('rolesInvestigate', 'roles')}

@@ -78,7 +78,7 @@ const BulkMessageModal = ({
   const [previewHtml, setPreviewHtml] = useState('');
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
 
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
 
   const sendBatch = useSendBatchEmail();
   const sendMessageMutation = useSendMessage();
@@ -541,7 +541,7 @@ const BulkMessageModal = ({
   const getCompanyName = () => {
     if (company?.name) {
       if (typeof company.name === 'string') return company.name;
-      return company.name.en || company.name.ar || 'Company';
+      return locale === 'ar' ? (company.name.ar || company.name.en || 'Company') : (company.name.en || company.name.ar || 'Company');
     }
     return 'Company';
   };

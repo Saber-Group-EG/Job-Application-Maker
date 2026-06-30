@@ -48,7 +48,7 @@ function CategoryGroup({
   onDuplicate: (t: SectionTemplate) => void;
   onDelete: (id: string) => void;
 }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const [collapsed, setCollapsed] = useState(false);
 
   return (
@@ -83,7 +83,7 @@ function CategoryGroup({
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
-                    {tmpl.title.en || tmpl.title.ar}
+                    {locale === 'ar' ? (tmpl.title.ar || tmpl.title.en) : (tmpl.title.en || tmpl.title.ar)}
                   </p>
                   {tmpl.title.en && tmpl.title.ar && (
                     <p

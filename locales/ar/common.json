@@ -221,5 +221,15 @@
   "fillAllFields": "يرجى ملء جميع الحقول",
   "enterValidEmail": "يرجى إدخال بريد إلكتروني صالح",
   "passwordMinLength": "يجب أن تتكون كلمة المرور من 6 أحرف على الأقل",
-  "acceptTerms": "يرجى قبول الشروط والأحكام"
+  "acceptTerms": "يرجى قبول الشروط والأحكام",
+  "selectOption": "اختر خياراً",
+  "typeAndPressEnter": "اكتب واضغط Enter...",
+  "am": "ص",
+  "pm": "م",
+  "applicationResponses": "استجابات التقديم",
+  "applicationResponsesDesc": "استجابات الحقول المخصصة المقدمة مع الطلب",
+  "editProfile": "تعديل الملف الشخصي",
+  "accountSettings": "إعدادات الحساب",
+  "support": "الدعم",
+  "signOut": "تسجيل الخروج"
 }

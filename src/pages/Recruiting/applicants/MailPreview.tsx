@@ -119,8 +119,8 @@ const STATUS_OPTIONS: Array<{ key: 'all' | MailStatus; label: string; icon: any 
 const MAIL_POLL_INTERVAL_MS = 30 * 1000;
 const MAIL_LIST_PAGE_SIZE = 10;
 
-const formatDateTime = (value: string) =>
-    new Date(value).toLocaleString('en-US', {
+const formatDateTime = (value: string, locale?: string) =>
+    new Date(value).toLocaleString(locale, {
         month: 'short',
         day: '2-digit',
         hour: '2-digit',
@@ -340,7 +340,7 @@ const SidebarNavItem = ({ icon: Icon, label, count, active }: { icon: any; label
 );
 
 export default function MailPreview() {
-    const { t } = useLocale();
+    const { t, locale } = useLocale();
     const { user } = useAuth();
     const roleName = user?.roleId?.name?.toLowerCase();
     const isSuperAdmin = roleName === 'super admin' || roleName === 'admin';
@@ -707,7 +707,7 @@ export default function MailPreview() {
                                                         {formatRelativeTime(mail.createdAt, t)}
                                                     </span>
                                                     <span className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider ${statusChipClasses[mail.status].bg} ${statusChipClasses[mail.status].text}`}>
-                                                        {mail.status === 'delivery delayed' ? t('statusDelayed', 'mailPreview') : mail.status}
+                                                        {(STATUS_OPTIONS.find(o => o.key === mail.status) ? t(STATUS_OPTIONS.find(o => o.key === mail.status)!.label, 'mailPreview') : mail.status)}
                                                     </span>
                                                 </div>
                                             </div>
@@ -788,11 +788,11 @@ export default function MailPreview() {
                                     <p className="text-xs text-slate-500 dark:text-slate-400">{selectedMail.applicantEmail}</p>
                                 </div>
                                 <div className={`rounded-full px-3 py-1 text-xs font-medium ${statusChipClasses[selectedMail.status].bg} ${statusChipClasses[selectedMail.status].text}`}>
-                                    {selectedMail.status === 'delivery delayed' ? t('statusDelayed', 'mailPreview') : selectedMail.status}
+                                    {(STATUS_OPTIONS.find(o => o.key === selectedMail.status) ? t(STATUS_OPTIONS.find(o => o.key === selectedMail.status)!.label, 'mailPreview') : selectedMail.status)}
                                 </div>
                             </div>
                             <div className="mt-3 flex items-center gap-4 text-xs text-slate-400">
-                                <span>{formatDateTime(selectedMail.createdAt)}</span>
+                                <span>{formatDateTime(selectedMail.createdAt, locale)}</span>
                                 <span>•</span>
                                 <span>{t('to', 'mailPreview', { email: selectedMail.applicantEmail })}</span>
                             </div>
@@ -828,7 +828,7 @@ export default function MailPreview() {
                                             <p className="text-xs font-medium text-slate-900 dark:text-white">
                                                 {event.type.replace(/_/g, ' ').toUpperCase()}
                                             </p>
-                                            <p className="text-xs text-slate-500 dark:text-slate-400">{formatDateTime(event.at)}</p>
+                                            <p className="text-xs text-slate-500 dark:text-slate-400">{formatDateTime(event.at, locale)}</p>
                                             <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{event.detail}</p>
                                         </div>
                                     </div>

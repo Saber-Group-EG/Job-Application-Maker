@@ -322,7 +322,7 @@ export default function RejectionInsightsChart({
         </div>
       </div>
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-[280px_1fr]" dir="ltr">
+      <div className="mt-6 grid gap-6 xl:grid-cols-[280px_1fr]" dir={dir}>
         {/* Sidebar with insights summary */}
         <div dir={dir} className="rounded-2xl border border-gray-200 bg-gradient-to-br from-gray-50 via-white to-brand-50/50 p-5 shadow-sm dark:border-gray-800 dark:from-gray-900 dark:via-gray-900 dark:to-brand-500/10">
           <div className="mt-2 text-xl font-semibold text-gray-900 dark:text-white/90 break-words">
@@ -339,10 +339,10 @@ export default function RejectionInsightsChart({
           {/* Top reasons list with improved UX */}
           <div className="mt-5">
             <div className="mb-3 text-xs font-medium text-gray-500 dark:text-gray-400">
-              {showAllReasons ? t('allReasons', 'rejection', { count: allRows.length }) : t('topReasons', 'rejection', { count: Math.min(rows.length, 5) })}
+              {showAllReasons ? t('allReasons', 'rejection', { count: allRows.length }) : t('topReasons', 'rejection', { count: Math.min(rows.length, 8) })}
             </div>
-            <div className="max-h-96 space-y-2 overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin' }}>
-              {(showAllReasons ? allRows : rows.slice(0, 5)).map((item, index) => {
+            <div className="max-h-[500px] space-y-2 overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin' }}>
+              {(showAllReasons ? allRows : rows.slice(0, 6)).map((item, index) => {
                 const share = totalRejected > 0 ? Math.round((item.count / totalRejected) * 100) : 0;
                 return (
                   <div 
@@ -377,17 +377,17 @@ export default function RejectionInsightsChart({
                   </div>
                 );
               })}
-              {!showAllReasons && rows.length > 5 && (
+              {!showAllReasons && rows.length > 8 && (
                 <button
                   onClick={() => setShowAllReasons(true)}
                   className="w-full rounded-xl bg-gray-100/50 p-3 text-center transition-colors hover:bg-gray-200/70 dark:bg-gray-800/50 dark:hover:bg-gray-700/50"
                 >
                   <div className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                    {t('moreReasons' + (allRows.length - 5 !== 1 ? '_plural' : ''), 'rejection', { count: allRows.length - 5 })}
+                    {t('moreReasons' + (allRows.length - 8 !== 1 ? '_plural' : ''), 'rejection', { count: allRows.length - 8 })}
                   </div>
                 </button>
               )}
-              {showAllReasons && allRows.length > 5 && (
+              {showAllReasons && allRows.length > 8 && (
                 <button
                   onClick={() => setShowAllReasons(false)}
                   className="w-full rounded-xl bg-gray-100/50 p-3 text-center transition-colors hover:bg-gray-200/70 dark:bg-gray-800/50 dark:hover:bg-gray-700/50"

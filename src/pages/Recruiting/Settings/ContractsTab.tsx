@@ -66,7 +66,7 @@ function TemplateCard({
   onClone: (id: string) => void;
   onDelete: (id: string) => void;
 }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const typeLabels = {
     permanent: t('contracts.permanent', 'settings'),
     'fixed-term': t('contracts.fixedTerm', 'settings'),
@@ -78,7 +78,7 @@ function TemplateCard({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-bold text-slate-900 dark:text-slate-100">
-            {contract.position?.en || contract.position?.ar || t('contracts.untitled', 'settings')}
+            {locale === 'ar' ? (contract.position?.ar || contract.position?.en || t('contracts.untitled', 'settings')) : (contract.position?.en || contract.position?.ar || t('contracts.untitled', 'settings'))}
           </p>
           <span
             className={`mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${CONTRACT_TYPE_COLORS[contract.contractType]}`}

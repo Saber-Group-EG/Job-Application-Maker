@@ -102,7 +102,7 @@ export const WORK_TYPE_COLORS: Record<string, string> = {
 
 export default function JobOffersPage() {
   const { hasPermission } = useAuth();
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const queryClient = useQueryClient();
   const { data: companies = [] } = useCompanies(); // ← full objects, not just IDs
 
@@ -410,14 +410,14 @@ export default function JobOffersPage() {
                               />
                             </div>
                             <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
-                              {offer.position?.en} {offer.position?.ar && ` / ${offer.position?.ar}`}
+                              {locale === 'ar' ? (offer.position?.ar || offer.position?.en) : (offer.position?.en || offer.position?.ar)}
                             </p>
                             <div className="mt-1.5 flex items-center gap-3">
                               <span
                                 className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${WORK_TYPE_COLORS[offer.workType]}`}
                               >
-                                {offer.workType}
-                              </span>
+                              {t(offer.workType === 'full-time' ? 'fullTime' : offer.workType === 'part-time' ? 'partTime' : offer.workType || '', 'modals')}
+                            </span>
                               {offer.salary.basic != null && (
                                 <span className="flex items-center gap-1 text-[11px] text-slate-400">
                                   <DollarSign className="size-3" />
@@ -436,14 +436,14 @@ export default function JobOffersPage() {
                           <div className="flex flex-col items-end gap-1.5">
                             <span className="whitespace-nowrap text-[10px] font-medium text-slate-400">
                               {new Date(offer.createdAt).toLocaleDateString(
-                                'en-US',
+                                locale === 'ar' ? 'ar-EG' : 'en-US',
                                 { month: 'short', day: '2-digit' }
                               )}
                             </span>
                             <span
                               className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider ${chip.bg} ${chip.text}`}
                             >
-                              {offer.status}
+                              {t(`status${offer.status.charAt(0).toUpperCase() + offer.status.slice(1)}` as const, 'jobOffers')}
                             </span>
                             {canWrite && (
                               <div

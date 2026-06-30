@@ -130,11 +130,11 @@ const normalizeGroups = (
   }));
 };
 
-const getCompanyName = (company: CompanyShape | undefined): string => {
+const getCompanyName = (company: CompanyShape | undefined, locale?: string): string => {
   if (!company) return '';
-  // Handle case where company might be the nested companyId object
   const companyData = (company as any)?.companyId || company;
   if (typeof companyData.name === 'string') return companyData.name;
+  if (locale === 'ar') return companyData.name?.ar || companyData.name?.en || '';
   return companyData.name?.en || companyData.name?.ar || '';
 };
 
@@ -303,7 +303,7 @@ function SortableQuestionItem({
 
 export default function InterviewCompanySettingsPage() {
   const { user, hasPermission } = useAuth();
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const { data: companies = [], isLoading: isCompaniesLoading } =
     useCompanies();
 
@@ -766,7 +766,7 @@ export default function InterviewCompanySettingsPage() {
                   {t('interviewCompany.statCompany', 'settings')}
                 </p>
                 <p className="mt-1 truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
-                  {getCompanyName(selectedCompany) || t('interviewCompany.statNoCompany', 'settings')}
+                  {getCompanyName(selectedCompany, locale) || t('interviewCompany.statNoCompany', 'settings')}
                 </p>
               </div>
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/60">

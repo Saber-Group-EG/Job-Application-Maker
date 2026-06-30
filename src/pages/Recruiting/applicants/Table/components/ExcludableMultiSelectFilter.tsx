@@ -16,6 +16,7 @@ interface ExcludableMultiSelectFilterProps {
   isArrayColumn?: boolean;
   countsMap?: Map<string, number>;
   title?: string;
+  isDarkMode?: boolean;
 }
 
 export const ExcludableMultiSelectFilter = ({
@@ -26,6 +27,7 @@ export const ExcludableMultiSelectFilter = ({
   isArrayColumn = false,
   countsMap,
   title,
+  isDarkMode = false,
 }: ExcludableMultiSelectFilterProps) => {
   const currentValue = (header.column.getFilterValue() as string[]) ?? [];
   const facetedMap = countsMap ?? header.column.getFacetedUniqueValues();
@@ -85,6 +87,13 @@ export const ExcludableMultiSelectFilter = ({
   const activeCount = currentValue.length;
   const accentColor = isExclude ? '#f43f5e' : '#10b981';
   const accentBg = isExclude ? 'rgba(244,63,94,0.08)' : 'rgba(16,185,129,0.08)';
+  const borderColor = isDarkMode ? '#374151' : 'rgba(0,0,0,0.07)';
+  const hoverBg = isDarkMode ? '#374151' : 'rgba(0,0,0,0.04)';
+  const uncheckedBorder = isDarkMode ? '#6b7280' : 'rgba(0,0,0,0.2)';
+  const badgeColor = isDarkMode ? '#9ca3af' : 'rgba(0,0,0,0.35)';
+  const badgeBg = isDarkMode ? '#374151' : 'rgba(0,0,0,0.05)';
+  const scrollbarColor = isDarkMode ? '#4b5563 transparent' : 'rgba(0,0,0,0.12) transparent';
+  const secondaryText = isDarkMode ? '#9ca3af' : undefined;
 
   return (
     <div style={{ minWidth: 220, maxWidth: 300 }}>
@@ -109,7 +118,7 @@ export const ExcludableMultiSelectFilter = ({
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: title ? '4px 12px 8px' : '8px 12px 8px',
-          borderBottom: '1px solid rgba(0,0,0,0.07)',
+          borderBottom: `1px solid ${borderColor}`,
         }}
       >
         <span
@@ -117,7 +126,8 @@ export const ExcludableMultiSelectFilter = ({
             fontSize: 10,
             fontWeight: 600,
             letterSpacing: '0.08em',
-            opacity: 0.4,
+            opacity: secondaryText ? 1 : 0.4,
+            color: secondaryText ?? 'inherit',
             textTransform: 'uppercase',
           }}
         >
@@ -176,7 +186,7 @@ export const ExcludableMultiSelectFilter = ({
           maxHeight: 260,
           padding: '5px 4px 6px 10px',
           scrollbarWidth: 'thin',
-          scrollbarColor: 'rgba(0,0,0,0.12) transparent',
+          scrollbarColor: scrollbarColor,
         }}
       >
         {sortedOptions.length === 0 ? (
@@ -184,7 +194,8 @@ export const ExcludableMultiSelectFilter = ({
             style={{
               padding: '10px 12px',
               fontSize: 12,
-              opacity: 0.4,
+              opacity: secondaryText ? 1 : 0.4,
+              color: secondaryText ?? 'inherit',
               fontStyle: 'italic',
             }}
           >
@@ -218,7 +229,7 @@ export const ExcludableMultiSelectFilter = ({
                 onMouseEnter={(e) => {
                   if (!selected)
                     (e.currentTarget as HTMLElement).style.background =
-                      'rgba(0,0,0,0.04)';
+                      hoverBg;
                 }}
                 onMouseLeave={(e) => {
                   if (!selected)
@@ -252,7 +263,8 @@ export const ExcludableMultiSelectFilter = ({
                     <span
                       style={{
                         fontSize: 10,
-                        opacity: 0.45,
+                        opacity: secondaryText ? 1 : 0.45,
+                        color: secondaryText ?? 'inherit',
                         fontWeight: 400,
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
@@ -271,7 +283,7 @@ export const ExcludableMultiSelectFilter = ({
                     height: 15,
                     borderRadius: 4,
                     border: `1.5px solid ${
-                      selected ? accentColor : 'rgba(0,0,0,0.2)'
+                      selected ? accentColor : uncheckedBorder
                     }`,
                     background: selected ? accentColor : 'transparent',
                     display: 'flex',
@@ -300,8 +312,8 @@ export const ExcludableMultiSelectFilter = ({
                     fontSize: 10,
                     fontWeight: 500,
                     fontVariantNumeric: 'tabular-nums',
-                    color: selected ? accentColor : 'rgba(0,0,0,0.35)',
-                    background: selected ? accentBg : 'rgba(0,0,0,0.05)',
+                    color: selected ? accentColor : badgeColor,
+                    background: selected ? accentBg : badgeBg,
                     borderRadius: 10,
                     padding: '1px 6px',
                     minWidth: 20,
@@ -323,7 +335,7 @@ export const ExcludableMultiSelectFilter = ({
       {activeCount > 0 && (
         <div
           style={{
-            borderTop: '1px solid rgba(0,0,0,0.07)',
+            borderTop: `1px solid ${borderColor}`,
             padding: '8px 12px 4px',
             display: 'flex',
             alignItems: 'center',
@@ -333,7 +345,8 @@ export const ExcludableMultiSelectFilter = ({
           <span
             style={{
               fontSize: 11,
-              opacity: 0.4,
+              opacity: secondaryText ? 1 : 0.4,
+              color: secondaryText ?? 'inherit',
               fontVariantNumeric: 'tabular-nums',
             }}
           >

@@ -197,7 +197,7 @@ export default function PreviewCompany() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0F172A] p-4 sm:p-8 text-slate-900 dark:text-slate-100">
-      <PageMeta title={t('previewPageTitle', 'companies', { name: toPlainString(companyForm.name.en) })} description={t('previewPageDesc', 'companies')} />
+      <PageMeta title={t('previewPageTitle', 'companies', { name: locale === 'ar' ? (companyForm.name?.ar || companyForm.name?.en || '') : (companyForm.name?.en || companyForm.name?.ar || '') })} description={t('previewPageDesc', 'companies')} />
       <PageBreadcrumb pageTitle={t('previewBreadcrumb', 'companies')} />
 
       <div className="max-w-7xl mx-auto">
@@ -213,7 +213,7 @@ export default function PreviewCompany() {
               </div>
               <div>
                 <h1 className="text-4xl font-black bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400 bg-clip-text text-transparent tracking-tight">
-                  {toPlainString(companyForm.name.en)}
+                  {locale === 'ar' ? (companyForm.name?.ar || companyForm.name?.en || '') : (companyForm.name?.en || companyForm.name?.ar || '')}
                 </h1>
                 <div className="flex items-center gap-3 mt-2">
                   <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${companyForm.isActive ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"}`}>
@@ -381,10 +381,10 @@ export default function PreviewCompany() {
                       </div>
                     </div>
                     <div className="mt-4">
-                      <h4 className="font-extrabold text-lg text-slate-800 dark:text-slate-100 leading-tight">{toPlainString(dept.name?.en)}</h4>
-                      <p className="text-[10px] font-black text-brand-500 mt-0.5">{toPlainString(dept.name?.ar)}</p>
+                      <h4 className="font-extrabold text-lg text-slate-800 dark:text-slate-100 leading-tight">{locale === 'ar' ? (toPlainString(dept.name?.ar) || toPlainString(dept.name?.en) || '') : (toPlainString(dept.name?.en) || toPlainString(dept.name?.ar) || '')}</h4>
+                      {locale === 'ar' ? null : <p className="text-[10px] font-black text-brand-500 mt-0.5">{toPlainString(dept.name?.ar)}</p>}
                       <p className="text-xs text-slate-500 mt-3 line-clamp-2 leading-relaxed">
-                        {toPlainString(dept.description?.en) || t('noOverview', 'companies')}
+                        {locale === 'ar' ? (toPlainString(dept.description?.ar) || toPlainString(dept.description?.en) || t('noOverview', 'companies')) : (toPlainString(dept.description?.en) || toPlainString(dept.description?.ar) || t('noOverview', 'companies'))}
                       </p>
                     </div>
                   </div>
@@ -500,8 +500,8 @@ export default function PreviewCompany() {
                     ) : (
                       <div className="space-y-1">
                         <span className="text-[10px] font-black text-brand-500 transition-colors">{t('mainCampus', 'companies')}</span>
-                        <p className="text-sm font-bold leading-relaxed">{toPlainString(addr.en)}</p>
-                        <p className="text-[10px] font-bold text-slate-400 italic">{toPlainString(addr.ar)}</p>
+                        <p className="text-sm font-bold leading-relaxed">{locale === 'ar' ? (toPlainString(addr.ar) || toPlainString(addr.en) || '') : (toPlainString(addr.en) || toPlainString(addr.ar) || '')}</p>
+                        {locale === 'ar' ? null : <p className="text-[10px] font-bold text-slate-400 italic">{toPlainString(addr.ar)}</p>}
                       </div>
                     )}
                     {!isEditingCompany && addr.location && (

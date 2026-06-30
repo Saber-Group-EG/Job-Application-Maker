@@ -70,6 +70,14 @@ export const toPlainString = (val: any, locale?: string): string => {
       }
     }
 
+    // If the object only has empty en/ar keys, return empty string
+    const keys = Object.keys(val);
+    if (keys.length <= 2 && 'en' in val && 'ar' in val) {
+      const enVal = typeof val.en === 'string' ? val.en.trim() : '';
+      const arVal = typeof val.ar === 'string' ? val.ar.trim() : '';
+      if (!enVal && !arVal) return '';
+    }
+
     // Last attempt: scan all object values recursively
     for (const [key, nestedVal] of Object.entries(val)) {
       if (/(^_?id$|Id$)/i.test(key)) continue;

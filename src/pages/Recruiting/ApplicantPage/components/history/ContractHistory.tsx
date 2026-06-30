@@ -23,7 +23,7 @@ export default function ContractHistory({
   contracts,
   onSelectContract,
 }: Props) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
 
   if (isLoading) {
     return (
@@ -98,7 +98,7 @@ export default function ContractHistory({
               const companyName =
                 typeof contract?.companyId === 'string'
                   ? contract?.companyId
-                  : toPlainString(contract?.companyId?.name) || t('nA', 'applicants');
+                  : toPlainString(contract?.companyId?.name, locale) || t('nA', 'applicants');
 
               return (
                 <tr
@@ -115,7 +115,7 @@ export default function ContractHistory({
                         <FileSignature className="h-3.5 w-3.5" />
                       </span>
                       <span className="truncate">
-                        {toPlainString(contract?.position) || t('nA', 'applicants')}
+                        {toPlainString(contract?.position, locale) || t('nA', 'applicants')}
                       </span>
                     </div>
                   </td>
@@ -128,16 +128,16 @@ export default function ContractHistory({
                         status,
                       )}`}
                     >
-                      {status}
+                      {{ draft: t('statusDraft', 'jobContracts'), sent: t('statusSent', 'jobContracts'), signed: t('statusSigned', 'jobContracts'), rejected: t('statusRejected', 'jobContracts'), expired: t('statusExpired', 'jobContracts') }[status] || status}
                     </span>
                   </td>
                   <td className={BODY_CELL_SECONDARY}>
-                    {formatDateOnly(contract?.startDate) || (
+                    {formatDateOnly(contract?.startDate, locale) || (
                       <span className="text-gray-300">—</span>
                     )}
                   </td>
                   <td className={BODY_CELL_SECONDARY}>
-                    {formatDateOnly(contract?.endDate || undefined) || (
+                    {formatDateOnly(contract?.endDate || undefined, locale) || (
                       <span className="text-gray-300">—</span>
                     )}
                   </td>

@@ -103,7 +103,7 @@ export const CONTRACT_TYPE_COLORS: Record<string, string> = {
 
 export default function JobContractsPage() {
   const { hasPermission } = useAuth();
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const queryClient = useQueryClient();
   const { data: companies = [] } = useCompanies();
 
@@ -427,13 +427,13 @@ export default function JobContractsPage() {
                               />
                             </div>
                             <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
-                              {contract.position?.en} {contract.position?.ar && ` / ${contract.position.ar}`}
+                              {locale === 'ar' ? (contract.position?.ar || contract.position?.en) : (contract.position?.en || contract.position?.ar)}
                             </p>
                             <div className="mt-1.5 flex items-center gap-3">
                               <span
                                 className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${CONTRACT_TYPE_COLORS[contract.contractType]}`}
                               >
-                                {contract.contractType}
+                                {t(contract.contractType === 'fixed-term' ? 'fixedTerm' : contract.contractType || '', 'modals')}
                               </span>
                               {contract.salary.basic != null && (
                                 <span className="flex items-center gap-1 text-[11px] text-slate-400">
@@ -447,7 +447,7 @@ export default function JobContractsPage() {
                                   <Clock className="size-3" />
                                   {new Date(
                                     contract.startDate
-                                  ).toLocaleDateString('en-US', {
+                                  ).toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', {
                                     month: 'short',
                                     day: '2-digit',
                                     year: 'numeric',
@@ -459,14 +459,14 @@ export default function JobContractsPage() {
                           <div className="flex flex-col items-end gap-1.5">
                             <span className="whitespace-nowrap text-[10px] font-medium text-slate-400">
                               {new Date(contract.createdAt).toLocaleDateString(
-                                'en-US',
+                                locale === 'ar' ? 'ar-EG' : 'en-US',
                                 { month: 'short', day: '2-digit' }
                               )}
                             </span>
                             <span
                               className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider ${chip.bg} ${chip.text}`}
                             >
-                              {contract.status}
+                              {t(`status${contract.status.charAt(0).toUpperCase() + contract.status.slice(1)}` as const, 'jobContracts')}
                             </span>
                             {canWrite && (
                               <div

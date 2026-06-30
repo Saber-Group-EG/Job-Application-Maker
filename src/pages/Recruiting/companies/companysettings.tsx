@@ -30,7 +30,7 @@ export default function CompanySettingsPage({ companyId: _companyId, onSaved, on
 
   const { data: companies = [] } = useCompanies();
   const { hasPermission } = useAuth();
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const updateMailMutation = useUpdateMailSettings();
 
   const [availableMails, setAvailableMails] = useState<string[]>([]);
@@ -111,7 +111,7 @@ export default function CompanySettingsPage({ companyId: _companyId, onSaved, on
   const selectedCompany = (companies as any[]).find((company) => company._id === selectedCompanyId);
   const selectedCompanyName =
     (typeof selectedCompany?.name === "object"
-      ? selectedCompany?.name?.en || selectedCompany?.name?.ar
+      ? locale === 'ar' ? (selectedCompany?.name?.ar || selectedCompany?.name?.en) : (selectedCompany?.name?.en || selectedCompany?.name?.ar)
       : selectedCompany?.name) || t('noCompanySelected', 'companies');
   const defaultIsRegistered = !!defaultMail && availableMails.includes(defaultMail);
 

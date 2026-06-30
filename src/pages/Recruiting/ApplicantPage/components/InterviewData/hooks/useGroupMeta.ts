@@ -1,4 +1,5 @@
 import { useCallback, useLayoutEffect, useState } from 'react';
+import { useLocale } from '../../../../../../context/LocaleContext';
 import type { InterviewAnswer } from '../../../../../../types/applicants';
 import type { GroupMeta } from '../utils/groupMetaStorage';
 import { clearStoredMeta, readStoredMeta, writeStoredMeta } from '../utils/groupMetaStorage';
@@ -12,6 +13,7 @@ export type GroupMetaMap = Record<string, GroupMeta>;
  * stripping groupKey/groupName/groupSource on round-trips.
  */
 export const useGroupMeta = (applicantId: string, interviewId: string) => {
+  const { t } = useLocale();
   // Initialize from localStorage synchronously so the first render already
   // has the correct group meta. Otherwise all questions collapse into a
   // single __ungrouped__ group on the first paint.
@@ -62,7 +64,7 @@ export const useGroupMeta = (applicantId: string, interviewId: string) => {
         if (!q.groupKey) return;
         const meta = {
           key: q.groupKey,
-          name: q.groupName || 'Group',
+          name: q.groupName || t('groupName', 'interview'),
           source: q.groupSource || 'company',
         };
         if (qId) additions[qId] = meta;
@@ -89,7 +91,7 @@ export const useGroupMeta = (applicantId: string, interviewId: string) => {
           if (q.groupKey) {
             additions[qId] = {
               key: q.groupKey,
-              name: q.groupName || 'Group',
+              name: q.groupName || t('groupName', 'interview'),
               source: q.groupSource || 'company',
             };
           } else if (stored[qId]) {

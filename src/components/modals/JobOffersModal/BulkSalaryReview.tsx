@@ -122,7 +122,7 @@ export function BulkSalaryReview({
   onChange: (map: BulkOverrideMap) => void;
   formSalary: number | '' | null;
 }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const patch = (id: string, p: Partial<ApplicantOverride>) =>
     onChange({ ...overrideMap, [id]: { ...overrideMap[id], ...p } });
 
@@ -332,7 +332,7 @@ export function BulkSalaryReview({
                 {(resolvedPos.en || resolvedPos.ar) && (
                   <p className="mt-1.5 flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400">
                     <Check className="size-3" />
-                    {resolvedPos.en || resolvedPos.ar}
+                    {locale === 'ar' ? (resolvedPos.ar || resolvedPos.en) : (resolvedPos.en || resolvedPos.ar)}
                   </p>
                 )}
               </div>

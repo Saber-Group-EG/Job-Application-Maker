@@ -286,6 +286,7 @@ const buildLeafQuestion = (
 const buildCustomResponseSections = (
   applicant: Applicant | null | undefined,
   customFields: unknown = [],
+  t?: (key: string, ns?: string, params?: Record<string, string | number>) => string,
 ): ResponseSection[] => {
   if (!applicant) return [];
 
@@ -412,8 +413,8 @@ const buildCustomResponseSections = (
   return [
     {
       id: 'applicant_responses',
-      title: 'Application Responses',
-      description: 'Custom field responses submitted with the application',
+      title: t ? t('applicationResponses', 'common') : 'Application Responses',
+      description: t ? t('applicationResponsesDesc', 'common') : 'Custom field responses submitted with the application',
       questions,
     },
   ];

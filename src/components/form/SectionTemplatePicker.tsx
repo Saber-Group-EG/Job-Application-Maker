@@ -3,6 +3,7 @@ import { ChevronRight, ChevronLeft, Layers, FileText, X } from 'lucide-react';
 import { useCompanies } from '../../hooks/queries/useCompanies';
 import type { SectionTemplate } from '../../types/companies';
 import type { FormSection } from '../modals/JobOffersModal/JobOffersModal';
+import { useLocale } from '../../context/LocaleContext';
 
 const uid = () => `_${Math.random().toString(36).slice(2, 9)}`;
 
@@ -21,6 +22,7 @@ export default function SectionTemplatePicker({
   onInsert,
   inline = false,
 }: Props) {
+  const { locale } = useLocale();
   const { data: companies = [] } = useCompanies();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
@@ -165,7 +167,7 @@ export default function SectionTemplatePicker({
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
-                    {t.title.en || t.title.ar}
+                    {locale === 'ar' ? (t.title.ar || t.title.en) : (t.title.en || t.title.ar)}
                   </p>
                   {t.title.en && t.title.ar && (
                     <p className="text-xs text-slate-400" dir="rtl">

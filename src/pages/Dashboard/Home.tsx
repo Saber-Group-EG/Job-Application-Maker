@@ -71,7 +71,7 @@ export default function Home() {
   const navigate = useNavigate();
   const { selectedCompanyId: globalSelectedCompanyId } = useCompanyFilter();
   const { user } = useAuth();
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
 
   const isSuperAdmin = useMemo(() => {
     const roleName = user?.roleId?.name?.toLowerCase();
@@ -162,7 +162,7 @@ export default function Home() {
       const days = Math.floor(hours / 24);
       if (days === 1) return t('yesterday', 'home');
       if (days < 7) return t('daysAgo', 'home', { days });
-      return d.toLocaleDateString();
+      return d.toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US');
     };
 
     const update = () => setElapsed(formatRelative(lastRefetch));

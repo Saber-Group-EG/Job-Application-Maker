@@ -18,7 +18,7 @@ export default function ImportSectionsModal({
   sourceTemplates,
   sourceLabel,
 }: Props) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState('');
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
@@ -191,7 +191,7 @@ export default function ImportSectionsModal({
                             />
                             <div className="min-w-0">
                               <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
-                                {tmpl.title.en || tmpl.title.ar}
+                                {locale === 'ar' ? (tmpl.title.ar || tmpl.title.en) : (tmpl.title.en || tmpl.title.ar)}
                               </p>
                               {tmpl.title.en && tmpl.title.ar && (
                                 <p

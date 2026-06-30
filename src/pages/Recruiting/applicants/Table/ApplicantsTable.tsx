@@ -514,7 +514,7 @@ export default function Applicants({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user, hasPermission } = useAuth();
-  const { t, dir } = useLocale();
+  const { t, dir, locale } = useLocale();
   const location = useLocation();
   const params = useParams();
 
@@ -750,30 +750,7 @@ const [excludeModes] = useState<Record<string, boolean>>({});
     persistedState: persistedTableState,
   });
 
-  const prevFiltersRef = useRef<string | null>(null);
   useEffect(() => {
-    const serialize = (filters: unknown): unknown => {
-      if (!Array.isArray(filters)) return [];
-      return filters.map((f) => {
-        const item = f as { id?: unknown; value?: unknown } | null;
-        return { id: item?.id, value: item?.value };
-      });
-    };
-    const key = JSON.stringify({
-      columnFilters: serialize(columnFilters),
-      customFilters: serialize(customFilters),
-    });
-    if (prevFiltersRef.current === null) {
-      prevFiltersRef.current = key;
-      return;
-    }
-    if (prevFiltersRef.current !== key) {
-      prevFiltersRef.current = key;
-      setPagination((prev : { pageIndex: number; pageSize: number }) => ({ ...prev, pageIndex: 0 }));
-    }
-  }, [columnFilters, customFilters, setPagination]);
-
-useEffect(() => {
   if (urlParams.status) {
     setColumnFilters((prev: any) => {
       const withoutStatus = prev.filter((f: any) => f.id !== 'status');
@@ -850,12 +827,14 @@ const jobOptions = useMemo(() => {
   const getIdValue = (v: any) =>
     typeof v === 'string' ? v : (v?._id ?? v?.id);
   
-  // Helper function to extract string title from object or string
+  // Helper function to extract string title from object or string (locale-aware)
   const getTitleString = (title: any): string => {
     if (!title) return '';
     if (typeof title === 'string') return title;
     if (typeof title === 'object') {
-      // Try to get English first, then Arabic, then any string value
+      if (locale === 'ar') {
+        return title.ar || title.en || title.name || Object.values(title)[0] || '';
+      }
       return title.en || title.ar || title.name || Object.values(title)[0] || '';
     }
     return String(title);
@@ -887,17 +866,17 @@ const jobOptions = useMemo(() => {
       return { id, title, companyName, companyId, applicantCount };
     })
     .filter((x) => x.id && x.title);
-}, [jobPositions, allCompaniesRaw, applicants]);
+}, [jobPositions, allCompaniesRaw, applicants, locale]);
 
   const companyOptions = useMemo(() => {
     return allCompaniesRaw
       .map((c: any) => {
         const id = typeof c._id === 'string' ? c._id : c._id?._id || '';
-        const title = toPlainString(c?.name) || '';
+        const title = toPlainString(c?.name, locale) || '';
         return { id, title };
       })
       .filter((x) => x.id && x.title);
-  }, [allCompaniesRaw]);
+  }, [allCompaniesRaw, locale]);
 
   // Cascading filter: Get selected company IDs from column filters
   const selectedCompanyIdsForJobs = useMemo(() => {
@@ -957,7 +936,7 @@ const jobOptions = useMemo(() => {
         : (j.companyId?._id ?? j.companyId?.id ?? '');
       const company = companyMap[coId];
       const companyName = company
-        ? toPlainString(company?.name) || company?.title || ''
+        ? toPlainString(company?.name, locale) || company?.title || ''
         : '';
       return {
         label: j.title,
@@ -966,7 +945,7 @@ const jobOptions = useMemo(() => {
         companyId: coId,
       };
     });
-  }, [jobOptions, companyMap]);
+  }, [jobOptions, companyMap, locale]);
 
   const fieldToJobIds = useMemo(
     () => buildFieldToJobIds(jobPositions),
@@ -1140,7 +1119,7 @@ const jobOptions = useMemo(() => {
       jobPositionId: isLaptopViewport ? 118 : 160,
       expectedSalary: isLaptopViewport ? 104 : 140,
       sscore: isLaptopViewport ? 72 : 96,
-      status: isLaptopViewport ? 150 : 170,
+      status: isLaptopViewport ? 190 : 240,
       submittedAt: isLaptopViewport ? 88 : 110,
       actions: 70,
     }),
@@ -1294,7 +1273,7 @@ const jobOptions = useMemo(() => {
       const days = Math.floor(hours / 24);
       if (days === 1) return t('yesterday', 'applicants');
       if (days < 7) return t('daysAgo', 'applicants', { days });
-      return d.toLocaleDateString();
+      return d.toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US');
     };
     const update = () => {
       if (mountedRef.current) setElapsed(formatRelative(lastRefetch));
@@ -1624,19 +1603,19 @@ const jobOptions = useMemo(() => {
     if (!dateString) return '-';
     if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
       const [year, month, day] = dateString.split('-').map(Number);
-      return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+      return new Date(year, month - 1, day).toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', {
         year: 'numeric',
         month: 'short',
         day: 'numeric',
       });
     }
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
+    return date.toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
     });
-  }, []);
+  }, [locale]);
 
 
   const downloadCvForApplicant = useCallback(async (a: any) => {
@@ -1877,7 +1856,9 @@ const jobOptions = useMemo(() => {
     return maps;
   }, [applicants, isSuperAdmin, jobPositionMap]);
 
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() =>
+    typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
+  );
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -2022,6 +2003,12 @@ const jobOptions = useMemo(() => {
             anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
             transformOrigin={{ vertical: 'bottom', horizontal: 'left' }}
             onClick={(e) => e.stopPropagation()}
+            PaperProps={{
+              sx: {
+                backgroundColor: isDarkMode ? '#1f2937' : undefined,
+                color: isDarkMode ? '#e5e7eb' : undefined,
+              },
+            }}
           >
             <ExcludableMultiSelectFilter
               header={header}
@@ -2038,12 +2025,13 @@ const jobOptions = useMemo(() => {
               isArrayColumn={isArrayColumn}
               countsMap={countsMap}
               title={label}
+              isDarkMode={isDarkMode}
             />
           </Popover>
         </div>
       );
     },
-    [layout.excludeColumns, saveLayout]
+    [layout.excludeColumns, saveLayout, isDarkMode]
   );
 
   const makeExcludableColumnProps = (
@@ -2314,7 +2302,7 @@ const jobOptions = useMemo(() => {
         enableSorting: true,
         ...makeExcludableColumnProps(
           'gender',
-          genderOptions.map((o) => ({ label: o.title, value: o.id })),
+          genderOptions.map((o) => ({ label: ['Male', 'Female'].includes(o.title) ? t(o.title.toLowerCase(), 'personalInfo') : o.title, value: o.id })),
           false,
           t('gender', 'applicants')
         ),
@@ -2343,7 +2331,7 @@ const jobOptions = useMemo(() => {
               onClick={(e) => handleApplicantLinkClick(e, row)}
               onAuxClick={handleApplicantLinkAuxClick}
             >
-              {g || '-'}
+              {g ? t(g.toLowerCase(), 'personalInfo') : '-'}
             </a>
           );
         },
@@ -2385,7 +2373,7 @@ const jobOptions = useMemo(() => {
                     onClick={(e) => handleApplicantLinkClick(e, row)}
                     onAuxClick={handleApplicantLinkAuxClick}
                   >
-                    {toPlainString(company?.name) || company?.title || t('nA', 'applicants')}
+                    {toPlainString(company?.name, locale) || company?.title || t('nA', 'applicants')}
                   </a>
                 );
               },
@@ -2432,9 +2420,9 @@ const jobOptions = useMemo(() => {
           const title =
             typeof job?.title === 'string'
               ? job.title
-              : (job?.title?.en ??
-                jobOptions.find((o) => o.id === jobId)?.title ??
-                t('nA', 'applicants'));
+              : locale === 'ar'
+                ? (job?.title?.ar || job?.title?.en || jobOptions.find((o) => o.id === jobId)?.title || t('nA', 'applicants'))
+                : (job?.title?.en || job?.title?.ar || jobOptions.find((o) => o.id === jobId)?.title || t('nA', 'applicants'));
           return (
             <a
               href={getApplicantHref(row)}
@@ -2540,6 +2528,7 @@ const jobOptions = useMemo(() => {
             />
           );
         },
+        minSize: 180,
         size: columnSizeConfig.status,
         Cell: ({ row }: { row: { original: any } }) => {
           if (isTableLoading) return renderCellSkeleton('text', '80px');
@@ -2827,6 +2816,7 @@ const jobOptions = useMemo(() => {
       canRestore,
       dir,
       unfilteredCounts,
+      isDarkMode,
     ]
   );
 
@@ -2916,17 +2906,22 @@ const jobOptions = useMemo(() => {
             width: `${selectColumnWidth}px`,
             minWidth: `${selectColumnWidth}px`,
             maxWidth: `${selectColumnWidth}px`,
+            backgroundColor: isDarkMode ? '#374151' : undefined,
+            color: isDarkMode ? '#e5e7eb' : undefined,
           },
         },
-        muiTableBodyCellProps: {
+        muiTableBodyCellProps: ({ row }: any) => ({
           align: 'center',
           sx: {
             padding: 0,
             width: `${selectColumnWidth}px`,
             minWidth: `${selectColumnWidth}px`,
             maxWidth: `${selectColumnWidth}px`,
+            backgroundColor: isDarkMode
+              ? (row.index % 2 === 0 ? '#374151' : '#1f2937')
+              : undefined,
           },
-        },
+        }),
         Cell: ({ row, table }: any) => {
           if (isTableLoading) return null;
           return (
@@ -3085,15 +3080,66 @@ const jobOptions = useMemo(() => {
         </div>
       </div>
     ),
+    muiTopToolbarProps: {
+      sx: {
+        backgroundColor: isDarkMode ? '#1f2937' : undefined,
+        color: isDarkMode ? '#e5e7eb' : undefined,
+        '& .MuiInputBase-root': {
+          color: isDarkMode ? '#e5e7eb' : undefined,
+        },
+        '& .MuiInputBase-input': {
+          color: isDarkMode ? '#e5e7eb' : undefined,
+        },
+        '& .MuiSvgIcon-root': {
+          color: isDarkMode ? '#9ca3af' : undefined,
+        },
+      },
+    },
+    muiBottomToolbarProps: {
+      sx: {
+        backgroundColor: isDarkMode ? '#1f2937' : undefined,
+        color: isDarkMode ? '#e5e7eb' : undefined,
+        '& .MuiSvgIcon-root': {
+          color: isDarkMode ? '#9ca3af' : undefined,
+        },
+        '& .MuiTablePagination-toolbar': {
+          color: isDarkMode ? '#e5e7eb' : undefined,
+        },
+      },
+    },
     muiTablePaperProps: {
       elevation: 0,
+      sx: {
+        backgroundColor: isDarkMode ? '#1f2937' : undefined,
+      },
+    },
+    muiTableProps: {
+      sx: {
+        backgroundColor: isDarkMode ? '#1f2937' : undefined,
+      },
+    },
+    muiTableContainerProps: {
+      sx: {
+        '&::-webkit-scrollbar': {
+          width: '6px',
+          height: '6px',
+        },
+        '&::-webkit-scrollbar-track': {
+          backgroundColor: isDarkMode ? '#1f2937' : undefined,
+        },
+        '&::-webkit-scrollbar-thumb': {
+          backgroundColor: isDarkMode ? '#4b5563' : undefined,
+          borderRadius: '3px',
+        },
+      },
     },
     muiTableBodyCellProps: () => ({
       sx: {
         whiteSpace: 'nowrap',
         overflow: 'hidden',
         textOverflow: 'ellipsis',
-        color: '#282828',
+        color: isDarkMode ? '#e5e7eb' : '#282828',
+        borderBottom: isDarkMode ? '1px solid #374151' : undefined,
       },
     }),
     muiTableHeadCellProps: ({ column }) => ({
@@ -3102,6 +3148,9 @@ const jobOptions = useMemo(() => {
         fontWeight: 'bold',
         position: 'relative',
         overflow: 'visible',
+        color: isDarkMode ? '#e5e7eb' : undefined,
+        backgroundColor: isDarkMode ? '#374151' : undefined,
+        borderBottom: isDarkMode ? '1px solid #4b5563' : undefined,
         '& .MuiTableSortLabel-icon': { display: 'none' },
         '& .MuiBadge-root': { display: 'none' },
         '& .Mui-TableHeadCell-Content': {
@@ -3148,10 +3197,13 @@ const jobOptions = useMemo(() => {
     }),
     muiTableBodyRowProps: ({ row, table }) => ({
       sx: {
-        backgroundColor:
-          table.getRowModel().rows.indexOf(row) % 2 === 0
-            ? 'rgba(240, 240, 240, 1)'
-            : 'white',
+        backgroundColor: isDarkMode
+          ? (table.getRowModel().rows.indexOf(row) % 2 === 0
+              ? '#374151'
+              : '#1f2937')
+          : (table.getRowModel().rows.indexOf(row) % 2 === 0
+              ? 'rgba(240, 240, 240, 1)'
+              : 'white'),
         '& .MuiTableRow-root': {
           overflow: 'hidden',
           width: '100%',
@@ -3166,7 +3218,7 @@ const jobOptions = useMemo(() => {
   });
 
   return (
-    <ThemeProvider theme={muiTheme}>
+    <ThemeProvider theme={muiTheme} key={isDarkMode ? 'dark' : 'light'}>
         <div className="w-full min-w-0">
         <PageMeta title={t('pageTitle', 'applicants')} description={t('pageDescription', 'applicants')} />
         <PageBreadcrumb
@@ -3449,7 +3501,7 @@ const jobOptions = useMemo(() => {
                       <button
                         type="button"
                         onClick={() => setShowBulkInterviewPreviewModal(false)}
-                        className="rounded-lg border border-stroke px-4 py-2 hover:bg-gray-100"
+                        className="rounded-lg border border-stroke px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700"
                       >
                         {t('close', 'applicants')}
                       </button>
@@ -3491,7 +3543,7 @@ const jobOptions = useMemo(() => {
             <div className="relative max-h-[90vh] max-w-[90vw] p-4">
               <button
                 onClick={() => setPreviewPhotoUrl(null)}
-                className="absolute -top-2 -right-2 flex h-8 w-8 items-center justify-center rounded-full bg-white text-gray-700 shadow-lg hover:bg-gray-100"
+                className="absolute -top-2 -right-2 flex h-8 w-8 items-center justify-center rounded-full bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 shadow-lg hover:bg-gray-100 dark:hover:bg-gray-600"
               >
                 ✕
               </button>

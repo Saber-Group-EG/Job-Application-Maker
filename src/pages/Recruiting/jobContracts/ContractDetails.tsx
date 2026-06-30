@@ -35,7 +35,7 @@ export function ContractDetail({
   onClone: (c: JobContract) => void;
   onStatusChange: (id: string, status: ContractStatus) => void;
 }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const chip = STATUS_CHIP[contract.status];
 
   const applicantName =
@@ -49,7 +49,7 @@ export function ContractDetail({
 
   const formatDate = (d: string | null | undefined) => {
     if (!d) return null;
-    return new Date(d).toLocaleDateString('en-US', {
+    return new Date(d).toLocaleDateString(locale, {
       month: 'short',
       day: '2-digit',
       year: 'numeric',
@@ -107,14 +107,18 @@ export function ContractDetail({
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-              {contract.position?.en}{' '}
-              {contract.position?.ar && ` / ${contract.position.ar}`}
+              {locale === 'ar' ? (contract.position?.ar || contract.position?.en) : (contract.position?.en || contract.position?.ar)}
             </h2>
             <div className="mt-2 flex flex-wrap items-center gap-3">
               <span
                 className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${CONTRACT_TYPE_COLORS[contract.contractType]}`}
               >
-                {contract.contractType}
+                {t(
+                  contract.contractType === 'fixed-term'
+                    ? 'fixedTerm'
+                    : contract.contractType || '',
+                  'modals',
+                )}
               </span>
               {contract.salary.basic != null && (
                 <span className="flex items-center gap-1 text-xs text-slate-500">
@@ -151,7 +155,10 @@ export function ContractDetail({
               ] as ContractStatus[]
             ).map((s) => (
               <option key={s} value={s}>
-                {s.charAt(0).toUpperCase() + s.slice(1)}
+                {t(
+                  `status${s.charAt(0).toUpperCase() + s.slice(1)}` as const,
+                  'jobContracts',
+                )}
               </option>
             ))}
           </select>
@@ -229,11 +236,11 @@ export function ContractDetail({
                 className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-4 py-2.5 dark:border-slate-700 dark:bg-slate-800/40"
               >
                 <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
-                  {b.label.en || b.label.ar}
+                  {locale === 'ar' ? (b.label.ar || b.label.en) : (b.label.en || b.label.ar)}
                 </p>
                 {(b.value?.en || b.value?.ar) && (
                   <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">
-                    {b.value?.en} {b.value?.ar && ` / ${b.value.ar}`} 
+                    {locale === 'ar' ? (b.value?.ar || b.value?.en) : (b.value?.en || b.value?.ar)}
                   </span>
                 )}
               </div>
@@ -253,10 +260,14 @@ export function ContractDetail({
             {contract.sections
               .slice()
               .sort((a, b) => a.displayOrder - b.displayOrder)
+              .filter((s) => {
+                if (locale === 'ar') return s.title?.ar || s.items?.some((it) => it.ar);
+                return s.title?.en || s.items?.some((it) => it.en);
+              })
               .map((section, i) => (
                 <div key={i}>
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                    {section.title.en || section.title.ar}
+                    {locale === 'ar' ? (section.title.ar || section.title.en) : (section.title.en || section.title.ar)}
                   </p>
                   <ul className="space-y-1">
                     {section.items.map((item, j) => (
@@ -265,7 +276,7 @@ export function ContractDetail({
                         className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-400"
                       >
                         <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-400" />
-                        {item.en || item.ar}
+                        {locale === 'ar' ? (item.ar || item.en) : (item.en || item.ar)}
                       </li>
                     ))}
                   </ul>
@@ -276,28 +287,29 @@ export function ContractDetail({
       )}
 
       {/* Notes */}
-      {contract.notes?.en && (
-        <div className="border-b border-slate-200 p-6 dark:border-slate-800">
-          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
-            <Clock3 className="h-4 w-4" />
-            {t('internalNotesEn', 'jobContracts')}
-          </h3>
-          <p className="text-sm text-slate-600 dark:text-slate-400">
-            {contract.notes.en}
-          </p>
-        </div>
-      )}
-      {contract.notes?.ar && (
-        <div className="border-b border-slate-200 p-6 dark:border-slate-800">
-          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
-            <Clock3 className="h-4 w-4" />
-            {t('internalNotesAr', 'jobContracts')}
-          </h3>
-          <p className="text-sm text-slate-600 dark:text-slate-400">
-            {contract.notes.ar}
-          </p>
-        </div>
-      )}
+      {locale === 'ar'
+        ? contract.notes?.ar && (
+            <div className="border-b border-slate-200 p-6 dark:border-slate-800">
+              <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
+                <Clock3 className="h-4 w-4" />
+                {t('internalNotes', 'jobContracts')}
+              </h3>
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                {contract.notes.ar}
+              </p>
+            </div>
+          )
+        : contract.notes?.en && (
+            <div className="border-b border-slate-200 p-6 dark:border-slate-800">
+              <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
+                <Clock3 className="h-4 w-4" />
+                {t('internalNotes', 'jobContracts')}
+              </h3>
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                {contract.notes.en}
+              </p>
+            </div>
+          )}
 
       {/* Timeline */}
       <div className="p-6">
@@ -326,7 +338,7 @@ export function ContractDetail({
                     {event.label}
                   </p>
                   <p className="text-sm text-slate-700 dark:text-slate-300">
-                    {new Date(event.date!).toLocaleString('en-US', {
+                    {new Date(event.date!).toLocaleString(locale, {
                       month: 'short',
                       day: '2-digit',
                       hour: '2-digit',

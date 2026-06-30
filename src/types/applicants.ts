@@ -275,7 +275,7 @@ export interface JobSpecItem {
   answer: boolean;
   _id: string;
   id: string;
-  spec: { en: string };
+  spec: { en: string; ar?: string };
   weight: number;
 }
 

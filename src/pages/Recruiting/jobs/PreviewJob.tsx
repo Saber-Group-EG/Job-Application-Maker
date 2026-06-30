@@ -216,7 +216,7 @@ export default function PreviewJob() {
       if (mins < 60) return t('previewMinAgo', 'jobs', { mins });
       const hours = Math.floor(mins / 60);
       if (hours < 24) return t('previewHourAgo', 'jobs', { hours });
-      return d.toLocaleDateString();
+      return d.toLocaleDateString(locale);
     };
 
     const update = () => setElapsed(formatRelative(lastRefetch));
@@ -297,7 +297,7 @@ export default function PreviewJob() {
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return t('previewNa', 'jobs');
-    return new Date(dateString).toLocaleDateString("en-US", {
+    return new Date(dateString).toLocaleDateString(locale, {
       year: "numeric",
       month: "short",
       day: "numeric",
@@ -311,7 +311,7 @@ export default function PreviewJob() {
     if (s.includes("part")) return t('createPartTime', 'jobs');
     if (s.includes("contract")) return t('createContract', 'jobs');
     if (s.includes("intern")) return t('createInternship', 'jobs');
-    return String(val).charAt(0).toUpperCase() + String(val).slice(1);
+    return String(val);
   };
 
   const formatInputType = (type: string) => {

@@ -68,7 +68,9 @@ export function ApplicantsTable({
   renderTopToolbarCustomActions,
 }: ApplicantsTableProps) {
   const { t } = useLocale();
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() =>
+    typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
+  );
 
   // Detect dark mode
   useEffect(() => {
@@ -247,6 +249,14 @@ export function ApplicantsTable({
     onColumnOrderChange,
     muiTablePaperProps: {
       elevation: 0,
+      sx: {
+        backgroundColor: isDarkMode ? '#121212' : undefined,
+      },
+    },
+    muiTableProps: {
+      sx: {
+        backgroundColor: isDarkMode ? '#1a1a1a' : undefined,
+      },
     },
 
     muiTableBodyCellProps: () => ({
@@ -254,13 +264,17 @@ export function ApplicantsTable({
         whiteSpace: 'nowrap',
         overflow: 'hidden',
         textOverflow: 'ellipsis',
-        color: '#282828',
+        color: isDarkMode ? '#e0e0e0' : '#282828',
+        borderBottom: isDarkMode ? '1px solid #333' : undefined,
       },
     }),
     muiTableHeadCellProps: ({ column }) => ({
       sx: {
         height: '50px',
         fontWeight: 'bold',
+        color: isDarkMode ? '#e0e0e0' : undefined,
+        backgroundColor: isDarkMode ? '#1e1e1e' : undefined,
+        borderBottom: isDarkMode ? '1px solid #333' : undefined,
         '& .MuiTableSortLabel-icon': { display: 'none' },
         '& .MuiBadge-root': { display: 'none' },
         '& .Mui-TableHeadCell-Content': {
@@ -303,10 +317,13 @@ export function ApplicantsTable({
     }),
     muiTableBodyRowProps: ({ row, table }) => ({
       sx: {
-        backgroundColor:
-          table.getRowModel().rows.indexOf(row) % 2 === 0
-            ? 'rgba(240, 240, 240, 1)'
-            : 'white',
+        backgroundColor: isDarkMode
+          ? (table.getRowModel().rows.indexOf(row) % 2 === 0
+              ? '#2a2a2a'
+              : '#1e1e1e')
+          : (table.getRowModel().rows.indexOf(row) % 2 === 0
+              ? 'rgba(240, 240, 240, 1)'
+              : 'white'),
         '& .MuiTableRow-root': {
           overflow: 'hidden',
           width: '100%',

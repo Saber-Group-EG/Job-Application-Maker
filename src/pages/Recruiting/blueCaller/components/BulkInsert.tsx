@@ -715,7 +715,7 @@ function extractOptions(fieldRecord: Record<string, unknown>): string[] {
 
 // ─── Build template workbook for a specific job position ──────────────────────
 
-function buildTemplateWorkbookForJob(jobPosition: JobPosition): {
+function buildTemplateWorkbookForJob(jobPosition: JobPosition, t?: (key: string, ns?: string) => string): {
   workbook: XLSX.WorkBook;
   dropdownMap: Map<number, string[]>;
   dateColumns: Set<number>;
@@ -803,7 +803,7 @@ function buildTemplateWorkbookForJob(jobPosition: JobPosition): {
     if (jobSpecHeaders.includes(header)) return 'Yes / No';
 
     // Base field notes
-    if (header === 'gender') return 'Required – Male / Female';
+    if (header === 'gender') return t ? t('templateGenderNote', 'blueCaller') : 'Required – Male / Female';
     if (header === 'expectedSalary') return 'Optional – numeric';
     if (requiredBaseFields.has(header)) return 'Required';
 
@@ -1341,7 +1341,7 @@ export default function BulkInsert({
       return;
     }
 
-    const { workbook, dropdownMap, dateColumns } = buildTemplateWorkbookForJob(jobPosition);
+    const { workbook, dropdownMap, dateColumns } = buildTemplateWorkbookForJob(jobPosition, t);
     const fileName = `Applicant_Template_${toStringValue(jobPosition.title).replace(/[^a-z0-9]/gi, '_')}.xlsx`;
 
     try {
@@ -1676,16 +1676,16 @@ export default function BulkInsert({
     <div className="space-y-6">
       {/* Top Section: Template + Upload + Stats + Submit */}
       <section
-        className={`space-y-5 rounded-3xl border ${themeColors.borderPrimary} bg-white p-6 shadow-xl`}
+        className={`space-y-5 rounded-3xl border ${themeColors.borderPrimary} bg-white dark:bg-gray-800 p-6 shadow-xl`}
       >
         <div
           className={`flex items-center justify-between gap-4 border-b ${themeColors.borderLight} pb-4`}
         >
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
               {t('bulkExcelInsert', 'blueCaller')}
             </h2>
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
               {t('bulkExcelDesc', 'blueCaller')}
               <span className="block text-amber-600 text-xs mt-1">
                 ⚠️ {t('duplicateWarningDesc', 'blueCaller')}
@@ -1696,21 +1696,21 @@ export default function BulkInsert({
 
         {/* Template Download Section */}
         <div
-          className={`rounded-2xl border ${themeColors.borderLight} ${themeColors.bgLight} p-4`}
+          className={`rounded-2xl border ${themeColors.borderLight} ${themeColors.bgLight} dark:bg-gray-700 p-4`}
         >
-          <h3 className="text-md font-semibold text-gray-900 mb-3">
+          <h3 className="text-md font-semibold text-gray-900 dark:text-gray-100 mb-3">
             {t('downloadTemplate', 'blueCaller')}
           </h3>
           <div className="flex flex-col sm:flex-row gap-3 items-end">
             <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                 {t('selectJobPosition', 'blueCaller')}
               </label>
               <div className="relative">
                 <select
                   value={selectedJobForTemplate}
                   onChange={(e) => setSelectedJobForTemplate(e.target.value)}
-                  className={`w-full appearance-none rounded-xl border ${themeColors.borderPrimary} bg-white px-4 py-2 pr-10 text-sm shadow-sm outline-none transition ${themeColors.focusRing}`}
+                  className={`w-full appearance-none rounded-xl border ${themeColors.borderPrimary} bg-white dark:bg-gray-800 px-4 py-2 pr-10 text-sm shadow-sm outline-none transition ${themeColors.focusRing}`}
                 >
                   <option value="">{t('selectJobPositionPlaceholder', 'blueCaller')}</option>
                   {jobPositions.map((job) => (
@@ -1719,7 +1719,7 @@ export default function BulkInsert({
                     </option>
                   ))}
                 </select>
-                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
               </div>
             </div>
             <button
@@ -1740,7 +1740,7 @@ export default function BulkInsert({
 
         {/* Upload Section */}
         <div>
-          <h3 className="text-md font-semibold text-gray-900 mb-3">
+          <h3 className="text-md font-semibold text-gray-900 dark:text-gray-100 mb-3">
             {t('uploadFile', 'blueCaller')}
           </h3>
           <label
@@ -1749,18 +1749,18 @@ export default function BulkInsert({
               e.preventDefault();
               void handleBulkDrop(e.dataTransfer.files);
             }}
-            className={`flex cursor-pointer flex-col items-center justify-center gap-4 rounded-3xl border-2 border-dashed ${themeColors.borderPrimary} ${themeColors.bgLight} px-6 py-10 text-center transition hover:bg-gray-200`}
+            className={`flex cursor-pointer flex-col items-center justify-center gap-4 rounded-3xl border-2 border-dashed ${themeColors.borderPrimary} ${themeColors.bgLight} px-6 py-10 text-center transition hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-600`}
           >
-            <div className="rounded-2xl bg-white p-4 shadow-sm">
+            <div className="rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
               <FileSpreadsheet
                 className={`h-8 w-8 ${themeColors.textPrimary}`}
               />
             </div>
             <div className="space-y-1">
-              <p className="text-lg font-bold text-gray-900">
+              <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
                 {t('dropXlsxHere', 'blueCaller')}
               </p>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 dark:text-gray-300">
                 {t('orClickToBrowse', 'blueCaller')}
               </p>
             </div>
@@ -1781,15 +1781,15 @@ export default function BulkInsert({
 
         {bulkFileName && (
           <div
-            className={`flex items-center justify-between rounded-2xl border ${themeColors.borderLight} ${themeColors.bgLight} px-4 py-3`}
+            className={`flex items-center justify-between rounded-2xl border ${themeColors.borderLight} ${themeColors.bgLight} dark:bg-gray-700 px-4 py-3`}
           >
             <div className="flex items-center gap-3">
               <FileText className={`h-5 w-5 ${themeColors.textPrimary}`} />
               <div>
-                <p className="text-sm font-semibold text-gray-900">
+                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                   {getDisplayFileName(bulkFileName, 40)}
                 </p>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-500 dark:text-gray-400">
                   {t('clickCellsToEdit', 'blueCaller')}
                 </p>
               </div>
@@ -1798,7 +1798,7 @@ export default function BulkInsert({
         )}
 
         {bulkUploadErrors.length > 0 && (
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
             <div className="mb-2 flex items-center gap-2 font-semibold">
               <AlertCircle className="h-4 w-4" /> {t('uploadIssues', 'blueCaller')}
             </div>
@@ -1815,7 +1815,7 @@ export default function BulkInsert({
             {
               label: t('parsedRows', 'blueCaller'),
               value: bulkRows.length,
-              color: 'text-gray-900',
+              color: 'text-gray-900 dark:text-gray-100',
             },
             {
               label: t('valid', 'blueCaller'),
@@ -1839,7 +1839,7 @@ export default function BulkInsert({
           ].map(({ label, value, color }) => (
             <div
               key={label}
-              className={`rounded-2xl border ${themeColors.borderLight} ${themeColors.bgLight} p-4`}
+          className={`rounded-2xl border ${themeColors.borderLight} ${themeColors.bgLight} dark:bg-gray-700 p-4`}
             >
               <p
                 className={`text-xs uppercase tracking-[0.18em] ${themeColors.textPrimary}`}
@@ -1852,7 +1852,7 @@ export default function BulkInsert({
         </div>
 
         <div
-          className={`rounded-2xl border ${themeColors.borderLight} ${themeColors.bgLight} p-4 text-sm text-gray-600`}
+          className={`rounded-2xl border ${themeColors.borderLight} ${themeColors.bgLight} dark:bg-gray-700 p-4 text-sm text-gray-600 dark:text-gray-300`}
         >
           <span className={`font-semibold ${themeColors.textPrimary}`}>
             {t('validationRules', 'blueCaller')}
@@ -1873,22 +1873,22 @@ export default function BulkInsert({
 
       {/* Bottom Section: Editable Applicant Table */}
       <section
-        className={`overflow-hidden rounded-3xl border ${themeColors.borderPrimary} bg-white shadow-xl flex flex-col`}
+        className={`overflow-hidden rounded-3xl border ${themeColors.borderPrimary} bg-white dark:bg-gray-800 shadow-xl flex flex-col`}
       >
         <div
           className={`flex items-center justify-between border-b ${themeColors.borderLight} px-4 py-3 flex-shrink-0 flex-wrap gap-2`}
         >
           <div>
-            <h3 className="text-base font-bold text-gray-900">
+            <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">
               {t('applicantData', 'blueCaller')}
             </h3>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-gray-500 dark:text-gray-400">
               {t('applicantDataHint', 'blueCaller')}
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <span
-              className={`rounded-full ${themeColors.bgLight} px-3 py-1 text-xs font-semibold ${themeColors.textPrimary} whitespace-nowrap`}
+              className={`rounded-full ${themeColors.bgLight} dark:bg-gray-700 px-3 py-1 text-xs font-semibold ${themeColors.textPrimary} whitespace-nowrap`}
             >
               {t('rowsByCols', 'blueCaller', { rows: bulkPreviewRows.length, cols: allColumnHeaders.length })}
             </span>
@@ -1902,7 +1902,7 @@ export default function BulkInsert({
                   setBulkFileResetKey((v) => v + 1);
                   setSelectedRowKeys(new Set());
                 }}
-                className={`inline-flex items-center gap-1 rounded-xl border ${themeColors.borderPrimary} bg-white px-3 py-1.5 text-xs font-semibold ${themeColors.textPrimary}`}
+                className={`inline-flex items-center gap-1 rounded-xl border ${themeColors.borderPrimary} bg-white dark:bg-gray-800 px-3 py-1.5 text-xs font-semibold ${themeColors.textPrimary}`}
               >
                 <Trash2 className="h-3 w-3" /> {t('reset', 'blueCaller')}
               </button>
@@ -1944,7 +1944,7 @@ export default function BulkInsert({
             className={`min-w-full divide-y ${themeColors.borderLight} text-left text-xs`}
           >
             <thead
-              className={`${themeColors.bgLight} text-gray-900 sticky top-0 z-10`}
+              className={`${themeColors.bgLight} dark:bg-gray-700 text-gray-900 dark:text-gray-100 sticky top-0 z-10`}
             >
               <tr>
                 <th className="px-2 py-2 font-semibold w-[40px]">
@@ -1972,11 +1972,11 @@ export default function BulkInsert({
                 ))}
               </tr>
             </thead>
-            <tbody className={`divide-y ${themeColors.borderLight} bg-white`}>
+            <tbody className={`divide-y ${themeColors.borderLight} bg-white dark:bg-gray-800`}>
               {bulkPreviewRows.length === 0 ? (
                 <tr>
                   <td
-                    className="px-2 py-8 text-center text-gray-500"
+                    className="px-2 py-8 text-center text-gray-500 dark:text-gray-400"
                     colSpan={allColumnHeaders.length + 4}
                   >
                     {t('uploadToPreview', 'blueCaller')}
@@ -2008,7 +2008,7 @@ export default function BulkInsert({
                           onChange={() => toggleRowSelection(rowKey)}
                         />
                       </td>
-                      <td className="px-2 py-2 font-medium text-gray-700 text-center">
+                      <td className="px-2 py-2 font-medium text-gray-700 dark:text-gray-200 text-center">
                         {row.rowNumber}
                       </td>
                       <td className="px-2 py-2">
@@ -2066,7 +2066,7 @@ export default function BulkInsert({
                               <select
                                 defaultValue={String(currentValue ?? '')}
                                 onChange={(e) => handleCellEdit(rowIndex, header, e.target.value)}
-                                className="w-full bg-transparent border-none outline-none text-gray-700 focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5"
+                                className="w-full bg-transparent border-none outline-none text-gray-700 dark:text-gray-200 focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5"
                               >
                                 <option value="">--</option>
                                 {currentMeta.options?.map((opt) => (
@@ -2078,7 +2078,7 @@ export default function BulkInsert({
                                 type="text"
                                 defaultValue={String(currentValue ?? '')}
                                 onBlur={(e) => handleCellEdit(rowIndex, header, e.target.value)}
-                                className="w-full bg-transparent border-none outline-none text-gray-700 focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5"
+                                className="w-full bg-transparent border-none outline-none text-gray-700 dark:text-gray-200 focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5"
                               />
                             )}
                           </td>
@@ -2094,7 +2094,7 @@ export default function BulkInsert({
 
         {allColumnHeaders.length > 6 && (
           <div
-            className={`border-t ${themeColors.borderLight} px-3 py-1.5 text-center text-[10px] text-gray-400 flex-shrink-0`}
+            className={`border-t ${themeColors.borderLight} px-3 py-1.5 text-center text-[10px] text-gray-400 dark:text-gray-500 flex-shrink-0`}
           >
             <span className="inline-flex items-center gap-1">
               {t('scrollHint', 'blueCaller', { count: allColumnHeaders.length })}
