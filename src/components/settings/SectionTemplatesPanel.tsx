@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef } from 'react';
 import {
   Layers,
   PlusCircle,
@@ -50,6 +50,7 @@ function CategoryGroup({
 }) {
   const { t, locale } = useLocale();
   const [collapsed, setCollapsed] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
@@ -73,8 +74,15 @@ function CategoryGroup({
       </button>
 
       {/* cards */}
-      {!collapsed && (
-        <div className="grid grid-cols-1 gap-3 p-3 sm:grid-cols-2 xl:grid-cols-3">
+      <div
+        style={{
+          maxHeight: collapsed ? 0 : (contentRef.current?.scrollHeight ?? 5000),
+          opacity: collapsed ? 0 : 1,
+          overflow: 'hidden',
+          transition: 'max-height 0.3s cubic-bezier(0.2, 0, 0, 1), opacity 0.25s cubic-bezier(0.2, 0, 0, 1)',
+        }}
+      >
+        <div ref={contentRef} className="grid grid-cols-1 gap-3 p-3 sm:grid-cols-2 xl:grid-cols-3">
           {templates.map((tmpl) => (
             <div
               key={tmpl._id}
@@ -129,7 +137,7 @@ function CategoryGroup({
             </div>
           ))}
         </div>
-      )}
+      </div>
     </div>
   );
 }

@@ -506,6 +506,21 @@ a svg path {
   @apply hidden;
 }
 
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@utility animate-fade-slide-in {
+  animation: fadeSlideIn 0.25s ease-out;
+}
+
 /* Force MultiSelect dropdown to show all items */
 .multi-select-dropdown,
 .multi-select-options,

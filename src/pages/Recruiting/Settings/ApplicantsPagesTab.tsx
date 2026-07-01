@@ -79,6 +79,7 @@ function SortablePageItem({
 }) {
   const [editingName, setEditingName] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   const {
     attributes,
@@ -190,8 +191,15 @@ function SortablePageItem({
         </button>
       </div>
 
-      {!isCollapsed && (
-        <div className="border-t border-slate-200 p-4 dark:border-slate-700">
+      <div
+        style={{
+          maxHeight: isCollapsed ? 0 : (contentRef.current?.scrollHeight ?? 5000),
+          opacity: isCollapsed ? 0 : 1,
+          overflow: 'hidden',
+          transition: 'max-height 0.3s cubic-bezier(0.2, 0, 0, 1), opacity 0.25s cubic-bezier(0.2, 0, 0, 1)',
+        }}
+      >
+        <div ref={contentRef} className="border-t border-slate-200 p-4 dark:border-slate-700">
           {(availableJobPositions.length > 0 || jobsLoading) && (
             <>
               <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -286,7 +294,7 @@ function SortablePageItem({
             </p>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

@@ -357,6 +357,7 @@ function SortableGroupItem({
   };
 
   const isCollapsed = collapsedGroupIds.has(group._id);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   return (
     <div
@@ -415,13 +416,13 @@ function SortableGroupItem({
 
       <div
         style={{
-          maxHeight: isCollapsed ? 0 : '5000px',
+          maxHeight: isCollapsed ? 0 : (contentRef.current?.scrollHeight ?? 5000),
           opacity: isCollapsed ? 0 : 1,
           overflow: 'hidden',
           transition: 'max-height 0.3s cubic-bezier(0.2, 0, 0, 1), opacity 0.25s cubic-bezier(0.2, 0, 0, 1)',
         }}
       >
-        <div className="space-y-3 border-t border-slate-200 p-4 dark:border-slate-700">
+        <div ref={contentRef} className="space-y-3 border-t border-slate-200 p-4 dark:border-slate-700">
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
@@ -1046,6 +1047,7 @@ export default function InterviewCompanySettingsPage() {
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
 
           <div className="xl:col-span-12">
+            <div key={activeTab} className="animate-fade-slide-in">
             {isInterviewGroupsTab ? (
               <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
                 <div className="flex flex-col gap-3 border-b border-slate-200 p-6 dark:border-slate-800 sm:flex-row sm:items-start sm:justify-between">
@@ -1185,6 +1187,7 @@ export default function InterviewCompanySettingsPage() {
             ) : isOffersTab ? (
               <JobOffersTab companyId={effectiveCompanyId!} hideCompanySelector={true} embedded />
             ) : null}
+            </div>
           </div>
         </div>
       </div>
