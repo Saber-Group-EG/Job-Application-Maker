@@ -202,6 +202,7 @@ export default function OfferTemplatesTab({
       text: t('jobOffers.deleteText', 'settings'),
       icon: 'warning',
       showCancelButton: true,
+      cancelButtonText: t('cancel', 'common'),
       confirmButtonText: t('jobOffers.deleteConfirm', 'settings'),
       confirmButtonColor: '#ef4444',
     });

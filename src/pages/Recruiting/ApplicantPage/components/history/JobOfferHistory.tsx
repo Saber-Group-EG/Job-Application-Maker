@@ -96,7 +96,6 @@ export default function JobOfferHistory({
           </thead>
           <tbody className="divide-y divide-gray-50 bg-white">
             {offers.map((offer, index) => {
-              const offerId = offer?._id || null;
               const status = offer?.status || 'draft';
 
               const companyName =
@@ -110,7 +109,7 @@ export default function JobOfferHistory({
 
               return (
                 <tr
-                  key={offerId || index}
+                  key={offer._id || `offer-${index}`}
                   className="group cursor-pointer transition-colors hover:bg-blue-50/40"
                   onClick={(event) => {
                     event.stopPropagation();

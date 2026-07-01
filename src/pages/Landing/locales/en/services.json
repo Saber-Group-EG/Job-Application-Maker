@@ -1,0 +1,145 @@
+{
+  "hero": {
+    "eyebrow": "Two tools we use to run our own business — now yours to run yours",
+    "title": "ATS handles hiring. We built it because the tools on the market cost too much.",
+    "subtitle": "See what it actually does, and ask for a quote."
+  },
+  "tabs": {
+    "ats": "ATS — Hiring"
+  },
+  "products": {
+    "ats": {
+      "name": "ATS",
+      "tagline": "Applicant Tracking System",
+      "description": "Every job posting, application, interview, and offer letter in one place. Built after watching a hiring manager track candidates across four WhatsApp groups and a shared spreadsheet — we figured there was a better way, so we built it for ourselves first, then for clients.",
+      "trace": {
+        "label": "A candidate moving through the system",
+        "lines": [
+          "candidate applied → Frontend Developer, custom fields filled",
+          "HR moved candidate → Interview",
+          "interview scheduled → Thu 11:00 AM, scored questions attached",
+          "interview completed → score 82/100, above threshold",
+          "offer generated from template → sent by email, opened in 4 min",
+          "contract generated → downloaded as PDF, candidate marked Hired"
+        ]
+      },
+      "capabilities": [
+        "Post a job with whatever custom fields the role needs, and get a link to share anywhere — LinkedIn, Facebook, any platform",
+        "Filter applicants with deep search across every field, not just name and status",
+        "Move a candidate's status yourself, with a reason attached, so the history explains itself later",
+        "Choose per company whether applicants get an automatic confirmation email on submission",
+        "Email candidates from inside the system and see exactly what happened — sent, delivered, opened, clicked, bounced",
+        "See a full history per applicant: every status change, offer, contract, and email in one timeline",
+        "Build offers and contracts from templates instead of writing them from scratch each time, and send offers by email or download contracts as PDF",
+        "Schedule interviews with scored questions, and set a threshold so it's clear who passed",
+        "Assign a user to specific companies and departments, so they only see applicants for the jobs that are theirs to see",
+        "Relabel the sidebar per company so your team sees the statuses and jobs that matter to them, not a generic menu"
+      ],
+      "notes": "Email sending is capped at 100 per day across the system; teams that need more can talk to us about a higher limit."
+    }
+  },
+  "tiersSection": {
+    "title": "Plans",
+    "subtitle": "How we tier each product, based on team size and how much automation you need. Exact pricing is set per client for now — tell us your team size and we'll tell you which one fits.",
+    "ctaLabel": "Get a quote"
+  },
+  "quoteForm": {
+    "title": "Get a quote",
+    "subtitle": "Tell us a bit about your team and which product you need. We'll follow up with sizing and a price — no payment on this page.",
+    "fields": {
+      "name": "Your name",
+      "company": "Company name",
+      "phone": "Phone / WhatsApp",
+      "product": "Which product?",
+      "tier": "Which plan looks closest?",
+      "teamSize": "Team size",
+      "notes": "Anything else we should know?"
+    },
+    "productOptions": [
+      { "value": "ats", "label": "ATS — Hiring" }
+    ],
+    "submit": "Send request",
+    "sending": "Sending…",
+    "successTitle": "Got it.",
+    "successMessage": "We'll reach out on the number you gave us, usually within a business day, to size the plan and send a quote.",
+    "errorMessage": "Something went wrong sending this. Try again, or just WhatsApp us at 01080099757.",
+    "privacyNote": "No payment happens here — this just gets a quote started.",
+    "validation": {
+      "nameRequired": "Name is required",
+      "phoneRequired": "Phone is required",
+      "companyRequired": "Company name is required"
+    },
+    "teamSizePlaceholder": "e.g. 12 users",
+    "selectPlaceholder": "— Select —",
+    "okButton": "OK",
+    "errorTitle": "Error"
+  },
+  "tiers": {
+    "ats": {
+      "rowOrder": ["companies", "departments", "users", "history", "emailTracking", "templates", "interviews", "sidebar", "support"],
+      "rowLabels": {
+        "companies": "Companies per user",
+        "departments": "Department-level access scoping",
+        "users": "Users",
+        "history": "Applicant history / audit trail",
+        "emailTracking": "Email tracking",
+        "templates": "Job, offer & contract templates",
+        "interviews": "Interview scoring & thresholds",
+        "sidebar": "Custom sidebar labels",
+        "support": "Support"
+      },
+      "plans": [
+        {
+          "name": "Starter",
+          "price": 3000,
+          "blurb": "Post a job, collect applicants, hire",
+          "highlighted": false,
+          "rows": {
+            "companies": "1",
+            "departments": "—",
+            "users": "Up to 5",
+            "history": "Included",
+            "emailTracking": "Sent confirmation",
+            "templates": "—",
+            "interviews": "—",
+            "sidebar": "—",
+            "support": "Email"
+          }
+        },
+        {
+          "name": "Growth",
+          "price": 5000,
+          "blurb": "Run hiring like an HR team",
+          "highlighted": true,
+          "rows": {
+            "companies": "Up to 3",
+            "departments": "Included",
+            "users": "Up to 20",
+            "history": "Included",
+            "emailTracking": "+ delivery & open tracking",
+            "templates": "Included",
+            "interviews": "Included",
+            "sidebar": "Included",
+            "support": "Priority"
+          }
+        },
+        {
+          "name": "Enterprise",
+          "blurb": "Hiring across a whole organization",
+          "highlighted": false,
+          "rows": {
+            "companies": "Unlimited",
+            "departments": "Included, granular",
+            "users": "Unlimited",
+            "history": "Included",
+            "emailTracking": "+ click & bounce analytics",
+            "templates": "Included, per-department",
+            "interviews": "Included",
+            "sidebar": "Included",
+            "support": "Dedicated contact"
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,18 +1,13 @@
 import React from 'react';
 import { useSearchParams } from 'react-router';
 import { useTranslation } from '../i18n/hooks/useTranslation';
-import {
-  privacyContent,
-  refundContent,
-  serviceContent,
-} from '../content/PoliciesContent.js';
 
 // ─── Tab config ───────────────────────────────────────────────────────────────
 
 const TABS = [
-  { key: 'privacy', en: 'Privacy Policy', ar: 'سياسة الخصوصية' },
-  { key: 'refund', en: 'Refund Policy', ar: 'سياسة الاسترداد' },
-  { key: 'service', en: 'Service Duration', ar: 'مدة الخدمة' },
+  { key: 'privacy' },
+  { key: 'refund' },
+  { key: 'service' },
 ];
 
 // ─── Shared components ────────────────────────────────────────────────────────
@@ -42,12 +37,10 @@ const SectionCard = ({ index, title, content, badge }) => (
   </div>
 );
 
-const ContactFooter = ({ isArabic, showPhone }) => (
+const ContactFooter = ({ showPhone, contactKey }) => (
   <div className="text-center bg-white/80 dark:bg-dark-800/80 border border-light-200/50 dark:border-dark-700/50 rounded-2xl p-8">
     <p className="text-light-600 dark:text-light-400 mb-3">
-      {isArabic
-        ? 'للأسئلة المتعلقة بهذه السياسة، تواصل معنا:'
-        : 'For questions about this policy, reach us at:'}
+      {contactKey}
     </p>
     <a
       href="mailto:info@sabergroup-eg.com"
@@ -72,15 +65,14 @@ const ContactFooter = ({ isArabic, showPhone }) => (
 
 // ─── Tab panels ───────────────────────────────────────────────────────────────
 
-const PrivacyPanel = ({ isArabic }) => {
-  const lang = isArabic ? 'ar' : 'en';
-  const { intro, sections } = privacyContent[lang];
+const PrivacyPanel = ({ t }) => {
+  const privacySections = t('policies:privacy.sections', { returnObjects: true });
   return (
     <div className="space-y-6">
       <div className="bg-primary-500/5 border border-primary-500/20 rounded-2xl p-6 text-light-700 dark:text-light-300 leading-relaxed">
-        {intro}
+        {t('policies:privacy.intro')}
       </div>
-      {sections.map((sec, i) => (
+      {privacySections.map((sec, i) => (
         <SectionCard
           key={i}
           index={i + 1}
@@ -88,17 +80,16 @@ const PrivacyPanel = ({ isArabic }) => {
           content={sec.content}
         />
       ))}
-      <ContactFooter isArabic={isArabic} />
+      <ContactFooter contactKey={t('policies:privacy.contact')} />
     </div>
   );
 };
 
-const RefundPanel = ({ isArabic }) => {
-  const lang = isArabic ? 'ar' : 'en';
-  const { sections } = refundContent[lang];
+const RefundPanel = ({ t }) => {
+  const refundSections = t('policies:refund.sections', { returnObjects: true });
   return (
     <div className="space-y-6">
-      {sections.map((sec, i) => (
+      {refundSections.map((sec, i) => (
         <SectionCard
           key={i}
           index={i + 1}
@@ -106,17 +97,17 @@ const RefundPanel = ({ isArabic }) => {
           content={sec.content}
         />
       ))}
-      <ContactFooter isArabic={isArabic} showPhone />
+      <ContactFooter showPhone contactKey={t('policies:refund.contact')} />
     </div>
   );
 };
 
-const ServicePanel = ({ isArabic }) => {
-  const lang = isArabic ? 'ar' : 'en';
-  const { sections, sla, slaTitle, note } = serviceContent[lang];
+const ServicePanel = ({ t }) => {
+  const serviceSections = t('policies:service.sections', { returnObjects: true });
+  const sla = t('policies:service.sla', { returnObjects: true });
   return (
     <div className="space-y-6">
-      {sections.map((sec, i) => (
+      {serviceSections.map((sec, i) => (
         <SectionCard
           key={i}
           index={i + 1}
@@ -129,10 +120,10 @@ const ServicePanel = ({ isArabic }) => {
       <div className="bg-white/80 dark:bg-dark-800/80 border border-light-200/50 dark:border-dark-700/50 rounded-2xl p-6 md:p-8">
         <div className="flex items-start gap-4 mb-6">
           <span className="shrink-0 w-8 h-8 rounded-lg bg-primary-500/10 text-primary-500 flex items-center justify-center text-sm font-bold">
-            {sections.length + 1}
+            {serviceSections.length + 1}
           </span>
           <h2 className="text-lg font-bold text-light-900 dark:text-white mt-1">
-            {slaTitle}
+            {t('policies:service.slaTitle')}
           </h2>
         </div>
         <div className="grid sm:grid-cols-2 gap-3 ps-12">
@@ -153,10 +144,10 @@ const ServicePanel = ({ isArabic }) => {
       </div>
 
       <div className="bg-primary-500/5 border border-primary-500/20 rounded-2xl p-6 text-light-600 dark:text-light-400 leading-relaxed text-sm">
-        {note}
+        {t('policies:service.note')}
       </div>
 
-      <ContactFooter isArabic={isArabic} />
+      <ContactFooter contactKey={t('policies:service.contact')} />
     </div>
   );
 };
@@ -164,10 +155,10 @@ const ServicePanel = ({ isArabic }) => {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 const PoliciesPage = () => {
-  const { isArabic } = useTranslation();
+  const { t, isArabic } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
-  const validKeys = TABS.map((t) => t.key);
+  const validKeys = TABS.map((tab) => tab.key);
   const activeTab = validKeys.includes(tabParam) ? tabParam : 'privacy';
 
   const setTab = (key) => setSearchParams({ tab: key }, { replace: true });
@@ -181,15 +172,13 @@ const PoliciesPage = () => {
         {/* Header */}
         <div className="text-center mb-10 mt-12">
           <h1 className="text-4xl md:text-5xl font-bold text-light-900 dark:text-white mb-3">
-            {isArabic ? 'السياسات' : 'Policies'}
+            {t('policies:title')}
           </h1>
           <p className="text-light-500 dark:text-light-400 mb-2">
-            {isArabic
-              ? 'كل ما تحتاج معرفته حول كيفية عملنا وحماية بياناتك.'
-              : 'Everything you need to know about how we operate and protect your data.'}
+            {t('policies:subtitle')}
           </p>
           <p className="text-light-400 dark:text-light-500 text-xs">
-            {isArabic ? 'آخر تحديث: يونيو 2025' : 'Last updated: June 2025'}
+            {t('policies:lastUpdated')}
           </p>
         </div>
 
@@ -206,16 +195,16 @@ const PoliciesPage = () => {
                     : 'text-light-500 dark:text-light-400 hover:text-light-900 dark:hover:text-white'
                 }`}
               >
-                {isArabic ? tab.ar : tab.en}
+                {t(`policies:tabs.${tab.key}`)}
               </button>
             ))}
           </div>
         </div>
 
         {/* Panel */}
-        {activeTab === 'privacy' && <PrivacyPanel isArabic={isArabic} />}
-        {activeTab === 'refund' && <RefundPanel isArabic={isArabic} />}
-        {activeTab === 'service' && <ServicePanel isArabic={isArabic} />}
+        {activeTab === 'privacy' && <PrivacyPanel t={t} />}
+        {activeTab === 'refund' && <RefundPanel t={t} />}
+        {activeTab === 'service' && <ServicePanel t={t} />}
       </div>
     </section>
   );

@@ -180,6 +180,7 @@ export default function JobContractsPage() {
       text: t('deleteText', 'jobContracts'),
       icon: 'warning',
       showCancelButton: true,
+      cancelButtonText: t('cancel', 'common'),
       confirmButtonText: t('deleteConfirm', 'jobContracts'),
       confirmButtonColor: '#ef4444',
     });

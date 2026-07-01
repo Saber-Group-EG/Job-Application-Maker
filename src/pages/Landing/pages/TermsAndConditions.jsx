@@ -1,10 +1,9 @@
 import React from 'react';
 import { useTranslation } from '../i18n/hooks/useTranslation';
-import termsContent from '../content/TermsContent.js';
 
 const TermsAndConditions = () => {
-  const { isArabic } = useTranslation();
-  const { intro, sections } = termsContent[isArabic ? 'ar' : 'en'];
+  const { t, isArabic } = useTranslation();
+  const sections = t('terms:sections', { returnObjects: true });
 
   return (
     <section
@@ -15,16 +14,16 @@ const TermsAndConditions = () => {
         {/* Header */}
         <div className="text-center mb-10 mt-12">
           <h1 className="text-4xl md:text-5xl font-bold text-light-900 dark:text-white mb-3">
-            {isArabic ? 'الشروط والأحكام' : 'Terms & Conditions'}
+            {t('terms:title')}
           </h1>
           <p className="text-light-400 dark:text-light-500 text-xs">
-            {isArabic ? 'آخر تحديث: يونيو 2025' : 'Last updated: June 2025'}
+            {t('terms:lastUpdated')}
           </p>
         </div>
 
         {/* Intro */}
         <div className="bg-primary-500/5 border border-primary-500/20 rounded-2xl p-6 mb-8 text-light-700 dark:text-light-300 leading-relaxed">
-          {intro}
+          {t('terms:intro')}
         </div>
 
         {/* Sections — all open */}
@@ -54,9 +53,7 @@ const TermsAndConditions = () => {
         {/* Contact */}
         <div className="text-center bg-white/80 dark:bg-dark-800/80 border border-light-200/50 dark:border-dark-700/50 rounded-2xl p-8">
           <p className="text-light-600 dark:text-light-400 mb-3">
-            {isArabic
-              ? 'للاستفسار عن هذه الشروط:'
-              : 'For questions about these terms:'}
+            {t('terms:contact')}
           </p>
           <a
             href="mailto:info@sabergroup-eg.com"

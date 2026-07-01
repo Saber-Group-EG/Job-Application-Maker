@@ -229,6 +229,7 @@ export default function SectionTemplatesPanel({
       text: t('deleteSectionText', 'modals'),
       icon: 'warning',
       showCancelButton: true,
+      cancelButtonText: t('cancel', 'common'),
       confirmButtonText: t('delete', 'modals'),
       confirmButtonColor: '#ef4444',
     });

@@ -1,8 +1,10 @@
 {
   "home": "Home",
-  "about": "Join Us",
+  "services": "Services",
+  "about": "About",
+  "login": "Login",
   "projects": "Our Projects",
-  "contact": "Contact Us",
+  "contact": "Contact",
   "invest": "Invest with Saber Group",
   "locations": "Locations",
   "careers": "Careers",

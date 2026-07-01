@@ -35,6 +35,7 @@ export default function SavedFields() {
       text: t('deleteConfirmText', 'savedFields'),
       icon: "warning",
       showCancelButton: true,
+      cancelButtonText: t('cancel', 'common'),
       confirmButtonColor: "#EF4444",
       cancelButtonColor: "#6B7280",
       confirmButtonText: t('deleteConfirmButton', 'savedFields'),

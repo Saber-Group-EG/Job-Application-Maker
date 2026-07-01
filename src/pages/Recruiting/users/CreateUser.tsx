@@ -703,7 +703,7 @@ export default function CreateUser() {
 
                   return (
                     <div
-                      key={idx}
+                      key={assignment.companyId}
                       className="relative group bg-white dark:bg-slate-900/50 p-8 rounded-[3rem] border border-slate-200 dark:border-white/5 shadow-sm transition-all hover:shadow-xl"
                     >
                       <button

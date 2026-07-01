@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import axiosInstance from '../../../config/axios';
+import DOMPurify from 'dompurify';
 import PersonalInfo from './components/ApplicantData/PersonalInfo';
 import ActivityFeed from './components/ActivityFeed';
 import CustomResponses from './components/ApplicantData/CustomResponses';
@@ -1000,7 +1001,7 @@ const ApplicantDetails: React.FC = () => {
         <div className="space-y-4">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t('emailPreview', 'applicantDetails')}</h2>
           <div className="border rounded p-4 bg-white dark:bg-gray-800" style={{ maxHeight: '70vh', overflow: 'auto' }}>
-            <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
+            <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(previewHtml) }} />
           </div>
           <div className="flex justify-end">
             <button type="button" onClick={() => { setShowPreviewModal(false); setPreviewHtml(''); }} className="rounded-lg bg-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-300">{t('close', 'modals')}</button>

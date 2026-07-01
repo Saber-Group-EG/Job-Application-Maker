@@ -231,5 +231,11 @@
   "editProfile": "Edit profile",
   "accountSettings": "Account settings",
   "support": "Support",
-  "signOut": "Sign out"
+  "signOut": "Sign out",
+  "404errorHeading": "ERROR",
+  "pageNotFound": "We can't seem to find the page you are looking for!",
+  "backToHome": "Back to Home Page",
+  "footerCopyright": "© {year} - Saber Group - Hiring Management System",
+  "notFoundPageTitle": "Saber Group - Hiring Management System - 404 Page",
+  "notFoundPageDesc": "This is Saber Group - Hiring Management System - 404 Page"
 }

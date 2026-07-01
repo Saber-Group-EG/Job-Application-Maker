@@ -2,9 +2,6 @@ import { useState } from 'react';
 import { useTranslation } from '../i18n/hooks/useTranslation';
 import Swal from 'sweetalert2';
 import { addLead } from '../api';
-import servicesContent, {
-  tiers as tiersByProduct,
-} from '../content/ServicesContent.js';
 
 const PRODUCT_IDS = {
   ats: '6a365a92ee51c7709f157158',
@@ -19,17 +16,12 @@ const TIER_IDS = {
 const QUOTE_CHANNEL_ID = '6a365b1fee51c7709f1585fc';
 
 const ServicesPage = () => {
-  const { isArabic } = useTranslation();
-  const lang = isArabic ? 'ar' : 'en';
-  const { hero, products, tiersSection, quoteForm } =
-    servicesContent[lang];
-
-  const product = products['ats'];
-
-  const productTiers = tiersByProduct['ats'][lang];
-  const tierPlans = productTiers.plans;
-  const rowLabels = productTiers.rowLabels;
-  const rowOrder = tiersByProduct['ats'].rowOrder;
+  const { t, isArabic } = useTranslation();
+  const product = t('services:products.ats', { returnObjects: true });
+  const tierPlans = t('services:tiers.ats.plans', { returnObjects: true });
+  const rowLabels = t('services:tiers.ats.rowLabels', { returnObjects: true });
+  const rowOrder = t('services:tiers.ats.rowOrder', { returnObjects: true });
+  const productOptions = t('services:quoteForm.productOptions', { returnObjects: true });
 
   const [formData, setFormData] = useState({
     name: '',
@@ -64,13 +56,11 @@ const ServicesPage = () => {
   const validate = () => {
     const newErrors = {};
     if (!formData.name.trim())
-      newErrors.name = isArabic ? 'الاسم مطلوب' : 'Name is required';
+      newErrors.name = t('services:quoteForm.validation.nameRequired');
     if (!formData.phone.trim())
-      newErrors.phone = isArabic ? 'رقم التليفون مطلوب' : 'Phone is required';
+      newErrors.phone = t('services:quoteForm.validation.phoneRequired');
     if (!formData.company.trim())
-      newErrors.company = isArabic
-        ? 'اسم الشركة مطلوب'
-        : 'Company name is required';
+      newErrors.company = t('services:quoteForm.validation.companyRequired');
     return newErrors;
   };
 
@@ -118,9 +108,9 @@ const ServicesPage = () => {
 
       await Swal.fire({
         icon: 'success',
-        title: quoteForm.successTitle,
-        text: quoteForm.successMessage,
-        confirmButtonText: isArabic ? 'تمام' : 'OK',
+        title: t('services:quoteForm.successTitle'),
+        text: t('services:quoteForm.successMessage'),
+        confirmButtonText: t('services:quoteForm.okButton'),
         confirmButtonColor: '#10b981',
       });
 
@@ -138,9 +128,9 @@ const ServicesPage = () => {
       console.debug('Quote request submission error:', error);
       await Swal.fire({
         icon: 'error',
-        title: isArabic ? 'خطأ' : 'Error',
-        text: quoteForm.errorMessage,
-        confirmButtonText: isArabic ? 'تمام' : 'OK',
+        title: t('services:quoteForm.errorTitle'),
+        text: t('services:quoteForm.errorMessage'),
+        confirmButtonText: t('services:quoteForm.okButton'),
         confirmButtonColor: '#ef4444',
       });
     } finally {
@@ -157,19 +147,19 @@ const ServicesPage = () => {
         {/* Header */}
         <div className="mb-14 mt-12 max-w-3xl">
           <span className="text-xs font-semibold text-primary-500 uppercase tracking-wider">
-            {hero.eyebrow}
+            {t('services:hero.eyebrow')}
           </span>
           <h1 className="text-4xl md:text-5xl font-bold text-light-900 dark:text-white mt-3 mb-5 leading-tight">
-            {hero.title}
+            {t('services:hero.title')}
           </h1>
           <p className="text-light-600 dark:text-light-400 leading-relaxed">
-            {hero.subtitle}
+            {t('services:hero.subtitle')}
           </p>
         </div>
 
         <div className="flex gap-8 border-b border-light-200 dark:border-dark-700 mb-10">
           <span className="pb-4 text-sm font-semibold border-b-2 border-primary-500 text-light-900 dark:text-white">
-            ATS — Hiring
+            {t('services:tabs.ats')}
           </span>
         </div>
 
@@ -226,10 +216,10 @@ const ServicesPage = () => {
         <div className="mb-20">
           <div className="mb-6">
             <h2 className="text-2xl font-bold text-light-900 dark:text-white mb-2">
-              {tiersSection.title}
+              {t('services:tiersSection.title')}
             </h2>
             <p className="text-light-600 dark:text-light-400 max-w-2xl">
-              {tiersSection.subtitle}
+              {t('services:tiersSection.subtitle')}
             </p>
           </div>
 
@@ -299,7 +289,7 @@ const ServicesPage = () => {
                             : 'bg-white dark:bg-dark-800 border border-light-200 dark:border-dark-700 text-light-800 dark:text-light-200 hover:border-primary-500'
                         }`}
                       >
-                        {tiersSection.ctaLabel}
+                        {t('services:tiersSection.ctaLabel')}
                       </button>
                     </td>
                   ))}
@@ -321,16 +311,16 @@ const ServicesPage = () => {
           className="bg-white/80 dark:bg-dark-800/80 border border-light-200/50 dark:border-dark-700/50 rounded-2xl p-6 md:p-10"
         >
           <h2 className="text-2xl font-bold text-light-900 dark:text-white mb-2">
-            {quoteForm.title}
+            {t('services:quoteForm.title')}
           </h2>
           <p className="text-light-600 dark:text-light-400 mb-8 max-w-2xl">
-            {quoteForm.subtitle}
+            {t('services:quoteForm.subtitle')}
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="grid md:grid-cols-2 gap-5">
               <div>
-                <label className={labelClass}>{quoteForm.fields.name} *</label>
+                <label className={labelClass}>{t('services:quoteForm.fields.name')} *</label>
                 <input
                   name="name"
                   value={formData.name}
@@ -345,7 +335,7 @@ const ServicesPage = () => {
               </div>
               <div>
                 <label className={labelClass}>
-                  {quoteForm.fields.company} *
+                  {t('services:quoteForm.fields.company')} *
                 </label>
                 <input
                   name="company"
@@ -363,7 +353,7 @@ const ServicesPage = () => {
 
             <div className="grid md:grid-cols-2 gap-5">
               <div>
-                <label className={labelClass}>{quoteForm.fields.phone} *</label>
+                <label className={labelClass}>{t('services:quoteForm.fields.phone')} *</label>
                 <input
                   name="phone"
                   value={formData.phone}
@@ -378,14 +368,14 @@ const ServicesPage = () => {
                 )}
               </div>
               <div>
-                <label className={labelClass}>{quoteForm.fields.product}</label>
+                <label className={labelClass}>{t('services:quoteForm.fields.product')}</label>
                 <select
                   name="product"
                   value={formData.product}
                   onChange={handleChange}
                   className={inputClass}
                 >
-                  {quoteForm.productOptions.map((opt) => (
+                  {productOptions.map((opt) => (
                     <option key={opt.value} value={opt.value}>
                       {opt.label}
                     </option>
@@ -396,7 +386,7 @@ const ServicesPage = () => {
 
             <div className="grid md:grid-cols-2 gap-5">
               <div>
-                <label className={labelClass}>{quoteForm.fields.tier}</label>
+                <label className={labelClass}>{t('services:quoteForm.fields.tier')}</label>
                 <select
                   name="tier"
                   value={formData.tier}
@@ -404,7 +394,7 @@ const ServicesPage = () => {
                   className={inputClass}
                 >
                   <option value="">
-                    {isArabic ? '— اختر —' : '— Select —'}
+                    {t('services:quoteForm.selectPlaceholder')}
                   </option>
                   {tierPlans.map((t) => (
                     <option key={t.name} value={t.name}>
@@ -415,20 +405,20 @@ const ServicesPage = () => {
               </div>
               <div>
                 <label className={labelClass}>
-                  {quoteForm.fields.teamSize}
+                  {t('services:quoteForm.fields.teamSize')}
                 </label>
                 <input
                   name="teamSize"
                   value={formData.teamSize}
                   onChange={handleChange}
-                  placeholder={isArabic ? 'مثال: 12 مستخدم' : 'e.g. 12 users'}
+                  placeholder={t('services:quoteForm.teamSizePlaceholder')}
                   className={inputClass}
                 />
               </div>
             </div>
 
             <div>
-              <label className={labelClass}>{quoteForm.fields.notes}</label>
+              <label className={labelClass}>{t('services:quoteForm.fields.notes')}</label>
               <textarea
                 name="notes"
                 value={formData.notes}
@@ -443,11 +433,11 @@ const ServicesPage = () => {
               disabled={isSubmitting}
               className="w-full md:w-auto px-8 py-3.5 bg-primary-500 text-white rounded-xl font-semibold hover:bg-primary-600 transition-colors disabled:opacity-60"
             >
-              {isSubmitting ? quoteForm.sending : quoteForm.submit}
+              {isSubmitting ? t('services:quoteForm.sending') : t('services:quoteForm.submit')}
             </button>
 
             <p className="text-xs text-light-500 dark:text-light-400">
-              {quoteForm.privacyNote}
+              {t('services:quoteForm.privacyNote')}
             </p>
           </form>
         </div>

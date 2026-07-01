@@ -1,11 +1,11 @@
 import { Link } from 'react-router';
 import { useTranslation } from '../i18n/hooks/useTranslation';
-import content from '../content/HomeContent.js';
 
 const Home = () => {
-  const { isArabic } = useTranslation();
-  const lang = isArabic ? 'ar' : 'en';
-  const { hero, software, stats, closing } = content[lang];
+  const { t, isArabic } = useTranslation();
+  const items = t('home:software.items', { returnObjects: true });
+  const features = t('home:software.features', { returnObjects: true });
+  const statsItems = t('home:stats.items', { returnObjects: true });
 
   return (
     <section
@@ -15,27 +15,27 @@ const Home = () => {
       {/* Hero — plain headline, no centerpiece, doesn't favor either half */}
       <div className="max-w-3xl mx-auto px-4 md:px-6 pt-28 pb-16 text-center">
         <h1 className="text-4xl md:text-5xl font-bold text-light-900 dark:text-white leading-tight mb-6">
-          {hero.title}
+          {t('home:hero.title')}
         </h1>
         <p className="text-lg text-light-600 dark:text-light-400 leading-relaxed max-w-xl mx-auto">
-          {hero.subtitle}
+          {t('home:hero.subtitle')}
         </p>
       </div>
 
       {/* Software section */}
       <div className="max-w-5xl mx-auto px-4 md:px-6 py-16 border-t border-light-200/60 dark:border-dark-700/60">
         <span className="text-xs font-semibold text-primary-500 uppercase tracking-wider">
-          {software.eyebrow}
+          {t('home:software.eyebrow')}
         </span>
         <h2 className="text-2xl md:text-3xl font-bold text-light-900 dark:text-white mt-3 mb-2 max-w-2xl">
-          {software.title}
+          {t('home:software.title')}
         </h2>
         <p className="text-light-600 dark:text-light-400 max-w-2xl mb-8">
-          {software.subtitle}
+          {t('home:software.subtitle')}
         </p>
 
         <div className="max-w-lg mb-8">
-          {software.items.map((p) => (
+          {items.map((p) => (
             <Link
               key={p.name}
               to="/services"
@@ -53,7 +53,7 @@ const Home = () => {
                 {p.line}
               </p>
               <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary-500 mt-4 group-hover:gap-2.5 transition-all">
-                {software.cta}
+                {t('home:software.cta')}
                 <svg
                   className="w-3.5 h-3.5 rtl:rotate-180"
                   fill="none"
@@ -73,9 +73,9 @@ const Home = () => {
         </div>
 
         {/* Features grid */}
-        {software.features && (
+        {features && (
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            {software.features.map((f, i) => (
+            {features.map((f, i) => (
               <div
                 key={i}
                 className="bg-white/80 dark:bg-dark-800/80 border border-light-200/50 dark:border-dark-700/50 rounded-xl p-5 hover:border-primary-500/30 transition-colors"
@@ -94,10 +94,10 @@ const Home = () => {
       {/* Stats strip */}
       <div className="max-w-5xl mx-auto px-4 md:px-6 py-16 border-t border-light-200/60 dark:border-dark-700/60">
         <span className="text-xs font-semibold text-primary-500 uppercase tracking-wider">
-          {stats.eyebrow}
+          {t('home:stats.eyebrow')}
         </span>
         <div className="grid grid-cols-3 gap-4 mt-4">
-          {stats.items.map((s, i) => (
+          {statsItems.map((s, i) => (
             <div key={i} className="text-center md:text-start">
               <p className="text-3xl md:text-4xl font-bold text-light-900 dark:text-white tracking-tight">
                 {s.value}
@@ -114,16 +114,16 @@ const Home = () => {
       <div className="max-w-3xl mx-auto px-4 md:px-6 py-16 border-t border-light-200/60 dark:border-dark-700/60 text-center">
         <div className="bg-white/80 dark:bg-dark-800/80 border border-light-200/50 dark:border-dark-700/50 rounded-2xl p-10">
           <h2 className="text-2xl font-bold text-light-900 dark:text-white mb-3">
-            {closing.title}
+            {t('home:closing.title')}
           </h2>
           <p className="text-light-600 dark:text-light-400 mb-7">
-            {closing.subtitle}
+            {t('home:closing.subtitle')}
           </p>
           <Link
             to="/contact"
             className="inline-flex items-center gap-2 px-7 py-3.5 bg-primary-500 text-white rounded-xl font-semibold hover:bg-primary-600 transition-colors"
           >
-            {closing.cta}
+            {t('home:closing.cta')}
           </Link>
         </div>
       </div>

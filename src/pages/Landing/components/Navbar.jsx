@@ -16,13 +16,13 @@ const Navbar = () => {
     { id: 'home', label: t('navigation:home') || 'Home', href: '/' },
     {
       id: 'services',
-      label: isArabic ? 'خدماتنا' : 'Services',
+      label: t('navigation:services'),
       href: '/services',
     },
-    { id: 'about', label: isArabic ? 'من نحن' : 'About', href: '/about' },
+    { id: 'about', label: t('navigation:about'), href: '/about' },
     {
       id: 'contact',
-      label: isArabic ? 'تواصل معنا' : 'Contact',
+      label: t('navigation:contact'),
       href: '/contact',
     },
     { id: 'join', label: t('joinUs:title') || 'Join Us', href: '/join-us' },
@@ -173,7 +173,7 @@ const Navbar = () => {
               to="/signin"
               className="hidden lg:inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg bg-primary-500 text-white hover:bg-primary-600 transition-all duration-300"
             >
-              {isArabic ? 'تسجيل الدخول' : 'Login'}
+              {t('navigation:login')}
             </Link>
 
             {/* Language Switcher */}
@@ -255,7 +255,7 @@ const Navbar = () => {
                 className="flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg bg-primary-500 text-white hover:bg-primary-600 transition-all duration-300 w-full"
                 onClick={() => setIsOpen(false)}
               >
-                {isArabic ? 'تسجيل الدخول' : 'Login'}
+                {t('navigation:login')}
               </Link>
               <LanguageSwitcher className="w-full justify-center" />
             </div>

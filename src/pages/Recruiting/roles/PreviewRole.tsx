@@ -149,6 +149,7 @@ export default function PreviewRole() {
       text: t('previewDeleteText', 'roles'),
       icon: "warning",
       showCancelButton: true,
+      cancelButtonText: t('cancel', 'common'),
       confirmButtonColor: "#ef4444",
       confirmButtonText: t('previewDeleteConfirm', 'roles')
     });

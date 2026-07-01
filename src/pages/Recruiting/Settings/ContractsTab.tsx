@@ -213,6 +213,7 @@ export default function ContractTemplatesTab({
       text: t('contracts.deleteText', 'settings'),
       icon: 'warning',
       showCancelButton: true,
+      cancelButtonText: t('cancel', 'common'),
       confirmButtonText: t('contracts.deleteConfirm', 'settings'),
       confirmButtonColor: '#ef4444',
     });

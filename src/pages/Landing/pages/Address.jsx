@@ -54,7 +54,7 @@ const AddressPage = () => {
         <div className="space-y-10">
           {offices.map((office, i) => (
             <div
-              key={i}
+              key={office.name}
               className="bg-white/80 dark:bg-dark-800/80 border border-light-200/50 dark:border-dark-700/50 rounded-3xl overflow-hidden"
             >
               {/* Top bar */}
@@ -138,7 +138,7 @@ const AddressPage = () => {
                       dir: 'auto',
                     },
                   ].map((item, j) => (
-                    <div key={j} className="flex items-start gap-4">
+                    <div key={item.label} className="flex items-start gap-4">
                       <div className="w-10 h-10 rounded-xl bg-primary-500/10 flex items-center justify-center shrink-0">
                         <svg
                           className="w-5 h-5 text-primary-500"

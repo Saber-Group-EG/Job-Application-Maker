@@ -49,7 +49,7 @@ export default function Companies() {
 
     const isAdminResult = user?.roleId?.name?.toLowerCase().includes("admin");
     const usercompanyIds = user?.companies?.map((c: any) =>
-      typeof c.companyId === "string" ? c.companyId : c.companyId._id
+      typeof c.companyId === "string" ? c.companyId : c.companyId?._id
     );
 
     const companyIdFiltered =
@@ -95,6 +95,7 @@ export default function Companies() {
       text: t('deleteText', 'companies', { name: toPlainString(company.name, locale) }),
       icon: "warning",
       showCancelButton: true,
+      cancelButtonText: t('cancel', 'common'),
       confirmButtonColor: "#ef4444",
       confirmButtonText: t('deleteConfirm', 'companies')
     });

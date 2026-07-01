@@ -119,7 +119,7 @@ const AppSidebar: React.FC = () => {
       icon: <GridIcon />,
       name: 'Home',
       tKey: 'home',
-      path: '/',
+      path: '/home',
     },
     {
       icon: <GridIcon />,

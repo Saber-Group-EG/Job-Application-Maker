@@ -89,6 +89,8 @@
   "googleMapsUrl": "Google Maps URL",
   "companyAddressEn": "Company Address (EN)",
   "companyAddressAr": "عنوان الشركة (AR)",
+  "companyNameEnPlaceholder": "Company Name (EN)",
+  "companyNameArPlaceholder": "Company Name (AR)",
 
   "profileUpdated": "Profile Updated",
   "updateFailedTitle": "Update Failed",

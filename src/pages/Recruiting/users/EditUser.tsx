@@ -177,7 +177,7 @@ export default function EditUser() {
         }).filter(Boolean) || [],
       })) || [];
       setUserCompanies(initialCompanies);
-      originalCompaniesRef.current = JSON.parse(JSON.stringify(initialCompanies));
+      originalCompaniesRef.current = structuredClone(initialCompanies);
 
       const fromUser = normalizeUserPermissions(user);
       if (fromUser.length > 0) {

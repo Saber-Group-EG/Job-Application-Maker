@@ -24,6 +24,8 @@ import { useRecommendedFields } from "../../../hooks/queries/useSystemSettings";
 import { useCreateJobPosition, useUpdateJobPosition, useJobPositions } from "../../../hooks/queries/useJobPositions";
 import { toPlainString } from "../../../utils/strings";
 import { translateText } from "../../../utils/translate";
+import { normalizeFieldConfig, getDefaultFieldConfig } from "../../../utils/jobUtils";
+import type { JobFieldConfig } from "../../../utils/jobUtils";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   DndContext,
@@ -105,37 +107,8 @@ type CompanyStatus = {
   name?: string;
 };
 
-type FieldConfigRule = {
-  visible: boolean;
-  required: boolean;
-};
-
-type FieldConfig = {
-  fullName: FieldConfigRule;
-  email: FieldConfigRule;
-  phone: FieldConfigRule;
-  gender: FieldConfigRule;
-  birthDate: FieldConfigRule;
-  address: FieldConfigRule;
-  profilePhoto: FieldConfigRule;
-  cvFilePath: FieldConfigRule;
-  expectedSalary: FieldConfigRule;
-};
-
-const getDefaultFieldConfig = (): FieldConfig => ({
-  fullName: { visible: true, required: true },
-  email: { visible: true, required: true },
-  phone: { visible: true, required: true },
-  gender: { visible: true, required: true },
-  birthDate: { visible: true, required: true },
-  address: { visible: true, required: true },
-  profilePhoto: { visible: true, required: true },
-  cvFilePath: { visible: true, required: false },
-  expectedSalary: { visible: false, required: false },
-});
-
 const getApplicantFieldConfigMeta = (t: (key: string, ns?: string) => string): Array<{
-  key: keyof FieldConfig;
+  key: keyof JobFieldConfig;
   label: string;
   description: string;
 }> => [
@@ -185,61 +158,6 @@ const getApplicantFieldConfigMeta = (t: (key: string, ns?: string) => string): A
     description: t('createFieldSalaryDesc', 'jobs'),
   },
 ];
-const normalizeFieldConfig = (
-  value: any,
-  legacySalaryFieldVisible?: boolean
-): FieldConfig => {
-  const defaults = getDefaultFieldConfig();
-  const raw = value && typeof value === "object" ? value : {};
-
-  const withExpectedSalaryFallback = {
-    ...raw,
-    expectedSalary:
-      raw.expectedSalary && typeof raw.expectedSalary === "object"
-        ? raw.expectedSalary
-        : typeof legacySalaryFieldVisible === "boolean"
-        ? {
-            visible: legacySalaryFieldVisible,
-            required: false,
-          }
-        : raw.expectedSalary,
-  };
-
-  const normalizeRule = (
-    incoming: any,
-    fallback: FieldConfigRule
-  ): FieldConfigRule => {
-    const visible =
-      typeof incoming?.visible === "boolean" ? incoming.visible : fallback.visible;
-    const required =
-      typeof incoming?.required === "boolean"
-        ? incoming.required
-        : fallback.required;
-
-    return {
-      visible,
-      required: visible ? required : false,
-    };
-  };
-
-  return {
-    fullName: normalizeRule(withExpectedSalaryFallback.fullName, defaults.fullName),
-    email: normalizeRule(withExpectedSalaryFallback.email, defaults.email),
-    phone: normalizeRule(withExpectedSalaryFallback.phone, defaults.phone),
-    gender: normalizeRule(withExpectedSalaryFallback.gender, defaults.gender),
-    birthDate: normalizeRule(withExpectedSalaryFallback.birthDate, defaults.birthDate),
-    address: normalizeRule(withExpectedSalaryFallback.address, defaults.address),
-    profilePhoto: normalizeRule(
-      withExpectedSalaryFallback.profilePhoto,
-      defaults.profilePhoto
-    ),
-    cvFilePath: normalizeRule(withExpectedSalaryFallback.cvFilePath, defaults.cvFilePath),
-    expectedSalary: normalizeRule(
-      withExpectedSalaryFallback.expectedSalary,
-      defaults.expectedSalary
-    ),
-  };
-};
 
 const normalizeStatusLabel = (value: any): string =>
   toPlainString(value).trim().toLowerCase();
@@ -288,7 +206,7 @@ type JobForm = {
   descriptionAr: string;
   salary: number;
   salaryVisible: boolean;
-  fieldConfig: FieldConfig;
+  fieldConfig: JobFieldConfig;
   bilingual: boolean;
   openPositions: number;
   registrationStart: string;
@@ -855,7 +773,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
     };
 
     loadJobData();
-  }, [editJobId, companies, jobFromState]);
+  }, [editJobId, companies, jobFromState, getErrorMessage, normalizeEmploymentType]);
 
   const selectedCompany = useMemo(() => {
     if (!jobForm.companyId) return null;
@@ -888,7 +806,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
       if (sameValues) return prev;
       return { ...prev, allowedStatuses: normalized };
     });
-  }, [jobForm.companyId, selectedCompany]);
+  }, [jobForm.companyId, selectedCompany, normalizeAllowedStatuses]);
 
   // Auto-select company for users with single company
   useEffect(() => {
@@ -940,8 +858,8 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
   };
 
   const handleFieldConfigChange = (
-    field: keyof FieldConfig,
-    prop: keyof FieldConfigRule,
+    field: keyof JobFieldConfig,
+    prop: 'visible' | 'required',
     value: boolean
   ) => {
     setJobForm((prev) => {
@@ -966,7 +884,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
   };
 
   // Normalize various possible employmentType formats to canonical values
-  const normalizeEmploymentType = (val: any): EmploymentType | undefined => {
+  function normalizeEmploymentType(val: any): EmploymentType | undefined {
     if (!val) return undefined;
     const s = String(val).toLowerCase().trim();
     if (s === "full-time" || s === "full time" || s === "fulltime" || s === "full") return "full-time";
@@ -974,7 +892,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
     if (s === "contract") return "contract";
     if (s === "internship" || s === "intern") return "internship";
     return undefined;
-  };
+  }
 
   const handleAddTerm = () => {
     if (newTerm.trim() || newTermAr.trim()) {
@@ -2467,7 +2385,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
               <div className="grid grid-cols-1 gap-4">
                 {jobForm.termsAndConditions.map((term, index) => (
                   <div
-                    key={index}
+                    key={`term-${index}`}
                     className="group item animate-in fade-in slide-in-from-bottom-2 duration-300 relative rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:border-brand-200 hover:shadow-md dark:border-gray-800 dark:bg-gray-900"
                   >
                     <div className="absolute left-0 top-0 h-full w-1 rounded-l-2xl bg-brand-500 opacity-0 transition-opacity group-hover:opacity-100" />
@@ -2599,7 +2517,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
 
             <div className="space-y-4">
               {jobForm.jobSpecs.map((spec, index) => (
-                <div key={index} className="group/item relative">
+                <div key={`js-${index}`} className="group/item relative">
                   {editingSpecIndex === index ? (
                     <div className="rounded-2xl border border-blue-200 bg-blue-50/30 p-4 dark:border-blue-800/30 dark:bg-blue-900/10 space-y-4">
                       <div className="grid grid-cols-1 gap-4 md:grid-cols-12 items-end">

@@ -11,7 +11,8 @@
   "departments": "{count} أقسام",
   "viewOperations": "عرض العمليات",
   "showing": "عرض {start} إلى {end} من {total} كيان",
-
+  "companyNameArPlaceholder": "اسم الشركة (بالعربية)",
+  "companyNameEnPlaceholder": "اسم الشركة (بالإنجليزية)",
   "deleteTitle": "حذف الشركة؟",
   "deleteText": "هل أنت متأكد أنك تريد حذف {name}؟ لا يمكن التراجع عن هذا الإجراء.",
   "deleteConfirm": "نعم، احذفها",

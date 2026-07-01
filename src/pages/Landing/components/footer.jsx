@@ -34,24 +34,12 @@ const Footer = () => {
   };
 
   const policyLinks = [
-    {
-      label: isArabic ? 'سياسة الخصوصية' : 'Privacy Policy',
-      href: '/policies?tab=privacy',
-    },
-    {
-      label: isArabic ? 'سياسة الاسترداد' : 'Refund Policy',
-      href: '/policies?tab=refund',
-    },
-    {
-      label: isArabic ? 'مدة الخدمة' : 'Service Duration',
-      href: '/policies?tab=service',
-    },
-    {
-      label: isArabic ? 'الشروط والأحكام' : 'Terms & Conditions',
-      href: '/terms',
-    },
-    { label: isArabic ? 'عنواننا' : 'Address', href: '/address' },
-    { label: isArabic ? 'تواصل معنا' : 'Contact Us', href: '/contact' },
+    { label: t('footer:policyPrivacy'), href: '/policies?tab=privacy' },
+    { label: t('footer:policyRefund'), href: '/policies?tab=refund' },
+    { label: t('footer:policyService'), href: '/policies?tab=service' },
+    { label: t('footer:policyTerms'), href: '/terms' },
+    { label: t('footer:policyAddress'), href: '/address' },
+    { label: t('footer:policyContact'), href: '/contact' },
   ];
 
   return (
@@ -68,7 +56,7 @@ const Footer = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
                 </div>
-                <span className="text-xl font-bold text-white">ATS Platform</span>
+                <span className="text-xl font-bold text-white">{t('common:appName')}</span>
               </div>
 
               <p className="text-light-300 text-sm leading-relaxed">
@@ -92,7 +80,7 @@ const Footer = () => {
                       {t('footer:friSat') || 'Friday'}
                     </span>
                     <span className="text-light-300">
-                      {isArabic ? 'إجازة' : 'Closed'}
+                      {t('footer:closed')}
                     </span>
                   </div>
                 </div>
@@ -257,7 +245,7 @@ const Footer = () => {
                     </svg>
                   </div>
                   <div>
-                    <p className="text-light-300 font-medium mb-1">WhatsApp</p>
+                    <p className="text-light-300 font-medium mb-1">{t('contact:whatsapp')}</p>
                     <a
                       href="https://wa.me/201080099757"
                       target="_blank"
@@ -356,10 +344,10 @@ const Footer = () => {
                   <div className="bg-dark-800 px-4 py-3 flex justify-between items-center">
                     <div>
                       <p className="text-light-300 font-medium text-sm">
-                        Tanta Office
+                        {t('contact:addressTitle')}
                       </p>
                       <p className="text-light-400 text-xs">
-                        El-gharbia Tanta, Egypt
+                        {t('footer:officeLocation')}
                       </p>
                     </div>
                     <a
@@ -407,31 +395,17 @@ const Footer = () => {
         <div className="border-t border-dark-800 py-4">
           <div className="text-center">
             <p className="text-light-500 text-xs">
-              {isArabic ? (
-                <>
-                  تطوير&nbsp;
-                  <a
-                    href="https://www.sabergroup-eg.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary-500 hover:underline"
-                  >
-                    SABERGROUPSTUDIOS ©
-                  </a>
-                </>
-              ) : (
-                <>
-                  Created by&nbsp;
-                  <a
-                    href="https://www.sabergroup-eg.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary-500 hover:underline"
-                  >
-                    SABERGROUPSTUDIOS ©
-                  </a>
-                </>
-              )}
+              <>
+                {t('footer:createdBy')}&nbsp;
+                <a
+                  href="https://www.sabergroup-eg.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary-500 hover:underline"
+                >
+                  {t('common:studioBrand')}
+                </a>
+              </>
             </p>
           </div>
         </div>

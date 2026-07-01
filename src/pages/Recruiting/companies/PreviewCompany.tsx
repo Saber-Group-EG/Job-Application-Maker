@@ -119,8 +119,8 @@ export default function PreviewCompany() {
     if (!file) return;
     setIsSaving(true);
     try {
-      const CLOUD_NAME = (import.meta.env.VITE_CLOUDINARY_CLOUD_NAME as string) || "175237158579478";
-      const UPLOAD_PRESET = (import.meta.env.VITE_CLOUDINARY_PRESET as string) || "ml_default";
+      const CLOUD_NAME = (import.meta.env.VITE_CLOUDINARY_CLOUD_NAME as string) || "";
+      const UPLOAD_PRESET = (import.meta.env.VITE_CLOUDINARY_PRESET as string) || "";
       const formData = new FormData();
       formData.append("file", file);
       formData.append("upload_preset", UPLOAD_PRESET);
@@ -160,6 +160,7 @@ export default function PreviewCompany() {
       text: t('eliminateDeptDesc', 'companies'),
       icon: "warning",
       showCancelButton: true,
+      cancelButtonText: t('cancel', 'common'),
       confirmButtonColor: "#ef4444",
       confirmButtonText: t('dissolveConfirm', 'companies')
     });

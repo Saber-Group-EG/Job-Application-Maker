@@ -1,0 +1,114 @@
+{
+  "title": "Policies",
+  "subtitle": "Everything you need to know about how we operate and protect your data.",
+  "lastUpdated": "Last updated: June 2025",
+  "tabs": {
+    "privacy": "Privacy Policy",
+    "refund": "Refund Policy",
+    "service": "Service Duration"
+  },
+  "privacy": {
+    "intro": "This policy describes how Saber Group collects, uses, and protects personal information when you use our software platforms (ATS and CRM). By accessing or using our services, you acknowledge that you have read and agree to the practices described here.",
+    "sections": [
+      {
+        "title": "Information We Collect",
+        "content": "We collect information you provide directly when creating an account or subscribing to our services, including your full name, company name, email address, and phone number. We also automatically collect technical usage data such as IP addresses, browser type, device identifiers, pages visited, and session timestamps. This data is used solely to operate and improve our platforms."
+      },
+      {
+        "title": "Payment Information",
+        "content": "Saber Group does not store your debit or credit card details on our servers. All online payment transactions are processed through PCI-compliant third-party payment gateways using industry-standard encryption. We retain only a reference token provided by the payment processor to identify your subscription — never your full card number, CVV, or expiry date."
+      },
+      {
+        "title": "How We Use Your Information",
+        "content": "We use your data to create and manage your account, process subscription payments, deliver technical updates and service notifications, and respond to support inquiries. We may also use aggregated, non-identifiable data to analyze platform usage and improve our products. We do not sell your personal data to any third party."
+      },
+      {
+        "title": "Data Sharing & Disclosure",
+        "content": "We may share your data with trusted third-party service providers — such as cloud infrastructure providers, payment processors, and email delivery services — strictly for the purpose of delivering our service. We may also disclose your information if required by applicable law, court order, or governmental authority, or to protect our legal rights and the security of our platforms."
+      },
+      {
+        "title": "Data Security",
+        "content": "We implement SSL/TLS encryption for all data in transit, encrypted databases at rest, and strict role-based access controls. Our systems enforce internal policies to limit access to personal data to authorized personnel only. While we maintain high security standards, no system can be guaranteed 100% secure. Please do not send sensitive information via plain email."
+      },
+      {
+        "title": "Cookies & Tracking",
+        "content": "We use cookies and similar tracking technologies to maintain login sessions, remember your language and preferences, and analyze how our platform is used. We may work with analytics partners who collect non-personally identifiable information through cookies to help us understand platform performance. You can configure your browser to decline cookies, though this may affect some platform functionality."
+      },
+      {
+        "title": "Your Rights & Account Deletion",
+        "content": "You have the right to access, correct, or request deletion of your personal data at any time. To exercise these rights, contact us at info@sabergroup-eg.com. We will respond within 30 days. If you wish to delete your account entirely, contact our support team — please note that any pending subscription payments must be settled before account deletion can be completed."
+      },
+      {
+        "title": "Changes to This Policy",
+        "content": "We may update this Privacy Policy from time to time. We will notify you of any material changes via email or through a prominent notice on our platform at least 14 days before the changes take effect. Continued use of our services after that date constitutes acceptance of the revised policy."
+      }
+    ],
+    "contact": "For questions about this policy, reach us at:"
+  },
+  "refund": {
+    "sections": [
+      {
+        "title": "Overview",
+        "content": "Saber Group provides subscription-based software services (SaaS). Because our platforms deliver digital value from the moment of activation, our refund policy differs from physical goods. Please read this policy carefully before subscribing."
+      },
+      {
+        "title": "Eligible Refund Cases",
+        "content": "You are entitled to a full refund within 7 days of your first subscription payment if you have not actively used the platform, or if you experience a critical technical failure on our end that prevents you from accessing the service and we are unable to resolve it within 72 hours. Refund requests must be submitted in writing to info@sabergroup-eg.com."
+      },
+      {
+        "title": "Non-Eligible Refund Cases",
+        "content": "Refunds will not be issued if: more than 7 days have elapsed since the subscription date; the platform was actively used during the billing period; cancellation is due to a change in your business needs or decision; or the request is for a partial month after the 7-day window. One-time setup, onboarding, and customization fees are non-refundable under any circumstances."
+      },
+      {
+        "title": "Wrong Charge or Billing Error",
+        "content": "If you believe you were charged incorrectly — such as a duplicate charge or an amount different from your agreed subscription plan — contact us at info@sabergroup-eg.com within 14 days of the transaction. We will investigate and, if confirmed, issue a correction or refund within 7 business days."
+      },
+      {
+        "title": "How to Request a Refund",
+        "content": "To submit a refund request, email info@sabergroup-eg.com with your company name, subscription plan, transaction date, and reason for the request. We will review your request within 3 business days and respond. If approved, the refund will be returned within 7–14 business days to the original payment method."
+      },
+      {
+        "title": "Subscription Cancellation",
+        "content": "You may cancel your subscription at any time through your account settings or by contacting support. Your account remains active and fully functional until the end of the current billing cycle. No partial refunds are issued for the unused portion of the period after the 7-day window has passed."
+      },
+      {
+        "title": "Upgrades & Downgrades",
+        "content": "When upgrading to a higher plan, the price difference is calculated on a prorated basis for the remaining days in the current billing cycle. When downgrading to a lower plan, the change takes effect at the start of the next billing cycle with no refund issued for the difference."
+      }
+    ],
+    "contact": "For questions about this policy, reach us at:"
+  },
+  "service": {
+    "sections": [
+      {
+        "title": "Subscription Confirmation",
+        "badge": "Instant",
+        "content": "Once payment is completed successfully, you receive a confirmation email containing your subscription details, plan information, and initial access credentials. Keep this email — it serves as your subscription receipt."
+      },
+      {
+        "title": "Account Setup",
+        "badge": "Within 24 hours",
+        "content": "Our team creates your dedicated platform environment, configures base settings, and connects your custom domain if applicable — all within one business day of payment confirmation."
+      },
+      {
+        "title": "Onboarding & Training Session",
+        "badge": "Within 3 business days",
+        "content": "We schedule an online onboarding session with your team to walk through the platform, configure roles and permissions, import initial data if needed, and tailor the system to your company's workflow."
+      },
+      {
+        "title": "Full Go-Live",
+        "badge": "Within 5–7 business days",
+        "content": "Once your team signs off on the setup, the platform goes fully live. The monthly or annual billing cycle officially begins from the go-live date, not the payment date."
+      }
+    ],
+    "sla": [
+      { "label": "Technical Support", "value": "Sat – Thu, 9 AM – 6 PM" },
+      { "label": "Response Time", "value": "Within 4 business hours" },
+      { "label": "Platform Uptime", "value": "99.5% uptime guarantee" },
+      { "label": "Data Backup", "value": "Automatic daily backup" }
+    ],
+    "slaTitle": "Service Level Commitments",
+    "note": "All timelines above apply to business days (Saturday – Thursday). Durations may be extended during official Egyptian public holidays. For any questions, contact us at info@sabergroup-eg.com.",
+    "contact": "For questions about this policy, reach us at:"
+  }
+}

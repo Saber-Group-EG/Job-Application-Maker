@@ -231,5 +231,11 @@
   "editProfile": "تعديل الملف الشخصي",
   "accountSettings": "إعدادات الحساب",
   "support": "الدعم",
-  "signOut": "تسجيل الخروج"
+  "signOut": "تسجيل الخروج",
+  "404errorHeading": "خطأ",
+  "pageNotFound": "لا يمكننا العثور على الصفحة التي تبحث عنها!",
+  "backToHome": "العودة إلى الصفحة الرئيسية",
+  "footerCopyright": "© {year} - Saber Group - نظام إدارة التوظيف",
+  "notFoundPageTitle": "Saber Group - نظام إدارة التوظيف - صفحة 404",
+  "notFoundPageDesc": "هذه هي صفحة 404 لنظام Saber Group - نظام إدارة التوظيف"
 }

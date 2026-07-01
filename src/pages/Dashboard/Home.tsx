@@ -211,6 +211,7 @@ export default function Home() {
 
         return {
           name: statusName,
+          displayName: statusName,
           count: Number(count),
           bgColor,
           textColor: '#111827',
@@ -295,7 +296,7 @@ export default function Home() {
             ? // Loading skeletons
               Array.from({ length: 5 }).map((_, i) => (
                 <div
-                  key={i}
+                  key={`skeleton-${i}`}
                   className="rounded-2xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-800"
                 >
                   <div className="flex items-center justify-between">
@@ -322,7 +323,7 @@ export default function Home() {
                   >
                     <div className="flex items-center justify-between">
                       <div className="text-sm font-semibold" style={{ color: card.textColor }}>
-                        {card.name}
+                        {card.displayName || card.name}
                       </div>
                       <div style={{ color: card.bgColor }}>
                         {Icon && <Icon className="size-5" />}

@@ -439,6 +439,7 @@ export default function Permissions() {
                                   text: t('rolesDeleteConfirmText', 'roles', { count: userCount }),
                                   icon: "error",
                                   showCancelButton: true,
+                                  cancelButtonText: t('cancel', 'common'),
                                   confirmButtonColor: "#ef4444",
                                   confirmButtonText: t('rolesDeleteConfirmButton', 'roles')
                                 });

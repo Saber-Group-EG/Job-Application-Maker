@@ -27,7 +27,6 @@
   "birthDateRequired": "تاريخ الميلاد مطلوب.",
   "birthDateFuture": "لا يمكن أن يكون تاريخ الميلاد في المستقبل.",
   "genderRequired": "الجنس مطلوب.",
-  "selectJobPosition": "اختر منصباً وظيفياً.",
   "profilePhotoFormat": "يجب أن تكون الصورة الشخصية JPG أو PNG.",
   "profilePhotoSize": "يجب أن تكون الصورة الشخصية 5 ميجابايت أو أقل.",
   "cvFormat": "يجب أن تكون السيرة الذاتية PDF.",

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 // @ts-expect-error - JS module without declarations
 import i18n from '../pages/Landing/i18n/index';
 
@@ -83,7 +83,7 @@ const getInitialLocale = (): Locale => {
   return 'en';
 };
 
-export const LocaleProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const LocaleProvider = ({ children }: { children: ReactNode }) => {
   const [locale, setLocaleState] = useState<Locale>(getInitialLocale);
 
   const dir = locale === 'ar' ? 'rtl' : 'ltr';
