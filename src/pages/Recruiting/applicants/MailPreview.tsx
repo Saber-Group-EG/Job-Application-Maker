@@ -101,8 +101,7 @@ type UiMailRecord = {
     raw: ApiMailRecord;
 };
 
-const STATUS_OPTIONS: Array<{ key: 'all' | MailStatus; label: string; icon: any }> = [
-    { key: 'all', label: 'statusAll', icon: Inbox },
+const STATUS_OPTIONS: Array<{ key: MailStatus; label: string; icon: any }> = [
     { key: 'queued', label: 'statusQueued', icon: Clock },
     { key: 'delivery delayed', label: 'statusDelayed', icon: AlertCircle },
     { key: 'delivered', label: 'statusDelivered', icon: CheckCircle2 },
