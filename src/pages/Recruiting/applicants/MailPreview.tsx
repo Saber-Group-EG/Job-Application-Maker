@@ -9,11 +9,7 @@ import {
     Inbox,
     Star,
     Send,
-    FileText,
-    Trash2,
-    Tag,
     Filter,
-    PlusCircle,
     CheckCircle2,
     AlertCircle,
     Clock,
@@ -353,7 +349,7 @@ export default function MailPreview() {
     const { selectedCompanyId: globalSelectedCompanyId } = useCompanyFilter();
     const selectedCompanyId = globalSelectedCompanyId ?? 'all';
     const [selectedJobId, setSelectedJobId] = useState<string>('all');
-    const [statusFilter, setStatusFilter] = useState<'all' | MailStatus>('all');
+    const [statusFilter, setStatusFilter] = useState<Set<MailStatus>>(new Set());
     const [searchTerm, setSearchTerm] = useState('');
     const [mailPage, setMailPage] = useState(1);
 
@@ -534,7 +530,7 @@ export default function MailPreview() {
         .filter((m) => {
             const matchesCompany = selectedCompanyId === 'all' || m.companyId === selectedCompanyId;
             const matchesJob = selectedJobId === 'all' || m.applicantJobPositionId === selectedJobId;
-            const matchesStatus = statusFilter === 'all' || m.status === statusFilter;
+            const matchesStatus = statusFilter.size === 0 || statusFilter.has(m.status);
             const matchesSearch = !searchTerm || [m.applicantName, m.applicantEmail, m.subject].some((f) => f.toLowerCase().includes(searchTerm.toLowerCase()));
             return matchesCompany && matchesJob && matchesStatus && matchesSearch;
         })
@@ -597,29 +593,17 @@ export default function MailPreview() {
                                     <Mail className="h-6 w-6 text-brand-600" />
                                     <span className="text-lg font-bold text-slate-800 dark:text-white">{t('sidebarTitle', 'mailPreview')}</span>
                                 </div>
-                                <button className="rounded-lg bg-brand-600 p-2 text-white transition hover:bg-brand-700">
-                                    <PlusCircle className="h-4 w-4" />
-                                </button>
+                              
                             </div>
 
                             <div className="space-y-6" role="tablist" aria-label={t('sidebarTitle', 'mailPreview')}>
                                 <div>
-                                    <SidebarNavItem icon={Inbox} label={t('sidebarInbox', 'mailPreview')} count={filteredMails.length} active={statusFilter === 'all'} />
+                                    <SidebarNavItem icon={Inbox} label={t('sidebarInbox', 'mailPreview')} count={filteredMails.length} active={statusFilter.size === 0} />
                                     <SidebarNavItem icon={Star} label={t('sidebarMarked', 'mailPreview')} count={filteredMails.filter(m => m.score > 90).length} />
-                                    <SidebarNavItem icon={FileText} label={t('sidebarDraft', 'mailPreview')} count={0} />
                                     <SidebarNavItem icon={Send} label={t('sidebarSent', 'mailPreview')} />
-                                    <SidebarNavItem icon={Trash2} label={t('sidebarTrash', 'mailPreview')} />
                                 </div>
 
-                                <div>
-                                    <div className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-slate-400">{t('sidebarCustomWork', 'mailPreview')}</div>
-                                    <SidebarNavItem icon={Tag} label={t('sidebarPartnership', 'mailPreview')} count={6} />
-                                    <SidebarNavItem icon={Tag} label={t('sidebarInProgress', 'mailPreview')} />
-                                    <button className="mt-2 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-brand-600 transition hover:bg-brand-50 dark:text-brand-400 dark:hover:bg-brand-500/10">
-                                        <PlusCircle className="h-3.5 w-3.5" />
-                                        <span>{t('sidebarAddLabel', 'mailPreview')}</span>
-                                    </button>
-                                </div>
+                             
                             </div>
                         </div>
                     </aside>
@@ -636,17 +620,28 @@ export default function MailPreview() {
                                 <div className="flex items-center gap-2">
                                     {STATUS_OPTIONS.map((opt) => {
                                         const count = getStatusCount(opt.key);
+                                        const selected = statusFilter.has(opt.key);
                                         return (
                                             <button
                                                 key={opt.key}
-                                                onClick={() => setStatusFilter(opt.key as any)}
-                                                className={`inline-flex items-center gap-1.5 shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-all ${statusFilter === opt.key
+                                                onClick={() => {
+                                                    setStatusFilter(prev => {
+                                                        const next = new Set(prev);
+                                                        if (next.has(opt.key)) {
+                                                            next.delete(opt.key);
+                                                        } else {
+                                                            next.add(opt.key);
+                                                        }
+                                                        return next;
+                                                    });
+                                                }}
+                                                className={`inline-flex items-center gap-1.5 shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-all ${selected
                                                         ? 'bg-brand-600 text-white shadow-sm'
                                                         : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
                                                     }`}
                                             >
                                                 {t(opt.label, 'mailPreview')}
-                                                {count > 0 && statusFilter !== opt.key && (
+                                                {count > 0 && !selected && (
                                                     <span className="rounded-full bg-slate-300 px-1.5 py-0.5 text-[10px] text-slate-700 dark:bg-slate-600 dark:text-slate-200">
                                                         {count}
                                                     </span>
@@ -677,7 +672,7 @@ export default function MailPreview() {
                                         </div>
                                         <h3 className="mt-4 text-lg font-medium text-slate-900 dark:text-white">{t('emptyTitle', 'mailPreview')}</h3>
                                         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                                            {searchTerm || statusFilter !== 'all' ? t('emptyDescFilter', 'mailPreview') : t('emptyDescEmpty', 'mailPreview')}
+                                            {searchTerm || statusFilter.size > 0 ? t('emptyDescFilter', 'mailPreview') : t('emptyDescEmpty', 'mailPreview')}
                                         </p>
                                     </div>
                                 ) : (

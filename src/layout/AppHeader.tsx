@@ -14,7 +14,7 @@ const AppHeader: React.FC = () => {
   const [isApplicationMenuOpen, setApplicationMenuOpen] = useState(false);
   const [isCompanyDropdownOpen, setIsCompanyDropdownOpen] = useState(false);
   const { locale, setLocale, t, dir } = useLocale();
-  const { selectedCompanyId, setSelectedCompanyId, resetFilter, companyOptions, isMultiCompany, companyMap } = useCompanyFilter();
+  const { selectedCompanyId, setSelectedCompanyId, resetFilter, companyOptions, companyMap } = useCompanyFilter();
 
   const { isMobileOpen, toggleSidebar, toggleMobileSidebar } = useSidebar();
 
@@ -143,8 +143,7 @@ const AppHeader: React.FC = () => {
               {locale === 'en' ? 'AR' : 'EN'}
             </span>
           </button>
-          {isMultiCompany && (
-            <div className="flex items-center gap-1" ref={companyDropdownRef}>
+          <div className="flex items-center gap-1" ref={companyDropdownRef}>
               <div className="relative">
                 <button
                   type="button"
@@ -167,17 +166,19 @@ const AppHeader: React.FC = () => {
 
                   {isCompanyDropdownOpen && (
                   <div className="absolute right-0 z-30 mt-1 w-64 overflow-auto rounded-lg border border-slate-200 bg-white p-1 shadow-lg dark:border-slate-700 dark:bg-slate-800">
-                    <button
-                      type="button"
-                      onClick={() => { setSelectedCompanyId(null); setIsCompanyDropdownOpen(false); }}
-                      className={`flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm transition ${
-                        !selectedCompanyId
-                          ? 'bg-slate-200 text-slate-800 dark:bg-slate-600 dark:text-slate-100'
-                          : 'text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700/50'
-                      }`}
-                    >
-                      {t('allCompanies', 'common')}
-              i      </button>
+                    {companyOptions.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => { setSelectedCompanyId(null); setIsCompanyDropdownOpen(false); }}
+                        className={`flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm transition ${
+                          !selectedCompanyId
+                            ? 'bg-slate-200 text-slate-800 dark:bg-slate-600 dark:text-slate-100'
+                            : 'text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700/50'
+                        }`}
+                      >
+                        {t('allCompanies', 'common')}
+                      </button>
+                    )}
                     {companyOptions.map((c) => {
                       const name = locale === 'ar' && c.titleAr ? c.titleAr : c.title;
                       return (
@@ -213,7 +214,7 @@ const AppHeader: React.FC = () => {
                   </div>
                 )}
               </div>
-              {selectedCompanyId && (
+              {selectedCompanyId && companyOptions.length > 1 && (
                 <button
                   onClick={() => { resetFilter(); setIsCompanyDropdownOpen(false); }}
                   className="flex items-center justify-center rounded-lg border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800"
@@ -223,7 +224,6 @@ const AppHeader: React.FC = () => {
                 </button>
               )}
             </div>
-          )}
           <ThemeToggleButton />
           <UserDropdown />
         </div>

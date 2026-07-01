@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useCompanies } from '../hooks/queries/useCompanies';
 import { useAuth } from './AuthContext';
 import { toPlainString } from '../utils/strings';
@@ -28,6 +28,21 @@ export function CompanyFilterProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const { data: companies = [] } = useCompanies();
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
+
+  // Auto-select the user's company when they only have access to one
+  useEffect(() => {
+    if (selectedCompanyId) return;
+    const ids = (() => {
+      const roleName = user?.roleId?.name?.toLowerCase();
+      if (roleName === 'super admin' || roleName === 'admin') {
+        return companies.length === 1 ? [companies[0]._id] : [];
+      }
+      return (user?.companies ?? [])
+        .map((c: any) => (typeof c.companyId === 'string' ? c.companyId : c.companyId?._id))
+        .filter(Boolean) as string[];
+    })();
+    if (ids.length === 1) setSelectedCompanyId(ids[0]);
+  }, [selectedCompanyId, user, companies]);
 
   const userCompanyIds = useMemo(() => {
     if (!user) return [];
