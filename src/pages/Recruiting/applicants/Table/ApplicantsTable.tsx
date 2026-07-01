@@ -632,6 +632,8 @@ const [excludeModes] = useState<Record<string, boolean>>({});
     ) as string[];
   }, [user, isSuperAdmin]);
 
+  const [globalFilter, setGlobalFilter] = useState('');
+
   const {
     data: jobPositions = [],
     isFetching: isJobPositionsFetching,
@@ -992,6 +994,7 @@ const jobOptions = useMemo(() => {
     currentUserId,
     allCompaniesRaw,
     canViewTrashed,
+    globalFilter,
   });
 
   const {
@@ -1007,6 +1010,44 @@ const jobOptions = useMemo(() => {
     applicants,
     allCompaniesRaw,
   });
+
+  const selectedTrashedApplicants = useMemo(() => {
+    if (!selectedApplicantIds.length) return [];
+    const ids = new Set(selectedApplicantIds);
+    return applicants.filter((a: any) => ids.has(a._id) && isTrashed(a));
+  }, [selectedApplicantIds, applicants]);
+
+  const handleBulkRestore = useCallback(async () => {
+    if (selectedTrashedApplicants.length === 0) return;
+
+    const result = await Swal.fire({
+      title: t('bulkRestoreTitle', 'applicants'),
+      text: t('bulkRestoreText', 'applicants'),
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#22c55e',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: t('restore', 'applicants'),
+      cancelButtonText: t('cancel', 'common'),
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      for (const applicant of selectedTrashedApplicants) {
+        const orig = applicant as any;
+        const previousStatus = getPreviousStatus(orig);
+        await updateStatus.mutateAsync({ id: orig._id, data: { status: previousStatus } });
+        setRowSelection((prev: any) => {
+          const next = { ...prev };
+          delete next[orig._id];
+          return next;
+        });
+      }
+    } catch {
+      // toast handled by mutation
+    }
+  }, [selectedTrashedApplicants, t, updateStatus, setRowSelection]);
 
   const selectedApplicantJobIds = useMemo(() => {
     const jobIds = new Set<string>();
@@ -1089,8 +1130,6 @@ const jobOptions = useMemo(() => {
     selectedApplicantsForInterview,
     selectedApplicantCompanyId,
     selectedApplicantCompany,
-    refetchApplicants,
-    queryClient,
     onClearSelection: () => setRowSelection({}),
   });
 
@@ -1711,7 +1750,7 @@ const jobOptions = useMemo(() => {
       } else {
         await Swal.fire({
           title: t('exportFailed', 'applicants'),
-          text: result.error || t('failedToExport', 'applicants'),
+          text: t('failedToExport', 'applicants'),
           icon: 'error',
         });
       }
@@ -2720,6 +2759,11 @@ const jobOptions = useMemo(() => {
             if (!result.isConfirmed) return;
             try {
               await updateStatus.mutateAsync({ id: orig._id, data: { status: previousStatus } });
+              setRowSelection((prev: any) => {
+                const next = { ...prev };
+                delete next[orig._id];
+                return next;
+              });
             } catch {
               // toast handled by mutation
             }
@@ -2945,6 +2989,7 @@ const jobOptions = useMemo(() => {
     enableColumnFilters: true,
     columnFilterDisplayMode: 'popover',
     enableFilters: true,
+    enableGlobalFilter: false,
     enableHiding: true,
     enableDensityToggle: false,
     enableFullScreenToggle: false,
@@ -3010,6 +3055,34 @@ const jobOptions = useMemo(() => {
     renderTopToolbarCustomActions: () => (
       <div className="flex items-center p-2 w-full justify-between">
         <div className="flex items-center gap-2">
+          <div className="relative flex items-center">
+            <svg
+              className="absolute left-2.5 h-4 w-4 text-gray-400 pointer-events-none"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              value={globalFilter}
+              onChange={(e) => setGlobalFilter(e.target.value)}
+              placeholder={t('search', 'applicants')}
+              className="w-40 lg:w-56 rounded-lg border border-gray-300 bg-white py-1.5 pl-8 pr-3 text-sm text-gray-700 placeholder-gray-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:placeholder-gray-500"
+            />
+            {globalFilter && (
+              <button
+                type="button"
+                onClick={() => setGlobalFilter('')}
+                className="absolute right-1.5 flex h-5 w-5 items-center justify-center rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
           <button
             type="button"
             onClick={() => {
@@ -3069,7 +3142,7 @@ const jobOptions = useMemo(() => {
           )}
         </div>
         <div className="flex-1" />
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 self-start">
           <button
             type="button"
             onClick={() => setCustomFilterOpen(true)}
@@ -3346,6 +3419,17 @@ const jobOptions = useMemo(() => {
                           ? t('scheduling', 'applicants')
                           : `${t('scheduleInterviews', 'applicants')} (${selectedApplicantsForInterview.length})`}
                       </button>
+                      {selectedTrashedApplicants.length > 0 && (
+                        <button
+                          onClick={handleBulkRestore}
+                          className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700"
+                        >
+                          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                          {t('restore', 'applicants')} ({selectedTrashedApplicants.length})
+                        </button>
+                      )}
                       <button
                         onClick={handleBulkDelete}
                         disabled={isDeleting}

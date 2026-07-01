@@ -222,8 +222,16 @@ export function useApplicant(id: string, options?: {
     refetchOnReconnect: false,
     refetchOnMount: false,
     initialData: options?.initialData ?? (() => {
-      const cached = queryClient.getQueryData<Applicant[]>(applicantsKeys.list());
-      return cached?.find(a => a._id === id);
+      const queryCache = queryClient.getQueryCache();
+      const listQueries = queryCache.findAll({ queryKey: applicantsKeys.lists(), type: 'active' });
+      for (const query of listQueries) {
+        const data = query.state.data as Applicant[] | undefined;
+        if (data) {
+          const found = data.find(a => a._id === id);
+          if (found) return found;
+        }
+      }
+      return undefined;
     }),
   });
 }
@@ -260,11 +268,49 @@ export function useBatchUpdateApplicantStatus() {
   return useMutation({
     mutationFn: (updates: Array<{ applicantId: string; status: string; notes?: string; reasons?: string[] }>) =>
       applicantsService.batchUpdateStatus(updates),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: applicantsKeys.lists() });
+    onMutate: async (updates) => {
+      await queryClient.cancelQueries({ queryKey: applicantsKeys.lists() });
+
+      const previousLists: Record<string, any[] | undefined> = {};
+      const queryCache = queryClient.getQueryCache();
+      const listQueries = queryCache.findAll({ queryKey: applicantsKeys.lists(), type: 'active' });
+      listQueries.forEach((query) => {
+        previousLists[JSON.stringify(query.queryKey)] = query.state.data as any[] | undefined;
+        queryClient.setQueryData(query.queryKey, (old: any[] | undefined) => {
+          if (!old) return old;
+          const updateMap = new Map(updates.map((u) => [u.applicantId, u.status]));
+          return old.map((a) => {
+            if (updateMap.has(a._id)) {
+              return { ...a, status: updateMap.get(a._id) };
+            }
+            return a;
+          });
+        });
+      });
+
+      return { previousLists };
+    },
+    onSuccess: (result, updates) => {
+      if (result && typeof result === 'object') {
+        const data = (result as any).data ?? result;
+        if (Array.isArray(data)) {
+          data.forEach((item: any) => {
+            if (item?._id) {
+              queryClient.setQueryData(applicantsKeys.detail(item._id), item);
+            }
+          });
+        }
+      }
       showSuccessToast(t('statusesUpdated', 'common'), t);
     },
-    onError: (error: ApiError) => {
+    onError: (error: ApiError, _updates, context) => {
+      if (context?.previousLists) {
+        Object.entries(context.previousLists).forEach(([key, data]) => {
+          if (data !== undefined) {
+            queryClient.setQueryData(JSON.parse(key), data);
+          }
+        });
+      }
       showErrorToast(error.message, t('statusesUpdateFailed', 'common'), t);
     },
   });
@@ -464,8 +510,13 @@ export function useScheduleBulkInterviews() {
   return useMutation({
     mutationFn: (payload: { interviews: Array<any> } | Array<any>) =>
       applicantsService.scheduleBulkInterviews(payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: applicantsKeys.lists() });
+    onSuccess: (result, payload) => {
+      const items = Array.isArray(payload) ? payload : (payload as any).interviews ?? [];
+      items.forEach((item: any) => {
+        if (item?.applicantId) {
+          queryClient.invalidateQueries({ queryKey: applicantsKeys.detail(item.applicantId) });
+        }
+      });
       showSuccessToast(t('interviewsScheduled', 'common'), t);
     },
     onError: (error: ApiError) => {

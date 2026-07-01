@@ -56,6 +56,8 @@
   "cancel": "Cancel",
   "restoreTitle": "Restore applicant?",
   "restoreText": "This will restore the applicant to \"{status}\" status.",
+  "bulkRestoreTitle": "Restore applicants?",
+  "bulkRestoreText": "These applicants will be restored to their previous status.",
   "interviewEmailPreview": "Interview Email Preview ({count})",
   "applicantItem": "Applicant #{no} - {name}",
   "to": "To:",

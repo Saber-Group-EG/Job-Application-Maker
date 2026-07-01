@@ -45,5 +45,6 @@
   "personalInformation": "المعلومات الشخصية",
   "positionApplied": "المنصب المتقدم له",
   "applicantResponses": "استجابات التقديم",
-  "commentsLabel": "التعليقات"
+  "commentsLabel": "التعليقات",
+  "customResponsesDesc": "استجابات الحقول المخصصة والمعلومات الإضافية"
 }

@@ -19,6 +19,7 @@ interface UseApplicantFiltersProps {
   currentUserId: string;
   allCompaniesRaw: any[];
   canViewTrashed?: boolean;
+  globalFilter?: string;
 }
 
 export function useApplicantFilters({
@@ -35,6 +36,7 @@ export function useApplicantFilters({
   fieldToJobIds,
   currentUserId,
   canViewTrashed = false,
+  globalFilter = '',
 }: UseApplicantFiltersProps) {
   const normalizeStatus = useCallback((value: unknown) => {
     return String(value ?? '').trim().toLowerCase();
@@ -47,6 +49,22 @@ export function useApplicantFilters({
   // Helper function to apply column filters
   const applyColumnFilters = useCallback((data: any[]) => {
     let filtered = [...data];
+
+    if (globalFilter.trim()) {
+      const q = globalFilter.trim().toLowerCase();
+      filtered = filtered.filter((applicant: any) => {
+        const fullName = String(applicant?.fullName || '').toLowerCase();
+        const email = String(applicant?.email || '').toLowerCase();
+        const phone = String(applicant?.phone || '').toLowerCase();
+        const applicantNo = String(applicant?.applicantNo || '').toLowerCase();
+        return (
+          fullName.includes(q) ||
+          email.includes(q) ||
+          phone.includes(q) ||
+          applicantNo.includes(q)
+        );
+      });
+    }
     
     const companyFilter = columnFilters.find((f: any) => f.id === 'companyId');
     const companyFilterValue = companyFilter?.value;
@@ -179,12 +197,12 @@ export function useApplicantFilters({
     // Default: always exclude trashed
     filtered = filtered.filter((a: any) => !isTrashed(a.status));
     return filtered;
-  }, [columnFilters, isSuperAdmin, effectiveOnlyStatus, selectedCompanyFilterValue, jobPositionMap, normalizeStatus, isTrashed]);
+  }, [columnFilters, isSuperAdmin, effectiveOnlyStatus, selectedCompanyFilterValue, jobPositionMap, normalizeStatus, isTrashed, globalFilter]);
 
   // Get filtered data based on column filters
   const columnFilteredApplicants = useMemo(() => {
     return applyColumnFilters(applicants);
-  }, [applicants, columnFilters, isSuperAdmin, effectiveOnlyStatus, effectiveOnlyJobPositions, jobPositionMap, normalizeStatus, canViewTrashed]);
+  }, [applicants, columnFilters, isSuperAdmin, effectiveOnlyStatus, effectiveOnlyJobPositions, jobPositionMap, normalizeStatus, canViewTrashed, globalFilter]);
 
   // Check if duplicates only filter is enabled
   const duplicatesOnlyEnabled = useMemo(

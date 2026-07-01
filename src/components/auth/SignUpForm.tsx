@@ -9,7 +9,7 @@ import { useLocale } from "../../context/LocaleContext";
 
 export default function SignUpForm() {
   const navigate = useNavigate();
-  const { t } = useLocale();
+  const { t, dir } = useLocale();
   const { register, error: authError, isLoading } = useAuth();
 
   const [showPassword, setShowPassword] = useState(false);
@@ -219,7 +219,7 @@ export default function SignUpForm() {
                     />
                     <span
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute z-30 -translate-y-1/2 cursor-pointer right-4 top-1/2"
+                      className={`absolute z-30 -translate-y-1/2 cursor-pointer top-1/2 ${dir === 'ltr' ? 'right-4' : 'left-4'}`}
                     >
                       {showPassword ? (
                         <EyeIcon className="fill-gray-500 dark:fill-gray-400 size-5" />
