@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { CalenderIcon, ChatIcon, DownloadIcon,  } from '../../../../../icons';
 import type { Applicant, ApplicantView, PersonalInfoProps } from '../../../../../types/applicants';
 import { toPlainString } from '../../../../../utils/strings';
@@ -65,7 +66,7 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
     };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+    <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden ">
       <div className="p-5">
         <div className="flex flex-col items-center text-center mb-5 mt-8">
           {data.profilePhoto ? (
@@ -81,9 +82,9 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
                   className="w-32 h-32 rounded-full object-cover mb-3 shadow-md cursor-pointer hover:opacity-90 transition-opacity"
                 />
               </button>
-              {photoPreviewOpen && (
+              {photoPreviewOpen && createPortal(
                 <div
-                  className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+                  className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4"
                   onClick={() => setPhotoPreviewOpen(false)}
                 >
                   <div className="relative max-w-[90vw] max-h-[90vh]">
@@ -100,7 +101,8 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
                       ×
                     </button>
                   </div>
-                </div>
+                </div>,
+                document.body
               )}
             </>
           ) : (
@@ -217,6 +219,19 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
               >
                 {data.phone || '-'}
               </a>
+            )}
+          </div>
+          <div>
+            <div className="text-sm font-semibold text-gray-800 -mb-1">{t('dateOfBirth', 'personalInfo')}</div>
+            {isEditing ? (
+              <input
+                type="text"
+                value={data.birthDate || ''}
+                onChange={handleField('birthDate')}
+                className="w-full text-sm border-b border-gray-200 focus:border-blue-400 focus:outline-none"
+              />
+            ) : (
+              <div className="text-sm text-gray-600">{formatDate(data.birthDate, locale)}</div>
             )}
           </div>
 
