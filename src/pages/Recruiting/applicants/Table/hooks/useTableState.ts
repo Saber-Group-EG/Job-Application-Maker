@@ -4,10 +4,13 @@ import { useLocation } from 'react-router-dom';
 import type { MRT_ColumnFiltersState, MRT_RowSelectionState } from 'material-react-table';
 
 export function useTableState({
+  onlyStatus,
+  onlyJobPositions,
   showCompanyColumn,
   persistedState,
 }: {
   onlyStatus?: string | string[];
+  onlyJobPositions?: string[];
   showCompanyColumn: boolean;
   jobPositionMap?: Record<string, any>;
   persistedState?: any;
@@ -19,12 +22,27 @@ export function useTableState({
   const isReturningFromDetails = navState?.returnToApplicants === true;
   const hasInitializedFromNav = useRef(false);
   
+  const hasPageStatusFilter = onlyStatus !== undefined && !(Array.isArray(onlyStatus) && onlyStatus.length === 0);
+  const hasPageJobFilter = onlyJobPositions !== undefined && onlyJobPositions.length > 0;
+  const pageFilterIds = [
+    ...(hasPageStatusFilter ? ['status'] : []),
+    ...(hasPageJobFilter ? ['jobPositionId'] : []),
+  ];
+  
   const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>(() => {
     if (isReturningFromDetails && navState?.columnFilters && !hasInitializedFromNav.current) {
       hasInitializedFromNav.current = true;
+      if (pageFilterIds.length > 0) {
+        const filterSet = new Set(pageFilterIds);
+        return navState.columnFilters.filter((f: any) => !filterSet.has(f.id));
+      }
       return navState.columnFilters;
     }
     if (persistedState?.columnFilters && Array.isArray(persistedState.columnFilters)) {
+      if (pageFilterIds.length > 0) {
+        const filterSet = new Set(pageFilterIds);
+        return persistedState.columnFilters.filter((f: any) => !filterSet.has(f.id));
+      }
       return persistedState.columnFilters;
     }
     return [];

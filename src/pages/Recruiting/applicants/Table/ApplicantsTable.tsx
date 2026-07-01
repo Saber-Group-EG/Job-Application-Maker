@@ -747,6 +747,7 @@ const [excludeModes] = useState<Record<string, boolean>>({});
     setCustomFilters,
   } = useTableState({
     onlyStatus: effectiveOnlyStatus,
+    onlyJobPositions: effectiveOnlyJobPositions,
     showCompanyColumn,
     jobPositionMap: {},
     persistedState: persistedTableState,

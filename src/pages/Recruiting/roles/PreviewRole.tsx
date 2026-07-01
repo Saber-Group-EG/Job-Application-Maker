@@ -49,7 +49,7 @@ export default function PreviewRole() {
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
   const [permissionAccess, setPermissionAccess] = useState<Record<string, string[]>>({});
 
-  const { data: roles = [], isLoading: rolesLoading, error: rolesError } = useRoles();
+  const { data: roles = [], isLoading: rolesLoading, isFetching: rolesFetching, error: rolesError } = useRoles();
   const role: any = Array.isArray(roles)
     ? roles.find((r: any) => r._id === id)
     : ((roles as any)?.data || []).find((r: any) => r._id === id);
@@ -167,7 +167,7 @@ export default function PreviewRole() {
   const roleUsers = (Array.isArray(usersData) ? usersData : ((usersData as any)?.data ?? []))
     .filter((u: any) => (u.roleId?._id || u.roleId) === id);
 
-  if (rolesLoading || permissionsLoading || usersLoading) return <LoadingSpinner fullPage />;
+  if (rolesLoading || permissionsLoading || usersLoading || (!role && rolesFetching)) return <LoadingSpinner fullPage />;
   if (rolesError || !role) return (
     <div className="p-8 text-center bg-white/60 dark:bg-white/5 backdrop-blur-xl rounded-[3rem] border border-red-500/20 max-w-2xl mx-auto mt-20">
       <ShieldAlert className="size-16 text-red-500 mx-auto mb-6" />

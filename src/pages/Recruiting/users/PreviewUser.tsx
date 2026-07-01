@@ -19,7 +19,6 @@ import {
   ChevronLeft, 
   LayoutDashboard, 
   Clock, 
-  CheckCircle2, 
   ShieldAlert,
   Building,
   Target,
@@ -138,7 +137,7 @@ export default function PreviewUser() {
     <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0F172A] p-4 sm:p-8 text-slate-900 dark:text-slate-100">
       <PageMeta title={t('previewMetaTitle', 'users', { name: userName })} description={t('previewMetaDescription', 'users')} />
       
-      <div className="max-w-6xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+        <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-1000">
         {/* Navigation & Actions */}
         <div className="flex items-center justify-between">
           <button 
@@ -213,9 +212,9 @@ export default function PreviewUser() {
         </div>
 
         {/* Content Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 pb-20">
+        <div className="space-y-10 pb-20">
           {/* Detailed Credentials */}
-          <div className="lg:col-span-2 space-y-10">
+          <div className="space-y-10">
             <div className="bg-white/60 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 p-10 rounded-[4rem] shadow-xl">
               <h3 className="text-xl font-black flex items-center gap-3 mb-10 tracking-tight">
                 <Shield className="size-6 text-brand-500" />
@@ -315,34 +314,7 @@ export default function PreviewUser() {
             </div>
           </div>
 
-          {/* Side Module: System Influence */}
-          <div className="space-y-10">
-            
-
-            <div className="bg-white/60 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 p-10 rounded-[4rem] shadow-xl">
-              <h3 className="text-lg font-black tracking-tight mb-8">{t('previewSystemActivity', 'users')}</h3>
-              <div className="space-y-8">
-                {[
-                  { label: t('previewActivityProfileUpdated', 'users'), date: "2 Hours Ago", icon: Calendar, color: "text-brand-500" },
-                  { label: t('previewActivityMatrixSync', 'users'), date: "Yesterday", icon: CheckCircle2, color: "text-green-500" },
-                  { label: t('previewActivityAuthentication', 'users'), date: "March 15, 2026", icon: Shield, color: "text-blue-500" }
-                ].map((item, i) => (
-                  <div key={i} className="flex gap-5 items-start group cursor-default">
-                    <div className={`mt-1 p-2.5 rounded-xl bg-slate-100 dark:bg-white/5 ${item.color} group-hover:scale-110 transition-transform`}>
-                      <item.icon className="size-4" />
-                    </div>
-                    <div className="space-y-0.5">
-                      <p className="text-sm font-black dark:text-white tracking-tight">{item.label}</p>
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest italic">{item.date}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <button className="w-full mt-10 py-4 bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-gray-400 rounded-3xl font-black text-[10px] uppercase tracking-widest border border-slate-200 dark:border-white/5 hover:bg-brand-500 hover:text-white hover:border-brand-500 transition-all">
-                {t('previewFullAuditTrail', 'users')}
-              </button>
-            </div>
-          </div>
+    
         </div>
       </div>
     </div>

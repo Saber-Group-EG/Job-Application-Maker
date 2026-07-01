@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useNavigate } from "react-router";
 import { useLocale } from "../../../context/LocaleContext";
 import Swal from '../../../utils/swal';
@@ -38,7 +38,6 @@ type UserPermission = {
 };
 
 type UserCompany = {
-  relationId: string;
   companyId: string;
   companyName: any;
   departments: string[];
@@ -61,7 +60,6 @@ export default function EditUser() {
   const updateUserMutation = useUpdateUser();
   const addUserCompanyMutation = useAddUserCompany();
   const updateUserCompaniesMutation = useUpdateUserCompanies();
-  
   const removeUserCompanyMutation = useRemoveUserCompany();
 
 
@@ -75,9 +73,9 @@ export default function EditUser() {
   });
 
   const [userCompanies, setUserCompanies] = useState<UserCompany[]>([]);
+  const originalCompaniesRef = useRef<UserCompany[]>([]);
   const [formError, setFormError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const [isAddingCompany, setIsAddingCompany] = useState(false);
   const [selectedCompanyId, setSelectedCompanyId] = useState("");
   const [permissionToAdd, setPermissionToAdd] = useState("");
   const [userPermissions, setUserPermissions] = useState<UserPermission[]>([]);
@@ -168,9 +166,8 @@ export default function EditUser() {
         isActive: user.isActive !== false,
       });
 
-      // Initialize companies from user data with relationId
-      setUserCompanies(user.companies?.map((c: any) => ({
-        relationId: c._id,
+      // Initialize companies from user data
+      const initialCompanies = user.companies?.map((c: any) => ({
         companyId: typeof c.companyId === "string" ? c.companyId : c.companyId?._id,
         companyName: c.companyId?.name || "",
         departments: c.departments?.map((d: any) => {
@@ -178,7 +175,9 @@ export default function EditUser() {
           if (d?._id) return d._id;
           return "";
         }).filter(Boolean) || [],
-      })) || []);
+      })) || [];
+      setUserCompanies(initialCompanies);
+      originalCompaniesRef.current = JSON.parse(JSON.stringify(initialCompanies));
 
       const fromUser = normalizeUserPermissions(user);
       if (fromUser.length > 0) {
@@ -193,110 +192,34 @@ export default function EditUser() {
     }
   }, [user, initializedUserId, roles, permissions]);
 
-  const handleAddCompany = async () => {
+  const handleAddCompany = () => {
     if (!selectedCompanyId) {
       setFormError(t('editAddCompanyErrorNoSelect', 'users'));
       return;
     }
 
-    // Check if company already exists
     if (userCompanies.some(c => c.companyId === selectedCompanyId)) {
       setFormError(t('editAddCompanyErrorDuplicate', 'users'));
       return;
     }
 
-    setIsAddingCompany(true);
-    try {
-      const result = await addUserCompanyMutation.mutateAsync({
-        userId: id!,
-        companyId: selectedCompanyId,
-        departments: [],
-      });
-      
-      // Get the newly created company access object
-      const newCompanyAccess = result as any;
-      const relationId = newCompanyAccess?.data?._id || newCompanyAccess?._id;
-      
-      const selectedCompany = companies.find((c: any) => c._id === selectedCompanyId);
-      setUserCompanies(prev => [...prev, {
-        relationId: relationId,
-        companyId: selectedCompanyId,
-        companyName: selectedCompany?.name || "",
-        departments: [],
-      }]);
-      
-      setSelectedCompanyId("");
-      await Swal.fire({
-        title: t('editAddCompanySuccessTitle', 'users'),
-        text: t('editAddCompanySuccessText', 'users'),
-        icon: "success",
-        background: "rgba(255, 255, 255, 0.9)",
-        backdrop: "rgba(0,0,0,0.4)",
-        timer: 1500,
-        showConfirmButton: false
-      });
-    } catch (err: any) {
-      setFormError(err.message || t('editAddCompanyErrorText', 'users'));
-    } finally {
-      setIsAddingCompany(false);
-    }
+    const selectedCompany = companies.find((c: any) => c._id === selectedCompanyId);
+    setUserCompanies(prev => [...prev, {
+      companyId: selectedCompanyId,
+      companyName: selectedCompany?.name || "",
+      departments: [],
+    }]);
+    setSelectedCompanyId("");
   };
 
-const handleUpdateDepartments = async (relationId: string, departments: string[]) => {
-  // Resolve the actual companyId from the relation before calling the API
-  const targetAssignment = userCompanies.find((c) => c.relationId === relationId);
-  const companyIdToSend = targetAssignment?.companyId ?? relationId;
-  try {
-    await updateUserCompaniesMutation.mutateAsync({
-      userId: id!,
-      companyId: companyIdToSend,
-      data: { departments },
-    });
-
-    // Optimistically update local state to reflect department changes
-    setUserCompanies((prev) =>
-      prev.map((c) => (c.relationId === relationId ? { ...c, departments } : c))
-    );
-  } catch (err: any) {
-    setFormError(err.message || t('editUpdateDeptError', 'users'));
-  }
+const handleUpdateDepartments = (companyId: string, departments: string[]) => {
+  setUserCompanies((prev) =>
+    prev.map((c) => (c.companyId === companyId ? { ...c, departments } : c))
+  );
 };
 
- const handleRemoveCompany = async (relationId: string) => {
-  const result = await Swal.fire({
-    title: t('editRemoveCompanyTitle', 'users'),
-    text: t('editRemoveCompanyText', 'users'),
-    icon: "warning",
-    showCancelButton: true,
-    confirmButtonColor: "#d33",
-    cancelButtonColor: "#3085d6",
-    confirmButtonText: t('editRemoveCompanyConfirm', 'users')
-  });
-
-  if (result.isConfirmed) {
-    try {
-      // Find the assignment so we send the actual companyId (not the relation id)
-      const targetAssignment = userCompanies.find((c) => c.relationId === relationId);
-      const companyIdToSend = targetAssignment?.companyId ?? relationId;
-
-      await removeUserCompanyMutation.mutateAsync({
-        userId: id!,
-        companyId: companyIdToSend,
-      });
-
-      setUserCompanies((prev) => prev.filter((c) => c.relationId !== relationId));
-
-      await Swal.fire({
-        title: t('editRemoveCompanySuccessTitle', 'users'),
-        text: t('editRemoveCompanySuccessText', 'users'),
-        icon: "success",
-        timer: 1500,
-        showConfirmButton: false
-      });
-    } catch (err: any) {
-      setFormError(err.message || t('editRemoveCompanyError', 'users'));
-    }
-  }
+ const handleRemoveCompany = (companyId: string) => {
+  setUserCompanies((prev) => prev.filter((c) => c.companyId !== companyId));
 };
 
   const handleRoleChange = (nextRoleId: string) => {
@@ -405,7 +328,7 @@ const handleUpdateDepartments = async (relationId: string, departments: string[]
         throw new Error(t('editErrorRequired', 'users'));
       }
 
-      // Update basic user info and permissions
+      // 1. Update basic user info and permissions
       await updateUserMutation.mutateAsync({
         id: id!,
         data: {
@@ -417,9 +340,47 @@ const handleUpdateDepartments = async (relationId: string, departments: string[]
           permissions: userPermissions.map((item) => ({
             permission: item.permission,
             access: item.access,
-          }))
+          })),
         }
       });
+
+      // 2. Batch company changes: diff current vs original
+      const originalMap = new Map(originalCompaniesRef.current.map((c) => [c.companyId, c]));
+      const currentMap = new Map(userCompanies.map((c) => [c.companyId, c]));
+
+      const addIds = userCompanies.filter((c) => !originalMap.has(c.companyId));
+      const removeIds = originalCompaniesRef.current.filter((c) => !currentMap.has(c.companyId));
+      const updateDepts = userCompanies.filter((c) => {
+        const orig = originalMap.get(c.companyId);
+        if (!orig) return false;
+        const origStr = [...orig.departments].sort().join(',');
+        const currStr = [...c.departments].sort().join(',');
+        return origStr !== currStr;
+      });
+
+      const companyMutations: Promise<any>[] = [];
+
+      for (const c of removeIds) {
+        companyMutations.push(
+          removeUserCompanyMutation.mutateAsync({ userId: id!, companyId: c.companyId })
+        );
+      }
+      for (const c of addIds) {
+        companyMutations.push(
+          addUserCompanyMutation.mutateAsync({ userId: id!, companyId: c.companyId, departments: c.departments })
+        );
+      }
+      for (const c of updateDepts) {
+        companyMutations.push(
+          updateUserCompaniesMutation.mutateAsync({
+            userId: id!,
+            companyId: c.companyId,
+            data: { departments: c.departments },
+          })
+        );
+      }
+
+      await Promise.all(companyMutations);
 
       await Swal.fire({
         title: t('editSuccessTitle', 'users'),
@@ -779,14 +740,10 @@ const handleUpdateDepartments = async (relationId: string, departments: string[]
                   <button
                     type="button"
                     onClick={handleAddCompany}
-                    disabled={isAddingCompany || !selectedCompanyId}
+                    disabled={!selectedCompanyId}
                     className="px-6 py-3 bg-brand-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-lg shadow-brand-500/20 disabled:opacity-50 disabled:hover:scale-100"
                   >
-                    {isAddingCompany ? (
-                      <div className="size-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    ) : (
-                      <Plus className="size-4" />
-                    )}
+                    <Plus className="size-4" />
                   </button>
                 </div>
 
@@ -800,10 +757,10 @@ const handleUpdateDepartments = async (relationId: string, departments: string[]
                     });
 
                     return (
-                      <div key={assignment.relationId} className="relative group bg-white dark:bg-slate-900/50 p-6 rounded-[2rem] border border-slate-200 dark:border-white/5 shadow-sm">
+                      <div key={assignment.companyId} className="relative group bg-white dark:bg-slate-900/50 p-6 rounded-[2rem] border border-slate-200 dark:border-white/5 shadow-sm">
                         <button 
                           type="button" 
-                          onClick={() => handleRemoveCompany(assignment.relationId)}
+                          onClick={() => handleRemoveCompany(assignment.companyId)}
                           className="absolute -top-3 -right-3 size-8 bg-red-500 text-white rounded-xl items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity flex shadow-lg hover:rotate-12"
                         >
                           <Trash2 className="size-4" />
@@ -832,7 +789,7 @@ const handleUpdateDepartments = async (relationId: string, departments: string[]
                                         const newDepartments = isSelected
                                           ? assignment.departments.filter((id: string) => id !== dept._id)
                                           : [...(assignment.departments || []), dept._id];
-                                        handleUpdateDepartments(assignment.relationId, newDepartments);
+                                        handleUpdateDepartments(assignment.companyId, newDepartments);
                                       }}
                                       className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${
                                         isSelected

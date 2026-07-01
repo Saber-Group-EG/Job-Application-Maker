@@ -153,7 +153,19 @@ const RecommendedFields = () => {
     e.preventDefault();
     const finalFieldId = editFieldId || generateFieldId(form.label);
     
-    // Construct payload as a CreateRecommendedFieldRequest / UpdateRecommendedFieldRequest
+    const pendingChoice = newChoice.trim();
+    const pendingChoiceAr = newChoiceAr.trim();
+    const hasPending = pendingChoice || pendingChoiceAr;
+    const finalOptions = hasPending ? [...(form.options || []), pendingChoice || pendingChoiceAr] : form.options;
+    const finalOptionsAr = hasPending ? [...(form.optionsAr || []), pendingChoiceAr || pendingChoice] : form.optionsAr;
+
+    const buildChoices = (choices?: any[], choicesAr?: any[]) =>
+      (choices || []).map((c: any, i: number) => {
+        const en = typeof c === "string" ? c : (c as any)?.en || "";
+        const ar = (Array.isArray(choicesAr) ? (choicesAr[i] ?? "") : (c as any)?.ar ?? "").toString().trim() || en;
+        return { en, ar };
+      });
+
     const payload: any = {
       fieldId: finalFieldId,
       label: {
@@ -162,8 +174,7 @@ const RecommendedFields = () => {
       },
       inputType: form.type,
       isRequired: form.required,
-      choices: form.options,
-      choicesAr: form.optionsAr,
+      choices: buildChoices(finalOptions, finalOptionsAr),
       minValue: form.validation?.min,
       maxValue: form.validation?.max,
       groupFields: (form.groupFields || []).map(gf => ({
@@ -172,7 +183,7 @@ const RecommendedFields = () => {
           en: typeof gf.label === "string" ? gf.label : (gf.label as any)?.en || "",
           ar: typeof gf.label === "string" ? gf.labelAr || gf.label : (gf.label as any)?.ar || (gf.label as any)?.en || "",
         },
-        choicesAr: gf.choicesAr || gf.choices
+        choices: buildChoices(gf.choices || [], gf.choicesAr)
       }))
     };
 
@@ -198,6 +209,7 @@ const RecommendedFields = () => {
       showCancelButton: true,
       confirmButtonColor: "#EF4444",
       confirmButtonText: t('deleteConfirmButton', 'systemSettings'),
+      cancelButtonText: t('cancel', 'common'),
       customClass: { popup: "rounded-3xl", confirmButton: "rounded-xl", cancelButton: "rounded-xl" }
     });
     if (!result.isConfirmed) return;
@@ -356,9 +368,14 @@ const RecommendedFields = () => {
                         return typeof a === 'string' ? a : ((a as any)?.ar || '');
                       })()}</div>
                     </div>
-                    <button type="button" onClick={() => handleInputChange("options", form.options?.filter((_, idx) => idx !== i))} className="text-error-500 hover:bg-error-50 p-2 rounded-lg transition-colors">
-                      <TrashBinIcon className="size-4" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button type="button" onClick={() => { setNewChoice(typeof opt === 'string' ? opt : ((opt as any)?.en || '')); setNewChoiceAr(form.optionsAr?.[i] || ''); handleInputChange("options", form.options?.filter((_, idx) => idx !== i)); handleInputChange("optionsAr", form.optionsAr?.filter((_, idx) => idx !== i)); }} className="text-gray-400 hover:text-brand-600 p-2 rounded-lg transition-colors">
+                        <PencilIcon className="size-4" />
+                      </button>
+                      <button type="button" onClick={() => { handleInputChange("options", form.options?.filter((_, idx) => idx !== i)); handleInputChange("optionsAr", form.optionsAr?.filter((_, idx) => idx !== i)); }} className="text-error-500 hover:bg-error-50 p-2 rounded-lg transition-colors">
+                        <TrashBinIcon className="size-4" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import {
   Ban,
   ClipboardList,
@@ -301,6 +301,210 @@ function SortableQuestionItem({
   );
 }
 
+function SortableGroupItem({
+  group,
+  groupIndex,
+  canEdit,
+  collapsedGroupIds,
+  onToggleCollapse,
+  onUpdateGroupName,
+  onRemoveGroup,
+  onAddQuestion,
+  onUpdateQuestion,
+  onRemoveQuestion,
+  choiceBuffers,
+  onChoiceBufferChange,
+  activeQuestionId,
+  onQuestionDragStart,
+  onQuestionDragEnd,
+  onQuestionDragCancel,
+  sensors,
+  dropAnimation,
+  t,
+}: {
+  group: any;
+  groupIndex: number;
+  canEdit: boolean;
+  collapsedGroupIds: Set<string>;
+  onToggleCollapse: () => void;
+  onUpdateGroupName: (name: string) => void;
+  onRemoveGroup: () => void;
+  onAddQuestion: () => void;
+  onUpdateQuestion: (questionIndex: number, patch: Partial<InterviewQuestion>) => void;
+  onRemoveQuestion: (questionIndex: number) => void;
+  choiceBuffers: Record<string, string>;
+  onChoiceBufferChange: (key: string, value: string) => void;
+  activeQuestionId: string | null;
+  onQuestionDragStart: (event: DragStartEvent) => void;
+  onQuestionDragEnd: (event: DragEndEvent) => void;
+  onQuestionDragCancel: () => void;
+  sensors: any;
+  dropAnimation: any;
+  t: (key: string, ...args: any[]) => string;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    isDragging,
+  } = useSortable({ id: group._id });
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    transition: isDragging ? 'none' : 'transform 200ms cubic-bezier(0.2, 0, 0, 1)',
+    opacity: isDragging ? 0.4 : 1,
+  };
+
+  const isCollapsed = collapsedGroupIds.has(group._id);
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`overflow-hidden rounded-xl border ${
+        isDragging
+          ? 'border-brand-400 bg-white shadow-lg ring-2 ring-brand-500 dark:bg-slate-800'
+          : 'border-slate-200 dark:border-slate-700'
+      }`}
+    >
+      <div className="flex items-center gap-3 bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
+        <div
+          {...attributes}
+          {...listeners}
+          className="flex cursor-grab items-center justify-center rounded p-1 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-600 active:cursor-grabbing dark:hover:bg-slate-700 dark:hover:text-slate-300"
+        >
+          <GripVertical className="size-4" />
+        </div>
+        <button
+          type="button"
+          onClick={onToggleCollapse}
+          className="flex w-full items-center gap-3 text-left"
+        >
+          {isCollapsed ? (
+            <ChevronRight className="size-4 shrink-0 text-slate-400" />
+          ) : (
+            <ChevronDown className="size-4 shrink-0 text-slate-400" />
+          )}
+          <div className="min-w-0 flex-1">
+            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
+              {t('interviewCompany.labelGroupName', 'settings')}
+            </label>
+            <input
+              value={group.name}
+              onChange={(e) => onUpdateGroupName(e.target.value)}
+              disabled={!canEdit}
+              placeholder={t('interviewCompany.groupNamePlaceholder', 'settings')}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-800"
+            />
+          </div>
+          <span className="shrink-0 text-xs text-slate-400">
+            {t('interviewCompany.questionCount', 'settings', { count: group.questions.length })}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={onRemoveGroup}
+          disabled={!canEdit}
+          className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300"
+        >
+          <Trash2 className="size-4" /> {t('interviewCompany.remove', 'settings')}
+        </button>
+      </div>
+
+      <div
+        style={{
+          maxHeight: isCollapsed ? 0 : '5000px',
+          opacity: isCollapsed ? 0 : 1,
+          overflow: 'hidden',
+          transition: 'max-height 0.3s cubic-bezier(0.2, 0, 0, 1), opacity 0.25s cubic-bezier(0.2, 0, 0, 1)',
+        }}
+      >
+        <div className="space-y-3 border-t border-slate-200 p-4 dark:border-slate-700">
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={onQuestionDragStart}
+            onDragEnd={onQuestionDragEnd}
+            onDragCancel={onQuestionDragCancel}
+          >
+            <SortableContext
+              items={group.questions.map((q: any) => q._id)}
+              strategy={verticalListSortingStrategy}
+            >
+              {group.questions.map((question: any, questionIndex: number) => (
+                <SortableQuestionItem
+                  key={question._id}
+                  question={question}
+                  questionIndex={questionIndex}
+                  groupIndex={groupIndex}
+                  canEdit={canEdit}
+                  choiceBuffer={choiceBuffers[`${groupIndex}_${questionIndex}`] ?? ''}
+                  onUpdate={(patch) => onUpdateQuestion(questionIndex, patch)}
+                  onRemove={() => onRemoveQuestion(questionIndex)}
+                  onChoiceBufferChange={(value) =>
+                    onChoiceBufferChange(`${groupIndex}_${questionIndex}`, value)
+                  }
+                />
+              ))}
+            </SortableContext>
+            {activeQuestionId &&
+              (() => {
+                const found = group.questions?.find(
+                  (q: any) => q._id === activeQuestionId
+                );
+                if (!found) return null;
+                return createPortal(
+                  <DragOverlay dropAnimation={dropAnimation}>
+                    <div className="grid grid-cols-1 gap-3 rounded-lg border border-brand-400 bg-white p-3 shadow-xl dark:bg-slate-800 lg:grid-cols-[auto_1fr_150px_130px_auto]">
+                      <div className="flex items-center justify-center">
+                        <GripVertical className="size-4 text-brand-500" />
+                      </div>
+                      <div>
+                        <div className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{t('interviewCompany.dragOverlayQuestion', 'settings')}</div>
+                        <div className="w-full rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm text-slate-700 dark:border-brand-700 dark:bg-slate-900 dark:text-slate-300">
+                          {found.question || t('interviewCompany.emptyQuestion', 'settings')}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{t('interviewCompany.dragOverlayType', 'settings')}</div>
+                        <div className="w-full rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm text-slate-700 dark:border-brand-700 dark:bg-slate-900 dark:text-slate-300">
+                          {found.answerType}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{t('interviewCompany.dragOverlayScore', 'settings')}</div>
+                        <div className="w-full rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm text-slate-700 dark:border-brand-700 dark:bg-slate-900 dark:text-slate-300">
+                          {found.score}
+                        </div>
+                      </div>
+                      <div className="flex items-end">
+                        <div className="inline-flex h-10 items-center rounded-lg bg-red-100 px-3 text-red-400 opacity-50 dark:bg-red-500/10">
+                          <Trash2 className="size-4" />
+                        </div>
+                      </div>
+                    </div>
+                  </DragOverlay>,
+                  document.body
+                );
+              })()}
+          </DndContext>
+
+          <button
+            type="button"
+            onClick={onAddQuestion}
+            disabled={!canEdit}
+            className="inline-flex items-center gap-2 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-sm font-medium text-brand-700 transition hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-brand-500/30 dark:bg-brand-500/10 dark:text-brand-300"
+          >
+            <PlusCircle className="size-4" /> {t('interviewCompany.addQuestion', 'settings')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function InterviewCompanySettingsPage() {
   const { user, hasPermission } = useAuth();
   const { t, locale } = useLocale();
@@ -321,8 +525,9 @@ export default function InterviewCompanySettingsPage() {
     hasPermission('Settings Management', 'create');
 
   const { selectedCompanyId } = useCompanyFilter();
-  const [groups, setGroups] = useState<InterviewGroup[]>([]);
+  const [groups, setGroups] = useState<(InterviewGroup & { _id: string })[]>([]);
   const [activeQuestionId, setActiveQuestionId] = useState<string | null>(null);
+  const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -340,7 +545,7 @@ export default function InterviewCompanySettingsPage() {
   const [choiceBuffers, setChoiceBuffers] = useState<Record<string, string>>(
     {}
   );
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<number>>(new Set());
+  const [collapsedGroupIds, setCollapsedGroupIds] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<
     | 'interview-groups'
     | 'rejection-reasons'
@@ -389,10 +594,24 @@ export default function InterviewCompanySettingsPage() {
     ? isCompaniesLoading
     : isInterviewLoading || isInterviewFetching;
 
+  const hasInitializedCollapsed = useRef(false);
+
   useEffect(() => {
     const normalized = normalizeGroups(derivedInterviewSettings?.groups);
-    setGroups(normalized);
+    setGroups((prev) =>
+      normalized.map((g, i) => ({
+        ...g,
+        _id: prev[i]?._id || uid(),
+      }))
+    );
   }, [derivedInterviewSettings]);
+
+  useEffect(() => {
+    if (groups.length > 0 && !hasInitializedCollapsed.current) {
+      setCollapsedGroupIds(new Set(groups.map((g) => g._id)));
+      hasInitializedCollapsed.current = true;
+    }
+  }, [groups]);
 
   const totalQuestions = useMemo(
     () => groups.reduce((acc, group) => acc + group.questions.length, 0),
@@ -400,13 +619,16 @@ export default function InterviewCompanySettingsPage() {
   );
 
   const addGroup = () => {
+    const newId = uid();
     setGroups((prev) => [
       {
+        _id: newId,
         name: t('interviewCompany.defaultGroupName', 'settings', { number: prev.length + 1 }),
         questions: [{ ...EMPTY_QUESTION }],
       },
       ...prev,
     ]);
+    setCollapsedGroupIds((prev) => new Set(prev).add(newId));
   };
 
   const removeGroup = (groupIndex: number) => {
@@ -494,6 +716,30 @@ export default function InterviewCompanySettingsPage() {
 
   const handleQuestionDragCancel = useCallback(() => {
     setActiveQuestionId(null);
+  }, []);
+
+  const handleGroupDragStart = useCallback((event: DragStartEvent) => {
+    setActiveGroupId(event.active.id as string);
+  }, []);
+
+  const handleGroupDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveGroupId(null);
+    if (!over || active.id === over.id) return;
+
+    const activeId = active.id as string;
+    const overId = over.id as string;
+
+    setGroups((prev) => {
+      const oldIndex = prev.findIndex((g) => g._id === activeId);
+      const newIndex = prev.findIndex((g) => g._id === overId);
+      if (oldIndex === -1 || newIndex === -1) return prev;
+      return arrayMove(prev, oldIndex, newIndex);
+    });
+  }, []);
+
+  const handleGroupDragCancel = useCallback(() => {
+    setActiveGroupId(null);
   }, []);
 
   const validateGroups = (): InterviewGroup[] | null => {
@@ -843,156 +1089,83 @@ export default function InterviewCompanySettingsPage() {
                     </div>
                   )}
 
-                  {groups.map((group, groupIndex) => {
-                    const isCollapsed = collapsedGroups.has(groupIndex);
-                    const toggleCollapse = () => {
-                      setCollapsedGroups((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(groupIndex)) {
-                          next.delete(groupIndex);
-                        } else {
-                          next.add(groupIndex);
-                        }
-                        return next;
-                      });
-                    };
-
-                    return (
-                      <div
-                        key={`group-${groupIndex}`}
-                        className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700"
+                  {groups.length > 0 && (
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragStart={handleGroupDragStart}
+                      onDragEnd={handleGroupDragEnd}
+                      onDragCancel={handleGroupDragCancel}
+                    >
+                      <SortableContext
+                        items={groups.map((g) => g._id)}
+                        strategy={verticalListSortingStrategy}
                       >
-                        <button
-                          type="button"
-                          onClick={toggleCollapse}
-                          className="flex w-full items-center gap-3 bg-slate-50 px-4 py-3 text-left transition hover:bg-slate-100 dark:bg-slate-800/60 dark:hover:bg-slate-800"
-                        >
-                          {isCollapsed ? (
-                            <ChevronRight className="size-4 shrink-0 text-slate-400" />
-                          ) : (
-                            <ChevronDown className="size-4 shrink-0 text-slate-400" />
-                          )}
-                          <div className="min-w-0 flex-1">
-                            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                              {t('interviewCompany.labelGroupName', 'settings')}
-                            </label>
-                            <input
-                              value={group.name}
-                              onChange={(e) =>
-                                updateGroupName(groupIndex, e.target.value)
-                              }
-                              disabled={!canEdit}
-                              placeholder={t('interviewCompany.groupNamePlaceholder', 'settings')}
-                              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-800"
-                            />
-                          </div>
-                          <span className="shrink-0 text-xs text-slate-400">
-                            {t('interviewCompany.questionCount', 'settings', { count: group.questions.length })}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              removeGroup(groupIndex);
+                        {groups.map((group, groupIndex) => (
+                          <SortableGroupItem
+                            key={group._id}
+                            group={group}
+                            groupIndex={groupIndex}
+                            canEdit={canEdit}
+                            collapsedGroupIds={collapsedGroupIds}
+                            onToggleCollapse={() => {
+                              setCollapsedGroupIds((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(group._id)) {
+                                  next.delete(group._id);
+                                } else {
+                                  next.add(group._id);
+                                }
+                                return next;
+                              });
                             }}
-                            disabled={!canEdit}
-                            className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300"
-                          >
-                            <Trash2 className="size-4" /> {t('interviewCompany.remove', 'settings')}
-                          </button>
-                        </button>
-
-                        {!isCollapsed && (
-                          <div className="space-y-3 border-t border-slate-200 p-4 dark:border-slate-700">
-                            <DndContext
-                              sensors={sensors}
-                              collisionDetection={closestCenter}
-                              onDragStart={handleQuestionDragStart}
-                              onDragEnd={handleQuestionDragEnd}
-                              onDragCancel={handleQuestionDragCancel}
-                            >
-                              <SortableContext
-                                items={group.questions.map((q: any) => q._id)}
-                                strategy={verticalListSortingStrategy}
-                              >
-                                {group.questions.map((question: any, questionIndex) => (
-                                  <SortableQuestionItem
-                                    key={question._id}
-                                    question={question}
-                                    questionIndex={questionIndex}
-                                    groupIndex={groupIndex}
-                                    canEdit={canEdit}
-                                    choiceBuffer={
-                                      choiceBuffers[`${groupIndex}_${questionIndex}`] ?? ''
-                                    }
-                                    onUpdate={(patch) =>
-                                      updateQuestion(groupIndex, questionIndex, patch)
-                                    }
-                                    onRemove={() => removeQuestion(groupIndex, questionIndex)}
-                                    onChoiceBufferChange={(value) =>
-                                      setChoiceBuffers((prev) => ({
-                                        ...prev,
-                                        [`${groupIndex}_${questionIndex}`]: value,
-                                      }))
-                                    }
-                                  />
-                                ))}
-                              </SortableContext>
-                              {activeQuestionId &&
-                                (() => {
-                                  const found = groups[groupIndex]?.questions?.find(
-                                    (q: any) => q._id === activeQuestionId
-                                  );
-                                  if (!found) return null;
-                                  return createPortal(
-                                    <DragOverlay dropAnimation={dropAnimation}>
-                                      <div className="grid grid-cols-1 gap-3 rounded-lg border border-brand-400 bg-white p-3 shadow-xl dark:bg-slate-800 lg:grid-cols-[auto_1fr_150px_130px_auto]">
-                                        <div className="flex items-center justify-center">
-                                          <GripVertical className="size-4 text-brand-500" />
-                                        </div>
-                                        <div>
-                                          <div className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{t('interviewCompany.dragOverlayQuestion', 'settings')}</div>
-                                          <div className="w-full rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm text-slate-700 dark:border-brand-700 dark:bg-slate-900 dark:text-slate-300">
-                                            {found.question || t('interviewCompany.emptyQuestion', 'settings')}
-                                          </div>
-                                        </div>
-                                        <div>
-                                          <div className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{t('interviewCompany.dragOverlayType', 'settings')}</div>
-                                          <div className="w-full rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm text-slate-700 dark:border-brand-700 dark:bg-slate-900 dark:text-slate-300">
-                                            {found.answerType}
-                                          </div>
-                                        </div>
-                                        <div>
-                                          <div className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{t('interviewCompany.dragOverlayScore', 'settings')}</div>
-                                          <div className="w-full rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm text-slate-700 dark:border-brand-700 dark:bg-slate-900 dark:text-slate-300">
-                                            {found.score}
-                                          </div>
-                                        </div>
-                                        <div className="flex items-end">
-                                          <div className="inline-flex h-10 items-center rounded-lg bg-red-100 px-3 text-red-400 opacity-50 dark:bg-red-500/10">
-                                            <Trash2 className="size-4" />
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </DragOverlay>,
-                                    document.body
-                                  );
+                            onUpdateGroupName={(name) => updateGroupName(groupIndex, name)}
+                            onRemoveGroup={() => removeGroup(groupIndex)}
+                            onAddQuestion={() => addQuestion(groupIndex)}
+                            onUpdateQuestion={(questionIndex, patch) =>
+                              updateQuestion(groupIndex, questionIndex, patch)
+                            }
+                            onRemoveQuestion={(questionIndex) =>
+                              removeQuestion(groupIndex, questionIndex)
+                            }
+                            choiceBuffers={choiceBuffers}
+                            onChoiceBufferChange={(key, value) =>
+                              setChoiceBuffers((prev) => ({ ...prev, [key]: value }))
+                            }
+                            activeQuestionId={activeQuestionId}
+                            onQuestionDragStart={handleQuestionDragStart}
+                            onQuestionDragEnd={handleQuestionDragEnd}
+                            onQuestionDragCancel={handleQuestionDragCancel}
+                            sensors={sensors}
+                            dropAnimation={dropAnimation}
+                            t={t}
+                          />
+                        ))}
+                      </SortableContext>
+                      {activeGroupId &&
+                        createPortal(
+                          <DragOverlay dropAnimation={dropAnimation}>
+                            <div className="flex items-center gap-3 rounded-xl border border-brand-400 bg-white px-4 py-3 shadow-xl dark:bg-slate-800">
+                              <GripVertical className="size-4 shrink-0 text-brand-500" />
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-medium">
+                                  {groups.find((g) => g._id === activeGroupId)?.name || ''}
+                                </p>
+                              </div>
+                              <span className="shrink-0 text-xs text-slate-400">
+                                {(() => {
+                                  const g = groups.find((g) => g._id === activeGroupId);
+                                  return g
+                                    ? t('interviewCompany.questionCount', 'settings', { count: g.questions.length })
+                                    : '';
                                 })()}
-                            </DndContext>
-
-                            <button
-                              type="button"
-                              onClick={() => addQuestion(groupIndex)}
-                              disabled={!canEdit}
-                              className="inline-flex items-center gap-2 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-sm font-medium text-brand-700 transition hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-brand-500/30 dark:bg-brand-500/10 dark:text-brand-300"
-                            >
-                              <PlusCircle className="size-4" /> {t('interviewCompany.addQuestion', 'settings')}
-                            </button>
-                          </div>
+                              </span>
+                            </div>
+                          </DragOverlay>,
+                          document.body
                         )}
-                      </div>
-                    );
-                  })}
+                    </DndContext>
+                  )}
                 </div>
               </div>
             ) : isRejectionTab ? (
