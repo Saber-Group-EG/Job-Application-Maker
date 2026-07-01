@@ -290,7 +290,7 @@ export function useBatchUpdateApplicantStatus() {
 
       return { previousLists };
     },
-    onSuccess: (result, updates) => {
+    onSuccess: (result, _updates) => {
       if (result && typeof result === 'object') {
         const data = (result as any).data ?? result;
         if (Array.isArray(data)) {

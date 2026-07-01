@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
+// @ts-expect-error - JS module without declarations
 import i18n from '../pages/Landing/i18n/index';
 
 import enSidebar from '../../locales/en/sidebar.json';
