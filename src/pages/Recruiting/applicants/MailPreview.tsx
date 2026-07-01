@@ -8,7 +8,6 @@ import {
     Search,
     Inbox,
     Star,
-    Send,
     Filter,
     CheckCircle2,
     AlertCircle,
@@ -85,7 +84,7 @@ type UiMailRecord = {
     resendEmailId: string;
     statusRaw: string;
     status: MailStatus;
-    score: number;
+     score: number;
     createdAt: string;
     lastUpdateAt: string;
     subject: string;
@@ -315,8 +314,9 @@ const getApplicantJobTitle = (applicantRecord: any): string | null => {
     return null;
 };
 
-const SidebarNavItem = ({ icon: Icon, label, count, active }: { icon: any; label: string; count?: number; active?: boolean }) => (
+const SidebarNavItem = ({ icon: Icon, label, count, active, onClick }: { icon: any; label: string; count?: number; active?: boolean; onClick?: () => void }) => (
     <button
+        onClick={onClick}
         className={`flex w-full cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-sm transition-all ${active ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-400' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'}`}
         role="tab"
         aria-selected={active}
@@ -349,6 +349,7 @@ export default function MailPreview() {
     const selectedCompanyId = globalSelectedCompanyId ?? 'all';
     const [selectedJobId, setSelectedJobId] = useState<string>('all');
     const [statusFilter, setStatusFilter] = useState<Set<MailStatus>>(new Set());
+    const [markedFilter, setMarkedFilter] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [mailPage, setMailPage] = useState(1);
 
@@ -525,24 +526,31 @@ export default function MailPreview() {
         });
     }, [apiResponse, applicantById, companyNameById, jobTitleById, knownNameByApplicantId, knownNameByEmail, isApplicantsLoading, isApplicantsFetching, isApplicantsFetched, t]);
 
-    const filteredMails = useMemo(() => uiRecords
+    const baseMails = useMemo(() => uiRecords
         .filter((m) => {
             const matchesCompany = selectedCompanyId === 'all' || m.companyId === selectedCompanyId;
             const matchesJob = selectedJobId === 'all' || m.applicantJobPositionId === selectedJobId;
+            return matchesCompany && matchesJob;
+        }),
+        [uiRecords, selectedCompanyId, selectedJobId]);
+
+    const filteredMails = useMemo(() => baseMails
+        .filter((m) => {
             const matchesStatus = statusFilter.size === 0 || statusFilter.has(m.status);
+            const matchesMarked = !markedFilter || (m.score ?? 0) > 90;
             const matchesSearch = !searchTerm || [m.applicantName, m.applicantEmail, m.subject].some((f) => f.toLowerCase().includes(searchTerm.toLowerCase()));
-            return matchesCompany && matchesJob && matchesStatus && matchesSearch;
+            return matchesStatus && matchesMarked && matchesSearch;
         })
         .sort((a, b) => {
             const createdDiff = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
             if (createdDiff !== 0) return createdDiff;
             return new Date(b.lastUpdateAt).getTime() - new Date(a.lastUpdateAt).getTime();
         }),
-        [uiRecords, selectedCompanyId, selectedJobId, statusFilter, searchTerm]);
+        [baseMails, statusFilter, markedFilter, searchTerm]);
 
     useEffect(() => {
         setMailPage(1);
-    }, [selectedCompanyId, selectedJobId, statusFilter, searchTerm]);
+    }, [selectedCompanyId, selectedJobId, statusFilter, markedFilter, searchTerm]);
 
     const totalMailPages = useMemo(() => Math.max(1, Math.ceil(filteredMails.length / MAIL_LIST_PAGE_SIZE)), [filteredMails.length]);
 
@@ -562,9 +570,8 @@ export default function MailPreview() {
 
 
 
-    const getStatusCount = (status: 'all' | MailStatus) => {
-        if (status === 'all') return filteredMails.length;
-        return filteredMails.filter(m => m.status === status).length;
+    const getStatusCount = (status: MailStatus) => {
+        return baseMails.filter(m => m.status === status).length;
     };
 
     const handleMailClick = (mailId: string) => {
@@ -597,9 +604,8 @@ export default function MailPreview() {
 
                             <div className="space-y-6" role="tablist" aria-label={t('sidebarTitle', 'mailPreview')}>
                                 <div>
-                                    <SidebarNavItem icon={Inbox} label={t('sidebarInbox', 'mailPreview')} count={filteredMails.length} active={statusFilter.size === 0} />
-                                    <SidebarNavItem icon={Star} label={t('sidebarMarked', 'mailPreview')} count={filteredMails.filter(m => m.score > 90).length} />
-                                    <SidebarNavItem icon={Send} label={t('sidebarSent', 'mailPreview')} />
+                                    <SidebarNavItem icon={Inbox} label={t('sidebarInbox', 'mailPreview')} count={baseMails.length} active={statusFilter.size === 0 && !markedFilter} onClick={() => { setStatusFilter(new Set()); setMarkedFilter(false); }} />
+                                    <SidebarNavItem icon={Star} label={t('sidebarMarked', 'mailPreview')} count={baseMails.filter(m => m.score > 90).length} active={markedFilter} onClick={() => { setMarkedFilter(prev => !prev); setStatusFilter(new Set()); }} />
                                 </div>
 
                              
@@ -640,7 +646,7 @@ export default function MailPreview() {
                                                     }`}
                                             >
                                                 {t(opt.label, 'mailPreview')}
-                                                {count > 0 && !selected && (
+                                                {count > 0 && (
                                                     <span className="rounded-full bg-slate-300 px-1.5 py-0.5 text-[10px] text-slate-700 dark:bg-slate-600 dark:text-slate-200">
                                                         {count}
                                                     </span>
