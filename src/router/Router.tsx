@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router';
+import { BrowserRouter as Router, Routes, Route } from 'react-router';
 import { Suspense, lazy } from 'react';
 import { ScrollToTop } from '../components/common/ScrollToTop';
 import ProtectedRoute from './ProtectedRoute';
@@ -6,14 +6,23 @@ import PermissionProtectedRoute from './PermissionProtectedRoute';
 import { paths, patterns } from './Paths';
 
 // Landing pages
+// @ts-expect-error - JS module without declarations
 const LandingLayout = lazy(() => import('../pages/Landing/LandingLayout'));
+// @ts-expect-error - JS module without declarations
 const LandingHome = lazy(() => import('../pages/Landing/pages/Home'));
+// @ts-expect-error - JS module without declarations
 const LandingServices = lazy(() => import('../pages/Landing/pages/Services'));
+// @ts-expect-error - JS module without declarations
 const LandingAbout = lazy(() => import('../pages/Landing/pages/AboutUs'));
+// @ts-expect-error - JS module without declarations
 const LandingContact = lazy(() => import('../pages/Landing/pages/Contact'));
+// @ts-expect-error - JS module without declarations
 const LandingPolicies = lazy(() => import('../pages/Landing/pages/Policies'));
+// @ts-expect-error - JS module without declarations
 const LandingTerms = lazy(() => import('../pages/Landing/pages/TermsAndConditions'));
+// @ts-expect-error - JS module without declarations
 const LandingJoinUs = lazy(() => import('../pages/Landing/pages/JoinUs'));
+// @ts-expect-error - JS module without declarations
 const LandingAddress = lazy(() => import('../pages/Landing/pages/Address'));
 
 const SignIn = lazy(() => import('../pages/AuthPages/SignIn'));

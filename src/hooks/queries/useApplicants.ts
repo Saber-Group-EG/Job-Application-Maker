@@ -510,7 +510,7 @@ export function useScheduleBulkInterviews() {
   return useMutation({
     mutationFn: (payload: { interviews: Array<any> } | Array<any>) =>
       applicantsService.scheduleBulkInterviews(payload),
-    onSuccess: (result, payload) => {
+    onSuccess: (_, payload) => {
       const items = Array.isArray(payload) ? payload : (payload as any).interviews ?? [];
       items.forEach((item: any) => {
         if (item?.applicantId) {

@@ -1,12 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Helmet } from 'react-helmet-async';
 import { useNavigate } from 'react-router';
 import { useDispatch, useSelector } from 'react-redux';
 import Swal from 'sweetalert2';
+// @ts-expect-error - JS module without declarations
 import { checkExistingApplicant, getApiErrorMessage } from '../api/formsApi';
+// @ts-expect-error - JS module without declarations
 import { useTranslation } from '../i18n/hooks/useTranslation';
+// @ts-expect-error - JS module without declarations
 import { getJobPositions } from '../store/slices/jobPositionsSlice';
-import { getDefaultOgImage, getFullUrl, SITE_NAME } from '../utils/ogMeta';
+// @ts-expect-error - JS module without declarations
 import Footer from '../components/footer';
 
 type ApplicantRecord = Record<string, any>;
@@ -73,11 +75,11 @@ const hasAppliedBefore = (payload: any): boolean => {
 
 const escapeHtml = (value: string | number = ''): string => {
 	return String(value)
-		.replaceAll('&', '&amp;')
-		.replaceAll('<', '&lt;')
-		.replaceAll('>', '&gt;')
-		.replaceAll('"', '&quot;')
-		.replaceAll("'", '&#39;');
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#39;');
 };
 
 const CheckPreviousApplication: React.FC = () => {

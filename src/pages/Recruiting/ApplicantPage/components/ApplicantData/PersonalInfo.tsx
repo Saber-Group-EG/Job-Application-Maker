@@ -41,7 +41,7 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
   onCreateJobOffer,
   onCreateContract,
 }) => {
-  const { t, dir, locale } = useLocale();
+  const { t, locale } = useLocale();
   const [photoPreviewOpen, setPhotoPreviewOpen] = useState(false);
 
   const data: ApplicantView = {
