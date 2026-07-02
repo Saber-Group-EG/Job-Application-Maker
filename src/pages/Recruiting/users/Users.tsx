@@ -158,9 +158,9 @@ export default function Users() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0F172A] p-4 sm:p-8 text-slate-900 dark:text-slate-100">
       <PageMeta title={t('metaTitle', 'users')} description={t('metaDescription', 'users')} />
-      <PageBreadcrumb pageTitle={t('pageTitle', 'users')} />
 
       <div className="max-w-7xl mx-auto space-y-8">
+        <PageBreadcrumb pageTitle={t('pageTitle', 'users')} />
         {/* Header Section */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div>

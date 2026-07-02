@@ -199,9 +199,9 @@ export default function PreviewCompany() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0F172A] p-4 sm:p-8 text-slate-900 dark:text-slate-100">
       <PageMeta title={t('previewPageTitle', 'companies', { name: locale === 'ar' ? (companyForm.name?.ar || companyForm.name?.en || '') : (companyForm.name?.en || companyForm.name?.ar || '') })} description={t('previewPageDesc', 'companies')} />
-      <PageBreadcrumb pageTitle={t('previewBreadcrumb', 'companies')} />
 
       <div className="max-w-7xl mx-auto">
+        <PageBreadcrumb pageTitle={t('previewBreadcrumb', 'companies')} />
         {/* Profile Header */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 mb-12">
           <div className="flex items-center gap-6">

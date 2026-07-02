@@ -134,9 +134,9 @@ export default function CompanySettingsPage({ companyId: _companyId, onSaved, on
   return (
     <div className="min-h-screen bg-slate-50 p-4 text-slate-900 dark:bg-slate-950 dark:text-slate-100 sm:p-8">
       <PageMeta title={t('settingsPageTitle', 'companies')} description={t('settingsPageDesc', 'companies')} />
-      <PageBreadcrumb pageTitle={t('settingsBreadcrumb', 'companies')} />
 
       <div className="mx-auto max-w-7xl space-y-6">
+        <PageBreadcrumb pageTitle={t('settingsBreadcrumb', 'companies')} />
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <div className="flex flex-col gap-5 border-b border-slate-200 px-6 py-6 dark:border-slate-800 md:flex-row md:items-center md:justify-between">
             <div className="flex items-start gap-4">

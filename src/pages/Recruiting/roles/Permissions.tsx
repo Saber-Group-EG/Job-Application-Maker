@@ -166,13 +166,15 @@ export default function Permissions() {
     return (
       <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0F172A] p-4 sm:p-8">
         <PageMeta title={t('rolesMetaTitle', 'roles')} description={t('rolesMetaDescription', 'roles')} />
-        <PageBreadcrumb pageTitle={t('rolesPageTitle', 'roles')} />
-        <div className="mt-12 flex flex-col items-center justify-center rounded-[2.5rem] bg-white/60 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 p-12 shadow-xl">
+        <div className="max-w-7xl mx-auto space-y-8">
+          <PageBreadcrumb pageTitle={t('rolesPageTitle', 'roles')} />
+          <div className="mt-12 flex flex-col items-center justify-center rounded-[2.5rem] bg-white/60 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 p-12 shadow-xl">
           <div className="p-6 rounded-full bg-red-100 dark:bg-red-900/20 mb-6">
             <Shield className="size-16 text-red-500" />
           </div>
           <p className="text-2xl font-bold text-gray-900 dark:text-white">{t('rolesAccessDeniedTitle', 'roles')}</p>
           <p className="mt-2 text-gray-500 dark:text-gray-400">{t('rolesAccessDeniedText', 'roles')}</p>
+        </div>
         </div>
       </div>
     );
@@ -181,12 +183,14 @@ export default function Permissions() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0F172A] p-4 sm:p-8 text-slate-900 dark:text-slate-100">
       <PageMeta title={t('rolesMetaTitle', 'roles')} description={t('rolesMetaDescription', 'roles')} />
-      <PageBreadcrumb pageTitle={t('rolesPageTitle', 'roles')} />
 
-      {rolesLoading || permissionsLoading || usersLoading ? (
-        <LoadingSpinner fullPage message={t('rolesLoadingMessage', 'roles')} />
-      ) : (
-        <div className="max-w-7xl mx-auto space-y-8">
+      <div className="max-w-7xl mx-auto space-y-8">
+        <PageBreadcrumb pageTitle={t('rolesPageTitle', 'roles')} />
+
+        {rolesLoading || permissionsLoading || usersLoading ? (
+          <LoadingSpinner fullPage message={t('rolesLoadingMessage', 'roles')} />
+        ) : (
+          <>
           {/* Header & Stats */}
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div>
@@ -564,8 +568,9 @@ export default function Permissions() {
             </div>
           </div>
 
-        </div>
+        </>
       )}
     </div>
-  );
+  </div>
+);
 }

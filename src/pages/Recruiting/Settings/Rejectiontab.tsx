@@ -363,11 +363,11 @@ export default function RejectionTab({
 					title={t('rejectionTab.pageMetaTitle', 'settings')}
 					description={t('rejectionTab.pageMetaDesc', 'settings')}
 				/>
-				<PageBreadCrumb pageTitle={t('rejectionTab.pageBreadcrumb', 'settings')} />
 				</>
 			)}
 
 			<div className={embedded ? "space-y-6" : "mx-auto max-w-7xl space-y-6"}>
+				{!embedded && <PageBreadCrumb pageTitle={t('rejectionTab.pageBreadcrumb', 'settings')} />}
 				<div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
 					<div className="flex flex-col gap-5 border-b border-slate-200 px-6 py-6 dark:border-slate-800 md:flex-row md:items-center md:justify-between">
 						<div className="flex items-start gap-4">

@@ -249,21 +249,23 @@ const RecommendedFields = () => {
   if (loading) return <LoadingSpinner fullPage message={t('loadingMessage', 'systemSettings')} />;
 
   return (
-    <div className="mx-auto max-w-[1200px] space-y-8 pb-20">
+    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0F172A] p-4 sm:p-8 text-slate-900 dark:text-slate-100">
       <PageMeta title={t('metaTitle', 'systemSettings')} description={t('metaDescription', 'systemSettings')} />
-      
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+
+      <div className="mx-auto max-w-7xl space-y-8">
         <PageBreadcrumb pageTitle={t('pageTitle', 'systemSettings')} />
+
         {!showForm && (
-          <button
-            onClick={() => setShowForm(true)}
-            className="inline-flex items-center gap-2 rounded-2xl bg-brand-500 px-6 py-3 text-sm font-bold text-white shadow-xl shadow-brand-500/25 transition-all hover:bg-brand-600 hover:shadow-brand-500/40 active:scale-95"
-          >
-            <PlusIcon className="size-5" />
-            {t('addNewPreset', 'systemSettings')}
-          </button>
+          <div className="flex justify-end">
+            <button
+              onClick={() => setShowForm(true)}
+              className="inline-flex items-center gap-2 rounded-2xl bg-brand-500 px-6 py-3 text-sm font-bold text-white shadow-xl shadow-brand-500/25 transition-all hover:bg-brand-600 hover:shadow-brand-500/40 active:scale-95"
+            >
+              <PlusIcon className="size-5" />
+              {t('addNewPreset', 'systemSettings')}
+            </button>
+          </div>
         )}
-      </div>
 
       {showForm && (
         <form onSubmit={handleSave} className="animate-in fade-in slide-in-from-top-4 space-y-8">
@@ -459,6 +461,7 @@ const RecommendedFields = () => {
             </div>
           </div>
         ))}
+      </div>
       </div>
     </div>
   );

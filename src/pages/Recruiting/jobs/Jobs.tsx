@@ -828,20 +828,22 @@ export default function Jobs() {
   }
 
   return (
-    <div className="min-h-screen space-y-8 pb-12">
+    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0F172A] p-4 sm:p-8 text-slate-900 dark:text-slate-100">
       <PageMeta
         title={t('jobsPageTitle', 'jobs')}
         description={t('jobsPageDesc', 'jobs')}
       />
 
-      {/* Header */}
-      <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-        <div className="space-y-1">
-          <PageBreadcrumb pageTitle={t('jobsBreadcrumb', 'jobs')} />
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            {t('jobsSubtitle', 'jobs', { count: jobPositions.length })}
-          </p>
-        </div>
+      <div className="max-w-7xl mx-auto space-y-8">
+        <PageBreadcrumb pageTitle={t('jobsBreadcrumb', 'jobs')} />
+
+        {/* Header */}
+        <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+          <div className="space-y-1">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              {t('jobsSubtitle', 'jobs', { count: jobPositions.length })}
+            </p>
+          </div>
 
         <div className="flex items-center gap-3">
           <button
@@ -1104,6 +1106,7 @@ export default function Jobs() {
           </table>
         </div>
       )}
+      </div>
     </div>
   );
 }

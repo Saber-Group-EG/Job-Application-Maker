@@ -183,9 +183,9 @@ export default function PreviewRole() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0F172A] p-4 sm:p-8 text-slate-900 dark:text-slate-100">
       <PageMeta title={t('previewMetaTitle', 'roles', { name: formData.name })} description={t('previewMetaDescription', 'roles')} />
-      <PageBreadcrumb pageTitle={t('previewPageTitle', 'roles')} />
 
       <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in duration-700">
+        <PageBreadcrumb pageTitle={t('previewPageTitle', 'roles')} />
         {/* Profile Navigation */}
         <div className="flex items-center justify-between">
           <button 
