@@ -11,6 +11,7 @@ import {
   checkExistingApplicant,
   getApiErrorMessage,
 } from '../api/formsApi';
+import { uploadToR2 } from '../api/r2Upload';
 import Swal from 'sweetalert2';
 import { useTranslation } from '../i18n/hooks/useTranslation';
 import { getJobPositions } from '../store/slices/jobPositionsSlice';
@@ -373,72 +374,6 @@ const JobApplicationForm = () => {
     }
 
     return sha1FallbackHex(input);
-  };
-
-  const uploadToCloudinary = async (file, retries = 3, delayMs = 1000) => {
-    const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
-    const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
-
-    if (!CLOUD_NAME || !UPLOAD_PRESET) {
-      throw new Error('Cloudinary credentials not configured');
-    }
-
-    const isImage = file.type.startsWith('image/');
-    const uploadUrl = isImage
-      ? `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`
-      : `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/raw/upload`;
-
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('upload_preset', UPLOAD_PRESET);
-
-    for (let attempt = 1; attempt <= retries; attempt++) {
-      try {
-        const response = await axios.post(uploadUrl, formData, {
-          timeout: 180000, // 60 second timeout
-          onUploadProgress: (progressEvent) => {
-            const titleEl = document.querySelector('.swal2-title');
-            if (!titleEl) return;
-
-            const label = isImage
-              ? t('joinUs:uploadingPhoto') || 'Uploading photo'
-              : t('joinUs:uploadingCV') || 'Uploading CV';
-
-            // progressEvent.total can be 0 or undefined if server omits Content-Length
-            if (progressEvent.total && progressEvent.total > 0) {
-              const percent = Math.round(
-                (progressEvent.loaded * 100) / progressEvent.total
-              );
-              titleEl.textContent = `${label}... ${percent}%`;
-            } else {
-              // Fallback: show uploaded MB instead of percentage
-              const uploadedMB = (progressEvent.loaded / (1024 * 1024)).toFixed(
-                1
-              );
-              titleEl.textContent = `${label}... ${uploadedMB} MB`;
-            }
-          },
-        });
-        return response.data.secure_url;
-      } catch (error) {
-        const isLastAttempt = attempt === retries;
-        const isNetworkError = !error.response; // no response = network/timeout issue
-
-        if (isNetworkError && !isLastAttempt) {
-          // Wait before retrying (1s, 2s, 4s...)
-          await new Promise((resolve) =>
-            setTimeout(resolve, delayMs * attempt)
-          );
-          continue;
-        }
-
-        const serverMessage = getApiErrorMessage(
-          error,
-          error?.message || 'File upload failed'
-        );
-        throw new Error(serverMessage);
-      }
-    }
   };
 
   const convertFileToBase64 = (file) => {
@@ -1581,31 +1516,33 @@ const JobApplicationForm = () => {
             validFormikGroups.length > 0 ? validFormikGroups : validStateGroups;
         });
 
-      // Upload files to Cloudinary first
+      // Upload files to R2 via presigned URLs
       let profilePhotoUrl = '';
       let cvUrl = '';
 
+      const uploadTasks = [];
       if (isBaseFieldVisible('profilePhoto') && values.profilePhotoFile) {
-        Swal.fire({
-          title: t('joinUs:uploadingPhoto') || 'Uploading photo...',
-          allowOutsideClick: false,
-          didOpen: () => {
-            Swal.showLoading();
-          },
-        });
-        profilePhotoUrl = await uploadToCloudinary(values.profilePhotoFile);
-        Swal.close();
+        uploadTasks.push(
+          uploadToR2(values.profilePhotoFile, 'JobApplications')
+            .then(url => { profilePhotoUrl = url; })
+        );
+      }
+      if (isBaseFieldVisible('cvFilePath') && values.cvFile) {
+        uploadTasks.push(
+          uploadToR2(values.cvFile, 'JobApplications')
+            .then(url => { cvUrl = url; })
+        );
       }
 
-      if (isBaseFieldVisible('cvFilePath') && values.cvFile) {
+      if (uploadTasks.length > 0) {
         Swal.fire({
-          title: t('joinUs:uploadingCV') || 'Uploading CV...',
+          title: t('joinUs:uploading') || 'Uploading files...',
           allowOutsideClick: false,
           didOpen: () => {
             Swal.showLoading();
           },
         });
-        cvUrl = await uploadToCloudinary(values.cvFile);
+        await Promise.all(uploadTasks);
         Swal.close();
       }
 
