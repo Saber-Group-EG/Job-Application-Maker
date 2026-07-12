@@ -2,6 +2,7 @@ import React, { useMemo, useEffect, useState, useRef } from 'react';
 import Label from '../form/Label';
 import Select from '../form/Select';
 import { useStatusSettings } from '../../hooks/useStatusSettings';
+import { useLocale } from '../../context/LocaleContext';
 
 type Props = {
   isOpen: boolean;
@@ -31,6 +32,7 @@ export default function StatusChangeModal({
   jobIds = [],
   jobs = [],
 }: Props) {
+  const { t } = useLocale();
   const resolvedCompanySettings = companySettings;
 
   const { statusOptions: rawStatusOptions, getDescription } = useStatusSettings(
@@ -42,14 +44,14 @@ export default function StatusChangeModal({
       rawStatusOptions && rawStatusOptions.length > 0
         ? rawStatusOptions
         : [
-            { value: 'pending',     label: 'Pending',     text: 'Pending',     color: '#FEF3C7', textColor: '#92400E', description: 'Pending leads awaiting triage.' },
-            { value: 'approved',    label: 'Approved',    text: 'Approved',    color: '#D1FAE5', textColor: '#065F46', description: 'Approved leads ready for next steps.' },
-            { value: 'interview',   label: 'Interview',   text: 'Interview',   color: '#DBEAFE', textColor: '#1E40AF', description: 'Scheduled for interview.' },
-            { value: 'interviewed', label: 'Interviewed', text: 'Interviewed', color: '#DBEAFE', textColor: '#065F46', description: 'Interview completed.' },
-            { value: 'rejected',    label: 'Rejected',    text: 'Rejected',    color: '#FEE2E2', textColor: '#991B1B', description: 'Not a fit / disqualified.' },
-            { value: 'trashed',     label: 'Trashed',     text: 'Trashed',     color: '#6B7280', textColor: '#FFFFFF', description: 'Removed or archived applications.' },
+            { value: 'pending',     label: t('pending', 'applicants'),     text: t('pending', 'applicants'),     color: '#FEF3C7', textColor: '#92400E', description: t('pendingDesc', 'applicants') },
+            { value: 'approved',    label: t('approved', 'applicants'),    text: t('approved', 'applicants'),    color: '#D1FAE5', textColor: '#065F46', description: t('approvedDesc', 'applicants') },
+            { value: 'interview',   label: t('interview', 'applicants'),   text: t('interview', 'applicants'),   color: '#DBEAFE', textColor: '#1E40AF', description: t('interviewDesc', 'applicants') },
+            { value: 'interviewed', label: t('interviewed', 'applicants'), text: t('interviewed', 'applicants'), color: '#DBEAFE', textColor: '#065F46', description: t('interviewedDesc', 'applicants') },
+            { value: 'rejected',    label: t('rejected', 'applicants'),    text: t('rejected', 'applicants'),    color: '#FEE2E2', textColor: '#991B1B', description: t('rejectedDesc', 'applicants') },
+            { value: 'trashed',     label: t('trashed', 'applicants'),     text: t('trashed', 'applicants'),     color: '#6B7280', textColor: '#FFFFFF', description: t('trashedDesc', 'applicants') },
           ],
-    [rawStatusOptions]
+    [rawStatusOptions, t]
   );
 
   // ─── Job-specific status filtering ───────────────────────────────────────────
@@ -218,7 +220,7 @@ export default function StatusChangeModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!statusForm?.status || statusForm.status.trim() === '') {
-      setStatusError('Please select a status before submitting.');
+      setStatusError(t('pleaseSelectStatus', 'modals'));
       return;
     }
     handleStatusChange(e);
@@ -283,7 +285,7 @@ export default function StatusChangeModal({
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Header */}
             <div className="flex items-center justify-between pb-4 border-b border-gray-200 dark:border-gray-700">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Change Status</h2>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t('changeStatus', 'modals')}</h2>
               <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                 ✕
               </button>
@@ -309,10 +311,10 @@ export default function StatusChangeModal({
 
             {/* Status selector */}
             <div>
-              <Label htmlFor="status-select">New Status</Label>
+              <Label htmlFor="status-select">{t('newStatus', 'modals')}</Label>
               <Select
                 options={filteredStatusOptions}
-                placeholder="Select new status"
+                placeholder={t('selectNewStatus', 'modals')}
                 value={statusForm?.status || ''}
                 onChange={handleStatusSelect}
               />
@@ -325,11 +327,11 @@ export default function StatusChangeModal({
 
             {/* Notes */}
             <div>
-              <Label htmlFor="status-notes">Notes (Optional)</Label>
+              <Label htmlFor="status-notes">{t('notesOptional', 'modals')}</Label>
               <textarea
                 value={statusForm.notes || ''}
                 onChange={(e) => setStatusForm({ ...statusForm, notes: e.target.value })}
-                placeholder="Add notes about this status change"
+                placeholder={t('notesPlaceholderStatus', 'modals')}
                 rows={3}
                 className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
               />
@@ -338,12 +340,12 @@ export default function StatusChangeModal({
             {/* Rejection reasons */}
             {isRejected && (
               <div className="p-4 bg-red-50 dark:bg-red-900/10 rounded-lg border border-red-200 dark:border-red-800">
-                <Label>Reasons for Rejection</Label>
+                <Label>{t('reasonsForRejection', 'modals')}</Label>
 
                 {/* Selected chips */}
                 <div className="flex flex-wrap gap-2 mt-2 mb-3 p-2 border border-gray-300 dark:border-gray-600 rounded-lg min-h-[42px] bg-white dark:bg-gray-800">
                   {selectedValues.length === 0 ? (
-                    <span className="text-gray-400 text-sm">No reasons selected</span>
+                    <span className="text-gray-400 text-sm">{t('noReasonsSelected', 'modals')}</span>
                   ) : (
                     selectedValues.map((reason, idx) => (
                       <span
@@ -372,7 +374,7 @@ export default function StatusChangeModal({
                     onChange={(e) => { setSearchQuery(e.target.value); setIsDropdownOpen(true); }}
                     onClick={() => setIsDropdownOpen(true)}
                     onFocus={() => setIsDropdownOpen(true)}
-                    placeholder="Type to search or add new reason..."
+                    placeholder={t('searchAddReason', 'modals')}
                     className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 cursor-pointer"
                     disabled={isSubmittingStatus}
                   />
@@ -403,7 +405,7 @@ export default function StatusChangeModal({
                           onClick={() => handleCustomReasonAdd(searchQuery.trim())}
                           className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm text-blue-600 dark:text-blue-400 border-t border-gray-200 dark:border-gray-700"
                         >
-                          + Add "{searchQuery.trim()}" as new reason
+                          {t('addAsNewReason', 'modals', { reason: searchQuery.trim() })}
                         </button>
                       )}
                     </div>
@@ -411,11 +413,11 @@ export default function StatusChangeModal({
                 </div>
 
                 <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                  {reasonOptions.length} total reasons • Type to filter • Click to select
+                  {t('totalReasons', 'modals', { count: reasonOptions.length })}
                 </p>
                 {selectedValues.length > 0 && (
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    {selectedValues.length} reason{selectedValues.length !== 1 ? 's' : ''} selected
+                    {t('reasonsSelected', 'modals', { count: selectedValues.length })}
                   </p>
                 )}
               </div>
@@ -429,7 +431,7 @@ export default function StatusChangeModal({
                 disabled={isSubmittingStatus}
                 className="rounded-lg border border-stroke px-6 py-2 hover:bg-gray-100 dark:border-strokedark dark:hover:bg-gray-800"
               >
-                Cancel
+                {t('cancel', 'modals')}
               </button>
               <button
                 type="submit"
@@ -442,10 +444,10 @@ export default function StatusChangeModal({
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                     </svg>
-                    <span>Updating...</span>
+                    <span>{t('updating', 'modals')}</span>
                   </>
                 ) : (
-                  <span>Update Status</span>
+                  <span>{t('updateStatusBtn', 'modals')}</span>
                 )}
               </button>
             </div>

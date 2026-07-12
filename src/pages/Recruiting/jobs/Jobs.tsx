@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router';
 import PageBreadcrumb from '../../../components/common/PageBreadCrumb';
 import PageMeta from '../../../components/common/PageMeta';
@@ -25,7 +25,10 @@ import {
 } from '../../../hooks/queries';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import { useAuth } from '../../../context/AuthContext';
+import { useLocale } from '../../../context/LocaleContext';
+import { useCompanyFilter } from '../../../context/CompanyFilterContext';
 import { toPlainString } from '../../../utils/strings';
+import { normalizeFieldConfig } from '../../../utils/jobUtils';
 import Switch from '../../../components/form/switch/Switch';
 import { jobPositionsService } from '../../../services/jobPositionsService';
 import {
@@ -49,8 +52,8 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-const getTranslation = (value: any, defaultValue = ''): string => {
-  const plain = toPlainString(value);
+const getTranslation = (value: any, defaultValue = '', locale?: string): string => {
+  const plain = toPlainString(value, locale);
   return plain || defaultValue;
 };
 
@@ -97,80 +100,10 @@ const sortJobsByOrder = (jobs: any[]): any[] => {
   });
 };
 
-type FieldConfigRule = {
-  visible: boolean;
-  required: boolean;
-};
 
-type FieldConfig = {
-  fullName: FieldConfigRule;
-  email: FieldConfigRule;
-  phone: FieldConfigRule;
-  gender: FieldConfigRule;
-  birthDate: FieldConfigRule;
-  address: FieldConfigRule;
-  profilePhoto: FieldConfigRule;
-  cvFilePath: FieldConfigRule;
-  expectedSalary: FieldConfigRule;
-};
-
-const getDefaultFieldConfig = (): FieldConfig => ({
-  fullName: { visible: true, required: true },
-  email: { visible: true, required: true },
-  phone: { visible: true, required: true },
-  gender: { visible: true, required: true },
-  birthDate: { visible: true, required: true },
-  address: { visible: true, required: true },
-  profilePhoto: { visible: true, required: true },
-  cvFilePath: { visible: true, required: false },
-  expectedSalary: { visible: false, required: false },
-});
-
-const normalizeFieldConfig = (job: any): FieldConfig => {
-  const defaults = getDefaultFieldConfig();
-  const raw =
-    job?.fieldConfig && typeof job.fieldConfig === 'object'
-      ? job.fieldConfig
-      : {};
-
-  const expectedSalaryRaw =
-    raw.expectedSalary && typeof raw.expectedSalary === 'object'
-      ? raw.expectedSalary
-      : typeof job?.salaryFieldVisible === 'boolean'
-        ? { visible: job.salaryFieldVisible, required: false }
-        : raw.expectedSalary;
-
-  const normalizeRule = (
-    incoming: any,
-    fallback: FieldConfigRule
-  ): FieldConfigRule => {
-    const visible =
-      typeof incoming?.visible === 'boolean'
-        ? incoming.visible
-        : fallback.visible;
-    const required =
-      typeof incoming?.required === 'boolean'
-        ? incoming.required
-        : fallback.required;
-    return { visible, required: visible ? required : false };
-  };
-
-  return {
-    fullName: normalizeRule(raw.fullName, defaults.fullName),
-    email: normalizeRule(raw.email, defaults.email),
-    phone: normalizeRule(raw.phone, defaults.phone),
-    gender: normalizeRule(raw.gender, defaults.gender),
-    birthDate: normalizeRule(raw.birthDate, defaults.birthDate),
-    address: normalizeRule(raw.address, defaults.address),
-    profilePhoto: normalizeRule(raw.profilePhoto, defaults.profilePhoto),
-    cvFilePath: normalizeRule(raw.cvFilePath, defaults.cvFilePath),
-    expectedSalary: normalizeRule(expectedSalaryRaw, defaults.expectedSalary),
-  };
-};
-
-const formatDate = (dateString?: string) => {
+const formatDate = (dateString?: string, locale?: string) => {
   if (!dateString) return 'N/A';
-  return new Date(dateString).toLocaleDateString('en-US', {
+  return new Date(dateString).toLocaleDateString(locale || 'en-US', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -192,6 +125,7 @@ function SortableJobCard({
   onEdit: (job: any) => void;
   suppressNavigateRef: React.MutableRefObject<boolean>;
 }) {
+  const { t, locale } = useLocale();
   const {
     attributes,
     listeners,
@@ -230,7 +164,7 @@ function SortableJobCard({
             <span
               {...attributes}
               className="inline-flex items-center text-slate-400"
-              title="Drag to reorder"
+              title={t('jobsDragReorder', 'jobs')}
             >
               <GripVerticalIcon className="size-4" />
             </span>
@@ -241,11 +175,11 @@ function SortableJobCard({
                   : 'bg-slate-100 text-slate-700 dark:bg-slate-500/10 dark:text-slate-400'
               }`}
             >
-              {job.isActive !== false ? 'Active' : 'Deprioritized'}
+              {job.isActive !== false ? t('jobsActiveBadge', 'jobs') : t('jobsDeprioritizedBadge', 'jobs')}
             </span>
           </div>
           <h3 className="text-lg font-bold text-slate-900 transition-colors group-hover:text-brand-600 dark:text-white dark:group-hover:text-brand-400">
-            {getTranslation(job.title)}
+            {getTranslation(job.title, '', locale)}
           </h3>
         </div>
 
@@ -266,16 +200,16 @@ function SortableJobCard({
         <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
           <Building2Icon className="size-4 text-brand-500" />
           <span className="font-medium truncate">
-            {getTranslation(job.companyId?.name) || 'Global Corp'}
+            {getTranslation(job.companyId?.name, '', locale) || t('jobsGlobalCorp', 'jobs')}
           </span>
         </div>
         <div className="flex items-center gap-2 text-sm text-slate-500">
           <MapPinIcon className="size-4" />
-          <span>{job.workArrangement || 'Remote / Office'}</span>
+          <span>{({ 'on-site': t('createOnSite', 'jobs'), remote: t('createRemote', 'jobs'), hybrid: t('createHybrid', 'jobs') } as Record<string, string>)[job.workArrangement] || job.workArrangement || t('jobsRemoteOffice', 'jobs')}</span>
         </div>
         <div className="flex items-center gap-2 text-sm text-slate-500">
           <CalendarIcon className="size-4" />
-          <span>Created {formatDate(job.createdAt)}</span>
+          <span>{t('jobsCreatedAt', 'jobs', { date: formatDate(job.createdAt, locale) })}</span>
         </div>
       </div>
 
@@ -322,6 +256,7 @@ function SortableJobRow({
   onNavigate: (job: any) => void;
   suppressNavigateRef: React.MutableRefObject<boolean>;
 }) {
+  const { t, locale } = useLocale();
   const {
     attributes,
     listeners,
@@ -356,7 +291,7 @@ function SortableJobRow({
           <span
             {...attributes}
             className="inline-flex items-center text-slate-400"
-            title="Drag to reorder"
+            title={t('jobsDragReorder', 'jobs')}
           >
             <GripVerticalIcon className="size-4" />
           </span>
@@ -376,7 +311,7 @@ function SortableJobRow({
                 }
               }}
             >
-              {getTranslation(job.title)}
+              {getTranslation(job.title, '', locale)}
             </Link>
           </div>
         </div>
@@ -385,20 +320,20 @@ function SortableJobRow({
         <div className="space-y-1">
           <div className="flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">
             <Building2Icon className="size-3.5 text-slate-400" />
-            {getTranslation(job.companyId?.name) || 'Global Corp'}
+            {getTranslation(job.companyId?.name, '', locale) || t('jobsGlobalCorp', 'jobs')}
           </div>
           <div className="flex items-center gap-1.5 text-xs text-slate-500">
             <MapPinIcon className="size-3.5" />
-            {job.workArrangement || 'Office'}
+            {({ 'on-site': t('createOnSite', 'jobs'), remote: t('createRemote', 'jobs'), hybrid: t('createHybrid', 'jobs') } as Record<string, string>)[job.workArrangement] || job.workArrangement || t('jobsOffice', 'jobs')}
           </div>
         </div>
       </td>
       <td className="px-6 py-4">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-slate-900 dark:text-white">
-            12
+            {job.applicantsCount || 0}
           </span>
-          <span className="text-xs text-slate-500">Candidates</span>
+           <span className="text-xs text-slate-500">{t('jobsCandidates', 'jobs')}</span>
         </div>
       </td>
       <td className="px-6 py-4">
@@ -409,7 +344,7 @@ function SortableJobRow({
               : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400'
           }`}
         >
-          {job.isActive !== false ? 'ACTIVE' : 'INACTIVE'}
+          {job.isActive !== false ? t('jobsActiveStatus', 'jobs') : t('jobsInactiveStatus', 'jobs')}
         </span>
       </td>
       <td className="px-6 py-4 text-right">
@@ -429,16 +364,17 @@ function SortableJobRow({
 export default function Jobs() {
   const navigate = useNavigate();
   const { user, hasPermission } = useAuth();
+  const { t, locale } = useLocale();
 
   const isAdmin = user?.roleId?.name?.toLowerCase().includes('super admin');
   const canCreate = hasPermission('Job Position Management', 'create');
   const canWrite = hasPermission('Job Position Management', 'write');
   const canManageJobs = canCreate && canWrite;
 
+  const { selectedCompanyId } = useCompanyFilter();
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [companyFilter, setCompanyFilter] = useState<string>('all');
   const [orderedJobIds, setOrderedJobIds] = useState<string[]>([]);
   const [isSavingOrder, setIsSavingOrder] = useState(false);
   const [activeDragJob, setActiveDragJob] = useState<any | null>(null);
@@ -520,7 +456,7 @@ export default function Jobs() {
 
   const buildOrderPayload = (job: any, order: number) => {
     const payload: any = {
-      title: toLocalized(job.title, 'Untitled Role'),
+      title: toLocalized(job.title, t('jobsUntitledRole', 'jobs')),
       description: toLocalized(job.description, ''),
       employmentType: job.employmentType || 'full-time',
       workArrangement: job.workArrangement || 'on-site',
@@ -530,7 +466,7 @@ export default function Jobs() {
     if (typeof job.salary === 'number') payload.salary = job.salary;
     if (typeof job.salaryVisible === 'boolean')
       payload.salaryVisible = job.salaryVisible;
-    payload.fieldConfig = normalizeFieldConfig(job);
+    payload.fieldConfig = normalizeFieldConfig(job?.fieldConfig, job?.salaryFieldVisible);
     if (typeof job.bilingual === 'boolean') payload.bilingual = job.bilingual;
     return payload;
   };
@@ -613,8 +549,8 @@ export default function Jobs() {
             ? details[0]?.message
             : '';
         Swal.fire(
-          'Reorder Failed',
-          detailMessage || err?.message || 'Failed to persist job ordering.',
+          t('jobsReorderFailed', 'jobs'),
+          detailMessage || err?.message || t('jobsReorderFailedMsg', 'jobs'),
           'error'
         );
       }
@@ -738,26 +674,11 @@ export default function Jobs() {
     navigate(`/create-job?id=${job._id}`, { state: { job } });
   };
 
-  const companyOptions = useMemo(() => {
-    const map = new Map<string, string>();
-    (orderedJobs || []).forEach((job: any) => {
-      const cid = getJobCompanyId(job) || 'unassigned';
-      if (!map.has(cid)) {
-        map.set(
-          cid,
-          job?.companyId?.name ||
-            (cid === 'unassigned' ? 'Unassigned' : 'Company')
-        );
-      }
-    });
-    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
-  }, [orderedJobs]);
-
   const filteredJobs = useMemo(() => {
     return orderedJobs.filter((job: any) => {
-      const title = getTranslation(job.title).toLowerCase();
+      const title = getTranslation(job.title, '', locale).toLowerCase();
       const company = job.companyId?.name
-        ? getTranslation(job.companyId.name).toLowerCase()
+        ? getTranslation(job.companyId.name, '', locale).toLowerCase()
         : '';
       const matchesSearch =
         title.includes(searchTerm.toLowerCase()) ||
@@ -771,11 +692,11 @@ export default function Jobs() {
 
       const companyIdForJob = getJobCompanyId(job) || 'unassigned';
       const matchesCompany =
-        companyFilter === 'all' || companyIdForJob === companyFilter;
+        !selectedCompanyId || companyIdForJob === selectedCompanyId;
 
       return matchesSearch && matchesStatus && matchesCompany;
     });
-  }, [orderedJobs, searchTerm, statusFilter, companyFilter]);
+  }, [orderedJobs, searchTerm, statusFilter, selectedCompanyId]);
 
   const jobsGroupedByCompany = useMemo(() => {
     if (!Array.isArray(orderedJobs) || orderedJobs.length === 0) return [];
@@ -837,7 +758,7 @@ export default function Jobs() {
 
         const companyName =
           jobsForCompany[0]?.companyId?.name ||
-          (cid ? 'Company' : 'Unassigned');
+          (cid ? t('jobsCompany', 'jobs') : t('jobsUnassigned', 'jobs'));
         return {
           companyId: cid || 'unassigned',
           companyName,
@@ -852,7 +773,7 @@ export default function Jobs() {
       const newStatus = !job.isActive;
       const payload: any = {
         isActive: newStatus,
-        title: toLocalized(job.title, 'Untitled Role'),
+        title: toLocalized(job.title, t('jobsUntitledRole', 'jobs')),
         description: toLocalized(job.description, ''),
         employmentType: job.employmentType || 'full-time',
         workArrangement: job.workArrangement || 'on-site',
@@ -860,14 +781,14 @@ export default function Jobs() {
       if (typeof job.salary === 'number') payload.salary = job.salary;
       if (typeof job.salaryVisible === 'boolean')
         payload.salaryVisible = job.salaryVisible;
-      payload.fieldConfig = normalizeFieldConfig(job);
+      payload.fieldConfig = normalizeFieldConfig(job?.fieldConfig, job?.salaryFieldVisible);
       if (typeof job.bilingual === 'boolean') payload.bilingual = job.bilingual;
 
       await updateJobMutation.mutateAsync({ id: job._id, data: payload });
       await refetchJobs();
       Swal.fire({
-        title: 'Status Updated',
-        text: `Role is now ${newStatus ? 'Active' : 'Inactive'}`,
+        title: t('jobsStatusUpdated', 'jobs'),
+        text: t('jobsStatusUpdatedText', 'jobs', { status: newStatus ? t('jobsActive', 'jobs') : t('jobsInactive', 'jobs') }),
         icon: 'success',
         timer: 1500,
         showConfirmButton: false,
@@ -876,51 +797,53 @@ export default function Jobs() {
       const details = err?.response?.data?.details;
       const detailMessage =
         Array.isArray(details) && details.length > 0 ? details[0]?.message : '';
-      Swal.fire('Error', detailMessage || 'Failed to update status', 'error');
+      Swal.fire(t('jobsError', 'jobs'), detailMessage || t('jobsUpdateFailed', 'jobs'), 'error');
     }
   };
 
   const handleDelete = async (e: React.MouseEvent, jobId: string) => {
     e.stopPropagation();
     const result = await Swal.fire({
-      title: 'Confirm Deletion',
-      text: 'This action will permanently remove this recruitment mandate.',
+      title: t('jobsDeleteTitle', 'jobs'),
+      text: t('jobsDeleteText', 'jobs'),
       icon: 'warning',
       showCancelButton: true,
+      cancelButtonText: t('cancel', 'common'),
       confirmButtonColor: '#EF4444',
-      confirmButtonText: 'Yes, delete mandate',
+      confirmButtonText: t('jobsDeleteConfirm', 'jobs'),
     });
     if (result.isConfirmed) {
       try {
         await deleteJobMutation.mutateAsync(jobId);
         await refetchJobs();
-        Swal.fire('Deleted', 'Mandate has been purged.', 'success');
+        Swal.fire(t('jobsDeleted', 'jobs'), t('jobsDeletedMsg', 'jobs'), 'success');
       } catch {
-        Swal.fire('Error', 'Purge sequence failed.', 'error');
+        Swal.fire(t('jobsError', 'jobs'), t('jobsDeleteError', 'jobs'), 'error');
       }
     }
   };
 
   if (isLoadingJobs) {
-    return <LoadingSpinner fullPage message="Accessing Position Registry..." />;
+    return <LoadingSpinner fullPage message={t('jobsAccessingRegistry', 'jobs')} />;
   }
 
   return (
-    <div className="min-h-screen space-y-8 pb-12">
+    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0F172A] p-4 sm:p-8 text-slate-900 dark:text-slate-100">
       <PageMeta
-        title="Position Registry | Recruiting"
-        description="Manage job positions and recruitment mandates"
+        title={t('jobsPageTitle', 'jobs')}
+        description={t('jobsPageDesc', 'jobs')}
       />
 
-      {/* Header */}
-      <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-        <div className="space-y-1">
-          <PageBreadcrumb pageTitle="Position Registry" />
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            Orchestrating talent acquisition across {jobPositions.length} active
-            mandates
-          </p>
-        </div>
+      <div className="max-w-7xl mx-auto space-y-8">
+        <PageBreadcrumb pageTitle={t('jobsBreadcrumb', 'jobs')} />
+
+        {/* Header */}
+        <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+          <div className="space-y-1">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              {t('jobsSubtitle', 'jobs', { count: jobPositions.length })}
+            </p>
+          </div>
 
         <div className="flex items-center gap-3">
           <button
@@ -938,7 +861,7 @@ export default function Jobs() {
               className="group flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-600 to-brand-400 px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition-all hover:scale-[1.02] hover:shadow-brand-500/25 active:scale-95"
             >
               <PlusIcon className="size-4 transition-transform group-hover:rotate-90" />
-              Launch New Role
+              {t('jobsLaunchNewRole', 'jobs')}
             </button>
           )}
         </div>
@@ -950,7 +873,7 @@ export default function Jobs() {
           <SearchIcon className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            placeholder="Search by title, company, or protocol..."
+            placeholder={t('jobsSearchPlaceholder', 'jobs')}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full rounded-xl border-none bg-white/50 py-2.5 pl-11 pr-4 text-sm outline-none transition-all placeholder:text-slate-400 focus:ring-2 focus:ring-brand-500/20 dark:bg-slate-800/50"
@@ -984,31 +907,18 @@ export default function Jobs() {
           <div className="h-6 w-px bg-slate-200 dark:bg-slate-700" />
 
           <select
-            value={companyFilter}
-            onChange={(e) => setCompanyFilter(e.target.value)}
-            className="rounded-xl border-none bg-transparent py-2 pl-2 pr-8 text-sm font-medium text-slate-600 outline-none focus:ring-0 dark:text-slate-400"
-          >
-            <option value="all">All Companies</option>
-            {companyOptions.map((c: any) => (
-              <option key={c.id} value={c.id}>
-                {getTranslation(c.name)}
-              </option>
-            ))}
-          </select>
-
-          <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             className="rounded-xl border-none bg-transparent py-2 pl-2 pr-8 text-sm font-medium text-slate-600 outline-none focus:ring-0 dark:text-slate-400"
           >
-            <option value="all">All Status</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
+            <option value="all">{t('jobsAllStatus', 'jobs')}</option>
+            <option value="active">{t('jobsActive', 'jobs')}</option>
+            <option value="inactive">{t('jobsInactive', 'jobs')}</option>
           </select>
 
           {isSavingOrder && (
             <span className="text-xs font-semibold text-brand-600 dark:text-brand-400">
-              Saving order...
+              {t('jobsSavingOrder', 'jobs')}
             </span>
           )}
         </div>
@@ -1021,10 +931,10 @@ export default function Jobs() {
             <BriefcaseIcon className="size-12 text-slate-300 dark:text-slate-700" />
           </div>
           <h3 className="mt-6 text-lg font-semibold text-slate-900 dark:text-white">
-            No positions found
+            {t('jobsNoPositions', 'jobs')}
           </h3>
           <p className="mt-2 text-slate-500 dark:text-slate-400">
-            Try adjusting your filters or launch a new role
+            {t('jobsNoPositionsDesc', 'jobs')}
           </p>
         </div>
       ) : viewMode === 'grid' ? (
@@ -1042,10 +952,10 @@ export default function Jobs() {
                 <div key={group.companyId} className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h4 className="text-lg font-semibold text-slate-900 dark:text-white">
-                      {getTranslation(group.companyName)}
+                      {getTranslation(group.companyName, '', locale)}
                     </h4>
                     <span className="text-sm text-slate-500">
-                      {group.jobs.length} positions
+                      {t('jobsPositions', 'jobs', { count: group.jobs.length })}
                     </span>
                   </div>
 
@@ -1076,7 +986,7 @@ export default function Jobs() {
             {activeDragJob ? (
               <div className="cursor-grabbing rounded-3xl border border-white/20 bg-white/80 p-6 shadow-2xl shadow-brand-500/20 backdrop-blur-xl opacity-90 dark:border-slate-800/50 dark:bg-slate-900/80">
                 <span className="text-sm font-bold text-slate-900 dark:text-white">
-                  {getTranslation(activeDragJob.title)}
+                  {getTranslation(activeDragJob.title, '', locale)}
                 </span>
               </div>
             ) : null}
@@ -1088,19 +998,19 @@ export default function Jobs() {
             <thead>
               <tr className="border-b border-slate-100 dark:border-slate-800">
                 <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Position Details
+                  {t('jobsColumnPosition', 'jobs')}
                 </th>
                 <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Infrastructure
+                  {t('jobsColumnInfrastructure', 'jobs')}
                 </th>
                 <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Applicants
+                  {t('jobsColumnApplicants', 'jobs')}
                 </th>
                 <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Status
+                  {t('jobsColumnStatus', 'jobs')}
                 </th>
                 <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Actions
+                  {t('jobsColumnActions', 'jobs')}
                 </th>
               </tr>
             </thead>
@@ -1164,7 +1074,7 @@ export default function Jobs() {
                       colSpan={5}
                       className="px-6 py-3 font-semibold text-slate-700 dark:text-slate-300"
                     >
-                      {getTranslation(group.companyName)}{' '}
+                      {getTranslation(group.companyName, '', locale)}{' '}
                       <span className="ml-2 text-sm text-slate-500">
                         ({group.jobs.length})
                       </span>
@@ -1196,6 +1106,7 @@ export default function Jobs() {
           </table>
         </div>
       )}
+      </div>
     </div>
   );
 }

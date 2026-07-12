@@ -12,6 +12,7 @@ import type {
 } from "../../services/usersService";
 import { ApiError } from "../../services/companiesService";
 import Swal from "../../utils/swal";
+import { useLocale } from "../../context/LocaleContext";
 
 // ===== Types =====
 interface UseMyInterviewsParams {
@@ -142,33 +143,28 @@ const getDetailedErrorMessage = (error: any): string => {
 
 export function useCreateUser() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: (data: CreateUserRequest) => usersService.createUser(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: usersKeys.lists() });
-      Swal.fire({
-        title: "Success",
-        text: "User created successfully",
-        icon: "success",
-        timer: 1500,
-        showConfirmButton: false,
+    onSuccess: (newUser) => {
+      queryClient.setQueriesData<any[]>({ queryKey: usersKeys.lists() }, (old) => {
+        if (!old) return [newUser];
+        return [...old, newUser];
       });
+      queryClient.invalidateQueries({ queryKey: usersKeys.lists() });
+      showSuccessToast(t('userCreated', 'common'), t);
     },
     onError: (error: ApiError) => {
       const detailedMessage = getDetailedErrorMessage(error);
-      Swal.fire({
-        title: "Error",
-        text: detailedMessage || "Failed to create user",
-        icon: "error",
-        confirmButtonColor: "#ef4444",
-      });
+      showErrorToast(detailedMessage, t('userCreateFailed', 'common'), t);
     },
   });
 }
 
 export function useUpdateUser() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateUserRequest }) =>
@@ -176,35 +172,37 @@ export function useUpdateUser() {
     onSuccess: (updatedUser, { id }) => {
       queryClient.setQueryData(usersKeys.detail(id), updatedUser);
       queryClient.invalidateQueries({ queryKey: usersKeys.lists() });
-      showSuccessToast("User updated successfully");
+      showSuccessToast(t('userUpdated', 'common'), t);
     },
     onError: (error: ApiError) => {
-      showErrorToast(getDetailedErrorMessage(error), "Failed to update user");
+      showErrorToast(getDetailedErrorMessage(error), t('userUpdateFailed', 'common'), t);
     },
   });
 }
 
 export function useDeleteUser() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: (id: string) => usersService.deleteUser(id),
     onSuccess: (_, id) => {
-      queryClient.setQueryData<any[]>(usersKeys.list(), (old) => {
+      queryClient.setQueriesData<any[]>({ queryKey: usersKeys.lists() }, (old) => {
         if (!old) return [];
         return old.filter(user => user._id !== id);
       });
       queryClient.removeQueries({ queryKey: usersKeys.detail(id) });
-      showSuccessToast("User deleted successfully");
+      showSuccessToast(t('userDeleted', 'common'), t);
     },
     onError: (error: ApiError) => {
-      showErrorToast(getDetailedErrorMessage(error), "Failed to delete user");
+      showErrorToast(getDetailedErrorMessage(error), t('userDeleteFailed', 'common'), t);
     },
   });
 }
 
 export function useUpdateUserCompanies() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: ({ userId, companyId, data }: { userId: string; companyId: string; data: UpdateDepartmentsRequest }) =>
@@ -212,16 +210,16 @@ export function useUpdateUserCompanies() {
     onSuccess: (_, { userId }) => {
       queryClient.invalidateQueries({ queryKey: usersKeys.detail(userId) });
       queryClient.invalidateQueries({ queryKey: usersKeys.lists() });
-      showSuccessToast("Company departments updated successfully");
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, "Failed to update company departments");
+      showErrorToast(error.message, t('companyDepartmentsUpdateFailed', 'common'), t);
     },
   });
 }
 
 export function useAddUserCompany() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: ({ userId, companyId, departments }: { userId: string; companyId: string; departments?: string[] }) =>
@@ -229,16 +227,17 @@ export function useAddUserCompany() {
     onSuccess: (_, { userId }) => {
       queryClient.invalidateQueries({ queryKey: usersKeys.detail(userId) });
       queryClient.invalidateQueries({ queryKey: usersKeys.lists() });
-      showSuccessToast("Company access added successfully");
+      showSuccessToast(t('companyAccessAdded', 'common'), t);
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, "Failed to add company access");
+      showErrorToast(error.message, t('companyAccessAddFailed', 'common'), t);
     },
   });
 }
 
 export function useRemoveUserCompany() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: ({ userId, companyId }: { userId: string; companyId: string }) =>
@@ -246,10 +245,10 @@ export function useRemoveUserCompany() {
     onSuccess: (_, { userId }) => {
       queryClient.invalidateQueries({ queryKey: usersKeys.detail(userId) });
       queryClient.invalidateQueries({ queryKey: usersKeys.lists() });
-      showSuccessToast("Company access removed successfully");
+      showSuccessToast(t('companyAccessRemoved', 'common'), t);
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, "Failed to remove company access");
+      showErrorToast(error.message, t('companyAccessRemoveFailed', 'common'), t);
     },
   });
 }
@@ -265,46 +264,49 @@ export function useSavedFields() {
 
 export function useCreateSavedField() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: (data: CreateSavedFieldRequest) => savedFieldsService.createSavedField(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: savedFieldsKeys.list() });
-      showSuccessToast("Saved field created successfully");
+      showSuccessToast(t('savedFieldCreated', 'common'), t);
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, "Failed to create saved field");
+      showErrorToast(error.message, t('savedFieldCreateFailed', 'common'), t);
     },
   });
 }
 
 export function useUpdateSavedField() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: ({ fieldId, data }: { fieldId: string; data: UpdateSavedFieldRequest }) =>
       savedFieldsService.updateSavedField(fieldId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: savedFieldsKeys.list() });
-      showSuccessToast("Saved field updated successfully");
+      showSuccessToast(t('savedFieldUpdated', 'common'), t);
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, "Failed to update saved field");
+      showErrorToast(error.message, t('savedFieldUpdateFailed', 'common'), t);
     },
   });
 }
 
 export function useDeleteSavedField() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: (fieldId: string) => savedFieldsService.deleteSavedField(fieldId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: savedFieldsKeys.list() });
-      showSuccessToast("Saved field deleted successfully");
+      showSuccessToast(t('savedFieldDeleted', 'common'), t);
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, "Failed to delete saved field");
+      showErrorToast(error.message, t('savedFieldDeleteFailed', 'common'), t);
     },
   });
 }
@@ -320,22 +322,24 @@ export function useSavedQuestionGroups() {
 
 export function useUpdateSavedQuestionGroups() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: (groups: SavedQuestionGroup[]) =>
       savedQuestionGroupsService.updateSavedQuestionGroups(groups),
     onSuccess: (groups) => {
       queryClient.setQueryData(savedQuestionGroupsKeys.list(), groups);
-      showSuccessToast("Question groups updated successfully");
+      showSuccessToast(t('questionGroupsUpdated', 'common'), t);
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, "Failed to update question groups");
+      showErrorToast(error.message, t('questionGroupsUpdateFailed', 'common'), t);
     },
   });
 }
 
 export function useDeleteSavedQuestionGroup() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: (groupId: string) => savedQuestionGroupsService.deleteSavedQuestionGroup(groupId),
@@ -344,10 +348,10 @@ export function useDeleteSavedQuestionGroup() {
         if (!old) return [];
         return old.filter(group => group._id !== groupId);
       });
-      showSuccessToast("Question group deleted successfully");
+      showSuccessToast(t('questionGroupDeleted', 'common'), t);
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, "Failed to delete question group");
+      showErrorToast(error.message, t('questionGroupDeleteFailed', 'common'), t);
     },
   });
 }
@@ -364,9 +368,9 @@ export function useMyInterviews(params: UseMyInterviewsParams = {}) {
 }
 
 // ===== Toast Helpers =====
-function showSuccessToast(message: string) {
+function showSuccessToast(message: string, t: (key: string, ns?: string) => string) {
   Swal.fire({
-    title: "Success",
+    title: t('success', 'common'),
     text: message,
     icon: "success",
     timer: 1500,
@@ -374,9 +378,9 @@ function showSuccessToast(message: string) {
   });
 }
 
-function showErrorToast(message: string, fallback: string) {
+function showErrorToast(message: string, fallback: string, t: (key: string, ns?: string) => string) {
   Swal.fire({
-    title: "Error",
+    title: t('error', 'common'),
     text: message || fallback,
     icon: "error",
   });

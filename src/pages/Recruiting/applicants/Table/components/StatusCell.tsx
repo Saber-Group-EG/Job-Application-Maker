@@ -1,6 +1,7 @@
 // components/StatusCell.tsx
 import { useMemo } from 'react';
 import { useStatusSettings } from '../../../../../hooks/useStatusSettings';
+import { useLocale } from '../../../../../context/LocaleContext';
 
 interface StatusCellProps {
   status: string;
@@ -23,6 +24,7 @@ export function StatusCell({
   className = '',
   onClick,
 }: StatusCellProps) {
+  const { t } = useLocale();
   // Determine which company to use for status settings
   const effectiveCompany = useMemo(() => {
     // Priority 1: If a single company is selected in the filter (for Super Admin)
@@ -99,7 +101,7 @@ export function StatusCell({
   // Get status description/tooltip text
   const tooltip = useMemo(() => {
     const description = getDescription(status);
-    return description || `Status: ${status}`;
+    return description || `${t('status', 'applicants')}: ${status}`;
   }, [status, getDescription]);
 
   // Format status label for display
@@ -110,7 +112,7 @@ export function StatusCell({
     if (statusOption && statusOption.label && statusOption.label !== status) {
       return statusOption.label;
     }
-    return status.charAt(0).toUpperCase() + status.slice(1);
+    return status;
   }, [status, statusOptions]);
 
   const handleClick = () => {

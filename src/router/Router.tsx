@@ -1,9 +1,27 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router';
+import { BrowserRouter as Router, Routes, Route } from 'react-router';
 import { Suspense, lazy } from 'react';
 import { ScrollToTop } from '../components/common/ScrollToTop';
 import ProtectedRoute from './ProtectedRoute';
 import PermissionProtectedRoute from './PermissionProtectedRoute';
 import { paths, patterns } from './Paths';
+
+// Landing pages
+// @ts-expect-error - JS module without declarations
+const LandingLayout = lazy(() => import('../pages/Landing/LandingLayout'));
+// @ts-expect-error - JS module without declarations
+const LandingHome = lazy(() => import('../pages/Landing/pages/Home'));
+// @ts-expect-error - JS module without declarations
+const LandingServices = lazy(() => import('../pages/Landing/pages/Services'));
+// @ts-expect-error - JS module without declarations
+const LandingAbout = lazy(() => import('../pages/Landing/pages/AboutUs'));
+// @ts-expect-error - JS module without declarations
+const LandingContact = lazy(() => import('../pages/Landing/pages/Contact'));
+// @ts-expect-error - JS module without declarations
+const LandingPolicies = lazy(() => import('../pages/Landing/pages/Policies'));
+// @ts-expect-error - JS module without declarations
+const LandingTerms = lazy(() => import('../pages/Landing/pages/TermsAndConditions'));
+// @ts-expect-error - JS module without declarations
+const LandingAddress = lazy(() => import('../pages/Landing/pages/Address'));
 
 const SignIn = lazy(() => import('../pages/AuthPages/SignIn'));
 const SignUp = lazy(() => import('../pages/AuthPages/SignUp'));
@@ -104,18 +122,25 @@ export default function App() {
       <ScrollToTop />
       <Suspense fallback={<div className="min-h-screen" />}>
         <Routes>
-          {/* Public Routes */}
+          {/* Public Landing Routes */}
+          <Route element={<LandingLayout />}>
+            <Route index element={<LandingHome />} />
+            <Route path={paths.landing.services} element={<LandingServices />} />
+            <Route path={paths.landing.about} element={<LandingAbout />} />
+            <Route path={paths.landing.contact} element={<LandingContact />} />
+            <Route path={paths.landing.policies} element={<LandingPolicies />} />
+            <Route path={paths.landing.terms} element={<LandingTerms />} />
+            <Route path={paths.landing.address} element={<LandingAddress />} />
+          </Route>
+
+          {/* Auth Routes */}
           <Route path={paths.auth.signIn} element={<SignIn />} />
           <Route path={paths.auth.signUp} element={<SignUp />} />
-          <Route
-            path="/"
-            element={<Navigate to={paths.auth.signIn} replace />}
-          />
 
           {/* Protected Routes */}
           <Route element={<ProtectedRoute />}>
             <Route element={<AppLayout />}>
-              <Route index element={<Home />} />
+              <Route path={paths.dashboard.home} element={<Home />} />
 
               {/* Recruiting */}
               <Route path={paths.recruiting.root} element={<CreateCompany />} />

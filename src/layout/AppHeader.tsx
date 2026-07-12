@@ -1,12 +1,20 @@
 import { useEffect, useRef, useState } from "react";
+// @ts-expect-error - JS module without declarations
+import i18n from "../pages/Landing/i18n/index";
 
 import { useSidebar } from "../context/SidebarContext";
 import { ThemeToggleButton } from "../components/common/ThemeToggleButton";
 // import NotificationDropdown from "../components/header/NotificationDropdown";
 import UserDropdown from "../components/header/UserDropdown";
+import { useLocale } from "../context/LocaleContext";
+import { useCompanyFilter } from "../context/CompanyFilterContext";
+import { X } from "lucide-react";
 
 const AppHeader: React.FC = () => {
   const [isApplicationMenuOpen, setApplicationMenuOpen] = useState(false);
+  const [isCompanyDropdownOpen, setIsCompanyDropdownOpen] = useState(false);
+  const { locale, setLocale, t, dir } = useLocale();
+  const { selectedCompanyId, setSelectedCompanyId, resetFilter, companyOptions, companyMap } = useCompanyFilter();
 
   const { isMobileOpen, toggleSidebar, toggleMobileSidebar } = useSidebar();
 
@@ -23,6 +31,7 @@ const AppHeader: React.FC = () => {
   };
 
   const inputRef = useRef<HTMLInputElement>(null);
+  const companyDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -39,12 +48,28 @@ const AppHeader: React.FC = () => {
     };
   }, []);
 
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (companyDropdownRef.current && !companyDropdownRef.current.contains(e.target as Node)) {
+        setIsCompanyDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedCompany = selectedCompanyId ? companyMap[selectedCompanyId] : null;
+  const selectedName = selectedCompany
+    ? (locale === 'ar' && selectedCompany?.name?.ar ? selectedCompany.name.ar : (typeof selectedCompany?.name === 'string' ? selectedCompany.name : selectedCompany?.name?.en || ''))
+    : t('allCompanies', 'common');
+  const selectedLogo = selectedCompany?.logoPath;
+
   return (
     <header className="sticky top-0 flex w-full bg-white border-gray-200 z-50 dark:border-gray-800 dark:bg-gray-900 lg:border-b">
       <div className="flex flex-col items-center justify-between grow lg:flex-row lg:px-6">
         <div className="flex items-center justify-between w-full gap-2 px-3 py-2 border-b border-gray-200 dark:border-gray-800 sm:gap-4 lg:justify-normal lg:border-b-0 lg:px-0 lg:py-4">
           <button
-            className="ml-2 items-center justify-center w-10 h-9 sm:w-10 sm:h-10 text-gray-500 border-gray-200 rounded-lg z-99999 dark:border-gray-800 lg:flex dark:text-gray-400 lg:h-11 lg:w-11 lg:border"
+            className={`${dir === 'rtl' ? 'mr-2' : 'ml-2'} items-center justify-center w-10 h-9 sm:w-10 sm:h-10 text-gray-500 border-gray-200 rounded-lg z-99999 dark:border-gray-800 lg:flex dark:text-gray-400 lg:h-11 lg:w-11 lg:border`}
             onClick={handleToggle}
             aria-label="Toggle Sidebar"
           >
@@ -84,7 +109,7 @@ const AppHeader: React.FC = () => {
 
           <button
             onClick={toggleApplicationMenu}
-            className="mr-5 flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 text-gray-700 rounded-lg z-99999 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 lg:hidden"
+            className={`${dir === 'rtl' ? 'ml-5' : 'mr-5'} flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 text-gray-700 rounded-lg z-99999 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 lg:hidden`}
           >
             <svg
               width="24"
@@ -98,23 +123,108 @@ const AppHeader: React.FC = () => {
               <path d="M3 20c2.5-4 6.5-5 9-5s6.5 1 9 5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
             </svg>
           </button>
-
-         
-          
         </div>
         <div
           className={`${
             isApplicationMenuOpen ? "flex" : "hidden"
-          } items-center justify-between w-full gap-3 px-3 py-3 lg:flex shadow-theme-md lg:mr-5 lg:justify-end lg:px-0 lg:shadow-none`}
+          } items-center justify-end w-full gap-2 px-3 py-3 lg:flex shadow-theme-md lg:shadow-none`}
         >
-          <div className=" ml-2 flex items-center gap-2 2xsm:gap-3">
-            {/* <!-- Dark Mode Toggler --> */}
-            <ThemeToggleButton />
-            {/* <!-- Dark Mode Toggler --> */}
-            {/* <NotificationDropdown /> */}
-            {/* <!-- Notification Menu Area --> */}
-          </div>
-          {/* <!-- User Area --> */}
+          <button
+            onClick={() => {
+              const newLang = locale === 'en' ? 'ar' : 'en';
+              setLocale(newLang);
+              localStorage.setItem('landing-lang', newLang);
+              i18n.changeLanguage(newLang);
+            }}
+            className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-100 dark:text-gray-400 dark:border-gray-800 dark:hover:bg-gray-800"
+            aria-label={t('language', 'common')}
+          >
+            <span className="text-xs font-semibold uppercase">
+              {locale === 'en' ? 'AR' : 'EN'}
+            </span>
+          </button>
+          <div className="flex items-center gap-1" ref={companyDropdownRef}>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsCompanyDropdownOpen(!isCompanyDropdownOpen)}
+                  className="flex w-56 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-gray-200"
+                >
+                  {selectedLogo && !isCompanyDropdownOpen ? (
+                    <img
+                      src={selectedLogo.replace('/upload/', '/upload/q_10,w_32/')}
+                      alt=""
+                      className="size-5 shrink-0 rounded object-cover"
+                    />
+                  ) : (
+                    <div className="flex size-5 shrink-0 items-center justify-center rounded bg-slate-200 text-[11px] font-bold leading-none text-slate-600 dark:bg-slate-600 dark:text-slate-300">
+                      {isCompanyDropdownOpen ? '▼' : (selectedName || '?').charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <span className="flex-1 truncate text-left">{selectedName}</span>
+                </button>
+
+                  {isCompanyDropdownOpen && (
+                  <div className="absolute right-0 z-30 mt-1 w-64 overflow-auto rounded-lg border border-slate-200 bg-white p-1 shadow-lg dark:border-slate-700 dark:bg-slate-800">
+                    {companyOptions.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => { setSelectedCompanyId(null); setIsCompanyDropdownOpen(false); }}
+                        className={`flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm transition ${
+                          !selectedCompanyId
+                            ? 'bg-slate-200 text-slate-800 dark:bg-slate-600 dark:text-slate-100'
+                            : 'text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700/50'
+                        }`}
+                      >
+                        {t('allCompanies', 'common')}
+                      </button>
+                    )}
+                    {companyOptions.map((c) => {
+                      const name = locale === 'ar' && c.titleAr ? c.titleAr : c.title;
+                      return (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => { setSelectedCompanyId(c.id); setIsCompanyDropdownOpen(false); }}
+                          className={`flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm transition ${
+                            selectedCompanyId === c.id
+                              ? 'bg-slate-200 text-slate-800 dark:bg-slate-600 dark:text-slate-100'
+                              : 'text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700/50'
+                          }`}
+                        >
+                          {c.logoPath ? (
+                            <img
+                              src={c.logoPath.replace('/upload/', '/upload/q_10,w_32/')}
+                              alt=""
+                              className="size-6 shrink-0 rounded object-cover"
+                            />
+                          ) : (
+                            <div className={`flex size-6 shrink-0 items-center justify-center rounded text-[10px] font-bold uppercase ${
+                              selectedCompanyId === c.id
+                                ? 'bg-slate-300 text-slate-800 dark:bg-slate-500 dark:text-white'
+                                : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+                            }`}>
+                              {name.charAt(0)}
+                            </div>
+                          )}
+                          <span className="flex-1 truncate">{name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+              {selectedCompanyId && companyOptions.length > 1 && (
+                <button
+                  onClick={() => { resetFilter(); setIsCompanyDropdownOpen(false); }}
+                  className="flex items-center justify-center rounded-lg border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800"
+                  title={t('clear', 'common')}
+                >
+                  <X className="size-3.5" />
+                </button>
+              )}
+            </div>
+          <ThemeToggleButton />
           <UserDropdown />
         </div>
       </div>

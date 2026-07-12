@@ -10,17 +10,20 @@ import App from './router/Router.tsx';
 import { AppWrapper } from './components/common/PageMeta.tsx';
 import { ThemeProvider } from './context/ThemeContext.tsx';
 import { AuthProvider } from './context/AuthContext.tsx';
+import { LocaleProvider } from './context/LocaleContext.tsx';
 
 createRoot(document.getElementById('root')!).render(
   <Provider store={store}>
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <ThemeProvider>
-          <AppWrapper>
-            <App />
-          </AppWrapper>
-        </ThemeProvider>
-      </AuthProvider>
+      <LocaleProvider>
+        <AuthProvider>
+          <ThemeProvider>
+            <AppWrapper>
+              <App />
+            </AppWrapper>
+          </ThemeProvider>
+        </AuthProvider>
+      </LocaleProvider>
     </QueryClientProvider>
   </Provider>
 );

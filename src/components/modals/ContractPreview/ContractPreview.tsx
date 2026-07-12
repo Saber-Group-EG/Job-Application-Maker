@@ -1,5 +1,6 @@
 import { X, FileText } from 'lucide-react';
 import { toPlainString } from '../../../utils/strings';
+import { useLocale } from '../../../context/LocaleContext';
 
 type Props = {
   isOpen: boolean;
@@ -12,6 +13,7 @@ const renderValue = (val: any) => toPlainString(val) || '—';
 export default function ContractPreview({ isOpen, onClose, contract }: Props) {
   if (!isOpen) return null;
 
+  const { t, locale } = useLocale();
   const companyName = typeof contract?.companyId === 'string'
     ? contract?.companyId
     : toPlainString(contract?.companyId?.name);
@@ -31,7 +33,7 @@ export default function ContractPreview({ isOpen, onClose, contract }: Props) {
           <div className="flex items-center justify-between border-b px-6 py-4 dark:border-slate-800">
             <div>
               <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
-                {renderValue(contract?.position) || 'Job Contract'}
+                {renderValue(contract?.position) || t('jobContract', 'modals')}
               </h3>
               <p className="text-sm text-slate-500 dark:text-slate-400">
                 {companyName || '—'}
@@ -49,7 +51,7 @@ export default function ContractPreview({ isOpen, onClose, contract }: Props) {
           <div className="flex-1 overflow-auto p-6">
             {!contract && (
               <div className="mb-4 rounded border border-dashed border-slate-200 p-3 text-sm text-slate-600 dark:border-slate-700 dark:text-slate-300">
-                Contract data is loading.
+                {t('contractLoading', 'modals')}
               </div>
             )}
 
@@ -58,13 +60,13 @@ export default function ContractPreview({ isOpen, onClose, contract }: Props) {
                 <FileText className="h-6 w-6 text-brand-600" />
               </div>
               <div>
-                <p className="text-sm text-slate-500">Position</p>
+                <p className="text-sm text-slate-500">{t('position', 'modals')}</p>
                 <p className="text-sm font-medium text-slate-900 dark:text-white">
                   {renderValue(contract?.position)}
                 </p>
               </div>
               <div className="ml-6">
-                <p className="text-sm text-slate-500">Salary</p>
+                <p className="text-sm text-slate-500">{t('basicSalary', 'modals')}</p>
                 <p className="text-sm font-medium text-slate-900 dark:text-white">
                   {salaryBasic != null
                     ? `${salaryBasic.toLocaleString()} ${salaryCurrency}`
@@ -76,7 +78,7 @@ export default function ContractPreview({ isOpen, onClose, contract }: Props) {
             <div className="grid gap-4 md:grid-cols-2">
               <div>
                 <p className="mb-2 text-xs font-semibold uppercase text-slate-400">
-                  Applicant
+                  {t('applicantInfo', 'modals')}
                 </p>
                 <div className="rounded-lg border border-slate-100 p-3 dark:border-slate-700">
                   <p className="font-medium">{contract?.applicantId?.fullName || '—'}</p>
@@ -91,33 +93,33 @@ export default function ContractPreview({ isOpen, onClose, contract }: Props) {
 
               <div>
                 <p className="mb-2 text-xs font-semibold uppercase text-slate-400">
-                  Details
+                  {t('details', 'modals')}
                 </p>
                 <div className="rounded-lg border border-slate-100 p-3 text-sm text-slate-700 dark:border-slate-700 dark:text-slate-300">
                   <p>
-                    <span className="font-semibold">Type:</span>{' '}
-                    {renderValue(contract?.contractType)}
+                    <span className="font-semibold">{t('type', 'modals')}</span>{' '}
+                    {contract?.contractType ? t(contract.contractType.replace(/-([a-z])/g, (_: string, c: string) => c.toUpperCase()), 'modals') : '—'}
                   </p>
                   <p>
-                    <span className="font-semibold">Status:</span>{' '}
-                    {renderValue(contract?.status)}
+                    <span className="font-semibold">{t('status', 'modals')}</span>{' '}
+                    {contract?.status ? t(`status${contract.status.charAt(0).toUpperCase() + contract.status.slice(1)}`, 'jobContracts') : '—'}
                   </p>
                   {contract?.startDate && (
                     <p>
-                      <span className="font-semibold">Start:</span>{' '}
-                      {new Date(contract.startDate).toLocaleDateString()}
+                      <span className="font-semibold">{t('start', 'modals')}</span>{' '}
+                      {new Date(contract.startDate).toLocaleDateString(locale)}
                     </p>
                   )}
                   {contract?.endDate && (
                     <p>
-                      <span className="font-semibold">End:</span>{' '}
-                      {new Date(contract.endDate).toLocaleDateString()}
+                      <span className="font-semibold">{t('end', 'modals')}</span>{' '}
+                      {new Date(contract.endDate).toLocaleDateString(locale)}
                     </p>
                   )}
                   {contract?.signedAt && (
                     <p>
-                      <span className="font-semibold">Signed:</span>{' '}
-                      {new Date(contract.signedAt).toLocaleString()}
+                      <span className="font-semibold">{t('signed', 'modals')}</span>{' '}
+                      {new Date(contract.signedAt).toLocaleString(locale)}
                     </p>
                   )}
                 </div>
@@ -126,7 +128,7 @@ export default function ContractPreview({ isOpen, onClose, contract }: Props) {
 
             <div className="mt-6">
               <p className="mb-2 text-xs font-semibold uppercase text-slate-400">
-                Benefits
+                {t('benefits', 'modals')}
               </p>
               {benefits.length > 0 ? (
                 <div className="space-y-2">
@@ -150,14 +152,14 @@ export default function ContractPreview({ isOpen, onClose, contract }: Props) {
                 </div>
               ) : (
                 <p className="rounded-lg border border-dashed border-slate-200 p-3 text-sm text-slate-500">
-                  No benefits
+                  {t('noBenefits', 'modals')}
                 </p>
               )}
             </div>
 
             <div className="mt-6">
               <p className="mb-2 text-xs font-semibold uppercase text-slate-400">
-                Sections
+                {t('contractSections', 'modals')}
               </p>
               {sections.length > 0 ? (
                 <div className="space-y-4">
@@ -177,7 +179,7 @@ export default function ContractPreview({ isOpen, onClose, contract }: Props) {
                 </div>
               ) : (
                 <p className="rounded-lg border border-dashed border-slate-200 p-3 text-sm text-slate-500">
-                  No sections
+                  {t('noSections', 'modals')}
                 </p>
               )}
             </div>
@@ -185,7 +187,7 @@ export default function ContractPreview({ isOpen, onClose, contract }: Props) {
             {contract?.notes && (
               <div className="mt-6">
                 <p className="mb-2 text-xs font-semibold uppercase text-slate-400">
-                  Notes
+                  {t('notes', 'modals')}
                 </p>
                 <div className="rounded-lg border border-slate-100 p-3 text-sm dark:border-slate-700">
                   {renderValue(contract.notes)}

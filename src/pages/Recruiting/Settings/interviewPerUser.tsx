@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useLocale } from "../../../context/LocaleContext";
 import {
 	ClipboardList,
 	PlusCircle,
@@ -65,6 +66,7 @@ const normalizeGroups = (
 };
 
 export default function SavedQuestionsPage() {
+	const { t } = useLocale();
 	const {
 		data: groupsFromApi,
 		isLoading: isGroupsLoading,
@@ -92,7 +94,7 @@ export default function SavedQuestionsPage() {
 		setGroups((prev) => [
 			...prev,
 			{
-				name: `Group ${prev.length + 1}`,
+				name: t('interviewPerUser.defaultGroupName', 'settings', { number: prev.length + 1 }),
 				questions: [{ ...EMPTY_QUESTION }],
 			},
 		]);
@@ -121,8 +123,8 @@ export default function SavedQuestionsPage() {
 			});
 
 			Swal.fire(
-				"Delete Failed",
-				error?.message || "Failed to delete question group.",
+				t('interviewPerUser.swalDeleteFailed', 'settings'),
+				error?.message || t('interviewPerUser.swalDeleteFailedMsg', 'settings'),
 				"error"
 			);
 		}
@@ -184,8 +186,8 @@ export default function SavedQuestionsPage() {
 			const group = groups[groupIndex];
 			if (!group.name.trim()) {
 				Swal.fire(
-					"Validation",
-					`Group ${groupIndex + 1} must have a name.`,
+					t('commonValidation', 'settings'),
+					t('interviewPerUser.validationGroupMustHaveName', 'settings', { number: groupIndex + 1 }),
 					"warning"
 				);
 				return null;
@@ -196,8 +198,8 @@ export default function SavedQuestionsPage() {
 
 				if (!question.question.trim()) {
 					Swal.fire(
-						"Validation",
-						`Question ${questionIndex + 1} in group ${groupIndex + 1} must not be empty.`,
+						t('commonValidation', 'settings'),
+						t('interviewPerUser.validationQuestionNotEmpty', 'settings', { qNumber: questionIndex + 1, gNumber: groupIndex + 1 }),
 						"warning"
 					);
 					return null;
@@ -205,8 +207,8 @@ export default function SavedQuestionsPage() {
 
 				if (!Number.isFinite(question.score)) {
 					Swal.fire(
-						"Validation",
-						`Question ${questionIndex + 1} in group ${groupIndex + 1} needs a valid numeric score.`,
+						t('commonValidation', 'settings'),
+						t('interviewPerUser.validationQuestionNeedsScore', 'settings', { qNumber: questionIndex + 1, gNumber: groupIndex + 1 }),
 						"warning"
 					);
 					return null;
@@ -217,8 +219,8 @@ export default function SavedQuestionsPage() {
 					(!Array.isArray(question.choices) || question.choices.length === 0)
 				) {
 					Swal.fire(
-						"Validation",
-						`Question ${questionIndex + 1} in group ${groupIndex + 1} must include at least one choice for radio/dropdown.`,
+						t('commonValidation', 'settings'),
+						t('interviewPerUser.validationChoiceRequired', 'settings', { qNumber: questionIndex + 1, gNumber: groupIndex + 1 }),
 						"warning"
 					);
 					return null;
@@ -249,16 +251,16 @@ export default function SavedQuestionsPage() {
 			setGroups(normalizeGroups(savedGroups));
 
 			Swal.fire({
-				title: "Saved",
-				text: "Saved questions updated successfully.",
+				title: t('interviewPerUser.swalSaved', 'settings'),
+				text: t('interviewPerUser.swalSavedText', 'settings'),
 				icon: "success",
 				timer: 1200,
 				showConfirmButton: false,
 			});
 		} catch (error: any) {
 			Swal.fire(
-				"Save Failed",
-				error?.message || "Failed to save question groups.",
+				t('interviewPerUser.swalSaveFailed', 'settings'),
+				error?.message || t('interviewPerUser.swalSaveFailedMsg', 'settings'),
 				"error"
 			);
 		} finally {
@@ -269,12 +271,12 @@ export default function SavedQuestionsPage() {
 	return (
 		<div className="min-h-screen bg-slate-50 p-4 text-slate-900 dark:bg-slate-950 dark:text-slate-100 sm:p-8">
 			<PageMeta
-				title="Saved Questions | Job Application Maker"
-				description="Manage reusable interview question groups for the current user"
+				title={t('interviewPerUser.pageMetaTitle', 'settings')}
+				description={t('interviewPerUser.pageMetaDesc', 'settings')}
 			/>
-			<PageBreadCrumb pageTitle="Saved Questions" />
 
 			<div className="mx-auto max-w-7xl space-y-6">
+				<PageBreadCrumb pageTitle={t('interviewPerUser.pageBreadcrumb', 'settings')} />
 				<div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
 					<div className="flex flex-col gap-5 border-b border-slate-200 px-6 py-6 dark:border-slate-800 md:flex-row md:items-center md:justify-between">
 						<div className="flex items-start gap-4">
@@ -283,13 +285,13 @@ export default function SavedQuestionsPage() {
 							</div>
 							<div>
 								<p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600/80 dark:text-brand-300">
-									Saved Questions
+									{t('interviewPerUser.sectionTitle', 'settings')}
 								</p>
 								<h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
-									Interview Question Library
+									{t('interviewPerUser.title', 'settings')}
 								</h1>
 								<p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-									Build reusable question groups for interviews. This library is separate from company interview settings.
+									{t('interviewPerUser.description', 'settings')}
 								</p>
 							</div>
 						</div>
@@ -303,7 +305,7 @@ export default function SavedQuestionsPage() {
 							) : (
 								<Save className="size-4" />
 							)}
-							Save All
+							{t('interviewPerUser.saveAll', 'settings')}
 							<ArrowRight className="size-4" />
 						</button>
 					</div>
@@ -311,7 +313,7 @@ export default function SavedQuestionsPage() {
 					<div className="grid grid-cols-1 gap-4 p-6 md:grid-cols-3">
 						<div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/60">
 							<p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-								Question Groups
+								{t('interviewPerUser.statQuestionGroups', 'settings')}
 							</p>
 							<p className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
 								{groups.length}
@@ -319,7 +321,7 @@ export default function SavedQuestionsPage() {
 						</div>
 						<div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/60">
 							<p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-								Total Questions
+								{t('interviewPerUser.statTotalQuestions', 'settings')}
 							</p>
 							<p className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
 								{totalQuestions}
@@ -327,10 +329,10 @@ export default function SavedQuestionsPage() {
 						</div>
 						<div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/60">
 							<p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-								Save Status
+								{t('interviewPerUser.statSaveStatus', 'settings')}
 							</p>
 							<p className="mt-1 inline-flex items-center gap-2 text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-								<CircleCheckBig className="size-4" /> Ready
+								<CircleCheckBig className="size-4" /> {t('interviewPerUser.statReady', 'settings')}
 							</p>
 						</div>
 					</div>
@@ -343,9 +345,9 @@ export default function SavedQuestionsPage() {
 								<ClipboardList className="size-6" />
 							</div>
 							<div>
-								<h2 className="text-xl font-semibold tracking-tight">Saved Question Groups</h2>
+								<h2 className="text-xl font-semibold tracking-tight">{t('interviewPerUser.groupsSectionTitle', 'settings')}</h2>
 								<p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-									Create reusable questions and answer types for future interviews.
+									{t('interviewPerUser.groupsSectionDesc', 'settings')}
 								</p>
 							</div>
 						</div>
@@ -356,14 +358,14 @@ export default function SavedQuestionsPage() {
 							disabled={isLoading}
 							className="inline-flex items-center gap-2 self-start rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
 						>
-							<PlusCircle className="size-4" /> Add Group
+							<PlusCircle className="size-4" /> {t('interviewPerUser.addGroup', 'settings')}
 						</button>
 					</div>
 
 					<div className="space-y-5 p-6">
 						{isLoading && (
 							<div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
-								Loading saved question groups...
+								{t('interviewPerUser.loading', 'settings')}
 							</div>
 						)}
 
@@ -371,7 +373,7 @@ export default function SavedQuestionsPage() {
 							<div className="rounded-xl border border-dashed border-slate-300 px-6 py-10 text-center dark:border-slate-700">
 								<ClipboardList className="mx-auto mb-3 size-10 text-slate-300 dark:text-slate-600" />
 								<p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-									No saved question groups yet. Add your first group to get started.
+									{t('interviewPerUser.emptyState', 'settings')}
 								</p>
 							</div>
 						)}
@@ -384,12 +386,12 @@ export default function SavedQuestionsPage() {
 								<div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 									<div className="flex-1">
 										<label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-											Group Name
+											{t('interviewPerUser.labelGroupName', 'settings')}
 										</label>
 										<input
 											value={group.name}
 											onChange={(e) => updateGroupName(groupIndex, e.target.value)}
-											placeholder="Behavioral Questions"
+											placeholder={t('interviewPerUser.groupNamePlaceholder', 'settings')}
 											className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800"
 										/>
 									</div>
@@ -399,7 +401,7 @@ export default function SavedQuestionsPage() {
 										onClick={() => removeGroup(groupIndex)}
 										className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-100 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300"
 									>
-										<Trash2 className="size-4" /> Remove Group
+										<Trash2 className="size-4" /> {t('interviewPerUser.removeGroup', 'settings')}
 									</button>
 								</div>
 
@@ -411,7 +413,7 @@ export default function SavedQuestionsPage() {
 										>
 											<div>
 												<label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-													Question
+													{t('interviewPerUser.labelQuestion', 'settings')}
 												</label>
 												<input
 													value={question.question}
@@ -420,14 +422,14 @@ export default function SavedQuestionsPage() {
 															question: e.target.value,
 														})
 													}
-													placeholder="Describe a time you resolved a difficult issue"
+													placeholder={t('interviewPerUser.questionPlaceholder', 'settings')}
 													className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-900"
 												/>
 											</div>
 
 											<div>
 												<label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-													Answer Type
+													{t('interviewPerUser.labelAnswerType', 'settings')}
 												</label>
 												<select
 													value={question.answerType}
@@ -448,7 +450,7 @@ export default function SavedQuestionsPage() {
 
 											<div>
 												<label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-													Score
+													{t('interviewPerUser.labelScore', 'settings')}
 												</label>
 												<input
 													type="number"
@@ -469,14 +471,14 @@ export default function SavedQuestionsPage() {
 													onClick={() => removeQuestion(groupIndex, questionIndex)}
 													className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-100 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300"
 												>
-													<Trash2 className="size-4" /> Remove
+													<Trash2 className="size-4" /> {t('interviewPerUser.remove', 'settings')}
 												</button>
 											</div>
 
 											{(question.answerType === 'radio' || question.answerType === 'dropdown') && (
 												<div className="lg:col-span-4">
 													<label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-														Choices
+														{t('interviewPerUser.labelChoices', 'settings')}
 													</label>
 													<div className="mb-2 flex flex-wrap gap-2">
 														{(Array.isArray(question.choices) ? question.choices : []).map((c) => (
@@ -490,7 +492,7 @@ export default function SavedQuestionsPage() {
 																	updateQuestion(groupIndex, questionIndex, { choices: next });
 																}}
 																	className="pl-2 text-gray-500 cursor-pointer group-hover:text-gray-400 dark:text-gray-400"
-																	aria-label={`Remove ${c}`}
+																	aria-label={t('interviewPerUser.removeChoice', 'settings', { value: c })}
 																>
 																	<svg className="fill-current" width="14" height="14" viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg">
 																		<path fillRule="evenodd" clipRule="evenodd" d="M3.40717 4.46881C3.11428 4.17591 3.11428 3.70104 3.40717 3.40815C3.70006 3.11525 4.17494 3.11525 4.46783 3.40815L6.99943 5.93975L9.53095 3.40822C9.82385 3.11533 10.2987 3.11533 10.5916 3.40822C10.8845 3.70112 10.8845 4.17599 10.5916 4.46888L8.06009 7.00041L10.5916 9.53193C10.8845 9.82482 10.8845 10.2997 10.5916 10.5926C10.2987 10.8855 9.82385 10.8855 9.53095 10.5926L6.99943 8.06107L4.46783 10.5927C4.17494 10.8856 3.70006 10.8856 3.40717 10.5927C3.11428 10.2998 3.11428 9.8249 3.40717 9.53201L5.93877 7.00041L3.40717 4.46881Z" />
@@ -523,7 +525,7 @@ export default function SavedQuestionsPage() {
 															updateQuestion(groupIndex, questionIndex, { choices: [...existing, buf] });
 															setChoiceBuffers((prev) => ({ ...prev, [key]: '' }));
 														}}
-														placeholder="Type a choice and press Enter"
+														placeholder={t('interviewPerUser.choicePlaceholder', 'settings')}
 														className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-900"
 													/>
 												</div>
@@ -536,7 +538,7 @@ export default function SavedQuestionsPage() {
 										onClick={() => addQuestion(groupIndex)}
 										className="inline-flex items-center gap-2 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-sm font-semibold text-brand-700 transition hover:bg-brand-100 dark:border-brand-500/30 dark:bg-brand-500/10 dark:text-brand-300"
 									>
-										<PlusCircle className="size-4" /> Add Question
+										<PlusCircle className="size-4" /> {t('interviewPerUser.addQuestion', 'settings')}
 									</button>
 								</div>
 							</div>

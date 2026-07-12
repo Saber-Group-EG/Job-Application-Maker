@@ -1,9 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef } from 'react';
 import {
   Layers,
   PlusCircle,
   Download,
-  Save,
   ChevronDown,
   ChevronRight,
   Pencil,
@@ -15,6 +14,7 @@ import Swal from '../../utils/swal';
 import type { SectionTemplate } from '../../types/companies';
 import SectionTemplateModal from '../modals/SectionTemplateModal';
 import ImportSectionsModal from '../modals/ImportSectionsModal';
+import { useLocale } from '../../context/LocaleContext';
 
 // ─── tiny uid ─────────────────────────────────────────────────────────────────
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -48,7 +48,9 @@ function CategoryGroup({
   onDuplicate: (t: SectionTemplate) => void;
   onDelete: (id: string) => void;
 }) {
+  const { t, locale } = useLocale();
   const [collapsed, setCollapsed] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
@@ -67,29 +69,36 @@ function CategoryGroup({
           {category}
         </span>
         <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-bold text-slate-500 dark:bg-slate-700 dark:text-slate-400">
-          {templates.length} section{templates.length !== 1 ? 's' : ''}
+          {t('sectionCount', 'modals', { count: templates.length })}
         </span>
       </button>
 
       {/* cards */}
-      {!collapsed && (
-        <div className="grid grid-cols-1 gap-3 p-3 sm:grid-cols-2 xl:grid-cols-3">
-          {templates.map((t) => (
+      <div
+        style={{
+          maxHeight: collapsed ? 0 : (contentRef.current?.scrollHeight ?? 5000),
+          opacity: collapsed ? 0 : 1,
+          overflow: 'hidden',
+          transition: 'max-height 0.3s cubic-bezier(0.2, 0, 0, 1), opacity 0.25s cubic-bezier(0.2, 0, 0, 1)',
+        }}
+      >
+        <div ref={contentRef} className="grid grid-cols-1 gap-3 p-3 sm:grid-cols-2 xl:grid-cols-3">
+          {templates.map((tmpl) => (
             <div
-              key={t._id}
+              key={tmpl._id}
               className="group flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 transition hover:border-slate-300 hover:shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-600"
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
-                    {t.title.en || t.title.ar}
+                    {locale === 'ar' ? (tmpl.title.ar || tmpl.title.en) : (tmpl.title.en || tmpl.title.ar)}
                   </p>
-                  {t.title.en && t.title.ar && (
+                  {tmpl.title.en && tmpl.title.ar && (
                     <p
                       className="truncate text-xs text-slate-400 dark:text-slate-500"
                       dir="rtl"
                     >
-                      {t.title.ar}
+                      {tmpl.title.ar}
                     </p>
                   )}
                 </div>
@@ -98,21 +107,21 @@ function CategoryGroup({
                   <div className="flex shrink-0 items-center gap-0.5 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
                     <button
                       type="button"
-                      onClick={() => onEdit(t)}
+                      onClick={() => onEdit(tmpl)}
                       className="flex size-7 items-center justify-center rounded-lg text-slate-400 transition hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-brand-500/10 dark:hover:text-brand-400"
                     >
                       <Pencil className="size-3.5" />
                     </button>
                     <button
                       type="button"
-                      onClick={() => onDuplicate(t)}
+                      onClick={() => onDuplicate(tmpl)}
                       className="flex size-7 items-center justify-center rounded-lg text-slate-400 transition hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-400"
                     >
                       <Copy className="size-3.5" />
                     </button>
                     <button
                       type="button"
-                      onClick={() => onDelete(t._id!)}
+                      onClick={() => onDelete(tmpl._id!)}
                       className="flex size-7 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10 dark:hover:text-red-400"
                     >
                       <Trash2 className="size-3.5" />
@@ -123,12 +132,12 @@ function CategoryGroup({
 
               <div className="flex items-center gap-1.5 text-xs text-slate-400">
                 <FileText className="size-3.5 shrink-0" />
-                {t.items.length} item{t.items.length !== 1 ? 's' : ''}
+                {t('itemCount', 'modals', { count: tmpl.items.length })}
               </div>
             </div>
           ))}
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -143,6 +152,7 @@ export default function SectionTemplatesPanel({
   onSave,
   isSaving,
 }: Props) {
+  const { t } = useLocale();
   const [local, setLocal] = useState<SectionTemplate[]>(() =>
     templates.map((t) => ({ ...t, _id: t._id ?? uid() }))
   );
@@ -163,22 +173,17 @@ export default function SectionTemplatesPanel({
       items: t.items.map(({ _id: _i, ...item }) => item),
     }));
 
-  const sortKeys = (obj: any): any => {
-    if (Array.isArray(obj)) return obj.map(sortKeys);
-    if (obj && typeof obj === 'object') {
-      return Object.keys(obj)
-        .sort()
-        .reduce<any>((acc, k) => {
-          acc[k] = sortKeys(obj[k]);
-          return acc;
-        }, {});
-    }
-    return obj;
+  const saveImmediately = (updated: SectionTemplate[]) => {
+    onSave(strip(updated) as SectionTemplate[]);
   };
 
-  const isDirty =
-    JSON.stringify(sortKeys(strip(local))) !==
-    JSON.stringify(sortKeys(strip(templates)));
+  const saveAndUpdate = (updater: (prev: SectionTemplate[]) => SectionTemplate[]) => {
+    setLocal((prev) => {
+      const updated = updater(prev);
+      saveImmediately(updated);
+      return updated;
+    });
+  };
 
   // all unique categories present in local list
   const existingCategories = useMemo(
@@ -206,17 +211,17 @@ export default function SectionTemplatesPanel({
   };
 
   const handleModalSave = (t: SectionTemplate) => {
-    if (t._id && local.some((l) => l._id === t._id)) {
-      // update
-      setLocal((prev) => prev.map((l) => (l._id === t._id ? t : l)));
-    } else {
-      // create
-      setLocal((prev) => [...prev, { ...t, _id: uid() }]);
-    }
+    saveAndUpdate((prev) => {
+      const exists = prev.some((l) => l._id === t._id);
+      if (exists) {
+        return prev.map((l) => (l._id === t._id ? t : l));
+      }
+      return [...prev, { ...t, _id: uid() }];
+    });
   };
 
   const handleDuplicate = (t: SectionTemplate) => {
-    setLocal((prev) => [
+    saveAndUpdate((prev) => [
       ...prev,
       {
         ...t,
@@ -228,34 +233,27 @@ export default function SectionTemplatesPanel({
 
   const handleDelete = async (id: string) => {
     const result = await Swal.fire({
-      title: 'Delete Section Template?',
-      text: 'This will remove it from the template library.',
+      title: t('deleteSectionTitle', 'modals'),
+      text: t('deleteSectionText', 'modals'),
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonText: 'Delete',
+      cancelButtonText: t('cancel', 'common'),
+      confirmButtonText: t('delete', 'modals'),
       confirmButtonColor: '#ef4444',
     });
     if (result.isConfirmed) {
-      setLocal((prev) => prev.filter((t) => t._id !== id));
+      saveAndUpdate((prev) => prev.filter((t) => t._id !== id));
     }
   };
 
   const handleImport = (imported: SectionTemplate[]) => {
-    const withIds = imported.map((t) => ({ ...t, _id: uid() }));
-    setLocal((prev) => [...prev, ...withIds]);
+    saveAndUpdate((prev) => [
+      ...prev,
+      ...imported.map((t) => ({ ...t, _id: uid() })),
+    ]);
   };
 
-  const handleSave = async () => {
-    const stripped = local.map(({ _id: _tid, ...t }) => ({
-      ...t,
-      items: t.items.map(({ _id: _iid, ...item }) => item),
-    }));
-    await onSave(stripped as SectionTemplate[]);
-    // reset local to match what was just saved so isDirty clears
-    setLocal(stripped.map((t) => ({ ...t, _id: uid() })));
-  };
-
-  const crossLabel = type === 'offer' ? 'Contract Sections' : 'Offer Sections';
+  const crossLabel = type === 'offer' ? t('contractSections', 'modals') : t('offerSections', 'modals');
 
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -267,11 +265,10 @@ export default function SectionTemplatesPanel({
           </div>
           <div>
             <h3 className="text-base font-bold tracking-tight text-slate-900 dark:text-slate-100">
-              Section Templates
+              {t('sectionTemplates', 'modals')}
             </h3>
             <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-              Reusable sections you can insert when building a{' '}
-              {type === 'offer' ? 'job offer' : 'contract'}.
+              {t('sectionTemplatesDesc', 'modals', { type: (type === 'offer' ? t('jobOffer', 'modals') : t('contract', 'modals')).toLowerCase() })}
             </p>
           </div>
         </div>
@@ -285,7 +282,7 @@ export default function SectionTemplatesPanel({
               className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800"
             >
               <Download className="size-3.5" />
-              Import from {crossLabel}
+              {t('importFromCross', 'modals', { label: crossLabel })}
             </button>
           )}
 
@@ -293,39 +290,28 @@ export default function SectionTemplatesPanel({
             <button
               type="button"
               onClick={openCreate}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800"
+              disabled={isSaving}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800"
             >
               <PlusCircle className="size-3.5" />
-              New Section
+              {t('newSection', 'modals')}
             </button>
           )}
 
-          {canEdit && (
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={!isDirty || isSaving}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-brand-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {isSaving ? (
-                <div className="size-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-              ) : (
-                <Save className="size-3.5" />
-              )}
-              Save
-              {isDirty && (
-                <span className="ml-0.5 size-1.5 rounded-full bg-white/70" />
-              )}
-            </button>
+          {isSaving && (
+            <div className="inline-flex items-center gap-1.5 rounded-xl bg-brand-500/10 px-3 py-2 text-xs font-semibold text-brand-600">
+              <div className="size-3.5 animate-spin rounded-full border-2 border-brand-500/30 border-t-brand-500" />
+              {t('saving', 'modals')}
+            </div>
           )}
         </div>
       </div>
 
       {/* stats strip */}
-      <div className="grid grid-cols-2 divide-x divide-slate-100 border-b border-slate-100 dark:divide-slate-800 dark:border-slate-800 sm:grid-cols-3">
+      <div className="grid grid-cols-2 divide-x divide-slate-100 border-b border-slate-100 dark:divide-slate-800 dark:border-slate-800 sm:grid-cols-2">
         <div className="px-6 py-3">
           <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-            Total
+            {t('total', 'modals')}
           </p>
           <p className="mt-0.5 text-xl font-bold text-slate-900 dark:text-slate-100">
             {local.length}
@@ -333,20 +319,10 @@ export default function SectionTemplatesPanel({
         </div>
         <div className="px-6 py-3">
           <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-            Categories
+            {t('categories', 'modals')}
           </p>
           <p className="mt-0.5 text-xl font-bold text-slate-900 dark:text-slate-100">
             {existingCategories.length}
-          </p>
-        </div>
-        <div className="hidden px-6 py-3 sm:block">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-            Status
-          </p>
-          <p
-            className={`mt-0.5 text-sm font-semibold ${isDirty ? 'text-amber-500' : 'text-emerald-500'}`}
-          >
-            {isDirty ? 'Unsaved changes' : 'Saved'}
           </p>
         </div>
       </div>
@@ -357,18 +333,24 @@ export default function SectionTemplatesPanel({
           <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 py-12 text-center dark:border-slate-700">
             <Layers className="mb-3 size-10 text-slate-300 dark:text-slate-600" />
             <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">
-              No section templates yet
+              {t('noSectionTemplates', 'modals')}
             </p>
             <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
-              Add reusable sections to speed up document creation
+              {t('noSectionsDesc', 'modals')}
             </p>
             {canEdit && (
               <button
                 type="button"
                 onClick={openCreate}
-                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-600"
+                disabled={isSaving}
+                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <PlusCircle className="size-4" /> Add First Section
+                {isSaving ? (
+                  <div className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                ) : (
+                  <PlusCircle className="size-4" />
+                )}
+                {t('addFirstSection', 'modals')}
               </button>
             )}
           </div>

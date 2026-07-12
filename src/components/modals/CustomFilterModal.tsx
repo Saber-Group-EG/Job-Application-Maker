@@ -21,20 +21,19 @@ import {
   Alert,
   InputAdornment,
   FormGroup,
- 
+
   ToggleButton,
   ToggleButtonGroup,
   alpha,
   useTheme,
-  Zoom
+  Zoom,
 } from "@mui/material";
 import { styled } from '@mui/material/styles';
-import { useAuth } from '../../context/AuthContext';
+import { useLocale } from '../../context/LocaleContext';
 
 // Icons
 import CloseIcon from '@mui/icons-material/Close';
 import FilterListIcon from '@mui/icons-material/FilterList';
-import BusinessIcon from '@mui/icons-material/Business';
 import WorkIcon from '@mui/icons-material/Work';
 import PersonIcon from '@mui/icons-material/Person';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
@@ -117,7 +116,7 @@ const FilterChip = styled(Chip)(({ theme }) => ({
 }));
 
 const StyledToggleButton = styled(ToggleButton)(({ theme }) => ({
-  borderRadius: 8,
+  borderRadius: '8px ',
   padding: '4px 12px',
   fontSize: '0.85rem',
   fontWeight: 500,
@@ -130,6 +129,30 @@ const StyledToggleButton = styled(ToggleButton)(({ theme }) => ({
     },
   },
 }));
+
+const ToggleGroup = styled(ToggleButtonGroup)({
+  '& .MuiToggleButtonGroup-firstButton': {
+    borderStartStartRadius: '8px',
+    borderEndStartRadius: '8px',
+    borderStartEndRadius: '0',
+    borderEndEndRadius: '0',
+  },
+  '& .MuiToggleButtonGroup-lastButton': {
+    borderStartStartRadius: '0',
+    borderEndStartRadius: '0',
+    borderStartEndRadius: '8px',
+    borderEndEndRadius: '8px',
+  },
+  '& .MuiToggleButtonGroup-middleButton': {
+    borderRadius: '0',
+  },
+  '& .MuiToggleButtonGroup-grouped': {
+    borderRadius: '0',
+    '&:not(:last-of-type)': {
+      borderInlineEnd: '0',
+    },
+  },
+});
 
 // Helper functions remain the same
 export const normalizeLabelSimple = (l: any) => (l || '').toString().replace(/\u200E|\u200F/g, '').replace(/[^\w\u0600-\u06FF\s]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -331,29 +354,25 @@ const CustomFilterModal: React.FC<Props> = ({
   const brandMain = (theme.palette as any).brand?.main ?? theme.palette.primary.main;
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isVerySmall = useMediaQuery('(max-width:425px)');
-  const { user } = useAuth();
+  const { t, locale, dir } = useLocale();
   const [modalSelectedJobIds, setModalSelectedJobIds] = useState<string[]>([]);
-  const [modalSelectedCompanyIds, setModalSelectedCompanyIds] = useState<string[]>([]);
+  const [selectedFilterCompanyId, setSelectedFilterCompanyId] = useState<string>('');
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    companies: true,
     jobs: true,
     personal: true,
     custom: true
   });
   const [activeFilterCount, setActiveFilterCount] = useState(0);
 
-  const userAssignedCompanyIds = (user?.companies?.map((c: any) => (typeof c.companyId === 'string' ? c.companyId : c.companyId?._id)).filter(Boolean)) || [];
-  const isSingleAssignedCompany = Array.isArray(userAssignedCompanyIds) && userAssignedCompanyIds.length === 1;
-
   useEffect(() => {
     // Count active filters
     let count = customFilters.length;
-    if (modalSelectedCompanyIds.length > 0) count++;
     if (modalSelectedJobIds.length > 0) count++;
     setActiveFilterCount(count);
-  }, [customFilters, modalSelectedCompanyIds, modalSelectedJobIds]);
+  }, [customFilters, modalSelectedJobIds]);
 
-  const deriveCompaniesList = (c: any): any[] => {
+  const companiesList = (() => {
+    const c = companies as any;
     if (!c) return [];
     if (Array.isArray(c)) return c;
     if (Array.isArray(c.data)) return c.data;
@@ -361,16 +380,20 @@ const CustomFilterModal: React.FC<Props> = ({
     if (Array.isArray(c.rows)) return c.rows;
     if (Array.isArray(c.companies)) return c.companies;
     return [];
-  };
-  const companiesList = deriveCompaniesList(companies);
+  })();
 
   const getDisplayText = (v: any): string => {
     if (v === undefined || v === null) return '';
     if (typeof v === 'string') return v;
     if (typeof v === 'number') return String(v);
     if (typeof v === 'object') {
-      if (typeof v.en === 'string' && v.en.trim()) return v.en;
-      if (typeof v.ar === 'string' && v.ar.trim()) return v.ar;
+      if (locale === 'ar') {
+        if (typeof v.ar === 'string' && v.ar.trim()) return v.ar;
+        if (typeof v.en === 'string' && v.en.trim()) return v.en;
+      } else {
+        if (typeof v.en === 'string' && v.en.trim()) return v.en;
+        if (typeof v.ar === 'string' && v.ar.trim()) return v.ar;
+      }
       if (typeof v.name === 'string' && v.name.trim()) return v.name;
       if (typeof v.companyName === 'string' && v.companyName.trim()) return v.companyName;
       if (v.title && typeof v.title === 'string') return v.title;
@@ -383,17 +406,6 @@ const CustomFilterModal: React.FC<Props> = ({
     try {
       const jf = Array.isArray(columnFilters) ? columnFilters.find((c: any) => c.id === 'jobPositionId') : undefined;
       if (jf && Array.isArray(jf.value)) setModalSelectedJobIds(jf.value.map(String));
-      const cf = Array.isArray(columnFilters) ? columnFilters.find((c: any) => c.id === 'companyId') : undefined;
-      if (cf && Array.isArray(cf.value)) setModalSelectedCompanyIds(cf.value.map(String));
-      else {
-        try {
-          if (isSingleAssignedCompany) {
-            setModalSelectedCompanyIds([String(userAssignedCompanyIds[0])]);
-          }
-        } catch (e) {
-          // ignore
-        }
-      }
     } catch (e) {
       // ignore
     }
@@ -462,12 +474,15 @@ const CustomFilterModal: React.FC<Props> = ({
     // Ensure observed range is non-negative (salaries shouldn't be negative)
     let observedMin = validEntries.length ? validEntries[0].n : 0;
     let observedMax = validEntries.length ? Math.max(observedMin, validEntries[validEntries.length - 1].n) : observedMin + 1000;
+    // Cap max at 100000 as requested
+    observedMax = Math.min(observedMax, 100000);
     // Log lowest value and its applicant id for debugging
     if (validEntries.length) {
       try {
       } catch (e) { /* ignore */ }
     }
     if (observedMax <= observedMin) observedMax = observedMin + Math.max(100, Math.abs(observedMin || 1000));
+    observedMax = Math.min(observedMax, 100000);
 
     const rawSelMin = (existing.value && (existing.value.min !== undefined && existing.value.min !== '')) ? Number(existing.value.min) : observedMin;
     const rawSelMax = (existing.value && (existing.value.max !== undefined && existing.value.max !== '')) ? Number(existing.value.max) : observedMax;
@@ -514,7 +529,7 @@ const CustomFilterModal: React.FC<Props> = ({
             <TextField
             size="small"
             type="number"
-            label="Min"
+            label={t('min', 'modals')}
             value={Number.isFinite(range[0]) ? range[0] : ''}
             onChange={(e) => {
               const v = e.target.value === '' ? observedMin : Number(e.target.value);
@@ -545,7 +560,7 @@ const CustomFilterModal: React.FC<Props> = ({
           <TextField
             size="small"
             type="number"
-            label="Max"
+            label={t('max', 'modals')}
             value={Number.isFinite(range[1]) ? range[1] : ''}
             onChange={(e) => {
               const v = e.target.value === '' ? observedMax : Number(e.target.value);
@@ -575,7 +590,7 @@ const CustomFilterModal: React.FC<Props> = ({
 
           <Box sx={{ flex: 1 }}>
             <Typography variant="caption" color="text.secondary">
-              Range: {Number(range[0]).toLocaleString()} — {Number(range[1]).toLocaleString()}
+              {t('range', 'modals', { min: Number(range[0]).toLocaleString(), max: Number(range[1]).toLocaleString() })}
             </Typography>
           </Box>
         </Box>
@@ -623,9 +638,8 @@ const CustomFilterModal: React.FC<Props> = ({
   const handleClearAll = () => {
     setCustomFilters([]);
     setModalSelectedJobIds([]);
-    setModalSelectedCompanyIds([]);
     setColumnFilters(prev => {
-      const next = Array.isArray(prev) ? prev.filter((p: any) => p.id !== 'jobPositionId' && p.id !== 'companyId') : prev;
+      const next = Array.isArray(prev) ? prev.filter((p: any) => p.id !== 'jobPositionId') : prev;
       try {
         const raw = sessionStorage.getItem('applicants_table_state');
         const parsed = raw ? JSON.parse(raw) : {};
@@ -739,41 +753,13 @@ const CustomFilterModal: React.FC<Props> = ({
   const handleSave = () => {
     onClose();
     setColumnFilters(prev => {
-      const base = Array.isArray(prev) ? prev.filter((p: any) => p.id !== 'jobPositionId' && p.id !== 'companyId') : [];
+      const base = Array.isArray(prev) ? prev.filter((p: any) => p.id !== 'jobPositionId') : [];
       const next = Array.isArray(base) ? [...base] : [];
 
-      const selectedCompanyIds = Array.from(new Set((modalSelectedCompanyIds || []).map(String).filter(Boolean)));
       const selectedJobIds = Array.from(new Set((modalSelectedJobIds || []).map(String).filter(Boolean)));
 
-      const getId = (v: any) => (typeof v === 'string' ? v : v?._id ?? v?.id ?? '');
-      const validJobIds = new Set<string>();
-      (jobPositions || []).forEach((job: any) => {
-        const jobId = String(getId(job._id) || getId(job.id) || '');
-        if (!jobId) return;
-
-        // If no company is selected, keep all chosen jobs.
-        if (selectedCompanyIds.length === 0) {
-          validJobIds.add(jobId);
-          return;
-        }
-
-        const companyRaw = job?.companyId || job?.company || job?.companyObj;
-        const companyId = String(getId(companyRaw) || '');
-        if (companyId && selectedCompanyIds.includes(companyId)) {
-          validJobIds.add(jobId);
-        }
-      });
-
-      const sanitizedJobIds = selectedJobIds.filter((jid) =>
-        selectedCompanyIds.length > 0 ? validJobIds.has(jid) : true
-      );
-
-      // For users assigned to one company, avoid writing a company column filter.
-      if (!isSingleAssignedCompany && selectedCompanyIds.length > 0) {
-        next.push({ id: 'companyId', value: selectedCompanyIds });
-      }
-      if (sanitizedJobIds.length > 0) {
-        next.push({ id: 'jobPositionId', value: sanitizedJobIds });
+      if (selectedJobIds.length > 0) {
+        next.push({ id: 'jobPositionId', value: selectedJobIds });
       }
 
       try {
@@ -812,7 +798,7 @@ const CustomFilterModal: React.FC<Props> = ({
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <FilterListIcon sx={{ color: brandMain }} />
           <Typography variant="h6" sx={{ fontWeight: 700 }}>
-            Custom Filter Settings
+            {t('customFilterSettings', 'modals')}
           </Typography>
           {activeFilterCount > 0 && (
             <Badge
@@ -834,52 +820,6 @@ const CustomFilterModal: React.FC<Props> = ({
         }}
       >
         <Stack spacing={2}>
-          {/* Companies Section */}
-          {!isSingleAssignedCompany && (
-            <FilterSection elevation={0}>
-              <Box 
-                sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
-                onClick={() => toggleSection('companies')}
-              >
-                <SectionTitle>
-                  <BusinessIcon />
-                  <Typography variant="h6">Companies</Typography>
-                </SectionTitle>
-                <IconButton size="small">
-                  {expandedSections.companies ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                </IconButton>
-              </Box>
-              
-              <Collapse in={expandedSections.companies}>
-                <Box sx={{ mt: 2 }}>
-                  <FormGroup sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 1 }}>
-                    {companiesList.map((comp: any) => {
-                      const cid = (comp._id || comp.id) || '';
-                      const title = getDisplayText(comp?.name || comp?.companyName || comp?.title || comp?.title?.en || cid) || cid;
-                      const isSelected = modalSelectedCompanyIds.includes(String(cid));
-                      return (
-                        <FilterChip
-                          key={cid}
-                          label={title}
-                          onClick={() => {
-                            setModalSelectedCompanyIds(prev => {
-                              if (isSelected) return prev.filter((x) => x !== String(cid));
-                              return [...prev, String(cid)];
-                            });
-                          }}
-                          color={isSelected ? 'primary' : 'default'}
-                          variant={isSelected ? 'filled' : 'outlined'}
-                          className={isSelected ? 'active' : ''}
-                          icon={isSelected ? <CheckCircleIcon /> : undefined}
-                        />
-                      );
-                    })}
-                  </FormGroup>
-                </Box>
-              </Collapse>
-            </FilterSection>
-          )}
-
           {/* Jobs Section */}
           <FilterSection elevation={0}>
             <Box 
@@ -888,7 +828,7 @@ const CustomFilterModal: React.FC<Props> = ({
             >
               <SectionTitle>
                 <WorkIcon />
-                <Typography variant="h6">Job Positions</Typography>
+                <Typography variant="h6">{t('jobPositions', 'modals')}</Typography>
               </SectionTitle>
               <IconButton size="small">
                 {expandedSections.jobs ? <ExpandLessIcon /> : <ExpandMoreIcon />}
@@ -897,50 +837,59 @@ const CustomFilterModal: React.FC<Props> = ({
             
             <Collapse in={expandedSections.jobs}>
               <Box sx={{ mt: 2 }}>
-                {modalSelectedCompanyIds.length === 0 ? (
-                  <Alert 
-                    severity="info" 
-                    icon={<InfoIcon />}
-                    sx={{ borderRadius: 2 }}
-                  >
-                    Select one or more companies to display their jobs.
-                  </Alert>
-                ) : (
-                  <Stack spacing={2}>
-                    {(() => {
-                      const jobsByCompany: Record<string, any[]> = {};
-                      const getCid = (job: any) => {
-                        const rawCid = job.companyId || job.company || job.companyObj;
-                        if (!rawCid) return '';
-                        if (typeof rawCid === 'string') return rawCid;
-                        return rawCid._id || rawCid.id || '';
-                      };
-                      const getJid = (job: any) => (typeof job._id === 'string' ? job._id : (job._id?._id || job._id?.id || job.id || '')) || '';
-                      
-                      (jobPositions || []).forEach((job: any) => {
-                        const cid = String(getCid(job) || '');
-                        if (!cid) return;
-                        if (!jobsByCompany[cid]) jobsByCompany[cid] = [];
-                        jobsByCompany[cid].push(job);
-                      });
+                <Stack spacing={2}>
+                  {(() => {
+                    const getCid = (job: any) => {
+                      const rawCid = job.companyId || job.company || job.companyObj;
+                      if (!rawCid) return '';
+                      if (typeof rawCid === 'string') return rawCid;
+                      return rawCid._id || rawCid.id || '';
+                    };
+                    const getJid = (job: any) => (typeof job._id === 'string' ? job._id : (job._id?._id || job._id?.id || job.id || '')) || '';
 
-                      return modalSelectedCompanyIds.map((selCid) => {
-                        const jobs = jobsByCompany[String(selCid)] || [];
-                        const comp = companiesList.find((c: any) => String(c._id || c.id) === String(selCid));
-                        const compTitle = comp ? getDisplayText(comp.name || comp.companyName || comp.title || comp.title?.en || selCid) : selCid;
-                        
-                        return (
-                          <Paper key={selCid} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-                            <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: brandMain }}>
-                              {compTitle}
-                            </Typography>
-                            {jobs.length === 0 ? (
-                              <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                                No jobs for this company.
+                    return (
+                      <>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: 'text.secondary', fontSize: '0.75rem' }}>
+                          {t('company', 'modals')}
+                        </Typography>
+                        <FormGroup sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 1 }}>
+                          {companiesList.map((c: any) => {
+                            const cid = String(c._id || c.id || '');
+                            const isCompanySelected = selectedFilterCompanyId === cid;
+                            return (
+                              <FilterChip
+                                key={cid}
+                                label={getDisplayText(c.name || c.companyName || c.title || cid)}
+                                onClick={() => {
+                                  setSelectedFilterCompanyId(isCompanySelected ? '' : cid);
+                                  setModalSelectedJobIds([]);
+                                }}
+                                color={isCompanySelected ? 'primary' : 'default'}
+                                variant={isCompanySelected ? 'filled' : 'outlined'}
+                                className={isCompanySelected ? 'active' : ''}
+                                icon={isCompanySelected ? <CheckCircleIcon /> : undefined}
+                                size="small"
+                              />
+                            );
+                          })}
+                        </FormGroup>
+
+                        {selectedFilterCompanyId ? (() => {
+                          const filtered = (jobPositions || []).filter((job: any) => String(getCid(job)) === selectedFilterCompanyId);
+                          if (filtered.length === 0) {
+                            return (
+                              <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', textAlign: 'center', py: 2 }}>
+                                {t('noJobsCompany', 'modals')}
                               </Typography>
-                            ) : (
+                            );
+                          }
+                          return (
+                            <>
+                              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: 'text.secondary', fontSize: '0.75rem' }}>
+                                {t('jobPositions', 'modals')}
+                              </Typography>
                               <FormGroup sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 1 }}>
-                                {jobs.map((job: any) => {
+                                {filtered.map((job: any) => {
                                   const jid = String(getJid(job));
                                   const title = getDisplayText(job.title || job.name || jid) || jid;
                                   const isSelected = modalSelectedJobIds.includes(String(jid));
@@ -963,13 +912,17 @@ const CustomFilterModal: React.FC<Props> = ({
                                   );
                                 })}
                               </FormGroup>
-                            )}
-                          </Paper>
-                        );
-                      });
-                    })()}
-                  </Stack>
-                )}
+                            </>
+                          );
+                        })() : (
+                          <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', textAlign: 'center', py: 2 }}>
+                            {t('selectCompaniesJobs', 'modals')}
+                          </Typography>
+                        )}
+                      </>
+                    );
+                  })()}
+                </Stack>
               </Box>
             </Collapse>
           </FilterSection>
@@ -982,7 +935,7 @@ const CustomFilterModal: React.FC<Props> = ({
             >
               <SectionTitle>
                 <PersonIcon />
-                <Typography variant="h6">Personal Information</Typography>
+                <Typography variant="h6">{t('personalInformation', 'modals')}</Typography>
               </SectionTitle>
               <IconButton size="small">
                 {expandedSections.personal ? <ExpandLessIcon /> : <ExpandMoreIcon />}
@@ -995,7 +948,7 @@ const CustomFilterModal: React.FC<Props> = ({
                 <Box>
                   <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
                     <WcIcon fontSize="small" color="primary" />
-                    Gender
+                    {t('gender', 'modals')}
                   </Typography>
                   <FormGroup sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 2 }}>
                     {(genderOptions || []).map((opt: any) => {
@@ -1033,7 +986,7 @@ const CustomFilterModal: React.FC<Props> = ({
                               }}
                             />
                           }
-                          label={<Typography variant="body2">{opt.title}</Typography>}
+                          label={<Typography variant="body2">{['Male', 'Female'].includes(opt.title) ? t(opt.title.toLowerCase(), 'personalInfo') : opt.title}</Typography>}
                         />
                       );
                     })}
@@ -1044,7 +997,7 @@ const CustomFilterModal: React.FC<Props> = ({
                 <Box>
                   <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
                     <CakeIcon fontSize="small" color="primary" />
-                    Birth Date
+                    {t('birthDate', 'modals')}
                   </Typography>
                   <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, alignItems: { sm: 'center' } }}>
                     {(() => {
@@ -1056,7 +1009,7 @@ const CustomFilterModal: React.FC<Props> = ({
                           <TextField
                             size="small"
                             type="number"
-                            label="Year"
+                            label={t('year', 'modals')}
                             value={yearVal}
                             onChange={(e) => {
                               const nv = e.target.value;
@@ -1084,7 +1037,7 @@ const CustomFilterModal: React.FC<Props> = ({
                               ),
                             }}
                           />
-                          <ToggleButtonGroup
+                          <ToggleGroup
                             value={modeVal}
                             exclusive
                             onChange={(_, newMode) => {
@@ -1106,9 +1059,9 @@ const CustomFilterModal: React.FC<Props> = ({
                             }}
                             size="small"
                           >
-                            <StyledToggleButton value="after">After</StyledToggleButton>
-                            <StyledToggleButton value="before">Before</StyledToggleButton>
-                          </ToggleButtonGroup>
+                            <StyledToggleButton value="after">{t('after', 'modals')}</StyledToggleButton>
+                            <StyledToggleButton value="before">{t('before', 'modals')}</StyledToggleButton>
+                          </ToggleGroup>
                           {yearVal && (
                             <Button
                               size="small"
@@ -1118,7 +1071,7 @@ const CustomFilterModal: React.FC<Props> = ({
                                 setCustomFilters(prev => prev.filter((p: any) => p.fieldId !== '__birthdate'));
                               }}
                             >
-                              Clear
+                              {t('clear', 'modals')}
                             </Button>
                           )}
                         </>
@@ -1131,7 +1084,7 @@ const CustomFilterModal: React.FC<Props> = ({
                 <Box>
                   <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
                     <DescriptionIcon fontSize="small" color="primary" />
-                    CV Status
+                    {t('cvStatus', 'modals')}
                   </Typography>
                   <Box sx={{ display: 'flex', gap: 2 }}>
                     {(() => {
@@ -1139,7 +1092,7 @@ const CustomFilterModal: React.FC<Props> = ({
                       const isHas = existing.value === true;
                       const isNo = existing.value === false;
                       return (
-                        <ToggleButtonGroup
+                        <ToggleGroup
                           value={isHas ? 'has' : isNo ? 'no' : null}
                           exclusive
                           size="small"
@@ -1161,7 +1114,7 @@ const CustomFilterModal: React.FC<Props> = ({
                               });
                             }}
                           >
-                            Has CV
+                            {t('hasCv', 'modals')}
                           </StyledToggleButton>
                           <StyledToggleButton
                             value="no"
@@ -1180,9 +1133,9 @@ const CustomFilterModal: React.FC<Props> = ({
                               });
                             }}
                           >
-                            No CV
+                            {t('noCv', 'modals')}
                           </StyledToggleButton>
-                        </ToggleButtonGroup>
+                        </ToggleGroup>
                       );
                     })()}
                   </Box>
@@ -1192,7 +1145,7 @@ const CustomFilterModal: React.FC<Props> = ({
                 <Box>
                   <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
                     <LocationOnIcon fontSize="small" color="primary" />
-                    Address
+                    {t('address', 'modals')}
                   </Typography>
                   {(() => {
                     const existing = customFilters.find((cf: any) => cf.fieldId === '__address') || {};
@@ -1201,7 +1154,7 @@ const CustomFilterModal: React.FC<Props> = ({
                       <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start', flexDirection: { xs: 'column', sm: 'row' } }}>
                         <TextField
                           size="small"
-                          label="Address"
+                          label={t('address', 'modals')}
                           multiline
                           rows={3}
                           value={addrVal}
@@ -1221,7 +1174,7 @@ const CustomFilterModal: React.FC<Props> = ({
                               return next;
                             });
                           }}
-                          placeholder="Search by address (city, street, area)..."
+                          placeholder={t('addressPlaceholder', 'modals')}
                           sx={{ flex: 1, minWidth: 200 }}
                         />
                         {addrVal ? (
@@ -1233,7 +1186,7 @@ const CustomFilterModal: React.FC<Props> = ({
                               setCustomFilters((prev) => prev.filter((p: any) => p.fieldId !== '__address'));
                             }}
                           >
-                            Clear
+                            {t('clear', 'modals')}
                           </Button>
                         ) : null}
                       </Box>
@@ -1245,14 +1198,14 @@ const CustomFilterModal: React.FC<Props> = ({
                   <Box>
                     <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
                       <FilterListIcon fontSize="small" color="primary" />
-                      Show All Duplicates
+                      {t('showAllDuplicates', 'modals')}
                     </Typography>
                     <Box sx={{ display: 'flex', gap: 2 }}>
                       {(() => {
                         const existing = customFilters.find((cf: any) => cf.fieldId === '__duplicates_only') || {};
                         const isEnabled = existing.value === true;
                         return (
-                          <ToggleButtonGroup value={isEnabled ? 'duplicates' : 'all'} exclusive size="small">
+                          <ToggleGroup value={isEnabled ? 'duplicates' : 'all'} exclusive size="small">
                             <StyledToggleButton
                               value="all"
                               onClick={() => {
@@ -1261,7 +1214,7 @@ const CustomFilterModal: React.FC<Props> = ({
                                 );
                               }}
                             >
-                              All
+                              {t('all', 'modals')}
                             </StyledToggleButton>
                             <StyledToggleButton
                               value="duplicates"
@@ -1279,9 +1232,9 @@ const CustomFilterModal: React.FC<Props> = ({
                                 });
                               }}
                             >
-                              Only Duplicates
+                              {t('onlyDuplicates', 'modals')}
                             </StyledToggleButton>
-                          </ToggleButtonGroup>
+                          </ToggleGroup>
                         );
                       })()}
                     </Box>
@@ -1291,7 +1244,7 @@ const CustomFilterModal: React.FC<Props> = ({
                   <Box>
                     <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
                       <DescriptionIcon fontSize="small" color="primary" />
-                      Expected Salary
+                      {t('salary', 'modals')}
                     </Typography>
                     <Box>
                       {(() => {
@@ -1315,7 +1268,7 @@ const CustomFilterModal: React.FC<Props> = ({
             >
               <SectionTitle>
                 <FilterListIcon />
-                <Typography variant="h6">Custom Fields</Typography>
+                <Typography variant="h6">{t('customFields', 'modals')}</Typography>
               </SectionTitle>
               <IconButton size="small">
                 {expandedSections.custom ? <ExpandLessIcon /> : <ExpandMoreIcon />}
@@ -1330,7 +1283,7 @@ const CustomFilterModal: React.FC<Props> = ({
                     icon={<InfoIcon />}
                     sx={{ borderRadius: 2 }}
                   >
-                    Select one or more jobs to display their custom fields.
+                    {t('selectJobsForFields', 'modals')}
                   </Alert>
                 ) : (
                   (() => {
@@ -1363,7 +1316,7 @@ const CustomFilterModal: React.FC<Props> = ({
                     if (!fields.length) {
                       return (
                         <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', textAlign: 'center', py: 3 }}>
-                          No custom fields found for selected jobs.
+                          {t('noCustomFieldsFound', 'modals')}
                         </Typography>
                       );
                     }
@@ -1394,13 +1347,13 @@ const CustomFilterModal: React.FC<Props> = ({
                             return (
                               <Paper key={saveFieldId} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
                                 <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2, color: brandMain }}>
-                                  {f.label?.en || f.label?.ar || 'Custom Field'}
+                                  {f.label?.en || f.label?.ar || t('customField', 'modals')}
                                 </Typography>
 
                                 {/* If field has explicit choices, render them as selectable chips (multi-select) */}
                                 {Array.isArray(f.choices) && f.choices.length > 0 ? (
                                   <Box>
-                                    <Typography variant="body2" sx={{ mb: 1 }}>Select options:</Typography>
+                                    <Typography variant="body2" sx={{ mb: 1 }}>{t('selectOptions', 'modals')}</Typography>
                                     <FormGroup sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 1 }}>
                                       {f.choices
                                         .map((c: any) => ({ id: c.en || c.ar || String(c), title: `${c.en || ''}${c.ar ? ' / ' + c.ar : ''}` }))
@@ -1433,9 +1386,8 @@ const CustomFilterModal: React.FC<Props> = ({
                                     </FormGroup>
                                   </Box>
                                 ) : (
-                                  // Default: Has / No presence toggle for any custom field without explicit choices
                                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                    <ToggleButtonGroup value={existing.value === true ? 'has' : existing.value === false ? 'no' : null} exclusive size="small">
+                                    <ToggleGroup value={existing.value === true ? 'has' : existing.value === false ? 'no' : null} exclusive size="small">
                                       <StyledToggleButton
                                         value="has"
                                         onClick={() => {
@@ -1448,7 +1400,7 @@ const CustomFilterModal: React.FC<Props> = ({
                                           });
                                         }}
                                       >
-                                        Has
+                                        {t('has', 'modals')}
                                       </StyledToggleButton>
                                       <StyledToggleButton
                                         value="no"
@@ -1462,9 +1414,9 @@ const CustomFilterModal: React.FC<Props> = ({
                                           });
                                         }}
                                       >
-                                        No
+                                        {t('no', 'modals')}
                                       </StyledToggleButton>
-                                    </ToggleButtonGroup>
+                                    </ToggleGroup>
                                   </Box>
                                 )}
                               </Paper>
@@ -1496,33 +1448,33 @@ const CustomFilterModal: React.FC<Props> = ({
           variant="outlined"
           color="error"
           onClick={handleClearAll}
-          startIcon={<ClearIcon />}
+          {...(dir === 'rtl' ? { endIcon: <ClearIcon /> } : { startIcon: <ClearIcon /> })}
           fullWidth={isMobile}
           sx={{ borderRadius: 2 }}
         >
-          Clear All
+          {t('clear', 'modals')}
         </Button>
         <Button
           variant="outlined"
           onClick={handleRevert}
-          startIcon={<RefreshIcon />}
+          {...(dir === 'rtl' ? { endIcon: <RefreshIcon /> } : { startIcon: <RefreshIcon /> })}
           fullWidth={isMobile}
           sx={{ borderRadius: 2 }}
         >
-          Revert
+          {t('revert', 'modals')}
         </Button>
         <Button
           variant="contained"
           color="primary"
           onClick={handleSave}
-          startIcon={<SaveIcon />}
+          {...(dir === 'rtl' ? { endIcon: <SaveIcon /> } : { startIcon: <SaveIcon /> })}
           fullWidth={isMobile}
           sx={{ 
             borderRadius: 2,
             background: `linear-gradient(135deg, ${brandMain}, ${(theme.palette as any).brand?.dark ?? theme.palette.primary.dark})`,
           }}
         >
-          Save Filters
+          {t('saveFilters', 'modals')}
         </Button>
       </DialogActions>
     </Dialog>

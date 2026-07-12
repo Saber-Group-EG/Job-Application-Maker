@@ -1,0 +1,17 @@
+{
+  "noJobSpecifications": "No job specifications",
+  "noJobSpecificationsDesc": "This job position has no specifications configured yet.",
+  "compatibilityScore": "Compatibility Score",
+  "requirementsMet": "Requirements Met",
+  "zeroPercent": "0%",
+  "fiftyPercent": "50%",
+  "hundredPercent": "100%",
+  "weightLabel": "Weight: {weight}%",
+  "met": "Met",
+  "notMet": "Not Met",
+  "earnedWeightFormat": "+{weight}%",
+  "zeroEarnedWeight": "0%",
+  "ofWeight": "of {weight}%",
+  "perfectMatch": "Perfect match! Candidate meets all job requirements.",
+  "noRequirementsMet": "Candidate does not meet any requirements."
+}

@@ -2,12 +2,14 @@ import React from "react";
 import GridShape from "../../components/common/GridShape";
 import { Link } from "react-router";
 import ThemeTogglerTwo from "../../components/common/ThemeTogglerTwo";
+import { useLocale } from "../../context/LocaleContext";
 
 export default function AuthLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const { t } = useLocale();
   return (
     <div className="relative p-6 bg-white z-1 dark:bg-gray-900 sm:p-0">
       <div className="relative flex flex-col justify-center w-full h-screen lg:flex-row dark:bg-gray-900 sm:p-0">
@@ -28,8 +30,8 @@ export default function AuthLayout({
             </div>
           </div>
           <div className="w-full py-4 mt-auto text-center text-gray-400 dark:text-white/60">
-          <a href="https://www.sabergroup-eg.com" target="_blank" rel="noopener noreferrer">
-            Powered by SABERGROUPSTUDIOS ©
+            <a href="https://www.sabergroup-eg.com" target="_blank" rel="noopener noreferrer">
+            {t('poweredBy', 'common')}
           </a>
         </div>
         </div>

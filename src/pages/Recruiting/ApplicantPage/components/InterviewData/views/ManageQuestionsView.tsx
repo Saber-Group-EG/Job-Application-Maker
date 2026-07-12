@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { ArrowLeft, Building2, CheckCircle2, Library, Plus, X } from 'lucide-react';
 import type { PoolGroup } from '../hooks/useQuestionPool';
+import { useLocale } from '../../../../../../context/LocaleContext';
 
 export type ManageQuestionsViewProps = {
   attachedGroups: PoolGroup[];
@@ -25,6 +26,7 @@ export const ManageQuestionsView = ({
   onApply,
   isApplying,
 }: ManageQuestionsViewProps) => {
+  const { t } = useLocale();
   const hasChanges = useMemo(
     () => pendingAddKeys.length > 0 || pendingRemoveKeys.length > 0,
     [pendingAddKeys, pendingRemoveKeys]
@@ -35,10 +37,9 @@ export const ManageQuestionsView = ({
       <div className="bg-gradient-to-r from-slate-900 to-slate-800 px-6 py-6">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <h3 className="text-2xl font-bold text-white">Edit Questions</h3>
+            <h3 className="text-2xl font-bold text-white">{t('editQuestions', 'interview')}</h3>
             <p className="text-slate-300 mt-1 text-sm">
-              Add or remove question groups for this interview. Changes apply when you press{' '}
-              <span className="font-semibold text-white">Apply Changes</span>.
+              {t('addOrRemoveQuestionGroups', 'interview')}
             </p>
           </div>
           <button
@@ -47,15 +48,15 @@ export const ManageQuestionsView = ({
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 text-white text-xs font-medium hover:bg-white/20 transition-colors"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            Back
+            {t('back', 'interview')}
           </button>
         </div>
       </div>
       <div className="p-6 space-y-8">
         <section>
-          <h4 className="text-sm font-bold text-slate-800 mb-3">Attached groups</h4>
+          <h4 className="text-sm font-bold text-slate-800 mb-3">{t('attachedGroups', 'interview')}</h4>
           {attachedGroups.length === 0 ? (
-            <p className="text-sm text-slate-500">No groups attached yet.</p>
+            <p className="text-sm text-slate-500">{t('noGroupsAttached', 'interview')}</p>
           ) : (
             <ul className="space-y-2">
               {attachedGroups.map((g) => {
@@ -85,8 +86,7 @@ export const ManageQuestionsView = ({
                           {g.name}
                         </p>
                         <p className="text-xs text-slate-500">
-                          {g.questions.length} question
-                          {g.questions.length === 1 ? '' : 's'} ·{' '}
+                          {t('nQuestionsCount', 'interview', { count: g.questions.length })} ·{' '}
                           {g.questions.reduce((s, q) => s + (q.score || 0), 0)} pts
                         </p>
                       </div>
@@ -101,7 +101,7 @@ export const ManageQuestionsView = ({
                       }`}
                     >
                       <X className="h-3 w-3" />
-                      {isMarkedForRemoval ? 'Will remove' : 'Remove'}
+                      {isMarkedForRemoval ? t('willRemove', 'interview') : t('remove', 'interview')}
                     </button>
                   </li>
                 );
@@ -111,9 +111,9 @@ export const ManageQuestionsView = ({
         </section>
 
         <section>
-          <h4 className="text-sm font-bold text-slate-800 mb-3">Available groups</h4>
+          <h4 className="text-sm font-bold text-slate-800 mb-3">{t('availableGroups', 'interview')}</h4>
           {availableGroups.length === 0 ? (
-            <p className="text-sm text-slate-500">No more groups in the library.</p>
+            <p className="text-sm text-slate-500">{t('noMoreGroupsInLibrary', 'interview')}</p>
           ) : (
             <ul className="space-y-2">
               {availableGroups.map((g) => {
@@ -141,8 +141,7 @@ export const ManageQuestionsView = ({
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-slate-800 truncate">{g.name}</p>
                         <p className="text-xs text-slate-500">
-                          {g.questions.length} question
-                          {g.questions.length === 1 ? '' : 's'} ·{' '}
+                          {t('nQuestionsCount', 'interview', { count: g.questions.length })} ·{' '}
                           {g.questions.reduce((s, q) => s + (q.score || 0), 0)} pts
                         </p>
                       </div>
@@ -158,11 +157,11 @@ export const ManageQuestionsView = ({
                     >
                       {isMarkedForAdd ? (
                         <>
-                          <CheckCircle2 className="h-3 w-3" /> Will add
+                          <CheckCircle2 className="h-3 w-3" /> {t('willAdd', 'interview')}
                         </>
                       ) : (
                         <>
-                          <Plus className="h-3 w-3" /> Add
+                          <Plus className="h-3 w-3" /> {t('add', 'interview')}
                         </>
                       )}
                     </button>
@@ -179,7 +178,7 @@ export const ManageQuestionsView = ({
           onClick={onBack}
           className="px-4 py-2 rounded-lg bg-white border border-slate-300 text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors"
         >
-          Cancel
+          {t('cancel', 'interview')}
         </button>
         <button
           type="button"
@@ -187,7 +186,7 @@ export const ManageQuestionsView = ({
           disabled={!hasChanges || isApplying}
           className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {isApplying ? 'Applying…' : 'Apply Changes'}
+          {isApplying ? t('applying', 'interview') : t('applyChanges', 'interview')}
         </button>
       </div>
     </div>

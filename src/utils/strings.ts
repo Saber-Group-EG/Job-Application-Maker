@@ -1,11 +1,12 @@
 /**
  * Converts a value that may be a localized object (e.g., {en, ar}) to a plain string.
- * Prioritizes English, falls back to Arabic, then stringifies or returns empty string.
+ * When locale is 'ar', prioritizes Arabic; otherwise prioritizes English.
+ * Falls back to the other language, then stringifies or returns empty string.
  */
 const isLikelyObjectId = (value: string): boolean =>
   /^[a-f0-9]{24}$/i.test(String(value || '').trim());
 
-export const toPlainString = (val: any): string => {
+export const toPlainString = (val: any, locale?: string): string => {
   if (val === null || val === undefined) return "";
   if (typeof val === "string") return val;
   
@@ -14,7 +15,7 @@ export const toPlainString = (val: any): string => {
     if (val.length === 0) return "";
     // Prefer the first meaningful item to avoid returning [object Object]
     for (const item of val) {
-      const parsed = toPlainString(item);
+      const parsed = toPlainString(item, locale);
       if (parsed && parsed.trim() && !isLikelyObjectId(parsed)) {
         return parsed.trim();
       }
@@ -36,9 +37,14 @@ export const toPlainString = (val: any): string => {
       ) return locTrim;
     }
 
-    // Check for localized strings
-    if (typeof val.en === "string" && val.en.trim()) return val.en.trim();
-    if (typeof val.ar === "string" && val.ar.trim()) return val.ar.trim();
+    // Check for localized strings – respect locale priority
+    if (locale === 'ar') {
+      if (typeof val.ar === "string" && val.ar.trim()) return val.ar.trim();
+      if (typeof val.en === "string" && val.en.trim()) return val.en.trim();
+    } else {
+      if (typeof val.en === "string" && val.en.trim()) return val.en.trim();
+      if (typeof val.ar === "string" && val.ar.trim()) return val.ar.trim();
+    }
 
     // Try common textual keys before falling back to JSON
     const commonKeys = [
@@ -58,16 +64,24 @@ export const toPlainString = (val: any): string => {
       if (typeof v === "string" && v.trim() && !isLikelyObjectId(v)) {
         return v.trim();
       }
-      const nested = toPlainString(v);
+      const nested = toPlainString(v, locale);
       if (nested && nested.trim() && !isLikelyObjectId(nested)) {
         return nested.trim();
       }
     }
 
+    // If the object only has empty en/ar keys, return empty string
+    const keys = Object.keys(val);
+    if (keys.length <= 2 && 'en' in val && 'ar' in val) {
+      const enVal = typeof val.en === 'string' ? val.en.trim() : '';
+      const arVal = typeof val.ar === 'string' ? val.ar.trim() : '';
+      if (!enVal && !arVal) return '';
+    }
+
     // Last attempt: scan all object values recursively
     for (const [key, nestedVal] of Object.entries(val)) {
       if (/(^_?id$|Id$)/i.test(key)) continue;
-      const nested = toPlainString(nestedVal);
+      const nested = toPlainString(nestedVal, locale);
       if (nested && nested.trim() && !isLikelyObjectId(nested)) {
         return nested.trim();
       }

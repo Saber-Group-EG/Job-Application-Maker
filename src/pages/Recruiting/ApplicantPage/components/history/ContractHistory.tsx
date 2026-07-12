@@ -1,4 +1,5 @@
 import { FileSignature, Inbox } from 'lucide-react';
+import { useLocale } from '../../../../../context/LocaleContext';
 import type { JobContract } from '../../../../../services/jobContractsService';
 import { toPlainString } from '../../../../../utils/strings';
 import { formatDateOnly, getStatusColor } from './historyUtils';
@@ -22,17 +23,19 @@ export default function ContractHistory({
   contracts,
   onSelectContract,
 }: Props) {
+  const { t, locale } = useLocale();
+
   if (isLoading) {
     return (
       <div className="overflow-hidden rounded-xl border border-gray-100">
         <table className="min-w-full">
           <thead className="bg-gray-50/80 border-b border-gray-100">
             <tr>
-              <th className={TABLE_HEAD_CLASS}>Position</th>
-              <th className={TABLE_HEAD_CLASS}>Company</th>
-              <th className={TABLE_HEAD_CLASS}>Status</th>
-              <th className={TABLE_HEAD_CLASS}>Start</th>
-              <th className={TABLE_HEAD_CLASS}>End</th>
+              <th className={TABLE_HEAD_CLASS}>{t('position', 'history')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('company', 'applicants')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('status', 'applicants')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('start', 'history')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('end', 'history')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
@@ -67,9 +70,9 @@ export default function ContractHistory({
         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100">
           <Inbox className="h-5 w-5 text-gray-400" />
         </div>
-        <p className="text-sm font-medium text-gray-700">No contracts yet</p>
+        <p className="text-sm font-medium text-gray-700">{t('noContracts', 'history')}</p>
         <p className="text-xs text-gray-400">
-          Contracts issued to this applicant will appear here.
+          {t('noContractsDesc', 'history')}
         </p>
       </div>
     );
@@ -81,25 +84,24 @@ export default function ContractHistory({
         <table className="min-w-full divide-y divide-gray-100">
           <thead className="bg-gray-50/80">
             <tr>
-              <th className={TABLE_HEAD_CLASS}>Position</th>
-              <th className={TABLE_HEAD_CLASS}>Company</th>
-              <th className={TABLE_HEAD_CLASS}>Status</th>
-              <th className={TABLE_HEAD_CLASS}>Start</th>
-              <th className={TABLE_HEAD_CLASS}>End</th>
+              <th className={TABLE_HEAD_CLASS}>{t('position', 'history')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('company', 'applicants')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('status', 'applicants')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('start', 'history')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('end', 'history')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50 bg-white">
             {contracts.map((contract, index) => {
-              const contractId = contract?._id || null;
               const status = contract?.status || 'draft';
               const companyName =
                 typeof contract?.companyId === 'string'
                   ? contract?.companyId
-                  : toPlainString(contract?.companyId?.name) || 'N/A';
+                  : toPlainString(contract?.companyId?.name, locale) || t('nA', 'applicants');
 
               return (
                 <tr
-                  key={contractId || index}
+                  key={contract._id || `contract-${index}`}
                   className="group cursor-pointer transition-colors hover:bg-blue-50/40"
                   onClick={(event) => {
                     event.stopPropagation();
@@ -112,7 +114,7 @@ export default function ContractHistory({
                         <FileSignature className="h-3.5 w-3.5" />
                       </span>
                       <span className="truncate">
-                        {toPlainString(contract?.position) || 'N/A'}
+                        {toPlainString(contract?.position, locale) || t('nA', 'applicants')}
                       </span>
                     </div>
                   </td>
@@ -125,16 +127,16 @@ export default function ContractHistory({
                         status,
                       )}`}
                     >
-                      {status}
+                      {{ draft: t('statusDraft', 'jobContracts'), sent: t('statusSent', 'jobContracts'), signed: t('statusSigned', 'jobContracts'), rejected: t('statusRejected', 'jobContracts'), expired: t('statusExpired', 'jobContracts') }[status] || status}
                     </span>
                   </td>
                   <td className={BODY_CELL_SECONDARY}>
-                    {formatDateOnly(contract?.startDate) || (
+                    {formatDateOnly(contract?.startDate, locale) || (
                       <span className="text-gray-300">—</span>
                     )}
                   </td>
                   <td className={BODY_CELL_SECONDARY}>
-                    {formatDateOnly(contract?.endDate || undefined) || (
+                    {formatDateOnly(contract?.endDate || undefined, locale) || (
                       <span className="text-gray-300">—</span>
                     )}
                   </td>

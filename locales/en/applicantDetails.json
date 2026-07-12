@@ -1,0 +1,18 @@
+{
+  "interviewInvitation": "Interview Invitation",
+  "candidate": "Candidate",
+  "inPerson": "In-person",
+  "enterComment": "Please enter a comment.",
+  "applicantNotFound": "Applicant not found",
+  "couldNotLoadApplicant": "We could not load this applicant.",
+  "retry": "Retry",
+  "backToList": "Back to list",
+  "detailsTab": "Details",
+  "historyTab": "History",
+  "interviewQuestionsTab": "Interview Questions",
+  "applicantDetails": "Applicant Details",
+  "save": "Save",
+  "edit": "Edit",
+  "writeCommentPlaceholder": "Write a thoughtful comment...",
+  "emailPreview": "Email Preview"
+}

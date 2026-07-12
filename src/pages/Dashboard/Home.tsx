@@ -1,11 +1,12 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageMeta from '../../components/common/PageMeta';
-import DatePicker from '../../components/form/date-picker';
 import { useAuth } from '../../context/AuthContext';
-import { useApplicantStatuses } from '../../hooks/queries/useApplicants'; // ✅ Fixed import
+import { useApplicantStatuses } from '../../hooks/queries/useApplicants';
 import { useCompanies } from '../../hooks/queries/useCompanies';
 import { useStatusSettings } from '../../hooks/useStatusSettings';
+import { useLocale } from '../../context/LocaleContext';
+import { useCompanyFilter } from '../../context/CompanyFilterContext';
 import {
   TimeIcon,
   ChatIcon,
@@ -48,53 +49,68 @@ function getCompanyIdFromUser(
     return undefined; // undefined means fetch all
   }
 
-  // Regular user - get their assigned companies
-  const userCompanyIds =
+  // Regular user - get their assigned companies (from both companies and assignedcompanyId)
+  const fromCompanies =
     user?.companies?.map((c: any) =>
       typeof c.companyId === 'string' ? c.companyId : c.companyId?._id
     ).filter(Boolean) || [];
+
+  const fromAssigned = user?.assignedcompanyId?.filter(Boolean) || [];
+
+  const userCompanyIds = [...new Set([...fromCompanies, ...fromAssigned])];
+
+  // If user has a selected company, filter to that one
+  if (selectedCompanyId) {
+    return userCompanyIds.includes(selectedCompanyId) ? [selectedCompanyId] : [];
+  }
 
   return userCompanyIds.length > 0 ? userCompanyIds : undefined;
 }
 
 export default function Home() {
   const navigate = useNavigate();
-  const [selectedCompanyId, setSelectedCompanyId] = useState<
-    string | undefined
-  >(undefined);
-  const [range, setRange] = useState<Date[] | null>(null);
+  const { selectedCompanyId: globalSelectedCompanyId } = useCompanyFilter();
   const { user } = useAuth();
+  const { t, locale } = useLocale();
 
   const isSuperAdmin = useMemo(() => {
     const roleName = user?.roleId?.name?.toLowerCase();
     return roleName === 'super admin';
   }, [user?.roleId?.name]);
 
-  // Get companies for super admin selector
+  // Get user's accessible company IDs to determine if selector should show
+  const userCompanyIds = useMemo(() => {
+    const fromCompanies =
+      user?.companies?.map((c: any) =>
+        typeof c.companyId === 'string' ? c.companyId : c.companyId?._id
+      ).filter(Boolean) || [];
+    const fromAssigned = user?.assignedcompanyId?.filter(Boolean) || [];
+    return [...new Set([...fromCompanies, ...fromAssigned])];
+  }, [user?.companies, user?.assignedcompanyId]);
+
+  // Get companies for selector
   const { data: companies = [] } = useCompanies(
     isSuperAdmin
       ? undefined
-      : (user?.companies?.map(
-          (c: any) => c.companyId?._id || c.companyId
-        ) as any)
+      : userCompanyIds
   );
 
   // Determine companyId for the query
   const companyIds = useMemo(() => {
-    return getCompanyIdFromUser(user, selectedCompanyId);
-  }, [user, selectedCompanyId]);
+    return getCompanyIdFromUser(user, globalSelectedCompanyId ?? undefined);
+  }, [user, globalSelectedCompanyId]);
 
   // Get the selected company object for status settings
   const selectedCompany = useMemo(() => {
-    if (selectedCompanyId && companies.length > 0) {
-      return companies.find((c: any) => c._id === selectedCompanyId);
+    if (globalSelectedCompanyId && companies.length > 0) {
+      return companies.find((c: any) => c._id === globalSelectedCompanyId);
     }
     // If user is not super admin, get their first company
     if (!isSuperAdmin && companies.length > 0) {
       return companies[0];
     }
     return null;
-  }, [selectedCompanyId, companies, isSuperAdmin]);
+  }, [globalSelectedCompanyId, companies, isSuperAdmin]);
 
   // Get status settings (colors, display names) for the selected company
   const { statusOptions, getColor } = useStatusSettings(selectedCompany);
@@ -138,15 +154,15 @@ export default function Home() {
     }
     const formatRelative = (d: Date) => {
       const diffSec = Math.floor((Date.now() - d.getTime()) / 1000);
-      if (diffSec < 60) return 'now';
+      if (diffSec < 60) return t('now', 'home');
       const mins = Math.floor(diffSec / 60);
-      if (mins < 60) return `${mins} min ago`;
+      if (mins < 60) return t('minAgo', 'home', { mins });
       const hours = Math.floor(mins / 60);
-      if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+      if (hours < 24) return hours === 1 ? t('hourAgo', 'home', { hours }) : t('hoursAgo', 'home', { hours });
       const days = Math.floor(hours / 24);
-      if (days === 1) return 'yesterday';
-      if (days < 7) return `${days} days ago`;
-      return d.toLocaleDateString();
+      if (days === 1) return t('yesterday', 'home');
+      if (days < 7) return t('daysAgo', 'home', { days });
+      return d.toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US');
     };
 
     const update = () => setElapsed(formatRelative(lastRefetch));
@@ -157,33 +173,16 @@ export default function Home() {
 
   // Handle card click to navigate to applicants page with status filter
   const handleStatusCardClick = (statusName: string) => {
-    // For non-super admin or when a specific company is selected
-    if (selectedCompanyId) {
-      navigate(`/applicants/company/${selectedCompanyId}/status/${statusName.toLowerCase()}`);
-    } else {
-      const searchParams = new URLSearchParams();
-      searchParams.append('status', statusName.toLowerCase());
-
-      if (range && range.length === 2) {
-        searchParams.append('startDate', range[0].toISOString());
-        searchParams.append('endDate', range[1].toISOString());
-      }
-
-      navigate(`/applicants?${searchParams.toString()}`);
-    }
+    const params = new URLSearchParams();
+    params.set('status', statusName.toLowerCase());
+    if (globalSelectedCompanyId) params.set('company', globalSelectedCompanyId);
+    navigate(`/applicants?${params.toString()}`);
   };
 
   const handleTotalCardClick = () => {
-    if (selectedCompanyId) {
-      navigate(`/applicants/company/${selectedCompanyId}`);
-    } else {
-      const searchParams = new URLSearchParams();
-      if (range && range.length === 2) {
-        searchParams.append('startDate', range[0].toISOString());
-        searchParams.append('endDate', range[1].toISOString());
-      }
-      navigate(`/applicants?${searchParams.toString()}`);
-    }
+    const params = new URLSearchParams();
+    if (globalSelectedCompanyId) params.set('company', globalSelectedCompanyId);
+    navigate(`/applicants?${params.toString()}`);
   };
 
   // Build dynamic status cards from the API response with company colors
@@ -205,6 +204,7 @@ export default function Home() {
 
         return {
           name: statusName,
+          displayName: statusName,
           count: Number(count),
           bgColor,
           textColor: '#111827',
@@ -226,48 +226,17 @@ export default function Home() {
   return (
     <>
       <PageMeta
-        title="Dashboard | Applicants Overview"
-        description="Applicants summary and filters"
+        title={t('pageTitle', 'home')}
+        description={t('pageDescription', 'home')}
       />
 
       <div className="space-y-6">
         <div className="grid grid-cols-12 gap-4 md:gap-6 items-end">
-          {/* Company selector for super admin */}
-          {isSuperAdmin && (
-            <div className="col-span-12 sm:col-span-6 md:col-span-4 lg:col-span-3">
-              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-                Company
-              </label>
-              <select
-                value={selectedCompanyId || ''}
-                onChange={(e) => setSelectedCompanyId(e.target.value || undefined)}
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm shadow-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-800"
-              >
-                <option value="">All Companies</option>
-                {companies.map((c: any) => (
-                  <option key={c._id} value={c._id}>
-                    {typeof c.name === 'object' ? c.name.en : c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div className="col-span-12 sm:col-span-6 md:col-span-4 lg:col-span-3">
-            <DatePicker
-              id="applicant-range"
-              label="Filter by date range"
-              mode="range"
-              placeholder="Select date range"
-              onChange={(selectedDates) => setRange(selectedDates as Date[])}
-            />
-          </div>
-
           <div className="col-span-12 sm:col-span-12 md:col-span-12 lg:col-span-6">
             <div className="flex flex-wrap items-center gap-3">
-              <div className="text-sm text-gray-500">Showing</div>
+              <div className="text-sm text-gray-500">{t('showing', 'home')}</div>
               <div className="font-semibold text-gray-800">
-                {loading ? 'Loading...' : `${totalApplicants} applicants`}
+                {loading ? t('loading', 'home') : t('applicantsCount', 'home', { count: totalApplicants })}
               </div>
               <button
                 type="button"
@@ -282,10 +251,10 @@ export default function Home() {
                 disabled={isFetching}
                 className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-3 py-1 text-sm font-semibold text-white shadow-sm hover:bg-brand-600 disabled:opacity-50"
               >
-                {isFetching ? 'Updating Data' : 'Update Data'}
+                {isFetching ? t('updatingData', 'home') : t('updateData', 'home')}
               </button>
               <div className="text-sm text-gray-500">
-                {elapsed ? `Last Update: ${elapsed}` : 'Not updated yet'}
+                {elapsed ? t('lastUpdate', 'home', { time: elapsed }) : t('notUpdatedYet', 'home')}
               </div>
             </div>
           </div>
@@ -300,7 +269,7 @@ export default function Home() {
           >
             <div className="flex items-center justify-between">
               <div className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                Total Applicants
+                {t('totalApplicants', 'home')}
               </div>
               <div className="text-gray-400">
                 <UserIcon className="size-5" />
@@ -320,7 +289,7 @@ export default function Home() {
             ? // Loading skeletons
               Array.from({ length: 5 }).map((_, i) => (
                 <div
-                  key={i}
+                  key={`skeleton-${i}`}
                   className="rounded-2xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-800"
                 >
                   <div className="flex items-center justify-between">
@@ -347,7 +316,7 @@ export default function Home() {
                   >
                     <div className="flex items-center justify-between">
                       <div className="text-sm font-semibold" style={{ color: card.textColor }}>
-                        {card.name}
+                        {card.displayName || card.name}
                       </div>
                       <div style={{ color: card.bgColor }}>
                         {Icon && <Icon className="size-5" />}
@@ -366,7 +335,7 @@ export default function Home() {
         {/* Show message when no data */}
         {!loading && statusCards.length === 0 && countsData && (
           <div className="text-center py-12">
-            <p className="text-gray-500">No status data available</p>
+            <p className="text-gray-500">{t('noStatusData', 'home')}</p>
           </div>
         )}
       </div>

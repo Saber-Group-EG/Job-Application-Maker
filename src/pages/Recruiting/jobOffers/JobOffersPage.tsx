@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useCompanies } from '../../../hooks/queries/useCompanies';
+import { useCompanyFilter } from '../../../context/CompanyFilterContext';
 import {
   jobOffersKeys,
   useJobOffers,
@@ -31,6 +32,7 @@ import Swal from '../../../utils/swal';
 import JobOfferModal from '../../../components/modals/JobOffersModal/JobOffersModal';
 import { useDebounce } from '../../../hooks/useDebounce';
 import { SidebarNavItem } from '../../../components/common/SidebarNavItem';
+import { useLocale } from '../../../context/LocaleContext';
 import { OfferDetail } from './OfferDetail';
 import { ResendModal } from './OffersActions';
 import { CreateJobContractPayload } from '../../../services/contractsService';
@@ -46,12 +48,12 @@ const STATUS_OPTIONS: Array<{
   label: string;
   icon: React.ElementType;
 }> = [
-  { key: 'all', label: 'All', icon: Hash },
-  { key: 'draft', label: 'Draft', icon: FileText },
-  { key: 'sent', label: 'Sent', icon: Send },
-  { key: 'accepted', label: 'Accepted', icon: CheckCircle2 },
-  { key: 'rejected', label: 'Rejected', icon: XCircle },
-  { key: 'expired', label: 'Expired', icon: AlertCircle },
+  { key: 'all', label: 'statusAll', icon: Hash },
+  { key: 'draft', label: 'statusDraft', icon: FileText },
+  { key: 'sent', label: 'statusSent', icon: Send },
+  { key: 'accepted', label: 'statusAccepted', icon: CheckCircle2 },
+  { key: 'rejected', label: 'statusRejected', icon: XCircle },
+  { key: 'expired', label: 'statusExpired', icon: AlertCircle },
 ];
 
 export const STATUS_CHIP: Record<
@@ -100,6 +102,7 @@ export const WORK_TYPE_COLORS: Record<string, string> = {
 
 export default function JobOffersPage() {
   const { hasPermission } = useAuth();
+  const { t, locale } = useLocale();
   const queryClient = useQueryClient();
   const { data: companies = [] } = useCompanies(); // ← full objects, not just IDs
 
@@ -107,13 +110,13 @@ export default function JobOffersPage() {
     hasPermission('Offer Management', 'write')
   const canCreateContract = hasPermission('Contract Management', 'write');
 
+  const { selectedCompanyId } = useCompanyFilter();
   const companyId: string[] = companies.map((c) => c._id);
 
   // ── View state ─────────────────────────────────────────────────────────
   const [view, setView] = useState<'list' | 'detail'>('list');
   const [selectedOfferId, setSelectedOfferId] = useState<string | null>(null);
   const [cloneSource, setCloneSource] = useState<JobOffer | null>(null);
-  const [companyFilter, setCompanyFilter] = useState<string>('all');
   const [resendOpen, setResendOpen] = useState(false);
 
   // ── Filters ────────────────────────────────────────────────────────────
@@ -128,7 +131,7 @@ export default function JobOffersPage() {
   const debouncedSearch = useDebounce(search, 500);
 
   const queryParams = {
-    companyId: companyFilter === 'all' ? companyId : [companyFilter],
+    companyId: selectedCompanyId ? [selectedCompanyId] : companyId,
     isTemplate: false as const,
     PageCount: LIMIT,
     page,
@@ -158,7 +161,7 @@ export default function JobOffersPage() {
   // Reset page on filter change
   useEffect(() => {
     setPage(1);
-  }, [statusFilter, debouncedSearch, companyFilter]);
+  }, [statusFilter, debouncedSearch, selectedCompanyId]);
 
   // ── Mutations ──────────────────────────────────────────────────────────
   const deleteMutation = useDeleteJobOffer();
@@ -171,11 +174,12 @@ export default function JobOffersPage() {
   };
   const handleDelete = async (id: string) => {
     const result = await Swal.fire({
-      title: 'Delete Offer?',
-      text: 'This action cannot be undone.',
+      title: t('deleteTitle', 'jobOffers'),
+      text: t('deleteText', 'jobOffers'),
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonText: 'Delete',
+      cancelButtonText: t('cancel', 'common'),
+      confirmButtonText: t('deleteConfirm', 'jobOffers'),
       confirmButtonColor: '#ef4444',
     });
     if (result.isConfirmed) {
@@ -262,7 +266,7 @@ export default function JobOffersPage() {
                 <div className="flex items-center gap-2">
                   <Briefcase className="h-6 w-6 text-brand-600" />
                   <span className="text-lg font-bold text-slate-800 dark:text-white">
-                    Job Offers
+                    {t('sidebarTitle', 'jobOffers')}
                   </span>
                 </div>
               </div>
@@ -272,7 +276,7 @@ export default function JobOffersPage() {
                   <SidebarNavItem
                     key={opt.key}
                     icon={opt.icon}
-                    label={opt.label}
+                    label={t(opt.label, 'jobOffers')}
                     count={getStatusCount(opt.key)}
                     active={statusFilter === opt.key}
                     onClick={() => setStatusFilter(opt.key)}
@@ -283,29 +287,29 @@ export default function JobOffersPage() {
               {/* Stats summary */}
               <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/40">
                 <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
-                  Summary
+                  {t('summaryTitle', 'jobOffers')}
                 </p>
                 <div className="space-y-2">
                   <div className="flex justify-between text-xs">
-                    <span className="text-slate-500">Total Offers</span>
+                    <span className="text-slate-500">{t('totalOffers', 'jobOffers')}</span>
                     <span className="font-semibold text-slate-700 dark:text-slate-300">
                       {total}
                     </span>
                   </div>
                   <div className="flex justify-between text-xs">
-                    <span className="text-slate-500">Accepted</span>
+                    <span className="text-slate-500">{t('accepted', 'jobOffers')}</span>
                     <span className="font-semibold text-emerald-600">
                       {offers.filter((o) => o.status === 'accepted').length}
                     </span>
                   </div>
                   <div className="flex justify-between text-xs">
-                    <span className="text-slate-500">Pending</span>
+                    <span className="text-slate-500">{t('pending', 'jobOffers')}</span>
                     <span className="font-semibold text-blue-600">
                       {offers.filter((o) => o.status === 'sent').length}
                     </span>
                   </div>
                   <div className="flex justify-between text-xs">
-                    <span className="text-slate-500">Rejected</span>
+                    <span className="text-slate-500">{t('rejected', 'jobOffers')}</span>
                     <span className="font-semibold text-red-500">
                       {offers.filter((o) => o.status === 'rejected').length}
                     </span>
@@ -324,31 +328,10 @@ export default function JobOffersPage() {
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search offers..."
+                  placeholder={t('searchPlaceholder', 'jobOffers')}
                   className="w-full rounded-full border border-slate-200 bg-slate-50 py-2 pl-10 pr-4 text-sm focus:border-brand-300 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-slate-700 dark:bg-slate-800/50 dark:text-white"
                 />
               </div>
-
-              {/* Company filter */}
-              {companies.length > 1 && (
-                <select
-                  value={companyFilter}
-                  onChange={(e) => {
-                    setCompanyFilter(e.target.value);
-                    setPage(1);
-                  }}
-                  className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 focus:border-brand-300 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-300"
-                >
-                  <option value="all">All Companies</option>
-                  {companies.map((c) => (
-                    <option key={c._id} value={c._id}>
-                      {typeof c.name === 'string'
-                        ? c.name
-                        : c.name?.en || c.name?.ar}
-                    </option>
-                  ))}
-                </select>
-              )}
 
               {canWrite && (
                 <button
@@ -358,7 +341,7 @@ export default function JobOffersPage() {
                   }}
                   className="inline-flex shrink-0 items-center gap-2 rounded-full bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700"
                 >
-                  <PlusCircle className="h-4 w-4" /> New Offer
+                  <PlusCircle className="h-4 w-4" /> {t('newOffer', 'jobOffers')}
                 </button>
               )}
             </div>
@@ -380,12 +363,12 @@ export default function JobOffersPage() {
                     <Briefcase className="h-8 w-8 text-slate-400" />
                   </div>
                   <h3 className="mt-4 text-lg font-medium text-slate-900 dark:text-white">
-                    No offers found
+                    {t('emptyTitle', 'jobOffers')}
                   </h3>
                   <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                     {search || statusFilter !== 'all'
-                      ? 'Try adjusting your filters'
-                      : 'Create the first offer for your team'}
+                      ? t('emptyDescFilter', 'jobOffers')
+                      : t('emptyDescCreate', 'jobOffers')}
                   </p>
                   {canWrite && !search && statusFilter === 'all' && (
                     <button
@@ -395,7 +378,7 @@ export default function JobOffersPage() {
                       }}
                       className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-600"
                     >
-                      <PlusCircle className="size-4" /> New Offer
+                      <PlusCircle className="size-4" /> {t('newOffer', 'jobOffers')}
                     </button>
                   )}
                 </div>
@@ -428,14 +411,14 @@ export default function JobOffersPage() {
                               />
                             </div>
                             <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
-                              {offer.position?.en} {offer.position?.ar && ` / ${offer.position?.ar}`}
+                              {locale === 'ar' ? (offer.position?.ar || offer.position?.en) : (offer.position?.en || offer.position?.ar)}
                             </p>
                             <div className="mt-1.5 flex items-center gap-3">
                               <span
                                 className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${WORK_TYPE_COLORS[offer.workType]}`}
                               >
-                                {offer.workType}
-                              </span>
+                              {t(offer.workType === 'full-time' ? 'fullTime' : offer.workType === 'part-time' ? 'partTime' : offer.workType || '', 'modals')}
+                            </span>
                               {offer.salary.basic != null && (
                                 <span className="flex items-center gap-1 text-[11px] text-slate-400">
                                   <DollarSign className="size-3" />
@@ -454,14 +437,14 @@ export default function JobOffersPage() {
                           <div className="flex flex-col items-end gap-1.5">
                             <span className="whitespace-nowrap text-[10px] font-medium text-slate-400">
                               {new Date(offer.createdAt).toLocaleDateString(
-                                'en-US',
+                                locale === 'ar' ? 'ar-EG' : 'en-US',
                                 { month: 'short', day: '2-digit' }
                               )}
                             </span>
                             <span
                               className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider ${chip.bg} ${chip.text}`}
                             >
-                              {offer.status}
+                              {t(`status${offer.status.charAt(0).toUpperCase() + offer.status.slice(1)}` as const, 'jobOffers')}
                             </span>
                             {canWrite && (
                               <div
@@ -471,21 +454,21 @@ export default function JobOffersPage() {
                                 <button
                                   onClick={() => handleEdit(offer)}
                                   className="flex size-6 items-center justify-center rounded text-slate-300 hover:text-brand-500"
-                                  title="Edit"
+                                  title={t('edit', 'jobOffers')}
                                 >
                                   <Pencil className="size-3" />
                                 </button>
                                 <button
                                   onClick={() => handleClone(offer)}
                                   className="flex size-6 items-center justify-center rounded text-slate-300 hover:text-emerald-500"
-                                  title="Clone"
+                                  title={t('clone', 'jobOffers')}
                                 >
                                   <Copy className="size-3" />
                                 </button>
                                 <button
                                   onClick={() => handleDelete(offer._id)}
                                   className="flex size-6 items-center justify-center rounded text-slate-300 hover:text-red-500"
-                                  title="Delete"
+                                  title={t('delete', 'jobOffers')}
                                 >
                                   <Trash2 className="size-3" />
                                 </button>
@@ -508,17 +491,17 @@ export default function JobOffersPage() {
                     className="flex items-center gap-1 rounded-md px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-100 disabled:opacity-40 dark:text-slate-400 dark:hover:bg-slate-800"
                   >
                     <ChevronLeft className="h-4 w-4" />
-                    Previous
+                    {t('previous', 'jobOffers')}
                   </button>
                   <span className="text-sm text-slate-500 dark:text-slate-400">
-                    {page} of {totalPages} · {total} total
+                    {t('paginationInfo', 'jobOffers', { page, totalPages, total })}
                   </span>
                   <button
                     disabled={page === totalPages}
                     onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                     className="flex items-center gap-1 rounded-md px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-100 disabled:opacity-40 dark:text-slate-400 dark:hover:bg-slate-800"
                   >
-                    Next
+                    {t('next', 'jobOffers')}
                     <ChevronRight className="h-4 w-4" />
                   </button>
                 </div>
@@ -543,7 +526,7 @@ export default function JobOffersPage() {
             <div className="mb-6 flex items-center gap-2">
               <Briefcase className="h-6 w-6 text-brand-600" />
               <span className="text-lg font-bold text-slate-800 dark:text-white">
-                Job Offers
+                {t('sidebarTitle', 'jobOffers')}
               </span>
             </div>
             <div className="space-y-1">
@@ -551,7 +534,7 @@ export default function JobOffersPage() {
                 <SidebarNavItem
                   key={opt.key}
                   icon={opt.icon}
-                  label={opt.label}
+                  label={t(opt.label, 'jobOffers')}
                   count={getStatusCount(opt.key)}
                   active={statusFilter === opt.key}
                   onClick={() => {

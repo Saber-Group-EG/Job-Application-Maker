@@ -2,7 +2,6 @@
 // BlueCallerApplicants.tsx - Main Component
 import { useEffect, useState, useMemo } from 'react';
 import {
-  ChevronDown,
   FileSpreadsheet,
   Sparkles,
   UserPlus,
@@ -18,6 +17,8 @@ import type { Applicant } from '../../../types/applicants';
 import type { JobPosition } from '../../../types/jobPositions';
 import ManualInsert from './components/ManualInsert';
 import BulkInsert from './components/BulkInsert';
+import { useLocale } from '../../../context/LocaleContext';
+import { useCompanyFilter } from '../../../context/CompanyFilterContext';
 
 type TabKey = 'manual' | 'bulk';
 
@@ -62,9 +63,11 @@ function getApiErrorMessage(error: unknown, fallback = 'An unexpected error occu
 
 export default function BlueCallerApplicants() {
   const { user } = useAuth();
+  const { t } = useLocale();
 
+  const { selectedCompanyId: ctxCompanyId, setSelectedCompanyId, companies: contextCompanies } = useCompanyFilter();
+  const selectedCompanyId = ctxCompanyId ?? '';
   const [activeTab, setActiveTab] = useState<TabKey>('manual');
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
   const [companies, setCompanies] = useState<Company[]>([]);
   const [jobPositions, setJobPositions] = useState<JobPosition[]>([]);
   const [existingApplicants, setExistingApplicants] = useState<Applicant[]>([]);
@@ -150,7 +153,7 @@ export default function BlueCallerApplicants() {
 
         if (mounted) {
           setCompanies(Array.from(uniqueCompanies.values()));
-          if (uniqueCompanies.size === 1) {
+          if (uniqueCompanies.size === 1 && !selectedCompanyId) {
             const [firstCompanyId] = Array.from(uniqueCompanies.keys());
             setSelectedCompanyId(firstCompanyId);
           }
@@ -158,10 +161,10 @@ export default function BlueCallerApplicants() {
       } catch (error) {
         if (mounted) {
           await Swal.fire({
-            title: 'Load failed',
-            text: getApiErrorMessage(error, 'Failed to load companies.'),
+            title: t('loadFailed', 'common'),
+            text: getApiErrorMessage(error, t('failedToLoadCompanies', 'common')),
             icon: 'error',
-            confirmButtonText: 'Close',
+            confirmButtonText: t('close', 'common'),
           });
         }
       } finally {
@@ -204,13 +207,13 @@ export default function BlueCallerApplicants() {
       } catch (error) {
         if (!mounted) return;
         await Swal.fire({
-          title: 'Load failed',
+          title: t('loadFailed', 'common'),
           text: getApiErrorMessage(
             error,
-            'Failed to load applicants or job positions.'
+            t('failedToLoadData', 'common')
           ),
           icon: 'error',
-          confirmButtonText: 'Close',
+          confirmButtonText: t('close', 'common'),
         });
       } finally {
         if (mounted) setLoadingJobs(false);
@@ -221,18 +224,13 @@ export default function BlueCallerApplicants() {
     return () => { mounted = false; };
   }, [selectedCompanyId]);
 
-  const handleCompanyChange = (companyId: string) => {
-    setSelectedCompanyId(companyId);
-    setActiveTab('manual');
-  };
-
   return (
     <div
-      className={`min-h-screen bg-gray-100 px-4 py-6 text-gray-900 sm:px-6 lg:px-8`}
+      className={`min-h-screen bg-gray-100 px-4 py-6 text-gray-900 sm:px-6 lg:px-8 dark:bg-gray-900 dark:text-gray-100`}
     >
       <PageMeta
-        title="BlueCaller Applicants | Recruiting"
-        description="Insert applicants manually or from Excel using a brand-themed dashboard."
+        title={t('pageMetaTitle', 'blueCaller')}
+        description={t('pageMetaDesc', 'blueCaller')}
       />
 
       <div className="mx-auto max-w-7xl space-y-6">
@@ -248,57 +246,28 @@ export default function BlueCallerApplicants() {
             <div className="max-w-3xl space-y-3">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-medium backdrop-blur">
                 <Sparkles className="h-4 w-4" />
-                BlueCaller Applicants
+                {t('badgeText', 'blueCaller')}
               </div>
               <h1 className="text-3xl font-bold tracking-tight sm:text-4xl text-white">
-                Insert applicants with a focused admin workflow.
+                {t('heading', 'blueCaller')}
               </h1>
               <p className="max-w-2xl text-sm text-white/90 sm:text-base">
-                Select a company, add applicants manually or bulk import from
-                Excel, validate everything up front, and submit clean payloads
-                to the API.
+                {t('description', 'blueCaller')}
               </p>
             </div>
-            <div className="min-w-fit space-y-3">
-              <label className="block text-sm font-semibold text-white">
-                Select Company
-              </label>
-              <div className="relative w-full sm:w-80">
-                <select
-                  value={selectedCompanyId}
-                  onChange={(e) => handleCompanyChange(e.target.value)}
-                  className="w-full appearance-none rounded-2xl border border-white/40 bg-white/20 px-4 py-3 pr-12 text-white backdrop-blur outline-none transition hover:bg-white/30 focus:border-white/60 focus:ring-2 focus:ring-white/30"
-                >
-                  <option value="" className="text-gray-900 bg-white">
-                    {loadingCompanies
-                      ? 'Loading companies...'
-                      : 'Select a company'}
-                  </option>
-                  {companies.map((company) => (
-                    <option
-                      key={company._id}
-                      value={company._id}
-                      className="text-gray-900 bg-white"
-                    >
-                      {company.nameEN || company._id}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-white" />
-              </div>
-            </div>
+
           </div>
         </section>
 
         {/* Tab switcher */}
         <div
-          className={`rounded-2xl border ${themeColors.borderPrimary} bg-white p-2 shadow-sm`}
+          className={`rounded-2xl border ${themeColors.borderPrimary} bg-white p-2 shadow-sm dark:bg-gray-800`}
         >
           <div className="grid grid-cols-2 gap-2 sm:w-fit">
             {(
               [
-                { key: 'manual', icon: UserPlus, label: 'Manual Insert' },
-                { key: 'bulk', icon: FileSpreadsheet, label: 'Bulk Insert' },
+                { key: 'manual', icon: UserPlus, label: t('tabManualInsert', 'blueCaller') },
+                { key: 'bulk', icon: FileSpreadsheet, label: t('tabBulkInsert', 'blueCaller') },
               ] as const
             ).map(({ key, icon: Icon, label }) => (
               <button
@@ -308,7 +277,7 @@ export default function BlueCallerApplicants() {
                 className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition ${
                   activeTab === key
                     ? `${themeColors.bgPrimary} text-white shadow-lg`
-                    : `${themeColors.bgLight} ${themeColors.textPrimary} hover:bg-gray-200`
+                    : `${themeColors.bgLight} dark:bg-gray-700 ${themeColors.textPrimary} dark:text-brand-300 hover:bg-gray-200 dark:hover:bg-gray-600`
                 }`}
               >
                 <Icon className="h-4 w-4" />
@@ -321,15 +290,14 @@ export default function BlueCallerApplicants() {
         {/* No company selected guard */}
         {!selectedCompanyId ? (
           <div
-            className={`rounded-3xl border ${themeColors.borderPrimary} bg-white p-8 text-center shadow-xl`}
+            className={`rounded-3xl border ${themeColors.borderPrimary} bg-white p-8 text-center shadow-xl dark:bg-gray-800`}
           >
-            <Building2 className="mx-auto h-12 w-12 text-gray-300" />
-            <p className="mt-4 text-lg font-semibold text-gray-700">
-              Please select a company to proceed
+            <Building2 className="mx-auto h-12 w-12 text-gray-300 dark:text-gray-500" />
+            <p className="mt-4 text-lg font-semibold text-gray-700 dark:text-gray-200">
+              {t('noCompanySelectedHeading', 'blueCaller')}
             </p>
-            <p className="mt-2 text-sm text-gray-500">
-              Choose a company from the dropdown above to start inserting
-              applicants.
+            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+              {t('noCompanySelectedDesc', 'blueCaller')}
             </p>
           </div>
         ) : activeTab === 'manual' ? (

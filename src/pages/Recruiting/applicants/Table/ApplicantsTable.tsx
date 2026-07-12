@@ -1,4 +1,4 @@
-// Applicants.tsx - Complete working version with no horizontal scroll
+// Applicants.tsx - Optimized version with improved photo loading
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import { useNavigate } from 'react-router';
@@ -7,10 +7,13 @@ import { applicantsKeys } from '../../../../hooks/queries/useApplicants';
 import axiosInstance from '../../../../config/axios';
 import Swal from '../../../../utils/swal';
 import { useAuth } from '../../../../context/AuthContext';
+import { useLocale } from '../../../../context/LocaleContext';
+import { useCompanyFilter } from '../../../../context/CompanyFilterContext';
 import {
   useApplicants,
   useJobPositions,
   useCompanies,
+  useUpdateApplicantStatus,
 } from '../../../../hooks/queries';
 import { useTableLayout } from '../../../../hooks/queries/useTableLayout';
 import { buildApplicantDuplicateLookup } from '../../../../utils/applicantDuplicateSort';
@@ -28,7 +31,7 @@ import BulkMessageModal from '../../../../components/modals/BulkMessageModal';
 import InterviewScheduleModal from '../../../../components/modals/InterviewScheduleModal';
 import StatusChangeModal from '../../../../components/modals/StatusChangeModal';
 import CustomFilterModal from '../../../../components/modals/CustomFilterModal';
-import { ColumnMultiSelectHeader } from './components/ColumnMultiSelectHeader';
+import { FilterHeaderCell } from './components/FilterHeaderCell';
 import { StatusCell } from './components/StatusCell';
 import { TrashBinIcon, ChatIcon, AlertIcon } from '../../../../icons';
 
@@ -39,10 +42,11 @@ import { useBulkActions } from './hooks/useBulkActions';
 import { useApplicantFilters } from './hooks/useApplicantFilters';
 
 // Utils
-import { exportToExcel, showExportNotification } from './utils/exportHelpers';
+import { exportToExcel } from './utils/exportHelpers';
 import { normalizeGender, getApplicantCompanyId } from './utils/filterHelpers';
+import { getPreviousStatus, isTrashed } from '../../../../pages/Recruiting/ApplicantPage/utils/statusUtils';
 
-// Types
+// Type
 import {
   MaterialReactTable,
   MRT_SelectCheckbox,
@@ -93,16 +97,125 @@ const extractId = (value: unknown): string | null => {
   return null;
 };
 
-// Simple in-memory cache for compressed thumbnails
-const thumbnailCache: Map<string, string> = new Map();
+// LRU Cache implementation for thumbnails to prevent memory bloat
+class LRUCache<K, V> {
+  private cache = new Map<K, V>();
+  private maxSize: number;
 
+  constructor(maxSize: number = 150) {
+    this.maxSize = maxSize;
+  }
+
+  get(key: K): V | undefined {
+    const value = this.cache.get(key);
+    if (value) {
+      // Refresh - move to end (most recently used)
+      this.cache.delete(key);
+      this.cache.set(key, value);
+    }
+    return value;
+  }
+
+  set(key: K, value: V): void {
+    if (this.cache.size >= this.maxSize) {
+      // Delete oldest (first item)
+      const firstKey = this.cache.keys().next().value;
+      if (firstKey) this.cache.delete(firstKey);
+    }
+    this.cache.set(key, value);
+  }
+
+  has(key: K): boolean {
+    return this.cache.has(key);
+  }
+
+  clear(): void {
+    this.cache.clear();
+  }
+}
+
+const thumbnailCache = new LRUCache<string, string>(150);
+
+// Image loader pool to limit concurrent image loading
+class ImageLoaderPool {
+  private queue: Array<() => Promise<void>> = [];
+  private active = 0;
+  private maxConcurrent = 3; // Load only 3 images at once
+
+  async add(task: () => Promise<void>): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.queue.push(async () => {
+        try {
+          await task();
+          resolve();
+        } catch (e) {
+          reject(e);
+        }
+      });
+      this.processQueue();
+    });
+  }
+
+  private processQueue() {
+    if (this.active >= this.maxConcurrent) return;
+    if (this.queue.length === 0) return;
+
+    this.active++;
+    const task = this.queue.shift()!;
+    task().finally(() => {
+      this.active--;
+      this.processQueue();
+    });
+  }
+}
+
+const imageLoader = new ImageLoaderPool();
+
+// Optimized image compression with smaller dimensions
 async function createCompressedDataUrl(
   src: string,
-  maxBytes = 5120
+  maxBytes = 3072 // Reduced from 5120
 ): Promise<string> {
   if (!src) return src;
-  if (thumbnailCache.has(src)) return thumbnailCache.get(src) as string;
+  
+  // Check cache first
+  const cached = thumbnailCache.get(src);
+  if (cached) return cached;
 
+  // Use OffscreenCanvas if available (better performance)
+  if ('OffscreenCanvas' in window) {
+    try {
+      const response = await fetch(src);
+      const blob = await response.blob();
+      const bitmap = await createImageBitmap(blob);
+      
+      const MAX_DIM = 48; // Significantly reduced from 160
+      let { width, height } = bitmap;
+      const ratio = Math.max(width / MAX_DIM, height / MAX_DIM, 1);
+      const canvas = new OffscreenCanvas(
+        Math.max(24, Math.round(width / ratio)),
+        Math.max(24, Math.round(height / ratio))
+      );
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('No context');
+      
+      ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      
+      const blobResult = await canvas.convertToBlob({ 
+        type: 'image/jpeg', 
+        quality: 0.5 // Reduced quality
+      });
+      const dataUrl = URL.createObjectURL(blobResult);
+      
+      thumbnailCache.set(src, dataUrl);
+      return dataUrl;
+    } catch (e) {
+      // Fallback to regular canvas
+      console.debug('OffscreenCanvas failed, falling back to regular canvas', e);
+    }
+  }
+
+  // Regular canvas fallback with optimized settings
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'Anonymous';
@@ -122,44 +235,27 @@ async function createCompressedDataUrl(
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         if (!ctx) return finish(src);
-        const MAX_DIM = 160;
+        
+        const MAX_DIM = 48; // Smaller thumbnails
         let { width, height } = img;
         const ratio = Math.max(width / MAX_DIM, height / MAX_DIM, 1);
-        canvas.width = Math.max(32, Math.round(width / ratio));
-        canvas.height = Math.max(32, Math.round(height / ratio));
+        canvas.width = Math.max(24, Math.round(width / ratio));
+        canvas.height = Math.max(24, Math.round(height / ratio));
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-        const tryQualities = (qualities: number[]) => {
-          for (const q of qualities) {
-            try {
-              const dataUrl = canvas.toDataURL('image/jpeg', q);
-              const b64 = dataUrl.split(',')[1] || '';
-              const bytes = Math.ceil((b64.length * 3) / 4);
-              if (bytes <= maxBytes) return dataUrl;
-            } catch (e) {
-              return null;
-            }
+        // Lower quality settings for faster loading
+        const qualities = [0.5, 0.4, 0.3, 0.2, 0.15];
+        for (const q of qualities) {
+          try {
+            const dataUrl = canvas.toDataURL('image/jpeg', q);
+            const b64 = dataUrl.split(',')[1] || '';
+            const bytes = Math.ceil((b64.length * 3) / 4);
+            if (bytes <= maxBytes) return finish(dataUrl);
+          } catch (e) {
+            continue;
           }
-          return null;
-        };
-
-        let dataUrl = tryQualities([
-          0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.15, 0.1,
-        ]);
-        if (dataUrl) return finish(dataUrl);
-
-        let w = canvas.width;
-        let h = canvas.height;
-        while ((w > 32 || h > 32) && !dataUrl) {
-          w = Math.max(24, Math.floor(w * 0.75));
-          h = Math.max(24, Math.floor(h * 0.75));
-          canvas.width = w;
-          canvas.height = h;
-          ctx.drawImage(img, 0, 0, w, h);
-          dataUrl = tryQualities([0.6, 0.4, 0.25, 0.15, 0.1]);
         }
 
-        if (dataUrl) return finish(dataUrl);
         finish(src);
       } catch (e) {
         finish(src);
@@ -172,8 +268,130 @@ async function createCompressedDataUrl(
     } catch (e) {
       finish(src);
     }
-    setTimeout(() => finish(src), 1500);
+    setTimeout(() => finish(src), 1000); // Reduced timeout
   });
+}
+
+// Progressive image component with lazy loading and placeholder
+function ProgressiveImage({
+  src,
+  alt,
+  onClick,
+}: {
+  src?: string | null;
+  alt?: string;
+  onClick?: () => void;
+}) {
+  const [thumb, setThumb] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!src || thumb) return;
+
+    // Use Intersection Observer to lazy load only visible images
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && !thumb && mountedRef.current) {
+            loadImageAsync();
+            observer.disconnect();
+          }
+        });
+      },
+      { rootMargin: '100px' } // Start loading when within 100px of viewport
+    );
+
+    if (containerRef.current) {
+      observer.observe(containerRef.current);
+    }
+
+    observerRef.current = observer;
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [src]);
+
+  const loadImageAsync = async () => {
+    if (!src) return;
+    
+    if (typeof src === 'string' && src.startsWith('data:')) {
+      setThumb(src);
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      // Use requestIdleCallback to load images when browser is idle
+      await new Promise((resolve) => {
+        if ('requestIdleCallback' in window) {
+          requestIdleCallback(resolve, { timeout: 2000 });
+        } else {
+          setTimeout(resolve, 50);
+        }
+      });
+
+      // Use image loader pool to limit concurrency
+      await imageLoader.add(async () => {
+        if (!mountedRef.current) return;
+        const compressed = await createCompressedDataUrl(src as string, 3072);
+        if (mountedRef.current) {
+          setThumb(compressed || (src as string));
+          setIsLoading(false);
+        }
+      });
+    } catch (e) {
+      if (mountedRef.current) {
+        setThumb(src as string);
+        setIsLoading(false);
+      }
+    }
+  };
+
+  const getInitials = () => {
+    if (alt && alt.length > 0) {
+      return alt.charAt(0).toUpperCase();
+    }
+    return '?';
+  };
+
+  return (
+    <div
+      ref={containerRef}
+      className="relative h-full w-full cursor-pointer overflow-hidden rounded-full"
+      onClick={onClick}
+    >
+      {isLoading && !thumb && (
+        <div className="absolute inset-0 flex h-full w-full items-center justify-center bg-gray-100 dark:bg-gray-800 animate-pulse rounded-full">
+          <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">
+            {getInitials()}
+          </span>
+        </div>
+      )}
+      {thumb && (
+        <img
+          loading="lazy"
+          src={thumb}
+          alt={alt || ''}
+          className={`h-full w-full object-cover transition-opacity duration-300 ${
+            isLoading ? 'opacity-0' : 'opacity-100'
+          }`}
+          decoding="async"
+          onLoad={() => setIsLoading(false)}
+        />
+      )}
+    </div>
+  );
 }
 
 function ImageThumbnailComponent({
@@ -185,41 +403,10 @@ function ImageThumbnailComponent({
   alt?: string;
   onClick?: () => void;
 }) {
-  const [thumb, setThumb] = useState<string | null>(null);
-
-  useEffect(() => {
-    let mounted = true;
-    if (!src) {
-      setThumb(null);
-      return () => {
-        mounted = false;
-      };
-    }
-    if (typeof src === 'string' && src.startsWith('data:')) {
-      setThumb(src);
-      return () => {
-        mounted = false;
-      };
-    }
-
-    (async () => {
-      try {
-        const compressed = await createCompressedDataUrl(src as string, 5120);
-        if (mounted) setThumb(compressed || (src as string));
-      } catch (e) {
-        if (mounted) setThumb(src as string);
-      }
-    })();
-
-    return () => {
-      mounted = false;
-    };
-  }, [src]);
-
-  if (!thumb) {
+  if (!src) {
     return (
       <div
-        className="flex h-full w-full items-center justify-center text-sm font-semibold text-gray-500 dark:text-gray-400 cursor-pointer"
+        className="flex h-full w-full items-center justify-center text-sm font-semibold text-gray-500 dark:text-gray-400 cursor-pointer bg-gray-100 dark:bg-gray-800 rounded-full"
         onClick={onClick}
       >
         {alt && alt.charAt(0) ? alt.charAt(0).toUpperCase() : '-'}
@@ -227,13 +414,84 @@ function ImageThumbnailComponent({
     );
   }
 
+  return <ProgressiveImage src={src} alt={alt} onClick={onClick} />;
+}
+
+function getOptimizedPreviewUrl(src: string): string {
+  if (!src) return src;
+  if (src.startsWith('data:')) return src;
+  try {
+    const url = new URL(src);
+    if (url.hostname.includes('cloudinary.com')) {
+      const uploadIndex = src.indexOf('/upload/');
+      if (uploadIndex !== -1) {
+        const beforeUpload = src.substring(0, uploadIndex + 8);
+        const afterUpload = src.substring(uploadIndex + 8);
+        // Even smaller preview for modal
+        return `${beforeUpload}w_400,h_400,c_limit,q_auto,f_auto/${afterUpload}`;
+      }
+    }
+  } catch (e) {}
+  return src;
+}
+
+function PhotoPreviewImage({
+  src,
+  onLoad,
+}: {
+  src: string;
+  onLoad?: (loadedSrc: string) => void;
+}) {
+  const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const previewUrl = getOptimizedPreviewUrl(src);
+
+  useEffect(() => {
+    if (!previewUrl) return;
+    setIsLoading(true);
+    setError(false);
+    setLoadedSrc(null);
+
+    const img = new Image();
+    img.src = previewUrl;
+    img.loading = 'eager';
+    img.onload = () => {
+      setLoadedSrc(previewUrl);
+      setIsLoading(false);
+      onLoad?.(previewUrl);
+    };
+    img.onerror = () => {
+      setError(true);
+      setIsLoading(false);
+      setLoadedSrc(previewUrl);
+      onLoad?.(previewUrl);
+    };
+  }, [previewUrl, onLoad]);
+
+  if (isLoading) {
+    return (
+      <div className="flex h-[60vh] w-full items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-brand-500 border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-[60vh] w-full items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg text-gray-500">
+        Failed to load image
+      </div>
+    );
+  }
+
   return (
     <img
-      loading="lazy"
-      src={thumb}
-      alt={alt || ''}
-      className="h-full w-full object-cover cursor-pointer"
-      onClick={onClick}
+      src={loadedSrc ?? undefined}
+      alt="Applicant photo preview"
+      className="max-h-[85vh] max-w-full rounded-lg shadow-2xl"
+      onClick={(e) => e.stopPropagation()}
+      loading="eager"
     />
   );
 }
@@ -242,6 +500,7 @@ type ApplicantsProps = {
   layoutKey?: string;
   defaultLayout?: typeof APPLICANTS_DEFAULT_LAYOUT;
   onlyStatus?: string | string[];
+  onlyJobPositions?: string[];
   companyIdOverride?: string | string[] | undefined;
 };
 
@@ -249,11 +508,13 @@ export default function Applicants({
   layoutKey,
   defaultLayout,
   onlyStatus,
+  onlyJobPositions,
   companyIdOverride,
 }: ApplicantsProps = {}) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
+  const { t, dir, locale } = useLocale();
   const location = useLocation();
   const params = useParams();
 
@@ -262,8 +523,10 @@ export default function Applicants({
     defaultLayout || APPLICANTS_DEFAULT_LAYOUT
   );
 
+  const updateStatus = useUpdateApplicantStatus();
+
   const effectiveOnlyStatus = useMemo((): string | string[] | undefined => {
-    if (onlyStatus) return onlyStatus;
+    if (onlyStatus && !(Array.isArray(onlyStatus) && onlyStatus.length === 0)) return onlyStatus;
     if (params.status) return params.status;
     const searchParams = new URLSearchParams(location.search);
     const qStatus = searchParams.get('status');
@@ -271,12 +534,30 @@ export default function Applicants({
     return undefined;
   }, [onlyStatus, params.status, location.search]);
 
+  const effectiveOnlyJobPositions = useMemo((): string[] | undefined => {
+    if (onlyJobPositions && onlyJobPositions.length > 0) return onlyJobPositions;
+    const searchParams = new URLSearchParams(location.search);
+    const qJobPositions = searchParams.get('jobPositions');
+    if (qJobPositions) return qJobPositions.split(',').map(decodeURIComponent).filter(Boolean);
+    return undefined;
+  }, [onlyJobPositions, location.search]);
+
   const isSuperAdmin = useMemo(() => {
     const roleName = user?.roleId?.name;
     return (
       typeof roleName === 'string' && roleName.toLowerCase() === 'super admin'
     );
   }, [user?.roleId?.name]);
+
+  const canRestore = useMemo(() => {
+    if (isSuperAdmin) return true;
+    return hasPermission('Restore Applicant', 'write') || hasPermission('Restore Applicant', 'create');
+  }, [isSuperAdmin, hasPermission]);
+
+  const canViewTrashed = useMemo(() => {
+    if (isSuperAdmin) return true;
+    return hasPermission('Restore Applicant');
+  }, [isSuperAdmin, hasPermission]);
 
   const persistedTableState = useMemo(() => {
     try {
@@ -304,8 +585,10 @@ export default function Applicants({
     [user]
   );
 
+  const { selectedCompanyId: globalSelectedCompanyId } = useCompanyFilter();
   const companyId = useMemo(() => {
     if (companyIdOverride !== undefined) return companyIdOverride as any;
+    if (globalSelectedCompanyId) return [globalSelectedCompanyId];
     if (!user) return undefined;
     const roleName = user?.roleId?.name?.toLowerCase();
     const isSuperAdminRole = roleName === 'super admin';
@@ -314,10 +597,12 @@ export default function Applicants({
     );
     if (isSuperAdminRole) return undefined;
     return userCompanyId?.length ? userCompanyId : undefined;
-  }, [companyIdOverride, user]);
+  }, [companyIdOverride, user, globalSelectedCompanyId]);
+const [excludeModes] = useState<Record<string, boolean>>({});
 
   const [offerModalOpen, setOfferModalOpen] = useState(false);
   const [contractModalOpen, setContractModalOpen] = useState(false);
+  
   // Extract department IDs from user companies
   const departmentIds = useMemo(() => {
     if (!user?.companies || !Array.isArray(user.companies)) return undefined;
@@ -347,17 +632,20 @@ export default function Applicants({
     ) as string[];
   }, [user, isSuperAdmin]);
 
+  const [globalFilter, setGlobalFilter] = useState('');
+
   const {
     data: jobPositions = [],
     isFetching: isJobPositionsFetching,
     isFetched: isJobPositionsFetched,
     refetch: refetchJobPositions,
   } = useJobPositions(
-    companyId as any, // companyId
-    false, // deleted
-    departmentIds as any, // departmentId
-    { enabled: true } // options
+    companyId as any,
+    false,
+    departmentIds as any,
+    { enabled: true }
   );
+  
   const {
     data: applicants = [],
     error,
@@ -366,15 +654,16 @@ export default function Applicants({
     isFetched: isApplicantsFetched,
   } = useApplicants({
     companyId: companyId as any,
-    jobPositionId: undefined,
+    jobPositionId: effectiveOnlyJobPositions,
     departmentId: departmentIds as any,
     status: effectiveOnlyStatus,
     enabled: true,
   });
+  
   // Check the query state directly to detect ongoing fetches for this key
   const applicantsQueryKey = applicantsKeys.list({
     companyId: companyId as any,
-    jobPositionId: undefined,
+    jobPositionId: effectiveOnlyJobPositions,
     departmentId: departmentIds as any,
     status: effectiveOnlyStatus,
   });
@@ -383,6 +672,7 @@ export default function Applicants({
   );
   const isApplicantsQueryFetching =
     applicantsQueryState?.fetchStatus === 'fetching';
+  
   const {
     data: allCompaniesRaw = [],
     refetch: refetchCompanies,
@@ -457,29 +747,31 @@ export default function Applicants({
     setCustomFilters,
   } = useTableState({
     onlyStatus: effectiveOnlyStatus,
+    onlyJobPositions: effectiveOnlyJobPositions,
     showCompanyColumn,
     jobPositionMap: {},
-    genderOptions: [],
     persistedState: persistedTableState,
   });
 
   useEffect(() => {
-    if (urlParams.status) {
-      setColumnFilters((prev: any) => {
-        const withoutStatus = prev.filter((f: any) => f.id !== 'status');
-        return [...withoutStatus, { id: 'status', value: urlParams.status }];
-      });
-    }
-    if (urlParams.company) {
-      setColumnFilters((prev: any) => {
-        const withoutCompany = prev.filter((f: any) => f.id !== 'companyId');
-        return [
-          ...withoutCompany,
-          { id: 'companyId', value: urlParams.company },
-        ];
-      });
-    }
-  }, [urlParams.status, urlParams.company, setColumnFilters]);
+  if (urlParams.status) {
+    setColumnFilters((prev: any) => {
+      const withoutStatus = prev.filter((f: any) => f.id !== 'status');
+      const hasStatus = prev.some((f: any) => f.id === 'status');
+      if (hasStatus) return prev;
+      return [...withoutStatus, { id: 'status', value: urlParams.status }];
+    });
+  }
+  if (urlParams.company) {
+    setColumnFilters((prev: any) => {
+      const withoutCompany = prev.filter((f: any) => f.id !== 'companyId');
+      const hasCompany = prev.some((f: any) => f.id === 'companyId');
+      if (hasCompany) return prev;
+      return [...withoutCompany, { id: 'companyId', value: urlParams.company }];
+    });
+  }
+}, [urlParams.status, urlParams.company, setColumnFilters]);
+  
 
   const jobPositionMap = useMemo(() => {
     const map: Record<string, any> = {};
@@ -514,13 +806,15 @@ export default function Applicants({
   const genderOptions = useMemo(() => {
     const s = new Set<string>();
     const rows = Array.isArray(applicants) ? applicants : [];
-    rows.forEach((a: any) => {
-      if (!isSuperAdmin && a?.status === 'trashed') return;
+      rows.forEach((a: any) => {
+        if (!isSuperAdmin && !canViewTrashed && a?.status === 'trashed') return;
       const raw =
         a?.gender ||
         a?.customResponses?.gender ||
+        a?.customResponses?.genderAr ||
         a?.customResponses?.['النوع'] ||
-        (a as any)['النوع'];
+        (a as any)['النوع'] ||
+        (a as any)?.genderAr;
       const g = normalizeGender(raw);
       if (g) s.add(g);
     });
@@ -532,30 +826,131 @@ export default function Applicants({
       if (it !== 'Male' && it !== 'Female') ordered.push(it);
     });
     return ordered.map((g) => ({ id: g, title: g }));
-  }, [applicants, isSuperAdmin]);
+  }, [applicants, isSuperAdmin, canViewTrashed]);
 
-  const jobOptions = useMemo(() => {
-    const getIdValue = (v: any) =>
-      typeof v === 'string' ? v : (v?._id ?? v?.id);
-    return jobPositions
-      .map((j: any) => {
-        const id = getIdValue(j._id) || getIdValue(j.id) || '';
-        const title =
-          typeof j.title === 'string' ? j.title : j?.title?.en || '';
-        return { id, title };
-      })
-      .filter((x) => x.id && x.title);
-  }, [jobPositions]);
+const jobOptions = useMemo(() => {
+  const getIdValue = (v: any) =>
+    typeof v === 'string' ? v : (v?._id ?? v?.id);
+  
+  // Helper function to extract string title from object or string (locale-aware)
+  const getTitleString = (title: any): string => {
+    if (!title) return '';
+    if (typeof title === 'string') return title;
+    if (typeof title === 'object') {
+      if (locale === 'ar') {
+        return title.ar || title.en || title.name || Object.values(title)[0] || '';
+      }
+      return title.en || title.ar || title.name || Object.values(title)[0] || '';
+    }
+    return String(title);
+  };
+  
+  return jobPositions
+    .map((j: any) => {
+      const id = getIdValue(j._id) || getIdValue(j.id) || '';
+      const title = getTitleString(j.title);
+      
+      const companyId = j.companyId?._id || j.companyId;
+      const company = allCompaniesRaw.find((c: any) => {
+        const cId = typeof c._id === 'string' ? c._id : c._id?._id;
+        return cId === companyId;
+      });
+      const companyName = getTitleString(company?.name || '');
+      
+      // ✅ Calculate applicant count for this job - EXCLUDE trashed status
+      const applicantCount = applicants.filter((applicant: any) => {
+        // Skip trashed applicants
+        if (applicant?.status?.toLowerCase() === 'trashed') return false;
+        
+        const applicantJobId = typeof applicant.jobPositionId === 'string' 
+          ? applicant.jobPositionId 
+          : applicant.jobPositionId?._id || applicant.jobPositionId?.id;
+        return applicantJobId === id;
+      }).length;
+      
+      return { id, title, companyName, companyId, applicantCount };
+    })
+    .filter((x) => x.id && x.title);
+}, [jobPositions, allCompaniesRaw, applicants, locale]);
 
   const companyOptions = useMemo(() => {
     return allCompaniesRaw
       .map((c: any) => {
         const id = typeof c._id === 'string' ? c._id : c._id?._id || '';
-        const title = toPlainString(c?.name) || c?.title || '';
+        const title = toPlainString(c?.name, locale) || '';
         return { id, title };
       })
       .filter((x) => x.id && x.title);
-  }, [allCompaniesRaw]);
+  }, [allCompaniesRaw, locale]);
+
+  // Cascading filter: Get selected company IDs from column filters
+  const selectedCompanyIdsForJobs = useMemo(() => {
+    const companyFilter = columnFilters.find((f: any) => f.id === 'companyId');
+    if (!companyFilter?.value) return [] as string[];
+    const value = companyFilter.value;
+    return Array.isArray(value) ? value : [value];
+  }, [columnFilters]);
+
+  // Map jobId -> companyId for quick lookup
+  const jobToCompanyMap = useMemo(() => {
+    const map = new Map<string, string>();
+    jobPositions.forEach((job: any) => {
+      const jobId = typeof job._id === 'string' ? job._id : job._id?._id;
+      const companyId = job.companyId?._id || job.companyId;
+      if (jobId && companyId) {
+        map.set(jobId, companyId);
+      }
+    });
+    return map;
+  }, [jobPositions]);
+
+  // Filter job options based on selected companies
+  const filteredJobOptions = useMemo(() => {
+    if (selectedCompanyIdsForJobs.length === 0) {
+      return jobOptions;
+    }
+    return jobOptions.filter((job) => {
+      const jobCompanyId = jobToCompanyMap.get(job.id);
+      return jobCompanyId && selectedCompanyIdsForJobs.includes(jobCompanyId);
+    });
+  }, [selectedCompanyIdsForJobs, jobOptions, jobToCompanyMap]);
+
+  // Clear invalid job filters when company selection changes
+  useEffect(() => {
+    const selectedJobIds = columnFilters.find((f: any) => f.id === 'jobPositionId')?.value;
+    if (selectedJobIds && Array.isArray(selectedJobIds) && selectedJobIds.length > 0) {
+      const validJobIds = filteredJobOptions.map((j) => j.id);
+      const invalidJobs = selectedJobIds.filter((jobId: string) => !validJobIds.includes(jobId));
+      if (invalidJobs.length > 0) {
+        const remainingJobs = selectedJobIds.filter((jobId: string) => validJobIds.includes(jobId));
+        setColumnFilters((prev: any[]) => {
+          const without = prev.filter((f) => f.id !== 'jobPositionId');
+          if (remainingJobs.length === 0) {
+            return without;
+          }
+          return [...without, { id: 'jobPositionId', value: remainingJobs }];
+        });
+      }
+    }
+  }, [selectedCompanyIdsForJobs, filteredJobOptions, columnFilters, setColumnFilters]);
+
+  const jobPositionFilterOptions = useMemo(() => {
+    return jobOptions.map((j) => {
+      const coId = typeof j.companyId === 'string'
+        ? j.companyId
+        : (j.companyId?._id ?? j.companyId?.id ?? '');
+      const company = companyMap[coId];
+      const companyName = company
+        ? toPlainString(company?.name, locale) || company?.title || ''
+        : '';
+      return {
+        label: j.title,
+        subtitle: companyName || undefined,
+        value: j.id,
+        companyId: coId,
+      };
+    });
+  }, [jobOptions, companyMap, locale]);
 
   const fieldToJobIds = useMemo(
     () => buildFieldToJobIds(jobPositions),
@@ -593,11 +988,16 @@ export default function Applicants({
     customFilters,
     isSuperAdmin,
     effectiveOnlyStatus,
+    effectiveOnlyJobPositions,
     selectedCompanyFilterValue,
+    companyFilterExclude: (layout.excludeColumns ?? []).includes('companyId'),
+    excludeColumns: layout.excludeColumns ?? [],
     jobPositionMap,
     fieldToJobIds,
     currentUserId,
     allCompaniesRaw,
+    canViewTrashed,
+    globalFilter,
   });
 
   const {
@@ -614,6 +1014,44 @@ export default function Applicants({
     allCompaniesRaw,
   });
 
+  const selectedTrashedApplicants = useMemo(() => {
+    if (!selectedApplicantIds.length) return [];
+    const ids = new Set(selectedApplicantIds);
+    return applicants.filter((a: any) => ids.has(a._id) && isTrashed(a));
+  }, [selectedApplicantIds, applicants]);
+
+  const handleBulkRestore = useCallback(async () => {
+    if (selectedTrashedApplicants.length === 0) return;
+
+    const result = await Swal.fire({
+      title: t('bulkRestoreTitle', 'applicants'),
+      text: t('bulkRestoreText', 'applicants'),
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#22c55e',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: t('restore', 'applicants'),
+      cancelButtonText: t('cancel', 'common'),
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      for (const applicant of selectedTrashedApplicants) {
+        const orig = applicant as any;
+        const previousStatus = getPreviousStatus(orig);
+        await updateStatus.mutateAsync({ id: orig._id, data: { status: previousStatus } });
+        setRowSelection((prev: any) => {
+          const next = { ...prev };
+          delete next[orig._id];
+          return next;
+        });
+      }
+    } catch {
+      // toast handled by mutation
+    }
+  }, [selectedTrashedApplicants, t, updateStatus, setRowSelection]);
+
   const selectedApplicantJobIds = useMemo(() => {
     const jobIds = new Set<string>();
     const ids = new Set(selectedApplicantIds);
@@ -625,7 +1063,6 @@ export default function Applicants({
           : applicant._id?._id || applicant.id;
       if (!ids.has(applicantId)) return;
 
-      // Extract job ID from various possible locations
       const jobId =
         (typeof applicant.jobPositionId === 'string'
           ? applicant.jobPositionId
@@ -696,8 +1133,6 @@ export default function Applicants({
     selectedApplicantsForInterview,
     selectedApplicantCompanyId,
     selectedApplicantCompany,
-    refetchApplicants,
-    queryClient,
     onClearSelection: () => setRowSelection({}),
   });
 
@@ -726,9 +1161,9 @@ export default function Applicants({
       jobPositionId: isLaptopViewport ? 118 : 160,
       expectedSalary: isLaptopViewport ? 104 : 140,
       sscore: isLaptopViewport ? 72 : 96,
-      status: isLaptopViewport ? 150 : 170,
+      status: isLaptopViewport ? 190 : 240,
       submittedAt: isLaptopViewport ? 88 : 110,
-      actions: isLaptopViewport ? 58 : 90,
+      actions: 70,
     }),
     [isLaptopViewport]
   );
@@ -796,7 +1231,7 @@ export default function Applicants({
     []
   );
 
-  const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
+  const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null);
   const [customFilterOpen, setCustomFilterOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const mountedRef = useRef(true);
@@ -872,15 +1307,15 @@ export default function Applicants({
     }
     const formatRelative = (d: Date) => {
       const diffSec = Math.floor((Date.now() - d.getTime()) / 1000);
-      if (diffSec < 60) return 'now';
+      if (diffSec < 60) return t('now', 'applicants');
       const mins = Math.floor(diffSec / 60);
-      if (mins < 60) return `${mins} min ago`;
+      if (mins < 60) return t('minAgo', 'applicants', { mins });
       const hours = Math.floor(mins / 60);
-      if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+      if (hours < 24) return hours === 1 ? t('hourAgo', 'applicants', { hours }) : t('hoursAgo', 'applicants', { hours });
       const days = Math.floor(hours / 24);
-      if (days === 1) return 'yesterday';
-      if (days < 7) return `${days} days ago`;
-      return d.toLocaleDateString();
+      if (days === 1) return t('yesterday', 'applicants');
+      if (days < 7) return t('daysAgo', 'applicants', { days });
+      return d.toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US');
     };
     const update = () => {
       if (mountedRef.current) setElapsed(formatRelative(lastRefetch));
@@ -888,7 +1323,7 @@ export default function Applicants({
     update();
     const id = setInterval(update, 30 * 1000);
     return () => clearInterval(id);
-  }, [lastRefetch]);
+  }, [lastRefetch, t]);
 
   const getExpectedSalaryDisplay = useCallback((applicant: any): string => {
     const toText = (value: any): string => {
@@ -1210,25 +1645,26 @@ export default function Applicants({
     if (!dateString) return '-';
     if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
       const [year, month, day] = dateString.split('-').map(Number);
-      return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+      return new Date(year, month - 1, day).toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', {
         year: 'numeric',
         month: 'short',
         day: 'numeric',
       });
     }
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
+    return date.toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
     });
-  }, []);
+  }, [locale]);
+
 
   const downloadCvForApplicant = useCallback(async (a: any) => {
     if (!a)
       return Swal.fire(
-        'No CV',
-        'No CV file available for this applicant',
+        t('noCv', 'applicants'),
+        t('noCvDesc', 'applicants'),
         'info'
       );
     const resolveCvPath = (applicant: any): string | null => {
@@ -1248,8 +1684,8 @@ export default function Applicants({
     const path = resolveCvPath(a);
     if (!path)
       return Swal.fire(
-        'No CV',
-        'No CV file available for this applicant',
+        t('noCv', 'applicants'),
+        t('noCvDesc', 'applicants'),
         'info'
       );
     const url = (() => {
@@ -1288,8 +1724,8 @@ export default function Applicants({
   const handleExportToExcel = useCallback(async () => {
     if (selectedApplicantIds.length === 0) {
       await Swal.fire({
-        title: 'No Selection',
-        text: 'Please select at least one applicant to export.',
+        title: t('noSelection', 'applicants'),
+        text: t('noSelectionDesc', 'applicants'),
         icon: 'warning',
         timer: 2000,
         showConfirmButton: false,
@@ -1306,7 +1742,21 @@ export default function Applicants({
         normalizeGender,
         options: { includeCustomFields: true, includeJobSpecs: true },
       });
-      await showExportNotification(result);
+      if (result.success) {
+        await Swal.fire({
+          title: t('exportSuccessful', 'applicants'),
+          text: t('successfullyExported', 'applicants', { count: selectedApplicantIds.length }),
+          icon: 'success',
+          timer: 2000,
+          showConfirmButton: false,
+        });
+      } else {
+        await Swal.fire({
+          title: t('exportFailed', 'applicants'),
+          text: t('failedToExport', 'applicants'),
+          icon: 'error',
+        });
+      }
     } finally {
       if (mountedRef.current) setIsExporting(false);
     }
@@ -1403,7 +1853,56 @@ export default function Applicants({
       .map((reason) => ({ id: reason, title: reason }));
   }, [filteredApplicants, extractRejectionReasons]);
 
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const unfilteredCounts = useMemo(() => {
+    const rows = Array.isArray(applicants) ? applicants : [];
+    const maps: Record<string, Map<string, number>> = {};
+
+    const addToMap = (colId: string, key: string) => {
+      if (!key) return;
+      if (!maps[colId]) maps[colId] = new Map();
+      maps[colId].set(key, (maps[colId].get(key) ?? 0) + 1);
+    };
+
+    const addArrayToMap = (colId: string, keys: string[]) => {
+      keys.forEach((k) => addToMap(colId, k));
+    };
+
+    rows.forEach((a: any) => {
+      // gender
+      const rawGender =
+        a?.gender ||
+        a?.customResponses?.gender ||
+        a?.customResponses?.genderAr ||
+        a?.customResponses?.['النوع'] ||
+        (a as any)['النوع'] ||
+        (a as any)?.genderAr;
+      addToMap('gender', normalizeGender(rawGender));
+
+      // companyId
+      addToMap('companyId', getApplicantCompanyId(a, jobPositionMap) || '');
+
+      // jobPositionId
+      const rawJob = a?.jobPositionId;
+      const getId = (v: any) =>
+        typeof v === 'string' ? v : (v?._id ?? v?.id ?? '');
+      addToMap('jobPositionId', getId(rawJob));
+
+      // status
+      addToMap('status', a?.status?.trim?.() ?? a?.status);
+
+      // rejectionReasons
+      const reasons = extractRejectionReasons(a);
+      if (Array.isArray(reasons) && reasons.length) {
+        addArrayToMap('rejectionReasons', reasons);
+      }
+    });
+
+    return maps;
+  }, [applicants, isSuperAdmin, jobPositionMap]);
+
+  const [isDarkMode, setIsDarkMode] = useState(() =>
+    typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
+  );
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -1419,12 +1918,57 @@ export default function Applicants({
     return () => observer.disconnect();
   }, []);
 
+  const makeExcludableColumnProps = (
+    colId: string,
+    options: { label: string; value: string; companyId?: string; subtitle?: string }[],
+    isArrayColumn = false,
+    label?: string,
+    dependentColumnId?: string
+  ): Partial<MRT_ColumnDef<any>> => ({
+    enableColumnFilter: false,
+    filterSelectOptions: options,
+    filterFn: ((row: any, columnId: string, filterValue: string[]) => {
+      if (!filterValue?.length) return true;
+      const isExclude = (layout.excludeColumns ?? []).includes(colId);
+
+      if (isArrayColumn) {
+        const items: Array<{ name: string }> = row.getValue(columnId) || [];
+        const hasMatch = filterValue.some((fv) =>
+          items.some((item) => item.name === fv)
+        );
+        return isExclude ? !hasMatch : hasMatch;
+      }
+
+      const val: string = row.getValue(columnId);
+      return isExclude
+        ? !filterValue.includes(val)
+        : filterValue.includes(val);
+    }) as MRT_ColumnDef<any>['filterFn'],
+    Header: ({ header, table }: { header: any; column: any; table: any }) => (
+      <FilterHeaderCell
+        header={header}
+        table={table}
+        label={label ?? colId}
+        colId={colId}
+        options={options}
+        isArrayColumn={isArrayColumn}
+        countsMap={unfilteredCounts[colId]}
+        dependentColumnId={dependentColumnId}
+        selectedCompanyFilterValue={selectedCompanyFilterValue}
+        filterValue={header.column.getFilterValue()}
+        excludeColumns={layout.excludeColumns ?? []}
+        saveLayout={saveLayout}
+        isDarkMode={isDarkMode}
+      />
+    ),
+  });
+
   // Build columns
   const columns = useMemo<MRT_ColumnDef<any>[]>(
     () => [
       {
         accessorKey: 'applicantNo',
-        header: isLaptopViewport ? 'ID' : 'ApplicantNo',
+        header: isLaptopViewport ? t('id', 'applicants') : t('applicantNo', 'applicants'),
         size: columnSizeConfig.applicantNo,
         enableColumnFilter: false,
         enableSorting: !duplicatesOnlyEnabled,
@@ -1490,7 +2034,7 @@ export default function Applicants({
       },
       {
         accessorKey: 'profilePhoto',
-        header: 'Photo',
+        header: t('photo', 'applicants'),
         size: columnSizeConfig.profilePhoto,
         enableSorting: false,
         enableColumnFilter: false,
@@ -1503,7 +2047,7 @@ export default function Applicants({
                 e.preventDefault();
                 e.stopPropagation();
                 if (row.original.profilePhoto) {
-                  setPreviewPhoto(row.original.profilePhoto);
+                  setPreviewPhotoUrl(row.original.profilePhoto);
                 } else {
                   handleApplicantLinkClick(e as any, row);
                 }
@@ -1515,7 +2059,7 @@ export default function Applicants({
                   alt={row.original.fullName}
                   onClick={() => {
                     if (row.original.profilePhoto) {
-                      setPreviewPhoto(row.original.profilePhoto);
+                      setPreviewPhotoUrl(row.original.profilePhoto);
                     }
                   }}
                 />
@@ -1526,7 +2070,7 @@ export default function Applicants({
       },
       {
         accessorKey: 'fullName',
-        header: 'Name',
+        header: t('name', 'applicants'),
         size: columnSizeConfig.fullName,
         enableColumnFilter: false,
         enableSorting: true,
@@ -1554,7 +2098,7 @@ export default function Applicants({
                 {orig?.fullName || '-'}
               </a>
               {isDuplicated && (
-                <div title="This applicant has duplicate entries">
+                <div title={t('hasDuplicateEntries', 'applicants')}>
                   <AlertIcon className="h-4 w-4 text-yellow-600 dark:text-yellow-500" />
                 </div>
               )}
@@ -1564,7 +2108,7 @@ export default function Applicants({
       },
       {
         accessorKey: 'email',
-        header: 'Email',
+        header: t('email', 'applicants'),
         size: columnSizeConfig.email,
         enableColumnFilter: false,
         enableSorting: true,
@@ -1584,7 +2128,7 @@ export default function Applicants({
       },
       {
         id: 'messages',
-        header: 'Messages',
+        header: t('messages', 'applicants'),
         size: 90,
         enableSorting: true,
         accessorFn: (row: any) =>
@@ -1612,7 +2156,7 @@ export default function Applicants({
       },
       {
         accessorKey: 'phone',
-        header: 'Phone',
+        header: t('phone', 'applicants'),
         size: columnSizeConfig.phone,
         enableColumnFilter: false,
         enableSorting: true,
@@ -1636,38 +2180,39 @@ export default function Applicants({
           normalizeGender(
             row.gender ||
               row.customResponses?.gender ||
+              row.customResponses?.genderAr ||
               row.customResponses?.['النوع'] ||
               (row as any)['النوع'] ||
+              (row as any)?.genderAr ||
               ''
           ),
-        header: 'Gender',
+        header: t('gender', 'applicants'),
         size: columnSizeConfig.gender,
-        enableColumnFilter: false,
         enableSorting: true,
-        Header: ({ column }: { column: any }) => (
-          <ColumnMultiSelectHeader
-            column={column}
-            label="Gender"
-            options={genderOptions}
-            isLaptopViewport={isLaptopViewport}
-            menuWidth={200}
-            menuMaxHeight={240}
-          />
+        ...makeExcludableColumnProps(
+          'gender',
+          genderOptions.map((o) => ({ label: ['Male', 'Female'].includes(o.title) ? t(o.title.toLowerCase(), 'personalInfo') : o.title, value: o.id })),
+          false,
+          t('gender', 'applicants')
         ),
         filterFn: (row: any, columnId: string, filterValue: any) => {
           if (!filterValue) return true;
           const vals = Array.isArray(filterValue) ? filterValue : [filterValue];
           if (!vals.length) return true;
           const cell = String(row.getValue(columnId) ?? '').toLowerCase().trim();
-          return vals.some((v) => String(v ?? '').toLowerCase().trim() === cell);
+          const matches = vals.some((v) => String(v ?? '').toLowerCase().trim() === cell);
+          const isExclude = (layout.excludeColumns ?? []).includes('gender');
+          return isExclude ? !matches : matches;
         },
         Cell: ({ row }: { row: { original: any } }) => {
           if (isTableLoading) return renderCellSkeleton('text');
           const raw =
             row.original.gender ||
             row.original.customResponses?.gender ||
+            row.original.customResponses?.genderAr ||
             row.original.customResponses?.['النوع'] ||
             (row.original as any)['النوع'] ||
+            (row.original as any)?.genderAr ||
             '';
           const g = normalizeGender(raw);
           return (
@@ -1677,7 +2222,7 @@ export default function Applicants({
               onClick={(e) => handleApplicantLinkClick(e, row)}
               onAuxClick={handleApplicantLinkAuxClick}
             >
-              {g || '-'}
+              {g ? t(g.toLowerCase(), 'personalInfo') : '-'}
             </a>
           );
         },
@@ -1686,21 +2231,16 @@ export default function Applicants({
         ? [
             {
               id: 'companyId',
-              header: 'Company',
+              header: t('company', 'applicants'),
               size: columnSizeConfig.companyId,
-              enableColumnFilter: false,
               enableSorting: true,
               accessorFn: (row: any) =>
                 getApplicantCompanyId(row, jobPositionMap),
-              Header: ({ column }: { column: any }) => (
-                <ColumnMultiSelectHeader
-                  column={column}
-                  label="Company"
-                  options={companyOptions}
-                  isLaptopViewport={isLaptopViewport}
-                  menuWidth={240}
-                  menuMaxHeight={300}
-                />
+              ...makeExcludableColumnProps(
+                'companyId',
+                companyOptions.map((o) => ({ label: o.title, value: o.id })),
+                false,
+                t('company', 'applicants')
               ),
               filterFn: (row: any, columnId: string, filterValue: any) => {
                 if (!filterValue) return true;
@@ -1709,7 +2249,9 @@ export default function Applicants({
                   : [filterValue];
                 if (!vals.length) return true;
                 const cell = String(row.getValue(columnId) ?? '');
-                return vals.includes(cell);
+                const matches = vals.includes(cell);
+                const isExclude = (layout.excludeColumns ?? []).includes('companyId');
+                return isExclude ? !matches : matches;
               },
               Cell: ({ row }: { row: { original: any } }) => {
                 if (isTableLoading) return renderCellSkeleton('text');
@@ -1722,7 +2264,7 @@ export default function Applicants({
                     onClick={(e) => handleApplicantLinkClick(e, row)}
                     onAuxClick={handleApplicantLinkAuxClick}
                   >
-                    {toPlainString(company?.name) || company?.title || 'N/A'}
+                    {toPlainString(company?.name, locale) || company?.title || t('nA', 'applicants')}
                   </a>
                 );
               },
@@ -1731,7 +2273,7 @@ export default function Applicants({
         : []),
       {
         id: 'jobPositionId',
-        header: isLaptopViewport ? 'Job' : 'Job Position',
+        header: isLaptopViewport ? t('job', 'applicants') : t('jobPosition', 'applicants'),
         enableSorting: true,
         accessorFn: (row: any) => {
           const raw = row?.jobPositionId;
@@ -1739,25 +2281,23 @@ export default function Applicants({
             typeof v === 'string' ? v : (v?._id ?? v?.id ?? '');
           return getId(raw);
         },
-        Header: ({ column }: { column: any }) => (
-          <ColumnMultiSelectHeader
-            column={column}
-            label={isLaptopViewport ? 'Job' : 'Job Position'}
-            options={jobOptions}
-            isLaptopViewport={isLaptopViewport}
-            menuWidth={260}
-            menuMaxHeight={280}
-          />
+        ...makeExcludableColumnProps(
+          'jobPositionId',
+          jobPositionFilterOptions,
+          false,
+          isLaptopViewport ? t('job', 'applicants') : t('jobPosition', 'applicants'),
+          'companyId'
         ),
         filterFn: (row: any, columnId: string, filterValue: any) => {
           if (!filterValue) return true;
           const vals = Array.isArray(filterValue) ? filterValue : [filterValue];
           if (!vals.length) return true;
           const cell = String(row.getValue(columnId) ?? '');
-          return vals.includes(cell);
+          const matches = vals.includes(cell);
+          const isExclude = (layout.excludeColumns ?? []).includes('jobPositionId');
+          return isExclude ? !matches : matches;
         },
         size: columnSizeConfig.jobPositionId,
-        enableColumnFilter: false,
         Cell: ({ row }: { row: { original: any } }) => {
           if (isTableLoading) return renderCellSkeleton('text');
           const raw = row.original.jobPositionId;
@@ -1771,9 +2311,9 @@ export default function Applicants({
           const title =
             typeof job?.title === 'string'
               ? job.title
-              : (job?.title?.en ??
-                jobOptions.find((o) => o.id === jobId)?.title ??
-                'N/A');
+              : locale === 'ar'
+                ? (job?.title?.ar || job?.title?.en || jobOptions.find((o) => o.id === jobId)?.title || t('nA', 'applicants'))
+                : (job?.title?.en || job?.title?.ar || jobOptions.find((o) => o.id === jobId)?.title || t('nA', 'applicants'));
           return (
             <a
               href={getApplicantHref(row)}
@@ -1788,7 +2328,7 @@ export default function Applicants({
       },
       {
         id: 'expectedSalary',
-        header: 'Expected Salary',
+        header: t('expectedSalary', 'applicants'),
         size: columnSizeConfig.expectedSalary,
         enableColumnFilter: false,
         enableSorting: true,
@@ -1822,7 +2362,7 @@ export default function Applicants({
       },
       {
         id: 'sscore',
-        header: 'Score',
+        header: t('score', 'applicants'),
         size: columnSizeConfig.sscore,
         enableColumnFilter: false,
         enableSorting: true,
@@ -1852,37 +2392,38 @@ export default function Applicants({
       },
       {
         accessorKey: 'status',
-        header: 'Status',
+        header: t('status', 'applicants'),
         enableSorting: true,
-        Header: ({ column }: { column: any }) => {
+        ...makeExcludableColumnProps(
+          'status',
+          statusFilterOptions.map((o) => ({ label: o.title, value: o.id })),
+          false,
+          'Status'
+        ),
+        Header: ({ header, table }: { header: any; column: any; table: any }) => {
           if (
             effectiveOnlyStatus !== undefined &&
             effectiveOnlyStatus !== null
           ) {
-            return <span className="text-sm font-medium">Status</span>;
+            return <span className="text-sm font-medium">{t('status', 'applicants')}</span>;
           }
           return (
-            <div onClick={(e) => e.stopPropagation()}>
-              <ColumnMultiSelectHeader
-                column={column}
-                label="Status"
-                options={statusFilterOptions}
-                isLaptopViewport={isLaptopViewport}
-                menuWidth={220}
-                menuMaxHeight={240}
-              />
-            </div>
+            <FilterHeaderCell
+              header={header}
+              table={table}
+              label={t('status', 'applicants')}
+              colId="status"
+              options={statusFilterOptions.map((o) => ({ label: o.title, value: o.id }))}
+              countsMap={unfilteredCounts['status']}
+              filterValue={header.column.getFilterValue()}
+              excludeColumns={layout.excludeColumns ?? []}
+              saveLayout={saveLayout}
+              isDarkMode={isDarkMode}
+            />
           );
         },
-        filterFn: (row: any, columnId: string, filterValue: any) => {
-          if (!filterValue) return true;
-          const vals = Array.isArray(filterValue) ? filterValue : [filterValue];
-          if (!vals.length) return true;
-          const cell = String(row.getValue(columnId) ?? '');
-          return vals.includes(cell);
-        },
+        minSize: 180,
         size: columnSizeConfig.status,
-        enableColumnFilter: false,
         Cell: ({ row }: { row: { original: any } }) => {
           if (isTableLoading) return renderCellSkeleton('text', '80px');
 
@@ -1913,7 +2454,7 @@ export default function Applicants({
       },
       {
         id: 'rejectionReasons',
-        header: 'Reasons',
+        header: t('reasons', 'applicants'),
         enableSorting: true,
         enableColumnFilter: true,
         size: 260,
@@ -1926,6 +2467,12 @@ export default function Applicants({
           if (a === b) return 0;
           return a > b ? 1 : -1;
         },
+        ...makeExcludableColumnProps(
+          'rejectionReasons',
+          rejectionReasonsOptions.map((o) => ({ label: o.title, value: o.id })),
+          true,
+          'Reasons'
+        ),
         filterFn: (row: any, columnId: string, filterValue: any) => {
           if (!filterValue) return true;
           const selectedReasons = Array.isArray(filterValue)
@@ -1934,8 +2481,7 @@ export default function Applicants({
           if (selectedReasons.length === 0) return true;
 
           const applicantReasons = row.getValue(columnId) as string[];
-
-          return selectedReasons.some((selectedReason) =>
+          const matches = selectedReasons.some((selectedReason) =>
             applicantReasons.some(
               (applicantReason) =>
                 applicantReason
@@ -1946,17 +2492,9 @@ export default function Applicants({
                   .includes(applicantReason.toLowerCase())
             )
           );
+          const isExclude = (layout.excludeColumns ?? []).includes('rejectionReasons');
+          return isExclude ? !matches : matches;
         },
-        Header: ({ column }: { column: any }) => (
-          <ColumnMultiSelectHeader
-            column={column}
-            label="Reasons"
-            options={rejectionReasonsOptions}
-            isLaptopViewport={isLaptopViewport}
-            menuWidth={260}
-            menuMaxHeight={320}
-          />
-        ),
         Cell: ({ row }: { row: { original: any } }) => {
           if (isTableLoading) return renderCellSkeleton('text');
           const a = row.original || {};
@@ -1982,7 +2520,7 @@ export default function Applicants({
       },
       {
         accessorKey: 'submittedAt',
-        header: 'Submitted',
+        header: t('submitted', 'applicants'),
         Header: ({ column, table }: { column: any; table: any }) => {
           const sortingState = table.getState().sorting;
           const submittedSort = sortingState.find(
@@ -1997,11 +2535,11 @@ export default function Applicants({
           return (
             <button
               onClick={toggle}
-              className="flex items-center gap-1 text-sm font-medium"
+              className="flex flex-1 items-center justify-between gap-1 text-sm font-medium min-w-0"
               type="button"
-              title={desc ? 'Newest' : 'Oldest'}
+              title={desc ? t('newest', 'applicants') : t('oldest', 'applicants')}
             >
-              <span>Submitted</span>
+              <span>{t('submitted', 'applicants')}</span>
               <span className="text-xs">{desc ? '▼' : '▲'}</span>
             </button>
           );
@@ -2036,7 +2574,7 @@ export default function Applicants({
       },
       {
         id: 'actions',
-        header: 'Actions',
+        header: t('actions', 'applicants'),
         size: columnSizeConfig.actions,
         enableColumnFilter: false,
         enableSorting: false,
@@ -2059,23 +2597,49 @@ export default function Applicants({
             return null;
           };
           const hasCv = Boolean(resolveCvPath(orig));
+          const isTrashedApplicant = isTrashed(orig);
+          const previousStatus = getPreviousStatus(orig);
+          const handleRestore = async (e: React.MouseEvent<HTMLButtonElement>) => {
+            e.stopPropagation();
+            const result = await Swal.fire({
+              title: t('restoreTitle', 'applicants'),
+              text: t('restoreText', 'applicants', { status: previousStatus || '' }),
+              icon: 'question',
+              showCancelButton: true,
+              confirmButtonColor: '#22c55e',
+              cancelButtonColor: '#6b7280',
+              confirmButtonText: t('restore', 'applicants'),
+              cancelButtonText: t('cancel', 'applicants'),
+            });
+            if (!result.isConfirmed) return;
+            try {
+              await updateStatus.mutateAsync({ id: orig._id, data: { status: previousStatus } });
+              setRowSelection((prev: any) => {
+                const next = { ...prev };
+                delete next[orig._id];
+                return next;
+              });
+            } catch {
+              // toast handled by mutation
+            }
+          };
           return (
             <div
               onClick={(e) => e.stopPropagation()}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 w-full justify-center"
             >
-              {hasCv ? (
+              {hasCv && (
                 <button
                   type="button"
-                  aria-label="Download CV"
-                  title="Download CV"
+                  aria-label={t('downloadCv', 'applicants')}
+                  title={t('downloadCv', 'applicants')}
                   onClick={async (e) => {
                     e.stopPropagation();
                     await downloadCvForApplicant(orig);
                   }}
                   className="inline-flex items-center justify-center rounded bg-brand-500 p-1 text-white hover:bg-brand-600"
                 >
-                  <span className="sr-only">Download CV</span>
+                  <span className="sr-only">{t('downloadCv', 'applicants')}</span>
                   <svg
                     className="w-4 h-4"
                     viewBox="0 0 24 24"
@@ -2090,8 +2654,31 @@ export default function Applicants({
                     />
                   </svg>
                 </button>
-              ) : (
-                <span className="text-xs text-gray-500">-</span>
+              )}
+              {isTrashedApplicant && canRestore && (
+                <button
+                  type="button"
+                  aria-label={t('restoreApplicant', 'applicants')}
+                  title={t('restoreTo', 'applicants', { status: previousStatus || '' })}
+                  onClick={handleRestore}
+                  disabled={updateStatus.isPending}
+                  className="inline-flex items-center justify-center rounded bg-green-500 p-1 text-white hover:bg-green-600 disabled:opacity-50"
+                >
+                  <span className="sr-only">{t('restore', 'applicants')}</span>
+                  <svg
+                    className="w-4 h-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                    />
+                  </svg>
+                </button>
               )}
             </div>
           );
@@ -2107,8 +2694,13 @@ export default function Applicants({
       showCompanyColumn,
       companyOptions,
       jobOptions,
+      jobPositionFilterOptions,
       statusFilterOptions,
+      filteredJobOptions,
+      rejectionReasonsOptions,
       effectiveOnlyStatus,
+      excludeModes,
+      columnFilters,
       formatDate,
       getExpectedSalaryDisplay,
       getApplicantSScore,
@@ -2117,24 +2709,25 @@ export default function Applicants({
       jobPositionMap,
       companyMap,
       currentUserId,
+      selectedCompanyFilterValue,
+      layout.excludeColumns,
+      saveLayout,
+      canRestore,
+      dir,
+      unfilteredCounts,
+      isDarkMode,
     ]
   );
 
   const muiTheme = useMemo(
     () =>
       createTheme({
+        direction: dir,
         palette: {
           mode: isDarkMode ? 'dark' : 'light',
-          primary: { main: '#e42e2b' },
-          background: {
-            default: isDarkMode ? '#24303F' : '#FFFFFF',
-            paper: isDarkMode ? '#24303F' : '#FFFFFF',
-          },
-          text: {
-            primary: isDarkMode ? '#E4E7EC' : '#101828',
-            secondary: isDarkMode ? '#98A2B3' : '#667085',
-          },
-          divider: isDarkMode ? '#344054' : '#E4E7EC',
+        },
+        typography: {
+          fontFamily: "'Montserrat', sans-serif",
         },
         components: {
           MuiCheckbox: {
@@ -2150,7 +2743,7 @@ export default function Applicants({
           },
         },
       }),
-    [isDarkMode]
+    [isDarkMode, dir]
   );
 
   const skeletonData = useMemo(
@@ -2162,10 +2755,46 @@ export default function Applicants({
     [pagination.pageSize]
   );
 
+  const mrtLocalization = {
+    noRecordsToDisplay: t('noRecordsToDisplay', 'applicants'),
+    rowsPerPage: t('rowsPerPage', 'applicants'),
+    of: t('of', 'applicants'),
+    search: t('search', 'applicants'),
+    clearSearch: t('clearSearch', 'applicants'),
+    showHideColumns: t('showHideColumns', 'applicants'),
+    showHideSearch: t('showHideSearch', 'applicants'),
+    showHideFilters: t('showHideFilters', 'applicants'),
+    hideColumn: t('hideColumn', 'applicants'),
+    showAllColumns: t('showAllColumns', 'applicants'),
+    jumpToPage: t('jumpToPage', 'applicants'),
+    toggleSelectAll: t('toggleSelectAll', 'applicants'),
+    toggleSelectRow: t('toggleSelectRow', 'applicants'),
+    selectedCountOfRowCountRowsSelected: t('selectedCountOfRowCountRowsSelected', 'applicants'),
+    filterByColumn: t('filterByColumn', 'applicants'),
+    globalSearch: t('globalSearch', 'applicants'),
+    columnSearch: t('columnSearch', 'applicants'),
+    hideAll: t('hideAll', 'applicants'),
+    showAll: t('showAll', 'applicants'),
+    columns: t('columns', 'applicants'),
+    pin: t('pin', 'applicants'),
+    pinToLeft: t('pinToLeft', 'applicants'),
+    pinToRight: t('pinToRight', 'applicants'),
+    unpin: t('unpin', 'applicants'),
+    columnActions: t('columnActions', 'applicants'),
+    and: t('and', 'applicants'),
+    noResultsFound: t('noResultsFound', 'applicants'),
+    goToFirstPage: t('goToFirstPage', 'applicants'),
+    goToLastPage: t('goToLastPage', 'applicants'),
+    goToNextPage: t('goToNextPage', 'applicants'),
+    goToPreviousPage: t('goToPreviousPage', 'applicants'),
+  };
+
   const table = useMaterialReactTable({
+    localization: mrtLocalization,
     columns,
-    enableSorting: !duplicatesOnlyEnabled,
+    enableSorting: true,
     data: isTableLoading ? skeletonData : filteredApplicants,
+    enableRowVirtualization: true, // Enable virtual scrolling for better performance
     displayColumnDefOptions: {
       'mrt-row-select': {
         size: selectColumnWidth,
@@ -2176,17 +2805,22 @@ export default function Applicants({
             width: `${selectColumnWidth}px`,
             minWidth: `${selectColumnWidth}px`,
             maxWidth: `${selectColumnWidth}px`,
+            backgroundColor: isDarkMode ? '#374151' : undefined,
+            color: isDarkMode ? '#e5e7eb' : undefined,
           },
         },
-        muiTableBodyCellProps: {
+        muiTableBodyCellProps: ({ row }: any) => ({
           align: 'center',
           sx: {
             padding: 0,
             width: `${selectColumnWidth}px`,
             minWidth: `${selectColumnWidth}px`,
             maxWidth: `${selectColumnWidth}px`,
+            backgroundColor: isDarkMode
+              ? (row.index % 2 === 0 ? '#374151' : '#1f2937')
+              : undefined,
           },
-        },
+        }),
         Cell: ({ row, table }: any) => {
           if (isTableLoading) return null;
           return (
@@ -2208,7 +2842,9 @@ export default function Applicants({
     enableBottomToolbar: true,
     enableTopToolbar: true,
     enableColumnFilters: true,
+    columnFilterDisplayMode: 'popover',
     enableFilters: true,
+    enableGlobalFilter: false,
     enableHiding: true,
     enableDensityToggle: false,
     enableFullScreenToggle: false,
@@ -2216,7 +2852,7 @@ export default function Applicants({
     enableColumnResizing: true,
     layoutMode: 'grid',
     manualPagination: false,
-    manualFiltering: false,
+    manualFiltering: true,
     manualSorting: false,
     rowCount: isTableLoading ? skeletonData.length : filteredApplicants.length,
     initialState: {
@@ -2249,7 +2885,10 @@ export default function Applicants({
     },
     onSortingChange: setSorting,
     onPaginationChange: setPagination,
-    onColumnFiltersChange: setColumnFilters,
+    onColumnFiltersChange: (updater) => {
+      const next = typeof updater === 'function' ? updater(columnFilters) : updater;
+      setColumnFilters(next);
+    },
     onRowSelectionChange: setRowSelection,
     onColumnVisibilityChange: (updater) => {
       const next =
@@ -2271,6 +2910,34 @@ export default function Applicants({
     renderTopToolbarCustomActions: () => (
       <div className="flex items-center p-2 w-full justify-between">
         <div className="flex items-center gap-2">
+          <div className="relative flex items-center">
+            <svg
+              className="absolute left-2.5 h-4 w-4 text-gray-400 pointer-events-none"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              value={globalFilter}
+              onChange={(e) => setGlobalFilter(e.target.value)}
+              placeholder={t('search', 'applicants')}
+              className="w-40 lg:w-56 rounded-lg border border-gray-300 bg-white py-1.5 pl-8 pr-3 text-sm text-gray-700 placeholder-gray-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:placeholder-gray-500"
+            />
+            {globalFilter && (
+              <button
+                type="button"
+                onClick={() => setGlobalFilter('')}
+                className="absolute right-1.5 flex h-5 w-5 items-center justify-center rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
           <button
             type="button"
             onClick={() => {
@@ -2288,7 +2955,7 @@ export default function Applicants({
                     fieldId: '__duplicates_only',
                     value: true,
                     type: 'boolean',
-                    label: 'Show Duplicates Only',
+                    label: t('showDuplicatesOnly', 'applicants'),
                   },
                 ]);
               }
@@ -2308,7 +2975,7 @@ export default function Applicants({
                 d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"
               />
             </svg>
-            {duplicatesOnlyEnabled ? 'Duplicates Only' : 'Show Duplicates'}
+            {duplicatesOnlyEnabled ? t('duplicatesOnly', 'applicants') : t('showDuplicates', 'applicants')}
           </button>
           {duplicatesOnlyEnabled && (
             <span className="text-xs text-amber-600 dark:text-amber-400">
@@ -2324,99 +2991,166 @@ export default function Applicants({
                 const duplicateCount = Array.from(
                   duplicateLookup.values()
                 ).filter((d) => d.isDuplicate === true).length;
-                return `${duplicateCount} duplicate applicant(s) found`;
+                return t('duplicateCount', 'applicants', { count: duplicateCount });
               })()}
             </span>
           )}
         </div>
         <div className="flex-1" />
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 self-start">
           <button
             type="button"
             onClick={() => setCustomFilterOpen(true)}
             className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-3 py-1 text-sm font-semibold text-white shadow-sm hover:bg-brand-600"
           >
-            Filter Settings
+            {t('filterSettings', 'applicants')}
           </button>
         </div>
       </div>
     ),
-    muiTablePaperProps: {
+    muiTopToolbarProps: {
       sx: {
-        backgroundColor: isDarkMode ? '#24303F' : '#FFFFFF',
-        backgroundImage: 'none',
-
-        overflow: 'hidden',
-        boxShadow: 'none',
-        margin: 0,
+        backgroundColor: isDarkMode ? '#1f2937' : undefined,
+        color: isDarkMode ? '#e5e7eb' : undefined,
+        '& .MuiInputBase-root': {
+          color: isDarkMode ? '#e5e7eb' : undefined,
+        },
+        '& .MuiInputBase-input': {
+          color: isDarkMode ? '#e5e7eb' : undefined,
+        },
+        '& .MuiSvgIcon-root': {
+          color: isDarkMode ? '#9ca3af' : undefined,
+        },
       },
     },
-    muiTableContainerProps: { 
-      sx: { 
-        overflowX: 'auto',
-        width: '100%',
-        minWidth: 0,
+    muiBottomToolbarProps: {
+      sx: {
+        backgroundColor: isDarkMode ? '#1f2937' : undefined,
+        color: isDarkMode ? '#e5e7eb' : undefined,
+        '& .MuiSvgIcon-root': {
+          color: isDarkMode ? '#9ca3af' : undefined,
+        },
+        '& .MuiTablePagination-toolbar': {
+          color: isDarkMode ? '#e5e7eb' : undefined,
+        },
+      },
+    },
+    muiTablePaperProps: {
+      elevation: 0,
+      sx: {
+        backgroundColor: isDarkMode ? '#1f2937' : undefined,
+      },
+    },
+    muiTableProps: {
+      sx: {
+        backgroundColor: isDarkMode ? '#1f2937' : undefined,
+      },
+    },
+    muiTableContainerProps: {
+      sx: {
         '&::-webkit-scrollbar': {
-          height: '8px',
+          width: '6px',
+          height: '6px',
         },
         '&::-webkit-scrollbar-track': {
-          background: isDarkMode ? '#1C2434' : '#F1F5F9',
-          borderRadius: '4px',
+          backgroundColor: isDarkMode ? '#1f2937' : undefined,
         },
         '&::-webkit-scrollbar-thumb': {
-          background: isDarkMode ? '#475569' : '#CBD5E1',
-          borderRadius: '4px',
+          backgroundColor: isDarkMode ? '#4b5563' : undefined,
+          borderRadius: '3px',
         },
-        '&::-webkit-scrollbar-thumb:hover': {
-          background: isDarkMode ? '#64748B' : '#94A3B8',
-        },
-      } 
+      },
     },
-   muiTableProps: {
-  sx: {
-    backgroundColor: isDarkMode ? '#24303F' : '#FFFFFF',
-    fontFamily: "'Cairo', Outfit, system-ui",
-    fontSize: '0.82rem',
-  },
-},
-    muiTableBodyCellProps: {
+    muiTableBodyCellProps: () => ({
       sx: {
-        backgroundColor: isDarkMode ? '#24303F' : '#FFFFFF',
-        color: isDarkMode ? '#E4E7EC' : '#101828',
-        borderColor: isDarkMode ? '#344054' : '#E4E7EC',
-        verticalAlign: 'middle',
+        whiteSpace: 'nowrap',
         overflow: 'hidden',
-        whiteSpace: 'nowrap',
-        fontSize: isLaptopViewport ? '0.76rem' : '0.8rem',
-        padding: isLaptopViewport ? '5px 6px' : '6px 8px',
+        textOverflow: 'ellipsis',
+        color: isDarkMode ? '#e5e7eb' : '#282828',
+        borderBottom: isDarkMode ? '1px solid #374151' : undefined,
       },
-    },
-    muiTableHeadCellProps: {
+    }),
+    muiTableHeadCellProps: ({ column }) => ({
       sx: {
-        backgroundColor: isDarkMode ? '#1C2434' : '#F9FAFB',
-        color: isDarkMode ? '#E4E7EC' : '#344054',
-        fontWeight: 600,
-        fontSize: isLaptopViewport ? '0.74rem' : '0.78rem',
-        padding: isLaptopViewport ? '7px 6px' : '8px 8px',
-        whiteSpace: 'nowrap',
+        height: '50px',
+        fontWeight: 'bold',
+        position: 'relative',
+        overflow: 'visible',
+        color: isDarkMode ? '#e5e7eb' : undefined,
+        backgroundColor: isDarkMode ? '#374151' : undefined,
+        borderBottom: isDarkMode ? '1px solid #4b5563' : undefined,
+        '& .MuiTableSortLabel-icon': { display: 'none' },
+        '& .MuiBadge-root': { display: 'none' },
+        '& .Mui-TableHeadCell-Content': {
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+        },
+        '& .Mui-TableHeadCell-Content-Labels': {
+          display: 'flex',
+          alignItems: 'center',
+          flex: 1,
+          minWidth: 0,
+          overflow: 'visible',
+        },
+        '& .Mui-TableHeadCell-Content-Actions': {
+          display: 'flex',
+          alignItems: 'center',
+          flex: '0 0 0',
+          width: 0,
+          minWidth: 0,
+          padding: 0,
+          overflow: 'hidden',
+        },
       },
-    },
-    muiTableBodyRowProps: () => ({
+      onMouseDown: (e) => {
+        if ((e.target as HTMLElement).closest('button')) return;
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const currentCell = e.currentTarget as HTMLElement;
+        const onMouseUp = (upEvent: MouseEvent) => {
+          const dx = Math.abs(upEvent.clientX - startX);
+          const dy = Math.abs(upEvent.clientY - startY);
+          if (
+            dx < 5 &&
+            dy < 5 &&
+            currentCell.contains(upEvent.target as Node)
+          ) {
+            column.toggleSorting();
+          }
+          document.removeEventListener('mouseup', onMouseUp);
+        };
+        document.addEventListener('mouseup', onMouseUp);
+      },
+    }),
+    muiTableBodyRowProps: ({ row, table }) => ({
       sx: {
-        cursor: 'default',
-        backgroundColor: isDarkMode ? '#24303F' : '#FFFFFF',
-        '&:hover': { backgroundColor: isDarkMode ? '#344054' : '#F9FAFB' },
+        backgroundColor: isDarkMode
+          ? (table.getRowModel().rows.indexOf(row) % 2 === 0
+              ? '#374151'
+              : '#1f2937')
+          : (table.getRowModel().rows.indexOf(row) % 2 === 0
+              ? 'rgba(240, 240, 240, 1)'
+              : 'white'),
+        '& .MuiTableRow-root': {
+          overflow: 'hidden',
+          width: '100%',
+        },
+        '& .MuiCollapse-root': {
+          width: '80%',
+          marginX: 'auto',
+        },
       },
     }),
     getRowId: (row) => row._id,
   });
 
   return (
-    <ThemeProvider theme={muiTheme}>
+    <ThemeProvider theme={muiTheme} key={isDarkMode ? 'dark' : 'light'}>
         <div className="w-full min-w-0">
-        <PageMeta title="Applicants" description="Manage job applicants" />
+        <PageMeta title={t('pageTitle', 'applicants')} description={t('pageDescription', 'applicants')} />
         <PageBreadcrumb
-          pageTitle="Applicants"
+          pageTitle={t('pageTitle', 'applicants')}
           actions={
             <div className="flex flex-wrap items-center gap-2">
               <button
@@ -2440,18 +3174,18 @@ export default function Applicants({
                 {isJobPositionsFetching ||
                 isApplicantsFetching ||
                 isCompaniesFetching
-                  ? 'Updating Data'
-                  : 'Update Data'}
+                  ? t('updatingData', 'applicants')
+                  : t('updateData', 'applicants')}
               </button>
               <div className="text-sm text-gray-500">
-                {elapsed ? `Last Update: ${elapsed}` : 'Not updated yet'}
+                {elapsed ? t('lastUpdate', 'applicants', { time: elapsed }) : t('notUpdatedYet', 'applicants')}
               </div>
             </div>
           }
         />
 <div className="w-full min-w-0">
   <div className="grid gap-6 min-w-0">
-            <ComponentCard title="Job Applicants" desc="View and manage all applicants"  className="overflow-hidden">
+            <ComponentCard title={t('componentTitle', 'applicants')} desc={t('componentDesc', 'applicants')}  className="overflow-hidden">
               <>
                 {error && (
                   <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg">
@@ -2462,7 +3196,7 @@ export default function Applicants({
                 {selectedApplicantCount > 0 && (
                   <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-lg bg-brand-50 px-4 py-3 dark:bg-brand-900/20">
                     <span className="text-sm font-medium text-brand-700 dark:text-brand-300">
-                      {selectedApplicantCount} applicant(s) selected
+                      {t('selectedCount', 'applicants', { count: selectedApplicantCount })}
                     </span>
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
                       <button
@@ -2473,7 +3207,7 @@ export default function Applicants({
                     className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
                   >
                     <FileText className="h-4 w-4" />
-                    {`Send Offer (${selectedApplicantCount})`}
+                    {`${t('sendOffer', 'applicants')} (${selectedApplicantCount})`}
                   </button>
                   <button
                     onClick={() => {
@@ -2483,7 +3217,7 @@ export default function Applicants({
                     className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-50"
                   >
                     <FileSignature className="h-4 w-4" />
-                    {`Send Contract (${selectedApplicantCount})`}
+                    {`${t('sendContract', 'applicants')} (${selectedApplicantCount})`}
                   </button>
                   <button
                         type="button"
@@ -2495,7 +3229,7 @@ export default function Applicants({
                         disabled={isProcessing || selectedApplicantCount === 0}
                         className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:opacity-50"
                       >
-                        {isProcessing ? 'Changing...' : 'Change Status'}
+                        {isProcessing ? t('changing', 'applicants') : t('changeStatus', 'applicants')}
                       </button>
                       <button
                         onClick={handleExportToExcel}
@@ -2516,8 +3250,8 @@ export default function Applicants({
                           />
                         </svg>
                         {isExporting
-                          ? 'Exporting...'
-                          : `Export (${selectedApplicantCount})`}
+                          ? t('exporting', 'applicants')
+                          : `${t('export', 'applicants')} (${selectedApplicantCount})`}
                       </button>
                       <button
                         onClick={() => setShowBulkModal(true)}
@@ -2526,7 +3260,7 @@ export default function Applicants({
                         }
                         className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
                       >
-                        {`Send Mail (${selectedApplicantRecipients.length})`}
+                        {`${t('sendMail', 'applicants')} (${selectedApplicantRecipients.length})`}
                       </button>
                       <button
                         onClick={openBulkInterviewModal}
@@ -2537,16 +3271,27 @@ export default function Applicants({
                         className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-700 disabled:opacity-50"
                       >
                         {isSubmittingBulkInterview
-                          ? 'Scheduling...'
-                          : `Schedule Interviews (${selectedApplicantsForInterview.length})`}
+                          ? t('scheduling', 'applicants')
+                          : `${t('scheduleInterviews', 'applicants')} (${selectedApplicantsForInterview.length})`}
                       </button>
+                      {selectedTrashedApplicants.length > 0 && (
+                        <button
+                          onClick={handleBulkRestore}
+                          className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700"
+                        >
+                          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                          {t('restore', 'applicants')} ({selectedTrashedApplicants.length})
+                        </button>
+                      )}
                       <button
                         onClick={handleBulkDelete}
                         disabled={isDeleting}
                         className="inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-600 disabled:opacity-50"
                       >
                         <TrashBinIcon className="h-4 w-4" />
-                        {isDeleting ? 'Deleting...' : 'Delete'}
+                        {isDeleting ? t('deleting', 'applicants') : t('delete', 'applicants')}
                       </button>
                     </div>
                   </div>
@@ -2560,7 +3305,7 @@ export default function Applicants({
               isOpen={contractModalOpen}
               onClose={() => setContractModalOpen(false)}
               mode="contract"
-              applicantObjects={selectedApplicants} // _id + fullName + email + companyId
+              applicantObjects={selectedApplicants}
               companyId={selectedApplicantCompanyId!}
             />
 
@@ -2568,7 +3313,7 @@ export default function Applicants({
               isOpen={offerModalOpen}
               onClose={() => setOfferModalOpen(false)}
               mode="offer"
-              applicantObjects={selectedApplicants} // _id + fullName + email + companyId
+              applicantObjects={selectedApplicants}
               companyId={selectedApplicantCompanyId!}
             />
                 <BulkMessageModal
@@ -2666,7 +3411,7 @@ export default function Applicants({
                 >
                   <div className="space-y-4">
                     <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                      Interview Email Preview ({bulkInterviewPreviewItems.length})
+                      {t('interviewEmailPreview', 'applicants', { count: bulkInterviewPreviewItems.length })}
                     </h2>
                     <div className="max-h-[70vh] space-y-4 overflow-auto pr-1">
                       {bulkInterviewPreviewItems.map((item, index) => (
@@ -2675,13 +3420,13 @@ export default function Applicants({
                           className="rounded-lg border border-gray-200 p-3 dark:border-gray-700"
                         >
                           <div className="mb-2 text-sm font-semibold text-gray-800 dark:text-white/90">
-                            Applicant #{item.applicantNo} - {item.applicantName}
+                            {t('applicantItem', 'applicants', { no: item.applicantNo, name: item.applicantName })}
                           </div>
                           <div className="mb-3 text-xs text-gray-600 dark:text-gray-300">
                             <span className="mr-4">
-                              To: {item.to || 'No email'}
+                              {t('to', 'applicants')} {item.to || t('noEmail', 'applicants')}
                             </span>
-                            <span>Scheduled: {item.scheduledLabel}</span>
+                            <span>{t('scheduled', 'applicants')} {item.scheduledLabel}</span>
                           </div>
                           <iframe
                             srcDoc={item.html}
@@ -2695,9 +3440,9 @@ export default function Applicants({
                       <button
                         type="button"
                         onClick={() => setShowBulkInterviewPreviewModal(false)}
-                        className="rounded-lg border border-stroke px-4 py-2 hover:bg-gray-100"
+                        className="rounded-lg border border-stroke px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700"
                       >
-                        Close
+                        {t('close', 'applicants')}
                       </button>
                     </div>
                   </div>
@@ -2710,7 +3455,7 @@ export default function Applicants({
                 >
                   <div className="space-y-3">
                     <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                      Preview
+                      {t('preview', 'applicants')}
                     </h2>
                     <div
                       className="border rounded p-2 bg-white dark:bg-gray-800"
@@ -2729,24 +3474,19 @@ export default function Applicants({
           </div>
         </div>
 
-        {previewPhoto && (
+        {previewPhotoUrl && (
           <div
             className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm"
-            onClick={() => setPreviewPhoto(null)}
+            onClick={() => setPreviewPhotoUrl(null)}
           >
             <div className="relative max-h-[90vh] max-w-[90vw] p-4">
               <button
-                onClick={() => setPreviewPhoto(null)}
-                className="absolute -top-2 -right-2 flex h-8 w-8 items-center justify-center rounded-full bg-white text-gray-700 shadow-lg hover:bg-gray-100"
+                onClick={() => setPreviewPhotoUrl(null)}
+                className="absolute -top-2 -right-2 flex h-8 w-8 items-center justify-center rounded-full bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 shadow-lg hover:bg-gray-100 dark:hover:bg-gray-600"
               >
                 ✕
               </button>
-              <img
-                src={previewPhoto}
-                alt="Applicant photo preview"
-                className="max-h-[85vh] max-w-full rounded-lg shadow-2xl"
-                onClick={(e) => e.stopPropagation()}
-              />
+              <PhotoPreviewImage src={previewPhotoUrl} />
             </div>
           </div>
         )}

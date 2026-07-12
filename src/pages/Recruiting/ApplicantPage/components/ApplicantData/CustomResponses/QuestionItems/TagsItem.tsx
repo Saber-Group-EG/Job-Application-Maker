@@ -1,6 +1,7 @@
 // Components/QuestionItems/TagsItem.tsx
 import React, { useState, useRef, useEffect } from 'react';
 import { X } from 'lucide-react';
+import { useLocale } from '../../../../../../../context/LocaleContext';
 import type { TagsQuestion } from '../../../../../../../types/applicants';
 import type { QuestionHandlers } from './types';
 
@@ -8,6 +9,7 @@ export const TagsItem: React.FC<{
   question: TagsQuestion; 
   handlers: Pick<QuestionHandlers, 'isEditable' | 'onTagsChange'>;
 }> = ({ question, handlers }) => {
+  const { t } = useLocale();
   const [inputValue, setInputValue] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -83,7 +85,7 @@ export const TagsItem: React.FC<{
             onChange={(e) => { setInputValue(e.target.value); setShowSuggestions(true); }}
             onKeyDown={handleKeyDown}
             onFocus={() => setShowSuggestions(true)}
-            placeholder={values.length === 0 ? (question.placeholder ?? 'Type and press Enter…') : ''}
+            placeholder={values.length === 0 ? (question.placeholder ?? t('typeAndPressEnter', 'common')) : ''}
             className="flex-1 min-w-[120px] text-sm outline-none bg-transparent py-0.5"
           />
         )}
