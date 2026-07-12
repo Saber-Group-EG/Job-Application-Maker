@@ -2,6 +2,7 @@ import React from 'react';
 import { Modal } from '../ui/modal';
 import Label from '../form/Label';
 import TextArea from '../form/input/TextArea';
+import { useLocale } from '../../context/LocaleContext';
 
 type Props = {
   isOpen: boolean;
@@ -24,27 +25,28 @@ export default function CommentModal({
   handleCommentSubmit,
   isSubmittingComment,
 }: Props) {
+  const { t } = useLocale();
   return (
     <Modal isOpen={isOpen} onClose={() => { onClose(); setCommentError(''); }} className="max-w-2xl p-6" closeOnBackdrop={false}>
       <form onSubmit={handleCommentSubmit} className="space-y-6">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Add Comment</h2>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t('addComment', 'modals')}</h2>
 
         {commentError && (
           <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
             <div className="flex items-start justify-between">
-              <p className="text-sm text-red-600 dark:text-red-400"><strong>Error:</strong> {commentError}</p>
+              <p className="text-sm text-red-600 dark:text-red-400"><strong>{t('error', 'modals')}</strong> {commentError}</p>
               <button type="button" onClick={() => setCommentError('')} className="ml-3 text-red-400 hover:text-red-600 dark:hover:text-red-300">✕</button>
             </div>
           </div>
         )}
 
         <div>
-          <Label htmlFor="comment-text">Comment</Label>
-          <TextArea value={commentForm.text} onChange={(value: any) => setCommentForm({ text: value })} placeholder="Enter your internal comment about this applicant" rows={5} />
+          <Label htmlFor="comment-text">{t('commentLabel', 'modals')}</Label>
+          <TextArea value={commentForm.text} onChange={(value: any) => setCommentForm({ text: value })} placeholder={t('commentPlaceholder', 'modals')} rows={5} />
         </div>
 
         <div className="flex justify-end gap-3">
-          <button type="button" onClick={onClose} className="rounded-lg border border-stroke px-6 py-2 hover:bg-gray-100 dark:border-strokedark dark:hover:bg-gray-800" disabled={isSubmittingComment}>Cancel</button>
+          <button type="button" onClick={onClose} className="rounded-lg border border-stroke px-6 py-2 hover:bg-gray-100 dark:border-strokedark dark:hover:bg-gray-800" disabled={isSubmittingComment}>{t('cancel', 'modals')}</button>
           <button type="submit" className="rounded-lg bg-gray-600 px-6 py-2 text-white hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2" disabled={isSubmittingComment}>
             {isSubmittingComment ? (
               <>
@@ -52,10 +54,10 @@ export default function CommentModal({
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
-                <span>Adding...</span>
+                <span>{t('adding', 'modals')}</span>
               </>
             ) : (
-              <span>Add Comment</span>
+              <span>{t('addComment', 'modals')}</span>
             )}
           </button>
         </div>

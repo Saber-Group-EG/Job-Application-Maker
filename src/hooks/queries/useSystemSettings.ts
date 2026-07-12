@@ -11,6 +11,7 @@ import type {
 import { TableLayout } from '../../types/auth';
 import { ApiError } from "../../services/companiesService";
 import Swal from "../../utils/swal";
+import { useLocale } from "../../context/LocaleContext";
 
 // ===== Query Keys =====
 export const systemSettingsKeys = {
@@ -60,22 +61,24 @@ export function useRecommendedField(fieldId: string, options?: { enabled?: boole
 // ===== Recommended Fields Mutations =====
 export function useCreateRecommendedField() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: (data: CreateRecommendedFieldRequest) => 
       systemSettingsService.createRecommendedField(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: systemSettingsKeys.recommendedFieldsList() });
-      showSuccessToast("Recommended field created successfully");
+      showSuccessToast(t('recommendedFieldCreated', 'common'), t);
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, "Failed to create recommended field");
+      showErrorToast(error.message, t('recommendedFieldCreateFailed', 'common'), t);
     },
   });
 }
 
 export function useUpdateRecommendedField() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: ({ fieldId, data }: { fieldId: string; data: UpdateRecommendedFieldRequest }) =>
@@ -83,16 +86,17 @@ export function useUpdateRecommendedField() {
     onSuccess: (updatedField, { fieldId }) => {
       queryClient.setQueryData(systemSettingsKeys.recommendedField(fieldId), updatedField);
       queryClient.invalidateQueries({ queryKey: systemSettingsKeys.recommendedFieldsList() });
-      showSuccessToast("Recommended field updated successfully");
+      showSuccessToast(t('recommendedFieldUpdated', 'common'), t);
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, "Failed to update recommended field");
+      showErrorToast(error.message, t('recommendedFieldUpdateFailed', 'common'), t);
     },
   });
 }
 
 export function useDeleteRecommendedField() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: (fieldId: string) => systemSettingsService.deleteRecommendedField(fieldId),
@@ -102,10 +106,10 @@ export function useDeleteRecommendedField() {
         return old.filter(field => field.fieldId !== fieldId);
       });
       queryClient.removeQueries({ queryKey: systemSettingsKeys.recommendedField(fieldId) });
-      showSuccessToast("Recommended field deleted successfully");
+      showSuccessToast(t('recommendedFieldDeleted', 'common'), t);
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, "Failed to delete recommended field");
+      showErrorToast(error.message, t('recommendedFieldDeleteFailed', 'common'), t);
     },
   });
 }
@@ -181,9 +185,9 @@ export const useTableLayout = (
 };
 
 // ===== Toast Helpers =====
-function showSuccessToast(message: string) {
+function showSuccessToast(message: string, t: (key: string, ns?: string) => string) {
   Swal.fire({
-    title: "Success",
+    title: t('success', 'common'),
     text: message,
     icon: "success",
     timer: 1500,
@@ -191,9 +195,9 @@ function showSuccessToast(message: string) {
   });
 }
 
-function showErrorToast(message: string, fallback: string) {
+function showErrorToast(message: string, fallback: string, t: (key: string, ns?: string) => string) {
   Swal.fire({
-    title: "Error",
+    title: t('error', 'common'),
     text: message || fallback,
     icon: "error",
   });

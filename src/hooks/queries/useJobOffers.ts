@@ -8,6 +8,7 @@ import {
   BulkCreateJobOfferPayload,
 } from '../../services/jobOffersService';
 import Swal from '../../utils/swal';
+import { useLocale } from '../../context/LocaleContext';
 
 // ===== Query Keys =====
 export const jobOffersKeys = {
@@ -71,30 +72,23 @@ export function useJobOffer(id: string, options?: { enabled?: boolean }) {
 
 export function useCreateJobOffer() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: (payload: CreateJobOfferPayload) =>
       jobOffersService.createOffer(payload),
-    onSuccess: (created) => {
-      queryClient.invalidateQueries({ queryKey: jobOffersKeys.lists() });
-      if (created.isTemplate) {
-        queryClient.invalidateQueries({
-          queryKey: jobOffersKeys.templates(
-            typeof created.companyId === 'string'
-              ? created.companyId
-              : created.companyId._id
-          ),
-        });
-      }
-      showSuccess('Offer created successfully');
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: jobOffersKeys.all }); // ← covers both lists and templates
+      showSuccess(t('offerCreated', 'common'), t);
     },
     onError: (err: ApiError) =>
-      showError(err.message, 'Failed to create offer'),
+      showError(err.message, t('offerCreateFailed', 'common'), t),
   });
 }
 
 export function useUpdateJobOffer() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: ({
@@ -108,15 +102,16 @@ export function useUpdateJobOffer() {
       queryClient.setQueryData(jobOffersKeys.detail(updated._id), updated);
       // invalidate everything under ['jobOffers']
       queryClient.invalidateQueries({ queryKey: jobOffersKeys.all });
-      showSuccess('Offer updated successfully');
+      showSuccess(t('offerUpdated', 'common'), t);
     },
     onError: (err: ApiError) =>
-      showError(err.message, 'Failed to update offer'),
+      showError(err.message, t('offerUpdateFailed', 'common'), t),
   });
 }
 
 export function useUpdateOfferStatus() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: ({ id, status }: { id: string; status: OfferStatus }) =>
@@ -124,15 +119,16 @@ export function useUpdateOfferStatus() {
     onSuccess: (updated) => {
       queryClient.setQueryData(jobOffersKeys.detail(updated._id), updated);
       queryClient.invalidateQueries({ queryKey: jobOffersKeys.lists() });
-      showSuccess('Status updated');
+      showSuccess(t('statusUpdated', 'common'), t);
     },
     onError: (err: ApiError) =>
-      showError(err.message, 'Failed to update status'),
+      showError(err.message, t('statusUpdateFailed', 'common'), t),
   });
 }
 
 export function useCloneJobOffer() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: (id: string) => jobOffersService.cloneOffer(id),
@@ -147,14 +143,15 @@ export function useCloneJobOffer() {
           ),
         });
       }
-      showSuccess('Offer cloned successfully');
+      showSuccess(t('offerCloned', 'common'), t);
     },
-    onError: (err: ApiError) => showError(err.message, 'Failed to clone offer'),
+    onError: (err: ApiError) => showError(err.message, t('offerCloneFailed', 'common'), t),
   });
 }
 
 export function useDeleteJobOffer() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: (id: string) => jobOffersService.deleteOffer(id),
@@ -162,31 +159,33 @@ export function useDeleteJobOffer() {
       queryClient.removeQueries({ queryKey: jobOffersKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: jobOffersKeys.lists() });
       queryClient.invalidateQueries({ queryKey: jobOffersKeys.all });
-      showSuccess('Offer deleted successfully');
+      showSuccess(t('offerDeleted', 'common'), t);
     },
     onError: (err: ApiError) =>
-      showError(err.message, 'Failed to delete offer'),
+      showError(err.message, t('offerDeleteFailed', 'common'), t),
   });
 }
 
 export function useBulkCreateJobOffers() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
+
   return useMutation({
     mutationFn: (payload: BulkCreateJobOfferPayload) =>
       jobOffersService.bulkCreateOffers(payload),
     onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: jobOffersKeys.all });
-      showSuccess(`${created.length} offer(s) created successfully`);
+      showSuccess(t('bulkCreated', 'common', { count: created.length, entity: t('offer', 'common') }), t);
     },
     onError: (err: ApiError) =>
-      showError(err.message, 'Failed to create bulk offers'),
+      showError(err.message, t('bulkOfferCreateFailed', 'common'), t),
   });
 }
 
 // ===== Toast helpers =====
-function showSuccess(message: string) {
+function showSuccess(message: string, t: (key: string, ns?: string) => string) {
   Swal.fire({
-    title: 'Success',
+    title: t('success', 'common'),
     text: message,
     icon: 'success',
     timer: 1400,
@@ -194,6 +193,6 @@ function showSuccess(message: string) {
   });
 }
 
-function showError(message: string, fallback: string) {
-  Swal.fire({ title: 'Error', text: message || fallback, icon: 'error' });
+function showError(message: string, fallback: string, t: (key: string, ns?: string) => string) {
+  Swal.fire({ title: t('error', 'common'), text: message || fallback, icon: 'error' });
 }

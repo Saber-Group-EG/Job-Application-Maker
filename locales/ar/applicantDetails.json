@@ -1,0 +1,18 @@
+{
+  "interviewInvitation": "دعوة مقابلة",
+  "candidate": "مرشح",
+  "inPerson": "شخصي",
+  "enterComment": "يرجى إدخال تعليق.",
+  "applicantNotFound": "المتقدم غير موجود",
+  "couldNotLoadApplicant": "لم نتمكن من تحميل هذا المتقدم.",
+  "retry": "إعادة المحاولة",
+  "backToList": "العودة إلى القائمة",
+  "detailsTab": "التفاصيل",
+  "historyTab": "السجل",
+  "interviewQuestionsTab": "أسئلة المقابلة",
+  "applicantDetails": "تفاصيل المتقدم",
+  "save": "حفظ",
+  "edit": "تعديل",
+  "writeCommentPlaceholder": "اكتب تعليقاً...",
+  "emailPreview": "معاينة البريد الإلكتروني"
+}

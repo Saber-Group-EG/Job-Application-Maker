@@ -17,6 +17,7 @@ export interface TableLayout {
   columnVisibility: Record<string, boolean>;
   columnSizing: Record<string, number>;
   columnOrder: string[];
+  excludeColumns?: string[];
 }
 
 export interface User {

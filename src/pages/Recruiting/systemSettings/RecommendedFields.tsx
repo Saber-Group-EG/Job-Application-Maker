@@ -15,6 +15,7 @@ import {
   useDeleteRecommendedField,
 } from "../../../hooks/queries";
 import type { FieldType } from "../../../types/fieldTypes";
+import { useLocale } from '../../../context/LocaleContext';
 
 type GroupField = {
   fieldId: string;
@@ -51,34 +52,37 @@ type FormField = {
   groupFields?: GroupField[];
 };
 
-const inputTypeOptions = [
-  { value: "text", label: "Text" },
-  { value: "textarea", label: "Text Area" },
-  { value: "number", label: "Number" },
-  { value: "email", label: "Email" },
-  { value: "date", label: "Date" },
-  { value: "radio", label: "Radio" },
-  { value: "dropdown", label: "Dropdown" },
-  { value: "checkbox", label: "Checkbox" },
-  { value: "url", label: "URL" },
-  { value: "tags", label: "Tags" },
-  { value: "repeatable_group", label: "Repeatable Group" },
+const getInputTypeOptions = (t: any) => [
+  { value: "text", label: t('typeText', 'systemSettings') },
+  { value: "textarea", label: t('typeTextArea', 'systemSettings') },
+  { value: "number", label: t('typeNumber', 'systemSettings') },
+  { value: "email", label: t('typeEmail', 'systemSettings') },
+  { value: "date", label: t('typeDate', 'systemSettings') },
+  { value: "radio", label: t('typeRadio', 'systemSettings') },
+  { value: "dropdown", label: t('typeDropdown', 'systemSettings') },
+  { value: "checkbox", label: t('typeCheckbox', 'systemSettings') },
+  { value: "url", label: t('typeUrl', 'systemSettings') },
+  { value: "tags", label: t('typeTags', 'systemSettings') },
+  { value: "repeatable_group", label: t('typeRepeatableGroup', 'systemSettings') },
 ];
 
-const subFieldTypeOptions = [
-  { value: "text", label: "Text" },
-  { value: "textarea", label: "Textarea" },
-  { value: "number", label: "Number" },
-  { value: "email", label: "Email" },
-  { value: "date", label: "Date" },
-  { value: "radio", label: "Radio" },
-  { value: "dropdown", label: "Dropdown" },
-  { value: "checkbox", label: "Checkbox" },
-  { value: "url", label: "URL" },
-  { value: "tags", label: "Tags" },
+const getSubFieldTypeOptions = (t: any) => [
+  { value: "text", label: t('typeText', 'systemSettings') },
+  { value: "textarea", label: t('typeTextArea', 'systemSettings') },
+  { value: "number", label: t('typeNumber', 'systemSettings') },
+  { value: "email", label: t('typeEmail', 'systemSettings') },
+  { value: "date", label: t('typeDate', 'systemSettings') },
+  { value: "radio", label: t('typeRadio', 'systemSettings') },
+  { value: "dropdown", label: t('typeDropdown', 'systemSettings') },
+  { value: "checkbox", label: t('typeCheckbox', 'systemSettings') },
+  { value: "url", label: t('typeUrl', 'systemSettings') },
+  { value: "tags", label: t('typeTags', 'systemSettings') },
 ];
 
 const RecommendedFields = () => {
+  const { t } = useLocale();
+  const inputTypeOptions = getInputTypeOptions(t);
+  const subFieldTypeOptions = getSubFieldTypeOptions(t);
   const { data: recommendedFields = [], isLoading: loading } = useRecommendedFields();
   const createFieldMutation = useCreateRecommendedField();
   const updateFieldMutation = useUpdateRecommendedField();
@@ -149,7 +153,19 @@ const RecommendedFields = () => {
     e.preventDefault();
     const finalFieldId = editFieldId || generateFieldId(form.label);
     
-    // Construct payload as a CreateRecommendedFieldRequest / UpdateRecommendedFieldRequest
+    const pendingChoice = newChoice.trim();
+    const pendingChoiceAr = newChoiceAr.trim();
+    const hasPending = pendingChoice || pendingChoiceAr;
+    const finalOptions = hasPending ? [...(form.options || []), pendingChoice || pendingChoiceAr] : form.options;
+    const finalOptionsAr = hasPending ? [...(form.optionsAr || []), pendingChoiceAr || pendingChoice] : form.optionsAr;
+
+    const buildChoices = (choices?: any[], choicesAr?: any[]) =>
+      (choices || []).map((c: any, i: number) => {
+        const en = typeof c === "string" ? c : (c as any)?.en || "";
+        const ar = (Array.isArray(choicesAr) ? (choicesAr[i] ?? "") : (c as any)?.ar ?? "").toString().trim() || en;
+        return { en, ar };
+      });
+
     const payload: any = {
       fieldId: finalFieldId,
       label: {
@@ -158,8 +174,7 @@ const RecommendedFields = () => {
       },
       inputType: form.type,
       isRequired: form.required,
-      choices: form.options,
-      choicesAr: form.optionsAr,
+      choices: buildChoices(finalOptions, finalOptionsAr),
       minValue: form.validation?.min,
       maxValue: form.validation?.max,
       groupFields: (form.groupFields || []).map(gf => ({
@@ -168,32 +183,33 @@ const RecommendedFields = () => {
           en: typeof gf.label === "string" ? gf.label : (gf.label as any)?.en || "",
           ar: typeof gf.label === "string" ? gf.labelAr || gf.label : (gf.label as any)?.ar || (gf.label as any)?.en || "",
         },
-        choicesAr: gf.choicesAr || gf.choices
+        choices: buildChoices(gf.choices || [], gf.choicesAr)
       }))
     };
 
     try {
       if (editFieldId) {
         await updateFieldMutation.mutateAsync({ fieldId: editFieldId, data: payload });
-        Swal.fire({ title: "Updated", icon: "success", timer: 1000, showConfirmButton: false });
+        Swal.fire({ title: t('updatedSuccess', 'systemSettings'), icon: "success", timer: 1000, showConfirmButton: false });
       } else {
         await createFieldMutation.mutateAsync(payload);
-        Swal.fire({ title: "Created", icon: "success", timer: 1000, showConfirmButton: false });
+        Swal.fire({ title: t('createdSuccess', 'systemSettings'), icon: "success", timer: 1000, showConfirmButton: false });
       }
       resetForm();
     } catch (err: any) {
-      Swal.fire({ title: "Error", text: err.response?.data?.message || "Failed to save field", icon: "error" });
+      Swal.fire({ title: t('saveError', 'systemSettings'), text: err.response?.data?.message || t('saveErrorText', 'systemSettings'), icon: "error" });
     }
   };
 
   const handleDelete = async (fieldId: string) => {
     const result = await Swal.fire({
-      title: "Delete Recommended Field?",
-      text: "This will remove it from the system preset list.",
+      title: t('deleteConfirmTitle', 'systemSettings'),
+      text: t('deleteConfirmText', 'systemSettings'),
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#EF4444",
-      confirmButtonText: "Delete",
+      confirmButtonText: t('deleteConfirmButton', 'systemSettings'),
+      cancelButtonText: t('cancel', 'common'),
       customClass: { popup: "rounded-3xl", confirmButton: "rounded-xl", cancelButton: "rounded-xl" }
     });
     if (!result.isConfirmed) return;
@@ -201,9 +217,9 @@ const RecommendedFields = () => {
     setIsDeletingField(fieldId);
     try {
       await deleteFieldMutation.mutateAsync(fieldId);
-      Swal.fire({ title: "Deleted", icon: "success", timer: 1000, showConfirmButton: false });
+      Swal.fire({ title: t('deletedSuccess', 'systemSettings'), icon: "success", timer: 1000, showConfirmButton: false });
     } catch (err: any) {
-      Swal.fire({ title: "Error", text: "Failed to delete field", icon: "error" });
+      Swal.fire({ title: t('deleteError', 'systemSettings'), text: t('deleteErrorText', 'systemSettings'), icon: "error" });
     } finally {
       setIsDeletingField(null);
     }
@@ -230,32 +246,34 @@ const RecommendedFields = () => {
     });
   };
 
-  if (loading) return <LoadingSpinner fullPage message="Loading system fields..." />;
+  if (loading) return <LoadingSpinner fullPage message={t('loadingMessage', 'systemSettings')} />;
 
   return (
-    <div className="mx-auto max-w-[1200px] space-y-8 pb-20">
-      <PageMeta title="Recommended Fields" description="System preset fields for job applications" />
-      
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <PageBreadcrumb pageTitle="System Presets" />
+    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0F172A] p-4 sm:p-8 text-slate-900 dark:text-slate-100">
+      <PageMeta title={t('metaTitle', 'systemSettings')} description={t('metaDescription', 'systemSettings')} />
+
+      <div className="mx-auto max-w-7xl space-y-8">
+        <PageBreadcrumb pageTitle={t('pageTitle', 'systemSettings')} />
+
         {!showForm && (
-          <button
-            onClick={() => setShowForm(true)}
-            className="inline-flex items-center gap-2 rounded-2xl bg-brand-500 px-6 py-3 text-sm font-bold text-white shadow-xl shadow-brand-500/25 transition-all hover:bg-brand-600 hover:shadow-brand-500/40 active:scale-95"
-          >
-            <PlusIcon className="size-5" />
-            Add New Preset
-          </button>
+          <div className="flex justify-end">
+            <button
+              onClick={() => setShowForm(true)}
+              className="inline-flex items-center gap-2 rounded-2xl bg-brand-500 px-6 py-3 text-sm font-bold text-white shadow-xl shadow-brand-500/25 transition-all hover:bg-brand-600 hover:shadow-brand-500/40 active:scale-95"
+            >
+              <PlusIcon className="size-5" />
+              {t('addNewPreset', 'systemSettings')}
+            </button>
+          </div>
         )}
-      </div>
 
       {showForm && (
         <form onSubmit={handleSave} className="animate-in fade-in slide-in-from-top-4 space-y-8">
           <div className="group relative overflow-hidden rounded-[2rem] border border-gray-200 bg-white p-8 shadow-sm transition-all hover:shadow-md dark:border-gray-800 dark:bg-gray-900">
             <div className="mb-10 flex items-center justify-between">
               <div>
-                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{editFieldId ? "Edit Preset Field" : "Create Preset Field"}</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Configure system-wide reusable field definitions</p>
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{editFieldId ? t('editPresetTitle', 'systemSettings') : t('createPresetTitle', 'systemSettings')}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{t('presetSubtitle', 'systemSettings')}</p>
               </div>
               <button 
                 type="button" 
@@ -269,22 +287,22 @@ const RecommendedFields = () => {
             <div className="space-y-8">
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="label" required>Label (EN)</Label>
+                  <Label htmlFor="label" required>{t('labelEn', 'systemSettings')}</Label>
                   <Input
                     id="label"
                     value={form.label}
                     onChange={(e: any) => handleInputChange("label", e.target.value)}
-                    placeholder="e.g. Passport Number"
+                    placeholder={t('labelEnPlaceholder', 'systemSettings')}
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="labelAr" required className="block w-full text-right">Label (AR)</Label>
+                  <Label htmlFor="labelAr" required className="block w-full text-right">{t('labelAr', 'systemSettings')}</Label>
                   <Input
                     id="labelAr"
                     value={form.labelAr}
                     onChange={(e: any) => handleInputChange("labelAr", e.target.value)}
-                    placeholder="مثال: رقم الجواز"
+                    placeholder={t('labelArPlaceholder', 'systemSettings')}
                     required
                     className="text-right"
                   />
@@ -293,17 +311,17 @@ const RecommendedFields = () => {
 
               <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
                 <div className="space-y-4">
-                  <Label>Behavior</Label>
+                  <Label>{t('behavior', 'systemSettings')}</Label>
                   <div className="rounded-2xl bg-gray-50/50 p-4 dark:bg-gray-800/30">
                     <Switch 
                       checked={form.required} 
                       onChange={(val) => handleInputChange("required", val)} 
-                      label="Mandatory by default"
+                      label={t('mandatoryByDefault', 'systemSettings')}
                     />
                   </div>
                 </div>
                 <div className="space-y-3">
-                  <Label>Data Type</Label>
+                  <Label>{t('dataType', 'systemSettings')}</Label>
                   <Select
                     options={inputTypeOptions}
                     value={form.type}
@@ -315,11 +333,11 @@ const RecommendedFields = () => {
               {form.type === "number" && (
                 <div className="flex gap-4 rounded-2xl border border-blue-100 bg-blue-50/30 p-5 dark:border-blue-900/30 dark:bg-blue-900/10">
                   <div className="flex-1 space-y-2">
-                    <Label>Minimum</Label>
+                    <Label>{t('minimum', 'systemSettings')}</Label>
                     <Input type="number" value={form.validation?.min ?? ""} onChange={(e: any) => handleInputChange("validation", { ...form.validation, min: e.target.value ? Number(e.target.value) : null })} />
                   </div>
                   <div className="flex-1 space-y-2">
-                    <Label>Maximum</Label>
+                    <Label>{t('maximum', 'systemSettings')}</Label>
                     <Input type="number" value={form.validation?.max ?? ""} onChange={(e: any) => handleInputChange("validation", { ...form.validation, max: e.target.value ? Number(e.target.value) : null })} />
                   </div>
                 </div>
@@ -329,17 +347,17 @@ const RecommendedFields = () => {
 
           {(["radio", "dropdown", "checkbox", "tags"].includes(form.type)) && (
             <div className="animate-in slide-in-from-bottom-4 rounded-[2rem] border border-gray-200 bg-white p-8 dark:border-gray-800 dark:bg-gray-900">
-              <h4 className="mb-6 text-xl font-bold">Manage Options</h4>
+              <h4 className="mb-6 text-xl font-bold">{t('manageOptions', 'systemSettings')}</h4>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <Input placeholder="Option (EN)" value={newChoice} onChange={(e: any) => setNewChoice(e.target.value)} />
-                <Input placeholder="Option (AR)" value={newChoiceAr} onChange={(e: any) => setNewChoiceAr(e.target.value)} className="text-right" />
+                <Input placeholder={t('optionEnPlaceholder', 'systemSettings')} value={newChoice} onChange={(e: any) => setNewChoice(e.target.value)} />
+                <Input placeholder={t('optionArPlaceholder', 'systemSettings')} value={newChoiceAr} onChange={(e: any) => setNewChoiceAr(e.target.value)} className="text-right" />
               </div>
               <button 
                 type="button" 
                 onClick={handleAddChoice} 
                 className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-brand-600 hover:text-brand-700"
               >
-                <PlusIcon className="size-4" /> Add Option
+                <PlusIcon className="size-4" /> {t('addOption', 'systemSettings')}
               </button>
 
               <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -352,9 +370,14 @@ const RecommendedFields = () => {
                         return typeof a === 'string' ? a : ((a as any)?.ar || '');
                       })()}</div>
                     </div>
-                    <button type="button" onClick={() => handleInputChange("options", form.options?.filter((_, idx) => idx !== i))} className="text-error-500 hover:bg-error-50 p-2 rounded-lg transition-colors">
-                      <TrashBinIcon className="size-4" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button type="button" onClick={() => { setNewChoice(typeof opt === 'string' ? opt : ((opt as any)?.en || '')); setNewChoiceAr(form.optionsAr?.[i] || ''); handleInputChange("options", form.options?.filter((_, idx) => idx !== i)); handleInputChange("optionsAr", form.optionsAr?.filter((_, idx) => idx !== i)); }} className="text-gray-400 hover:text-brand-600 p-2 rounded-lg transition-colors">
+                        <PencilIcon className="size-4" />
+                      </button>
+                      <button type="button" onClick={() => { handleInputChange("options", form.options?.filter((_, idx) => idx !== i)); handleInputChange("optionsAr", form.optionsAr?.filter((_, idx) => idx !== i)); }} className="text-error-500 hover:bg-error-50 p-2 rounded-lg transition-colors">
+                        <TrashBinIcon className="size-4" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -364,13 +387,13 @@ const RecommendedFields = () => {
           {form.type === "repeatable_group" && (
             <div className="animate-in slide-in-from-bottom-4 rounded-[2rem] border border-gray-200 bg-white p-8 dark:border-gray-800 dark:bg-gray-900">
                <div className="mb-6 flex items-center justify-between">
-                <h4 className="text-xl font-bold">Group Schema</h4>
+                <h4 className="text-xl font-bold">{t('groupSchema', 'systemSettings')}</h4>
                 <button 
                   type="button" 
                   onClick={() => handleInputChange("groupFields", [...(form.groupFields || []), { fieldId: `gf_${Date.now()}`, label: "", inputType: "text", isRequired: false }])}
                   className="inline-flex items-center gap-2 text-sm font-bold text-brand-600"
                 >
-                  <PlusIcon className="size-4" /> Add Nested Field
+                  <PlusIcon className="size-4" /> {t('addNestedField', 'systemSettings')}
                 </button>
                </div>
 
@@ -381,7 +404,7 @@ const RecommendedFields = () => {
                           className="flex cursor-pointer items-center justify-between p-4"
                           onClick={() => toggleSubFieldCollapse(idx)}
                         >
-                          <span className="font-bold text-gray-700 dark:text-gray-300">{typeof gf.label === 'string' ? gf.label : ((gf.label as any)?.en || 'Unnamed Nested Field')} <span className="text-[10px] font-black opacity-50 ml-2 uppercase tracking-widest">{gf.inputType}</span></span>
+                          <span className="font-bold text-gray-700 dark:text-gray-300">{typeof gf.label === 'string' ? gf.label : ((gf.label as any)?.en || t('unnamedNestedField', 'systemSettings'))} <span className="text-[10px] font-black opacity-50 ml-2 uppercase tracking-widest">{gf.inputType}</span></span>
                           <div className="flex items-center gap-2">
                             <button type="button" onClick={(e) => { e.stopPropagation(); handleInputChange("groupFields", form.groupFields?.filter((_, i) => i !== idx)); }} className="p-2 text-gray-400 hover:text-error-600"><TrashBinIcon className="size-4" /></button>
                             <svg className={`size-5 transform transition-transform ${collapsedSubFields.has(idx) ? "" : "rotate-180"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
@@ -389,10 +412,10 @@ const RecommendedFields = () => {
                         </div>
                         {!collapsedSubFields.has(idx) && (
                           <div className="p-5 pt-0 border-t border-gray-100 dark:border-gray-800 grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 animate-in fade-in">
-                            <Input placeholder="Label (EN)" value={typeof gf.label === 'string' ? (gf.label as string) : ((gf.label as any)?.en || '')} onChange={(e: any) => { const next = [...(form.groupFields || [])]; next[idx].label = e.target.value; handleInputChange("groupFields", next); }} />
-                            <Input placeholder="Label (AR)" value={typeof gf.label === 'string' ? (gf.labelAr || '') : ((gf.label as any)?.ar || '')} onChange={(e: any) => { const next = [...(form.groupFields || [])]; next[idx].labelAr = e.target.value; handleInputChange("groupFields", next); }} className="text-right" />
+                            <Input placeholder={t('labelEnPlaceholderShort', 'systemSettings')} value={typeof gf.label === 'string' ? (gf.label as string) : ((gf.label as any)?.en || '')} onChange={(e: any) => { const next = [...(form.groupFields || [])]; next[idx].label = e.target.value; handleInputChange("groupFields", next); }} />
+                            <Input placeholder={t('labelArPlaceholderShort', 'systemSettings')} value={typeof gf.label === 'string' ? (gf.labelAr || '') : ((gf.label as any)?.ar || '')} onChange={(e: any) => { const next = [...(form.groupFields || [])]; next[idx].labelAr = e.target.value; handleInputChange("groupFields", next); }} className="text-right" />
                             <Select options={subFieldTypeOptions} value={gf.inputType} onChange={(val: string) => { const next = [...(form.groupFields || [])]; (next[idx].inputType as any) = val; handleInputChange("groupFields", next); }} />
-                            <div className="pt-2"><Switch checked={gf.isRequired} onChange={(val) => { const next = [...(form.groupFields || [])]; next[idx].isRequired = val; handleInputChange("groupFields", next); }} label="Required" /></div>
+                            <div className="pt-2"><Switch checked={gf.isRequired} onChange={(val) => { const next = [...(form.groupFields || [])]; next[idx].isRequired = val; handleInputChange("groupFields", next); }} label={t('required', 'systemSettings')} /></div>
                           </div>
                         )}
                     </div>
@@ -402,9 +425,9 @@ const RecommendedFields = () => {
           )}
 
           <div className="flex justify-end gap-4">
-            <button type="button" onClick={resetForm} className="rounded-2xl bg-white px-8 py-3 text-sm font-bold text-gray-700 shadow-lg dark:bg-gray-800 dark:text-gray-300">Cancel</button>
+            <button type="button" onClick={resetForm} className="rounded-2xl bg-white px-8 py-3 text-sm font-bold text-gray-700 shadow-lg dark:bg-gray-800 dark:text-gray-300">{t('cancelButton', 'systemSettings')}</button>
             <button type="submit" className="rounded-2xl bg-brand-500 px-10 py-3 text-sm font-bold text-white shadow-xl shadow-brand-500/25 hover:bg-brand-600">
-              {editFieldId ? "Save Changes" : "Create Preset"}
+              {editFieldId ? t('saveChanges', 'systemSettings') : t('createPreset', 'systemSettings')}
             </button>
           </div>
         </form>
@@ -419,15 +442,15 @@ const RecommendedFields = () => {
                   <div className="rounded-xl bg-gray-50 px-2.5 py-1 dark:bg-gray-800">
                     <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{f.inputType.replace("_", " ")}</span>
                   </div>
-                  {f.isRequired && <span className="rounded-full bg-error-50 px-2 py-0.5 text-[10px] font-bold text-error-600 dark:bg-error-500/10">REQUIRED</span>}
+                  {f.isRequired && <span className="rounded-full bg-error-50 px-2 py-0.5 text-[10px] font-bold text-error-600 dark:bg-error-500/10">{t('requiredBadge', 'systemSettings')}</span>}
                 </div>
                 <div>
-                  <h4 className="text-lg font-black text-gray-900 dark:text-white group-hover:text-brand-600 transition-colors capitalize">{typeof f.label === "string" ? f.label : (f.label?.en || "Unnamed")}</h4>
+                  <h4 className="text-lg font-black text-gray-900 dark:text-white group-hover:text-brand-600 transition-colors capitalize">{typeof f.label === "string" ? f.label : (f.label?.en || t('unnamedField', 'systemSettings'))}</h4>
                   <p className="mt-1 text-sm text-gray-400 font-medium" dir="rtl">{typeof f.label === "string" ? f.labelAr : (f.label?.ar || "")}</p>
                 </div>
                 <div className="flex flex-wrap gap-2 text-[11px] font-bold text-gray-500 uppercase tracking-tighter">
-                  {f.choices?.length > 0 && <span>• {f.choices.length} Options</span>}
-                  {f.groupFields?.length > 0 && <span>• {f.groupFields.length} Nested Fields</span>}
+                  {f.choices?.length > 0 && <span>{t('optionsCount', 'systemSettings', { count: f.choices.length })}</span>}
+                  {f.groupFields?.length > 0 && <span>{t('nestedFieldsCount', 'systemSettings', { count: f.groupFields.length })}</span>}
                 </div>
               </div>
               
@@ -438,6 +461,7 @@ const RecommendedFields = () => {
             </div>
           </div>
         ))}
+      </div>
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import SmartText from '../../../../../components/common/SmartText';
+import { useLocale } from '../../../../../context/LocaleContext';
 import type {
   ArrayObjectItemModel,
   CustomResponseEntry,
@@ -271,6 +272,7 @@ const CustomResponseCard = ({
   isGroupFieldExpanded,
   onToggleGroupField,
 }: CustomResponseCardProps) => {
+  const { t } = useLocale();
   const { key, label, value } = entry;
 
   const valueIsArabic = containsArabicInValue(value);
@@ -294,7 +296,7 @@ const CustomResponseCard = ({
             onClick={handleToggleText}
             className="inline-flex items-center gap-2 px-2 py-1 text-xs font-medium rounded bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300"
           >
-            {isTextExpanded ? 'Collapse' : 'Expand'}
+            {isTextExpanded ? t('collapse', 'interview') : t('expand', 'interview')}
             <svg
               className={`w-3 h-3 text-blue-600 dark:text-blue-300 transition-transform ${isTextExpanded ? 'rotate-180' : ''}`}
               fill="none"
@@ -339,6 +341,7 @@ export const CustomResponsesView = ({
   isGroupFieldExpanded,
   onToggleGroupField,
 }: CustomResponsesViewProps) => {
+  const { t } = useLocale();
   return (
     <div className="rounded-2xl overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-900 dark:to-gray-800 border-2 border-blue-200 dark:border-blue-900/50 shadow-lg">
       <div className="bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-700 dark:to-indigo-700 px-8 py-6">
@@ -354,8 +357,8 @@ export const CustomResponsesView = ({
             </svg>
           </div>
           <div>
-            <h3 className="text-2xl font-extrabold text-white">Application Responses</h3>
-            <p className="text-sm text-blue-100 mt-0.5">Custom field responses and additional information</p>
+            <h3 className="text-2xl font-extrabold text-white">{t('applicationResponses', 'personalInfo')}</h3>
+            <p className="text-sm text-blue-100 mt-0.5">{t('customResponsesDesc', 'personalInfo')}</p>
           </div>
         </div>
       </div>

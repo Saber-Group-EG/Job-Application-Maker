@@ -1,4 +1,5 @@
 import { Inbox, Mail, Phone, UserCircle2 } from 'lucide-react';
+import { useLocale } from '../../../../../context/LocaleContext';
 import type { Applicant } from '../../../../../types/applicants';
 import { toPlainString } from '../../../../../utils/strings';
 import { formatDateOnly, getStatusColor } from './historyUtils';
@@ -28,18 +29,21 @@ export default function PreviousEntriesHistory({
   applicants,
   onSelectApplicant,
 }: Props) {
+  const { t, locale } = useLocale();
+
   if (isLoading) {
     return (
       <div className="overflow-hidden rounded-xl border border-gray-100">
         <table className="min-w-full">
           <thead className="bg-gray-50/80 border-b border-gray-100">
             <tr>
-              <th className={TABLE_HEAD_CLASS}>Full Name</th>
-              <th className={TABLE_HEAD_CLASS}>Email</th>
-              <th className={TABLE_HEAD_CLASS}>Phone</th>
-              <th className={TABLE_HEAD_CLASS}>Status</th>
-              <th className={TABLE_HEAD_CLASS}>Applied Date</th>
-              <th className={TABLE_HEAD_CLASS}>Job Position</th>
+              <th className={TABLE_HEAD_CLASS}>{t('fullName', 'history')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('email', 'applicants')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('phone', 'applicants')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('status', 'applicants')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('rejectedReasons', 'history')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('appliedDate', 'history')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('jobPosition', 'applicants')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
@@ -77,9 +81,9 @@ export default function PreviousEntriesHistory({
         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100">
           <Inbox className="h-5 w-5 text-gray-400" />
         </div>
-        <p className="text-sm font-medium text-gray-700">No previous entries</p>
+        <p className="text-sm font-medium text-gray-700">{t('noPreviousEntries', 'history')}</p>
         <p className="text-xs text-gray-400">
-          Other applications with the same phone number will appear here.
+          {t('noPreviousEntriesDesc', 'history')}
         </p>
       </div>
     );
@@ -91,29 +95,34 @@ export default function PreviousEntriesHistory({
         <table className="min-w-full divide-y divide-gray-100">
           <thead className="bg-gray-50/80">
             <tr>
-              <th className={TABLE_HEAD_CLASS}>Full Name</th>
-              <th className={TABLE_HEAD_CLASS}>Email</th>
-              <th className={TABLE_HEAD_CLASS}>Phone</th>
-              <th className={TABLE_HEAD_CLASS}>Status</th>
-              <th className={TABLE_HEAD_CLASS}>Applied Date</th>
-              <th className={TABLE_HEAD_CLASS}>Job Position</th>
+              <th className={TABLE_HEAD_CLASS}>{t('fullName', 'history')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('email', 'applicants')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('phone', 'applicants')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('status', 'applicants')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('rejectedReasons', 'history')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('appliedDate', 'history')}</th>
+              <th className={TABLE_HEAD_CLASS}>{t('jobPosition', 'applicants')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50 bg-white">
             {applicants.map((prev, index) => {
               const status = prev?.status || 'pending';
               const appliedDate =
-                formatDateOnly(prev?.submittedAt) ||
-                formatDateOnly(prev?.createdAt) ||
-                formatDateOnly(prev?.appliedAt);
+                formatDateOnly(prev?.submittedAt, locale) ||
+                formatDateOnly(prev?.createdAt, locale) ||
+                formatDateOnly(prev?.appliedAt, locale);
               const jobPosition =
                 typeof prev?.jobPositionId === 'string'
                   ? prev.jobPositionId
-                  : toPlainString(prev?.jobPositionId?.title);
+                  : toPlainString(prev?.jobPositionId?.title, locale);
+              const rejectReasons = prev?.statusHistory
+                ?.filter((h) => h.status === 'rejected' && h.reasons?.length)
+                .flatMap((h) => h.reasons!)
+                .filter((r, i, a) => a.indexOf(r) === i) ?? [];
 
               return (
                 <tr
-                  key={prev?._id || index}
+                  key={prev?._id || `prev-${index}`}
                   className="group cursor-pointer transition-colors hover:bg-blue-50/40"
                   onClick={() => prev?._id && onSelectApplicant(prev._id)}
                 >
@@ -123,7 +132,7 @@ export default function PreviousEntriesHistory({
                         <UserCircle2 className="h-4 w-4" />
                       </span>
                       <span className="truncate text-blue-600 group-hover:underline">
-                        {prev?.fullName || 'N/A'}
+                        {prev?.fullName || t('nA', 'applicants')}
                       </span>
                     </div>
                   </td>
@@ -157,14 +166,30 @@ export default function PreviousEntriesHistory({
                         status,
                       )}`}
                     >
-                      {status}
+                      {{ pending: t('pending', 'applicants'), interview: t('interview', 'applicants'), interviewed: t('interviewed', 'applicants'), approved: t('approved', 'applicants'), rejected: t('rejected', 'applicants') }[status] || status}
                     </span>
+                  </td>
+                  <td className={BODY_CELL_SECONDARY}>
+                    {status === 'rejected' && rejectReasons.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {rejectReasons.map((reason, i) => (
+                          <span
+                            key={i}
+                            className="inline-flex items-center rounded-md bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-600 ring-1 ring-inset ring-red-200"
+                          >
+                            {reason}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-gray-300">—</span>
+                    )}
                   </td>
                   <td className={BODY_CELL_SECONDARY}>
                     {appliedDate || <span className="text-gray-300">—</span>}
                   </td>
                   <td className={BODY_CELL_SECONDARY}>
-                    <span className="truncate">{jobPosition || 'N/A'}</span>
+                    <span className="truncate">{jobPosition || t('nA', 'applicants')}</span>
                   </td>
                 </tr>
               );

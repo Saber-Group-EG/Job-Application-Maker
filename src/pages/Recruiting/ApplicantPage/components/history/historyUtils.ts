@@ -1,6 +1,8 @@
-export const formatDate = (dateString?: string) => {
+import DOMPurify from 'dompurify';
+
+export const formatDate = (dateString?: string, locale?: string) => {
   if (!dateString) return '';
-  return new Date(dateString).toLocaleString('en-US', {
+  return new Date(dateString).toLocaleString(locale || 'en-US', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -9,9 +11,9 @@ export const formatDate = (dateString?: string) => {
   });
 };
 
-export const formatDateOnly = (dateString?: string) => {
+export const formatDateOnly = (dateString?: string, locale?: string) => {
   if (!dateString) return '';
-  return new Date(dateString).toLocaleDateString('en-US', {
+  return new Date(dateString).toLocaleDateString(locale || 'en-US', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -25,7 +27,7 @@ export const getReadableMessageText = (value?: string) => {
   const decoded = typeof document !== 'undefined'
     ? (() => {
       const textarea = document.createElement('textarea');
-      textarea.innerHTML = rawValue;
+      textarea.innerHTML = DOMPurify.sanitize(rawValue);
       return textarea.value;
     })()
     : rawValue;

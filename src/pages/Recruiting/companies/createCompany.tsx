@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
 import Swal from '../../../utils/swal';
+import { useLocale } from "../../../context/LocaleContext";
 import { useCreateCompany } from "../../../hooks/queries/useCompanies";
 import { companiesKeys } from "../../../hooks/queries/useCompanies";
 import { 
@@ -46,6 +47,7 @@ export default function CreateCompany() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const createCompanyMutation = useCreateCompany();
+  const { t, locale } = useLocale();
   
   const [companyForm, setCompanyForm] = useState<CompanyForm>(defaultCompany);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
@@ -82,8 +84,8 @@ export default function CreateCompany() {
   };
 
   const uploadToCloudinary = async (file: File) => {
-    const CLOUD_NAME = (import.meta.env.VITE_CLOUDINARY_CLOUD_NAME as string) || "175237158579478";
-    const UPLOAD_PRESET = (import.meta.env.VITE_CLOUDINARY_PRESET as string) || "ml_default";
+    const CLOUD_NAME = (import.meta.env.VITE_CLOUDINARY_CLOUD_NAME as string) || "";
+    const UPLOAD_PRESET = (import.meta.env.VITE_CLOUDINARY_PRESET as string) || "";
     const url = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`;
     const formData = new FormData();
     formData.append("file", file);
@@ -101,7 +103,7 @@ export default function CreateCompany() {
       const result: any = await uploadToCloudinary(file);
       setCompanyForm((prev) => ({ ...prev, logoPath: result.secure_url }));
     } catch (err: any) {
-      Swal.fire("Upload Failed", err.message || "Failed to upload logo", "error");
+      Swal.fire(t('uploadFailed', 'companies'), err.message || t('uploadFailedDesc', 'companies'), "error");
     } finally {
       setIsUploadingLogo(false);
     }
@@ -112,8 +114,8 @@ export default function CreateCompany() {
 
     // Show loading toast
     await Swal.fire({
-      title: "Submitting...",
-      text: "Registering new corporate Company",
+      title: t('submitting', 'companies'),
+      text: t('submittingDesc', 'companies'),
       icon: "info",
       showConfirmButton: false,
       timer: 1000
@@ -137,7 +139,7 @@ export default function CreateCompany() {
       await queryClient.invalidateQueries({ queryKey: companiesKeys.list() });
       
       await Swal.fire({
-        title: "Company Created",
+        title: t('companyCreated', 'companies'),
         icon: "success",
         timer: 1500,
         showConfirmButton: false
@@ -154,8 +156,8 @@ export default function CreateCompany() {
       queryClient.setQueryData(companiesKeys.list(), previousCompanies);
       
       await Swal.fire({
-        title: "Registration Failed",
-        text: err.message || "Failed to create company",
+        title: t('registrationFailed', 'companies'),
+        text: err.message || t('registrationFailedDesc', 'companies'),
         icon: "error"
       });
     }
@@ -163,10 +165,11 @@ export default function CreateCompany() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0F172A] p-4 sm:p-8 text-slate-900 dark:text-slate-100">
-      <PageMeta title="New Company | Job Application Maker" description="Register a new company Company" />
-      <PageBreadcrumb pageTitle="New Company registry" />
+      <PageMeta title={t('newPageTitle', 'companies')} description={t('newPageDesc', 'companies')} />
 
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-7xl mx-auto space-y-8">
+        <PageBreadcrumb pageTitle={t('newBreadcrumb', 'companies')} />
+
         {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
           <div className="flex items-center gap-4">
@@ -178,9 +181,9 @@ export default function CreateCompany() {
             </button>
             <div>
               <h1 className="text-3xl font-black bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400 bg-clip-text text-transparent tracking-tight">
-                Company Information
+                {t('companyInformation', 'companies')}
               </h1>
-              <p className="text-gray-500 dark:text-gray-400 font-medium italic">Initialize a new corporate Company within the ecosystem</p>
+              <p className="text-gray-500 dark:text-gray-400 font-medium italic">{t('companyInformationDesc', 'companies')}</p>
             </div>
           </div>
           
@@ -195,7 +198,7 @@ export default function CreateCompany() {
             ) : (
               <Save className="size-5" />
             )}
-            Save Company
+            {t('saveCompany', 'companies')}
           </button>
         </div>
 
@@ -207,32 +210,32 @@ export default function CreateCompany() {
                 <div className="size-10 rounded-xl bg-brand-500/10 flex items-center justify-center text-brand-500">
                   <Building2 className="size-5" />
                 </div>
-                <h2 className="text-xl font-black tracking-tight">Company Profile</h2>
+                <h2 className="text-xl font-black tracking-tight">{t('companyProfile', 'companies')}</h2>
               </div>
 
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
+                  <div className={`space-y-2 ${locale === 'ar' ? 'order-2' : 'order-1'}`}>
                     <label className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
-                      Company Name (English) <span className="text-brand-500">*</span>
+                      {t('companyNameEn', 'companies')} <span className="text-brand-500">*</span>
                     </label>
                     <input
                       required
                       value={companyForm.name.en}
                       onChange={(e) => handleLocalizedChange('name', 'en', e.target.value)}
-                      placeholder="e.g. Acme Corporation"
+                      placeholder={t('companyNameEnPlaceholder', 'companies')}
                       className="w-full px-5 py-3.5 bg-white dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-brand-500/20 outline-none transition-all font-bold"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center justify-end gap-2">
-                      <span className="text-brand-500">*</span> اسم الكيان (بالعربية)
+                  <div className={`space-y-2 ${locale === 'ar' ? 'order-1' : 'order-2'}`}>
+                    <label className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center justify-end gap-2" dir="rtl">
+                      {t('companyNameAr', 'companies')} <span className="text-brand-500">*</span>
                     </label>
                     <input
                       required
                       value={companyForm.name.ar}
                       onChange={(e) => handleLocalizedChange('name', 'ar', e.target.value)}
-                      placeholder="مثال: شركة أكمي"
+                      placeholder={t('companyNameArPlaceholder', 'companies')}
                       dir="rtl"
                       className="w-full px-5 py-3.5 bg-white dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-brand-500/20 outline-none transition-all font-bold"
                     />
@@ -240,12 +243,12 @@ export default function CreateCompany() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-black uppercase tracking-widest text-slate-400">Company Description (English)</label>
+                  <label className="text-xs font-black uppercase tracking-widest text-slate-400">{t('companyDescEn', 'companies')}</label>
                   <textarea
                     rows={4}
                     value={companyForm.description.en}
                     onChange={(e) => handleLocalizedChange('description', 'en', e.target.value)}
-                    placeholder="Describe the company mission and operations..."
+                    placeholder={t('companyDescPlaceholder', 'companies')}
                     className="w-full px-5 py-3.5 bg-white dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-brand-500/20 outline-none transition-all font-medium italic"
                   />
                 </div>
@@ -258,20 +261,20 @@ export default function CreateCompany() {
                   <div className="size-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500">
                     <MapPin className="size-5" />
                   </div>
-                  <h2 className="text-xl font-black tracking-tight">Locations</h2>
+                  <h2 className="text-xl font-black tracking-tight">{t('locations', 'companies')}</h2>
                 </div>
                 <button
                   type="button"
                   onClick={handleAddAddress}
                   className="flex items-center gap-2 px-4 py-2 bg-brand-500/10 text-brand-500 rounded-xl text-xs font-black hover:bg-brand-500 hover:text-white transition-all"
                 >
-                  <Plus className="size-3" /> Add Location
+                  <Plus className="size-3" /> {t('addLocation', 'companies')}
                 </button>
               </div>
 
               <div className="space-y-6">
                 {companyForm.address.map((addr, idx) => (
-                  <div key={idx} className="relative group p-6 border border-slate-200 dark:border-white/5 rounded-[2rem] bg-slate-50/50 dark:bg-white/5 space-y-4">
+                  <div                   key={`addr-${idx}-${addr.en}-${addr.ar}`} className="relative group p-6 border border-slate-200 dark:border-white/5 rounded-[2rem] bg-slate-50/50 dark:bg-white/5 space-y-4">
                     {companyForm.address.length > 1 && (
                       <button
                         type="button"
@@ -282,16 +285,16 @@ export default function CreateCompany() {
                       </button>
                     )}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Street Address (EN)</label>
+                      <div className={`space-y-2 ${locale === 'ar' ? 'order-2' : 'order-1'}`}>
+                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">{t('streetAddressEn', 'companies')}</label>
                         <input
                           value={addr.en}
                           onChange={(e) => handleAddressChange(idx, 'en', e.target.value)}
                           className="w-full bg-transparent border-b border-slate-300 dark:border-white/10 py-1 outline-none focus:border-brand-500 transition-colors font-bold"
                         />
                       </div>
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-right block">Street Address (AR)</label>
+                      <div className={`space-y-2 ${locale === 'ar' ? 'order-1' : 'order-2'}`}>
+                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-right block">{t('streetAddressAr', 'companies')}</label>
                         <input
                           value={addr.ar}
                           dir="rtl"
@@ -301,11 +304,11 @@ export default function CreateCompany() {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Geolocation / Landmarks</label>
+                      <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">{t('geolocation', 'companies')}</label>
                       <input
                         value={addr.location}
                         onChange={(e) => handleAddressChange(idx, 'location', e.target.value)}
-                        placeholder="Google Maps link or landmark notes"
+                        placeholder={t('geolocationPlaceholder', 'companies')}
                         className="w-full bg-transparent border-b border-slate-300 dark:border-white/10 py-1 outline-none focus:border-brand-500 transition-colors font-medium italic"
                       />
                     </div>
@@ -328,7 +331,7 @@ export default function CreateCompany() {
                     )}
                     <label className="absolute inset-0 bg-brand-500/80 text-white flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-all gap-2 p-4">
                       <Upload className="size-6" />
-                      <span className="text-xs font-black uppercase tracking-wider">Update Logo</span>
+                      <span className="text-xs font-black uppercase tracking-wider">{t('updateLogo', 'companies')}</span>
                       <input type="file" className="hidden" accept="image/*" onChange={handleLogoChange} />
                     </label>
                   </div>
@@ -339,8 +342,8 @@ export default function CreateCompany() {
                   )}
                 </div>
                 <div>
-                  <h3 className="text-lg font-black tracking-tight">Brand Company</h3>
-                  <p className="text-xs text-gray-400 mt-1">PNG, JPG or WebP. Max 2MB.</p>
+                  <h3 className="text-lg font-black tracking-tight">{t('brandCompany', 'companies')}</h3>
+                  <p className="text-xs text-gray-400 mt-1">{t('brandSubtext', 'companies')}</p>
                 </div>
               </div>
             </div>
@@ -350,47 +353,47 @@ export default function CreateCompany() {
                 <div className="size-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-500">
                   <Mail className="size-5" />
                 </div>
-                <h2 className="text-xl font-black tracking-tight">Contact</h2>
+                <h2 className="text-xl font-black tracking-tight">{t('contact', 'companies')}</h2>
               </div>
 
               <div className="space-y-6">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">Corporate Email</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">{t('corporateEmail', 'companies')}</label>
                   <div className="relative">
                     <Mail className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
                     <input
                       name="contactEmail"
                       value={companyForm.contactEmail}
                       onChange={handleCompanyChange}
-                      placeholder="hr@acme.com"
+                      placeholder={t('emailPlaceholder', 'companies')}
                       className="w-full pl-11 pr-5 py-3.5 bg-white dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-brand-500/20 outline-none transition-all font-bold"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">Central Switchboard</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">{t('centralSwitchboard', 'companies')}</label>
                   <div className="relative">
                     <Phone className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
                     <input
                       name="phone"
                       value={companyForm.phone}
                       onChange={handleCompanyChange}
-                      placeholder="+966 5..."
+                      placeholder={t('phonePlaceholder', 'companies')}
                       className="w-full pl-11 pr-5 py-3.5 bg-white dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-brand-500/20 outline-none transition-all font-bold"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">Official Website</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">{t('officialWebsite', 'companies')}</label>
                   <div className="relative">
                     <Globe className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
                     <input
                       name="website"
                       value={companyForm.website}
                       onChange={handleCompanyChange}
-                      placeholder="www.acme.com"
+                      placeholder={t('websitePlaceholder', 'companies')}
                       className="w-full pl-11 pr-5 py-3.5 bg-white dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-brand-500/20 outline-none transition-all font-bold"
                     />
                   </div>

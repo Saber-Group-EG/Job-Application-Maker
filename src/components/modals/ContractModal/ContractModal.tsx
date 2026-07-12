@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   X,
   FileSignature,
@@ -7,11 +7,31 @@ import {
   DollarSign,
   Plus,
   StickyNote,
-  Hash,
   Gift,
   Calendar,
   Layers,
+  GripVertical,
+  Languages,
 } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
+  defaultDropAnimationSideEffects,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { createPortal } from 'react-dom';
 import {
   ContractType,
   CreateJobContractPayload,
@@ -39,6 +59,8 @@ import {
 } from '../JobOffersModal/BulkSalaryReview';
 import { ChevronDown } from 'lucide-react';
 import SectionTemplatePicker from '../../form/SectionTemplatePicker';
+import { translateText } from '../../../utils/translate';
+import { useLocale } from '../../../context/LocaleContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -114,13 +136,6 @@ export type FormState = {
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-const CONTRACT_TYPES: { value: ContractType; label: string }[] = [
-  { value: 'permanent', label: 'Permanent' },
-  { value: 'fixed-term', label: 'Fixed-term' },
-  { value: 'freelance', label: 'Freelance' },
-  { value: 'probation', label: 'Probation' },
-];
 
 const CURRENCIES = ['EGP', 'USD', 'EUR', 'SAR', 'AED'];
 
@@ -275,11 +290,35 @@ export default function JobContractModal({
   applicantObjects,
   defaults,
 }: JobContractModalProps) {
+  const { t, locale } = useLocale();
   const [form, setForm] = useState<FormState>(emptyForm);
   const [showSalaryReview, setShowSalaryReview] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [activeBenefitId, setActiveBenefitId] = useState<string | null>(null);
+  const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
+  const [translatingAll, setTranslatingAll] = useState(false);
 
   const firstInputRef = useRef<HTMLInputElement>(null);
+
+  const CONTRACT_TYPES: { value: ContractType; label: string }[] = [
+    { value: 'permanent', label: t('permanent', 'modals') },
+    { value: 'fixed-term', label: t('fixedTerm', 'modals') },
+    { value: 'freelance', label: t('freelance', 'modals') },
+    { value: 'probation', label: t('probation', 'modals') },
+  ];
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const dropAnimation = {
+    sideEffects: defaultDropAnimationSideEffects({
+      styles: { active: { opacity: '0.4' } },
+    }),
+    duration: 200,
+    easing: 'cubic-bezier(0.2, 0, 0, 1)',
+  };
 
   const createMutation = useCreateJobContract();
   const updateMutation = useUpdateJobContract();
@@ -289,6 +328,54 @@ export default function JobContractModal({
     createMutation.isPending ||
     updateMutation.isPending ||
     bulkMutation.isPending;
+
+  // ── Drag handlers ──────────────────────────────────────────────────────────
+
+  const handleBenefitDragStart = useCallback((event: DragStartEvent) => {
+    setActiveBenefitId(event.active.id as string);
+  }, []);
+
+  const handleBenefitDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveBenefitId(null);
+    if (over && active.id !== over.id) {
+      setForm((prev) => {
+        const oldIndex = prev.benefits.findIndex((b) => b._id === active.id);
+        const newIndex = prev.benefits.findIndex((b) => b._id === over.id);
+        if (oldIndex !== -1 && newIndex !== -1) {
+          return { ...prev, benefits: arrayMove(prev.benefits, oldIndex, newIndex) };
+        }
+        return prev;
+      });
+    }
+  }, []);
+
+  const handleBenefitDragCancel = useCallback(() => {
+    setActiveBenefitId(null);
+  }, []);
+
+  const handleSectionDragStart = useCallback((event: DragStartEvent) => {
+    setActiveSectionId(event.active.id as string);
+  }, []);
+
+  const handleSectionDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveSectionId(null);
+    if (over && active.id !== over.id) {
+      setForm((prev) => {
+        const oldIndex = prev.sections.findIndex((s) => s._id === active.id);
+        const newIndex = prev.sections.findIndex((s) => s._id === over.id);
+        if (oldIndex !== -1 && newIndex !== -1) {
+          return { ...prev, sections: arrayMove(prev.sections, oldIndex, newIndex) };
+        }
+        return prev;
+      });
+    }
+  }, []);
+
+  const handleSectionDragCancel = useCallback(() => {
+    setActiveSectionId(null);
+  }, []);
 
   // Template apply
   const applyTemplate = (template: JobContract) => {
@@ -454,10 +541,82 @@ export default function JobContractModal({
     }));
   };
 
+  // Translate All
+  const translateAll = async () => {
+    setTranslatingAll(true);
+    try {
+      const smartTranslate = (en: string, ar: string) =>
+        en.trim()
+          ? translateText(en, 'en', 'ar').then((t) => ({ target: 'ar' as const, text: t }))
+          : ar.trim()
+            ? translateText(ar, 'ar', 'en').then((t) => ({ target: 'en' as const, text: t }))
+            : Promise.resolve(null);
+
+      const pos = await smartTranslate(form.position.en, form.position.ar);
+      const nt = await smartTranslate(form.notes.en, form.notes.ar);
+
+      const sectionResults = await Promise.all(
+        form.sections.map(async (s) => {
+          const title = await smartTranslate(s.title.en, s.title.ar);
+          const items = await Promise.all(
+            s.items.map(async (item) => {
+              const r = await smartTranslate(item.en, item.ar);
+              return r ? { _id: item._id, target: r.target, text: r.text } : null;
+            })
+          );
+          return { _id: s._id, title, items: items.filter(Boolean) as { _id: string; target: 'en' | 'ar'; text: string }[] };
+        })
+      );
+
+      const benefitResults = await Promise.all(
+        form.benefits.map(async (b) => {
+          const label = b.labelEn.trim()
+            ? await translateText(b.labelEn, 'en', 'ar').then((t) => ({ target: 'ar' as const, text: t }))
+            : b.labelAr.trim()
+              ? await translateText(b.labelAr, 'ar', 'en').then((t) => ({ target: 'en' as const, text: t }))
+              : null;
+          const value = await smartTranslate(b.value.en, b.value.ar);
+          return { _id: b._id, label, value };
+        })
+      );
+
+      setForm((prev) => ({
+        ...prev,
+        position: pos && pos.target === 'ar' ? { ...prev.position, ar: pos.text } : pos && pos.target === 'en' ? { ...prev.position, en: pos.text } : prev.position,
+        notes: nt && nt.target === 'ar' ? { ...prev.notes, ar: nt.text } : nt && nt.target === 'en' ? { ...prev.notes, en: nt.text } : prev.notes,
+        sections: prev.sections.map((s) => {
+          const r = sectionResults.find((x) => x._id === s._id);
+          if (!r) return s;
+          return {
+            ...s,
+            title: r.title?.target === 'ar' ? { ...s.title, ar: r.title.text } : r.title?.target === 'en' ? { ...s.title, en: r.title.text } : s.title,
+            items: s.items.map((item) => {
+              const ri = r.items.find((x) => x._id === item._id);
+              if (!ri) return item;
+              return ri.target === 'ar' ? { ...item, ar: ri.text } : { ...item, en: ri.text };
+            }),
+          };
+        }),
+        benefits: prev.benefits.map((b) => {
+          const r = benefitResults.find((x) => x._id === b._id);
+          if (!r) return b;
+          return {
+            ...b,
+            labelEn: r.label?.target === 'en' ? r.label.text : b.labelEn,
+            labelAr: r.label?.target === 'ar' ? r.label.text : b.labelAr,
+            value: r.value?.target === 'ar' ? { ...b.value, ar: r.value.text } : r.value?.target === 'en' ? { ...b.value, en: r.value.text } : b.value,
+          };
+        }),
+      }));
+    } finally {
+      setTranslatingAll(false);
+    }
+  };
+
   // Submit
   const handleSubmit = async () => {
     if (!form.isBulk && !form.position.en.trim() && !form.position.ar.trim()) {
-      Swal.fire('Validation', 'Position title is required.', 'warning');
+      Swal.fire(t('validation', 'modals'), t('validationPositionRequired', 'modals'), 'warning');
       return;
     }
     const base = {
@@ -550,19 +709,19 @@ export default function JobContractModal({
 
   const title = editing
     ? isTemplate
-      ? 'Edit Contract Template'
-      : 'Edit Job Contract'
+      ? t('editContractTemplate', 'modals')
+      : t('editJobContract', 'modals')
     : isTemplate
-      ? 'New Contract Template'
-      : 'New Job Contract';
+      ? t('newContractTemplate', 'modals')
+      : t('newJobContract', 'modals');
 
   const submitLabel = editing
     ? isTemplate
-      ? 'Save Template'
-      : 'Save Contract'
+      ? t('saveTemplate', 'modals')
+      : t('saveContract', 'modals')
     : isTemplate
-      ? 'Create Template'
-      : 'Create Contract';
+      ? t('createTemplate', 'modals')
+      : t('createContract', 'modals');
 
   return (
     <>
@@ -596,18 +755,34 @@ export default function JobContractModal({
                 </h2>
                 <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
                   {isTemplate
-                    ? 'Templates can be reused when creating actual contracts'
-                    : 'Fill in the details for this job contract'}
+                    ? t('templateDesc', 'modals')
+                    : t('contractDesc', 'modals')}
                 </p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:border-slate-700 dark:hover:bg-slate-800"
-            >
-              <X className="size-4" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={translateAll}
+                disabled={translatingAll}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-brand-50 hover:text-brand-600 disabled:opacity-50 dark:border-slate-700 dark:hover:bg-brand-500/10 dark:hover:text-brand-400"
+                title={t('translateAllFields', 'modals')}
+              >
+                {translatingAll ? (
+                  <div className="size-3.5 animate-spin rounded-full border-2 border-slate-400/30 border-t-slate-400" />
+                ) : (
+                  <Languages className="size-3.5" />
+                )}
+                {t('translateAll', 'modals')}
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:border-slate-700 dark:hover:bg-slate-800"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
           </div>
 
           {/* Scrollable body */}
@@ -621,16 +796,15 @@ export default function JobContractModal({
             {mode === 'contract' && !propApplicantId && !editing && (
               <div>
                 <ModalLabel>
-                  Applicant
                   {form.isBulk
-                    ? `s (${form.applicantIds?.length} selected)`
-                    : ''}
+                    ? t('applicantCount', 'modals', { count: form.applicantIds?.length ?? 0 })
+                    : t('applicant', 'modals')}
                 </ModalLabel>
                 {form.isBulk ? (
                   <div className="rounded-lg border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800">
                     <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2 dark:border-slate-700">
                       <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                        {form.applicantIds?.length} applicant(s) selected
+                        {t('applicantCount', 'modals', { count: form.applicantIds?.length ?? 0 })}
                       </p>
                       <button
                         type="button"
@@ -643,7 +817,7 @@ export default function JobContractModal({
                         }
                         className="text-xs text-brand-600 hover:underline dark:text-brand-400"
                       >
-                        Switch to single
+                        {t('switchToSingle', 'modals')}
                       </button>
                     </div>
 
@@ -675,7 +849,7 @@ export default function JobContractModal({
                         onClick={() => setShowSalaryReview((v) => !v)}
                         className="flex w-full items-center justify-between text-xs font-semibold text-brand-600 hover:text-brand-700 dark:text-brand-400"
                       >
-                        <span>Configure individual salaries & positions</span>
+                        <span>{t('configureSalaries', 'modals')}</span>
                         <ChevronDown
                           className={`size-3.5 transition-transform ${showSalaryReview ? 'rotate-180' : ''}`}
                         />
@@ -712,13 +886,13 @@ export default function JobContractModal({
             {/* Core Info */}
             <SectionDivider
               icon={Briefcase}
-              title="Core Information"
-              description="Position title and contract type"
+              title={t('coreInformation', 'modals')}
+              description={t('coreInfoDesc', 'modals')}
             />
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <ModalLabel required>Position Title (EN)</ModalLabel>
+                <ModalLabel required>{t('positionTitleEn', 'modals')}</ModalLabel>
 
                 <input
                   ref={firstInputRef}
@@ -730,12 +904,31 @@ export default function JobContractModal({
                       en: e.target.value,
                     })
                   }
-                  placeholder="e.g. Senior Sales Representative"
+                  placeholder={t('positionEnPlaceholder', 'modals')}
                 />
               </div>
 
               <div>
-                <ModalLabel required>Position Title (AR)</ModalLabel>
+                <div className="flex items-center justify-between">
+                  <ModalLabel required>{t('positionTitleAr', 'modals')}</ModalLabel>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (form.position.en.trim()) {
+                        const t = await translateText(form.position.en, 'en', 'ar');
+                        if (t) set('position', { ...form.position, ar: t });
+                      } else if (form.position.ar.trim()) {
+                        const t = await translateText(form.position.ar, 'ar', 'en');
+                        if (t) set('position', { ...form.position, en: t });
+                      }
+                    }}
+                    disabled={!form.position.en.trim() && !form.position.ar.trim()}
+                    className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
+                    title={form.position.en.trim() ? t('translateEnToAr', 'modals') : t('translateArToEn', 'modals')}
+                  >
+                    <Languages className="size-3" />
+                  </button>
+                </div>
 
                 <input
                   className={inputCls}
@@ -747,12 +940,12 @@ export default function JobContractModal({
                       ar: e.target.value,
                     })
                   }
-                  placeholder="مندوب مبيعات أول"
+                  placeholder={t('positionArPlaceholder', 'modals')}
                 />
               </div>
             </div>
             <div>
-              <ModalLabel required>Contract Type</ModalLabel>
+                <ModalLabel required>{t('contractType', 'modals')}</ModalLabel>
               <select
                 className={selectCls}
                 value={form.contractType}
@@ -760,9 +953,9 @@ export default function JobContractModal({
                   set('contractType', e.target.value as ContractType)
                 }
               >
-                {CONTRACT_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
+                {CONTRACT_TYPES.map((ct) => (
+                  <option key={ct.value} value={ct.value}>
+                    {ct.label}
                   </option>
                 ))}
               </select>
@@ -771,14 +964,14 @@ export default function JobContractModal({
             {/* Dates */}
             <SectionDivider
               icon={Calendar}
-              title="Contract Dates"
-              description="Start date, end date, and probation period"
+              title={t('contractDates', 'modals')}
+              description={t('contractDatesDesc', 'modals')}
             />
 
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <ModalLabel required={mode === 'contract' && !form.isBulk}>
-                  Start Date
+                  {t('startDate', 'modals')}
                 </ModalLabel>
                 <input
                   className={inputCls}
@@ -788,7 +981,7 @@ export default function JobContractModal({
                 />
               </div>
               <div>
-                <ModalLabel>End Date</ModalLabel>
+                <ModalLabel>{t('endDate', 'modals')}</ModalLabel>
                 <input
                   className={inputCls}
                   type="date"
@@ -801,7 +994,7 @@ export default function JobContractModal({
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <ModalLabel>Probation Period</ModalLabel>
+                <ModalLabel>{t('probationPeriod', 'modals')}</ModalLabel>
                 <div className="relative">
                   <Clock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
                   <input
@@ -815,7 +1008,7 @@ export default function JobContractModal({
                         e.target.value === '' ? '' : Number(e.target.value)
                       )
                     }
-                    placeholder="months"
+                    placeholder={t('months', 'modals')}
                   />
                 </div>
               </div>
@@ -823,8 +1016,7 @@ export default function JobContractModal({
                 {form.probationPeriod !== '' &&
                   Number(form.probationPeriod) > 0 && (
                     <p className="mb-2.5 text-xs text-slate-500 dark:text-slate-400">
-                      {Number(form.probationPeriod)} month
-                      {Number(form.probationPeriod) !== 1 ? 's' : ''} probation
+                      {t('monthProbation', 'modals', { count: Number(form.probationPeriod) })}
                     </p>
                   )}
               </div>
@@ -833,13 +1025,13 @@ export default function JobContractModal({
             {/* Salary */}
             <SectionDivider
               icon={DollarSign}
-              title="Salary"
-              description="Basic salary and currency"
+              title={t('basicSalary', 'modals')}
+              description={t('salaryDesc', 'modals')}
             />
 
             <div className="grid grid-cols-[1fr_120px] gap-4">
               <div>
-                <ModalLabel>Basic Salary</ModalLabel>
+                <ModalLabel>{t('basicSalary', 'modals')}</ModalLabel>
                 <div className="relative">
                   <DollarSign className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
                   <input
@@ -861,7 +1053,7 @@ export default function JobContractModal({
                 </div>
               </div>
               <div>
-                <ModalLabel>Currency</ModalLabel>
+                <ModalLabel>{t('currency', 'modals')}</ModalLabel>
                 <select
                   className={selectCls}
                   value={form.salaryCurrency}
@@ -879,49 +1071,120 @@ export default function JobContractModal({
             {/* Benefits */}
             <SectionDivider
               icon={Gift}
-              title="Benefits"
-              description="Health insurance, vacation days, and other perks"
+              title={t('benefits', 'modals')}
+              description={t('benefitsDesc', 'modals')}
             />
 
             <div className="space-y-3">
-              {form.benefits.map((b, idx) => (
-                <BenefitRow
-                  key={b._id}
-                  benefit={b}
-                  index={idx}
-                  onChange={(patch) => patchBenefit(b._id, patch)}
-                  onRemove={() => removeBenefit(b._id)}
-                  onDuplicate={() => duplicateBenefit(b._id)}
-                />
-              ))}
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleBenefitDragStart}
+                onDragEnd={handleBenefitDragEnd}
+                onDragCancel={handleBenefitDragCancel}
+              >
+                <SortableContext
+                  items={form.benefits.map((b) => b._id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {form.benefits.map((b, idx) => (
+                    <BenefitRow
+                      key={b._id}
+                      benefit={b}
+                      index={idx}
+                      onChange={(patch) => patchBenefit(b._id, patch)}
+                      onRemove={() => removeBenefit(b._id)}
+                      onDuplicate={() => duplicateBenefit(b._id)}
+                    />
+                  ))}
+                </SortableContext>
+                {createPortal(
+                  <DragOverlay dropAnimation={dropAnimation}>
+                    {activeBenefitId ? (
+                      (() => {
+                        const b = form.benefits.find((x) => x._id === activeBenefitId);
+                        if (!b) return null;
+                        return (
+                          <div className="rounded-xl border border-brand-400 bg-white p-4 shadow-xl dark:bg-slate-800">
+                            <div className="flex items-center gap-2">
+                              <GripVertical className="size-4 text-brand-500" />
+                              <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                                Benefit {form.benefits.indexOf(b) + 1}
+                              </span>
+                            </div>
+                            <div className="mt-1 text-sm font-medium text-slate-700 dark:text-slate-200">
+                              {b.labelEn || b.labelAr || 'Untitled'}
+                            </div>
+                          </div>
+                        );
+                      })()
+                    ) : null}
+                  </DragOverlay>,
+                  document.body
+                )}
+              </DndContext>
               <button
                 type="button"
                 onClick={addBenefit}
                 className="inline-flex items-center gap-2 rounded-lg border border-dashed border-slate-300 px-3 py-2 text-sm font-semibold text-slate-500 transition hover:border-brand-400 hover:text-brand-600 dark:border-slate-600 dark:text-slate-400 dark:hover:border-brand-500 dark:hover:text-brand-300"
               >
                 <Plus className="size-4" />
-                Add Benefit
+                {t('addBenefit', 'modals')}
               </button>
             </div>
 
             {/* Contract Sections */}
             <SectionDivider
-              icon={Hash}
-              title="Contract Sections"
-              description="Custom bilingual content blocks (terms, responsibilities, etc.)"
+              icon={Layers}
+              title={t('contractSections', 'modals')}
+              description={t('contractSectionsDesc', 'modals')}
             />
 
             <div className="space-y-3">
-              {form.sections.map((s, idx) => (
-                <SectionBlock
-                  key={s._id}
-                  section={s}
-                  index={idx}
-                  onChange={(patch) => patchSection(s._id, patch)}
-                  onRemove={() => removeSection(s._id)}
-                  onDuplicate={() => duplicateSection(s._id)}
-                />
-              ))}
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleSectionDragStart}
+                onDragEnd={handleSectionDragEnd}
+                onDragCancel={handleSectionDragCancel}
+              >
+                <SortableContext
+                  items={form.sections.map((s) => s._id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {form.sections.map((s, idx) => (
+                    <SectionBlock
+                      key={s._id}
+                      section={s}
+                      index={idx}
+                      onChange={(patch) => patchSection(s._id, patch)}
+                      onRemove={() => removeSection(s._id)}
+                      onDuplicate={() => duplicateSection(s._id)}
+                    />
+                  ))}
+                </SortableContext>
+                {createPortal(
+                  <DragOverlay dropAnimation={dropAnimation}>
+                    {activeSectionId ? (
+                      (() => {
+                        const s = form.sections.find((x) => x._id === activeSectionId);
+                        if (!s) return null;
+                        return (
+                          <div className="rounded-xl border border-brand-400 bg-white p-4 shadow-xl dark:bg-slate-800">
+                            <div className="flex items-center gap-2">
+                              <GripVertical className="size-4 text-brand-500" />
+                              <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                                {locale === 'ar' ? (s.title.ar || s.title.en || `Section ${form.sections.indexOf(s) + 1}`) : (s.title.en || s.title.ar || `Section ${form.sections.indexOf(s) + 1}`)}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })()
+                    ) : null}
+                  </DragOverlay>,
+                  document.body
+                )}
+              </DndContext>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -929,7 +1192,7 @@ export default function JobContractModal({
                   className="inline-flex items-center gap-2 rounded-lg border border-dashed border-slate-300 px-3 py-2 text-sm font-semibold text-slate-500 transition hover:border-brand-400 hover:text-brand-600 dark:border-slate-600 dark:text-slate-400 dark:hover:border-brand-500 dark:hover:text-brand-300"
                 >
                   <Plus className="size-4" />
-                  Add Section
+                  {t('addSection', 'modals')}
                 </button>
                 <button
                   type="button"
@@ -937,7 +1200,7 @@ export default function JobContractModal({
                   className="inline-flex items-center gap-2 rounded-lg border border-dashed border-indigo-300 px-3 py-2 text-sm font-semibold text-indigo-500 transition hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-600 dark:border-indigo-500/40 dark:text-indigo-400 dark:hover:border-indigo-400 dark:hover:bg-indigo-500/10"
                 >
                   <Layers className="size-4" />
-                  From Templates
+                  {t('fromTemplates', 'modals')}
                 </button>
               </div>
               <SectionTemplatePicker
@@ -953,13 +1216,13 @@ export default function JobContractModal({
             {/* Internal Notes */}
             <SectionDivider
               icon={StickyNote}
-              title="Internal Notes"
-              description="Only visible to your team"
+              title={t('internalNotes', 'modals')}
+              description={t('internalNotesDesc', 'modals')}
             />
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <ModalLabel>Notes (EN)</ModalLabel>
+                <ModalLabel>{t('notesEn', 'modals')}</ModalLabel>
 
                 <textarea
                   className={`${inputCls} resize-none`}
@@ -971,12 +1234,31 @@ export default function JobContractModal({
                       en: e.target.value,
                     })
                   }
-                  placeholder="Internal notes..."
+                  placeholder={t('notesEnPlaceholder', 'modals')}
                 />
               </div>
 
               <div>
-                <ModalLabel>Notes (AR)</ModalLabel>
+                <div className="flex items-center justify-between">
+                  <ModalLabel>{t('notesAr', 'modals')}</ModalLabel>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (form.notes.en.trim()) {
+                        const t = await translateText(form.notes.en, 'en', 'ar');
+                        if (t) set('notes', { ...form.notes, ar: t });
+                      } else if (form.notes.ar.trim()) {
+                        const t = await translateText(form.notes.ar, 'ar', 'en');
+                        if (t) set('notes', { ...form.notes, en: t });
+                      }
+                    }}
+                    disabled={!form.notes.en.trim() && !form.notes.ar.trim()}
+                    className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
+                    title={form.notes.en.trim() ? t('translateEnToAr', 'modals') : t('translateArToEn', 'modals')}
+                  >
+                    <Languages className="size-3" />
+                  </button>
+                </div>
 
                 <textarea
                   className={`${inputCls} resize-none`}
@@ -989,7 +1271,7 @@ export default function JobContractModal({
                       ar: e.target.value,
                     })
                   }
-                  placeholder="ملاحظات داخلية..."
+                  placeholder={t('notesArPlaceholder', 'modals')}
                 />
               </div>
             </div>
@@ -1004,7 +1286,7 @@ export default function JobContractModal({
                 onClick={onClose}
                 className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
               >
-                Cancel
+                {t('cancel', 'modals')}
               </button>
               <button
                 type="button"

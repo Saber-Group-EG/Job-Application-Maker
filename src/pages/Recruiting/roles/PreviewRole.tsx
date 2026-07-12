@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router";
 import { useAuth } from "../../../context/AuthContext";
+import { useLocale } from "../../../context/LocaleContext";
 import Swal from '../../../utils/swal';
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
@@ -33,6 +34,7 @@ import {
 } from "lucide-react";
 
 export default function PreviewRole() {
+  const { t, locale } = useLocale();
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -47,7 +49,7 @@ export default function PreviewRole() {
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
   const [permissionAccess, setPermissionAccess] = useState<Record<string, string[]>>({});
 
-  const { data: roles = [], isLoading: rolesLoading, error: rolesError } = useRoles();
+  const { data: roles = [], isLoading: rolesLoading, isFetching: rolesFetching, error: rolesError } = useRoles();
   const role: any = Array.isArray(roles)
     ? roles.find((r: any) => r._id === id)
     : ((roles as any)?.data || []).find((r: any) => r._id === id);
@@ -128,8 +130,8 @@ export default function PreviewRole() {
       await updateRoleMutation.mutateAsync({ id: id!, data: payload as any });
       setIsEditing(false);
       Swal.fire({
-        title: "Profile Updated",
-        text: "The role Company has been successfully recalibrated.",
+        title: t('previewUpdatedTitle', 'roles'),
+        text: t('previewUpdatedText', 'roles'),
         icon: "success",
         timer: 1500,
         showConfirmButton: false,
@@ -137,27 +139,28 @@ export default function PreviewRole() {
         backdrop: `rgba(0,0,0,0.4) blur(4px)`
       });
     } catch (err: any) {
-      Swal.fire("Update Failed", err.message || "An error occurred", "error");
+      Swal.fire(t('previewUpdateFailed', 'roles'), err.message || t('previewErrorGeneric', 'roles'), "error");
     }
   };
 
   const handleDelete = async () => {
     const result = await Swal.fire({
-      title: "Decommission Company?",
-      text: "This operation will disconnect all associated users from this role baseline.",
+      title: t('previewDeleteTitle', 'roles'),
+      text: t('previewDeleteText', 'roles'),
       icon: "warning",
       showCancelButton: true,
+      cancelButtonText: t('cancel', 'common'),
       confirmButtonColor: "#ef4444",
-      confirmButtonText: "Decommission"
+      confirmButtonText: t('previewDeleteConfirm', 'roles')
     });
 
     if (result.isConfirmed) {
       try {
         await deleteRoleMutation.mutateAsync(id!);
-        navigate("/roles");
-        Swal.fire({ title: "Decommissioned", icon: "success", timer: 1500, showConfirmButton: false });
+        navigate("/permissions");
+        Swal.fire({ title: t('previewDecommissioned', 'roles'), icon: "success", timer: 1500, showConfirmButton: false });
       } catch (err: any) {
-        Swal.fire("Error", err.message, "error");
+        Swal.fire(t('previewErrorGeneric', 'roles'), err.message, "error");
       }
     }
   };
@@ -165,34 +168,34 @@ export default function PreviewRole() {
   const roleUsers = (Array.isArray(usersData) ? usersData : ((usersData as any)?.data ?? []))
     .filter((u: any) => (u.roleId?._id || u.roleId) === id);
 
-  if (rolesLoading || permissionsLoading || usersLoading) return <LoadingSpinner fullPage />;
+  if (rolesLoading || permissionsLoading || usersLoading || (!role && rolesFetching)) return <LoadingSpinner fullPage />;
   if (rolesError || !role) return (
     <div className="p-8 text-center bg-white/60 dark:bg-white/5 backdrop-blur-xl rounded-[3rem] border border-red-500/20 max-w-2xl mx-auto mt-20">
       <ShieldAlert className="size-16 text-red-500 mx-auto mb-6" />
-      <h2 className="text-2xl font-black text-gray-900 dark:text-white">Company Missing</h2>
-      <p className="text-gray-500 mt-2">The requested role profile could not be located in our repository.</p>
-      <button onClick={() => navigate("/roles")} className="mt-8 px-8 py-3 bg-brand-500 text-white font-bold rounded-2xl shadow-xl shadow-brand-500/20">
-        Return to Repository
+      <h2 className="text-2xl font-black text-gray-900 dark:text-white">{t('previewNotFoundTitle', 'roles')}</h2>
+      <p className="text-gray-500 mt-2">{t('previewNotFoundText', 'roles')}</p>
+      <button onClick={() => navigate("/permissions")} className="mt-8 px-8 py-3 bg-brand-500 text-white font-bold rounded-2xl shadow-xl shadow-brand-500/20">
+        {t('previewReturnButton', 'roles')}
       </button>
     </div>
   );
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0F172A] p-4 sm:p-8 text-slate-900 dark:text-slate-100">
-      <PageMeta title={`Role Detail - ${formData.name}`} description="View and manage role permissions" />
-      <PageBreadcrumb pageTitle="Role Detail" />
+      <PageMeta title={t('previewMetaTitle', 'roles', { name: formData.name })} description={t('previewMetaDescription', 'roles')} />
 
       <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in duration-700">
+        <PageBreadcrumb pageTitle={t('previewPageTitle', 'roles')} />
         {/* Profile Navigation */}
         <div className="flex items-center justify-between">
           <button 
-            onClick={() => navigate("/roles")}
+            onClick={() => navigate("/permissions")}
             className="group flex items-center gap-2 text-gray-400 hover:text-brand-500 transition-all font-bold tracking-tight"
           >
             <div className="size-10 rounded-xl bg-white/60 dark:bg-white/5 backdrop-blur-md border border-white/20 flex items-center justify-center transition-transform group-hover:-translate-x-1 shadow-sm">
               <ChevronLeft className="size-5" />
             </div>
-            Back to Hub
+            {t('previewBackButton', 'roles')}
           </button>
           
           <div className="flex gap-3">
@@ -202,7 +205,7 @@ export default function PreviewRole() {
                 className="flex items-center gap-2 px-6 py-3 bg-brand-500 text-white rounded-[1.25rem] font-bold shadow-xl shadow-brand-500/20 hover:scale-105 transition-all"
               >
                 <Pencil className="size-4" />
-                Edit
+                {t('previewEditButton', 'roles')}
               </button>
             )}
             {!isEditing && canDelete && (
@@ -219,13 +222,13 @@ export default function PreviewRole() {
                   onClick={() => setIsEditing(false)}
                   className="px-6 py-3 text-gray-400 hover:text-gray-900 dark:hover:text-white font-bold transition-colors"
                 >
-                  Cancel
+                  {t('previewCancelButton', 'roles')}
                 </button>
                 <button 
                   onClick={handleSave}
                   className="px-8 py-3 bg-brand-500 text-white rounded-[1.25rem] font-black tracking-widest uppercase shadow-xl shadow-brand-500/20 hover:scale-105 transition-all"
                 >
-                  Save Changes
+                  {t('previewSaveChanges', 'roles')}
                 </button>
               </div>
             )}
@@ -252,7 +255,7 @@ export default function PreviewRole() {
                       value={formData.name}
                       onChange={handleInputChange}
                       className="!text-3xl !font-black !bg-transparent !border-b-2 !border-brand-500 !p-0 focus:!ring-0 transition-all text-gray-900 dark:text-white"
-                      placeholder="Role Name"
+                      placeholder={t('previewRoleNamePlaceholder', 'roles')}
                     />
                     <textarea
                       name="description"
@@ -260,7 +263,7 @@ export default function PreviewRole() {
                       onChange={handleInputChange}
                       rows={2}
                       className="w-full bg-white/40 dark:bg-black/20 border border-white/20 rounded-2xl p-4 text-gray-600 dark:text-gray-300 font-medium focus:ring-2 focus:ring-brand-500/20 outline-none transition-all placeholder:text-gray-400"
-                      placeholder="Describe the operational scope of this Company..."
+                      placeholder={t('previewRoleDescPlaceholder', 'roles')}
                     />
                   </div>
                 ) : (
@@ -270,12 +273,14 @@ export default function PreviewRole() {
                         {formData.name}
                       </h1>
                       <div className="px-3 py-1 bg-brand-500/10 text-brand-500 border border-brand-500/20 rounded-full text-[10px] font-black uppercase tracking-widest">
-                        Core Company
+                        {t('previewCoreRole', 'roles')}
                       </div>
                     </div>
-                    <p className="text-lg text-gray-500 dark:text-gray-400 font-medium leading-relaxed max-w-2xl">
-                      {formData.description || "A foundational access profile designed for specialized platform interaction and enterprise resource management."}
-                    </p>
+                    {formData.description && (
+                      <p className="text-lg text-gray-500 dark:text-gray-400 font-medium leading-relaxed max-w-2xl">
+                        {formData.description}
+                      </p>
+                    )}
                   </>
                 )}
               </div>
@@ -283,15 +288,15 @@ export default function PreviewRole() {
               <div className="flex flex-wrap gap-6 pt-2">
                 <div className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest">
                   <Calendar className="size-4 text-brand-500" />
-                  Deployed: <span className="text-gray-700 dark:text-gray-300">{role.createdAt ? new Date(role.createdAt).toLocaleDateString() : "Historical"}</span>
+                  {t('previewDeployedLabel', 'roles')}: <span className="text-gray-700 dark:text-gray-300">{role.createdAt ? new Date(role.createdAt).toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US') : t('previewHistorical', 'roles')}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest">
                   <Layers className="size-4 text-purple-500" />
-                  Modules: <span className="text-gray-700 dark:text-gray-300">{selectedPermissions.length} Active</span>
+                  {t('previewModulesLabel', 'roles')}: <span className="text-gray-700 dark:text-gray-300">{t('previewModulesCount', 'roles', { count: selectedPermissions.length })}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest">
                   <UserCheck className="size-4 text-blue-500" />
-                  Influence: <span className="text-gray-700 dark:text-gray-300">{roleUsers.length} Users</span>
+                  {t('previewInfluenceLabel', 'roles')}: <span className="text-gray-700 dark:text-gray-300">{t('previewInfluenceCount', 'roles', { count: roleUsers.length })}</span>
                 </div>
               </div>
             </div>
@@ -304,10 +309,10 @@ export default function PreviewRole() {
             <div className="flex items-center justify-between px-4">
               <h2 className="text-xl font-bold flex items-center gap-3">
                 <Lock className="size-5 text-brand-500" />
-                Capabilities Matrix
+                {t('previewCapabilitiesMatrix', 'roles')}
               </h2>
               <span className="text-xs font-black text-gray-400 uppercase tracking-widest">
-                 {selectedPermissions.length} / {permissions.length} Modules Enabled
+                 {t('previewModulesEnabled', 'roles', { selected: selectedPermissions.length, total: permissions.length })}
               </span>
             </div>
 
@@ -332,7 +337,7 @@ export default function PreviewRole() {
                         {isSelected && !isEditing && (
                           <div className="flex items-center gap-1.5 text-brand-500">
                             <CheckCircle2 className="size-4" />
-                            <span className="text-[10px] font-black uppercase tracking-widest">Enabled</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest">{t('previewEnabledLabel', 'roles')}</span>
                           </div>
                         )}
                         {isEditing && (
@@ -347,7 +352,7 @@ export default function PreviewRole() {
                           {perm.name}
                         </h4>
                         <p className="text-[11px] font-medium text-gray-400 line-clamp-1 italic">
-                          {perm.description || "Operational unit access configuration"}
+                          {perm.description || t('previewDefaultPermDesc', 'roles')}
                         </p>
                       </div>
 
@@ -389,17 +394,17 @@ export default function PreviewRole() {
                 <div className="p-3 bg-blue-500/10 rounded-2xl text-blue-500">
                   <Users className="size-6" />
                 </div>
-                <h3 className="text-xl font-bold tracking-tight">Active Reach</h3>
+                <h3 className="text-xl font-bold tracking-tight">{t('previewActiveReach', 'roles')}</h3>
               </div>
 
               <div className="space-y-6">
                 <div className="flex flex-col gap-1 px-4 py-5 bg-blue-500/[0.03] rounded-3xl border border-blue-500/10">
-                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Connected Identities</span>
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t('previewConnectedIdentities', 'roles')}</span>
                   <span className="text-4xl font-black text-blue-600 dark:text-blue-400 tabular-nums">{roleUsers.length}</span>
                 </div>
 
                 <div className="space-y-4">
-                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-4">Primary Stakeholders</span>
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-4">{t('previewPrimaryStakeholders', 'roles')}</span>
                   <div className="space-y-3">
                     {roleUsers.slice(0, 5).map((user: any) => (
                       <div key={user._id} className="flex items-center gap-3 p-3 hover:bg-white/40 dark:hover:bg-white/10 rounded-2xl transition-all group cursor-pointer">
@@ -415,12 +420,12 @@ export default function PreviewRole() {
                     ))}
                     {roleUsers.length > 5 && (
                       <p className="text-center text-[11px] font-bold text-gray-400 pt-2 italic">
-                        + {roleUsers.length - 5} additional users authenticated
+                        {t('previewAdditionalUsers', 'roles', { count: roleUsers.length - 5 })}
                       </p>
                     )}
                     {roleUsers.length === 0 && (
                       <div className="text-center py-6 border-2 border-dashed border-slate-100 dark:border-white/5 rounded-3xl">
-                        <p className="text-xs font-bold text-gray-400">No users currently assigned</p>
+                        <p className="text-xs font-bold text-gray-400">{t('previewNoUsers', 'roles')}</p>
                       </div>
                     )}
                   </div>
@@ -432,9 +437,9 @@ export default function PreviewRole() {
               <div className="absolute -top-10 -right-10 size-32 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700" />
               <div className="relative z-10 space-y-4">
                 <ShieldAlert className="size-10 text-white/50" />
-                <h4 className="text-xl font-black text-white leading-tight">Company Compliance Audit</h4>
+                <h4 className="text-xl font-black text-white leading-tight">{t('previewComplianceAudit', 'roles')}</h4>
                 <p className="text-sm text-brand-50/70 font-medium leading-relaxed">
-                  Modifying this role will immediately impact all connected operational vectors for the {roleUsers.length} assigned users.
+                  {t('previewComplianceText', 'roles', { count: roleUsers.length })}
                 </p>
               </div>
             </div>

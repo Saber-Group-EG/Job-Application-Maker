@@ -1,6 +1,6 @@
 // API Configuration
 export const API_CONFIG = {
-  baseUrl: import.meta.env.VITE_API_BASE_URL || "https://application-maker.onrender.com/api/",
+  baseUrl: import.meta.env.VITE_API_BASE_URL,
 } as const;
 
 // Token storage keys

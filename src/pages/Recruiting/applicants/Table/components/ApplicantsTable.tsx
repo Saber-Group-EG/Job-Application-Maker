@@ -9,6 +9,7 @@ import {
   type MRT_ColumnFiltersState,
 } from 'material-react-table';
 import { ThemeProvider, createTheme } from '@mui/material';
+import { useLocale } from '../../../../../context/LocaleContext';
 
 interface ApplicantsTableProps {
   // Data
@@ -63,12 +64,13 @@ export function ApplicantsTable({
   onColumnSizingChange,
   onColumnOrderChange,
   selectColumnWidth,
-  tableMinWidth,
-  isLaptopViewport,
   duplicatesOnlyEnabled = false,
   renderTopToolbarCustomActions,
 }: ApplicantsTableProps) {
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const { t } = useLocale();
+  const [isDarkMode, setIsDarkMode] = useState(() =>
+    typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
+  );
 
   // Detect dark mode
   useEffect(() => {
@@ -104,109 +106,19 @@ export function ApplicantsTable({
       createTheme({
         palette: {
           mode: isDarkMode ? 'dark' : 'light',
-          primary: {
-            main: '#e42e2b',
-          },
-          background: {
-            default: isDarkMode ? '#24303F' : '#FFFFFF',
-            paper: isDarkMode ? '#24303F' : '#FFFFFF',
-          },
-          text: {
-            primary: isDarkMode ? '#E4E7EC' : '#101828',
-            secondary: isDarkMode ? '#98A2B3' : '#667085',
-          },
-          divider: isDarkMode ? '#344054' : '#E4E7EC',
+        },
+        typography: {
+          fontFamily: "'Montserrat', sans-serif",
         },
         components: {
-          MuiPaper: {
-            styleOverrides: {
-              root: {
-                backgroundColor: isDarkMode ? '#24303F' : '#FFFFFF',
-                backgroundImage: 'none',
-              },
-            },
-          },
-          MuiTable: {
-            styleOverrides: {
-              root: {
-                backgroundColor: isDarkMode ? '#24303F' : '#FFFFFF',
-              },
-            },
-          },
-          MuiTableContainer: {
-            styleOverrides: {
-              root: {
-                backgroundColor: isDarkMode ? '#24303F' : '#FFFFFF',
-              },
-            },
-          },
-          MuiTableBody: {
-            styleOverrides: {
-              root: {
-                backgroundColor: isDarkMode ? '#24303F' : '#FFFFFF',
-              },
-            },
-          },
-          MuiTableHead: {
-            styleOverrides: {
-              root: {
-                backgroundColor: isDarkMode ? '#1C2434' : '#F9FAFB',
-              },
-            },
-          },
-          MuiTableCell: {
-            styleOverrides: {
-              root: {
-                borderColor: isDarkMode ? '#344054' : '#E4E7EC',
-                backgroundColor: isDarkMode ? '#24303F' : '#FFFFFF',
-                color: isDarkMode ? '#E4E7EC' : '#101828',
-              },
-              head: {
-                backgroundColor: isDarkMode ? '#1C2434' : '#F9FAFB',
-                color: isDarkMode ? '#E4E7EC' : '#344054',
-                fontWeight: 600,
-              },
-            },
-          },
-          MuiTableRow: {
-            styleOverrides: {
-              root: {
-                backgroundColor: isDarkMode ? '#24303F' : '#FFFFFF',
-                '&:hover': {
-                  backgroundColor: isDarkMode ? '#344054' : '#F9FAFB',
-                },
-              },
-            },
-          },
-          MuiIconButton: {
-            styleOverrides: {
-              root: {
-                color: isDarkMode ? '#98A2B3' : '#667085',
-              },
-            },
-          },
           MuiCheckbox: {
-            defaultProps: {
-              size: 'large',
-            },
+            defaultProps: { size: 'large' },
             styleOverrides: {
               root: {
                 color: isDarkMode ? '#667085' : '#98A2B3',
                 padding: '2px',
-                '& .MuiSvgIcon-root': {
-                  fontSize: '2rem',
-                },
-                '&.Mui-checked': {
-                  color: '#e42e2b',
-                },
-              },
-            },
-          },
-          MuiToolbar: {
-            styleOverrides: {
-              root: {
-                backgroundColor: isDarkMode ? '#24303F' : '#FFFFFF',
-                color: isDarkMode ? '#E4E7EC' : '#101828',
+                '& .MuiSvgIcon-root': { fontSize: '2rem' },
+                '&.Mui-checked': { color: '#e42e2b' },
               },
             },
           },
@@ -214,6 +126,41 @@ export function ApplicantsTable({
       }),
     [isDarkMode]
   );
+
+  // MRT localization using app locale
+  const mrtLocalization = {
+    noRecordsToDisplay: t('noRecordsToDisplay', 'applicants'),
+    rowsPerPage: t('rowsPerPage', 'applicants'),
+    of: t('of', 'applicants'),
+    search: t('search', 'applicants'),
+    clearSearch: t('clearSearch', 'applicants'),
+    showHideColumns: t('showHideColumns', 'applicants'),
+    showHideSearch: t('showHideSearch', 'applicants'),
+    showHideFilters: t('showHideFilters', 'applicants'),
+    hideColumn: t('hideColumn', 'applicants'),
+    showAllColumns: t('showAllColumns', 'applicants'),
+    jumpToPage: t('jumpToPage', 'applicants'),
+    toggleSelectAll: t('toggleSelectAll', 'applicants'),
+    toggleSelectRow: t('toggleSelectRow', 'applicants'),
+    selectedCountOfRowCountRowsSelected: t('selectedCountOfRowCountRowsSelected', 'applicants'),
+    filterByColumn: t('filterByColumn', 'applicants'),
+    globalSearch: t('globalSearch', 'applicants'),
+    columnSearch: t('columnSearch', 'applicants'),
+    hideAll: t('hideAll', 'applicants'),
+    showAll: t('showAll', 'applicants'),
+    columns: t('columns', 'applicants'),
+    pin: t('pin', 'applicants'),
+    pinToLeft: t('pinToLeft', 'applicants'),
+    pinToRight: t('pinToRight', 'applicants'),
+    unpin: t('unpin', 'applicants'),
+    columnActions: t('columnActions', 'applicants'),
+    and: t('and', 'applicants'),
+    noResultsFound: t('noResultsFound', 'applicants'),
+    goToFirstPage: t('goToFirstPage', 'applicants'),
+    goToLastPage: t('goToLastPage', 'applicants'),
+    goToNextPage: t('goToNextPage', 'applicants'),
+    goToPreviousPage: t('goToPreviousPage', 'applicants'),
+  };
 
   // Create the table instance
   const table = useMaterialReactTable({
@@ -267,6 +214,7 @@ export function ApplicantsTable({
     enableFullScreenToggle: false,
     enableColumnActions: false,
     enableColumnResizing: true,
+    localization: mrtLocalization,
     layoutMode: 'grid',
     manualPagination: false,
     manualFiltering: false,
@@ -300,131 +248,89 @@ export function ApplicantsTable({
     onColumnSizingChange,
     onColumnOrderChange,
     muiTablePaperProps: {
+      elevation: 0,
       sx: {
-        backgroundColor: isDarkMode ? '#24303F' : '#FFFFFF',
-        backgroundImage: 'none',
+        backgroundColor: isDarkMode ? '#121212' : undefined,
       },
     },
     muiTableProps: {
       sx: {
-        backgroundColor: isDarkMode ? '#24303F' : '#FFFFFF',
-        tableLayout: 'auto',
-        width: '100%',
-        minWidth: `${tableMinWidth}px`,
-        fontFamily:
-          "'Cairo', Outfit, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans'",
-        fontSize: '0.82rem',
+        backgroundColor: isDarkMode ? '#1a1a1a' : undefined,
       },
     },
-    muiTableContainerProps: {
+
+    muiTableBodyCellProps: () => ({
       sx: {
-        maxWidth: '100%',
-        overflowX: 'auto',
-      },
-    },
-    muiTableBodyProps: {
-      sx: {
-        backgroundColor: isDarkMode ? '#24303F' : '#FFFFFF',
-      },
-    },
-    muiTableHeadProps: {
-      sx: {
-        backgroundColor: isDarkMode ? '#1C2434' : '#F9FAFB',
-      },
-    },
-    muiTableBodyCellProps: {
-      sx: {
-        backgroundColor: isDarkMode ? '#24303F' : '#FFFFFF',
-        color: isDarkMode ? '#E4E7EC' : '#101828',
-        borderColor: isDarkMode ? '#344054' : '#E4E7EC',
-        display: 'flex',
-        alignItems: 'center',
-        fontSize: isLaptopViewport ? '0.76rem' : '0.8rem',
-        lineHeight: 1.25,
-        padding: isLaptopViewport ? '5px 6px' : '6px 8px',
-        verticalAlign: 'middle',
-        fontFamily:
-          "'Cairo', Outfit, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans'",
         whiteSpace: 'nowrap',
         overflow: 'hidden',
         textOverflow: 'ellipsis',
-        '& > a': {
-          display: 'flex',
-          alignItems: 'center',
-          width: '100%',
-          height: '100%',
-          color: 'inherit',
-          textDecoration: 'none',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-        },
-        '& .Mui-TableBodyCell-Content': {
-          display: 'flex',
-          alignItems: 'center',
-          width: '100%',
-          minHeight: '100%',
-        },
+        color: isDarkMode ? '#e0e0e0' : '#282828',
+        borderBottom: isDarkMode ? '1px solid #333' : undefined,
       },
-    },
-    muiTableHeadCellProps: {
+    }),
+    muiTableHeadCellProps: ({ column }) => ({
       sx: {
-        backgroundColor: isDarkMode ? '#1C2434' : '#F9FAFB',
-        color: isDarkMode ? '#E4E7EC' : '#344054',
-        borderColor: isDarkMode ? '#344054' : '#E4E7EC',
-        display: 'flex',
-        alignItems: 'center',
-        fontWeight: 600,
-        fontSize: isLaptopViewport ? '0.74rem' : '0.78rem',
-        lineHeight: 1.2,
-        padding: isLaptopViewport ? '7px 6px' : '8px 8px',
-        verticalAlign: 'middle',
-        fontFamily:
-          "'Cairo', Outfit, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans'",
-        whiteSpace: 'nowrap',
+        height: '50px',
+        fontWeight: 'bold',
+        color: isDarkMode ? '#e0e0e0' : undefined,
+        backgroundColor: isDarkMode ? '#1e1e1e' : undefined,
+        borderBottom: isDarkMode ? '1px solid #333' : undefined,
+        '& .MuiTableSortLabel-icon': { display: 'none' },
+        '& .MuiBadge-root': { display: 'none' },
         '& .Mui-TableHeadCell-Content': {
+          height: '100%',
           display: 'flex',
           alignItems: 'center',
-          width: '100%',
-          minHeight: '100%',
         },
-        '& .Mui-TableHeadCell-Content-Wrapper': {
-          whiteSpace: 'nowrap',
+        '& .Mui-TableHeadCell-Content-Labels': {
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px',
+          flex: 1,
+          minWidth: 0,
+        },
+        '& .Mui-TableHeadCell-Content-Actions': {
+          display: 'flex',
+          alignItems: 'center',
+          gap: '2px',
+        },
+      },
+      onMouseDown: (e) => {
+        if ((e.target as HTMLElement).closest('button')) return;
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const currentCell = e.currentTarget as HTMLElement;
+        const onMouseUp = (upEvent: MouseEvent) => {
+          const dx = Math.abs(upEvent.clientX - startX);
+          const dy = Math.abs(upEvent.clientY - startY);
+          if (
+            dx < 5 &&
+            dy < 5 &&
+            currentCell.contains(upEvent.target as Node)
+          ) {
+            column.toggleSorting();
+          }
+          document.removeEventListener('mouseup', onMouseUp);
+        };
+        document.addEventListener('mouseup', onMouseUp);
+      },
+    }),
+    muiTableBodyRowProps: ({ row, table }) => ({
+      sx: {
+        backgroundColor: isDarkMode
+          ? (table.getRowModel().rows.indexOf(row) % 2 === 0
+              ? '#2a2a2a'
+              : '#1e1e1e')
+          : (table.getRowModel().rows.indexOf(row) % 2 === 0
+              ? 'rgba(240, 240, 240, 1)'
+              : 'white'),
+        '& .MuiTableRow-root': {
           overflow: 'hidden',
-          textOverflow: 'ellipsis',
+          width: '100%',
         },
-        '& .MuiTableSortLabel-icon': {
-          opacity: 0,
-          transition: 'opacity 150ms ease',
-        },
-        '& .MuiTableSortLabel-root.MuiTableSortLabel-active .MuiTableSortLabel-icon': {
-          opacity: 1,
-        },
-        '& .MuiIconButton-root': {
-          display: 'none !important',
-        },
-        overflow: 'visible',
-        zIndex: 2,
-      },
-    },
-    muiTopToolbarProps: {
-      sx: {
-        backgroundColor: isDarkMode ? '#1C2434' : '#FFFFFF',
-        color: isDarkMode ? '#E4E7EC' : '#101828',
-      },
-    },
-    muiBottomToolbarProps: {
-      sx: {
-        backgroundColor: isDarkMode ? '#24303F' : '#FFFFFF',
-        color: isDarkMode ? '#E4E7EC' : '#101828',
-      },
-    },
-    muiTableBodyRowProps: () => ({
-      sx: {
-        cursor: 'default',
-        backgroundColor: isDarkMode ? '#24303F' : '#FFFFFF',
-        '&:hover': {
-          backgroundColor: isDarkMode ? '#344054' : '#F9FAFB',
+        '& .MuiCollapse-root': {
+          width: '80%',
+          marginX: 'auto',
         },
       },
     }),

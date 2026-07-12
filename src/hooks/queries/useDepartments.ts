@@ -9,6 +9,7 @@ import type {
 } from "../../types/departments";
 import { ApiError } from "../../services/companiesService";
 import Swal from "../../utils/swal";
+import { useLocale } from "../../context/LocaleContext";
 
 // Query keys
 export const departmentsKeys = {
@@ -67,6 +68,7 @@ export function useDepartment(id: string, options?: { enabled?: boolean }) {
 // Create department
 export function useCreateDepartment() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: (data: CreateDepartmentRequest) =>
@@ -81,10 +83,10 @@ export function useCreateDepartment() {
       // Invalidate lists to ensure consistency
       queryClient.invalidateQueries({ queryKey: departmentsKeys.lists() });
       
-      showSuccessToast("Department created successfully");
+      showSuccessToast(t('departmentCreated', 'common'), t);
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, "Failed to create department");
+      showErrorToast(error.message, t('departmentCreateFailed', 'common'), t);
     },
   });
 }
@@ -92,6 +94,7 @@ export function useCreateDepartment() {
 // Update department
 export function useUpdateDepartment() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateDepartmentRequest }) =>
@@ -106,10 +109,10 @@ export function useUpdateDepartment() {
         return old.map(d => d._id === id ? updatedDepartment : d);
       });
       
-      showSuccessToast("Department updated successfully");
+      showSuccessToast(t('departmentUpdated', 'common'), t);
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, "Failed to update department");
+      showErrorToast(error.message, t('departmentUpdateFailed', 'common'), t);
     },
   });
 }
@@ -117,6 +120,7 @@ export function useUpdateDepartment() {
 // Delete department
 export function useDeleteDepartment() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: (id: string) => departmentsService.deleteDepartment(id),
@@ -130,18 +134,18 @@ export function useDeleteDepartment() {
       // Remove detail cache
       queryClient.removeQueries({ queryKey: departmentsKeys.detail(id) });
       
-      showSuccessToast("Department deleted successfully");
+      showSuccessToast(t('departmentDeleted', 'common'), t);
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, "Failed to delete department");
+      showErrorToast(error.message, t('departmentDeleteFailed', 'common'), t);
     },
   });
 }
 
 // ===== Toast Helpers =====
-function showSuccessToast(message: string) {
+function showSuccessToast(message: string, t: (key: string, ns?: string) => string) {
   Swal.fire({
-    title: "Success",
+    title: t('success', 'common'),
     text: message,
     icon: "success",
     timer: 1500,
@@ -149,9 +153,9 @@ function showSuccessToast(message: string) {
   });
 }
 
-function showErrorToast(message: string, fallback: string) {
+function showErrorToast(message: string, fallback: string, t: (key: string, ns?: string) => string) {
   Swal.fire({
-    title: "Error",
+    title: t('error', 'common'),
     text: message || fallback,
     icon: "error",
   });

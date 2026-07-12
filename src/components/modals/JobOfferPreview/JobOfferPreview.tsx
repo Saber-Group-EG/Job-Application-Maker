@@ -1,5 +1,6 @@
 import { X, FileText } from 'lucide-react';
 import type { JobOffer } from '../../../services/jobOffersService';
+import { useLocale } from '../../../context/LocaleContext';
 
 type Props = {
   isOpen: boolean;
@@ -10,13 +11,20 @@ type Props = {
 export default function JobOfferPreview({ isOpen, onClose, offer }: Props) {
   if (!isOpen) return null;
 
+  const { t, locale } = useLocale();
+  const workTypeMap: Record<string, string> = {
+    'full-time': 'fullTime',
+    'part-time': 'partTime',
+    contract: 'contract',
+    internship: 'internship',
+  };
   const salaryBasic = offer?.salary?.basic ?? null;
   const salaryCurrency = offer?.salary?.currency ?? 'EGP';
   const companyName = (() => {
     if (!offer || typeof offer.companyId === 'string') return '';
     const name = (offer.companyId as any)?.name;
     if (typeof name === 'string') return name;
-    return name?.en || name?.ar || '';
+    return locale === 'ar' ? (name?.ar || name?.en || '') : (name?.en || name?.ar || '');
   })();
   const applicant = offer?.applicantId ?? null;
   const commissions = Array.isArray(offer?.commissions)
@@ -35,7 +43,7 @@ export default function JobOfferPreview({ isOpen, onClose, offer }: Props) {
           <div className="flex items-center justify-between border-b px-6 py-4 dark:border-slate-800">
             <div>
               <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
-                {offer?.position.en || offer?.position.ar || 'Job Offer'}
+                {locale === 'ar' ? (offer?.position.ar || offer?.position.en || t('jobOffer', 'modals')) : (offer?.position.en || offer?.position.ar || t('jobOffer', 'modals'))}
               </h3>
               <p className="text-sm text-slate-500 dark:text-slate-400">
                 {companyName || '—'}
@@ -53,7 +61,7 @@ export default function JobOfferPreview({ isOpen, onClose, offer }: Props) {
           <div className="flex-1 overflow-auto p-6">
             {!offer && (
               <div className="mb-4 rounded border border-dashed border-slate-200 p-3 text-sm text-slate-600 dark:border-slate-700 dark:text-slate-300">
-                Offer data is loading.
+                {t('offerLoading', 'modals')}
               </div>
             )}
 
@@ -62,13 +70,13 @@ export default function JobOfferPreview({ isOpen, onClose, offer }: Props) {
                 <FileText className="h-6 w-6 text-brand-600" />
               </div>
               <div>
-                <p className="text-sm text-slate-500">Position</p>
+                <p className="text-sm text-slate-500">{t('position', 'modals')}</p>
                 <p className="text-sm font-medium text-slate-900 dark:text-white">
-                  {offer?.position.en || offer?.position.ar || '—'}
+                  {locale === 'ar' ? (offer?.position.ar || offer?.position.en || '—') : (offer?.position.en || offer?.position.ar || '—')}
                 </p>
               </div>
               <div className="ml-6">
-                <p className="text-sm text-slate-500">Salary</p>
+                <p className="text-sm text-slate-500">{t('basicSalary', 'modals')}</p>
                 <p className="text-sm font-medium text-slate-900 dark:text-white">
                   {salaryBasic != null
                     ? `${salaryBasic.toLocaleString()} ${salaryCurrency}`
@@ -80,7 +88,7 @@ export default function JobOfferPreview({ isOpen, onClose, offer }: Props) {
             <div className="grid gap-4 md:grid-cols-2">
               <div>
                 <p className="mb-2 text-xs font-semibold uppercase text-slate-400">
-                  Applicant
+                  {t('applicantInfo', 'modals')}
                 </p>
                 <div className="rounded-lg border border-slate-100 p-3 dark:border-slate-700">
                   <p className="font-medium">{applicant?.fullName || '—'}</p>
@@ -95,33 +103,33 @@ export default function JobOfferPreview({ isOpen, onClose, offer }: Props) {
 
               <div>
                 <p className="mb-2 text-xs font-semibold uppercase text-slate-400">
-                  Details
+                  {t('details', 'modals')}
                 </p>
                 <div className="rounded-lg border border-slate-100 p-3 text-sm text-slate-700 dark:border-slate-700 dark:text-slate-300">
                   <p>
-                    <span className="font-semibold">Work Type:</span>{' '}
-                    {offer?.workType || '—'}
+                    <span className="font-semibold">{t('workTypeLabel', 'modals')}</span>{' '}
+                    {t(workTypeMap[offer?.workType || ''] || '', 'modals') || offer?.workType || '—'}
                   </p>
                   {offer?.workHours && (
                     <p>
-                      <span className="font-semibold">Work Hours:</span>{' '}
-                      {offer.workHours?.ar || offer.workHours?.en || '—'}
+                      <span className="font-semibold">{t('workHoursLabel', 'modals')}</span>{' '}
+                      {locale === 'ar' ? (offer.workHours?.ar || offer.workHours?.en || '—') : (offer.workHours?.en || offer.workHours?.ar || '—')}
                     </p>
                   )}
                   <p>
-                    <span className="font-semibold">Status:</span>{' '}
-                    {offer?.status || '—'}
+                    <span className="font-semibold">{t('status', 'modals')}</span>{' '}
+                    {offer?.status ? t(`status${offer.status.charAt(0).toUpperCase() + offer.status.slice(1)}`, 'jobOffers') : '—'}
                   </p>
                   {offer?.sentAt && (
                     <p>
-                      <span className="font-semibold">Sent:</span>{' '}
-                      {new Date(offer.sentAt).toLocaleString()}
+                      <span className="font-semibold">{t('sent', 'modals')}</span>{' '}
+                      {new Date(offer.sentAt).toLocaleString(locale)}
                     </p>
                   )}
                   {offer?.respondedAt && (
                     <p>
-                      <span className="font-semibold">Responded:</span>{' '}
-                      {new Date(offer.respondedAt).toLocaleString()}
+                      <span className="font-semibold">{t('responded', 'modals')}</span>{' '}
+                      {new Date(offer.respondedAt).toLocaleString(locale)}
                     </p>
                   )}
                 </div>
@@ -130,7 +138,7 @@ export default function JobOfferPreview({ isOpen, onClose, offer }: Props) {
 
             <div className="mt-6">
               <p className="mb-2 text-xs font-semibold uppercase text-slate-400">
-                Commissions
+                {t('commissions', 'modals')}
               </p>
               {commissions.length > 0 ? (
                 <div className="space-y-2">
@@ -141,10 +149,10 @@ export default function JobOfferPreview({ isOpen, onClose, offer }: Props) {
                     >
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="font-medium">{c.label?.en || c.label?.ar || '—'}</p>
+                          <p className="font-medium">{locale === 'ar' ? (c.label?.ar || c.label?.en || '—') : (c.label?.en || c.label?.ar || '—')}</p>
                           {c.condition && (
                             <p className="text-sm text-slate-500">
-                              {c.condition?.en || c.condition?.ar || '—'}
+                              {locale === 'ar' ? (c.condition?.ar || c.condition?.en || '—') : (c.condition?.en || c.condition?.ar || '—')}
                             </p>
                           )}
                         </div>
@@ -159,14 +167,14 @@ export default function JobOfferPreview({ isOpen, onClose, offer }: Props) {
                 </div>
               ) : (
                 <p className="rounded-lg border border-dashed border-slate-200 p-3 text-sm text-slate-500">
-                  No commissions
+                  {t('noCommissions', 'modals')}
                 </p>
               )}
             </div>
 
             <div className="mt-6">
               <p className="mb-2 text-xs font-semibold uppercase text-slate-400">
-                Sections
+                {t('offerSections', 'modals')}
               </p>
               {sections.length > 0 ? (
                 <div className="space-y-4">
@@ -176,11 +184,11 @@ export default function JobOfferPreview({ isOpen, onClose, offer }: Props) {
                       className="rounded-lg border border-slate-100 p-3 dark:border-slate-700"
                     >
                       <p className="font-semibold">
-                        {s.title?.en || s.title?.ar}
+                        {locale === 'ar' ? (s.title?.ar || s.title?.en) : (s.title?.en || s.title?.ar)}
                       </p>
                       <ul className="mt-2 list-disc pl-5 text-sm text-slate-600 dark:text-slate-300">
                         {s.items?.map((it, j) => (
-                          <li key={it._id || j}>{it.en || it.ar}</li>
+                          <li key={it._id || j}>{locale === 'ar' ? (it.ar || it.en) : (it.en || it.ar)}</li>
                         ))}
                       </ul>
                     </div>
@@ -188,7 +196,7 @@ export default function JobOfferPreview({ isOpen, onClose, offer }: Props) {
                 </div>
               ) : (
                 <p className="rounded-lg border border-dashed border-slate-200 p-3 text-sm text-slate-500">
-                  No sections
+                  {t('noSections', 'modals')}
                 </p>
               )}
             </div>
@@ -196,10 +204,10 @@ export default function JobOfferPreview({ isOpen, onClose, offer }: Props) {
             {offer?.notes && (
               <div className="mt-6">
                 <p className="mb-2 text-xs font-semibold uppercase text-slate-400">
-                  Notes
+                  {t('notes', 'modals')}
                 </p>
                 <div className="rounded-lg border border-slate-100 p-3 text-sm dark:border-slate-700">
-                  {offer.notes?.en || offer.notes?.ar || '—'}
+                  {locale === 'ar' ? (offer.notes?.ar || offer.notes?.en || '—') : (offer.notes?.en || offer.notes?.ar || '—')}
                 </div>
               </div>
             )}

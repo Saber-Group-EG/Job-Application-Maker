@@ -12,8 +12,7 @@ export const CustomResponsesView: React.FC<CustomResponsesViewProps> = ({
   handlers,
 }) => {
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-100 relative z-[100]">
-
+<div className="bg-white rounded-lg shadow-sm border border-gray-100 relative z-[100] ">
 
       <div className="flex flex-col">
         {sections.map((section) => {
@@ -36,7 +35,7 @@ export const CustomResponsesView: React.FC<CustomResponsesViewProps> = ({
                 onClick={() => onToggleSection(section.id)}
                 className="w-full px-5 py-4 bg-white hover:bg-gray-50 transition-colors flex items-center justify-between"
               >
-                <div className="text-left">
+                <div className="text-start">
                   <h4 className="text-sm font-semibold text-gray-800">{section.title}</h4>
                   {section.description && (
                     <p className="text-xs text-gray-400 mt-0.5">{section.description}</p>

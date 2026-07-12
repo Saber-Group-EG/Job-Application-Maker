@@ -1,16 +1,17 @@
 import PageMeta from "../../components/common/PageMeta";
 import AuthLayout from "./AuthPageLayout";
 import SignInForm from "../../components/auth/SignInForm";
+import { useLocale } from "../../context/LocaleContext";
 
 export default function SignIn() {
+  const { t } = useLocale();
   return (
     <>
       <PageMeta
-        title="Saber Group - Hiring Management System - Sign In Page"
-        description="This is Saber Group - Hiring Management System - Sign In Page"
+        title={t('signInPageTitle', 'common')}
+        description={t('signInPageDesc', 'common')}
       />
       <AuthLayout>
-        <div>helloworld</div>
         <SignInForm />
       </AuthLayout>
     </>

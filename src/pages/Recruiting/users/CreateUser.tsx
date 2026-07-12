@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
+import { useLocale } from "../../../context/LocaleContext";
 import Swal from '../../../utils/swal';
 import PageMeta from "../../../components/common/PageMeta";
 import { ValidationErrorAlert } from "../../../components/common/ValidationErrorAlert";
@@ -38,6 +39,7 @@ type UserPermission = {
 };
 
 export default function CreateUser() {
+  const { t } = useLocale();
   const navigate = useNavigate();
 
   const { data: roles = [] } = useRoles();
@@ -257,7 +259,7 @@ export default function CreateUser() {
 
   try {
     if (!formData.fullName || !formData.email || !formData.password || !formData.roleId) {
-      throw new Error("Name, email, password, and role are required.");
+      throw new Error(t('createErrorRequired', 'users'));
     }
 
     const normalizedCompanies = formData.companies
@@ -289,8 +291,8 @@ export default function CreateUser() {
     });
 
     await Swal.fire({
-      title: "Success",
-      text: "User profile has been added successfully.",
+      title: t('createSuccessTitle', 'users'),
+      text: t('createSuccessText', 'users'),
       icon: "success",
       background: "rgba(255, 255, 255, 0.9)",
       backdrop: "rgba(0,0,0,0.4)",
@@ -300,7 +302,7 @@ export default function CreateUser() {
     navigate("/users");
   } catch (err: any) {
     // Extract detailed error message
-    let errorMessage = "Failed to create user profile.";
+    let errorMessage = t('createErrorGeneric', 'users');
     
     // Try to get detailed error from response
     if (err.response?.data) {
@@ -325,10 +327,10 @@ export default function CreateUser() {
     
     // Show error Swal alert
     await Swal.fire({
-      title: "Error",
+      title: t('createErrorTitle', 'users'),
       text: errorMessage,
       icon: "error",
-      confirmButtonText: "OK",
+      confirmButtonText: t('ok', 'common'),
       confirmButtonColor: "#ef4444",
       background: "rgba(255, 255, 255, 0.9)",
       backdrop: "rgba(0,0,0,0.4)",
@@ -341,8 +343,8 @@ export default function CreateUser() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0F172A] p-4 sm:p-8">
       <PageMeta
-        title="Create User"
-        description="Create personnel Company and organizational access"
+        title={t('createMetaTitle', 'users')}
+        description={t('createMetaDescription', 'users')}
       />
 
       <div className="max-w-5xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -355,7 +357,7 @@ export default function CreateUser() {
               <ChevronLeft className="size-5" />
             </div>
             <span className="font-black text-xs uppercase tracking-widest text-gray-400 group-hover:text-brand-500 transition-colors">
-              Back to Records
+              {t('createBackButton', 'users')}
             </span>
           </button>
         </div>
@@ -370,9 +372,9 @@ export default function CreateUser() {
               {formData.fullName?.charAt(0) || <Hash className="size-8" />}
             </div>
             <div className="text-center md:text-left space-y-2">
-              <h1 className="text-4xl font-black tracking-tight dark:text-white">Create Credential</h1>
+              <h1 className="text-4xl font-black tracking-tight dark:text-white">{t('createCredential', 'users')}</h1>
               <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px] italic">
-                Add a new personnel Company
+                {t('createAddPersonnel', 'users')}
               </p>
             </div>
           </div>
@@ -388,59 +390,59 @@ export default function CreateUser() {
               <div className="space-y-8">
                 <h3 className="text-lg font-black flex items-center gap-2 mb-6 tracking-tight">
                   <Shield className="size-5 text-brand-500" />
-                  Authentication Layer
+                  {t('createAuthLayer', 'users')}
                 </h3>
 
                 <div className="space-y-6">
                   <div className="group space-y-2">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 flex items-center gap-2">
-                      Full Company Name
+                      {t('createFullName', 'users')}
                     </label>
                     <input
                       type="text"
                       value={formData.fullName}
                       onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                       className="w-full px-6 py-4 bg-white/40 dark:bg-black/20 border-2 border-slate-100 dark:border-white/5 rounded-2xl focus:border-brand-500/50 focus:ring-4 focus:ring-brand-500/5 outline-none transition-all font-bold dark:text-white"
-                      placeholder="John Doe"
+                      placeholder={t('createFullNamePlaceholder', 'users')}
                     />
                   </div>
 
                   <div className="group space-y-2">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 flex items-center gap-2">
-                      Digital Mailbox
+                      {t('createDigitalMailbox', 'users')}
                     </label>
                     <input
                       type="email"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                       className="w-full px-6 py-4 bg-white/40 dark:bg-black/20 border-2 border-slate-100 dark:border-white/5 rounded-2xl focus:border-brand-500/50 focus:ring-4 focus:ring-brand-500/5 outline-none transition-all font-bold dark:text-white"
-                      placeholder="j.doe@network.com"
+                      placeholder={t('createEmailPlaceholder', 'users')}
                     />
                   </div>
 
                   <div className="group space-y-2">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 flex items-center gap-2">
-                      Temporary Password
+                      {t('createPassword', 'users')}
                     </label>
                     <input
                       type="password"
                       value={formData.password}
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                       className="w-full px-6 py-4 bg-white/40 dark:bg-black/20 border-2 border-slate-100 dark:border-white/5 rounded-2xl focus:border-brand-500/50 focus:ring-4 focus:ring-brand-500/5 outline-none transition-all font-bold dark:text-white"
-                      placeholder="********"
+                      placeholder={t('createPasswordPlaceholder', 'users')}
                     />
                   </div>
 
                   <div className="group space-y-2">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 flex items-center gap-2">
-                      Communication Line
+                      {t('createCommLine', 'users')}
                     </label>
                     <input
                       type="text"
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                       className="w-full px-6 py-4 bg-white/40 dark:bg-black/20 border-2 border-slate-100 dark:border-white/5 rounded-2xl focus:border-brand-500/50 focus:ring-4 focus:ring-brand-500/5 outline-none transition-all font-bold dark:text-white"
-                      placeholder="+1 (555) 000-0000"
+                      placeholder={t('createPhonePlaceholder', 'users')}
                     />
                   </div>
                 </div>
@@ -449,20 +451,20 @@ export default function CreateUser() {
               <div className="space-y-8">
                 <h3 className="text-lg font-black flex items-center gap-2 mb-6 tracking-tight">
                   <Lock className="size-5 text-purple-500" />
-                  Security Access Level
+                  {t('createSecurityAccess', 'users')}
                 </h3>
 
                 <div className="space-y-8 p-8 bg-slate-50/50 dark:bg-white/5 rounded-[2.5rem] border border-slate-100 dark:border-white/5">
                   <div className="group space-y-4">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
-                      Assigned Security Role
+                      {t('createAssignedRole', 'users')}
                     </label>
                     <select
                       value={formData.roleId}
                       onChange={(e) => handleRoleChange(e.target.value)}
                       className="w-full px-6 py-4 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-white/5 rounded-2xl focus:border-purple-500 outline-none transition-all font-bold dark:text-white appearance-none cursor-pointer"
                     >
-                      <option value="">Select Role Level</option>
+                        <option value="">{t('createSelectRole', 'users')}</option>
                       {roles.map((r: any) => (
                         <option key={r._id} value={r._id}>
                           {toPlainString(r.name)}
@@ -474,10 +476,10 @@ export default function CreateUser() {
                   <div className="pt-6 border-t border-slate-100 dark:border-white/5 flex items-center justify-between">
                     <div className="space-y-0.5">
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                        Profile Activity Status
+                        {t('createActivityStatus', 'users')}
                       </label>
                       <p className="text-xs font-bold text-slate-500 italic">
-                        Toggle initial system-wide access
+                        {t('createActivityHint', 'users')}
                       </p>
                     </div>
                     <button
@@ -504,7 +506,7 @@ export default function CreateUser() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <h3 className="text-xl font-black tracking-tight flex items-center gap-3">
                   <Shield className="size-6 text-purple-500" />
-                  Permission Control Center
+                  {t('createPermissions', 'users')}
                 </h3>
                 <div className="inline-flex items-center p-1 bg-slate-100 dark:bg-black/20 rounded-xl border border-slate-200 dark:border-white/10">
                   <button
@@ -516,7 +518,7 @@ export default function CreateUser() {
                         : "text-slate-500"
                     }`}
                   >
-                    Cards
+                    {t('createViewCards', 'users')}
                   </button>
                   <button
                     type="button"
@@ -527,7 +529,7 @@ export default function CreateUser() {
                         : "text-slate-500"
                     }`}
                   >
-                    Matrix
+                    {t('createViewMatrix', 'users')}
                   </button>
                 </div>
               </div>
@@ -540,7 +542,7 @@ export default function CreateUser() {
                       onChange={(e) => setPermissionToAdd(e.target.value)}
                       className="flex-1 px-4 py-3 bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/5 rounded-xl font-bold dark:text-white"
                     >
-                      <option value="">Add permission module</option>
+                        <option value="">{t('createAddPermissionModule', 'users')}</option>
                       {availablePermissions.map((perm: any) => (
                         <option key={perm._id} value={perm._id}>
                           {toPlainString(perm.name)}
@@ -553,7 +555,7 @@ export default function CreateUser() {
                       disabled={!permissionToAdd}
                       className="px-4 py-3 bg-purple-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest disabled:opacity-50"
                     >
-                      Add
+                        {t('createAddPermission', 'users')}
                     </button>
                   </div>
 
@@ -577,7 +579,7 @@ export default function CreateUser() {
                         >
                           <div className="flex items-center justify-between gap-2 mb-3">
                             <p className="text-sm font-black tracking-tight dark:text-white">
-                              {toPlainString(permObj?.name || "Unknown Permission")}
+                                {toPlainString(permObj?.name || t('createUnknownPermission', 'users'))}
                             </p>
                             <button
                               type="button"
@@ -612,7 +614,7 @@ export default function CreateUser() {
 
                     {userPermissions.length === 0 && (
                       <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 italic px-1">
-                        Select a role to preload permissions, then adjust as needed.
+                        {t('createNoPermissionsHint', 'users')}
                       </p>
                     )}
                   </div>
@@ -625,7 +627,7 @@ export default function CreateUser() {
                     type="text"
                     value={permissionSearchTerm}
                     onChange={(e) => setPermissionSearchTerm(e.target.value)}
-                    placeholder="Search permission module"
+                      placeholder={t('createSearchPermission', 'users')}
                     className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/5 rounded-xl font-bold dark:text-white"
                   />
 
@@ -633,11 +635,11 @@ export default function CreateUser() {
                     <table className="w-full text-xs min-w-[620px]">
                       <thead className="bg-slate-50 dark:bg-slate-900/90">
                         <tr>
-                          <th className="text-left px-3 py-2 font-black uppercase tracking-widest text-[10px] text-slate-400">Module</th>
-                          <th className="text-center px-2 py-2 font-black uppercase tracking-widest text-[10px] text-slate-400">Use</th>
-                          <th className="text-center px-2 py-2 font-black uppercase tracking-widest text-[10px] text-slate-400">Read</th>
-                          <th className="text-center px-2 py-2 font-black uppercase tracking-widest text-[10px] text-slate-400">Write</th>
-                          <th className="text-center px-2 py-2 font-black uppercase tracking-widest text-[10px] text-slate-400">Create</th>
+                            <th className="text-left px-3 py-2 font-black uppercase tracking-widest text-[10px] text-slate-400">{t('createTableModule', 'users')}</th>
+                            <th className="text-center px-2 py-2 font-black uppercase tracking-widest text-[10px] text-slate-400">{t('createTableUse', 'users')}</th>
+                            <th className="text-center px-2 py-2 font-black uppercase tracking-widest text-[10px] text-slate-400">{t('createTableRead', 'users')}</th>
+                            <th className="text-center px-2 py-2 font-black uppercase tracking-widest text-[10px] text-slate-400">{t('createTableWrite', 'users')}</th>
+                            <th className="text-center px-2 py-2 font-black uppercase tracking-widest text-[10px] text-slate-400">{t('createTableCreate', 'users')}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -681,14 +683,14 @@ export default function CreateUser() {
               <div className="flex items-center justify-between">
                 <h3 className="text-xl font-black flex items-center gap-3 tracking-tight">
                   <Building2 className="size-6 text-brand-500" />
-                  Company & Department Access
+                    {t('createCompanyAccess', 'users')}
                 </h3>
                 <button
                   type="button"
                   onClick={handleAddCompany}
                   className="flex items-center gap-2 px-6 py-3 bg-brand-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-lg shadow-brand-500/20"
                 >
-                  <Plus className="size-4" /> Add Node
+                  <Plus className="size-4" /> {t('createAddNode', 'users')}
                 </button>
               </div>
 
@@ -701,7 +703,7 @@ export default function CreateUser() {
 
                   return (
                     <div
-                      key={idx}
+                      key={assignment.companyId}
                       className="relative group bg-white dark:bg-slate-900/50 p-8 rounded-[3rem] border border-slate-200 dark:border-white/5 shadow-sm transition-all hover:shadow-xl"
                     >
                       <button
@@ -715,7 +717,7 @@ export default function CreateUser() {
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 items-end">
                         <div className="space-y-3">
                           <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                            Linked Company
+                            {t('createLinkedCompany', 'users')}
                           </label>
                           <select
                             value={assignment.companyId}
@@ -726,7 +728,7 @@ export default function CreateUser() {
                             }}
                             className="w-full px-4 py-3 bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/5 rounded-xl font-bold dark:text-white"
                           >
-                            <option value="">Select Company</option>
+                            <option value="">{t('createSelectCompany', 'users')}</option>
                             {companies.map((c: any) => (
                               <option key={c._id} value={c._id}>
                                 {toPlainString(c.name)}
@@ -737,13 +739,13 @@ export default function CreateUser() {
 
                         <div className="space-y-3">
                           <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                            Department Access
+                            {t('createDepartmentAccess', 'users')}
                           </label>
                           <div className="flex flex-wrap gap-2 min-h-[46px] p-2 bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/5 rounded-xl">
                             {!assignment.companyId && (
                               <div className="flex items-center justify-center w-full min-h-[30px]">
                                 <p className="text-[9px] font-black uppercase text-slate-400 italic">
-                                  Select Company First
+                                  {t('createSelectCompanyFirst', 'users')}
                                 </p>
                               </div>
                             )}
@@ -751,7 +753,7 @@ export default function CreateUser() {
                             {!!assignment.companyId && availableDepts.length === 0 && (
                               <div className="flex items-center justify-center w-full min-h-[30px]">
                                 <p className="text-[9px] font-black uppercase text-slate-400 italic">
-                                  No Departments Found
+                                  {t('createNoDepartments', 'users')}
                                 </p>
                               </div>
                             )}
@@ -792,7 +794,7 @@ export default function CreateUser() {
                                 : "bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-white/5 text-gray-400"
                             }`}
                           >
-                            {assignment.isPrimary ? "Primary Office" : "Set as Primary"}
+                              {assignment.isPrimary ? t('createPrimaryOffice', 'users') : t('createSetPrimary', 'users')}
                           </button>
                         </div>
                       </div>
@@ -804,7 +806,7 @@ export default function CreateUser() {
                   <div className="text-center py-16 bg-white/30 dark:bg-black/10 rounded-[3rem] border-2 border-dashed border-slate-200 dark:border-white/10">
                     <AlertCircle className="size-10 text-slate-300 mx-auto mb-4" />
                     <p className="text-slate-400 font-bold text-sm">
-                      No organizational nodes assigned yet.
+                      {t('createNoNodes', 'users')}
                     </p>
                   </div>
                 )}
@@ -814,10 +816,10 @@ export default function CreateUser() {
             <div className="flex flex-col sm:flex-row items-center justify-between gap-6 pt-10 border-t border-slate-100 dark:border-white/10">
               <div className="space-y-1 text-center sm:text-left">
                 <p className="text-xs font-black dark:text-white flex items-center gap-2">
-                  <UserCheck className="size-4 text-green-500" /> Authorized Personnel Creation
+                    <UserCheck className="size-4 text-green-500" /> {t('createAuthPersonnelCreation', 'users')}
                 </p>
                 <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest italic">
-                  Proceed with caution • All modifications are logged
+                  {t('createProceedCaution', 'users')}
                 </p>
               </div>
 
@@ -827,7 +829,7 @@ export default function CreateUser() {
                   onClick={() => navigate("/users")}
                   className="px-8 py-4 bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-gray-400 rounded-3xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 transition-all"
                 >
-                  Abort
+                  {t('createAbort', 'users')}
                 </button>
                 <button
                   type="submit"
@@ -839,7 +841,7 @@ export default function CreateUser() {
                   ) : (
                     <>
                       <Save className="size-4" />
-                      Create User
+                      {t('createCreateUser', 'users')}
                     </>
                   )}
                 </button>

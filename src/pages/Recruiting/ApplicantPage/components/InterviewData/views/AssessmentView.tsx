@@ -5,6 +5,7 @@ import { QuestionRow } from '../components/QuestionRow';
 import { InterviewHeader } from '../components/InterviewHeader';
 import { InterviewStatsBar } from '../components/InterviewStatsBar';
 import { getQuestionId } from '../utils/interviewUtils';
+import { useLocale } from '../../../../../../context/LocaleContext';
 import type { FieldSaveStatus } from '../hooks/useInterviewActions';
 import type { PoolGroup } from '../hooks/useQuestionPool';
 import type { Interview, InterviewAnswer } from '../../../../../../types/applicants';
@@ -79,6 +80,7 @@ const CreateQuestionForm = ({
 }: {
   onAdd: (q: NewCustomQuestion) => void;
 }) => {
+  const { t } = useLocale();
   const [form, setForm] = useState<NewCustomQuestion>({ ...CREATE_QUESTION_INITIAL });
   const [choicesText, setChoicesText] = useState('');
 
@@ -98,17 +100,17 @@ const CreateQuestionForm = ({
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3">
-      <p className="text-sm font-bold text-slate-800">Create Custom Question</p>
+      <p className="text-sm font-bold text-slate-800">{t('createCustomQuestion', 'interview')}</p>
       <input
         type="text"
         value={form.question}
         onChange={(e) => setForm((f) => ({ ...f, question: e.target.value }))}
-        placeholder="Enter question text..."
+        placeholder={t('enterQuestionText', 'interview')}
         className="w-full text-sm px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none"
       />
       <div className="flex items-center gap-3">
         <div className="flex-1">
-          <label className="text-xs text-slate-500 mb-1 block">Score</label>
+          <label className="text-xs text-slate-500 mb-1 block">{t('score', 'interview')}</label>
           <input
             type="number"
             min={0}
@@ -118,29 +120,29 @@ const CreateQuestionForm = ({
           />
         </div>
         <div className="flex-1">
-          <label className="text-xs text-slate-500 mb-1 block">Answer Type</label>
+          <label className="text-xs text-slate-500 mb-1 block">{t('answerType', 'interview')}</label>
           <select
             value={form.answerType}
             onChange={(e) => setForm((f) => ({ ...f, answerType: e.target.value }))}
             className="w-full text-sm px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none"
           >
-            <option value="text">Text</option>
-            <option value="number">Number</option>
-            <option value="radio">Radio</option>
-            <option value="checkbox">Checkbox</option>
-            <option value="dropdown">Dropdown</option>
-            <option value="tags">Tags</option>
+            <option value="text">{t('textOption', 'interview')}</option>
+            <option value="number">{t('numberOption', 'interview')}</option>
+            <option value="radio">{t('radioOption', 'interview')}</option>
+            <option value="checkbox">{t('checkboxOption', 'interview')}</option>
+            <option value="dropdown">{t('dropdownOption', 'interview')}</option>
+            <option value="tags">{t('tagsOption', 'interview')}</option>
           </select>
         </div>
       </div>
       {showChoices && (
         <div>
-          <label className="text-xs text-slate-500 mb-1 block">Choices (comma-separated)</label>
+          <label className="text-xs text-slate-500 mb-1 block">{t('choicesCommaSeparated', 'interview')}</label>
           <input
             type="text"
             value={choicesText}
             onChange={(e) => setChoicesText(e.target.value)}
-            placeholder="Option 1, Option 2, Option 3"
+            placeholder={t('optionsPlaceholder', 'interview')}
             className="w-full text-sm px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none"
           />
         </div>
@@ -153,7 +155,7 @@ const CreateQuestionForm = ({
           className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Plus className="h-3.5 w-3.5" />
-          Add Question
+          {t('addQuestion', 'interview')}
         </button>
       </div>
     </div>
@@ -247,6 +249,7 @@ export const AssessmentView = ({
   onToggleGroup,
   onQuestionChange,
 }: AssessmentViewProps) => {
+  const { t } = useLocale();
   const questionsEditable = isStarted && !isEnded;
   const availableWithoutPending = useMemo(
     () => availableGroups.filter((g) => !pendingAddGroups.includes(g.key)),
@@ -329,8 +332,8 @@ export const AssessmentView = ({
     />
     <div className="flex items-center justify-between px-5 py-4">
       <div>
-        <h3 className="text-slate-800 text-lg font-bold">Interview Assessment</h3>
-        <p className="text-slate-500 text-sm mt-0.5">Candidate performance evaluation</p>
+        <h3 className="text-slate-800 text-lg font-bold">{t('interviewAssessment', 'interview')}</h3>
+        <p className="text-slate-500 text-sm mt-0.5">{t('candidatePerformanceEvaluation', 'interview')}</p>
       </div>
     </div>
     <InterviewStatsBar
@@ -352,7 +355,7 @@ export const AssessmentView = ({
     <div className="px-5 pb-6 space-y-3">
       {displayGroups.length === 0 && standaloneQuestions.length === 0 ? (
         <p className="text-center text-slate-500 py-8">
-          No questions in this interview yet.
+          {t('noQuestionsInInterview', 'interview')}
         </p>
       ) : (
         <>
@@ -402,7 +405,7 @@ export const AssessmentView = ({
     {/* Available Question Groups */}
     {availableWithoutPending.length > 0 && !isEnded && (
       <div className="px-5 pb-6 border-t border-slate-100 pt-5">
-        <h4 className="text-sm font-bold text-slate-800 mb-3">Add Question Groups</h4>
+        <h4 className="text-sm font-bold text-slate-800 mb-3">{t('addQuestionGroups', 'interview')}</h4>
         <div className="space-y-2">
           {availableWithoutPending.map((g) => {
             const SourceIcon = g.source === 'company' ? Building2 : Library;
@@ -418,7 +421,7 @@ export const AssessmentView = ({
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-slate-800 truncate">{g.name}</p>
                     <p className="text-xs text-slate-500">
-                      {g.questions.length} question{g.questions.length === 1 ? '' : 's'} ·{' '}
+                      {t('nQuestions', 'interview', { count: g.questions.length })} ·{' '}
                       {g.questions.reduce((s, q) => s + (q.score || 0), 0)} pts
                     </p>
                   </div>
@@ -429,7 +432,7 @@ export const AssessmentView = ({
                   className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors"
                 >
                   <Plus className="h-3 w-3" />
-                  Add
+                  {t('add', 'interview')}
                 </button>
               </div>
             );

@@ -1,0 +1,68 @@
+{
+  "title": "Our Creative Work",
+  "subtitle": "Discover Saber Group's portfolio of bold marketing campaigns and brand experiences, each crafted with creativity and measurable impact.",
+  "tagline": "Creative Campaigns",
+
+  "metaHomeDescription": "Discover Saber Group's marketing work in Egypt. Browse campaigns, brand experiences and digital solutions.",
+  "metaProjectsDescription": "Explore Saber Group's portfolio of creative marketing campaigns. See our work across branding, digital, and experiential projects.",
+  "all": "All Projects",
+  "residential": "Campaigns",
+  "commercial": "Digital",
+  "luxury": "Signature Campaigns",
+  "apartments": "Services",
+  "completed": "Completed",
+  "ongoing": "Ongoing",
+  "upcoming": "Upcoming",
+
+  "sortBy": "Sort by:",
+  "newest": "Newest First",
+  "priceHigh": "Price: High to Low",
+  "priceLow": "Price: Low to High",
+  "size": "Largest First",
+
+  "showing": "Showing",
+  "of": "of",
+  "projects": "projects",
+  "clearFilters": "Clear filters",
+
+  "loadMore": "Load More Projects",
+  "loading": "Loading...",
+  "noProjects": "No Projects Found",
+  "noProjectsDesc": "Try adjusting your filters to find what you're looking for.",
+  "viewAllProjects": "View All Projects",
+
+  "ctaTitle": "Looking for a Custom Solution?",
+  "ctaDesc": "Contact us to discuss bespoke marketing solutions tailored to your brand's ambitions.",
+  "contactUs": "Contact Our Team",
+  "downloadBrochure": "Download Brochure",
+
+  "towersTitle": "Prestige Brand Refresh",
+  "towersDesc": "A comprehensive brand and campaign refresh delivering elevated positioning and creative assets.",
+  "auroraTitle": "AURORA Launch Campaign",
+  "auroraDesc": "Integrated launch campaign combining digital, PR, and experiential activations.",
+  "vistaTitle": "VISTA Digital Series",
+  "vistaDesc": "A series of digital-first campaigns focused on engagement and conversion.",
+  "serenityTitle": "Serenity Experiential",
+  "serenityDesc": "An experiential program designed to create memorable brand moments and customer loyalty.",
+  "nexusTitle": "NEXUS Integrated",
+  "nexusDesc": "Cross-channel marketing programs that connect audiences across touchpoints.",
+  "harmonyTitle": "Harmony Social",
+  "harmonyDesc": "Social-first campaigns with creative storytelling and community building.",
+  "prestigeTitle": "Prestige Towers",
+  "prestigeDesc": "A flagship integrated campaign delivering high-impact creative and measurable results.",
+  "oasisTitle": "OASIS Campaign",
+  "oasisDesc": "A lifestyle-focused campaign highlighting premium experiences and partnerships.",
+
+  "projectType": "Project Type",
+
+  "contactPerson": "Saber Group Sales Team",
+
+  "newCairo": "New Cairo, Egypt",
+  "sodicWest": "SODIC West, Cairo",
+  "nasrCity": "Nasr City, Cairo",
+  "northCoast": "North Coast, Egypt",
+  "sheikhZayed": "Sheikh Zayed, Cairo",
+  "madinty": "Madinty, Cairo",
+  "newCapital": "New Administrative Capital",
+  "alamein": "Alamein, North Coast"
+}

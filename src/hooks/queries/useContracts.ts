@@ -13,6 +13,7 @@ import {
   BulkCreateJobContractPayload,
 } from '../../services/contractsService';
 import Swal from '../../utils/swal';
+import { useLocale } from '../../context/LocaleContext';
 
 // ===== Query Keys =====
 export const jobContractsKeys = {
@@ -76,21 +77,23 @@ export function useJobContract(id: string, options?: { enabled?: boolean }) {
 
 export function useCreateJobContract() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: (payload: CreateJobContractPayload) =>
       jobContractsService.createContract(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: jobContractsKeys.all });
-      showSuccess('Contract created successfully');
+      showSuccess(t('contractCreated', 'common'), t);
     },
     onError: (err: ApiError) =>
-      showError(err.message, 'Failed to create contract'),
+      showError(err.message, t('contractCreateFailed', 'common'), t),
   });
 }
 
 export function useUpdateJobContract() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: ({
@@ -103,15 +106,16 @@ export function useUpdateJobContract() {
     onSuccess: (updated) => {
       queryClient.setQueryData(jobContractsKeys.detail(updated._id), updated);
       queryClient.invalidateQueries({ queryKey: jobContractsKeys.all });
-      showSuccess('Contract updated successfully');
+      showSuccess(t('contractUpdated', 'common'), t);
     },
     onError: (err: ApiError) =>
-      showError(err.message, 'Failed to update contract'),
+      showError(err.message, t('contractUpdateFailed', 'common'), t),
   });
 }
 
 export function useUpdateContractStatus() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: ({ id, status }: { id: string; status: ContractStatus }) =>
@@ -119,29 +123,31 @@ export function useUpdateContractStatus() {
     onSuccess: (updated) => {
       queryClient.setQueryData(jobContractsKeys.detail(updated._id), updated);
       queryClient.invalidateQueries({ queryKey: jobContractsKeys.lists() });
-      showSuccess('Status updated');
+      showSuccess(t('statusUpdated', 'common'), t);
     },
     onError: (err: ApiError) =>
-      showError(err.message, 'Failed to update status'),
+      showError(err.message, t('statusUpdateFailed', 'common'), t),
   });
 }
 
 export function useCloneJobContract() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: (id: string) => jobContractsService.cloneContract(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: jobContractsKeys.all });
-      showSuccess('Contract cloned successfully');
+      showSuccess(t('contractCloned', 'common'), t);
     },
     onError: (err: ApiError) =>
-      showError(err.message, 'Failed to clone contract'),
+      showError(err.message, t('contractCloneFailed', 'common'), t),
   });
 }
 
 export function useDeleteJobContract() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: (id: string) => jobContractsService.deleteContract(id),
@@ -149,31 +155,33 @@ export function useDeleteJobContract() {
       queryClient.removeQueries({ queryKey: jobContractsKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: jobContractsKeys.lists() });
       queryClient.invalidateQueries({ queryKey: jobContractsKeys.all });
-      showSuccess('Contract deleted successfully');
+      showSuccess(t('contractDeleted', 'common'), t);
     },
     onError: (err: ApiError) =>
-      showError(err.message, 'Failed to delete contract'),
+      showError(err.message, t('contractDeleteFailed', 'common'), t),
   });
 }
 
 export function useBulkCreateJobContracts() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
+
   return useMutation({
     mutationFn: (payload: BulkCreateJobContractPayload) =>
       jobContractsService.bulkCreateContracts(payload),
     onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: jobContractsKeys.all });
-      showSuccess(`${created.length} contract(s) created successfully`);
+      showSuccess(t('bulkCreated', 'common', { count: created.length, entity: t('contract', 'common') }), t);
     },
     onError: (err: ApiError) =>
-      showError(err.message, 'Failed to create bulk contracts'),
+      showError(err.message, t('bulkContractCreateFailed', 'common'), t),
   });
 }
 
 // ===== Toast helpers =====
-function showSuccess(message: string) {
+function showSuccess(message: string, t: (key: string, ns?: string) => string) {
   Swal.fire({
-    title: 'Success',
+    title: t('success', 'common'),
     text: message,
     icon: 'success',
     timer: 1400,
@@ -181,6 +189,6 @@ function showSuccess(message: string) {
   });
 }
 
-function showError(message: string, fallback: string) {
-  Swal.fire({ title: 'Error', text: message || fallback, icon: 'error' });
+function showError(message: string, fallback: string, t: (key: string, ns?: string) => string) {
+  Swal.fire({ title: t('error', 'common'), text: message || fallback, icon: 'error' });
 }

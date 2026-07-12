@@ -6,22 +6,25 @@ import { ChevronDownIcon, GridIcon, HorizontaLDots, TaskIcon } from '../icons';
 import { useSidebar } from '../context/SidebarContext';
 import { useAuth } from '../context/AuthContext';
 import { useCompanies } from '../hooks/queries/useCompanies';
+import { useLocale } from '../context/LocaleContext';
 
 type NavItem = {
   name: string;
+  tKey?: string;
   icon: React.ReactNode;
   path?: string;
-  subItems?: { name: string; path: string; pro?: boolean; new?: boolean }[];
+  subItems?: { name: string; tKey?: string; path: string; pro?: boolean; new?: boolean }[];
 };
 
 const adminItems: NavItem[] = [
   {
     icon: <TaskIcon />,
     name: 'User Management',
+    tKey: 'userManagement',
     subItems: [
-      { name: 'Users', path: '/users', pro: false },
-      { name: 'Permissions & Roles', path: '/permissions', pro: false },
-      { name: 'Recommended Fields', path: '/recommended-fields', pro: false },
+      { name: 'Users', tKey: 'users', path: '/users', pro: false },
+      { name: 'Permissions & Roles', tKey: 'permissionsRoles', path: '/permissions', pro: false },
+      { name: 'Recommended Fields', tKey: 'recommendedFields', path: '/recommended-fields', pro: false },
     ],
   },
 ];
@@ -29,6 +32,7 @@ const adminItems: NavItem[] = [
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
   const { hasPermission, user } = useAuth();
+  const { t, dir } = useLocale();
   const location = useLocation();
   const { data: companies = [] } = useCompanies();
 
@@ -54,7 +58,8 @@ const AppSidebar: React.FC = () => {
       })
       .map((p: any) => ({
         name: p.name,
-        path: `/applicants/page/${encodeURIComponent(p.name)}?statuses=${(p.statuses || []).map(encodeURIComponent).join(',')}`,
+        tKey: undefined as string | undefined,
+        path: `/applicants/page/${encodeURIComponent(p.name)}?statuses=${(p.statuses || []).map(encodeURIComponent).join(',')}${(p.jobPositions?.length ? `&jobPositions=${p.jobPositions.map(encodeURIComponent).join(',')}` : '')}`,
         pro: false,
       }));
   }, [companies]);
@@ -113,15 +118,18 @@ const AppSidebar: React.FC = () => {
     {
       icon: <GridIcon />,
       name: 'Home',
-      path: '/',
+      tKey: 'home',
+      path: '/home',
     },
     {
       icon: <GridIcon />,
       name: 'Applicants',
+      tKey: 'applicants',
       subItems: [
-        { name: 'All Applicants', path: '/applicants', pro: false },
+        { name: 'All Applicants', tKey: 'allApplicants', path: '/applicants', pro: false },
         {
           name: 'Blue Caller Applicants',
+          tKey: 'blueCallerApplicants',
           path: '/applicants/blue-caller',
           pro: false,
         },
@@ -131,6 +139,7 @@ const AppSidebar: React.FC = () => {
     {
       icon: <TaskIcon />,
       name: 'Mail Preview',
+      tKey: 'mailPreview',
       path: '/applicants/mail-preview',
     },
     ...(hasPermission('Offer Management', 'read')
@@ -138,6 +147,7 @@ const AppSidebar: React.FC = () => {
           {
             icon: <TaskIcon />,
             name: 'Job Offers',
+            tKey: 'jobOffers',
             path: '/job-offers',
           },
         ]
@@ -147,6 +157,7 @@ const AppSidebar: React.FC = () => {
           {
             icon: <TaskIcon />,
             name: 'Job Contracts',
+            tKey: 'jobContracts',
             path: '/job-contracts',
           },
         ]
@@ -154,16 +165,19 @@ const AppSidebar: React.FC = () => {
     {
       icon: <TaskIcon />,
       name: 'Company Settings',
+      tKey: 'companySettings',
       subItems: [
-        { name: 'Create Company', path: '/recruiting', pro: false },
-        { name: 'Companies', path: '/companies', pro: false },
+        { name: 'Create Company', tKey: 'createCompany', path: '/recruiting', pro: false },
+        { name: 'Companies', tKey: 'companies', path: '/companies', pro: false },
         {
           name: 'Mail Settings',
+          tKey: 'mailSettings',
           path: '/recruiting/company-settings',
           pro: false,
         },
         {
           name: 'General Settings',
+          tKey: 'generalSettings',
           path: '/recruiting/interview-settings',
           pro: false,
         },
@@ -172,18 +186,21 @@ const AppSidebar: React.FC = () => {
     {
       icon: <GridIcon />,
       name: 'Jobs Management',
+      tKey: 'jobsManagement',
       subItems: [
-        { name: 'Create Job', path: '/create-job', pro: false },
-        { name: 'Jobs', path: '/jobs', pro: false },
+        { name: 'Create Job', tKey: 'createJob', path: '/create-job', pro: false },
+        { name: 'Jobs', tKey: 'jobs', path: '/jobs', pro: false },
       ],
     },
     {
       icon: <GridIcon />,
       name: 'User Settings',
+      tKey: 'userSettings',
       subItems: [
-        { name: 'Saved Fields', path: '/recruiting/saved-fields', pro: false },
+        { name: 'Saved Fields', tKey: 'savedFields', path: '/recruiting/saved-fields', pro: false },
         {
           name: 'Saved Questions',
+          tKey: 'savedQuestions',
           path: '/recruiting/saved-questions',
           pro: false,
         },
@@ -242,7 +259,7 @@ const AppSidebar: React.FC = () => {
 
   const renderMenuItems = (items: NavItem[], menuType: 'main' | 'admin') => {
     const filterSubItems = (
-      subItems: { name: string; path: string; pro?: boolean; new?: boolean }[]
+      subItems: { name: string; tKey?: string; path: string; pro?: boolean; new?: boolean }[]
     ) => {
       return subItems.filter((subItem) => {
         if (subItem.path === '/applicants')
@@ -323,11 +340,11 @@ const AppSidebar: React.FC = () => {
                       {nav.icon}
                     </span>
                     {(isExpanded || isHovered || isMobileOpen) && (
-                      <span className="menu-item-text">{nav.name}</span>
+                      <span className="menu-item-text">{t(nav.tKey ?? nav.name)}</span>
                     )}
                     {(isExpanded || isHovered || isMobileOpen) && (
                       <ChevronDownIcon
-                        className={`ml-auto w-5 h-5 transition-transform duration-200 ${
+                        className={`${dir === 'ltr' ? 'ml-auto' : 'mr-auto'} w-5 h-5 transition-transform duration-200 ${
                           openSubmenu?.type === menuType &&
                           openSubmenu?.index === index
                             ? 'rotate-180 text-brand-500'
@@ -350,7 +367,7 @@ const AppSidebar: React.FC = () => {
                             : '0px',
                       }}
                     >
-                      <ul className="mt-2 space-y-1 ml-9">
+                      <ul className={`mt-2 space-y-1 ${dir === 'ltr' ? 'ml-9' : 'mr-9'}`}>
                         {visibleSubItems.map((subItem) => (
                           <li key={subItem.path}>
                             <Link
@@ -363,29 +380,29 @@ const AppSidebar: React.FC = () => {
                             >
                               {hasSingleAssignedCompany &&
                               subItem.path === '/companies'
-                                ? 'Company Data'
-                                : subItem.name}
-                              <span className="flex items-center gap-1 ml-auto">
+                                ? t('companyData')
+                                : t(subItem.tKey ?? subItem.name)}
+                              <span className={`flex items-center gap-1 ${dir === 'ltr' ? 'ml-auto' : 'mr-auto'}`}>
                                 {subItem.new && (
                                   <span
-                                    className={`ml-auto ${
+                                    className={`${dir === 'ltr' ? 'ml-auto' : 'mr-auto'} ${
                                       isActive(subItem.path)
                                         ? 'menu-dropdown-badge-active'
                                         : 'menu-dropdown-badge-inactive'
                                     } menu-dropdown-badge`}
                                   >
-                                    new
+                                    {t('new')}
                                   </span>
                                 )}
                                 {subItem.pro && (
                                   <span
-                                    className={`ml-auto ${
+                                    className={`${dir === 'ltr' ? 'ml-auto' : 'mr-auto'} ${
                                       isActive(subItem.path)
                                         ? 'menu-dropdown-badge-active'
                                         : 'menu-dropdown-badge-inactive'
                                     } menu-dropdown-badge`}
                                   >
-                                    pro
+                                    {t('pro')}
                                   </span>
                                 )}
                               </span>
@@ -416,7 +433,7 @@ const AppSidebar: React.FC = () => {
                       {nav.icon}
                     </span>
                     {(isExpanded || isHovered || isMobileOpen) && (
-                      <span className="menu-item-text">{nav.name}</span>
+                      <span className="menu-item-text">{t(nav.tKey ?? nav.name)}</span>
                     )}
                   </Link>
                 )
@@ -430,7 +447,7 @@ const AppSidebar: React.FC = () => {
 
   return (
     <aside
-      className={`fixed mt-16 flex flex-col lg:mt-0 top-0 px-5 left-0 bg-white dark:bg-gray-900 dark:border-gray-800 text-gray-900 h-screen transition-all duration-300 ease-in-out z-50 border-r border-gray-200 
+      className={`fixed mt-16 flex flex-col lg:mt-0 top-0 px-5 ${dir === 'ltr' ? 'left-0' : 'right-0'} bg-white dark:bg-gray-900 dark:border-gray-800 text-gray-900 h-screen transition-all duration-300 ease-in-out z-50 ${dir === 'ltr' ? 'border-r' : 'border-l'} border-gray-200 
         ${
           isExpanded || isMobileOpen
             ? 'w-[290px]'
@@ -438,13 +455,13 @@ const AppSidebar: React.FC = () => {
               ? 'w-[290px]'
               : 'w-[90px]'
         }
-        ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}
+        ${isMobileOpen ? 'translate-x-0' : dir === 'ltr' ? '-translate-x-full' : 'translate-x-full'}
         lg:translate-x-0`}
       onMouseEnter={() => !isExpanded && setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       <div
-        className={`py-8 ml-5 flex ${
+        className={`py-8 ${dir === 'ltr' ? 'ml-5' : 'mr-5'} flex ${
           !isExpanded && !isHovered ? 'lg:justify-center' : 'justify-start'
         }`}
       >

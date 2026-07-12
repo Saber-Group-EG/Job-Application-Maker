@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useCompany } from '../../../../../../hooks/queries/useCompanies';
 import { useSavedQuestionGroups } from '../../../../../../hooks/queries/useUsers';
+import { useLocale } from '../../../../../../context/LocaleContext';
 
 export type PoolGroup = {
   key: string;
@@ -34,10 +35,11 @@ const normalizeGroup = (
   source: PoolGroup['source'],
   rawId: string,
   g: RawGroup,
-  seen: Set<string>
+  seen: Set<string>,
+  untitledLabel = 'Untitled Group'
 ): PoolGroup | null => {
   if (!g || !Array.isArray(g.questions) || g.questions.length === 0) return null;
-  const baseName = String(g.name || 'Untitled Group').trim() || 'Untitled Group';
+  const baseName = String(g.name || untitledLabel).trim() || untitledLabel;
   const key = `${source}_${rawId}`;
   if (seen.has(key)) return null;
   seen.add(key);
@@ -58,6 +60,8 @@ const normalizeGroup = (
 };
 
 export const useQuestionPool = (companyId: string) => {
+  const { t } = useLocale();
+  const untitledLabel = t('untitledGroup', 'interview');
   const enabled = !!companyId;
   const { data: companyData, isLoading: isLoadingCompany } = useCompany(companyId, {
     enabled,
@@ -78,9 +82,10 @@ export const useQuestionPool = (companyId: string) => {
       companyInterviewSettings.groups.forEach((g, idx) => {
         const poolGroup = normalizeGroup(
           'company',
-          `${idx}_${String(g?.name || 'Untitled Group')}`,
+          `${idx}_${String(g?.name || untitledLabel)}`,
           g,
-          seen
+          seen,
+          untitledLabel
         );
         if (poolGroup) groups.push(poolGroup);
       });
@@ -89,7 +94,7 @@ export const useQuestionPool = (companyId: string) => {
     if (Array.isArray(savedGroups)) {
       savedGroups.forEach((g) => {
         const rawId = g._id ? String(g._id) : g.name || Math.random().toString(36).slice(2);
-        const poolGroup = normalizeGroup('user', rawId, g as unknown as RawGroup, seen);
+        const poolGroup = normalizeGroup('user', rawId, g as unknown as RawGroup, seen, untitledLabel);
         if (poolGroup) groups.push(poolGroup);
       });
     }

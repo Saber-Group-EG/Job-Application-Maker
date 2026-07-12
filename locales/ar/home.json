@@ -1,0 +1,20 @@
+{
+  "pageTitle": "لوحة التحكم | نظرة عامة على المتقدمين",
+  "pageDescription": "ملخص المتقدمين والمرشحات",
+  "company": "الشركة",
+  "showing": "عرض",
+  "loading": "جارٍ التحميل...",
+  "applicantsCount": "{count} متقدم",
+  "updatingData": "تحديث البيانات",
+  "updateData": "تحديث البيانات",
+  "lastUpdate": "آخر تحديث: {time}",
+  "notUpdatedYet": "لم يتم التحديث بعد",
+  "totalApplicants": "إجمالي المتقدمين",
+  "noStatusData": "لا توجد بيانات حالة متاحة",
+  "now": "الآن",
+  "minAgo": "منذ {mins} دقيقة",
+  "hourAgo": "منذ {hours} ساعة",
+  "hoursAgo": "منذ {hours} ساعات",
+  "yesterday": "أمس",
+  "daysAgo": "منذ {days} أيام"
+}

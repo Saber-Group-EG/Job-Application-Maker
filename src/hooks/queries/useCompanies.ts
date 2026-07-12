@@ -6,6 +6,7 @@ import {
   ApiError,
 } from '../../services/companiesService';
 import Swal from '../../utils/swal';
+import { useLocale } from '../../context/LocaleContext';
 import type {
   CreateCompanyRequest,
   UpdateCompanyRequest,
@@ -277,21 +278,23 @@ export function useCompaniesWithApplicants(
 
 export function useCreateCompany() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: (data: CreateCompanyRequest) =>
       companiesService.createCompany(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: companiesKeys.lists() });
-      showSuccessToast('Company created successfully');
+      showSuccessToast(t('companyCreated', 'common'), t);
     },
     onError: (error: ApiError) =>
-      showErrorToast(error.message, 'Failed to create company'),
+      showErrorToast(error.message, t('companyCreateFailed', 'common'), t),
   });
 }
 
 export function useUpdateCompany() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateCompanyRequest }) =>
@@ -299,15 +302,16 @@ export function useUpdateCompany() {
     onSuccess: (updated, { id }) => {
       queryClient.setQueryData(companiesKeys.detail(id), updated);
       queryClient.invalidateQueries({ queryKey: companiesKeys.lists() });
-      showSuccessToast('Company updated successfully');
+      showSuccessToast(t('companyUpdated', 'common'), t);
     },
     onError: (error: ApiError) =>
-      showErrorToast(error.message, 'Failed to update company'),
+      showErrorToast(error.message, t('companyUpdateFailed', 'common'), t),
   });
 }
 
 export function useDeleteCompany() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: (id: string) => companiesService.deleteCompany(id),
@@ -317,15 +321,16 @@ export function useDeleteCompany() {
         (old) => old?.filter((c) => c._id !== id) ?? []
       );
       queryClient.removeQueries({ queryKey: companiesKeys.detail(id) });
-      showSuccessToast('Company deleted successfully');
+      showSuccessToast(t('companyDeleted', 'common'), t);
     },
     onError: (error: ApiError) =>
-      showErrorToast(error.message, 'Failed to delete company'),
+      showErrorToast(error.message, t('companyDeleteFailed', 'common'), t),
   });
 }
 
 export function useUpdateMailSettings() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: ({
@@ -343,16 +348,17 @@ export function useUpdateMailSettings() {
       queryClient.invalidateQueries({
         queryKey: companiesKeys.mailSettings(companyId),
       });
-      showSuccessToast('Mail settings updated successfully');
+      showSuccessToast(t('mailSettingsUpdated', 'common'), t);
     },
     onError: (error: ApiError) =>
-      showErrorToast(error.message, 'Failed to update mail settings'),
+      showErrorToast(error.message, t('mailSettingsUpdateFailed', 'common'), t),
   });
 }
 
 // ✅ FIXED: Changed from `interviewSetting` to `interviewSettings` (plural)
 export function useUpdateCompanyInterviewSettings() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: ({
@@ -390,10 +396,10 @@ export function useUpdateCompanyInterviewSettings() {
         });
       }
 
-      showSuccessToast('Interview settings updated successfully');
+      showSuccessToast(t('interviewSettingsUpdated', 'common'), t);
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, 'Failed to update interview settings');
+      showErrorToast(error.message, t('interviewSettingsUpdateFailed', 'common'), t);
     },
   });
 }
@@ -401,6 +407,7 @@ export function useUpdateCompanyInterviewSettings() {
 // ✅ FIXED: Removed unused 'result' parameter
 export function useUpdateCompanyRejectionReasons() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: ({
@@ -445,16 +452,17 @@ export function useUpdateCompanyRejectionReasons() {
         }
         return old;
       });
-      showSuccessToast('Rejection reasons updated successfully');
+      showSuccessToast(t('rejectionReasonsUpdated', 'common'), t);
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, 'Failed to update rejection reasons');
+      showErrorToast(error.message, t('rejectionReasonsUpdateFailed', 'common'), t);
     },
   });
 }
 
 export function useUpdateCompanyStatuses() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: ({
@@ -468,14 +476,15 @@ export function useUpdateCompanyStatuses() {
       queryClient.invalidateQueries({
         queryKey: companiesKeys.statuses(settingsId),
       });
-      showSuccessToast('Statuses updated successfully');
+      showSuccessToast(t('statusesUpdated', 'common'), t);
     },
     onError: (error: ApiError) =>
-      showErrorToast(error.message, 'Failed to update statuses'),
+      showErrorToast(error.message, t('statusesUpdateFailed', 'common'), t),
   });
 }
 export function useUpdateCompanyApplicantPages() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: ({
@@ -495,10 +504,13 @@ export function useUpdateCompanyApplicantPages() {
       queryClient.invalidateQueries({
         queryKey: companiesKeys.applicantPages(settingsId),
       });
-      showSuccessToast('Applicant pages updated successfully');
+      queryClient.invalidateQueries({
+        queryKey: companiesKeys.lists(),
+      });
+      showSuccessToast(t('applicantPagesUpdated', 'common'), t);
     },
     onError: (error: ApiError) =>
-      showErrorToast(error.message, 'Failed to update applicant pages'),
+      showErrorToast(error.message, t('applicantPagesUpdateFailed', 'common'), t),
   });
 }
 
@@ -506,6 +518,7 @@ export function useUpdateCompanyApplicantPages() {
 
 export function useCreateMailTemplate() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: ({
@@ -526,15 +539,16 @@ export function useCreateMailTemplate() {
       queryClient.invalidateQueries({
         queryKey: emailTemplatesKeys.list(settingsId),
       });
-      showSuccessToast('Email template created successfully');
+      showSuccessToast(t('emailTemplateCreated', 'common'), t);
     },
     onError: (error: ApiError) =>
-      showErrorToast(error.message, 'Failed to create email template'),
+      showErrorToast(error.message, t('emailTemplateCreateFailed', 'common'), t),
   });
 }
 
 export function useUpdateMailTemplate() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: ({
@@ -558,15 +572,16 @@ export function useUpdateMailTemplate() {
       queryClient.invalidateQueries({
         queryKey: emailTemplatesKeys.list(settingsId),
       });
-      showSuccessToast('Email template updated successfully');
+      showSuccessToast(t('emailTemplateUpdated', 'common'), t);
     },
     onError: (error: ApiError) =>
-      showErrorToast(error.message, 'Failed to update email template'),
+      showErrorToast(error.message, t('emailTemplateUpdateFailed', 'common'), t),
   });
 }
 
 export function useDeleteMailTemplate() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: ({
@@ -587,15 +602,16 @@ export function useDeleteMailTemplate() {
       queryClient.invalidateQueries({
         queryKey: emailTemplatesKeys.list(settingsId),
       });
-      showSuccessToast('Email template deleted successfully');
+      showSuccessToast(t('emailTemplateDeleted', 'common'), t);
     },
     onError: (error: ApiError) =>
-      showErrorToast(error.message, 'Failed to delete email template'),
+      showErrorToast(error.message, t('emailTemplateDeleteFailed', 'common'), t),
   });
 }
 
 export function useDuplicateMailTemplate() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
   const { mutateAsync: createTemplate } = useCreateMailTemplate();
 
   return useMutation({
@@ -622,15 +638,16 @@ export function useDuplicateMailTemplate() {
       queryClient.invalidateQueries({
         queryKey: emailTemplatesKeys.list(settingsId),
       });
-      showSuccessToast('Email template duplicated successfully');
+      showSuccessToast(t('emailTemplateDuplicated', 'common'), t);
     },
     onError: (error: ApiError) =>
-      showErrorToast(error.message, 'Failed to duplicate email template'),
+      showErrorToast(error.message, t('emailTemplateDuplicateFailed', 'common'), t),
   });
 }
 
 export function useUpdateOfferSectionTemplates() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: ({
@@ -646,15 +663,16 @@ export function useUpdateOfferSectionTemplates() {
       });
       // Also update company list cache so the panel re-reads updated templates
       queryClient.invalidateQueries({ queryKey: companiesKeys.lists() });
-      showSuccessToast('Offer section templates saved');
+      showSuccessToast(t('offerSectionTemplatesSaved', 'common'), t);
     },
     onError: (error: ApiError) =>
-      showErrorToast(error.message, 'Failed to save offer section templates'),
+      showErrorToast(error.message, t('offerSectionTemplatesSaveFailed', 'common'), t),
   });
 }
 
 export function useUpdateContractSectionTemplates() {
   const queryClient = useQueryClient();
+  const { t } = useLocale();
 
   return useMutation({
     mutationFn: ({
@@ -670,12 +688,12 @@ export function useUpdateContractSectionTemplates() {
         queryKey: companiesKeys.settings(settingsId),
       });
       queryClient.invalidateQueries({ queryKey: companiesKeys.lists() });
-      showSuccessToast('Contract section templates saved');
+      showSuccessToast(t('contractSectionTemplatesSaved', 'common'), t);
     },
     onError: (error: ApiError) =>
       showErrorToast(
         error.message,
-        'Failed to save contract section templates'
+        t('contractSectionTemplatesSaveFailed', 'common'), t
       ),
   });
 }
@@ -729,9 +747,9 @@ export function previewEmailTemplate(
 }
 
 // ===== Toast Helpers =====
-function showSuccessToast(message: string) {
+function showSuccessToast(message: string, t: (key: string, ns?: string) => string) {
   Swal.fire({
-    title: 'Success',
+    title: t('success', 'common'),
     text: message,
     icon: 'success',
     timer: 1500,
@@ -739,6 +757,6 @@ function showSuccessToast(message: string) {
   });
 }
 
-function showErrorToast(message: string, fallback: string) {
-  Swal.fire({ title: 'Error', text: message || fallback, icon: 'error' });
+function showErrorToast(message: string, fallback: string, t: (key: string, ns?: string) => string) {
+  Swal.fire({ title: t('error', 'common'), text: message || fallback, icon: 'error' });
 }

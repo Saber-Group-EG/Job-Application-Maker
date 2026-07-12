@@ -23,6 +23,7 @@ import {
   Image as ImageIcon
 } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext";
+import { useLocale } from "../../../context/LocaleContext";
 import {
   useCompany,
   useDepartments,
@@ -54,6 +55,7 @@ export default function PreviewCompany() {
   const { companyId } = useParams<{ companyId: string }>();
   const navigate = useNavigate();
   const { hasPermission } = useAuth();
+  const { t, locale } = useLocale();
   const canEdit = hasPermission("Company Management", "write");
 
   const { data: companyData, isLoading: loading } = useCompany(companyId || "");
@@ -117,8 +119,8 @@ export default function PreviewCompany() {
     if (!file) return;
     setIsSaving(true);
     try {
-      const CLOUD_NAME = (import.meta.env.VITE_CLOUDINARY_CLOUD_NAME as string) || "175237158579478";
-      const UPLOAD_PRESET = (import.meta.env.VITE_CLOUDINARY_PRESET as string) || "ml_default";
+      const CLOUD_NAME = (import.meta.env.VITE_CLOUDINARY_CLOUD_NAME as string) || "";
+      const UPLOAD_PRESET = (import.meta.env.VITE_CLOUDINARY_PRESET as string) || "";
       const formData = new FormData();
       formData.append("file", file);
       formData.append("upload_preset", UPLOAD_PRESET);
@@ -126,7 +128,7 @@ export default function PreviewCompany() {
       const result = await res.json();
       setCompanyForm(prev => ({ ...prev, logoPath: result.secure_url }));
     } catch (err) {
-      Swal.fire("Upload Failed", "Could not process brand asset", "error");
+      Swal.fire(t('uploadFailed', 'companies'), "Could not process brand asset", "error");
     } finally {
       setIsSaving(false);
     }
@@ -137,9 +139,9 @@ export default function PreviewCompany() {
     try {
       await updateCompanyMutation.mutateAsync({ id: companyId!, data: companyForm as any });
       setIsEditingCompany(false);
-      Swal.fire({ title: "Profile Updated", icon: "success", timer: 1500, showConfirmButton: false });
+      Swal.fire({ title: t('profileUpdated', 'companies'), icon: "success", timer: 1500, showConfirmButton: false });
     } catch (err: any) {
-      Swal.fire("Update Failed", err.message, "error");
+      Swal.fire(t('updateFailedTitle', 'companies'), err.message, "error");
     } finally {
       setIsSaving(false);
     }
@@ -154,19 +156,20 @@ export default function PreviewCompany() {
 
   const handleDeleteDepartment = async (deptId: string) => {
     const result = await Swal.fire({
-      title: "Eliminate Department?",
-      text: "This will dissolve the department structure. Personnel will remain but unassigned.",
+      title: t('eliminateDept', 'companies'),
+      text: t('eliminateDeptDesc', 'companies'),
       icon: "warning",
       showCancelButton: true,
+      cancelButtonText: t('cancel', 'common'),
       confirmButtonColor: "#ef4444",
-      confirmButtonText: "Yes, dissolve it"
+      confirmButtonText: t('dissolveConfirm', 'companies')
     });
     if (result.isConfirmed) {
       try {
         await deleteDepartmentMutation.mutateAsync(deptId);
-        Swal.fire({ title: "Dissolved", icon: "success", timer: 1500, showConfirmButton: false });
+        Swal.fire({ title: t('dissolved', 'companies'), icon: "success", timer: 1500, showConfirmButton: false });
       } catch (err: any) {
-        Swal.fire("Error", err.message, "error");
+        Swal.fire(t('error', 'companies'), err.message, "error");
       }
     }
   };
@@ -183,9 +186,9 @@ export default function PreviewCompany() {
       setShowDeptModal(false);
       setEditingDeptId(null);
       setDepartmentForm({ companyId: companyId!, name: { en: "", ar: "" }, description: { en: "", ar: "" } });
-      Swal.fire({ title: editingDeptId ? "Updated" : "Created", icon: "success", timer: 1500, showConfirmButton: false });
+      Swal.fire({ title: editingDeptId ? t('updatedTitle', 'companies') : t('createdTitle', 'companies'), icon: "success", timer: 1500, showConfirmButton: false });
     } catch (err: any) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire(t('error', 'companies'), err.message, "error");
     } finally {
       setIsSaving(false);
     }
@@ -195,10 +198,10 @@ export default function PreviewCompany() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0F172A] p-4 sm:p-8 text-slate-900 dark:text-slate-100">
-      <PageMeta title={`${toPlainString(companyForm.name.en)} | Company Profile`} description="Manage corporate operations" />
-      <PageBreadcrumb pageTitle="Company profile & operations" />
+      <PageMeta title={t('previewPageTitle', 'companies', { name: locale === 'ar' ? (companyForm.name?.ar || companyForm.name?.en || '') : (companyForm.name?.en || companyForm.name?.ar || '') })} description={t('previewPageDesc', 'companies')} />
 
       <div className="max-w-7xl mx-auto">
+        <PageBreadcrumb pageTitle={t('previewBreadcrumb', 'companies')} />
         {/* Profile Header */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 mb-12">
           <div className="flex items-center gap-6">
@@ -211,13 +214,13 @@ export default function PreviewCompany() {
               </div>
               <div>
                 <h1 className="text-4xl font-black bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400 bg-clip-text text-transparent tracking-tight">
-                  {toPlainString(companyForm.name.en)}
+                  {locale === 'ar' ? (companyForm.name?.ar || companyForm.name?.en || '') : (companyForm.name?.en || companyForm.name?.ar || '')}
                 </h1>
                 <div className="flex items-center gap-3 mt-2">
                   <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${companyForm.isActive ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"}`}>
-                    {companyForm.isActive ? "Active" : "Disabled"}
+                    {companyForm.isActive ? t('active', 'companies') : t('disabled', 'companies')}
                   </span>
-                  <span className="text-gray-400 text-xs font-bold italic">{departments.length} Active Departments</span>
+                  <span className="text-gray-400 text-xs font-bold italic">{t('activeDepartments', 'companies', { count: departments.length })}</span>
                 </div>
               </div>
             </div>
@@ -231,7 +234,7 @@ export default function PreviewCompany() {
                 className={`flex items-center gap-2 px-8 py-4 rounded-[1.25rem] font-bold shadow-xl transition-all hover:scale-105 active:scale-95 ${isEditingCompany ? "bg-brand-500 text-white shadow-brand-500/20" : "bg-white dark:bg-white/5 border border-white/20 dark:border-white/10 shadow-sm"}`}
               >
                 {isSaving ? <div className="size-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : (isEditingCompany ? <Save className="size-5" /> : <Pencil className="size-5" />)}
-                {isEditingCompany ? "Save Changes" : "Edit"}
+                {isEditingCompany ? t('saveChanges', 'companies') : t('edit', 'companies')}
               </button>
             )}
             {isEditingCompany && (
@@ -253,14 +256,14 @@ export default function PreviewCompany() {
                   <Building2 className="size-6" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-black tracking-tight">Company Information</h2>
+                  <h2 className="text-2xl font-black tracking-tight">{t('companyInformationTitle', 'companies')}</h2>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-6">
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">Legal Company Name (EN)</label>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">{t('legalNameEn', 'companies')}</label>
                     <input 
                       readOnly={!isEditingCompany}
                       value={companyForm.name.en}
@@ -269,7 +272,7 @@ export default function PreviewCompany() {
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">اسم الكيان (AR)</label>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">{t('legalNameAr', 'companies')}</label>
                     <input 
                       readOnly={!isEditingCompany}
                       dir="rtl"
@@ -281,7 +284,7 @@ export default function PreviewCompany() {
                 </div>
 
                 <div className="relative group">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">Corporate Brand Asset</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">{t('corporateBrandAsset', 'companies')}</label>
                   <div className="relative size-full min-h-[180px] rounded-[2rem] border-2 border-dashed border-slate-200 dark:border-white/10 flex flex-col items-center justify-center p-6 transition-all group-hover:border-brand-500/50 overflow-hidden">
                     {companyForm.logoPath ? (
                       <>
@@ -296,7 +299,7 @@ export default function PreviewCompany() {
                     ) : (
                       <label className="cursor-pointer flex flex-col items-center gap-3">
                         <ImageIcon className="size-10 text-slate-300" />
-                        <span className="text-[10px] font-black text-slate-400 uppercase">Upload Company Mark</span>
+                        <span className="text-[10px] font-black text-slate-400 uppercase">{t('uploadCompanyMark', 'companies')}</span>
                         <input type="file" className="hidden" onChange={handleLogoChange} disabled={!isEditingCompany} />
                       </label>
                     )}
@@ -306,7 +309,7 @@ export default function PreviewCompany() {
 
               <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">Company Description (EN)</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">{t('companyDescEnTitle', 'companies')}</label>
                   <textarea 
                     readOnly={!isEditingCompany}
                     value={companyForm.description.en}
@@ -316,7 +319,7 @@ export default function PreviewCompany() {
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">وصف الشركة (AR)</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">{t('companyDescArTitle', 'companies')}</label>
                   <textarea 
                     readOnly={!isEditingCompany}
                     dir="rtl"
@@ -336,14 +339,14 @@ export default function PreviewCompany() {
                   <div className="size-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500">
                     <Building className="size-5" />
                   </div>
-                  <h3 className="text-xl font-black">Department Section</h3>
+                  <h3 className="text-xl font-black">{t('departmentSection', 'companies')}</h3>
                 </div>
                 {canEdit && (
                   <button 
                     onClick={() => { setEditingDeptId(null); setDepartmentForm({ companyId: companyId!, name: { en: "", ar: "" }, description: { en: "", ar: "" } }); setShowDeptModal(true); }}
                     className="flex items-center gap-2 px-5 py-2.5 bg-brand-500 text-white rounded-xl text-xs font-black shadow-lg shadow-brand-500/20 hover:scale-105 active:scale-95 transition-all"
                   >
-                    <Plus className="size-4" /> Create Department
+                    <Plus className="size-4" /> {t('createDepartment', 'companies')}
                   </button>
                 )}
               </div>
@@ -379,10 +382,10 @@ export default function PreviewCompany() {
                       </div>
                     </div>
                     <div className="mt-4">
-                      <h4 className="font-extrabold text-lg text-slate-800 dark:text-slate-100 leading-tight">{toPlainString(dept.name?.en)}</h4>
-                      <p className="text-[10px] font-black text-brand-500 mt-0.5">{toPlainString(dept.name?.ar)}</p>
+                      <h4 className="font-extrabold text-lg text-slate-800 dark:text-slate-100 leading-tight">{locale === 'ar' ? (toPlainString(dept.name?.ar) || toPlainString(dept.name?.en) || '') : (toPlainString(dept.name?.en) || toPlainString(dept.name?.ar) || '')}</h4>
+                      {locale === 'ar' ? null : <p className="text-[10px] font-black text-brand-500 mt-0.5">{toPlainString(dept.name?.ar)}</p>}
                       <p className="text-xs text-slate-500 mt-3 line-clamp-2 leading-relaxed">
-                        {toPlainString(dept.description?.en) || "No strategic overview provided for this business unit."}
+                        {locale === 'ar' ? (toPlainString(dept.description?.ar) || toPlainString(dept.description?.en) || t('noOverview', 'companies')) : (toPlainString(dept.description?.en) || toPlainString(dept.description?.ar) || t('noOverview', 'companies'))}
                       </p>
                     </div>
                   </div>
@@ -401,12 +404,12 @@ export default function PreviewCompany() {
                 <div className="size-10 rounded-xl bg-brand-500/10 flex items-center justify-center text-brand-500">
                   <Mail className="size-5" />
                 </div>
-                <h3 className="font-black text-lg">Contact</h3>
+                <h3 className="font-black text-lg">{t('contact', 'companies')}</h3>
               </div>
 
               <div className="space-y-6">
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">Mail Adress</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">{t('mailAddress', 'companies')}</label>
                   <div className="flex items-center gap-3 bg-slate-100/50 dark:bg-white/5 p-4 rounded-2xl">
                     <Mail className="size-4 text-slate-400" />
                     <input 
@@ -418,7 +421,7 @@ export default function PreviewCompany() {
                   </div>
                 </div>
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">Phone</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">{t('phone', 'companies')}</label>
                   <div className="flex items-center gap-3 bg-slate-100/50 dark:bg-white/5 p-4 rounded-2xl">
                     <Phone className="size-4 text-slate-400" />
                     <input 
@@ -430,7 +433,7 @@ export default function PreviewCompany() {
                   </div>
                 </div>
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">Website</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">{t('website', 'companies')}</label>
                   <div className="flex items-center gap-3 bg-slate-100/50 dark:bg-white/5 p-4 rounded-2xl">
                     <Globe className="size-4 text-slate-400" />
                     <input 
@@ -450,7 +453,7 @@ export default function PreviewCompany() {
                 <div className="size-10 rounded-xl bg-brand-500/10 flex items-center justify-center text-brand-500">
                   <MapPin className="size-5" />
                 </div>
-                <h3 className="font-black text-lg">Location</h3>
+                <h3 className="font-black text-lg">{t('location', 'companies')}</h3>
               </div>
 
               <div className="space-y-4">
@@ -459,7 +462,7 @@ export default function PreviewCompany() {
                     {isEditingCompany ? (
                       <div className="space-y-3">
                         <input 
-                          placeholder="Company Address (EN)" 
+                          placeholder={t('companyAddressEn', 'companies')} 
                           value={addr.en} 
                           onChange={(e) => {
                             const newAddrs = [...companyForm.address];
@@ -470,7 +473,7 @@ export default function PreviewCompany() {
                         />
                         <input 
                           dir="rtl"
-                          placeholder="عنوان الشركة (AR)" 
+                          placeholder={t('companyAddressAr', 'companies')} 
                           value={addr.ar} 
                           onChange={(e) => {
                             const newAddrs = [...companyForm.address];
@@ -480,7 +483,7 @@ export default function PreviewCompany() {
                           className="w-full bg-white dark:bg-white/5 border-none rounded-xl p-3 text-xs font-bold outline-none"
                         />
                         <input 
-                          placeholder="Google Maps URL" 
+                          placeholder={t('googleMapsUrl', 'companies')} 
                           value={addr.location} 
                           onChange={(e) => {
                             const newAddrs = [...companyForm.address];
@@ -491,15 +494,15 @@ export default function PreviewCompany() {
                         />
                         {companyForm.address.length > 1 && (
                           <button onClick={() => setCompanyForm(p => ({ ...p, address: p.address.filter((_, i) => i !== idx) }))} className="text-[10px] font-black text-red-500 uppercase flex items-center gap-1 hover:underline">
-                            <X className="size-3" /> Dissolve Location
+                            <X className="size-3" /> {t('dissolveLocation', 'companies')}
                           </button>
                         )}
                       </div>
                     ) : (
                       <div className="space-y-1">
-                        <span className="text-[10px] font-black text-brand-500 transition-colors">Main Campus</span>
-                        <p className="text-sm font-bold leading-relaxed">{toPlainString(addr.en)}</p>
-                        <p className="text-[10px] font-bold text-slate-400 italic">{toPlainString(addr.ar)}</p>
+                        <span className="text-[10px] font-black text-brand-500 transition-colors">{t('mainCampus', 'companies')}</span>
+                        <p className="text-sm font-bold leading-relaxed">{locale === 'ar' ? (toPlainString(addr.ar) || toPlainString(addr.en) || '') : (toPlainString(addr.en) || toPlainString(addr.ar) || '')}</p>
+                        {locale === 'ar' ? null : <p className="text-[10px] font-bold text-slate-400 italic">{toPlainString(addr.ar)}</p>}
                       </div>
                     )}
                     {!isEditingCompany && addr.location && (
@@ -513,7 +516,7 @@ export default function PreviewCompany() {
                 
                 {isEditingCompany && (
                   <button onClick={handleAddAddress} className="w-full py-4 border-2 border-dashed border-slate-300 dark:border-white/10 rounded-2xl text-xs font-black text-slate-400 hover:border-brand-500/50 hover:text-brand-500 transition-all flex items-center justify-center gap-2">
-                    <Plus className="size-4" /> Add Location
+                    <Plus className="size-4" /> {t('addLocationBtn', 'companies')}
                   </button>
                 )}
               </div>
@@ -530,7 +533,7 @@ export default function PreviewCompany() {
             <div className="p-10">
               <div className="flex items-center justify-between mb-8">
                 <div>
-                  <h3 className="text-2xl font-black">{editingDeptId ? "Edit Department" : "Create Department"}</h3>
+                  <h3 className="text-2xl font-black">{editingDeptId ? t('editDepartment', 'companies') : t('createDepartmentTitle', 'companies')}</h3>
                 </div>
                 <button onClick={() => setShowDeptModal(false)} className="size-12 rounded-2xl bg-slate-100 dark:bg-white/5 flex items-center justify-center hover:scale-110 active:scale-90 transition-all">
                   <X className="size-5" />
@@ -539,8 +542,8 @@ export default function PreviewCompany() {
 
               <form onSubmit={handleDeptSubmit} className="space-y-8">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">Division Name (EN)</label>
+                  <div className={locale === 'ar' ? 'order-2' : 'order-1'}>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">{t('deptDivisionNameEn', 'companies')}</label>
                     <input 
                       required
                       value={departmentForm.name.en}
@@ -548,8 +551,8 @@ export default function PreviewCompany() {
                       className="w-full bg-slate-100/50 dark:bg-white/5 border-none rounded-2xl p-4 font-bold focus:ring-2 ring-brand-500/50 outline-none"
                     />
                   </div>
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">اسم القسم (AR)</label>
+                  <div className={locale === 'ar' ? 'order-1' : 'order-2'}>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">{t('deptDivisionNameAr', 'companies')}</label>
                     <input 
                       required
                       dir="rtl"
@@ -561,8 +564,8 @@ export default function PreviewCompany() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">Desciption (EN)</label>
+                  <div className={locale === 'ar' ? 'order-2' : 'order-1'}>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">{t('deptDescEn', 'companies')}</label>
                     <textarea 
                       value={departmentForm.description.en}
                       onChange={(e) => setDepartmentForm(p => ({ ...p, description: { ...p.description, en: e.target.value } }))}
@@ -570,8 +573,8 @@ export default function PreviewCompany() {
                       className="w-full bg-slate-100/50 dark:bg-white/5 border-none rounded-2xl p-4 font-bold focus:ring-2 ring-brand-500/50 outline-none resize-none"
                     />
                   </div>
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">وصف  (AR) </label>
+                  <div className={locale === 'ar' ? 'order-1' : 'order-2'}>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">{t('deptDescAr', 'companies')}</label>
                     <textarea 
                       dir="rtl"
                       value={departmentForm.description.ar}
@@ -589,14 +592,14 @@ export default function PreviewCompany() {
                     className="flex-1 py-4 bg-brand-500 text-white rounded-2xl font-bold shadow-xl shadow-brand-500/30 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2"
                   >
                     {isSaving ? <div className="size-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Save className="size-5" />}
-                    {editingDeptId ? "Save Changes" : "Create Department"}
+                    {editingDeptId ? t('saveChanges', 'companies') : t('createDepartment', 'companies')}
                   </button>
                   <button 
                     type="button" 
                     onClick={() => setShowDeptModal(false)}
                     className="px-8 py-4 bg-slate-100 dark:bg-white/5 rounded-2xl font-bold hover:bg-slate-200 dark:hover:bg-white/10 transition-all"
                   >
-                    Cancel
+                    {t('cancel', 'companies')}
                   </button>
                 </div>
               </form>

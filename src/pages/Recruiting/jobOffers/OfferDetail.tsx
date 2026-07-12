@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { JobOffer, OfferStatus } from '../../../services/jobOffersService';
 import { STATUS_CHIP, WORK_TYPE_COLORS } from './JobOffersPage';
+import { useLocale } from '../../../context/LocaleContext';
 import { OfferActions } from './OffersActions';
 import { Link } from 'react-router';
 
@@ -42,6 +43,7 @@ export function OfferDetail({
   onConvertToContract: (offer: JobOffer) => void;
   canCreateContract: boolean;
 }) {
+  const { t, locale } = useLocale();
   const chip = STATUS_CHIP[offer.status];
   const applicantName = offer.applicantId?.fullName;
   const applicantEmail = offer.applicantId?.email;
@@ -57,7 +59,7 @@ export function OfferDetail({
             className="flex items-center gap-2 text-sm font-medium text-slate-600 transition hover:text-brand-600 dark:text-slate-400 dark:hover:text-brand-400"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to offers
+            {t('backToOffers', 'jobOffers')}
           </button>
 
           <div className="flex items-center gap-2">
@@ -69,7 +71,7 @@ export function OfferDetail({
             {canCreateContract && <button
               onClick={() => onConvertToContract(offer)}
               className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-400 transition hover:border-brand-300 hover:bg-brand-50 hover:text-brand-600 dark:border-slate-700 dark:text-slate-400 dark:hover:border-brand-500/40 dark:hover:bg-brand-500/10 dark:hover:text-brand-400"
-              title="Convert to Contract"
+              title={t('convertToContract', 'jobOffers')}
             >
               <FileSignature className="size-3.5" />
             </button>}
@@ -80,21 +82,21 @@ export function OfferDetail({
                 <button
                   onClick={() => onEdit(offer)}
                   className="flex size-8 items-center justify-center rounded-lg border border-slate-200 text-slate-400 transition hover:border-brand-300 hover:bg-brand-50 hover:text-brand-600 dark:border-slate-700"
-                  title="Edit"
+                  title={t('edit', 'jobOffers')}
                 >
                   <Pencil className="size-3.5" />
                 </button>
                 <button
                   onClick={() => onClone(offer)}
                   className="flex size-8 items-center justify-center rounded-lg border border-slate-200 text-slate-400 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-600 dark:border-slate-700"
-                  title="Clone"
+                  title={t('clone', 'jobOffers')}
                 >
                   <Copy className="size-3.5" />
                 </button>
                 <button
                   onClick={() => onDelete(offer._id)}
                   className="flex size-8 items-center justify-center rounded-lg border border-slate-200 text-slate-400 transition hover:border-red-300 hover:bg-red-50 hover:text-red-600 dark:border-slate-700"
-                  title="Delete"
+                  title={t('delete', 'jobOffers')}
                 >
                   <Trash2 className="size-3.5" />
                 </button>
@@ -109,13 +111,15 @@ export function OfferDetail({
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-              {offer.position?.en} {offer.position.ar && ` / ${offer.position.ar}`}
+              {locale === 'ar' ? (offer.position?.ar || offer.position?.en) : (offer.position?.en || offer.position?.ar)}
             </h2>
             {showCompany && (
               <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
                 <Briefcase className="size-3.5" />
                 <span className="font-medium">
-                  {(offer.companyId as { name: { en: string } }).name.en}
+                  {locale === 'ar'
+                    ? ((offer.companyId as any)?.name?.ar || (offer.companyId as any)?.name?.en || '')
+                    : ((offer.companyId as any)?.name?.en || (offer.companyId as any)?.name?.ar || '')}
                 </span>
               </div>
             )}
@@ -123,12 +127,19 @@ export function OfferDetail({
               <span
                 className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${WORK_TYPE_COLORS[offer.workType]}`}
               >
-                {offer.workType}
+                {t(
+                  offer.workType === 'full-time'
+                    ? 'fullTime'
+                    : offer.workType === 'part-time'
+                      ? 'partTime'
+                      : offer.workType || '',
+                  'modals',
+                )}
               </span>
               {offer.workHours && (
                 <span className="flex items-center gap-1 text-xs text-slate-500">
                   <Clock className="size-3.5" />
-                  {offer.workHours?.en} {offer.workHours.ar && ` / ${offer.workHours.ar}`}
+                  {locale === 'ar' ? (offer.workHours?.ar || offer.workHours?.en) : (offer.workHours?.en || offer.workHours?.ar)}
                 </span>
               )}
               {offer.salary.basic != null && (
@@ -159,7 +170,10 @@ export function OfferDetail({
               ] as OfferStatus[]
             ).map((s) => (
               <option key={s} value={s}>
-                {s.charAt(0).toUpperCase() + s.slice(1)}
+                {t(
+                  `status${s.charAt(0).toUpperCase() + s.slice(1)}` as const,
+                  'jobOffers',
+                )}
               </option>
             ))}
           </select>
@@ -180,13 +194,13 @@ export function OfferDetail({
           </div>
           <div className="text-right text-xs text-slate-400">
             <p>
-              Created by{' '}
+              {t('createdBy', 'jobOffers')}{' '}
               <span className="font-medium text-slate-600 dark:text-slate-300">
                 {offer.createdBy?.fullName ?? '—'}
               </span>
             </p>
             <p className="mt-0.5">
-              {new Date(offer.createdAt).toLocaleDateString('en-US', {
+              {new Date(offer.createdAt).toLocaleDateString(locale, {
                 month: 'short',
                 day: '2-digit',
                 year: 'numeric',
@@ -197,8 +211,8 @@ export function OfferDetail({
 
         {offer.lastEmailSentAt && (
           <p className="mt-3 text-xs text-slate-400 dark:text-slate-500">
-            📧 Last emailed{' '}
-            {new Date(offer.lastEmailSentAt!).toLocaleDateString(undefined, {
+            {t('lastEmailed', 'jobOffers')}{' '}
+            {new Date(offer.lastEmailSentAt!).toLocaleDateString(locale, {
               day: 'numeric',
               month: 'short',
               year: 'numeric',
@@ -212,7 +226,7 @@ export function OfferDetail({
         <div className="border-b border-slate-200 p-6 dark:border-slate-800">
           <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
             <DollarSign className="h-4 w-4" />
-            Commission Tiers
+            {t('commissionTiers', 'jobOffers')}
           </h3>
           <div className="space-y-2">
             {offer.commissions.map((c, i) => (
@@ -222,10 +236,10 @@ export function OfferDetail({
               >
                 <div>
                   <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
-                    {c.label?.en} {c.label.ar && ` / ${c.label.ar}`}
+                    {locale === 'ar' ? (c.label?.ar || c.label?.en) : (c.label?.en || c.label?.ar)}
                   </p>
                   {c.condition && (
-                    <p className="text-xs text-slate-400">{c.condition?.en} {c.condition.ar && ` / ${c.condition.ar}`}</p>
+                    <p className="text-xs text-slate-400">{locale === 'ar' ? (c.condition?.ar || c.condition?.en) : (c.condition?.en || c.condition?.ar)}</p>
                   )}
                 </div>
                 <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
@@ -243,7 +257,7 @@ export function OfferDetail({
         <div className="border-b border-slate-200 p-6 dark:border-slate-800">
           <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
             <FileText className="h-4 w-4" />
-            Offer Sections
+            {t('offerSections', 'jobOffers')}
           </h3>
           <div className="space-y-4">
             {offer.sections
@@ -252,7 +266,7 @@ export function OfferDetail({
               .map((section, i) => (
                 <div key={i}>
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                    {section.title?.en || section.title?.ar}
+                    {locale === 'ar' ? (section.title?.ar || section.title?.en) : (section.title?.en || section.title?.ar)}
                   </p>
                   <ul className="space-y-1">
                     {section.items.map((item, j) => (
@@ -261,7 +275,7 @@ export function OfferDetail({
                         className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-400"
                       >
                         <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-400" />
-                        {item.en || item.ar}
+                        {locale === 'ar' ? (item.ar || item.en) : (item.en || item.ar)}
                       </li>
                     ))}
                   </ul>
@@ -276,7 +290,7 @@ export function OfferDetail({
         <div className="border-b border-slate-200 p-6 dark:border-slate-800">
           <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
             <Clock3 className="h-4 w-4" />
-            Internal Notes (EN)
+            {t('internalNotesEn', 'jobOffers')}
           </h3>
           <p className="text-sm text-slate-600 dark:text-slate-400">
             {offer.notes.en}
@@ -288,7 +302,7 @@ export function OfferDetail({
         <div className="border-b border-slate-200 p-6 dark:border-slate-800">
           <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
             <Clock3 className="h-4 w-4" />
-            Internal Notes (AR)
+            {t('internalNotesAr', 'jobOffers')}
           </h3>
           <p className="text-sm text-slate-600 dark:text-slate-400">
             {offer.notes.ar}
@@ -300,15 +314,15 @@ export function OfferDetail({
       <div className="p-6">
         <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
           <Clock3 className="h-4 w-4" />
-          Timeline
+          {t('timeline', 'jobOffers')}
         </h3>
         <div className="space-y-4">
           {[
-            { label: 'Created', date: offer.createdAt },
-            { label: 'Sent', date: offer.sentAt },
-            { label: 'Last Emailed', date: offer.lastEmailSentAt },
-            { label: 'Responded', date: offer.respondedAt },
-            { label: 'Expires', date: offer.expiresAt },
+            { label: t('timelineCreated', 'jobOffers'), date: offer.createdAt },
+            { label: t('timelineSent', 'jobOffers'), date: offer.sentAt },
+            { label: t('timelineLastEmailed', 'jobOffers'), date: offer.lastEmailSentAt },
+            { label: t('timelineResponded', 'jobOffers'), date: offer.respondedAt },
+            { label: t('timelineExpires', 'jobOffers'), date: offer.expiresAt },
           ]
             .filter((e) => e.date)
             .map((event, idx, arr) => (
@@ -324,7 +338,7 @@ export function OfferDetail({
                     {event.label}
                   </p>
                   <p className="text-sm text-slate-700 dark:text-slate-300">
-                    {new Date(event.date!).toLocaleString('en-US', {
+                    {new Date(event.date!).toLocaleString(locale, {
                       month: 'short',
                       day: '2-digit',
                       hour: '2-digit',

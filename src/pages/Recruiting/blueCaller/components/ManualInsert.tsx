@@ -19,6 +19,7 @@ import Swal from '../../../../utils/swal';
 import { toPlainString } from '../../../../utils/strings';
 import type { Applicant } from '../../../../types/applicants';
 import type { JobPosition } from '../../../../types/jobPositions';
+import { useLocale } from '../../../../context/LocaleContext';
 
 type ManualFormState = {
   fullName: string;
@@ -409,6 +410,7 @@ export default function ManualInsert({
   themeColors,
   onSuccess,
 }: ManualInsertProps) {
+  const { t } = useLocale();
   const [manualSubmitting, setManualSubmitting] = useState(false);
   const [uploadingProfilePhoto, setUploadingProfilePhoto] = useState(false);
   const [uploadingCv, setUploadingCv] = useState(false);
@@ -483,11 +485,11 @@ export default function ManualInsert({
 
     return (
       <div>
-        <label className="text-sm font-semibold text-gray-700">
+        <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">
           {label}
           {isRequired ? ' *' : ''}
         </label>
-        <div className={`mt-1 rounded-xl border ${themeColors.borderPrimary} bg-white px-3 py-2 shadow-sm ${themeColors.focusRing}`}>
+        <div className={`mt-1 rounded-xl border ${themeColors.borderPrimary} bg-white dark:bg-gray-800 px-3 py-2 shadow-sm ${themeColors.focusRing}`}>
           <div className="flex flex-wrap gap-2">
             {tags.map((tag) => (
               <span key={tag} className={`inline-flex items-center gap-1 rounded-full ${themeColors.bgLight} px-3 py-1 text-xs font-semibold ${themeColors.textPrimary}`}>
@@ -509,7 +511,7 @@ export default function ManualInsert({
                 if (!tags.includes(nextTag)) onChange([...tags, nextTag]);
                 setManualTagInputs((prev) => ({ ...prev, [fieldKey]: '' }));
               }}
-              placeholder="Type a tag and press Enter"
+              placeholder={t('typeTagPressEnter', 'blueCaller')}
               className="min-w-40 flex-1 border-0 bg-transparent px-1 py-1 text-sm outline-none"
             />
           </div>
@@ -519,7 +521,7 @@ export default function ManualInsert({
   };
 
   const renderGroupField = (definition: CustomFieldDefinition, value: unknown, onChange: (val: unknown) => void) => {
-    const inputClasses = `mt-1 w-full rounded-xl border ${themeColors.borderPrimary} bg-white px-4 py-3 text-gray-900 shadow-sm outline-none transition ${themeColors.focusRing}`;
+    const inputClasses = `mt-1 w-full rounded-xl border ${themeColors.borderPrimary} bg-white dark:bg-gray-800 px-4 py-3 text-gray-900 dark:text-gray-100 shadow-sm outline-none transition ${themeColors.focusRing}`;
 
     if (definition.inputType === 'tags') {
       return renderTagsField(definition.fieldId, definition.label, definition.isRequired, value, (nextTags) => onChange(nextTags));
@@ -528,7 +530,7 @@ export default function ManualInsert({
     if (definition.inputType === 'textarea') {
       return (
         <div>
-          <label className="text-xs font-semibold text-gray-700">{definition.label}{definition.isRequired ? ' *' : ''}</label>
+          <label className="text-xs font-semibold text-gray-700 dark:text-gray-200">{definition.label}{definition.isRequired ? ' *' : ''}</label>
           <textarea className={`${inputClasses} min-h-20 text-sm`} value={String(value ?? '')} onChange={(e) => onChange(e.target.value)} />
         </div>
       );
@@ -537,7 +539,7 @@ export default function ManualInsert({
     if (definition.inputType === 'date') {
       return (
         <div>
-          <label className="text-xs font-semibold text-gray-700">{definition.label}{definition.isRequired ? ' *' : ''}</label>
+          <label className="text-xs font-semibold text-gray-700 dark:text-gray-200">{definition.label}{definition.isRequired ? ' *' : ''}</label>
           <input type="date" className={`${inputClasses} text-sm`} value={String(value ?? '')} onChange={(e) => onChange(e.target.value)} />
         </div>
       );
@@ -546,7 +548,7 @@ export default function ManualInsert({
     if (definition.inputType === 'number') {
       return (
         <div>
-          <label className="text-xs font-semibold text-gray-700">{definition.label}{definition.isRequired ? ' *' : ''}</label>
+          <label className="text-xs font-semibold text-gray-700 dark:text-gray-200">{definition.label}{definition.isRequired ? ' *' : ''}</label>
           <input type="number" className={`${inputClasses} text-sm`} value={String(value ?? '')} onChange={(e) => onChange(e.target.value)} />
         </div>
       );
@@ -555,15 +557,15 @@ export default function ManualInsert({
     if (Array.isArray(definition.choices) && definition.choices.length > 0) {
       return (
         <div>
-          <label className="text-xs font-semibold text-gray-700">{definition.label}{definition.isRequired ? ' *' : ''}</label>
+          <label className="text-xs font-semibold text-gray-700 dark:text-gray-200">{definition.label}{definition.isRequired ? ' *' : ''}</label>
           <div className="relative mt-1">
             <select className={`${inputClasses} appearance-none pr-12 text-sm`} value={String(value ?? '')} onChange={(e) => onChange(e.target.value)}>
-              <option value="">Select</option>
+              <option value="">{t('select', 'blueCaller')}</option>
               {definition.choices.map((choice) => (
                 <option key={choice.value} value={choice.value}>{choice.label}</option>
               ))}
             </select>
-            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
           </div>
         </div>
       );
@@ -571,7 +573,7 @@ export default function ManualInsert({
 
     return (
       <div>
-        <label className="text-xs font-semibold text-gray-700">{definition.label}{definition.isRequired ? ' *' : ''}</label>
+        <label className="text-xs font-semibold text-gray-700 dark:text-gray-200">{definition.label}{definition.isRequired ? ' *' : ''}</label>
         <input type={definition.inputType === 'url' ? 'url' : 'text'} className={`${inputClasses} text-sm`} value={String(value ?? '')} onChange={(e) => onChange(e.target.value)} />
       </div>
     );
@@ -579,7 +581,7 @@ export default function ManualInsert({
 
   const renderCustomField = (definition: CustomFieldDefinition) => {
     const value = manualCustomValues[definition.fieldId];
-    const inputClasses = `mt-1 w-full rounded-xl border ${themeColors.borderPrimary} bg-white px-4 py-3 text-gray-900 shadow-sm outline-none transition ${themeColors.focusRing}`;
+    const inputClasses = `mt-1 w-full rounded-xl border ${themeColors.borderPrimary} bg-white dark:bg-gray-800 px-4 py-3 text-gray-900 dark:text-gray-100 shadow-sm outline-none transition ${themeColors.focusRing}`;
     const error = manualErrors[definition.fieldId];
 
     if (definition.inputType === 'tags') {
@@ -597,30 +599,30 @@ export default function ManualInsert({
       const rows = Array.isArray(value) ? (value as RepeatingRowState[]) : [];
       return (
         <div className="md:col-span-2">
-          <div className={`space-y-4 rounded-2xl border ${themeColors.borderLight} bg-gray-50 p-4`}>
+          <div className={`space-y-4 rounded-2xl border ${themeColors.borderLight} bg-gray-50 dark:bg-gray-800/50 p-4`}>
             <div className="flex items-center justify-between gap-4">
-              <label className="text-sm font-semibold text-gray-700">{definition.label}{definition.isRequired ? ' *' : ''}</label>
+              <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">{definition.label}{definition.isRequired ? ' *' : ''}</label>
               <button
                 type="button"
                 onClick={() => setManualCustomValues((prev) => ({ ...prev, [definition.fieldId]: [...rows, {}] }))}
                 className={`inline-flex items-center gap-2 rounded-lg ${themeColors.bgPrimary} px-3 py-2 text-sm font-semibold text-white hover:opacity-90 transition ${themeColors.hoverBg}`}
               >
-                <Plus className="h-4 w-4" /> Add row
+                <Plus className="h-4 w-4" /> {t('addRow', 'blueCaller')}
               </button>
             </div>
             {rows.length === 0 ? (
-              <p className="text-sm text-gray-500 italic">No rows added yet</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 italic">{t('noRowsAdded', 'blueCaller')}</p>
             ) : (
               rows.map((row, rowIndex) => (
-                <div key={rowIndex} className={`space-y-3 rounded-xl border ${themeColors.borderLight} bg-white p-3`}>
+                <div key={rowIndex} className={`space-y-3 rounded-xl border ${themeColors.borderLight} bg-white dark:bg-gray-800 p-3`}>
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-semibold text-gray-600">Row {rowIndex + 1}</span>
+                    <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">{t('rowLabel', 'blueCaller', { count: rowIndex + 1 })}</span>
                     <button
                       type="button"
                       onClick={() => setManualCustomValues((prev) => ({ ...prev, [definition.fieldId]: rows.filter((_, i) => i !== rowIndex) }))}
-                      className="inline-flex items-center gap-1 rounded-lg bg-red-50 px-2 py-1 text-sm font-semibold text-red-700 hover:bg-red-100 transition"
+                      className="inline-flex items-center gap-1 rounded-lg bg-red-50 px-2 py-1 text-sm font-semibold text-red-700 hover:bg-red-100 transition dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/30"
                     >
-                      <Trash2 className="h-3.5 w-3.5" /> Remove
+                      <Trash2 className="h-3.5 w-3.5" /> {t('remove', 'blueCaller')}
                     </button>
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
@@ -644,7 +646,7 @@ export default function ManualInsert({
     if (definition.inputType === 'textarea') {
       return (
         <div>
-          <label className="text-sm font-semibold text-gray-700">{definition.label}{definition.isRequired ? ' *' : ''}</label>
+          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">{definition.label}{definition.isRequired ? ' *' : ''}</label>
           <textarea className={`${inputClasses} min-h-28`} value={String(value ?? '')} onChange={(e) => setManualCustomValues((prev) => ({ ...prev, [definition.fieldId]: e.target.value }))} />
           {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
         </div>
@@ -654,7 +656,7 @@ export default function ManualInsert({
     if (definition.inputType === 'date') {
       return (
         <div>
-          <label className="text-sm font-semibold text-gray-700">{definition.label}{definition.isRequired ? ' *' : ''}</label>
+          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">{definition.label}{definition.isRequired ? ' *' : ''}</label>
           <input type="date" className={inputClasses} value={String(value ?? '')} onChange={(e) => setManualCustomValues((prev) => ({ ...prev, [definition.fieldId]: e.target.value }))} />
           {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
         </div>
@@ -664,7 +666,7 @@ export default function ManualInsert({
     if (definition.inputType === 'number') {
       return (
         <div>
-          <label className="text-sm font-semibold text-gray-700">{definition.label}{definition.isRequired ? ' *' : ''}</label>
+          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">{definition.label}{definition.isRequired ? ' *' : ''}</label>
           <input type="number" min={definition.minValue} max={definition.maxValue} className={inputClasses} value={String(value ?? '')} onChange={(e) => setManualCustomValues((prev) => ({ ...prev, [definition.fieldId]: e.target.value }))} />
           {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
         </div>
@@ -674,7 +676,7 @@ export default function ManualInsert({
     if (definition.inputType === 'checkbox' || definition.inputType === 'boolean') {
       return (
         <div className={`rounded-xl border ${themeColors.borderLight} ${themeColors.bgLight} p-4`}>
-          <label className="flex items-center gap-3 text-sm font-semibold text-gray-700">
+          <label className="flex items-center gap-3 text-sm font-semibold text-gray-700 dark:text-gray-200">
             <input type="checkbox" checked={Boolean(value)} onChange={(e) => setManualCustomValues((prev) => ({ ...prev, [definition.fieldId]: e.target.checked }))} className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
             {definition.label}{definition.isRequired ? ' *' : ''}
           </label>
@@ -686,15 +688,15 @@ export default function ManualInsert({
     if (Array.isArray(definition.choices) && definition.choices.length > 0) {
       return (
         <div>
-          <label className="text-sm font-semibold text-gray-700">{definition.label}{definition.isRequired ? ' *' : ''}</label>
+          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">{definition.label}{definition.isRequired ? ' *' : ''}</label>
           <div className="relative mt-1">
             <select className={`${inputClasses} appearance-none pr-12`} value={String(value ?? '')} onChange={(e) => setManualCustomValues((prev) => ({ ...prev, [definition.fieldId]: e.target.value }))}>
-              <option value="">Select an option</option>
+              <option value="">{t('selectOption', 'blueCaller')}</option>
               {definition.choices.map((choice) => (
                 <option key={choice.value} value={choice.value}>{choice.label}</option>
               ))}
             </select>
-            <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
           </div>
           {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
         </div>
@@ -703,7 +705,7 @@ export default function ManualInsert({
 
     return (
       <div>
-        <label className="text-sm font-semibold text-gray-700">{definition.label}{definition.isRequired ? ' *' : ''}</label>
+        <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">{definition.label}{definition.isRequired ? ' *' : ''}</label>
         <input type={definition.inputType === 'url' ? 'url' : 'text'} className={inputClasses} value={String(value ?? '')} onChange={(e) => setManualCustomValues((prev) => ({ ...prev, [definition.fieldId]: e.target.value }))} />
         {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
       </div>
@@ -713,42 +715,42 @@ export default function ManualInsert({
   const validateManualForm = () => {
     const nextErrors: Record<string, string> = {};
 
-    if (isFieldVisible(selectedJobPosition, 'fullName') && !manualForm.fullName.trim()) nextErrors.fullName = 'Full name is required.';
+    if (isFieldVisible(selectedJobPosition, 'fullName') && !manualForm.fullName.trim()) nextErrors.fullName = t('fullNameRequired', 'blueCaller');
     if (isFieldVisible(selectedJobPosition, 'email')) {
-      if (!manualForm.email.trim()) nextErrors.email = 'Email is required.';
+      if (!manualForm.email.trim()) nextErrors.email = t('emailRequired', 'blueCaller');
       if (manualForm.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(manualForm.email.trim())) {
-        nextErrors.email = 'Enter a valid email address.';
+        nextErrors.email = t('validEmail', 'blueCaller');
       }
     }
     if (isFieldVisible(selectedJobPosition, 'phone')) {
-      if (!manualForm.phone.trim()) nextErrors.phone = 'Phone is required.';
+      if (!manualForm.phone.trim()) nextErrors.phone = t('phoneRequired', 'blueCaller');
       if (manualForm.phone && !PHONE_REGEX.test(normalizePhoneValue(manualForm.phone))) {
-        nextErrors.phone = 'Phone must match 01[0125]XXXXXXXX.';
+        nextErrors.phone = t('phoneFormat', 'blueCaller');
       }
     }
-    if (isFieldVisible(selectedJobPosition, 'address') && !manualForm.address.trim()) nextErrors.address = 'Address is required.';
+    if (isFieldVisible(selectedJobPosition, 'address') && !manualForm.address.trim()) nextErrors.address = t('addressRequired', 'blueCaller');
     if (isFieldVisible(selectedJobPosition, 'birthDate')) {
-      if (!manualForm.birthDate) nextErrors.birthDate = 'Birth date is required.';
+      if (!manualForm.birthDate) nextErrors.birthDate = t('birthDateRequired', 'blueCaller');
       if (manualForm.birthDate && isFutureBirthDate(manualForm.birthDate)) {
-        nextErrors.birthDate = 'Birth date cannot be in the future.';
+        nextErrors.birthDate = t('birthDateFuture', 'blueCaller');
       }
     }
-    if (isFieldVisible(selectedJobPosition, 'gender') && !manualForm.gender) nextErrors.gender = 'Gender is required.';
-    if (!manualForm.jobPositionId) nextErrors.jobPositionId = 'Select a job position.';
+    if (isFieldVisible(selectedJobPosition, 'gender') && !manualForm.gender) nextErrors.gender = t('genderRequired', 'blueCaller');
+    if (!manualForm.jobPositionId) nextErrors.jobPositionId = t('selectJobPosition', 'blueCaller');
 
     if (isFieldVisible(selectedJobPosition, 'profilePhoto') && profilePhotoFile) {
       if (!isAllowedProfilePhotoFile(profilePhotoFile)) {
-        nextErrors.profilePhoto = 'Profile photo must be JPG or PNG.';
+        nextErrors.profilePhoto = t('profilePhotoFormat', 'blueCaller');
       } else if (!isFileWithinSizeLimit(profilePhotoFile, PROFILE_PHOTO_LIMIT)) {
-        nextErrors.profilePhoto = 'Profile photo must be 5 MB or less.';
+        nextErrors.profilePhoto = t('profilePhotoSize', 'blueCaller');
       }
     }
 
     if (isFieldVisible(selectedJobPosition, 'cvFilePath') && cvFile) {
       if (!isAllowedCvFile(cvFile)) {
-        nextErrors.cvFilePath = 'CV must be a PDF.';
+        nextErrors.cvFilePath = t('cvFormat', 'blueCaller');
       } else if (!isFileWithinSizeLimit(cvFile, CV_LIMIT)) {
-        nextErrors.cvFilePath = 'CV must be 10 MB or less.';
+        nextErrors.cvFilePath = t('cvSize', 'blueCaller');
       }
     }
 
@@ -756,7 +758,7 @@ export default function ManualInsert({
       if (definition.inputType === 'repeatable_group') return;
       const value = manualCustomValues[definition.fieldId];
       if (definition.isRequired && (value === undefined || value === null || value === '')) {
-        nextErrors[definition.fieldId] = `${definition.label} is required.`;
+        nextErrors[definition.fieldId] = t('customFieldRequired', 'blueCaller', { label: definition.label });
       }
     });
 
@@ -765,7 +767,7 @@ export default function ManualInsert({
         (spec: { jobSpecId?: string }) => manualJobSpecValues[String(spec?.jobSpecId || '')] === undefined
       );
       if (missingRequiredSpecs.length > 0) {
-        nextErrors.jobSpecs = 'Please answer all job-spec questions.';
+        nextErrors.jobSpecs = t('answerAllJobSpecs', 'blueCaller');
       }
     }
 
@@ -777,11 +779,11 @@ export default function ManualInsert({
     const file = event.target.files?.[0] || null;
     if (!file) return;
     if (!isAllowedProfilePhotoFile(file)) {
-      setManualErrors((prev) => ({ ...prev, profilePhoto: 'Profile photo must be JPG or PNG.' }));
+      setManualErrors((prev) => ({ ...prev, profilePhoto: t('profilePhotoFormat', 'blueCaller') }));
       return;
     }
     if (!isFileWithinSizeLimit(file, PROFILE_PHOTO_LIMIT)) {
-      setManualErrors((prev) => ({ ...prev, profilePhoto: 'Profile photo must be 5 MB or less.' }));
+      setManualErrors((prev) => ({ ...prev, profilePhoto: t('profilePhotoSize', 'blueCaller') }));
       return;
     }
     setManualErrors((prev) => { const next = { ...prev }; delete next.profilePhoto; return next; });
@@ -792,11 +794,11 @@ export default function ManualInsert({
     const file = event.target.files?.[0] || null;
     if (!file) return;
     if (!isAllowedCvFile(file)) {
-      setManualErrors((prev) => ({ ...prev, cvFilePath: 'CV must be a PDF.' }));
+      setManualErrors((prev) => ({ ...prev, cvFilePath: t('cvFormat', 'blueCaller') }));
       return;
     }
     if (!isFileWithinSizeLimit(file, CV_LIMIT)) {
-      setManualErrors((prev) => ({ ...prev, cvFilePath: 'CV must be 10 MB or less.' }));
+      setManualErrors((prev) => ({ ...prev, cvFilePath: t('cvSize', 'blueCaller') }));
       return;
     }
     setManualErrors((prev) => { const next = { ...prev }; delete next.cvFilePath; return next; });
@@ -815,12 +817,12 @@ export default function ManualInsert({
 
     if (duplicate) {
       const confirmation = await Swal.fire({
-        title: 'Applicant already applied before',
-        text: `A matching applicant already exists for ${duplicate.fullName || duplicate.email || duplicate.phone}. Do you want to apply again?`,
+        title: t('applicantAlreadyApplied', 'applicants'),
+        text: t('applicantAlreadyAppliedDesc', 'applicants', { name: duplicate.fullName || duplicate.email || duplicate.phone }),
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonText: 'Yes',
-        cancelButtonText: 'No',
+        confirmButtonText: t('yes', 'common'),
+        cancelButtonText: t('no', 'common'),
         reverseButtons: true,
       });
 
@@ -830,8 +832,8 @@ export default function ManualInsert({
     setManualSubmitting(true);
     try {
       void Swal.fire({
-        title: 'Saving applicant',
-        text: 'Uploading attachments and creating the applicant record.',
+        title: t('savingApplicant', 'applicants'),
+        text: t('uploadingAttachments', 'applicants'),
         icon: 'info',
         allowOutsideClick: false,
         allowEscapeKey: false,
@@ -863,8 +865,8 @@ export default function ManualInsert({
       await axiosInstance.post('/applicants', payload);
 
       await Swal.fire({
-        title: 'Applicant created',
-        text: 'The applicant was inserted successfully.',
+        title: t('applicantCreated', 'applicants'),
+        text: t('applicantCreatedDesc', 'applicants'),
         icon: 'success',
         timer: 1800,
         showConfirmButton: false,
@@ -890,10 +892,10 @@ export default function ManualInsert({
       onSuccess();
     } catch (error) {
       await Swal.fire({
-        title: 'Submit failed',
-        text: error instanceof Error ? error.message : 'Failed to create the applicant.',
+        title: t('submitFailed', 'applicants'),
+        text: error instanceof Error ? error.message : t('failedToCreateApplicant', 'applicants'),
         icon: 'error',
-        confirmButtonText: 'Close',
+        confirmButtonText: t('close', 'common'),
       });
     } finally {
       setUploadingProfilePhoto(false);
@@ -922,96 +924,96 @@ export default function ManualInsert({
 
   return (
     <div className="grid gap-6 xl:grid-cols-[1.4fr_0.9fr]">
-      <form onSubmit={handleManualSubmit} className={`space-y-6 rounded-3xl border ${themeColors.borderPrimary} bg-white p-6 shadow-xl`}>
+      <form onSubmit={handleManualSubmit} className={`space-y-6 rounded-3xl border ${themeColors.borderPrimary} bg-white dark:bg-gray-800 p-6 shadow-xl`}>
         <div className={`flex items-center justify-between gap-4 border-b ${themeColors.borderLight} pb-4`}>
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Manual Applicant Insert</h2>
-            <p className="mt-1 text-sm text-gray-500">
-              All submissions are forced to <span className={`font-semibold ${themeColors.textPrimary}`}>pending</span> status.
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{t('manualInsertHeading', 'blueCaller')}</h2>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              {t('allSubmissionsForced', 'blueCaller')} <span className={`font-semibold ${themeColors.textPrimary}`}>{t('pending', 'blueCaller')}</span> {t('statusSuffix', 'blueCaller')}
             </p>
           </div>
-          <div className={`rounded-full ${themeColors.bgLight} px-4 py-2 text-sm font-medium ${themeColors.textPrimary}`}>
-            {loadingJobs ? 'Loading job positions...' : `${jobPositions.length} positions loaded`}
+          <div className={`rounded-full ${themeColors.bgLight} dark:bg-gray-700 px-4 py-2 text-sm font-medium ${themeColors.textPrimary}`}>
+            {loadingJobs ? t('loadingJobs', 'blueCaller') : t('positionsLoaded', 'blueCaller', { count: jobPositions.length })}
           </div>
         </div>
 
         {duplicateApplicant && (
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            A matching applicant already exists in the current company scope for {duplicateApplicant.fullName || duplicateApplicant.email || duplicateApplicant.phone}. You can still submit again after confirming.
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400">
+            {t('duplicateWarning', 'blueCaller', { name: duplicateApplicant.fullName || duplicateApplicant.email || duplicateApplicant.phone })}
           </div>
         )}
 
         {selectedJobPosition && (
           <div className={`rounded-2xl border ${themeColors.borderLight} p-4`} style={{ background: `linear-gradient(135deg, ${themeColors.gradientFrom}18, ${themeColors.gradientTo}18)` }}>
             <h3 className={`text-lg font-bold ${themeColors.textPrimary}`}>{jobTitle}</h3>
-            {jobDescription && <p className="mt-2 text-sm text-gray-600">{jobDescription}</p>}
+            {jobDescription && <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">{jobDescription}</p>}
           </div>
         )}
 
         <div className="grid gap-4 md:grid-cols-2">
           {isFieldVisible(selectedJobPosition, 'fullName') && (
             <div>
-              <label className="text-sm font-semibold text-gray-700">Full Name {isFieldRequired(selectedJobPosition, 'fullName') ? '*' : ''}</label>
-              <input type="text" value={manualForm.fullName} onChange={(e) => setManualForm((prev) => ({ ...prev, fullName: e.target.value }))} className={`mt-1 w-full rounded-xl border ${themeColors.borderPrimary} bg-white px-4 py-3 shadow-sm outline-none transition ${themeColors.focusRing}`} placeholder="Applicant full name" />
+              <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">{t('fullNameLabel', 'blueCaller')} {isFieldRequired(selectedJobPosition, 'fullName') ? '*' : ''}</label>
+              <input type="text" value={manualForm.fullName} onChange={(e) => setManualForm((prev) => ({ ...prev, fullName: e.target.value }))} className={`mt-1 w-full rounded-xl border ${themeColors.borderPrimary} bg-white dark:bg-gray-800 px-4 py-3 shadow-sm outline-none transition ${themeColors.focusRing}`} placeholder={t('fullNamePlaceholder', 'blueCaller')} />
               {renderFieldError('fullName')}
             </div>
           )}
 
           {isFieldVisible(selectedJobPosition, 'email') && (
             <div>
-              <label className="text-sm font-semibold text-gray-700">Email {isFieldRequired(selectedJobPosition, 'email') ? '*' : ''}</label>
-              <input type="email" value={manualForm.email} onChange={(e) => setManualForm((prev) => ({ ...prev, email: e.target.value }))} className={`mt-1 w-full rounded-xl border ${themeColors.borderPrimary} bg-white px-4 py-3 shadow-sm outline-none transition ${themeColors.focusRing}`} placeholder="name@example.com" />
+              <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">{t('emailLabel', 'blueCaller')} {isFieldRequired(selectedJobPosition, 'email') ? '*' : ''}</label>
+              <input type="email" value={manualForm.email} onChange={(e) => setManualForm((prev) => ({ ...prev, email: e.target.value }))} className={`mt-1 w-full rounded-xl border ${themeColors.borderPrimary} bg-white dark:bg-gray-800 px-4 py-3 shadow-sm outline-none transition ${themeColors.focusRing}`} placeholder={t('emailPlaceholder', 'blueCaller')} />
               {renderFieldError('email')}
             </div>
           )}
 
           {isFieldVisible(selectedJobPosition, 'phone') && (
             <div>
-              <label className="text-sm font-semibold text-gray-700">Phone {isFieldRequired(selectedJobPosition, 'phone') ? '*' : ''}</label>
-              <input type="text" value={manualForm.phone} onChange={(e) => setManualForm((prev) => ({ ...prev, phone: e.target.value }))} className={`mt-1 w-full rounded-xl border ${themeColors.borderPrimary} bg-white px-4 py-3 shadow-sm outline-none transition ${themeColors.focusRing}`} placeholder="01XXXXXXXXX" />
+              <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">{t('phoneLabel', 'blueCaller')} {isFieldRequired(selectedJobPosition, 'phone') ? '*' : ''}</label>
+              <input type="text" value={manualForm.phone} onChange={(e) => setManualForm((prev) => ({ ...prev, phone: e.target.value }))} className={`mt-1 w-full rounded-xl border ${themeColors.borderPrimary} bg-white dark:bg-gray-800 px-4 py-3 shadow-sm outline-none transition ${themeColors.focusRing}`} placeholder={t('phonePlaceholder', 'blueCaller')} />
               {renderFieldError('phone')}
             </div>
           )}
 
           <div>
-            <label className="text-sm font-semibold text-gray-700">Job Position *</label>
+            <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">{t('jobPositionLabel', 'blueCaller')} *</label>
             <div className="relative mt-1">
-              <select value={manualForm.jobPositionId} onChange={(e) => setManualForm((prev) => ({ ...prev, jobPositionId: e.target.value }))} className={`w-full appearance-none rounded-xl border ${themeColors.borderPrimary} bg-white px-4 py-3 pr-12 shadow-sm outline-none transition ${themeColors.focusRing}`}>
-                <option value="">Select job position</option>
+              <select value={manualForm.jobPositionId} onChange={(e) => setManualForm((prev) => ({ ...prev, jobPositionId: e.target.value }))} className={`w-full appearance-none rounded-xl border ${themeColors.borderPrimary} bg-white dark:bg-gray-800 px-4 py-3 pr-12 shadow-sm outline-none transition ${themeColors.focusRing}`}>
+                <option value="">{t('selectJobPositionOption', 'blueCaller')}</option>
                 {jobPositions.map((job) => (
                   <option key={job._id} value={job._id}>{getJobTitle(job)}</option>
                 ))}
               </select>
-              <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
             </div>
             {renderFieldError('jobPositionId')}
           </div>
 
           {isFieldVisible(selectedJobPosition, 'address') && (
             <div className="md:col-span-2">
-              <label className="text-sm font-semibold text-gray-700">Address {isFieldRequired(selectedJobPosition, 'address') ? '*' : ''}</label>
-              <textarea value={manualForm.address} onChange={(e) => setManualForm((prev) => ({ ...prev, address: e.target.value }))} className={`mt-1 min-h-28 w-full rounded-xl border ${themeColors.borderPrimary} bg-white px-4 py-3 shadow-sm outline-none transition ${themeColors.focusRing}`} placeholder="Applicant address" />
+              <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">{t('addressLabel', 'blueCaller')} {isFieldRequired(selectedJobPosition, 'address') ? '*' : ''}</label>
+              <textarea value={manualForm.address} onChange={(e) => setManualForm((prev) => ({ ...prev, address: e.target.value }))} className={`mt-1 min-h-28 w-full rounded-xl border ${themeColors.borderPrimary} bg-white dark:bg-gray-800 px-4 py-3 shadow-sm outline-none transition ${themeColors.focusRing}`} placeholder={t('addressPlaceholder', 'blueCaller')} />
               {renderFieldError('address')}
             </div>
           )}
 
           {isFieldVisible(selectedJobPosition, 'birthDate') && (
             <div>
-              <label className="text-sm font-semibold text-gray-700">Birth Date {isFieldRequired(selectedJobPosition, 'birthDate') ? '*' : ''}</label>
-              <input type="date" value={manualForm.birthDate} onChange={(e) => setManualForm((prev) => ({ ...prev, birthDate: e.target.value }))} className={`mt-1 w-full rounded-xl border ${themeColors.borderPrimary} bg-white px-4 py-3 shadow-sm outline-none transition ${themeColors.focusRing}`} />
+              <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">{t('birthDateLabel', 'blueCaller')} {isFieldRequired(selectedJobPosition, 'birthDate') ? '*' : ''}</label>
+              <input type="date" value={manualForm.birthDate} onChange={(e) => setManualForm((prev) => ({ ...prev, birthDate: e.target.value }))} className={`mt-1 w-full rounded-xl border ${themeColors.borderPrimary} bg-white dark:bg-gray-800 px-4 py-3 shadow-sm outline-none transition ${themeColors.focusRing}`} />
               {renderFieldError('birthDate')}
             </div>
           )}
 
           {isFieldVisible(selectedJobPosition, 'gender') && (
             <div>
-              <label className="text-sm font-semibold text-gray-700">Gender {isFieldRequired(selectedJobPosition, 'gender') ? '*' : ''}</label>
+              <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">{t('genderLabel', 'blueCaller')} {isFieldRequired(selectedJobPosition, 'gender') ? '*' : ''}</label>
               <div className="relative mt-1">
-                <select value={manualForm.gender} onChange={(e) => setManualForm((prev) => ({ ...prev, gender: e.target.value as 'Male' | 'Female' }))} className={`w-full appearance-none rounded-xl border ${themeColors.borderPrimary} bg-white px-4 py-3 pr-12 shadow-sm outline-none transition ${themeColors.focusRing}`}>
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
+                <select value={manualForm.gender} onChange={(e) => setManualForm((prev) => ({ ...prev, gender: e.target.value as 'Male' | 'Female' }))} className={`w-full appearance-none rounded-xl border ${themeColors.borderPrimary} bg-white dark:bg-gray-800 px-4 py-3 pr-12 shadow-sm outline-none transition ${themeColors.focusRing}`}>
+                  <option value="Male">{t('male', 'blueCaller')}</option>
+                  <option value="Female">{t('female', 'blueCaller')}</option>
                 </select>
-                <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
               </div>
               {renderFieldError('gender')}
             </div>
@@ -1019,7 +1021,7 @@ export default function ManualInsert({
 
           {isFieldVisible(selectedJobPosition, 'expectedSalary') && (
   <div>
-    <label className="text-sm font-semibold text-gray-700">Expected Salary {isFieldRequired(selectedJobPosition, 'expectedSalary') ? '*' : ''}</label>
+    <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">{t('expectedSalaryLabel', 'blueCaller')} {isFieldRequired(selectedJobPosition, 'expectedSalary') ? '*' : ''}</label>
     <input 
       type="number" 
       value={manualForm.expectedSalary} 
@@ -1032,8 +1034,8 @@ export default function ManualInsert({
           setManualForm((prev) => ({ ...prev, expectedSalary: '0' }));
         }
       }} 
-      className={`mt-1 w-full rounded-xl border ${themeColors.borderPrimary} bg-white px-4 py-3 shadow-sm outline-none transition ${themeColors.focusRing}`} 
-      placeholder="4000" 
+      className={`mt-1 w-full rounded-xl border ${themeColors.borderPrimary} bg-white dark:bg-gray-800 px-4 py-3 shadow-sm outline-none transition ${themeColors.focusRing}`} 
+      placeholder={t('salaryPlaceholder', 'blueCaller')} 
       min="0"
       step="1"
     />
@@ -1044,18 +1046,18 @@ export default function ManualInsert({
           {(isFieldVisible(selectedJobPosition, 'profilePhoto') || isFieldVisible(selectedJobPosition, 'cvFilePath')) && (
             <div className={`grid gap-3 md:col-span-2 ${isFieldVisible(selectedJobPosition, 'profilePhoto') && isFieldVisible(selectedJobPosition, 'cvFilePath') ? 'sm:grid-cols-2' : ''}`}>
               {isFieldVisible(selectedJobPosition, 'profilePhoto') && (
-                <div className={`rounded-2xl border ${themeColors.borderLight} ${themeColors.bgLight} p-4`}>
+                <div className={`rounded-2xl border ${themeColors.borderLight} ${themeColors.bgLight} dark:bg-gray-700 p-4`}>
                   <div className={`flex items-center gap-2 text-sm font-semibold ${themeColors.textPrimary}`}>
-                    <ImageIcon className="h-4 w-4" /> Profile Photo
+                    <ImageIcon className="h-4 w-4" /> {t('profilePhotoLabel', 'blueCaller')}
                   </div>
-                  <label className={`mt-3 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed ${themeColors.borderPrimary} bg-white px-4 py-6 text-center transition hover:bg-gray-50`}>
+                  <label className={`mt-3 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed ${themeColors.borderPrimary} bg-white dark:bg-gray-800 px-4 py-6 text-center transition hover:bg-gray-50 dark:hover:bg-gray-700`}>
                     <Upload className={`h-5 w-5 ${themeColors.textPrimary}`} />
-                    <span className="text-sm font-medium text-gray-700">{profilePhotoFile ? getDisplayFileName(profilePhotoFile.name) : 'JPG / PNG up to 5 MB'}</span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{profilePhotoFile ? getDisplayFileName(profilePhotoFile.name) : t('profilePhotoHint', 'blueCaller')}</span>
                     <input key={manualFileResetKey} type="file" accept="image/jpeg,image/png" className="hidden" onChange={handleProfilePhotoChange} />
                   </label>
                   {profilePhotoFile && (
                     <button type="button" onClick={() => setProfilePhotoFile(null)} className={`mt-3 inline-flex items-center gap-2 text-sm font-semibold ${themeColors.textPrimary} hover:opacity-80`}>
-                      <Trash2 className="h-4 w-4" /> Clear file
+                      <Trash2 className="h-4 w-4" /> {t('clearFile', 'blueCaller')}
                     </button>
                   )}
                   {renderFieldError('profilePhoto')}
@@ -1063,18 +1065,18 @@ export default function ManualInsert({
               )}
 
               {isFieldVisible(selectedJobPosition, 'cvFilePath') && (
-                <div className={`rounded-2xl border ${themeColors.borderLight} ${themeColors.bgLight} p-4`}>
+                <div className={`rounded-2xl border ${themeColors.borderLight} ${themeColors.bgLight} dark:bg-gray-700 p-4`}>
                   <div className={`flex items-center gap-2 text-sm font-semibold ${themeColors.textPrimary}`}>
-                    <FileText className="h-4 w-4" /> CV File
+                    <FileText className="h-4 w-4" /> {t('cvFileLabel', 'blueCaller')}
                   </div>
-                  <label className={`mt-3 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed ${themeColors.borderPrimary} bg-white px-4 py-6 text-center transition hover:bg-gray-50`}>
+                  <label className={`mt-3 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed ${themeColors.borderPrimary} bg-white dark:bg-gray-800 px-4 py-6 text-center transition hover:bg-gray-50 dark:hover:bg-gray-700`}>
                     <Upload className={`h-5 w-5 ${themeColors.textPrimary}`} />
-                    <span className="text-sm font-medium text-gray-700">{cvFile ? getDisplayFileName(cvFile.name) : 'PDF up to 10 MB'}</span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{cvFile ? getDisplayFileName(cvFile.name) : t('cvHint', 'blueCaller')}</span>
                     <input key={`${manualFileResetKey}-cv`} type="file" accept="application/pdf" className="hidden" onChange={handleCvChange} />
                   </label>
                   {cvFile && (
                     <button type="button" onClick={() => setCvFile(null)} className={`mt-3 inline-flex items-center gap-2 text-sm font-semibold ${themeColors.textPrimary} hover:opacity-80`}>
-                      <Trash2 className="h-4 w-4" /> Clear file
+                      <Trash2 className="h-4 w-4" /> {t('clearFile', 'blueCaller')}
                     </button>
                   )}
                   {renderFieldError('cvFilePath')}
@@ -1087,7 +1089,7 @@ export default function ManualInsert({
         {customFieldDefinitions.length > 0 && (
           <div className={`space-y-4 rounded-2xl border ${themeColors.borderLight} ${themeColors.bgLight} p-4`}>
             <div className={`flex items-center gap-2 text-sm font-bold uppercase tracking-[0.2em] ${themeColors.textPrimary}`}>
-              <ShieldAlert className="h-4 w-4" /> Job-specific fields
+              <ShieldAlert className="h-4 w-4" /> {t('jobSpecificFields', 'blueCaller')}
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               {customFieldDefinitions.map((definition) => renderCustomField(definition))}
@@ -1096,15 +1098,15 @@ export default function ManualInsert({
         )}
 
         {jobSpecDefinitions.length > 0 && (
-          <div className={`space-y-4 rounded-2xl border ${themeColors.borderLight} bg-white p-4`}>
+          <div className={`space-y-4 rounded-2xl border ${themeColors.borderLight} bg-white dark:bg-gray-800 p-4`}>
             <div className={`flex items-center gap-2 text-sm font-bold uppercase tracking-[0.2em] ${themeColors.textPrimary}`}>
-              <CheckCircle2 className="h-4 w-4" /> Job spec responses
+              <CheckCircle2 className="h-4 w-4" /> {t('jobSpecResponses', 'blueCaller')}
             </div>
             <div className="grid gap-3 md:grid-cols-2">
               {jobSpecDefinitions.map((spec: { jobSpecId?: string; spec?: unknown }, index: number) => {
                 const specId = String(spec?.jobSpecId || `spec_${index}`);
                 const specValue = spec?.spec;
-                let label = `Job spec ${index + 1}`;
+                let label = t('jobSpecDefaultLabel', 'blueCaller', { index: index + 1 });
                 if (specValue) {
                   if (typeof specValue === 'string') label = specValue;
                   else if (typeof specValue === 'object') {
@@ -1113,11 +1115,11 @@ export default function ManualInsert({
                 }
                 const answer = manualJobSpecValues[specId] ?? false;
                 return (
-                  <label key={specId} className={`rounded-2xl border ${themeColors.borderLight} ${themeColors.bgLight} p-4 text-sm font-medium text-gray-700`}>
-                    <span className="block font-semibold text-gray-900">{label}</span>
+                  <label key={specId} className={`rounded-2xl border ${themeColors.borderLight} ${themeColors.bgLight} dark:bg-gray-700 p-4 text-sm font-medium text-gray-700 dark:text-gray-200`}>
+                    <span className="block font-semibold text-gray-900 dark:text-gray-100">{label}</span>
                     <span className="mt-3 flex items-center gap-3">
                       <input type="checkbox" checked={answer} onChange={(e) => setManualJobSpecValues((prev) => ({ ...prev, [specId]: e.target.checked }))} className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
-                      Required answer
+                      {t('requiredAnswer', 'blueCaller')}
                     </span>
                   </label>
                 );
@@ -1128,30 +1130,30 @@ export default function ManualInsert({
         )}
 
         <div className={`flex flex-wrap items-center justify-between gap-4 border-t ${themeColors.borderLight} pt-4`}>
-          <div className="text-sm text-gray-500">
-            {manualSubmitting || uploadingProfilePhoto || uploadingCv ? 'Processing upload and submission...' : 'Ready to submit a pending applicant record.'}
+          <div className="text-sm text-gray-500 dark:text-gray-400">
+            {manualSubmitting || uploadingProfilePhoto || uploadingCv ? t('processingStatus', 'blueCaller') : t('readyStatus', 'blueCaller')}
           </div>
           <button type="submit" disabled={manualSubmitting || uploadingProfilePhoto || uploadingCv || loadingJobs} className={`inline-flex items-center gap-2 rounded-xl ${themeColors.bgPrimary} px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:opacity-90 ${themeColors.hoverBg} disabled:cursor-not-allowed disabled:opacity-60`}>
             {manualSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
-            Insert Applicant
+            {t('insertApplicant', 'blueCaller')}
           </button>
         </div>
       </form>
 
-      <aside className={`space-y-4 rounded-3xl border ${themeColors.borderPrimary} bg-white p-6 shadow-xl`}>
+      <aside className={`space-y-4 rounded-3xl border ${themeColors.borderPrimary} bg-white dark:bg-gray-800 p-6 shadow-xl`}>
         <div className={`flex items-center gap-2 border-b ${themeColors.borderLight} pb-4`}>
           <Users className={`h-5 w-5 ${themeColors.textPrimary}`} />
-          <h3 className="text-lg font-bold text-gray-900">Insertion rules</h3>
+          <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">{t('insertionRules', 'blueCaller')}</h3>
         </div>
-        <div className="space-y-3 text-sm text-gray-600">
+        <div className="space-y-3 text-sm text-gray-600 dark:text-gray-300">
           {[
-            { title: 'Hardcoded status', body: <>Every applicant is submitted with status <span className={`font-semibold ${themeColors.textPrimary}`}>pending</span>.</> },
-            { title: 'File uploads', body: 'Profile photos are uploaded as JPG or PNG and CV files are uploaded as PDF before submission.' },
-            { title: 'Duplicate protection', body: 'The form checks the current company scope for matching email or phone values before insert.' },
-            { title: 'Job-driven fields', body: 'Selecting a job position loads its custom fields and job-spec responses dynamically.' },
+            { title: t('ruleHardcodedStatus', 'blueCaller'), body: <>{t('ruleStatusBodyPrefix', 'blueCaller')} <span className={`font-semibold ${themeColors.textPrimary}`}>{t('pending', 'blueCaller')}</span>{t('ruleStatusBodySuffix', 'blueCaller')}</> },
+            { title: t('ruleFileUploads', 'blueCaller'), body: t('ruleFileUploadsBody', 'blueCaller') },
+            { title: t('ruleDuplicateProtection', 'blueCaller'), body: t('ruleDuplicateBody', 'blueCaller') },
+            { title: t('ruleJobDrivenFields', 'blueCaller'), body: t('ruleJobDrivenBody', 'blueCaller') },
           ].map(({ title, body }) => (
-            <div key={title} className={`rounded-2xl border ${themeColors.borderLight} ${themeColors.bgLight} p-4`}>
-              <p className="font-semibold text-gray-900">{title}</p>
+            <div key={title} className={`rounded-2xl border ${themeColors.borderLight} ${themeColors.bgLight} dark:bg-gray-700 p-4`}>
+              <p className="font-semibold text-gray-900 dark:text-gray-100">{title}</p>
               <p className="mt-1">{body}</p>
             </div>
           ))}

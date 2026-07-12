@@ -1,6 +1,7 @@
 // components/BulkInsert.tsx
 import { useState, useMemo } from 'react';
 import * as XLSX from 'xlsx';
+import * as fflate from 'fflate';
 import {
   AlertCircle,
   CheckCircle2,
@@ -19,6 +20,7 @@ import Swal from '../../../../utils/swal';
 import { toPlainString } from '../../../../utils/strings';
 import type { Applicant } from '../../../../types/applicants';
 import type { JobPosition } from '../../../../types/jobPositions';
+import { useLocale } from '../../../../context/LocaleContext';
 
 type BulkApplicantRow = {
   rowNumber: number;
@@ -176,9 +178,6 @@ function checkExistingApplicant(
 
 // ─── Parse custom fields from Excel ───────────────────────────────────────────
 
-// components/BulkInsert.tsx
-// Update the parseCustomFields function
-
 function parseCustomFields(
   rawRow: Record<string, unknown>,
   jobPosition: JobPosition | null
@@ -193,7 +192,6 @@ function parseCustomFields(
     const fieldLabel = toStringValue(fieldRecord.label);
     const inputType = String(fieldRecord.inputType || 'text');
 
-    // Handle repeatable_group with multiple numbered columns
     if (
       inputType === 'repeatable_group' &&
       Array.isArray(fieldRecord.groupFields)
@@ -203,7 +201,6 @@ function parseCustomFields(
         (sf) => sf as Record<string, unknown>
       );
 
-      // Find all numbered occurrences (max up to 20 entries)
       let maxIndex = 0;
       for (let i = 1; i <= 20; i++) {
         let hasAnyField = false;
@@ -229,7 +226,6 @@ function parseCustomFields(
         }
       }
 
-      // Parse each numbered occurrence
       for (let idx = 1; idx <= maxIndex; idx++) {
         const row: Record<string, unknown> = {};
         let hasValue = false;
@@ -239,9 +235,6 @@ function parseCustomFields(
           const subLabel = toStringValue(subField.label);
           const subInputType = String(subField.inputType || 'text');
 
-          // Column naming convention:
-          // First occurrence: "Group Label - Subfield Label"
-          // Subsequent: "Group Label N - Subfield Label"
           const columnName =
             idx === 1
               ? `${fieldLabel} - ${subLabel}`
@@ -256,7 +249,6 @@ function parseCustomFields(
           if (value !== undefined && value !== null && value !== '') {
             hasValue = true;
 
-            // Parse based on input type
             if (subInputType === 'checkbox') {
               const strValue = String(value).toLowerCase().trim();
               row[subLocKey] =
@@ -289,7 +281,6 @@ function parseCustomFields(
       return;
     }
 
-    // Handle groupField (single group)
     if (inputType === 'groupField' && Array.isArray(fieldRecord.groupFields)) {
       const groupObj: Record<string, unknown> = {};
       const subFields = (fieldRecord.groupFields as unknown[]).map(
@@ -301,7 +292,6 @@ function parseCustomFields(
         const subLabel = toStringValue(subField.label);
         const subInputType = String(subField.inputType || 'text');
 
-        // Column naming: "Group Label - Subfield Label"
         const columnName = `${fieldLabel} - ${subLabel}`;
         let value = rawRow[columnName];
         if (value === undefined) value = rawRow[subLabel];
@@ -335,7 +325,6 @@ function parseCustomFields(
       return;
     }
 
-    // Regular fields (non-group)
     let value = rawRow[fieldLabel];
     if (value === undefined) value = rawRow[fieldId];
     if (value === undefined || value === null) return;
@@ -570,7 +559,8 @@ function validateBulkRow(
   jobPositions: JobPosition[],
   existingApplicants: Applicant[],
   batchSeenEmails: Map<string, number>,
-  batchSeenPhones: Map<string, number>
+  batchSeenPhones: Map<string, number>,
+  t: (key: string, ns: string, params?: Record<string, string | number>) => string
 ): RowValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -579,47 +569,48 @@ function validateBulkRow(
   let hasDuplicate = false;
   let duplicateInfo = '';
 
-  // Basic validation (errors - prevent submission)
-  if (!row.fullName) errors.push('Full name is required.');
-  if (!normalizedEmail) errors.push('Email is required.');
+  if (!row.fullName) errors.push(t('fullNameRequired', 'blueCaller'));
+  if (!normalizedEmail) errors.push(t('emailRequired', 'blueCaller'));
   if (normalizedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
-    errors.push('Invalid email format.');
+    errors.push(t('invalidEmailFormat', 'blueCaller'));
   }
-  if (!normalizedPhone) errors.push('Phone is required.');
+  if (!normalizedPhone) errors.push(t('phoneRequired', 'blueCaller'));
   if (normalizedPhone && !PHONE_REGEX.test(normalizedPhone)) {
-    errors.push('Phone must match 01[0125]XXXXXXXX.');
+    errors.push(t('phoneMustMatch', 'blueCaller'));
   }
-  if (!row.address) errors.push('Address is required.');
-  if (!row.birthDate) errors.push('Birth date is required.');
+  if (!row.address) errors.push(t('addressRequired', 'blueCaller'));
+  if (!row.birthDate) errors.push(t('birthDateRequired', 'blueCaller'));
   if (row.birthDate && isFutureBirthDate(row.birthDate)) {
-    errors.push('Birth date cannot be in the future.');
+    errors.push(t('birthDateFuture', 'blueCaller'));
   }
-  if (!row.gender) errors.push('Gender is required.');
+  if (!row.gender) errors.push(t('genderRequired', 'blueCaller'));
   if (row.gender && !['Male', 'Female'].includes(row.gender)) {
-    errors.push('Gender must be Male or Female.');
+    errors.push(t('genderMustBeMaleOrFemale', 'blueCaller'));
   }
 
   if (!row.jobPositionTitle) {
-    errors.push('Job position is required.');
+    errors.push(t('jobPositionRequired', 'blueCaller'));
   } else if (!row.jobPositionId) {
     errors.push(
-      `Job position "${row.jobPositionTitle}" was not found. Available positions: ${jobPositions.map((j) => toStringValue(j.title)).join(', ')}`
+      t('jobPositionNotFound', 'blueCaller', {
+        jobTitle: row.jobPositionTitle,
+        availablePositions: jobPositions.map((j) => toStringValue(j.title)).join(', ')
+      })
     );
   }
 
   if (row.expectedSalary !== undefined && Number.isNaN(row.expectedSalary)) {
-    errors.push('Expected salary must be numeric.');
+    errors.push(t('expectedSalaryNumeric', 'blueCaller'));
   }
 
-  // Duplicate check within batch (warnings - doesn't prevent submission)
   if (normalizedEmail) {
     const firstSeenRow = batchSeenEmails.get(normalizedEmail);
     if (firstSeenRow !== undefined && firstSeenRow !== row.rowNumber) {
       warnings.push(
-        `Duplicate email appears in row ${firstSeenRow} (will still be submitted).`
+        t('duplicateEmailWarning', 'blueCaller', { rowNumber: firstSeenRow })
       );
       hasDuplicate = true;
-      duplicateInfo = `Email duplicate with row ${firstSeenRow}`;
+      duplicateInfo = t('duplicateEmailInfo', 'blueCaller', { rowNumber: firstSeenRow });
     } else {
       batchSeenEmails.set(normalizedEmail, row.rowNumber);
     }
@@ -629,29 +620,32 @@ function validateBulkRow(
     const firstSeenRow = batchSeenPhones.get(normalizedPhone);
     if (firstSeenRow !== undefined && firstSeenRow !== row.rowNumber) {
       warnings.push(
-        `Duplicate phone appears in row ${firstSeenRow} (will still be submitted).`
+        t('duplicatePhoneWarning', 'blueCaller', { rowNumber: firstSeenRow })
       );
       hasDuplicate = true;
       duplicateInfo =
-        duplicateInfo || `Phone duplicate with row ${firstSeenRow}`;
+        duplicateInfo || t('duplicatePhoneInfo', 'blueCaller', { rowNumber: firstSeenRow });
     } else {
       batchSeenPhones.set(normalizedPhone, row.rowNumber);
     }
   }
 
-  // Duplicate check against existing applicants (warnings - doesn't prevent submission)
   const duplicate = checkExistingApplicant(existingApplicants, {
     email: normalizedEmail,
     phone: normalizedPhone,
   });
   if (duplicate) {
     warnings.push(
-      `Applicant may already exist: ${duplicate.fullName || duplicate.email || duplicate.phone} (will still be submitted).`
+      t('existingApplicantWarning', 'blueCaller', {
+        applicantName: duplicate.fullName || duplicate.email || duplicate.phone
+      })
     );
     hasDuplicate = true;
     duplicateInfo =
       duplicateInfo ||
-      `Existing applicant: ${duplicate.fullName || duplicate.email}`;
+      t('existingApplicantInfo', 'blueCaller', {
+        applicantName: duplicate.fullName || duplicate.email
+      });
   }
 
   return {
@@ -704,10 +698,52 @@ function buildApplicantPayload(
   return payload;
 }
 
+// ─── Extract options from field record ─────────────────────────────────────────
+
+function extractOptions(fieldRecord: Record<string, unknown>): string[] {
+  const choicesArr = fieldRecord.choices || fieldRecord.options;
+  if (!Array.isArray(choicesArr)) return [];
+  return (choicesArr as unknown[])
+    .map((o) => {
+      if (typeof o === 'string') return o;
+      const oRec = o as Record<string, unknown>;
+      if (typeof oRec.en === 'string' && oRec.en) return oRec.en;
+      return toStringValue(oRec.label || oRec.value || o);
+    })
+    .filter(Boolean);
+}
+
 // ─── Build template workbook for a specific job position ──────────────────────
 
-function buildTemplateWorkbookForJob(jobPosition: JobPosition): XLSX.WorkBook {
-  const headers = [
+function buildTemplateWorkbookForJob(jobPosition: JobPosition, t?: (key: string, ns?: string) => string): {
+  workbook: XLSX.WorkBook;
+  dropdownMap: Map<number, string[]>;
+  dateColumns: Set<number>;
+  allHeaders: string[];
+} {
+  // Required base fields (used for notes row)
+  const requiredBaseFields = new Set([
+    'fullName',
+    'email',
+    'phone',
+    'address',
+    'birthDate',
+    'gender',
+    'jobPosition',
+  ]);
+
+  // ── 1. Job spec headers — shown FIRST ──────────────────────────────────────
+  const jobSpecHeaders: string[] = [];
+  (jobPosition.jobSpecsWithDetails || []).forEach(
+    (spec: { spec?: unknown }) => {
+      const specText = toStringValue(spec?.spec);
+      if (specText && !jobSpecHeaders.includes(specText))
+        jobSpecHeaders.push(specText);
+    }
+  );
+
+  // ── 2. Standard applicant fields ───────────────────────────────────────────
+  const baseFields = [
     'fullName',
     'email',
     'phone',
@@ -718,79 +754,14 @@ function buildTemplateWorkbookForJob(jobPosition: JobPosition): XLSX.WorkBook {
     'jobPosition',
   ];
 
+  // ── 3. Custom field headers ─────────────────────────────────────────────────
   const customFieldHeaders: string[] = [];
-  const jobSpecHeaders: string[] = [];
-
   (jobPosition.customFields || []).forEach((field: unknown) => {
     const fieldRecord = field as Record<string, unknown>;
     const label = toStringValue(fieldRecord.label);
     const inputType = String(fieldRecord.inputType || 'text');
 
-    if (label) {
-      if (
-        inputType === 'repeatable_group' &&
-        Array.isArray(fieldRecord.groupFields)
-      ) {
-        // Generate 3 example rows for repeatable groups
-        const subFields = fieldRecord.groupFields as unknown[];
-        const maxExamples = 3; // Show 3 example rows in template
-
-        for (let exampleNum = 1; exampleNum <= maxExamples; exampleNum++) {
-          subFields.forEach((subField: unknown) => {
-            const subRecord = subField as Record<string, unknown>;
-            const subLabel = toStringValue(subRecord.label);
-            // Format: "Group Label N - Subfield Label"
-            const composite =
-              exampleNum === 1
-                ? `${label} - ${subLabel}`
-                : `${label} ${exampleNum} - ${subLabel}`;
-            customFieldHeaders.push(composite);
-          });
-        }
-      } else if (
-        inputType === 'groupField' &&
-        Array.isArray(fieldRecord.groupFields)
-      ) {
-        // For single group, add subfields with "Group - Subfield" format
-        (fieldRecord.groupFields as unknown[]).forEach((subField: unknown) => {
-          const subRecord = subField as Record<string, unknown>;
-          const subLabel = toStringValue(subRecord.label);
-          const composite = `${label} - ${subLabel}`;
-          customFieldHeaders.push(composite);
-        });
-      } else {
-        customFieldHeaders.push(label);
-      }
-    }
-  });
-
-  (jobPosition.jobSpecsWithDetails || []).forEach(
-    (spec: { spec?: unknown }) => {
-      const specText = toStringValue(spec?.spec);
-      if (specText && !jobSpecHeaders.includes(specText))
-        jobSpecHeaders.push(specText);
-    }
-  );
-
-  const allHeaders = [...headers, ...customFieldHeaders, ...jobSpecHeaders];
-
-  // Create example row with sample data
-  const exampleRowData: (string | number)[] = [
-    'Amina Hassan',
-    'amina@example.com',
-    '01012345678',
-    'Cairo',
-    '1998-06-12',
-    'Female',
-    '12000',
-    toStringValue(jobPosition.title),
-  ];
-
-  // Add example values for custom fields
-  (jobPosition.customFields || []).forEach((field: unknown) => {
-    const fieldRecord = field as Record<string, unknown>;
-    const label = toStringValue(fieldRecord.label);
-    const inputType = String(fieldRecord.inputType || 'text');
+    if (!label) return;
 
     if (
       inputType === 'repeatable_group' &&
@@ -798,18 +769,15 @@ function buildTemplateWorkbookForJob(jobPosition: JobPosition): XLSX.WorkBook {
     ) {
       const subFields = fieldRecord.groupFields as unknown[];
       const maxExamples = 3;
-
       for (let exampleNum = 1; exampleNum <= maxExamples; exampleNum++) {
         subFields.forEach((subField: unknown) => {
           const subRecord = subField as Record<string, unknown>;
           const subLabel = toStringValue(subRecord.label);
-          const subInputType = String(subRecord.inputType || 'text');
-
-          if (subInputType === 'checkbox') exampleRowData.push('Yes');
-          else if (subInputType === 'date') exampleRowData.push('2023-01-01');
-          else if (subInputType === 'number') exampleRowData.push('5');
-          else if (subInputType === 'tags') exampleRowData.push('tag1, tag2');
-          else exampleRowData.push(`Example ${subLabel} - ${exampleNum}`);
+          const composite =
+            exampleNum === 1
+              ? `${label} - ${subLabel}`
+              : `${label} ${exampleNum} - ${subLabel}`;
+          customFieldHeaders.push(composite);
         });
       }
     } else if (
@@ -819,82 +787,400 @@ function buildTemplateWorkbookForJob(jobPosition: JobPosition): XLSX.WorkBook {
       (fieldRecord.groupFields as unknown[]).forEach((subField: unknown) => {
         const subRecord = subField as Record<string, unknown>;
         const subLabel = toStringValue(subRecord.label);
-        const subInputType = String(subRecord.inputType || 'text');
-
-        if (subInputType === 'checkbox') exampleRowData.push('Yes');
-        else if (subInputType === 'date') exampleRowData.push('2023-01-01');
-        else if (subInputType === 'number') exampleRowData.push('5');
-        else if (subInputType === 'tags') exampleRowData.push('tag1, tag2');
-        else exampleRowData.push(`Example ${subLabel}`);
+        customFieldHeaders.push(`${label} - ${subLabel}`);
       });
     } else {
-      if (inputType === 'checkbox') exampleRowData.push('Yes');
-      else if (inputType === 'date') exampleRowData.push('2023-01-01');
-      else if (inputType === 'number') exampleRowData.push('5');
-      else if (inputType === 'tags') exampleRowData.push('tag1, tag2');
-      else exampleRowData.push(`Example ${label}`);
+      customFieldHeaders.push(label);
     }
   });
 
-  // Add job spec examples
-  jobSpecHeaders.forEach(() => exampleRowData.push('Yes'));
+  // ── Final order: jobSpecs → base fields → custom fields ────────────────────
+  const allHeaders = [...jobSpecHeaders, ...baseFields, ...customFieldHeaders];
 
-  const worksheet = XLSX.utils.aoa_to_sheet([allHeaders, exampleRowData]);
-  worksheet['!cols'] = allHeaders.map(() => ({ wch: 20 }));
+  // ── Build notes for each header (will be appended to header name) ──────────
+  const headerNotes: string[] = allHeaders.map((header) => {
+    // Job spec columns
+    if (jobSpecHeaders.includes(header)) return 'Yes / No';
 
-  // Enhanced instructions
-  const instructionsData = [
-    ['Instructions for Bulk Upload'],
-    [''],
-    ['Required Columns:'],
-    ['- fullName: Applicant full name (required)'],
-    ['- email: Valid email address (required)'],
-    ['- phone: Egyptian phone number (01XXXXXXXXX) (required)'],
-    ['- address: Applicant address (required)'],
-    ['- birthDate: YYYY-MM-DD format (required)'],
-    ['- gender: Male or Female (required)'],
-    ['- expectedSalary: Numeric value (optional)'],
-    ['- jobPosition: Exact job title as shown above (required)'],
-    [''],
-    [
-      'For Repeatable Groups (e.g., Work Experience, Education, Certifications):',
-    ],
-    ['  - Use the numbered columns to add multiple entries'],
-    [
-      '  - First entry uses "Group Name - Field Name" (e.g., "Work Experience - Company Name")',
-    ],
-    [
-      '  - Second entry uses "Group Name 2 - Field Name" (e.g., "Work Experience 2 - Company Name")',
-    ],
-    ['  - Third entry uses "Group Name 3 - Field Name", and so on'],
-    ['  - You can add up to 20 entries for each repeatable group'],
-    ['  - Leave unused columns empty'],
-    [''],
-    ['For Single Groups (e.g., Address, Contact Info):'],
-    [
-      '  - Use the format "Group Name - Field Name" (e.g., "Current Address - Street")',
-    ],
-    [''],
-    ['Job Specifications:'],
-    ...jobSpecHeaders.map((h) => [`- ${h}: Answer with Yes or No`]),
-    [''],
-    ['Notes:'],
-    ['- Duplicate applicants will show a warning but can still be submitted'],
-    [
-      '- All custom fields are optional unless marked as required in the job settings',
-    ],
-    ['- For checkboxes, use Yes/No or True/False'],
-    ['- For tags, separate multiple values with commas'],
-  ];
+    // Base field notes
+    if (header === 'gender') return t ? t('templateGenderNote', 'blueCaller') : 'Required – Male / Female';
+    if (header === 'expectedSalary') return 'Optional – numeric';
+    if (requiredBaseFields.has(header)) return 'Required';
 
-  const instructionsSheet = XLSX.utils.aoa_to_sheet(instructionsData);
-  instructionsSheet['!cols'] = [{ wch: 80 }];
+    // Custom field notes
+    for (const field of jobPosition.customFields || []) {
+      const fieldRecord = field as Record<string, unknown>;
+      const label = toStringValue(fieldRecord.label);
+      const inputType = String(fieldRecord.inputType || 'text');
+      const isRequired = Boolean(fieldRecord.required);
+      const mark = isRequired ? 'Required' : 'Optional';
 
+      if (label === header) {
+        if (inputType === 'checkbox') return `${mark} – Yes / No`;
+        if (inputType === 'date') return `${mark} – MM/DD/YYYY`;
+        if (inputType === 'number') return `${mark} – numeric`;
+        if (inputType === 'tags') return `${mark} – comma separated`;
+        if (
+          (inputType === 'select' || inputType === 'radio') &&
+          Array.isArray(fieldRecord.options)
+        ) {
+          const opts = (fieldRecord.options as unknown[])
+            .map((o) => {
+              const oRec = o as Record<string, unknown>;
+              return toStringValue(oRec.label || oRec.value || o);
+            })
+            .filter(Boolean)
+            .join(' / ');
+          return `${mark} – ${opts}`;
+        }
+        return mark;
+      }
+
+      // Sub-field match (groupField / repeatable_group)
+      if (
+        (inputType === 'groupField' || inputType === 'repeatable_group') &&
+        Array.isArray(fieldRecord.groupFields)
+      ) {
+        for (const sf of fieldRecord.groupFields as unknown[]) {
+          const sfRecord = sf as Record<string, unknown>;
+          const sfLabel = toStringValue(sfRecord.label);
+          const sfType = String(sfRecord.inputType || 'text');
+          const sfRequired = Boolean(sfRecord.required);
+          const sfMark = sfRequired ? 'Required' : 'Optional';
+
+          const isMatch =
+            header === `${label} - ${sfLabel}` ||
+            (header.startsWith(label) && header.endsWith(`- ${sfLabel}`));
+
+          if (isMatch) {
+            if (sfType === 'checkbox') return `${sfMark} – Yes / No`;
+            if (sfType === 'date') return `${sfMark} – MM/DD/YYYY`;
+            if (sfType === 'number') return `${sfMark} – numeric`;
+            if (sfType === 'tags') return `${sfMark} – comma separated`;
+            if (
+              (sfType === 'select' || sfType === 'radio') &&
+              Array.isArray(sfRecord.options)
+            ) {
+              const opts = (sfRecord.options as unknown[])
+                .map((o) => {
+                  const oRec = o as Record<string, unknown>;
+                  return toStringValue(oRec.label || oRec.value || o);
+                })
+                .filter(Boolean)
+                .join(' / ');
+              return `${sfMark} – ${opts}`;
+            }
+            return sfMark;
+          }
+        }
+      }
+    }
+
+    return '';
+  });
+
+  // Merge notes into header names: "fullName" → "fullName (Required)"
+  const headersWithNotes = allHeaders.map((h, i) => {
+    const note = headerNotes[i];
+    return note ? `${h} (${note})` : h;
+  });
+
+  // ── Create sheet: row 1 = headers with notes, row 2+ = empty ───────────────
+  const worksheet = XLSX.utils.aoa_to_sheet([
+    headersWithNotes,
+  ]);
+
+  // ── Column widths ───────────────────────────────────────────────────────────
+  worksheet['!cols'] = allHeaders.map((h) => ({
+    wch: Math.max(22, h.length + 4),
+  }));
+
+  // ── Date cell formatting ───────────────────────────────────────────────────
+  // Ensure date columns have proper number format so Excel treats them as dates.
+  const dateColIndices = new Set<number>();
+  allHeaders.forEach((header, colIdx) => {
+    if (header === 'birthDate') {
+      dateColIndices.add(colIdx);
+      return;
+    }
+    for (const field of jobPosition.customFields || []) {
+      const fieldRecord = field as Record<string, unknown>;
+      const label = toStringValue(fieldRecord.label);
+      const inputType = String(fieldRecord.inputType || 'text');
+      if (label === header && inputType === 'date') {
+        dateColIndices.add(colIdx);
+        return;
+      }
+      if (
+        (inputType === 'groupField' || inputType === 'repeatable_group') &&
+        Array.isArray(fieldRecord.groupFields)
+      ) {
+        for (const sf of fieldRecord.groupFields as unknown[]) {
+          const sfRecord = sf as Record<string, unknown>;
+          const sfLabel = toStringValue(sfRecord.label);
+          const sfType = String(sfRecord.inputType || 'text');
+          const isMatch =
+            header === `${label} - ${sfLabel}` ||
+            (header.startsWith(label) && header.endsWith(`- ${sfLabel}`));
+          if (isMatch && sfType === 'date') {
+            dateColIndices.add(colIdx);
+          }
+        }
+      }
+    }
+  });
+
+  // Ensure date cells exist in the worksheet (styles patched later by injectDataValidations)
+  dateColIndices.forEach((colIdx) => {
+    let col = '';
+    let n = colIdx + 1;
+    while (n > 0) {
+      const r = (n - 1) % 26;
+      col = String.fromCharCode(65 + r) + col;
+      n = Math.floor((n - 1) / 26);
+    }
+    const rowsToFormat = [];
+    for (let r = 2; r <= 1000; r++) rowsToFormat.push(r);
+    rowsToFormat.forEach((r) => {
+      const cellRef = `${col}${r}`;
+      if (!worksheet[cellRef]) {
+        worksheet[cellRef] = { t: 'n' };
+      }
+    });
+  });
+
+  // ── Data Validations (dropdowns) ────────────────────────────────────────────
+  //
+  // Strategy: collect all option lists, write them into a hidden "Options" sheet
+  // (one list per column), then reference each range as the formula1 source.
+  // This works reliably across all SheetJS CE versions and Excel / LibreOffice.
+  //
+  // Layout of Options sheet:
+  //   Row 1 = column headers (debug label)
+  //   Rows 2+ = option values for that column
+  //
+  // Each dropdown points to  Options!$X$2:$X$N  where N = number of options + 1.
+
+  // Map: colIdx on Applicants sheet → string[] of options
+  const dropdownMap = new Map<number, string[]>();
+  // Set: colIdx on Applicants sheet → date columns (need date picker)
+  const dateColumns = new Set<number>();
+
+  allHeaders.forEach((header, colIdx) => {
+    // Job spec → Yes / No
+    if (jobSpecHeaders.includes(header)) {
+      dropdownMap.set(colIdx, ['Yes', 'No']);
+      return;
+    }
+
+    // gender → Male / Female
+    if (header === 'gender') {
+      dropdownMap.set(colIdx, ['Male', 'Female']);
+      return;
+    }
+
+    // birthDate → date picker
+    if (header === 'birthDate') {
+      dateColumns.add(colIdx);
+      return;
+    }
+
+    // Custom fields — scan each field definition
+    for (const field of jobPosition.customFields || []) {
+      const fieldRecord = field as Record<string, unknown>;
+      const label = toStringValue(fieldRecord.label);
+      const inputType = String(fieldRecord.inputType || 'text');
+
+      // Direct field match
+      if (label === header) {
+        if (inputType === 'checkbox') {
+          dropdownMap.set(colIdx, ['Yes', 'No']);
+        } else if (
+          inputType === 'select' ||
+          inputType === 'radio' ||
+          inputType === 'dropdown'
+        ) {
+          const opts = extractOptions(fieldRecord);
+          if (opts.length) dropdownMap.set(colIdx, opts);
+        } else if (inputType === 'date') {
+          dateColumns.add(colIdx);
+        }
+        return; // done for this column
+      }
+
+      // Sub-fields inside groupField / repeatable_group
+      if (
+        (inputType === 'groupField' || inputType === 'repeatable_group') &&
+        Array.isArray(fieldRecord.groupFields)
+      ) {
+        for (const sf of fieldRecord.groupFields as unknown[]) {
+          const sfRecord = sf as Record<string, unknown>;
+          const sfLabel = toStringValue(sfRecord.label);
+          const sfType = String(sfRecord.inputType || 'text');
+
+          // Match "Label - SubLabel" or "Label N - SubLabel"
+          const isMatch =
+            header === `${label} - ${sfLabel}` ||
+            (header.startsWith(label) && header.endsWith(`- ${sfLabel}`));
+
+          if (isMatch) {
+            if (sfType === 'checkbox') {
+              dropdownMap.set(colIdx, ['Yes', 'No']);
+            } else if (
+              sfType === 'select' ||
+              sfType === 'radio' ||
+              sfType === 'dropdown'
+            ) {
+              const opts = extractOptions(sfRecord);
+              if (opts.length) dropdownMap.set(colIdx, opts);
+            } else if (sfType === 'date') {
+              dateColumns.add(colIdx);
+            }
+            break;
+          }
+        }
+      }
+    }
+  });
+
+  // ── Assemble workbook ───────────────────────────────────────────────────────
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Applicants');
-  XLSX.utils.book_append_sheet(workbook, instructionsSheet, 'Instructions');
 
-  return workbook;
+  return { workbook, dropdownMap, dateColumns, allHeaders };
+}
+
+// ─── Inject data validation XML into xlsx binary ─────────────────────────────
+// SheetJS CE cannot write dataValidation properly, so we unzip, patch the XML,
+// and re-zip.
+//
+// Excel Online shows a calendar date-picker only when the cell:
+//   1. Has dataValidation type="date"
+//   2. Uses a BUILT-IN date number format (numFmtId 14 = "m/d/yyyy")
+// SheetJS always writes custom numFmts, so we must patch styles.xml too.
+
+function colIdxToLetter(colIdx: number): string {
+  let col = '';
+  let n = colIdx + 1;
+  while (n > 0) {
+    const r = (n - 1) % 26;
+    col = String.fromCharCode(65 + r) + col;
+    n = Math.floor((n - 1) / 26);
+  }
+  return col;
+}
+
+function injectDataValidations(
+  xlsxBytes: Uint8Array,
+  dropdownMap: Map<number, string[]>,
+  dateColumns: Set<number>,
+): Uint8Array {
+  const unzipped = fflate.unzipSync(xlsxBytes);
+
+  // ── 1. Find sheet XML ─────────────────────────────────────────────────────
+  const sheetKey = Object.keys(unzipped).find(
+    (k) => k.startsWith('xl/worksheets/sheet') && k.endsWith('.xml'),
+  );
+  if (!sheetKey) return xlsxBytes;
+
+  let xml = new TextDecoder('utf-8').decode(unzipped[sheetKey]);
+
+  // Remove any existing <dataValidations> block
+  xml = xml.replace(
+    /<dataValidations[^>]*>[\s\S]*?<\/dataValidations>/,
+    '',
+  );
+
+  // ── 2. Build data validation entries ───────────────────────────────────────
+  const dvEntries: string[] = [];
+
+  // List dropdowns
+  dropdownMap.forEach((opts, colIdx) => {
+    const col = colIdxToLetter(colIdx);
+    const sqref = `${col}2:${col}1000`;
+    const formula1 = `"${opts.join(',')}"`;
+    dvEntries.push(
+      `<dataValidation type="list" allowBlank="1" showInputMessage="1" showErrorMessage="1" error="Please select from the list." errorTitle="Invalid entry" sqref="${sqref}"><formula1>${formula1}</formula1></dataValidation>`,
+    );
+  });
+
+  // Date columns
+  dateColumns.forEach((colIdx) => {
+    const col = colIdxToLetter(colIdx);
+    const sqref = `${col}2:${col}1000`;
+    dvEntries.push(
+      `<dataValidation type="date" operator="between" allowBlank="1" showInputMessage="1" showErrorMessage="1" promptTitle="Date format" prompt="Enter date in MM/DD/YYYY format (e.g. 01/15/2025)." error="Please enter a valid date." errorTitle="Invalid date" sqref="${sqref}"><formula1>1</formula1><formula2>2958465</formula2></dataValidation>`,
+    );
+  });
+
+  if (dvEntries.length === 0) return xlsxBytes;
+
+  const dvXml = `<dataValidations count="${dvEntries.length}">${dvEntries.join('')}</dataValidations>`;
+  xml = xml.replace(/<\/sheetData>/, `</sheetData>${dvXml}`);
+
+  // ── 3. Patch styles.xml — ensure built-in date format (numFmtId 14) ────────
+  const stylesKey = Object.keys(unzipped).find((k) => k.includes('styles'));
+  let dateXfIdx = -1; // index of the <xf> with numFmtId=14 in <cellXfs>
+
+  if (stylesKey) {
+    let stylesXml = new TextDecoder('utf-8').decode(unzipped[stylesKey]);
+
+    // Parse <cellXfs> to find or add an <xf> with numFmtId="14"
+    const cellXfsMatch = stylesXml.match(
+      /<cellXfs\s[^>]*count="(\d+)"[^>]*>([\s\S]*?)<\/cellXfs>/,
+    );
+    if (cellXfsMatch) {
+      const xfCount = parseInt(cellXfsMatch[1], 10);
+      const xfContent = cellXfsMatch[2];
+
+      // Check if an xf with numFmtId=14 already exists
+      const allXfs = xfContent.match(/<xf\s[^>]*\/>/g) || [];
+      let foundIdx = -1;
+      for (let i = 0; i < allXfs.length; i++) {
+        if (/numFmtId="14"/.test(allXfs[i])) {
+          foundIdx = i;
+          break;
+        }
+      }
+
+      if (foundIdx >= 0) {
+        dateXfIdx = foundIdx;
+      } else {
+        // Add a new <xf> with numFmtId=14 (built-in Short Date)
+        const newXf =
+          '<xf numFmtId="14" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>';
+        dateXfIdx = xfCount; // 0-based index of the new xf
+
+        stylesXml = stylesXml.replace(
+          /<cellXfs\s([^>]*)count="\d+"/,
+          `<cellXfs $1count="${xfCount + 1}"`,
+        );
+        stylesXml = stylesXml.replace(/<\/cellXfs>/, `${newXf}</cellXfs>`);
+      }
+    }
+
+    unzipped[stylesKey] = new TextEncoder().encode(stylesXml);
+  }
+
+  // ── 4. Patch sheet XML — set s="<dateXfIdx>" on date cells ────────────────
+  if (dateXfIdx >= 0) {
+    dateColumns.forEach((colIdx) => {
+      const col = colIdxToLetter(colIdx);
+      const cellRefs = [];
+      for (let r = 2; r <= 1000; r++) cellRefs.push(`${col}${r}`);
+
+      cellRefs.forEach((ref) => {
+        const tagRe = new RegExp(`(<c\\s+r="${ref}"[^>]*?)>`, 'g');
+        xml = xml.replace(tagRe, (_match, tag) => {
+          const clean = tag.replace(/\s*s="\d+"/g, '');
+          return `${clean} s="${dateXfIdx}">`;
+        });
+      });
+    });
+  }
+
+  unzipped[sheetKey] = new TextEncoder().encode(xml);
+  return fflate.zipSync(unzipped, { level: 0 });
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -905,6 +1191,7 @@ export default function BulkInsert({
   themeColors,
   onSuccess,
 }: BulkInsertProps) {
+  const { t } = useLocale();
   const [bulkSubmitting, setBulkSubmitting] = useState(false);
   const [bulkFileName, setBulkFileName] = useState('');
   const [bulkRows, setBulkRows] = useState<BulkApplicantRow[]>([]);
@@ -912,6 +1199,9 @@ export default function BulkInsert({
   const [bulkFileResetKey, setBulkFileResetKey] = useState(0);
   const [selectedJobForTemplate, setSelectedJobForTemplate] =
     useState<string>('');
+  const [selectedRowKeys, setSelectedRowKeys] = useState<Set<string>>(
+    new Set()
+  );
 
   const allColumnHeaders = useMemo(() => {
     if (bulkRows.length === 0) return [];
@@ -941,6 +1231,75 @@ export default function BulkInsert({
     return [...preferredHeaders, ...otherHeaders];
   }, [bulkRows]);
 
+  const columnMeta = useMemo(() => {
+    const meta: Record<string, { type: 'text' | 'checkbox' | 'select'; options?: string[] }> = {};
+
+    allColumnHeaders.forEach((header) => {
+      if (header === 'gender') {
+        meta[header] = { type: 'select', options: ['Male', 'Female'] };
+        return;
+      }
+
+      if (header === 'expectedSalary') {
+        meta[header] = { type: 'text' };
+        return;
+      }
+
+      for (const job of jobPositions) {
+        const specs = job.jobSpecsWithDetails || [];
+        for (const spec of specs) {
+          const specRec = spec as Record<string, unknown>;
+          const specText = toStringValue(specRec.spec);
+          if (specText === header) {
+            meta[header] = { type: 'checkbox' };
+            return;
+          }
+        }
+      }
+
+      for (const job of jobPositions) {
+        for (const field of (job.customFields || []) as unknown[]) {
+          const fieldRecord = field as Record<string, unknown>;
+          const label = toStringValue(fieldRecord.label);
+          const inputType = String(fieldRecord.inputType || 'text');
+
+          if (label === header) {
+            if (inputType === 'checkbox') {
+              meta[header] = { type: 'checkbox' };
+            } else if (inputType === 'select' || inputType === 'radio' || inputType === 'dropdown') {
+              const opts = extractOptions(fieldRecord);
+              if (opts.length) meta[header] = { type: 'select', options: opts };
+            }
+            return;
+          }
+
+          if ((inputType === 'groupField' || inputType === 'repeatable_group') && Array.isArray(fieldRecord.groupFields)) {
+            for (const sf of fieldRecord.groupFields as unknown[]) {
+              const sfRecord = sf as Record<string, unknown>;
+              const sfLabel = toStringValue(sfRecord.label);
+              const sfType = String(sfRecord.inputType || 'text');
+
+              const isMatch = header === `${label} - ${sfLabel}` ||
+                (header.startsWith(label) && header.endsWith(`- ${sfLabel}`));
+
+              if (isMatch) {
+                if (sfType === 'checkbox') {
+                  meta[header] = { type: 'checkbox' };
+                } else if (sfType === 'select' || sfType === 'radio' || sfType === 'dropdown') {
+                  const opts = extractOptions(sfRecord);
+                  if (opts.length) meta[header] = { type: 'select', options: opts };
+                }
+                return;
+              }
+            }
+          }
+        }
+      }
+    });
+
+    return meta;
+  }, [allColumnHeaders, jobPositions]);
+
   const validateBulkRows = (
     rows: BulkApplicantRow[]
   ): RowValidationResult[] => {
@@ -952,18 +1311,19 @@ export default function BulkInsert({
         jobPositions,
         existingApplicants,
         emailTracker,
-        phoneTracker
+        phoneTracker,
+        t
       )
     );
   };
 
-  const handleDownloadTemplate = () => {
+  const handleDownloadTemplate = async () => {
     if (!selectedJobForTemplate) {
       Swal.fire({
-        title: 'Select a job position',
-        text: 'Please select a job position to download the template.',
+        title: t('selectJobPosition', 'common'),
+        text: t('selectJobPositionDesc', 'common'),
         icon: 'warning',
-        confirmButtonText: 'OK',
+        confirmButtonText: t('ok', 'common'),
       });
       return;
     }
@@ -973,25 +1333,60 @@ export default function BulkInsert({
     );
     if (!jobPosition) {
       Swal.fire({
-        title: 'Job not found',
-        text: 'The selected job position could not be found.',
+        title: t('jobNotFound', 'common'),
+        text: t('jobNotFoundDesc', 'common'),
         icon: 'error',
-        confirmButtonText: 'OK',
+        confirmButtonText: t('ok', 'common'),
       });
       return;
     }
 
-    const workbook = buildTemplateWorkbookForJob(jobPosition);
+    const { workbook, dropdownMap, dateColumns } = buildTemplateWorkbookForJob(jobPosition, t);
     const fileName = `Applicant_Template_${toStringValue(jobPosition.title).replace(/[^a-z0-9]/gi, '_')}.xlsx`;
-    XLSX.writeFile(workbook, fileName);
 
-    Swal.fire({
-      title: 'Template downloaded',
-      text: `Template for "${toStringValue(jobPosition.title)}" has been downloaded.`,
-      icon: 'success',
-      timer: 2000,
-      showConfirmButton: false,
-    });
+    try {
+      // Write workbook to binary string, then to Uint8Array
+      const binStr: string = XLSX.write(workbook, {
+        bookType: 'xlsx',
+        type: 'binary',
+      });
+      const bytes = new Uint8Array(binStr.length);
+      for (let i = 0; i < binStr.length; i++) {
+        bytes[i] = binStr.charCodeAt(i) & 0xff;
+      }
+
+      // Inject data validation XML into the xlsx
+      const patched = injectDataValidations(bytes, dropdownMap, dateColumns);
+
+      // Download as .xlsx
+      const blob = new Blob([new Uint8Array(patched)], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      Swal.fire({
+        title: t('templateDownloaded', 'common'),
+        text: t('templateDownloadedFor', 'applicants', { title: toStringValue(jobPosition.title) }),
+        icon: 'success',
+        timer: 2000,
+        showConfirmButton: false,
+      });
+    } catch (err) {
+      console.error('Template download error:', err);
+      Swal.fire({
+        title: t('downloadFailed', 'common'),
+        text: err instanceof Error ? err.message : t('couldNotGenerateTemplate', 'applicants'),
+        icon: 'error',
+        confirmButtonText: t('ok', 'common'),
+      });
+    }
   };
 
   const handleBulkFileParse = async (file: File) => {
@@ -1005,7 +1400,7 @@ export default function BulkInsert({
       if (!sheetName) {
         setBulkRows([]);
         setBulkUploadErrors([
-          'The uploaded file does not contain any worksheet.',
+          t('noWorksheet', 'blueCaller'),
         ]);
         return;
       }
@@ -1015,14 +1410,23 @@ export default function BulkInsert({
         worksheet,
         { defval: '' }
       );
-      const parsed = jsonRows.map((row, index) =>
+      // Strip "(Required ...)" / "(Optional ...)" suffixes from header keys
+      const cleanRows = jsonRows.map((row) => {
+        const cleaned: Record<string, unknown> = {};
+        Object.entries(row).forEach(([key, val]) => {
+          const cleanKey = key.replace(/\s*\(.*?\)\s*$/, '').trim();
+          cleaned[cleanKey] = val;
+        });
+        return cleaned;
+      });
+      const parsed = cleanRows.map((row, index) =>
         normalizeApplicantRow(row, index + 2, jobPositions)
       );
       setBulkRows(validateBulkRows(parsed));
     } catch (error) {
       setBulkRows([]);
       setBulkUploadErrors([
-        getApiErrorMessage(error, 'Failed to parse the Excel file.'),
+        getApiErrorMessage(error, t('failedToParseExcel', 'blueCaller')),
       ]);
     }
   };
@@ -1031,7 +1435,7 @@ export default function BulkInsert({
     const file = files?.[0] || null;
     if (!file) return;
     if (!file.name.toLowerCase().endsWith('.xlsx')) {
-      setBulkUploadErrors(['Please upload a .xlsx file.']);
+      setBulkUploadErrors([t('pleaseUploadXlsx', 'blueCaller')]);
       return;
     }
     await handleBulkFileParse(file);
@@ -1040,7 +1444,6 @@ export default function BulkInsert({
   const handleBulkSubmit = async () => {
     const validatedRows = validateBulkRows(bulkRows);
 
-    // Separate rows: those with errors (blocking) vs those with only warnings (including duplicates)
     const rowsWithOnlyWarnings = validatedRows.filter(
       (row) => row.errors.length === 0 && row.warnings.length > 0
     );
@@ -1050,43 +1453,42 @@ export default function BulkInsert({
 
     if (validatedRows.length === 0) {
       setBulkUploadErrors([
-        'Upload and parse an Excel file before submitting.',
+        t('uploadBeforeSubmit', 'blueCaller'),
       ]);
       return;
     }
 
     if (validRows.length === 0) {
       setBulkUploadErrors([
-        'No valid rows are available for submission. Please fix the errors.',
+        t('noValidRows', 'blueCaller'),
       ]);
       return;
     }
 
-    // Show warning if there are duplicates
     if (rowsWithOnlyWarnings.length > 0) {
       const duplicateCount = rowsWithOnlyWarnings.length;
       const result = await Swal.fire({
-        title: '⚠️ Duplicate Applicants Detected',
+        title: t('duplicateApplicantsDetected', 'applicants'),
         html: `
           <div style="text-align: left;">
-            <p><strong>${duplicateCount} row${duplicateCount > 1 ? 's' : ''} ${duplicateCount > 1 ? 'have' : 'has'} potential duplicates:</strong></p>
+            <p><strong>${t('rowsWithDuplicates', 'applicants', { count: duplicateCount })}</strong></p>
             <ul style="margin-top: 10px; margin-bottom: 10px;">
               ${rowsWithOnlyWarnings
                 .slice(0, 5)
                 .map(
                   (row) =>
-                    `<li>Row ${row.rowNumber}: ${row.fullName || row.email} - ${row.duplicateInfo || 'Potential duplicate'}</li>`
+                    `<li>Row ${row.rowNumber}: ${row.fullName || row.email}</li>`
                 )
                 .join('')}
-              ${rowsWithOnlyWarnings.length > 5 ? `<li>... and ${rowsWithOnlyWarnings.length - 5} more</li>` : ''}
+              ${rowsWithOnlyWarnings.length > 5 ? `<li>...</li>` : ''}
             </ul>
-            <p>These applicants will still be submitted. Do you want to continue?</p>
+            <p>${t('willStillBeSubmitted', 'applicants')}</p>
           </div>
         `,
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonText: 'Yes, submit anyway',
-        cancelButtonText: 'No, cancel',
+        confirmButtonText: t('submitAnyway', 'applicants'),
+        cancelButtonText: t('no', 'common'),
         confirmButtonColor: '#f59e0b',
       });
 
@@ -1100,8 +1502,8 @@ export default function BulkInsert({
     setBulkSubmitting(true);
     try {
       void Swal.fire({
-        title: 'Submitting batch',
-        text: `Saving ${payload.length} applicant${payload.length === 1 ? '' : 's'} to the server.${rowsWithOnlyWarnings.length > 0 ? ` (${rowsWithOnlyWarnings.length} duplicate${rowsWithOnlyWarnings.length > 1 ? 's' : ''} included)` : ''}`,
+        title: t('submittingBatch', 'applicants'),
+        text: t('savingApplicants', 'applicants', { count: payload.length }),
         icon: 'info',
         allowOutsideClick: false,
         allowEscapeKey: false,
@@ -1113,10 +1515,10 @@ export default function BulkInsert({
       await axiosInstance.post('/applicants/bulk', { applicants: payload });
 
       await Swal.fire({
-        title: 'Batch submitted',
-        html: `${payload.length} applicant${payload.length === 1 ? '' : 's'} inserted successfully.${
+        title: t('batchSubmitted', 'applicants'),
+        html: `${t('insertedSuccessfully', 'applicants', { count: payload.length })}${
           rowsWithOnlyWarnings.length > 0
-            ? `<br/><br/><span style="color: #f59e0b;">⚠️ ${rowsWithOnlyWarnings.length} duplicate${rowsWithOnlyWarnings.length > 1 ? 's were' : ' was'} submitted with warnings.</span>`
+            ? `<br/><br/><span style="color: #f59e0b;">⚠️ ${t('duplicateWarning', 'common', { count: rowsWithOnlyWarnings.length })}</span>`
             : ''
         }`,
         icon: 'success',
@@ -1131,69 +1533,162 @@ export default function BulkInsert({
       onSuccess();
     } catch (error) {
       await Swal.fire({
-        title: 'Batch failed',
+        title: t('batchFailed', 'applicants'),
         text: getApiErrorMessage(
           error,
-          'Failed to submit the applicant batch.'
+          t('failedToSubmitBatch', 'applicants')
         ),
         icon: 'error',
-        confirmButtonText: 'Close',
+        confirmButtonText: t('close', 'common'),
       });
     } finally {
       setBulkSubmitting(false);
     }
   };
 
+  const handleCellEdit = (rowIndex: number, header: string, value: string) => {
+    setBulkRows((prev) => {
+      const updated = prev.map((row, idx) => {
+        if (idx !== rowIndex) return row;
+        const newRow = { ...row };
+
+        switch (header) {
+          case 'fullName':
+            newRow.fullName = value;
+            break;
+          case 'email':
+            newRow.email = value;
+            break;
+          case 'phone':
+            newRow.phone = value;
+            break;
+          case 'address':
+            newRow.address = value;
+            break;
+          case 'birthDate':
+            newRow.birthDate = value;
+            break;
+          case 'gender':
+            newRow.gender = value;
+            break;
+          case 'expectedSalary':
+            newRow.expectedSalary = value === '' ? undefined : Number(value);
+            break;
+          case 'jobPosition':
+          case 'jobTitle':
+          case 'position':
+            newRow.jobPositionTitle = value;
+            const job = jobPositions.find(
+              (j) =>
+                toStringValue(j.title).toLowerCase() === value.toLowerCase() ||
+                j.jobCode?.toLowerCase() === value.toLowerCase()
+            );
+            newRow.jobPositionId = job?._id || '';
+            break;
+        }
+
+        if (newRow.allData) {
+          newRow.allData = { ...newRow.allData, [header]: value };
+          const job = jobPositions.find((j) => j._id === newRow.jobPositionId);
+          if (job) {
+            newRow.customFields = {
+              ...parseCustomFields(newRow.allData, job),
+              ...parseJobSpecs(newRow.allData, job),
+            };
+          }
+        }
+
+        return newRow;
+      });
+      return updated;
+    });
+  };
+
+  const toggleRowSelection = (rowKey: string) => {
+    setSelectedRowKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(rowKey)) {
+        next.delete(rowKey);
+      } else {
+        next.add(rowKey);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAll = () => {
+    setSelectedRowKeys((prev) => {
+      if (prev.size === bulkPreviewRows.length) {
+        return new Set();
+      }
+      return new Set(bulkPreviewRows.map((r) => String(r.rowNumber)));
+    });
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedRowKeys.size === 0) return;
+
+    const result = await Swal.fire({
+      title: t('deleteSelectedRows', 'blueCaller'),
+      text: t('deleteSelectedRowsDesc', 'blueCaller', { count: selectedRowKeys.size }),
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: t('yesDelete', 'blueCaller'),
+      cancelButtonText: t('cancel', 'blueCaller'),
+    });
+
+    if (!result.isConfirmed) return;
+
+    setBulkRows((prev) =>
+      prev.filter((r) => !selectedRowKeys.has(String(r.rowNumber)))
+    );
+    setSelectedRowKeys(new Set());
+  };
+
   const bulkPreviewRows = validateBulkRows(bulkRows);
 
-  const formatCellValue = (value: unknown): string => {
-    if (value === undefined || value === null) return '-';
-    if (typeof value === 'object') return JSON.stringify(value);
-    return String(value);
-  };
 
   const getRowStatus = (
     row: RowValidationResult
   ): { status: string; color: string; icon: JSX.Element } => {
     if (row.errors.length > 0) {
       return {
-        status: 'Failed',
+        status: t('failed', 'blueCaller'),
         color: 'bg-red-100 text-red-700',
         icon: <AlertCircle className="h-3 w-3" />,
       };
     }
     if (row.hasDuplicate || row.warnings.length > 0) {
       return {
-        status: 'Duplicate',
+        status: t('duplicate', 'blueCaller'),
         color: 'bg-amber-100 text-amber-700',
         icon: <AlertTriangle className="h-3 w-3" />,
       };
     }
     return {
-      status: 'Valid',
+      status: t('valid', 'blueCaller'),
       color: 'bg-emerald-100 text-emerald-700',
       icon: <CheckCircle2 className="h-3 w-3" />,
     };
   };
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+    <div className="space-y-6">
+      {/* Top Section: Template + Upload + Stats + Submit */}
       <section
-        className={`space-y-5 rounded-3xl border ${themeColors.borderPrimary} bg-white p-6 shadow-xl`}
+        className={`space-y-5 rounded-3xl border ${themeColors.borderPrimary} bg-white dark:bg-gray-800 p-6 shadow-xl`}
       >
         <div
           className={`flex items-center justify-between gap-4 border-b ${themeColors.borderLight} pb-4`}
         >
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">
-              Bulk Excel Insert
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              {t('bulkExcelInsert', 'blueCaller')}
             </h2>
-            <p className="mt-1 text-sm text-gray-500">
-              Upload a spreadsheet, inspect the parsed rows, and submit only the
-              valid applicants.
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              {t('bulkExcelDesc', 'blueCaller')}
               <span className="block text-amber-600 text-xs mt-1">
-                ⚠️ Duplicate applicants will show a warning but can still be
-                submitted.
+                ⚠️ {t('duplicateWarningDesc', 'blueCaller')}
               </span>
             </p>
           </div>
@@ -1201,30 +1696,30 @@ export default function BulkInsert({
 
         {/* Template Download Section */}
         <div
-          className={`rounded-2xl border ${themeColors.borderLight} ${themeColors.bgLight} p-4`}
+          className={`rounded-2xl border ${themeColors.borderLight} ${themeColors.bgLight} dark:bg-gray-700 p-4`}
         >
-          <h3 className="text-md font-semibold text-gray-900 mb-3">
-            Download Template
+          <h3 className="text-md font-semibold text-gray-900 dark:text-gray-100 mb-3">
+            {t('downloadTemplate', 'blueCaller')}
           </h3>
           <div className="flex flex-col sm:flex-row gap-3 items-end">
             <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Select Job Position
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                {t('selectJobPosition', 'blueCaller')}
               </label>
               <div className="relative">
                 <select
                   value={selectedJobForTemplate}
                   onChange={(e) => setSelectedJobForTemplate(e.target.value)}
-                  className={`w-full appearance-none rounded-xl border ${themeColors.borderPrimary} bg-white px-4 py-2 pr-10 text-sm shadow-sm outline-none transition ${themeColors.focusRing}`}
+                  className={`w-full appearance-none rounded-xl border ${themeColors.borderPrimary} bg-white dark:bg-gray-800 px-4 py-2 pr-10 text-sm shadow-sm outline-none transition ${themeColors.focusRing}`}
                 >
-                  <option value="">-- Select a job position --</option>
+                  <option value="">{t('selectJobPositionPlaceholder', 'blueCaller')}</option>
                   {jobPositions.map((job) => (
                     <option key={job._id} value={job._id}>
                       {toStringValue(job.title) || job.jobCode || job._id}
                     </option>
                   ))}
                 </select>
-                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
               </div>
             </div>
             <button
@@ -1238,15 +1733,15 @@ export default function BulkInsert({
               }`}
             >
               <Download className="h-4 w-4" />
-              Download Template
+              {t('downloadTemplate', 'blueCaller')}
             </button>
           </div>
         </div>
 
         {/* Upload Section */}
         <div>
-          <h3 className="text-md font-semibold text-gray-900 mb-3">
-            Upload File
+          <h3 className="text-md font-semibold text-gray-900 dark:text-gray-100 mb-3">
+            {t('uploadFile', 'blueCaller')}
           </h3>
           <label
             onDragOver={(e) => e.preventDefault()}
@@ -1254,19 +1749,19 @@ export default function BulkInsert({
               e.preventDefault();
               void handleBulkDrop(e.dataTransfer.files);
             }}
-            className={`flex cursor-pointer flex-col items-center justify-center gap-4 rounded-3xl border-2 border-dashed ${themeColors.borderPrimary} ${themeColors.bgLight} px-6 py-10 text-center transition hover:bg-gray-200`}
+            className={`flex cursor-pointer flex-col items-center justify-center gap-4 rounded-3xl border-2 border-dashed ${themeColors.borderPrimary} ${themeColors.bgLight} px-6 py-10 text-center transition hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-600`}
           >
-            <div className="rounded-2xl bg-white p-4 shadow-sm">
+            <div className="rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
               <FileSpreadsheet
                 className={`h-8 w-8 ${themeColors.textPrimary}`}
               />
             </div>
             <div className="space-y-1">
-              <p className="text-lg font-bold text-gray-900">
-                Drop your .xlsx file here
+              <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                {t('dropXlsxHere', 'blueCaller')}
               </p>
-              <p className="text-sm text-gray-600">
-                Or click to browse. Use the template matching your job position.
+              <p className="text-sm text-gray-600 dark:text-gray-300">
+                {t('orClickToBrowse', 'blueCaller')}
               </p>
             </div>
             <input
@@ -1279,45 +1774,33 @@ export default function BulkInsert({
             <span
               className={`inline-flex items-center gap-2 rounded-full ${themeColors.bgPrimary} px-4 py-2 text-sm font-semibold text-white shadow-lg ${themeColors.hoverBg}`}
             >
-              <Upload className="h-4 w-4" /> Browse Excel file
+              <Upload className="h-4 w-4" /> {t('browseExcelFile', 'blueCaller')}
             </span>
           </label>
         </div>
 
         {bulkFileName && (
           <div
-            className={`flex items-center justify-between rounded-2xl border ${themeColors.borderLight} ${themeColors.bgLight} px-4 py-3`}
+            className={`flex items-center justify-between rounded-2xl border ${themeColors.borderLight} ${themeColors.bgLight} dark:bg-gray-700 px-4 py-3`}
           >
             <div className="flex items-center gap-3">
               <FileText className={`h-5 w-5 ${themeColors.textPrimary}`} />
               <div>
-                <p className="text-sm font-semibold text-gray-900">
+                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                   {getDisplayFileName(bulkFileName, 40)}
                 </p>
-                <p className="text-xs text-gray-500">
-                  Parsed rows are shown on the right.
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {t('clickCellsToEdit', 'blueCaller')}
                 </p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                setBulkRows([]);
-                setBulkFileName('');
-                setBulkUploadErrors([]);
-                setBulkFileResetKey((v) => v + 1);
-              }}
-              className={`inline-flex items-center gap-2 rounded-xl border ${themeColors.borderPrimary} bg-white px-3 py-2 text-sm font-semibold ${themeColors.textPrimary}`}
-            >
-              <Trash2 className="h-4 w-4" /> Reset
-            </button>
           </div>
         )}
 
         {bulkUploadErrors.length > 0 && (
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
             <div className="mb-2 flex items-center gap-2 font-semibold">
-              <AlertCircle className="h-4 w-4" /> Upload issues
+              <AlertCircle className="h-4 w-4" /> {t('uploadIssues', 'blueCaller')}
             </div>
             <ul className="space-y-1">
               {bulkUploadErrors.map((error) => (
@@ -1330,33 +1813,33 @@ export default function BulkInsert({
         <div className="grid gap-3 sm:grid-cols-4">
           {[
             {
-              label: 'Parsed rows',
+              label: t('parsedRows', 'blueCaller'),
               value: bulkRows.length,
-              color: 'text-gray-900',
+              color: 'text-gray-900 dark:text-gray-100',
             },
             {
-              label: 'Valid',
+              label: t('valid', 'blueCaller'),
               value: bulkPreviewRows.filter(
                 (r) => r.errors.length === 0 && !r.hasDuplicate
               ).length,
               color: 'text-emerald-600',
             },
             {
-              label: 'Duplicate',
+              label: t('duplicate', 'blueCaller'),
               value: bulkPreviewRows.filter(
                 (r) => r.errors.length === 0 && r.hasDuplicate
               ).length,
               color: 'text-amber-600',
             },
             {
-              label: 'Failed',
+              label: t('failed', 'blueCaller'),
               value: bulkPreviewRows.filter((r) => r.errors.length > 0).length,
               color: 'text-red-600',
             },
           ].map(({ label, value, color }) => (
             <div
               key={label}
-              className={`rounded-2xl border ${themeColors.borderLight} ${themeColors.bgLight} p-4`}
+          className={`rounded-2xl border ${themeColors.borderLight} ${themeColors.bgLight} dark:bg-gray-700 p-4`}
             >
               <p
                 className={`text-xs uppercase tracking-[0.18em] ${themeColors.textPrimary}`}
@@ -1369,64 +1852,87 @@ export default function BulkInsert({
         </div>
 
         <div
-          className={`rounded-2xl border ${themeColors.borderLight} ${themeColors.bgLight} p-4 text-sm text-gray-600`}
+          className={`rounded-2xl border ${themeColors.borderLight} ${themeColors.bgLight} dark:bg-gray-700 p-4 text-sm text-gray-600 dark:text-gray-300`}
         >
           <span className={`font-semibold ${themeColors.textPrimary}`}>
-            Validation Rules:
+            {t('validationRules', 'blueCaller')}
           </span>
           <ul className="mt-1 space-y-1 text-xs">
             <li>
-              • <span className="text-red-600">Failed (red)</span> - Missing
-              required fields or invalid data - cannot submit
+              • <span className="text-red-600">{t('failedRed', 'blueCaller')}</span> - {t('failedRedDesc', 'blueCaller')}
             </li>
             <li>
-              • <span className="text-amber-600">Duplicate (yellow)</span> -
-              Potential duplicate applicant - can still submit
+              • <span className="text-amber-600">{t('duplicateYellow', 'blueCaller')}</span> - {t('duplicateYellowDesc', 'blueCaller')}
             </li>
             <li>
-              • <span className="text-emerald-600">Valid (green)</span> - Ready
-              to submit
+              • <span className="text-emerald-600">{t('validGreen', 'blueCaller')}</span> - {t('validGreenDesc', 'blueCaller')}
             </li>
           </ul>
         </div>
-
-        <button
-          type="button"
-          onClick={() => void handleBulkSubmit()}
-          disabled={
-            bulkSubmitting ||
-            bulkPreviewRows.filter((r) => r.errors.length === 0).length === 0
-          }
-          className={`inline-flex w-full items-center justify-center gap-2 rounded-xl ${themeColors.bgPrimary} px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:opacity-90 ${themeColors.hoverBg} disabled:cursor-not-allowed disabled:opacity-60`}
-        >
-          {bulkSubmitting ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <UserPlus className="h-4 w-4" />
-          )}
-          Submit Valid Rows (
-          {bulkPreviewRows.filter((r) => r.errors.length === 0).length})
-        </button>
       </section>
 
+      {/* Bottom Section: Editable Applicant Table */}
       <section
-        className={`overflow-hidden rounded-3xl border ${themeColors.borderPrimary} bg-white shadow-xl flex flex-col`}
+        className={`overflow-hidden rounded-3xl border ${themeColors.borderPrimary} bg-white dark:bg-gray-800 shadow-xl flex flex-col`}
       >
         <div
           className={`flex items-center justify-between border-b ${themeColors.borderLight} px-4 py-3 flex-shrink-0 flex-wrap gap-2`}
         >
           <div>
-            <h3 className="text-base font-bold text-gray-900">
-              Parsed Preview
+            <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">
+              {t('applicantData', 'blueCaller')}
             </h3>
-            <p className="text-xs text-gray-500">
-              Yellow rows have potential duplicates but can still be submitted.
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {t('applicantDataHint', 'blueCaller')}
             </p>
           </div>
-          <div
-            className={`rounded-full ${themeColors.bgLight} px-3 py-1 text-xs font-semibold ${themeColors.textPrimary} whitespace-nowrap`}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span
+              className={`rounded-full ${themeColors.bgLight} dark:bg-gray-700 px-3 py-1 text-xs font-semibold ${themeColors.textPrimary} whitespace-nowrap`}
+            >
+              {t('rowsByCols', 'blueCaller', { rows: bulkPreviewRows.length, cols: allColumnHeaders.length })}
+            </span>
+            {bulkRows.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setBulkRows([]);
+                  setBulkFileName('');
+                  setBulkUploadErrors([]);
+                  setBulkFileResetKey((v) => v + 1);
+                  setSelectedRowKeys(new Set());
+                }}
+                className={`inline-flex items-center gap-1 rounded-xl border ${themeColors.borderPrimary} bg-white dark:bg-gray-800 px-3 py-1.5 text-xs font-semibold ${themeColors.textPrimary}`}
+              >
+                <Trash2 className="h-3 w-3" /> {t('reset', 'blueCaller')}
+              </button>
+            )}
+            {selectedRowKeys.size > 0 && (
+              <button
+                type="button"
+                onClick={() => void handleDeleteSelected()}
+                className="inline-flex items-center gap-1 rounded-xl bg-red-600 px-3 py-1.5 text-xs font-semibold text-white shadow"
+              >
+                <Trash2 className="h-3 w-3" />
+                {t('deleteCount', 'blueCaller', { count: selectedRowKeys.size })}
+              </button>
+            )}
+              <button
+            type="button"
+            onClick={() => void handleBulkSubmit()}
+            disabled={
+              bulkSubmitting ||
+              bulkPreviewRows.filter((r) => r.errors.length === 0).length === 0
+            }
+            className={`inline-flex flex-1 items-center justify-center gap-2 rounded-xl ${themeColors.bgPrimary} px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:opacity-90 ${themeColors.hoverBg} disabled:cursor-not-allowed disabled:opacity-60`}
           >
-            {bulkPreviewRows.length} rows × {allColumnHeaders.length} cols
+            {bulkSubmitting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <UserPlus className="h-4 w-4" />
+            )}
+            {t('submitValidRows', 'blueCaller', { count: bulkPreviewRows.filter((r) => r.errors.length === 0).length })}
+            </button>
           </div>
         </div>
 
@@ -1438,12 +1944,22 @@ export default function BulkInsert({
             className={`min-w-full divide-y ${themeColors.borderLight} text-left text-xs`}
           >
             <thead
-              className={`${themeColors.bgLight} text-gray-900 sticky top-0 z-10`}
+              className={`${themeColors.bgLight} dark:bg-gray-700 text-gray-900 dark:text-gray-100 sticky top-0 z-10`}
             >
               <tr>
-                <th className="px-2 py-2 font-semibold w-[50px]">#</th>
-                <th className="px-2 py-2 font-semibold w-[80px]">Status</th>
-                <th className="px-2 py-2 font-semibold w-[180px]">Issues</th>
+                <th className="px-2 py-2 font-semibold w-[40px]">
+                  <input
+                    type="checkbox"
+                    onChange={handleSelectAll}
+                    checked={
+                      selectedRowKeys.size === bulkPreviewRows.length &&
+                      bulkPreviewRows.length > 0
+                    }
+                  />
+                </th>
+                <th className="px-2 py-2 font-semibold w-[50px]">{t('rowNumber', 'blueCaller')}</th>
+                <th className="px-2 py-2 font-semibold w-[80px]">{t('status', 'blueCaller')}</th>
+                <th className="px-2 py-2 font-semibold w-[180px]">{t('issues', 'blueCaller')}</th>
                 {allColumnHeaders.map((header) => (
                   <th
                     key={header}
@@ -1456,26 +1972,27 @@ export default function BulkInsert({
                 ))}
               </tr>
             </thead>
-            <tbody className={`divide-y ${themeColors.borderLight} bg-white`}>
+            <tbody className={`divide-y ${themeColors.borderLight} bg-white dark:bg-gray-800`}>
               {bulkPreviewRows.length === 0 ? (
                 <tr>
                   <td
-                    className="px-2 py-8 text-center text-gray-500"
-                    colSpan={allColumnHeaders.length + 3}
+                    className="px-2 py-8 text-center text-gray-500 dark:text-gray-400"
+                    colSpan={allColumnHeaders.length + 4}
                   >
-                    Upload an Excel file to preview applicant rows here.
+                    {t('uploadToPreview', 'blueCaller')}
                   </td>
                 </tr>
               ) : (
-                bulkPreviewRows.map((row) => {
+                bulkPreviewRows.map((row, rowIndex) => {
                   const rowStatus = getRowStatus(row);
                   const hasErrors = row.errors.length > 0;
                   const isDuplicate =
                     !hasErrors && (row.hasDuplicate || row.warnings.length > 0);
+                  const rowKey = String(row.rowNumber);
 
                   return (
                     <tr
-                      key={`${row.rowNumber}-${row.email}`}
+                      key={`row-${rowKey}`}
                       className={
                         hasErrors
                           ? 'bg-red-50/50'
@@ -1484,7 +2001,14 @@ export default function BulkInsert({
                             : 'bg-emerald-50/40'
                       }
                     >
-                      <td className="px-2 py-2 font-medium text-gray-700 text-center">
+                      <td className="px-2 py-2 text-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedRowKeys.has(rowKey)}
+                          onChange={() => toggleRowSelection(rowKey)}
+                        />
+                      </td>
+                      <td className="px-2 py-2 font-medium text-gray-700 dark:text-gray-200 text-center">
                         {row.rowNumber}
                       </td>
                       <td className="px-2 py-2">
@@ -1518,23 +2042,48 @@ export default function BulkInsert({
                           </div>
                         ) : (
                           <span className="text-emerald-600 text-[10px] whitespace-nowrap">
-                            ✓ Ready
+                            ✓ {t('ready', 'blueCaller')}
                           </span>
                         )}
                       </td>
-                      {allColumnHeaders.map((header) => (
-                        <td
-                          key={header}
-                          className="px-2 py-2 text-gray-700 max-w-[150px]"
-                        >
-                          <div
-                            className="truncate"
-                            title={formatCellValue(row.allData?.[header])}
+                      {allColumnHeaders.map((header) => {
+                        const currentMeta = columnMeta[header];
+                        const currentValue = row.allData?.[header];
+
+                        return (
+                          <td
+                            key={header}
+                            className="px-2 py-2 max-w-[150px]"
                           >
-                            {formatCellValue(row.allData?.[header])}
-                          </div>
-                        </td>
-                      ))}
+                            {currentMeta?.type === 'checkbox' ? (
+                              <input
+                                type="checkbox"
+                                checked={currentValue === 'Yes' || currentValue === 'true' || currentValue === true || currentValue === '1'}
+                                onChange={(e) => handleCellEdit(rowIndex, header, e.target.checked ? 'Yes' : 'No')}
+                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                              />
+                            ) : currentMeta?.type === 'select' ? (
+                              <select
+                                defaultValue={String(currentValue ?? '')}
+                                onChange={(e) => handleCellEdit(rowIndex, header, e.target.value)}
+                                className="w-full bg-transparent border-none outline-none text-gray-700 dark:text-gray-200 focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5"
+                              >
+                                <option value="">--</option>
+                                {currentMeta.options?.map((opt) => (
+                                  <option key={opt} value={opt}>{opt}</option>
+                                ))}
+                              </select>
+                            ) : (
+                              <input
+                                type="text"
+                                defaultValue={String(currentValue ?? '')}
+                                onBlur={(e) => handleCellEdit(rowIndex, header, e.target.value)}
+                                className="w-full bg-transparent border-none outline-none text-gray-700 dark:text-gray-200 focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5"
+                              />
+                            )}
+                          </td>
+                        );
+                      })}
                     </tr>
                   );
                 })
@@ -1545,10 +2094,10 @@ export default function BulkInsert({
 
         {allColumnHeaders.length > 6 && (
           <div
-            className={`border-t ${themeColors.borderLight} px-3 py-1.5 text-center text-[10px] text-gray-400 flex-shrink-0`}
+            className={`border-t ${themeColors.borderLight} px-3 py-1.5 text-center text-[10px] text-gray-400 dark:text-gray-500 flex-shrink-0`}
           >
             <span className="inline-flex items-center gap-1">
-              ← Scroll → {allColumnHeaders.length} columns total
+              {t('scrollHint', 'blueCaller', { count: allColumnHeaders.length })}
             </span>
           </div>
         )}

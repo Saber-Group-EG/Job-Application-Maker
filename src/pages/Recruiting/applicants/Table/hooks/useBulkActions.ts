@@ -1,6 +1,7 @@
 // hooks/useBulkActions.ts
 import { useState, useCallback } from 'react';
 import Swal from '../../../../../utils/swal';
+import { useLocale } from '../../../../../context/LocaleContext';
 import {
   useScheduleBulkInterviews,
   useBatchUpdateApplicantStatus,
@@ -43,8 +44,6 @@ interface UseBulkActionsProps {
   selectedApplicantsForInterview: SelectedApplicantForInterview[];
   selectedApplicantCompanyId: string | null;
   selectedApplicantCompany: any | null;
-  refetchApplicants: () => void;
-  queryClient: any;
   onClearSelection?: () => void;
 }
 
@@ -144,10 +143,9 @@ export function useBulkActions({
   selectedApplicantsForInterview,
   selectedApplicantCompanyId,
   selectedApplicantCompany,
-  refetchApplicants,
-  queryClient,
   onClearSelection,
 }: UseBulkActionsProps): UseBulkActionsReturn {
+  const { t, locale } = useLocale();
   // Mutations
   const batchUpdateStatusMutation = useBatchUpdateApplicantStatus();
   const scheduleBulkInterviewsMutation = useScheduleBulkInterviews();
@@ -208,14 +206,14 @@ export function useBulkActions({
     if (selectedApplicantIds.length === 0) return;
 
     const result = await Swal.fire({
-      title: 'Delete Applicants?',
-      text: `Are you sure you want to delete ${selectedApplicantIds.length} applicant(s)? They will be moved to trash.`,
+      title: t('deleteApplicantsTitle', 'applicants'),
+      text: t('deleteApplicantsText', 'applicants', { count: selectedApplicantIds.length }),
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#d33',
       cancelButtonColor: '#3085d6',
-      confirmButtonText: 'Yes, delete them!',
-      cancelButtonText: 'Cancel',
+      confirmButtonText: t('yes', 'common'),
+      cancelButtonText: t('cancel', 'common'),
     });
 
     if (!result.isConfirmed) return;
@@ -223,7 +221,7 @@ export function useBulkActions({
     const updates = selectedApplicantIds.map((applicantId) => ({
       applicantId: applicantId,
       status: 'trashed',
-      notes: `Moved to trash on ${new Date().toLocaleDateString()}`,
+      notes: `Moved to trash on ${new Date().toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US')}`,
     }));
 
     try {
@@ -231,8 +229,8 @@ export function useBulkActions({
       await batchUpdateStatusMutation.mutateAsync(updates);
 
       await Swal.fire({
-        title: 'Success!',
-        text: `${selectedApplicantIds.length} applicant(s) moved to trash.`,
+        title: t('success', 'applicants'),
+        text: t('movedToTrash', 'applicants', { count: selectedApplicantIds.length }),
         icon: 'success',
         position: 'center',
         timer: 2000,
@@ -240,15 +238,13 @@ export function useBulkActions({
       });
 
       clearSelection();
-      await refetchApplicants();
-      queryClient.invalidateQueries({ queryKey: ['applicants'] });
     } catch (err: any) {
       console.error('Error deleting applicants:', err);
       setBulkDeleteError(err.message || 'Failed to delete applicants');
     } finally {
       setIsDeleting(false);
     }
-  }, [selectedApplicantIds, batchUpdateStatusMutation, refetchApplicants, queryClient, clearSelection]);
+  }, [selectedApplicantIds, batchUpdateStatusMutation, clearSelection]);
 
   // Handle bulk status change
   const handleBulkStatusChange = useCallback(
@@ -285,8 +281,8 @@ export function useBulkActions({
         await batchUpdateStatusMutation.mutateAsync(updates);
 
         await Swal.fire({
-          title: 'Success!',
-          text: `Status updated for ${selectedApplicantIds.length} applicant(s).`,
+          title: t('success', 'applicants'),
+          text: t('statusUpdateSuccess', 'applicants', { count: selectedApplicantIds.length }),
           icon: 'success',
           position: 'center',
           timer: 2000,
@@ -297,8 +293,6 @@ export function useBulkActions({
         setBulkAction('');
         setShowBulkStatusModal(false);
         setBulkStatusForm({ status: '', reasons: [], notes: '' });
-        await refetchApplicants();
-        queryClient.invalidateQueries({ queryKey: ['applicants'] });
       } catch (err: any) {
         console.error('Error bulk changing status:', err);
         setBulkStatusError(err.message || 'Failed to update statuses');
@@ -306,7 +300,7 @@ export function useBulkActions({
         setIsSubmittingBulkStatus(false);
       }
     },
-    [selectedApplicantIds, bulkStatusForm, batchUpdateStatusMutation, refetchApplicants, queryClient, clearSelection]
+    [selectedApplicantIds, bulkStatusForm, batchUpdateStatusMutation, clearSelection]
   );
 
   // Handle bulk change status (triggered by button click)
@@ -322,13 +316,13 @@ export function useBulkActions({
       }
 
       const result = await Swal.fire({
-        title: 'Change Status?',
-        text: `Are you sure you want to change the status of ${selectedApplicantIds.length} applicant(s) to ${action}?`,
+        title: t('changeStatusTitle', 'applicants'),
+        text: t('statusChangedTo', 'applicants', { count: selectedApplicantIds.length, action }),
         icon: 'question',
         showCancelButton: true,
         confirmButtonColor: '#3085d6',
         cancelButtonColor: '#d33',
-        confirmButtonText: 'Yes, change it!',
+        confirmButtonText: t('yes', 'common'),
       });
 
       if (!result.isConfirmed) return;
@@ -340,14 +334,14 @@ export function useBulkActions({
         const updates = selectedApplicantIds.map((applicantId) => ({
           applicantId: applicantId,
           status: action,
-          notes: `Bulk status change to ${action} on ${new Date().toLocaleDateString()}`,
+          notes: `Bulk status change to ${action} on ${new Date().toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US')}`,
         }));
         
         await batchUpdateStatusMutation.mutateAsync(updates);
 
         await Swal.fire({
-          title: 'Success!',
-          text: `Status updated for ${selectedApplicantIds.length} applicant(s).`,
+          title: t('success', 'applicants'),
+          text: t('statusUpdateSuccess', 'applicants', { count: selectedApplicantIds.length }),
           icon: 'success',
           position: 'center',
           timer: 2000,
@@ -356,8 +350,6 @@ export function useBulkActions({
 
         clearSelection();
         setBulkAction('');
-        await refetchApplicants();
-        queryClient.invalidateQueries({ queryKey: ['applicants'] });
       } catch (err: any) {
         console.error('Error changing status:', err);
         setBulkStatusError(getErrorMessage(err));
@@ -365,7 +357,7 @@ export function useBulkActions({
         setIsProcessing(false);
       }
     },
-    [selectedApplicantIds, batchUpdateStatusMutation, refetchApplicants, queryClient, clearSelection]
+    [selectedApplicantIds, batchUpdateStatusMutation, clearSelection]
   );
 
   // Get company address
@@ -455,8 +447,8 @@ export function useBulkActions({
 
   if (!selectedApplicantCompanyId) {
     await Swal.fire({
-      title: 'Single Company Required',
-      text: 'Please select applicants from one company to schedule interviews together.',
+      title: t('singleCompanyRequired', 'applicants'),
+      text: t('singleCompanyRequiredDesc', 'applicants'),
       icon: 'warning',
     });
     return;
@@ -518,13 +510,13 @@ export function useBulkActions({
     const items = selectedApplicantsForInterview.map((candidate, index) => {
       const scheduled = new Date(baseDate.getTime() + index * bulkInterviewIntervalMinutes * 60000);
       
-      const interviewDate = scheduled.toLocaleDateString('en-US', {
+      const interviewDate = scheduled.toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
       });
       
-      const interviewTime = scheduled.toLocaleTimeString('en-US', {
+      const interviewTime = scheduled.toLocaleTimeString(locale === 'ar' ? 'ar-EG' : 'en-US', {
         hour: 'numeric',
         minute: '2-digit',
         hour12: true,
@@ -599,7 +591,7 @@ export function useBulkActions({
           .map((item: any) => ({
             applicantId: item.applicantId,
             status: 'interview',
-            notes: `Status updated to interview on ${new Date().toLocaleDateString()} (bulk interview scheduling)`,
+            notes: `Status updated to interview on ${new Date().toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US')} (bulk interview scheduling)`,
           }));
         
         if (statusUpdates.length > 0) {
@@ -612,16 +604,16 @@ export function useBulkActions({
           if (emailableItems.length > 0) {
             // Here you would send emails
             if (missingEmails.length > 0) {
-              emailResultNote = `Email sent to ${emailableItems.length} applicant(s); ${missingEmails.length} without email were skipped.`;
+              emailResultNote = t('emailSentTo', 'applicants', { sent: emailableItems.length, skipped: missingEmails.length });
             }
           }
         }
 
-        const successMessageBase = `Interviews scheduled for ${previewItems.length} applicant(s).`;
+        const successMessageBase = t('interviewsScheduledFor', 'applicants', { count: previewItems.length });
         const successText = emailResultNote ? `${successMessageBase} ${emailResultNote}` : successMessageBase;
 
         await Swal.fire({
-          title: 'Success!',
+          title: t('success', 'applicants'),
           text: successText,
           icon: 'success',
           position: 'center',
@@ -633,7 +625,6 @@ export function useBulkActions({
         setShowBulkInterviewModal(false);
         setShowBulkInterviewPreviewModal(false);
         resetBulkInterviewModal();
-        await refetchApplicants();
       } catch (err: any) {
         console.error('Error scheduling bulk interviews:', err);
         setBulkInterviewError(getErrorMessage(err));
@@ -649,7 +640,6 @@ export function useBulkActions({
       batchUpdateStatusMutation,
       clearSelection,
       resetBulkInterviewModal,
-      refetchApplicants,
     ]
   );
 
