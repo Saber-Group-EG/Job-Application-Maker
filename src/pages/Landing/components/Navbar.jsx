@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from '../i18n/hooks/useTranslation';
 import LanguageSwitcher from '../i18n/components/LanguageSwitcher';
 import { useNavigate, useLocation, Link } from 'react-router';
+import { tokenStorage } from '../../../config/api';
 
 const Navbar = () => {
   const { t, isArabic } = useTranslation();
@@ -56,6 +57,15 @@ const Navbar = () => {
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
       setActiveLink(href.replace('#', ''));
+    }
+  };
+
+  const handleLogin = () => {
+    const token = tokenStorage.getAccessToken();
+    if (token) {
+      navigate('/home');
+    } else {
+      navigate('/signin');
     }
   };
 
@@ -153,12 +163,12 @@ const Navbar = () => {
           {/* Right Side Actions */}
           <div className="flex items-center gap-4">
             {/* Login Button */}
-            <Link
-              to="/signin"
-              className="hidden lg:inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg bg-primary-500 text-white hover:bg-primary-600 transition-all duration-300"
+            <button
+              onClick={handleLogin}
+              className="hidden lg:inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg bg-primary-500 text-white hover:bg-primary-600 transition-all duration-300 cursor-pointer"
             >
               {t('navigation:login')}
-            </Link>
+            </button>
 
             {/* Language Switcher */}
             <LanguageSwitcher className="hidden lg:block" />
@@ -234,13 +244,15 @@ const Navbar = () => {
 
             {/* Mobile bottom — Login + Language Switcher */}
             <div className="p-4 border-t border-light-200 dark:border-dark-700 bg-light-50/50 dark:bg-dark-800/50 space-y-2">
-              <Link
-                to="/signin"
-                className="flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg bg-primary-500 text-white hover:bg-primary-600 transition-all duration-300 w-full"
-                onClick={() => setIsOpen(false)}
+              <button
+                onClick={() => {
+                  setIsOpen(false);
+                  handleLogin();
+                }}
+                className="flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg bg-primary-500 text-white hover:bg-primary-600 transition-all duration-300 w-full cursor-pointer"
               >
                 {t('navigation:login')}
-              </Link>
+              </button>
               <LanguageSwitcher className="w-full justify-center" />
             </div>
           </div>
