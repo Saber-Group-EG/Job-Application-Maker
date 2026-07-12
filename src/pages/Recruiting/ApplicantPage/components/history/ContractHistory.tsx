@@ -93,7 +93,6 @@ export default function ContractHistory({
           </thead>
           <tbody className="divide-y divide-gray-50 bg-white">
             {contracts.map((contract, index) => {
-              const contractId = contract?._id || null;
               const status = contract?.status || 'draft';
               const companyName =
                 typeof contract?.companyId === 'string'
@@ -102,7 +101,7 @@ export default function ContractHistory({
 
               return (
                 <tr
-                  key={contractId || index}
+                  key={contract._id || `contract-${index}`}
                   className="group cursor-pointer transition-colors hover:bg-blue-50/40"
                   onClick={(event) => {
                     event.stopPropagation();

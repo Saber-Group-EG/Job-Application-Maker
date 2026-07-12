@@ -106,6 +106,9 @@ export function useUpdateRole() {
         return old.map(role => role._id === id ? updatedRole : role);
       });
       
+      // Invalidate list to ensure fresh data on next navigation
+      queryClient.invalidateQueries({ queryKey: rolesKeys.list() });
+      
       showSuccessToast(t('roleUpdated', 'common'), t);
     },
     onError: (error: ApiError) => {

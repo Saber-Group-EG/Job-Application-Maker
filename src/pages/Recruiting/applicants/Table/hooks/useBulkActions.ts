@@ -44,8 +44,6 @@ interface UseBulkActionsProps {
   selectedApplicantsForInterview: SelectedApplicantForInterview[];
   selectedApplicantCompanyId: string | null;
   selectedApplicantCompany: any | null;
-  refetchApplicants: () => void;
-  queryClient: any;
   onClearSelection?: () => void;
 }
 
@@ -145,8 +143,6 @@ export function useBulkActions({
   selectedApplicantsForInterview,
   selectedApplicantCompanyId,
   selectedApplicantCompany,
-  refetchApplicants,
-  queryClient,
   onClearSelection,
 }: UseBulkActionsProps): UseBulkActionsReturn {
   const { t, locale } = useLocale();
@@ -242,15 +238,13 @@ export function useBulkActions({
       });
 
       clearSelection();
-      await refetchApplicants();
-      queryClient.invalidateQueries({ queryKey: ['applicants'] });
     } catch (err: any) {
       console.error('Error deleting applicants:', err);
       setBulkDeleteError(err.message || 'Failed to delete applicants');
     } finally {
       setIsDeleting(false);
     }
-  }, [selectedApplicantIds, batchUpdateStatusMutation, refetchApplicants, queryClient, clearSelection]);
+  }, [selectedApplicantIds, batchUpdateStatusMutation, clearSelection]);
 
   // Handle bulk status change
   const handleBulkStatusChange = useCallback(
@@ -299,8 +293,6 @@ export function useBulkActions({
         setBulkAction('');
         setShowBulkStatusModal(false);
         setBulkStatusForm({ status: '', reasons: [], notes: '' });
-        await refetchApplicants();
-        queryClient.invalidateQueries({ queryKey: ['applicants'] });
       } catch (err: any) {
         console.error('Error bulk changing status:', err);
         setBulkStatusError(err.message || 'Failed to update statuses');
@@ -308,7 +300,7 @@ export function useBulkActions({
         setIsSubmittingBulkStatus(false);
       }
     },
-    [selectedApplicantIds, bulkStatusForm, batchUpdateStatusMutation, refetchApplicants, queryClient, clearSelection]
+    [selectedApplicantIds, bulkStatusForm, batchUpdateStatusMutation, clearSelection]
   );
 
   // Handle bulk change status (triggered by button click)
@@ -358,8 +350,6 @@ export function useBulkActions({
 
         clearSelection();
         setBulkAction('');
-        await refetchApplicants();
-        queryClient.invalidateQueries({ queryKey: ['applicants'] });
       } catch (err: any) {
         console.error('Error changing status:', err);
         setBulkStatusError(getErrorMessage(err));
@@ -367,7 +357,7 @@ export function useBulkActions({
         setIsProcessing(false);
       }
     },
-    [selectedApplicantIds, batchUpdateStatusMutation, refetchApplicants, queryClient, clearSelection]
+    [selectedApplicantIds, batchUpdateStatusMutation, clearSelection]
   );
 
   // Get company address
@@ -635,7 +625,6 @@ export function useBulkActions({
         setShowBulkInterviewModal(false);
         setShowBulkInterviewPreviewModal(false);
         resetBulkInterviewModal();
-        await refetchApplicants();
       } catch (err: any) {
         console.error('Error scheduling bulk interviews:', err);
         setBulkInterviewError(getErrorMessage(err));
@@ -651,7 +640,6 @@ export function useBulkActions({
       batchUpdateStatusMutation,
       clearSelection,
       resetBulkInterviewModal,
-      refetchApplicants,
     ]
   );
 

@@ -3,7 +3,7 @@ import Swal from '../../../utils/swal';
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
 import LoadingSpinner from "../../../components/common/LoadingSpinner";
-import { Navigate, useNavigate } from "react-router";
+import { Link, Navigate, useNavigate } from "react-router";
 import { useAuth } from "../../../context/AuthContext";
 import { useLocale } from "../../../context/LocaleContext";
 import {
@@ -25,7 +25,9 @@ import {
   ChevronRight,
   Users,
   ArrowRight,
-  ShieldAlert
+  ShieldAlert,
+  House,
+  FilePlus
 } from "lucide-react";
 
 export default function Companies() {
@@ -49,7 +51,7 @@ export default function Companies() {
 
     const isAdminResult = user?.roleId?.name?.toLowerCase().includes("admin");
     const usercompanyIds = user?.companies?.map((c: any) =>
-      typeof c.companyId === "string" ? c.companyId : c.companyId._id
+      typeof c.companyId === "string" ? c.companyId : c.companyId?._id
     );
 
     const companyIdFiltered =
@@ -95,6 +97,7 @@ export default function Companies() {
       text: t('deleteText', 'companies', { name: toPlainString(company.name, locale) }),
       icon: "warning",
       showCancelButton: true,
+      cancelButtonText: t('cancel', 'common'),
       confirmButtonColor: "#ef4444",
       confirmButtonText: t('deleteConfirm', 'companies')
     });
@@ -145,9 +148,21 @@ export default function Companies() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0F172A] p-4 sm:p-8 text-slate-900 dark:text-slate-100">
       <PageMeta title={t('pageTitle', 'companies')} description={t('pageDesc', 'companies')} />
-      <PageBreadcrumb pageTitle={t('breadcrumb', 'companies')} />
 
       <div className="max-w-7xl mx-auto space-y-8">
+        <PageBreadcrumb pageTitle={t('breadcrumb', 'companies')} />
+        {/* Page Navigation */}
+        <nav className={`flex gap-6 ${locale === 'ar' ? 'justify-end' : 'justify-start'}`} dir={locale === 'ar' ? 'rtl' : 'ltr'}>
+          <Link to="/" className="flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-brand-500 transition-colors">
+            <House className="size-4" />
+            {t('home', 'common')}
+          </Link>
+          <Link to="/company/add" className="flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-brand-500 transition-colors">
+            <FilePlus className="size-4" />
+            {t('newBreadcrumb', 'companies')}
+          </Link>
+        </nav>
+
         {/* Header Section */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div>

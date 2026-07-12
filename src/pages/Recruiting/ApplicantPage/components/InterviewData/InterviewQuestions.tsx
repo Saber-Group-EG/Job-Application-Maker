@@ -20,8 +20,7 @@ import { SelectionView } from './views/SelectionView';
 import type { PoolGroup } from './hooks/useQuestionPool';
 
 const formatScheduledAt = (iso: string | undefined, locale: string, t?: (key: string, ns?: string, params?: Record<string, string | number>) => string): string => {
-  const fallback = t ? t('unscheduledTime', 'interview') : 'an unscheduled time';
-  if (!iso) return fallback;
+  if (!iso) return t ? t('unscheduledTime', 'interview') : 'an unscheduled time';
   try {
     return new Date(iso).toLocaleString(locale === 'ar' ? 'ar-EG' : 'en-US', {
       month: 'short',
@@ -31,7 +30,7 @@ const formatScheduledAt = (iso: string | undefined, locale: string, t?: (key: st
       minute: '2-digit',
     });
   } catch {
-    return fallback;
+    return t ? t('unscheduledTime', 'interview') : 'an unscheduled time';
   }
 };
 

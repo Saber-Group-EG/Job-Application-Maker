@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import DOMPurify from 'dompurify';
 import {
   MessageSquare,
   User,
@@ -124,7 +125,7 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, mailRecords = [
 
   const decodeHtmlEntities = (html: string) => {
     const textarea = document.createElement('textarea');
-    textarea.innerHTML = html;
+    textarea.innerHTML = DOMPurify.sanitize(html);
     return textarea.value;
   };
 
@@ -377,7 +378,7 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, mailRecords = [
           >
             <div
               className="prose prose-sm max-w-none"
-              dangerouslySetInnerHTML={{ __html: previewHtml }}
+              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(previewHtml) }}
             />
           </div>
           <div className="flex justify-end">

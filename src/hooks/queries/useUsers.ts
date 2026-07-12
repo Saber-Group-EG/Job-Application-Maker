@@ -147,7 +147,11 @@ export function useCreateUser() {
 
   return useMutation({
     mutationFn: (data: CreateUserRequest) => usersService.createUser(data),
-    onSuccess: () => {
+    onSuccess: (newUser) => {
+      queryClient.setQueriesData<any[]>({ queryKey: usersKeys.lists() }, (old) => {
+        if (!old) return [newUser];
+        return [...old, newUser];
+      });
       queryClient.invalidateQueries({ queryKey: usersKeys.lists() });
       showSuccessToast(t('userCreated', 'common'), t);
     },
@@ -183,7 +187,7 @@ export function useDeleteUser() {
   return useMutation({
     mutationFn: (id: string) => usersService.deleteUser(id),
     onSuccess: (_, id) => {
-      queryClient.setQueryData<any[]>(usersKeys.list(), (old) => {
+      queryClient.setQueriesData<any[]>({ queryKey: usersKeys.lists() }, (old) => {
         if (!old) return [];
         return old.filter(user => user._id !== id);
       });
@@ -206,7 +210,6 @@ export function useUpdateUserCompanies() {
     onSuccess: (_, { userId }) => {
       queryClient.invalidateQueries({ queryKey: usersKeys.detail(userId) });
       queryClient.invalidateQueries({ queryKey: usersKeys.lists() });
-      showSuccessToast(t('companyDepartmentsUpdated', 'common'), t);
     },
     onError: (error: ApiError) => {
       showErrorToast(error.message, t('companyDepartmentsUpdateFailed', 'common'), t);

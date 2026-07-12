@@ -112,7 +112,7 @@ export function StatusCell({
     if (statusOption && statusOption.label && statusOption.label !== status) {
       return statusOption.label;
     }
-    return status.charAt(0).toUpperCase() + status.slice(1);
+    return status;
   }, [status, statusOptions]);
 
   const handleClick = () => {

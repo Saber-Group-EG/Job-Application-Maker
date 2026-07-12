@@ -1,4 +1,4 @@
-﻿import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useLocale } from '../../../context/LocaleContext';
 import Swal from '../../../utils/swal';
 import { useParams, useNavigate, useLocation } from "react-router";
@@ -23,96 +23,13 @@ import {
   useJobPosition,
 } from "../../../hooks/queries";
 import { toPlainString } from "../../../utils/strings";
+import { normalizeFieldConfig } from "../../../utils/jobUtils";
+import type { JobFieldConfig } from "../../../utils/jobUtils";
 
 // Helper to handle multilingual objects or strings and always return plain text
 const getTranslation = (value: any, defaultValue = "", locale?: string): string => {
   const plain = toPlainString(value, locale);
   return plain || defaultValue;
-};
-
-type FieldConfigRule = {
-  visible: boolean;
-  required: boolean;
-};
-
-type FieldConfig = {
-  fullName: FieldConfigRule;
-  email: FieldConfigRule;
-  phone: FieldConfigRule;
-  gender: FieldConfigRule;
-  birthDate: FieldConfigRule;
-  address: FieldConfigRule;
-  profilePhoto: FieldConfigRule;
-  cvFilePath: FieldConfigRule;
-  expectedSalary: FieldConfigRule;
-};
-
-const getDefaultFieldConfig = (): FieldConfig => ({
-  fullName: { visible: true, required: true },
-  email: { visible: true, required: true },
-  phone: { visible: true, required: true },
-  gender: { visible: true, required: true },
-  birthDate: { visible: true, required: true },
-  address: { visible: true, required: true },
-  profilePhoto: { visible: true, required: true },
-  cvFilePath: { visible: true, required: false },
-  expectedSalary: { visible: false, required: false },
-});
-
-const normalizeFieldConfig = (
-  value: any,
-  legacySalaryFieldVisible?: boolean
-): FieldConfig => {
-  const defaults = getDefaultFieldConfig();
-  const raw = value && typeof value === "object" ? value : {};
-
-  const withExpectedSalaryFallback = {
-    ...raw,
-    expectedSalary:
-      raw.expectedSalary && typeof raw.expectedSalary === "object"
-        ? raw.expectedSalary
-        : typeof legacySalaryFieldVisible === "boolean"
-        ? {
-            visible: legacySalaryFieldVisible,
-            required: false,
-          }
-        : raw.expectedSalary,
-  };
-
-  const normalizeRule = (
-    incoming: any,
-    fallback: FieldConfigRule
-  ): FieldConfigRule => {
-    const visible =
-      typeof incoming?.visible === "boolean" ? incoming.visible : fallback.visible;
-    const required =
-      typeof incoming?.required === "boolean"
-        ? incoming.required
-        : fallback.required;
-
-    return {
-      visible,
-      required: visible ? required : false,
-    };
-  };
-
-  return {
-    fullName: normalizeRule(withExpectedSalaryFallback.fullName, defaults.fullName),
-    email: normalizeRule(withExpectedSalaryFallback.email, defaults.email),
-    phone: normalizeRule(withExpectedSalaryFallback.phone, defaults.phone),
-    gender: normalizeRule(withExpectedSalaryFallback.gender, defaults.gender),
-    birthDate: normalizeRule(withExpectedSalaryFallback.birthDate, defaults.birthDate),
-    address: normalizeRule(withExpectedSalaryFallback.address, defaults.address),
-    profilePhoto: normalizeRule(
-      withExpectedSalaryFallback.profilePhoto,
-      defaults.profilePhoto
-    ),
-    cvFilePath: normalizeRule(withExpectedSalaryFallback.cvFilePath, defaults.cvFilePath),
-    expectedSalary: normalizeRule(
-      withExpectedSalaryFallback.expectedSalary,
-      defaults.expectedSalary
-    ),
-  };
 };
 
 export default function PreviewJob() {
@@ -148,7 +65,7 @@ export default function PreviewJob() {
 
   const { t, locale } = useLocale();
 
-  const previewFieldConfigItems: Array<{ key: keyof FieldConfig; label: string }> = [
+  const previewFieldConfigItems: Array<{ key: keyof JobFieldConfig; label: string }> = [
     { key: "fullName", label: t('previewFieldFullName', 'jobs') },
     { key: "email", label: t('previewFieldEmail', 'jobs') },
     { key: "phone", label: t('previewFieldPhone', 'jobs') },
@@ -267,6 +184,7 @@ export default function PreviewJob() {
       text: t('previewDeleteText', 'jobs'),
       icon: "warning",
       showCancelButton: true,
+      cancelButtonText: t('cancel', 'common'),
       confirmButtonColor: "#EF4444",
       cancelButtonColor: "#6B7280",
       confirmButtonText: t('previewDeleteConfirm', 'jobs'),
@@ -512,7 +430,7 @@ export default function PreviewJob() {
                 <ul className="space-y-3">
                   {job.termsAndConditions.map((term: any, i: number) => (
                     <li key={i} className="flex gap-3 text-sm text-gray-600 dark:text-gray-400 italic">
-                       <span className="text-brand-500 font-bold">•</span>
+                       <span className="text-brand-500 font-bold">�</span>
                        {getTranslation(term, '', locale)}
                     </li>
                   ))}

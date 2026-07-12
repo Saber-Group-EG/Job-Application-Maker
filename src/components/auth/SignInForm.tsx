@@ -1,16 +1,25 @@
-import { useState, FormEvent } from "react";
+import { useState, FormEvent, useEffect } from "react";
 import { Link, useNavigate } from "react-router";
 import { EyeCloseIcon, EyeIcon } from "../../icons";
 import Label from "../form/Label";
 import Input from "../form/input/InputField";
 import Checkbox from "../form/input/Checkbox";
 import { useAuth } from "../../context/AuthContext";
+import { useLocale } from "../../context/LocaleContext";
 
 export default function SignInForm() {
   const navigate = useNavigate();
-  const { login, error: authError, isLoading } = useAuth();
+  const { t, dir } = useLocale();
+  const { login, error: authError, isLoading, isAuthenticated } = useAuth();
 
   const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      navigate("/home", { replace: true });
+    }
+  }, [isLoading, isAuthenticated, navigate]);
+
   const [isChecked, setIsChecked] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -22,19 +31,19 @@ export default function SignInForm() {
 
     // Validation
     if (!email || !password) {
-      setValidationError("Please fill in all fields");
+      setValidationError(t('fillAllFields', 'common'));
       return;
     }
 
     if (!email.includes("@")) {
-      setValidationError("Please enter a valid email address");
+      setValidationError(t('enterValidEmail', 'common'));
       return;
     }
 
     try {
       await login(email, password);
       // Redirect to dashboard after successful login
-      navigate("/", { replace: true });
+      navigate("/home", { replace: true });
     } catch (err) {
       console.error("Login failed:", err);
       // Error is handled in AuthContext via React Query
@@ -52,10 +61,10 @@ export default function SignInForm() {
         <div>
           <div className="mb-5 sm:mb-8">
             <h1 className="mb-2 font-semibold text-gray-800 text-title-sm dark:text-white/90 sm:text-title-md">
-              Sign In
+              {t('signIn', 'common')}
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Enter your email and password to sign in!
+              {t('signInSubtitle', 'common')}
             </p>
           </div>
           <div>
@@ -107,7 +116,7 @@ export default function SignInForm() {
               </div>
               <div className="relative flex justify-center text-sm">
                 <span className="p-2 text-gray-400 bg-white dark:bg-gray-900 sm:px-5 sm:py-2">
-                  Or
+                  {t('or', 'common')}
                 </span>
               </div>
             </div>
@@ -123,7 +132,7 @@ export default function SignInForm() {
               <div className="space-y-6">
                 <div>
                   <Label>
-                    Email <span className="text-error-500">*</span>{" "}
+                    {t('email', 'common')} <span className="text-error-500">*</span>{" "}
                   </Label>
                   <Input
                     type="email"
@@ -135,19 +144,19 @@ export default function SignInForm() {
                 </div>
                 <div>
                   <Label>
-                    Password <span className="text-error-500">*</span>{" "}
+                    {t('password', 'common')} <span className="text-error-500">*</span>{" "}
                   </Label>
                   <div className="relative">
                     <Input
                       type={showPassword ? "text" : "password"}
-                      placeholder="Enter your password"
+                      placeholder={t('enterYourPassword', 'common')}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       disabled={isLoading}
                     />
                     <span
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute z-30 -translate-y-1/2 cursor-pointer right-4 top-1/2"
+                      className={`absolute z-30 -translate-y-1/2 cursor-pointer top-1/2 ${dir === 'ltr' ? 'right-4' : 'left-4'}`}
                     >
                       {showPassword ? (
                         <EyeIcon className="fill-gray-500 dark:fill-gray-400 size-5" />
@@ -161,14 +170,14 @@ export default function SignInForm() {
                   <div className="flex items-center gap-3">
                     <Checkbox checked={isChecked} onChange={setIsChecked} />
                     <span className="block font-normal text-gray-700 text-theme-sm dark:text-gray-400">
-                      Keep me logged in
+                      {t('keepMeLoggedIn', 'common')}
                     </span>
                   </div>
                   <Link
                     to="/reset-password"
                     className="text-sm text-brand-500 hover:text-brand-600 dark:text-brand-400"
                   >
-                    Forgot password?
+                    {t('forgotPassword', 'common')}
                   </Link>
                 </div>
                 <div>
@@ -177,7 +186,7 @@ export default function SignInForm() {
                     className="w-full rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-brand-400 dark:hover:bg-brand-500"
                     disabled={isLoading}
                   >
-                    {isLoading ? "Signing in..." : "Sign in"}
+                    {isLoading ? t('signingIn', 'common') : t('signIn', 'common')}
                   </button>
                 </div>
               </div>

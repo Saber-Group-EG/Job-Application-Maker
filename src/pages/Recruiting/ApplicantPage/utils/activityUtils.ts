@@ -50,6 +50,19 @@ const toActivity = (entry: ActivityLike | null | undefined, t?: (key: string, ns
   return { id, timestamp, user: { name: userName } } as ActivityItem;
 };
 
+const translateInterviewStatus = (
+  status: string,
+  t: (key: string, ns?: string, params?: Record<string, string | number>) => string,
+): string => {
+  const map: Record<string, string> = {
+    scheduled: t('scheduled', 'modals'),
+    in_progress: t('progressing', 'activity'),
+    completed: t('completed', 'modals'),
+    cancelled: t('cancelled', 'modals'),
+  };
+  return map[status] || status;
+};
+
 const buildActivities = (
   applicant: Applicant | null | undefined,
   t?: (key: string, ns?: string, params?: Record<string, string | number>) => string
@@ -107,7 +120,7 @@ const buildActivities = (
     const base = toActivity(entry as unknown as ActivityLike, t);
     if (!base) return;
     const status = (entry as { status?: string }).status || 'scheduled';
-    const statusLabel = status === 'in_progress' ? (t ? t('progressing', 'activity') : 'Progressing') : status;
+    const statusLabel = t ? translateInterviewStatus(status, t) : status;
     items.push({
       ...base,
       type: 'interview',

@@ -153,7 +153,19 @@ const RecommendedFields = () => {
     e.preventDefault();
     const finalFieldId = editFieldId || generateFieldId(form.label);
     
-    // Construct payload as a CreateRecommendedFieldRequest / UpdateRecommendedFieldRequest
+    const pendingChoice = newChoice.trim();
+    const pendingChoiceAr = newChoiceAr.trim();
+    const hasPending = pendingChoice || pendingChoiceAr;
+    const finalOptions = hasPending ? [...(form.options || []), pendingChoice || pendingChoiceAr] : form.options;
+    const finalOptionsAr = hasPending ? [...(form.optionsAr || []), pendingChoiceAr || pendingChoice] : form.optionsAr;
+
+    const buildChoices = (choices?: any[], choicesAr?: any[]) =>
+      (choices || []).map((c: any, i: number) => {
+        const en = typeof c === "string" ? c : (c as any)?.en || "";
+        const ar = (Array.isArray(choicesAr) ? (choicesAr[i] ?? "") : (c as any)?.ar ?? "").toString().trim() || en;
+        return { en, ar };
+      });
+
     const payload: any = {
       fieldId: finalFieldId,
       label: {
@@ -162,8 +174,7 @@ const RecommendedFields = () => {
       },
       inputType: form.type,
       isRequired: form.required,
-      choices: form.options,
-      choicesAr: form.optionsAr,
+      choices: buildChoices(finalOptions, finalOptionsAr),
       minValue: form.validation?.min,
       maxValue: form.validation?.max,
       groupFields: (form.groupFields || []).map(gf => ({
@@ -172,7 +183,7 @@ const RecommendedFields = () => {
           en: typeof gf.label === "string" ? gf.label : (gf.label as any)?.en || "",
           ar: typeof gf.label === "string" ? gf.labelAr || gf.label : (gf.label as any)?.ar || (gf.label as any)?.en || "",
         },
-        choicesAr: gf.choicesAr || gf.choices
+        choices: buildChoices(gf.choices || [], gf.choicesAr)
       }))
     };
 
@@ -198,6 +209,7 @@ const RecommendedFields = () => {
       showCancelButton: true,
       confirmButtonColor: "#EF4444",
       confirmButtonText: t('deleteConfirmButton', 'systemSettings'),
+      cancelButtonText: t('cancel', 'common'),
       customClass: { popup: "rounded-3xl", confirmButton: "rounded-xl", cancelButton: "rounded-xl" }
     });
     if (!result.isConfirmed) return;
@@ -237,21 +249,23 @@ const RecommendedFields = () => {
   if (loading) return <LoadingSpinner fullPage message={t('loadingMessage', 'systemSettings')} />;
 
   return (
-    <div className="mx-auto max-w-[1200px] space-y-8 pb-20">
+    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0F172A] p-4 sm:p-8 text-slate-900 dark:text-slate-100">
       <PageMeta title={t('metaTitle', 'systemSettings')} description={t('metaDescription', 'systemSettings')} />
-      
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+
+      <div className="mx-auto max-w-7xl space-y-8">
         <PageBreadcrumb pageTitle={t('pageTitle', 'systemSettings')} />
+
         {!showForm && (
-          <button
-            onClick={() => setShowForm(true)}
-            className="inline-flex items-center gap-2 rounded-2xl bg-brand-500 px-6 py-3 text-sm font-bold text-white shadow-xl shadow-brand-500/25 transition-all hover:bg-brand-600 hover:shadow-brand-500/40 active:scale-95"
-          >
-            <PlusIcon className="size-5" />
-            {t('addNewPreset', 'systemSettings')}
-          </button>
+          <div className="flex justify-end">
+            <button
+              onClick={() => setShowForm(true)}
+              className="inline-flex items-center gap-2 rounded-2xl bg-brand-500 px-6 py-3 text-sm font-bold text-white shadow-xl shadow-brand-500/25 transition-all hover:bg-brand-600 hover:shadow-brand-500/40 active:scale-95"
+            >
+              <PlusIcon className="size-5" />
+              {t('addNewPreset', 'systemSettings')}
+            </button>
+          </div>
         )}
-      </div>
 
       {showForm && (
         <form onSubmit={handleSave} className="animate-in fade-in slide-in-from-top-4 space-y-8">
@@ -356,9 +370,14 @@ const RecommendedFields = () => {
                         return typeof a === 'string' ? a : ((a as any)?.ar || '');
                       })()}</div>
                     </div>
-                    <button type="button" onClick={() => handleInputChange("options", form.options?.filter((_, idx) => idx !== i))} className="text-error-500 hover:bg-error-50 p-2 rounded-lg transition-colors">
-                      <TrashBinIcon className="size-4" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button type="button" onClick={() => { setNewChoice(typeof opt === 'string' ? opt : ((opt as any)?.en || '')); setNewChoiceAr(form.optionsAr?.[i] || ''); handleInputChange("options", form.options?.filter((_, idx) => idx !== i)); handleInputChange("optionsAr", form.optionsAr?.filter((_, idx) => idx !== i)); }} className="text-gray-400 hover:text-brand-600 p-2 rounded-lg transition-colors">
+                        <PencilIcon className="size-4" />
+                      </button>
+                      <button type="button" onClick={() => { handleInputChange("options", form.options?.filter((_, idx) => idx !== i)); handleInputChange("optionsAr", form.optionsAr?.filter((_, idx) => idx !== i)); }} className="text-error-500 hover:bg-error-50 p-2 rounded-lg transition-colors">
+                        <TrashBinIcon className="size-4" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -442,6 +461,7 @@ const RecommendedFields = () => {
             </div>
           </div>
         ))}
+      </div>
       </div>
     </div>
   );

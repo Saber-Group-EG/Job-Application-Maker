@@ -79,6 +79,7 @@ function SortablePageItem({
 }) {
   const [editingName, setEditingName] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   const {
     attributes,
@@ -190,8 +191,15 @@ function SortablePageItem({
         </button>
       </div>
 
-      {!isCollapsed && (
-        <div className="border-t border-slate-200 p-4 dark:border-slate-700">
+      <div
+        style={{
+          maxHeight: isCollapsed ? 0 : (contentRef.current?.scrollHeight ?? 5000),
+          opacity: isCollapsed ? 0 : 1,
+          overflow: 'hidden',
+          transition: 'max-height 0.3s cubic-bezier(0.2, 0, 0, 1), opacity 0.25s cubic-bezier(0.2, 0, 0, 1)',
+        }}
+      >
+        <div ref={contentRef} className="border-t border-slate-200 p-4 dark:border-slate-700">
           {(availableJobPositions.length > 0 || jobsLoading) && (
             <>
               <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -286,7 +294,7 @@ function SortablePageItem({
             </p>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -604,11 +612,11 @@ export default function ApplicantPagesSettings({
             title={t('applicantPages.pageMetaTitle', 'settings')}
             description={t('applicantPages.pageMetaDesc', 'settings')}
           />
-          <PageBreadCrumb pageTitle={t('applicantPages.title', 'settings')} />
         </>
       )}
 
       <div className={embedded ? 'space-y-6' : 'mx-auto max-w-7xl space-y-6'}>
+        {!embedded && <PageBreadCrumb pageTitle={t('applicantPages.title', 'settings')} />}
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
           {/* Header */}
           <div className="flex flex-col gap-5 border-b border-slate-200 px-6 py-6 dark:border-slate-800 md:flex-row md:items-center md:justify-between">

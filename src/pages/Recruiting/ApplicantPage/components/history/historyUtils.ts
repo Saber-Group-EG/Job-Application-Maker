@@ -1,3 +1,5 @@
+import DOMPurify from 'dompurify';
+
 export const formatDate = (dateString?: string, locale?: string) => {
   if (!dateString) return '';
   return new Date(dateString).toLocaleString(locale || 'en-US', {
@@ -25,7 +27,7 @@ export const getReadableMessageText = (value?: string) => {
   const decoded = typeof document !== 'undefined'
     ? (() => {
       const textarea = document.createElement('textarea');
-      textarea.innerHTML = rawValue;
+      textarea.innerHTML = DOMPurify.sanitize(rawValue);
       return textarea.value;
     })()
     : rawValue;

@@ -956,6 +956,7 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
                             trashed: t('trashed', 'applicants')
                           },
                           showCancelButton: true,
+                          cancelButtonText: t('cancel', 'common'),
                           confirmButtonText: t('changeStatus', 'applicants'),
                         });
                         if (!status) return;
@@ -982,6 +983,7 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
                           text: t('deleteApplicantsText', 'applicants', { count: selectedApplicantIds.length }),
                           icon: 'warning',
                           showCancelButton: true,
+                          cancelButtonText: t('cancel', 'common'),
                           confirmButtonColor: '#ef4444',
                         });
                         if (!result.isConfirmed) return;
@@ -1093,7 +1095,7 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
                             </h3>
                             <div className={`px-2 py-1 rounded-full text-xs font-medium border flex items-center gap-1 ${statusBadge.bg} ${statusBadge.color}`}>
                               {statusBadge.icon}
-                              <span>{a.status?.replace('_', ' ')}</span>
+                              <span>{a.status?.replace('_', ' ') || ''}</span>
                             </div>
                           </div>
 

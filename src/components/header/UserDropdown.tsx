@@ -1,13 +1,12 @@
 import { useState } from "react";
 import { DropdownItem } from "../ui/dropdown/DropdownItem";
 import { Dropdown } from "../ui/dropdown/Dropdown";
-import { Link } from "react-router";
 import { useAuth } from "../../context/AuthContext";
 import { useLocale } from "../../context/LocaleContext";
 
 export default function UserDropdown({ compact }: { compact?: boolean } = {}) {
   const [isOpen, setIsOpen] = useState(false);
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { t } = useLocale();
 
   function toggleDropdown() {
@@ -154,10 +153,9 @@ export default function UserDropdown({ compact }: { compact?: boolean } = {}) {
           </li>
         </ul>
         
-        <Link
-          to="/signin"
-          onClick={closeDropdown}
-          className="flex items-center gap-4 px-4 py-3 mt-2 font-medium text-gray-700 rounded-xl group text-sm hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300 transition-all duration-200"
+        <button
+          onClick={() => { logout(); closeDropdown(); }}
+          className="flex items-center gap-4 px-4 py-3 mt-2 font-medium text-gray-700 rounded-xl group text-sm hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300 transition-all duration-200 w-full text-start"
         >
           <svg
             className="fill-gray-500 group-hover:fill-gray-700 dark:group-hover:fill-gray-300 flex-shrink-0"
@@ -175,7 +173,7 @@ export default function UserDropdown({ compact }: { compact?: boolean } = {}) {
             />
           </svg>
           <span>          {t('signOut', 'common')}</span>
-        </Link>
+        </button>
       </Dropdown>
     </div>
   );

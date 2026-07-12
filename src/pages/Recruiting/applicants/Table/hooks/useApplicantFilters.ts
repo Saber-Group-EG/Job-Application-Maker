@@ -19,6 +19,7 @@ interface UseApplicantFiltersProps {
   currentUserId: string;
   allCompaniesRaw: any[];
   canViewTrashed?: boolean;
+  globalFilter?: string;
 }
 
 export function useApplicantFilters({
@@ -35,6 +36,7 @@ export function useApplicantFilters({
   fieldToJobIds,
   currentUserId,
   canViewTrashed = false,
+  globalFilter = '',
 }: UseApplicantFiltersProps) {
   const normalizeStatus = useCallback((value: unknown) => {
     return String(value ?? '').trim().toLowerCase();
@@ -47,6 +49,22 @@ export function useApplicantFilters({
   // Helper function to apply column filters
   const applyColumnFilters = useCallback((data: any[]) => {
     let filtered = [...data];
+
+    if (globalFilter.trim()) {
+      const q = globalFilter.trim().toLowerCase();
+      filtered = filtered.filter((applicant: any) => {
+        const fullName = String(applicant?.fullName || '').toLowerCase();
+        const email = String(applicant?.email || '').toLowerCase();
+        const phone = String(applicant?.phone || '').toLowerCase();
+        const applicantNo = String(applicant?.applicantNo || '').toLowerCase();
+        return (
+          fullName.includes(q) ||
+          email.includes(q) ||
+          phone.includes(q) ||
+          applicantNo.includes(q)
+        );
+      });
+    }
     
     const companyFilter = columnFilters.find((f: any) => f.id === 'companyId');
     const companyFilterValue = companyFilter?.value;
@@ -107,7 +125,8 @@ export function useApplicantFilters({
     }
     
     // Apply status filter (from props or URL params)
-    if (effectiveOnlyStatus !== undefined && effectiveOnlyStatus !== null && effectiveOnlyStatus !== '') {
+    const hasEffectiveStatus = effectiveOnlyStatus !== undefined && effectiveOnlyStatus !== null && effectiveOnlyStatus !== '';
+    if (hasEffectiveStatus) {
       const allowed = (Array.isArray(effectiveOnlyStatus) ? effectiveOnlyStatus : [effectiveOnlyStatus])
         .map(normalizeStatus)
         .filter(Boolean);
@@ -130,61 +149,65 @@ export function useApplicantFilters({
       });
     }
 
-    // Apply status column filter
-    const statusFilter = columnFilters.find((f: any) => f.id === 'status');
-    const statusVal = statusFilter?.value;
-    const statusExcludeMode = excludeColumns.includes('status');
+    // Skip status column filter when page-level status filter is active
+    if (!hasEffectiveStatus) {
+      const statusFilter = columnFilters.find((f: any) => f.id === 'status');
+      const statusVal = statusFilter?.value;
+      const statusExcludeMode = excludeColumns.includes('status');
 
-    if (isSuperAdmin || canViewTrashed) {
-      if (normalizeStatus(statusVal) === 'trashed') {
-        filtered = filtered.filter((a: any) => isTrashed(a.status));
+      if (isSuperAdmin || canViewTrashed) {
+        if (normalizeStatus(statusVal) === 'trashed') {
+          filtered = filtered.filter((a: any) => isTrashed(a.status));
+          return filtered;
+        }
+        if (Array.isArray(statusVal) && statusVal.length > 0) {
+          const allowed = statusVal.map(normalizeStatus).filter(Boolean);
+          filtered = filtered.filter((a: any) => {
+            const matches = allowed.includes(normalizeStatus(a.status));
+            // In revert mode, exclude trashed status
+            if (statusExcludeMode && isTrashed(a.status)) {
+              return false;
+            }
+            return statusExcludeMode ? !matches : matches;
+          });
+          return filtered;
+        }
+        // When no status selected, exclude trashed in both modes
+        filtered = filtered.filter((a: any) => !isTrashed(a.status));
         return filtered;
       }
+
+      // For non-super admin users
       if (Array.isArray(statusVal) && statusVal.length > 0) {
-        const allowed = statusVal.map(normalizeStatus).filter(Boolean);
+        const allowed = statusVal.map(normalizeStatus).filter((s: string) => s !== 'trashed');
+        if (allowed.length === 0) {
+          filtered = filtered.filter((a: any) => !isTrashed(a.status));
+          return filtered;
+        }
         filtered = filtered.filter((a: any) => {
           const matches = allowed.includes(normalizeStatus(a.status));
+          const notTrashed = !isTrashed(a.status);
           // In revert mode, exclude trashed status
           if (statusExcludeMode && isTrashed(a.status)) {
             return false;
           }
-          return statusExcludeMode ? !matches : matches;
+          return statusExcludeMode ? (!matches && notTrashed) : (matches && notTrashed);
         });
         return filtered;
       }
-      // When no status selected, exclude trashed in both modes
+
+      // Default: always exclude trashed
       filtered = filtered.filter((a: any) => !isTrashed(a.status));
       return filtered;
     }
 
-    // For non-super admin users
-    if (Array.isArray(statusVal) && statusVal.length > 0) {
-      const allowed = statusVal.map(normalizeStatus).filter((s: string) => s !== 'trashed');
-      if (allowed.length === 0) {
-        filtered = filtered.filter((a: any) => !isTrashed(a.status));
-        return filtered;
-      }
-      filtered = filtered.filter((a: any) => {
-        const matches = allowed.includes(normalizeStatus(a.status));
-        const notTrashed = !isTrashed(a.status);
-        // In revert mode, exclude trashed status
-        if (statusExcludeMode && isTrashed(a.status)) {
-          return false;
-        }
-        return statusExcludeMode ? (!matches && notTrashed) : (matches && notTrashed);
-      });
-      return filtered;
-    }
-
-    // Default: always exclude trashed
-    filtered = filtered.filter((a: any) => !isTrashed(a.status));
     return filtered;
-  }, [columnFilters, isSuperAdmin, effectiveOnlyStatus, selectedCompanyFilterValue, jobPositionMap, normalizeStatus, isTrashed]);
+  }, [columnFilters, isSuperAdmin, effectiveOnlyStatus, selectedCompanyFilterValue, jobPositionMap, normalizeStatus, isTrashed, globalFilter]);
 
   // Get filtered data based on column filters
   const columnFilteredApplicants = useMemo(() => {
     return applyColumnFilters(applicants);
-  }, [applicants, columnFilters, isSuperAdmin, effectiveOnlyStatus, effectiveOnlyJobPositions, jobPositionMap, normalizeStatus, canViewTrashed]);
+  }, [applicants, columnFilters, isSuperAdmin, effectiveOnlyStatus, effectiveOnlyJobPositions, jobPositionMap, normalizeStatus, canViewTrashed, globalFilter]);
 
   // Check if duplicates only filter is enabled
   const duplicatesOnlyEnabled = useMemo(

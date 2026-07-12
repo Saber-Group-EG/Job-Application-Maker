@@ -84,8 +84,8 @@ export default function CreateCompany() {
   };
 
   const uploadToCloudinary = async (file: File) => {
-    const CLOUD_NAME = (import.meta.env.VITE_CLOUDINARY_CLOUD_NAME as string) || "175237158579478";
-    const UPLOAD_PRESET = (import.meta.env.VITE_CLOUDINARY_PRESET as string) || "ml_default";
+    const CLOUD_NAME = (import.meta.env.VITE_CLOUDINARY_CLOUD_NAME as string) || "";
+    const UPLOAD_PRESET = (import.meta.env.VITE_CLOUDINARY_PRESET as string) || "";
     const url = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`;
     const formData = new FormData();
     formData.append("file", file);
@@ -166,9 +166,10 @@ export default function CreateCompany() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0F172A] p-4 sm:p-8 text-slate-900 dark:text-slate-100">
       <PageMeta title={t('newPageTitle', 'companies')} description={t('newPageDesc', 'companies')} />
-      <PageBreadcrumb pageTitle={t('newBreadcrumb', 'companies')} />
 
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-7xl mx-auto space-y-8">
+        <PageBreadcrumb pageTitle={t('newBreadcrumb', 'companies')} />
+
         {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
           <div className="flex items-center gap-4">
@@ -222,19 +223,19 @@ export default function CreateCompany() {
                       required
                       value={companyForm.name.en}
                       onChange={(e) => handleLocalizedChange('name', 'en', e.target.value)}
-                      placeholder="e.g. Acme Corporation"
+                      placeholder={t('companyNameEnPlaceholder', 'companies')}
                       className="w-full px-5 py-3.5 bg-white dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-brand-500/20 outline-none transition-all font-bold"
                     />
                   </div>
                   <div className={`space-y-2 ${locale === 'ar' ? 'order-1' : 'order-2'}`}>
-                    <label className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center justify-end gap-2">
-                      <span className="text-brand-500">*</span> {t('companyNameAr', 'companies')}
+                    <label className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center justify-end gap-2" dir="rtl">
+                      {t('companyNameAr', 'companies')} <span className="text-brand-500">*</span>
                     </label>
                     <input
                       required
                       value={companyForm.name.ar}
                       onChange={(e) => handleLocalizedChange('name', 'ar', e.target.value)}
-                      placeholder="مثال: شركة أكمي"
+                      placeholder={t('companyNameArPlaceholder', 'companies')}
                       dir="rtl"
                       className="w-full px-5 py-3.5 bg-white dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-brand-500/20 outline-none transition-all font-bold"
                     />
@@ -273,7 +274,7 @@ export default function CreateCompany() {
 
               <div className="space-y-6">
                 {companyForm.address.map((addr, idx) => (
-                  <div key={idx} className="relative group p-6 border border-slate-200 dark:border-white/5 rounded-[2rem] bg-slate-50/50 dark:bg-white/5 space-y-4">
+                  <div                   key={`addr-${idx}-${addr.en}-${addr.ar}`} className="relative group p-6 border border-slate-200 dark:border-white/5 rounded-[2rem] bg-slate-50/50 dark:bg-white/5 space-y-4">
                     {companyForm.address.length > 1 && (
                       <button
                         type="button"

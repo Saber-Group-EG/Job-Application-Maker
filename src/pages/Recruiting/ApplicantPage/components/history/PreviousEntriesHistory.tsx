@@ -122,7 +122,7 @@ export default function PreviousEntriesHistory({
 
               return (
                 <tr
-                  key={prev?._id || index}
+                  key={prev?._id || `prev-${index}`}
                   className="group cursor-pointer transition-colors hover:bg-blue-50/40"
                   onClick={() => prev?._id && onSelectApplicant(prev._id)}
                 >

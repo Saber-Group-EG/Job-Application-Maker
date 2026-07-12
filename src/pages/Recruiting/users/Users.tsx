@@ -114,6 +114,9 @@ export default function Users() {
   }, [rawUsers, searchTerm, roleFilter, statusFilter]);
 
   // Pagination
+  // 🛑 TODO: move pagination to the backend API. Currently all users are fetched
+  // then paginated client-side, which won't scale. The useUsers query should
+  // accept { page, pageSize } params once the backend supports it.
   const totalPages = Math.ceil(filteredBySearchAndRole.length / pageSize);
   const paginatedUsers = filteredBySearchAndRole.slice((page - 1) * pageSize, page * pageSize);
 
@@ -123,6 +126,7 @@ export default function Users() {
       text: t('deactivateConfirmText', 'users', { name: toPlainString(user.fullName || user.name) }),
       icon: "warning",
       showCancelButton: true,
+      cancelButtonText: t('cancel', 'common'),
       confirmButtonColor: "#ef4444",
       confirmButtonText: t('deactivateConfirmButton', 'users')
     });
@@ -154,9 +158,9 @@ export default function Users() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0F172A] p-4 sm:p-8 text-slate-900 dark:text-slate-100">
       <PageMeta title={t('metaTitle', 'users')} description={t('metaDescription', 'users')} />
-      <PageBreadcrumb pageTitle={t('pageTitle', 'users')} />
 
       <div className="max-w-7xl mx-auto space-y-8">
+        <PageBreadcrumb pageTitle={t('pageTitle', 'users')} />
         {/* Header Section */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div>

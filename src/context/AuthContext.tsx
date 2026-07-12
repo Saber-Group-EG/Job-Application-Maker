@@ -74,10 +74,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = useCallback(() => {
-    // ✅ Use mutateAsync to ensure it completes
     logoutMutation.mutate(undefined, {
       onSuccess: () => {
-        // ✅ Hard reload to clear all memory
         setTimeout(() => {
           window.location.href = paths.auth.signIn;
         }, 100);

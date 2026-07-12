@@ -178,6 +178,7 @@ export default function JobOffersPage() {
       text: t('deleteText', 'jobOffers'),
       icon: 'warning',
       showCancelButton: true,
+      cancelButtonText: t('cancel', 'common'),
       confirmButtonText: t('deleteConfirm', 'jobOffers'),
       confirmButtonColor: '#ef4444',
     });

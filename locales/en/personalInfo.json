@@ -45,5 +45,6 @@
   "personalInformation": "Personal Information",
   "positionApplied": "Position Applied",
   "applicantResponses": "Application Responses",
-  "commentsLabel": "Comments"
+  "commentsLabel": "Comments",
+  "customResponsesDesc": "Custom field responses and additional information"
 }

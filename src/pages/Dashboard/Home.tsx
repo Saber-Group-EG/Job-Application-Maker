@@ -173,23 +173,16 @@ export default function Home() {
 
   // Handle card click to navigate to applicants page with status filter
   const handleStatusCardClick = (statusName: string) => {
-    if (globalSelectedCompanyId) {
-      navigate(`/applicants/company/${globalSelectedCompanyId}/status/${statusName.toLowerCase()}`);
-    } else {
-      const searchParams = new URLSearchParams();
-      searchParams.append('status', statusName.toLowerCase());
-
-      navigate(`/applicants?${searchParams.toString()}`);
-    }
+    const params = new URLSearchParams();
+    params.set('status', statusName.toLowerCase());
+    if (globalSelectedCompanyId) params.set('company', globalSelectedCompanyId);
+    navigate(`/applicants?${params.toString()}`);
   };
 
   const handleTotalCardClick = () => {
-    if (globalSelectedCompanyId) {
-      navigate(`/applicants/company/${globalSelectedCompanyId}`);
-    } else {
-      const searchParams = new URLSearchParams();
-      navigate(`/applicants?${searchParams.toString()}`);
-    }
+    const params = new URLSearchParams();
+    if (globalSelectedCompanyId) params.set('company', globalSelectedCompanyId);
+    navigate(`/applicants?${params.toString()}`);
   };
 
   // Build dynamic status cards from the API response with company colors
@@ -211,6 +204,7 @@ export default function Home() {
 
         return {
           name: statusName,
+          displayName: statusName,
           count: Number(count),
           bgColor,
           textColor: '#111827',
@@ -295,7 +289,7 @@ export default function Home() {
             ? // Loading skeletons
               Array.from({ length: 5 }).map((_, i) => (
                 <div
-                  key={i}
+                  key={`skeleton-${i}`}
                   className="rounded-2xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-800"
                 >
                   <div className="flex items-center justify-between">
@@ -322,7 +316,7 @@ export default function Home() {
                   >
                     <div className="flex items-center justify-between">
                       <div className="text-sm font-semibold" style={{ color: card.textColor }}>
-                        {card.name}
+                        {card.displayName || card.name}
                       </div>
                       <div style={{ color: card.bgColor }}>
                         {Icon && <Icon className="size-5" />}

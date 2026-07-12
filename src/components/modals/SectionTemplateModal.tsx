@@ -52,7 +52,7 @@ function CategoryCombobox({
   onChange: (v: string) => void;
   existingCategories: string[];
 }) {
-  const { t } = useLocale();
+  const { t, dir } = useLocale();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState(value);
   const ref = useRef<HTMLDivElement>(null);
@@ -100,7 +100,7 @@ function CategoryCombobox({
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400"
+          className={`absolute ${dir === 'ltr' ? 'right-2.5' : 'left-2.5'} top-1/2 -translate-y-1/2 text-slate-400`}
         >
           <ChevronDown className="size-4" />
         </button>

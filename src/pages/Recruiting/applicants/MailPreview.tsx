@@ -8,12 +8,7 @@ import {
     Search,
     Inbox,
     Star,
-    Send,
-    FileText,
-    Trash2,
-    Tag,
     Filter,
-    PlusCircle,
     CheckCircle2,
     AlertCircle,
     Clock,
@@ -89,7 +84,7 @@ type UiMailRecord = {
     resendEmailId: string;
     statusRaw: string;
     status: MailStatus;
-    score: number;
+     score: number;
     createdAt: string;
     lastUpdateAt: string;
     subject: string;
@@ -105,8 +100,7 @@ type UiMailRecord = {
     raw: ApiMailRecord;
 };
 
-const STATUS_OPTIONS: Array<{ key: 'all' | MailStatus; label: string; icon: any }> = [
-    { key: 'all', label: 'statusAll', icon: Inbox },
+const STATUS_OPTIONS: Array<{ key: MailStatus; label: string; icon: any }> = [
     { key: 'queued', label: 'statusQueued', icon: Clock },
     { key: 'delivery delayed', label: 'statusDelayed', icon: AlertCircle },
     { key: 'delivered', label: 'statusDelivered', icon: CheckCircle2 },
@@ -320,8 +314,9 @@ const getApplicantJobTitle = (applicantRecord: any): string | null => {
     return null;
 };
 
-const SidebarNavItem = ({ icon: Icon, label, count, active }: { icon: any; label: string; count?: number; active?: boolean }) => (
+const SidebarNavItem = ({ icon: Icon, label, count, active, onClick }: { icon: any; label: string; count?: number; active?: boolean; onClick?: () => void }) => (
     <button
+        onClick={onClick}
         className={`flex w-full cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-sm transition-all ${active ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-400' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'}`}
         role="tab"
         aria-selected={active}
@@ -353,7 +348,8 @@ export default function MailPreview() {
     const { selectedCompanyId: globalSelectedCompanyId } = useCompanyFilter();
     const selectedCompanyId = globalSelectedCompanyId ?? 'all';
     const [selectedJobId, setSelectedJobId] = useState<string>('all');
-    const [statusFilter, setStatusFilter] = useState<'all' | MailStatus>('all');
+    const [statusFilter, setStatusFilter] = useState<Set<MailStatus>>(new Set());
+    const [markedFilter, setMarkedFilter] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [mailPage, setMailPage] = useState(1);
 
@@ -530,24 +526,31 @@ export default function MailPreview() {
         });
     }, [apiResponse, applicantById, companyNameById, jobTitleById, knownNameByApplicantId, knownNameByEmail, isApplicantsLoading, isApplicantsFetching, isApplicantsFetched, t]);
 
-    const filteredMails = useMemo(() => uiRecords
+    const baseMails = useMemo(() => uiRecords
         .filter((m) => {
             const matchesCompany = selectedCompanyId === 'all' || m.companyId === selectedCompanyId;
             const matchesJob = selectedJobId === 'all' || m.applicantJobPositionId === selectedJobId;
-            const matchesStatus = statusFilter === 'all' || m.status === statusFilter;
+            return matchesCompany && matchesJob;
+        }),
+        [uiRecords, selectedCompanyId, selectedJobId]);
+
+    const filteredMails = useMemo(() => baseMails
+        .filter((m) => {
+            const matchesStatus = statusFilter.size === 0 || statusFilter.has(m.status);
+            const matchesMarked = !markedFilter || (m.score ?? 0) > 90;
             const matchesSearch = !searchTerm || [m.applicantName, m.applicantEmail, m.subject].some((f) => f.toLowerCase().includes(searchTerm.toLowerCase()));
-            return matchesCompany && matchesJob && matchesStatus && matchesSearch;
+            return matchesStatus && matchesMarked && matchesSearch;
         })
         .sort((a, b) => {
             const createdDiff = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
             if (createdDiff !== 0) return createdDiff;
             return new Date(b.lastUpdateAt).getTime() - new Date(a.lastUpdateAt).getTime();
         }),
-        [uiRecords, selectedCompanyId, selectedJobId, statusFilter, searchTerm]);
+        [baseMails, statusFilter, markedFilter, searchTerm]);
 
     useEffect(() => {
         setMailPage(1);
-    }, [selectedCompanyId, selectedJobId, statusFilter, searchTerm]);
+    }, [selectedCompanyId, selectedJobId, statusFilter, markedFilter, searchTerm]);
 
     const totalMailPages = useMemo(() => Math.max(1, Math.ceil(filteredMails.length / MAIL_LIST_PAGE_SIZE)), [filteredMails.length]);
 
@@ -567,9 +570,8 @@ export default function MailPreview() {
 
 
 
-    const getStatusCount = (status: 'all' | MailStatus) => {
-        if (status === 'all') return filteredMails.length;
-        return filteredMails.filter(m => m.status === status).length;
+    const getStatusCount = (status: MailStatus) => {
+        return baseMails.filter(m => m.status === status).length;
     };
 
     const handleMailClick = (mailId: string) => {
@@ -597,29 +599,16 @@ export default function MailPreview() {
                                     <Mail className="h-6 w-6 text-brand-600" />
                                     <span className="text-lg font-bold text-slate-800 dark:text-white">{t('sidebarTitle', 'mailPreview')}</span>
                                 </div>
-                                <button className="rounded-lg bg-brand-600 p-2 text-white transition hover:bg-brand-700">
-                                    <PlusCircle className="h-4 w-4" />
-                                </button>
+                              
                             </div>
 
                             <div className="space-y-6" role="tablist" aria-label={t('sidebarTitle', 'mailPreview')}>
                                 <div>
-                                    <SidebarNavItem icon={Inbox} label={t('sidebarInbox', 'mailPreview')} count={filteredMails.length} active={statusFilter === 'all'} />
-                                    <SidebarNavItem icon={Star} label={t('sidebarMarked', 'mailPreview')} count={filteredMails.filter(m => m.score > 90).length} />
-                                    <SidebarNavItem icon={FileText} label={t('sidebarDraft', 'mailPreview')} count={0} />
-                                    <SidebarNavItem icon={Send} label={t('sidebarSent', 'mailPreview')} />
-                                    <SidebarNavItem icon={Trash2} label={t('sidebarTrash', 'mailPreview')} />
+                                    <SidebarNavItem icon={Inbox} label={t('sidebarInbox', 'mailPreview')} count={baseMails.length} active={statusFilter.size === 0 && !markedFilter} onClick={() => { setStatusFilter(new Set()); setMarkedFilter(false); }} />
+                                    <SidebarNavItem icon={Star} label={t('sidebarMarked', 'mailPreview')} count={baseMails.filter(m => m.score > 90).length} active={markedFilter} onClick={() => { setMarkedFilter(prev => !prev); setStatusFilter(new Set()); }} />
                                 </div>
 
-                                <div>
-                                    <div className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-slate-400">{t('sidebarCustomWork', 'mailPreview')}</div>
-                                    <SidebarNavItem icon={Tag} label={t('sidebarPartnership', 'mailPreview')} count={6} />
-                                    <SidebarNavItem icon={Tag} label={t('sidebarInProgress', 'mailPreview')} />
-                                    <button className="mt-2 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-brand-600 transition hover:bg-brand-50 dark:text-brand-400 dark:hover:bg-brand-500/10">
-                                        <PlusCircle className="h-3.5 w-3.5" />
-                                        <span>{t('sidebarAddLabel', 'mailPreview')}</span>
-                                    </button>
-                                </div>
+                             
                             </div>
                         </div>
                     </aside>
@@ -629,24 +618,35 @@ export default function MailPreview() {
                         {/* Top Bar */}
                         <div className="flex flex-shrink-0 flex-col gap-2 border-b border-slate-200 bg-white px-4 py-2 dark:border-slate-800 dark:bg-slate-900 lg:flex-row lg:items-center lg:justify-between lg:px-6 lg:py-3">
                             <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-                                <button className="hidden shrink-0 rounded-md p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 lg:block">
+                                <div className="hidden shrink-0 rounded-md p-2 text-slate-500  lg:block">
                                     <Filter className="h-4 w-4" />
-                                </button>
+                                </div>
                                 <div className="hidden h-6 w-px shrink-0 bg-slate-300 dark:bg-slate-700 lg:block" />
                                 <div className="flex items-center gap-2">
                                     {STATUS_OPTIONS.map((opt) => {
                                         const count = getStatusCount(opt.key);
+                                        const selected = statusFilter.has(opt.key);
                                         return (
                                             <button
                                                 key={opt.key}
-                                                onClick={() => setStatusFilter(opt.key as any)}
-                                                className={`inline-flex items-center gap-1.5 shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-all ${statusFilter === opt.key
+                                                onClick={() => {
+                                                    setStatusFilter(prev => {
+                                                        const next = new Set(prev);
+                                                        if (next.has(opt.key)) {
+                                                            next.delete(opt.key);
+                                                        } else {
+                                                            next.add(opt.key);
+                                                        }
+                                                        return next;
+                                                    });
+                                                }}
+                                                className={`inline-flex items-center gap-1.5 shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-all ${selected
                                                         ? 'bg-brand-600 text-white shadow-sm'
                                                         : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
                                                     }`}
                                             >
                                                 {t(opt.label, 'mailPreview')}
-                                                {count > 0 && statusFilter !== opt.key && (
+                                                {count > 0 && (
                                                     <span className="rounded-full bg-slate-300 px-1.5 py-0.5 text-[10px] text-slate-700 dark:bg-slate-600 dark:text-slate-200">
                                                         {count}
                                                     </span>
@@ -677,7 +677,7 @@ export default function MailPreview() {
                                         </div>
                                         <h3 className="mt-4 text-lg font-medium text-slate-900 dark:text-white">{t('emptyTitle', 'mailPreview')}</h3>
                                         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                                            {searchTerm || statusFilter !== 'all' ? t('emptyDescFilter', 'mailPreview') : t('emptyDescEmpty', 'mailPreview')}
+                                            {searchTerm || statusFilter.size > 0 ? t('emptyDescFilter', 'mailPreview') : t('emptyDescEmpty', 'mailPreview')}
                                         </p>
                                     </div>
                                 ) : (

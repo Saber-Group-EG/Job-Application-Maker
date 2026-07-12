@@ -119,8 +119,8 @@ export default function PreviewCompany() {
     if (!file) return;
     setIsSaving(true);
     try {
-      const CLOUD_NAME = (import.meta.env.VITE_CLOUDINARY_CLOUD_NAME as string) || "175237158579478";
-      const UPLOAD_PRESET = (import.meta.env.VITE_CLOUDINARY_PRESET as string) || "ml_default";
+      const CLOUD_NAME = (import.meta.env.VITE_CLOUDINARY_CLOUD_NAME as string) || "";
+      const UPLOAD_PRESET = (import.meta.env.VITE_CLOUDINARY_PRESET as string) || "";
       const formData = new FormData();
       formData.append("file", file);
       formData.append("upload_preset", UPLOAD_PRESET);
@@ -160,6 +160,7 @@ export default function PreviewCompany() {
       text: t('eliminateDeptDesc', 'companies'),
       icon: "warning",
       showCancelButton: true,
+      cancelButtonText: t('cancel', 'common'),
       confirmButtonColor: "#ef4444",
       confirmButtonText: t('dissolveConfirm', 'companies')
     });
@@ -198,9 +199,9 @@ export default function PreviewCompany() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0F172A] p-4 sm:p-8 text-slate-900 dark:text-slate-100">
       <PageMeta title={t('previewPageTitle', 'companies', { name: locale === 'ar' ? (companyForm.name?.ar || companyForm.name?.en || '') : (companyForm.name?.en || companyForm.name?.ar || '') })} description={t('previewPageDesc', 'companies')} />
-      <PageBreadcrumb pageTitle={t('previewBreadcrumb', 'companies')} />
 
       <div className="max-w-7xl mx-auto">
+        <PageBreadcrumb pageTitle={t('previewBreadcrumb', 'companies')} />
         {/* Profile Header */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 mb-12">
           <div className="flex items-center gap-6">

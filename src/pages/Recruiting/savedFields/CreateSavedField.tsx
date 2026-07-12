@@ -214,18 +214,10 @@ export default function CreateSavedField() {
         description={t('createMetaDescription', 'savedFields')}
       />
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <PageBreadcrumb pageTitle={editingField ? t('editMetaTitle', 'savedFields') : t('createMetaTitle', 'savedFields')} />
-        <button
-          onClick={() => navigate(-1)}
-          className="inline-flex items-center gap-2 self-start rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition-all hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800/50"
-        >
-          <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
-          {t('backButton', 'savedFields')}
-        </button>
-      </div>
+      <PageBreadcrumb
+        pageTitle={editingField ? t('editMetaTitle', 'savedFields') : t('createMetaTitle', 'savedFields')}
+       
+      />
 
       <form onSubmit={handleSubmit} className="space-y-8">
         <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:border-gray-800 dark:bg-gray-900">

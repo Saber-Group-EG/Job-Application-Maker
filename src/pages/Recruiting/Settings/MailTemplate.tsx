@@ -1,5 +1,6 @@
 // pages/Settings/EmailTemplates.tsx
 import React, { useState, useEffect} from "react";
+import DOMPurify from 'dompurify';
 import {
   PlusCircle, Save, Trash2, Edit, Copy, Mail, Eye, X
 } from "lucide-react";
@@ -42,7 +43,7 @@ function QuillEditor({ value, onChange }: { value: string; onChange: (v: string)
           ],
         },
       });
-      quillRef.current.root.innerHTML = value || '';
+      quillRef.current.root.innerHTML = DOMPurify.sanitize(value || '');
       const handleChange = () => onChangeRef.current(quillRef.current.root.innerHTML);
       quillRef.current.on('text-change', handleChange);
     })();
@@ -57,7 +58,7 @@ function QuillEditor({ value, onChange }: { value: string; onChange: (v: string)
 
   React.useEffect(() => {
     if (quillRef.current && quillRef.current.root && quillRef.current.root.innerHTML !== value) {
-      quillRef.current.root.innerHTML = value || '';
+      quillRef.current.root.innerHTML = DOMPurify.sanitize(value || '');
     }
   }, [value]);
 
@@ -74,6 +75,8 @@ function TemplateFormModal({
   existingTemplates: any[];
 }) {
   const [formData, setFormData] = useState({ name: "", subject: "", html: "" });
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewContent, setPreviewContent] = useState('');
   const { t } = useLocale();
   const createMutation = useCreateMailTemplate();
   const updateMutation = useUpdateMailTemplate();
@@ -126,17 +129,13 @@ function TemplateFormModal({
   };
 
   const handlePreview = () => {
-    // ✅ Use previewEmailTemplate function directly
     const previewHtml = previewEmailTemplate(
       { ...template, ...formData } as any,
       "John Doe", 
       "Software Engineer"
     );
-    const previewWindow = window.open();
-    if (previewWindow) {
-      previewWindow.document.write(previewHtml);
-      previewWindow.document.close();
-    }
+    setPreviewContent(previewHtml);
+    setShowPreview(true);
   };
 
   const isLoading = createMutation.isPending || updateMutation.isPending;
@@ -229,6 +228,24 @@ function TemplateFormModal({
           </div>
         </form>
       </div>
+      {showPreview && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50" onClick={() => setShowPreview(false)}>
+          <div className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold">Email Preview</h2>
+              <button onClick={() => setShowPreview(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <X className="size-5" />
+              </button>
+            </div>
+            <iframe
+              srcDoc={DOMPurify.sanitize(previewContent)}
+              className="w-full border rounded"
+              style={{ height: '70vh' }}
+              title="Email Preview"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -281,6 +298,7 @@ export default function EmailTemplates({
       text: t('mailTemplates.deleteText', 'settings', { name: template.name }),
       icon: "warning",
       showCancelButton: true,
+      cancelButtonText: t('cancel', 'common'),
       confirmButtonColor: "#d33",
       confirmButtonText: t('mailTemplates.deleteConfirm', 'settings'),
     });
