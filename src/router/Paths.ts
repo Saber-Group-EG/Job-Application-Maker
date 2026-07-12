@@ -13,7 +13,6 @@ export const paths = {
     about: '/about',
     services: '/services',
     contact: '/contact',
-    joinUs: '/join-us',
     policies: '/policies',
     terms: '/terms',
     address: '/address',

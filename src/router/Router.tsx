@@ -21,8 +21,6 @@ const LandingPolicies = lazy(() => import('../pages/Landing/pages/Policies'));
 // @ts-expect-error - JS module without declarations
 const LandingTerms = lazy(() => import('../pages/Landing/pages/TermsAndConditions'));
 // @ts-expect-error - JS module without declarations
-const LandingJoinUs = lazy(() => import('../pages/Landing/pages/JoinUs'));
-// @ts-expect-error - JS module without declarations
 const LandingAddress = lazy(() => import('../pages/Landing/pages/Address'));
 
 const SignIn = lazy(() => import('../pages/AuthPages/SignIn'));
@@ -130,7 +128,6 @@ export default function App() {
             <Route path={paths.landing.services} element={<LandingServices />} />
             <Route path={paths.landing.about} element={<LandingAbout />} />
             <Route path={paths.landing.contact} element={<LandingContact />} />
-            <Route path={paths.landing.joinUs} element={<LandingJoinUs />} />
             <Route path={paths.landing.policies} element={<LandingPolicies />} />
             <Route path={paths.landing.terms} element={<LandingTerms />} />
             <Route path={paths.landing.address} element={<LandingAddress />} />

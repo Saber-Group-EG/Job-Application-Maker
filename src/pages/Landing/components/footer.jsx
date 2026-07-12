@@ -40,6 +40,7 @@ const Footer = () => {
     { label: t('footer:policyTerms'), href: '/terms' },
     { label: t('footer:policyAddress'), href: '/address' },
     { label: t('footer:policyContact'), href: '/contact' },
+    { label: t('footer:joinUs') || 'Join Us', href: 'https://sabergroup-eg.com/join-us', external: true },
   ];
 
   return (
@@ -378,15 +379,27 @@ const Footer = () => {
 
             {/* Policy Links */}
             <div className="flex flex-wrap justify-center gap-x-5 gap-y-2">
-              {policyLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  to={link.href}
-                  className="text-light-500 hover:text-primary-400 text-xs transition-colors duration-200 whitespace-nowrap"
-                >
-                  {link.label}
-                </Link>
-              ))}
+              {policyLinks.map((link) =>
+                link.external ? (
+                  <a
+                    key={link.href}
+                    href={link.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-light-500 hover:text-primary-400 text-xs transition-colors duration-200 whitespace-nowrap"
+                  >
+                    {link.label}
+                  </a>
+                ) : (
+                  <Link
+                    key={link.href}
+                    to={link.href}
+                    className="text-light-500 hover:text-primary-400 text-xs transition-colors duration-200 whitespace-nowrap"
+                  >
+                    {link.label}
+                  </Link>
+                )
+              )}
             </div>
           </div>
         </div>

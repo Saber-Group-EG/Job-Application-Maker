@@ -25,7 +25,6 @@ const Navbar = () => {
       label: t('navigation:contact'),
       href: '/contact',
     },
-    { id: 'join', label: t('joinUs:title') || 'Join Us', href: '/join-us' },
   ];
 
   useEffect(() => {
@@ -37,8 +36,7 @@ const Navbar = () => {
   // Track route changes and update active link accordingly
   useEffect(() => {
     const path = location.pathname;
-    if (path.startsWith('/join-us')) setActiveLink('join');
-    else if (path.startsWith('/services')) setActiveLink('services');
+    if (path.startsWith('/services')) setActiveLink('services');
     else if (path.startsWith('/about')) setActiveLink('about');
     else if (path.startsWith('/contact')) setActiveLink('contact');
     else setActiveLink('home');
@@ -98,15 +96,6 @@ const Navbar = () => {
             strokeLinejoin="round"
             strokeWidth={2}
             d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-          />
-        );
-      case 'join':
-        return (
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M12 4V2m0 20v-2m8-8h2M2 12H4m15.364-6.364l1.414-1.414M4.222 19.778l1.414-1.414M19.778 19.778l-1.414-1.414M6.343 6.343L4.93 4.93"
           />
         );
       default:
