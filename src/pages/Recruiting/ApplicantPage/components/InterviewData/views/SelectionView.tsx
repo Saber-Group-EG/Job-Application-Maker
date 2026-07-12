@@ -17,7 +17,7 @@ export const SelectionView = ({
 }: SelectionViewProps) => {
   const { t } = useLocale();
   return (
-    <div className="min-h-[500px] flex flex-col items-center justify-center p-12 bg-gradient-to-br from-slate-50 to-white rounded-2xl border border-slate-200 shadow-xl">
+    <div className="min-h-[500px] flex flex-col items-center justify-center p-6 sm:p-12 bg-gradient-to-br from-slate-50 to-white rounded-2xl border border-slate-200 shadow-xl max-w-full">
       <div className="text-center max-w-md">
         <div className="relative inline-block mb-6">
           <div className="absolute inset-0 bg-blue-500 rounded-full blur-xl opacity-20 animate-pulse" />

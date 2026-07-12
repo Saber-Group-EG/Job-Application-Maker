@@ -340,6 +340,7 @@ export interface InterviewQuestionsProps {
   applicantId?: string;
   onRequestScheduleInterview?: () => void;
   autoSelectInterviewId?: string | null;
+  applicantData?: Applicant | null;
 }
 
 export interface InterviewQuestionData {

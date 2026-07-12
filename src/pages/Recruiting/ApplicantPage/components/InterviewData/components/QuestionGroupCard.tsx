@@ -89,25 +89,8 @@ export const QuestionGroupCard = ({
           </div>
         </button>
 
-        <div className="flex items-center gap-4 flex-shrink-0">
-          <div className="text-right hidden sm:block">
-            <p className="text-[10px] uppercase tracking-wider text-slate-400 leading-none mb-0.5">
-              {t('score', 'interview')}
-            </p>
-            <p className="text-xs font-bold text-slate-800 tabular-nums leading-none">
-              {achieved}
-              <span className="text-slate-400">/{totalScore}</span>
-            </p>
-          </div>
-          <div className="text-right hidden sm:block">
-            <p className="text-[10px] uppercase tracking-wider text-slate-400 leading-none mb-0.5">
-              {t('answered', 'interview')}
-            </p>
-            <p className="text-xs font-bold text-slate-800 tabular-nums leading-none">
-              {answered}/{questions.length}
-            </p>
-          </div>
-          <div className="flex items-center gap-1.5 w-24">
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+          <div className="flex items-center gap-1.5 w-20 xl:w-24">
             <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-500"

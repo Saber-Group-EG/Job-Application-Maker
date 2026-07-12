@@ -18,6 +18,7 @@ import {
 import { useTableLayout } from '../../../../hooks/queries/useTableLayout';
 import { buildApplicantDuplicateLookup } from '../../../../utils/applicantDuplicateSort';
 import { toPlainString } from '../../../../utils/strings';
+import { thumbnailCache } from '../../../../utils/persistentThumbnailCache';
 import { paths } from '../../../../router/Paths';
 import { buildFieldToJobIds } from '../../../../components/modals/CustomFilterModal';
 import { useQuery } from '@tanstack/react-query';
@@ -97,45 +98,6 @@ const extractId = (value: unknown): string | null => {
   return null;
 };
 
-// LRU Cache implementation for thumbnails to prevent memory bloat
-class LRUCache<K, V> {
-  private cache = new Map<K, V>();
-  private maxSize: number;
-
-  constructor(maxSize: number = 150) {
-    this.maxSize = maxSize;
-  }
-
-  get(key: K): V | undefined {
-    const value = this.cache.get(key);
-    if (value) {
-      // Refresh - move to end (most recently used)
-      this.cache.delete(key);
-      this.cache.set(key, value);
-    }
-    return value;
-  }
-
-  set(key: K, value: V): void {
-    if (this.cache.size >= this.maxSize) {
-      // Delete oldest (first item)
-      const firstKey = this.cache.keys().next().value;
-      if (firstKey) this.cache.delete(firstKey);
-    }
-    this.cache.set(key, value);
-  }
-
-  has(key: K): boolean {
-    return this.cache.has(key);
-  }
-
-  clear(): void {
-    this.cache.clear();
-  }
-}
-
-const thumbnailCache = new LRUCache<string, string>(150);
-
 // Image loader pool to limit concurrent image loading
 class ImageLoaderPool {
   private queue: Array<() => Promise<void>> = [];
@@ -178,8 +140,8 @@ async function createCompressedDataUrl(
 ): Promise<string> {
   if (!src) return src;
   
-  // Check cache first
-  const cached = thumbnailCache.get(src);
+  // Check cache first (IndexedDB + in-memory)
+  const cached = await thumbnailCache.get(src);
   if (cached) return cached;
 
   // Use OffscreenCanvas if available (better performance)
@@ -189,7 +151,7 @@ async function createCompressedDataUrl(
       const blob = await response.blob();
       const bitmap = await createImageBitmap(blob);
       
-      const MAX_DIM = 48; // Significantly reduced from 160
+      const MAX_DIM = 48;
       let { width, height } = bitmap;
       const ratio = Math.max(width / MAX_DIM, height / MAX_DIM, 1);
       const canvas = new OffscreenCanvas(
@@ -203,14 +165,17 @@ async function createCompressedDataUrl(
       
       const blobResult = await canvas.convertToBlob({ 
         type: 'image/jpeg', 
-        quality: 0.5 // Reduced quality
+        quality: 0.5
       });
-      const dataUrl = URL.createObjectURL(blobResult);
+      const dataUrl = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(blobResult);
+      });
       
-      thumbnailCache.set(src, dataUrl);
+      thumbnailCache.set(src, dataUrl).catch(() => {});
       return dataUrl;
     } catch (e) {
-      // Fallback to regular canvas
       console.debug('OffscreenCanvas failed, falling back to regular canvas', e);
     }
   }
@@ -224,9 +189,7 @@ async function createCompressedDataUrl(
     const finish = (result: string) => {
       if (resolved) return;
       resolved = true;
-      try {
-        thumbnailCache.set(src, result);
-      } catch (e) {}
+      thumbnailCache.set(src, result).catch(() => {});
       resolve(result);
     };
 
@@ -236,14 +199,13 @@ async function createCompressedDataUrl(
         const ctx = canvas.getContext('2d');
         if (!ctx) return finish(src);
         
-        const MAX_DIM = 48; // Smaller thumbnails
+        const MAX_DIM = 48;
         let { width, height } = img;
         const ratio = Math.max(width / MAX_DIM, height / MAX_DIM, 1);
         canvas.width = Math.max(24, Math.round(width / ratio));
         canvas.height = Math.max(24, Math.round(height / ratio));
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-        // Lower quality settings for faster loading
         const qualities = [0.5, 0.4, 0.3, 0.2, 0.15];
         for (const q of qualities) {
           try {
@@ -268,7 +230,7 @@ async function createCompressedDataUrl(
     } catch (e) {
       finish(src);
     }
-    setTimeout(() => finish(src), 1000); // Reduced timeout
+    setTimeout(() => finish(src), 1000);
   });
 }
 
@@ -1153,12 +1115,12 @@ const jobOptions = useMemo(() => {
     () => ({
       applicantNo: isLaptopViewport ? 56 : 80,
       profilePhoto: isLaptopViewport ? 52 : 72,
-      fullName: isLaptopViewport ? 92 : 120,
-      email: isLaptopViewport ? 128 : 170,
+      fullName: isLaptopViewport ? 160 : 220,
+      email: isLaptopViewport ? 200 : 280,
       phone: isLaptopViewport ? 86 : 110,
       gender: isLaptopViewport ? 70 : 90,
-      companyId: isLaptopViewport ? 96 : 130,
-      jobPositionId: isLaptopViewport ? 118 : 160,
+      companyId: isLaptopViewport ? 150 : 200,
+      jobPositionId: isLaptopViewport ? 180 : 240,
       expectedSalary: isLaptopViewport ? 104 : 140,
       sscore: isLaptopViewport ? 72 : 96,
       status: isLaptopViewport ? 190 : 240,
@@ -1167,6 +1129,26 @@ const jobOptions = useMemo(() => {
     }),
     [isLaptopViewport]
   );
+
+  const mergedColumnSizing = useMemo(() => {
+    const defaults: Record<string, number> = {
+      'mrt-row-select': selectColumnWidth,
+      applicantNo: columnSizeConfig.applicantNo,
+      profilePhoto: columnSizeConfig.profilePhoto,
+      fullName: columnSizeConfig.fullName,
+      email: columnSizeConfig.email,
+      phone: columnSizeConfig.phone,
+      gender: columnSizeConfig.gender,
+      companyId: columnSizeConfig.companyId,
+      jobPositionId: columnSizeConfig.jobPositionId,
+      expectedSalary: columnSizeConfig.expectedSalary,
+      sscore: columnSizeConfig.sscore,
+      status: columnSizeConfig.status,
+      submittedAt: columnSizeConfig.submittedAt,
+      actions: columnSizeConfig.actions,
+    };
+    return { ...defaults, ...layout.columnSizing };
+  }, [columnSizeConfig, layout.columnSizing, selectColumnWidth]);
 
   const getApplicantHref = useCallback((row: any) => {
     const orig: any = row?.original ?? row;
@@ -2859,7 +2841,7 @@ const jobOptions = useMemo(() => {
       pagination,
       columnFilters: isTableLoading ? [] : columnFilters,
       columnVisibility: layout.columnVisibility || {},
-      columnSizing: layout.columnSizing || {},
+      columnSizing: mergedColumnSizing,
       density: 'compact',
       columnOrder:
         Array.isArray(layout.columnOrder) && layout.columnOrder.length
@@ -2881,7 +2863,7 @@ const jobOptions = useMemo(() => {
       columnFilters: isTableLoading ? [] : columnFilters,
       rowSelection,
       columnVisibility: layout.columnVisibility || {},
-      columnSizing: layout.columnSizing || {},
+      columnSizing: mergedColumnSizing,
     },
     onSortingChange: setSorting,
     onPaginationChange: setPagination,
@@ -2899,7 +2881,7 @@ const jobOptions = useMemo(() => {
     },
     onColumnSizingChange: (updater) => {
       const next =
-        typeof updater === 'function' ? updater(layout.columnSizing) : updater;
+        typeof updater === 'function' ? updater(mergedColumnSizing) : updater;
       saveLayout({ columnSizing: next });
     },
     onColumnOrderChange: (updater) => {
@@ -3001,9 +2983,20 @@ const jobOptions = useMemo(() => {
           <button
             type="button"
             onClick={() => setCustomFilterOpen(true)}
-            className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-3 py-1 text-sm font-semibold text-white shadow-sm hover:bg-brand-600"
+            className={`inline-flex items-center gap-2 rounded-lg px-3 py-1 text-sm font-semibold shadow-sm transition-all duration-200 ${
+              customFilters.length > 0
+                ? 'bg-amber-500 text-white hover:bg-amber-600 ring-2 ring-amber-300'
+                : 'bg-brand-500 text-white hover:bg-brand-600'
+            }`}
           >
-            {t('filterSettings', 'applicants')}
+            <span className="relative">
+              {t('filterSettings', 'applicants')}
+              {customFilters.length > 0 && (
+                <span className="absolute -top-2 -right-3 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                  {customFilters.length}
+                </span>
+              )}
+            </span>
           </button>
         </div>
       </div>
