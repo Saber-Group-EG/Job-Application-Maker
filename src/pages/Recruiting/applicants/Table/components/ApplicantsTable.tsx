@@ -213,6 +213,8 @@ export function ApplicantsTable({
     enableDensityToggle: false,
     enableFullScreenToggle: false,
     enableColumnActions: false,
+    enableColumnDragging: true,
+    enableColumnOrdering: true,
     enableColumnResizing: true,
     localization: mrtLocalization,
     layoutMode: 'grid',
@@ -239,6 +241,7 @@ export function ApplicantsTable({
       columnFilters,
       rowSelection,
       columnVisibility,
+      columnOrder: columnOrder.length ? columnOrder : undefined,
     },
     onSortingChange: setSorting,
     onPaginationChange: setPagination,
@@ -272,9 +275,15 @@ export function ApplicantsTable({
       sx: {
         height: '50px',
         fontWeight: 'bold',
+        position: 'relative',
         color: isDarkMode ? '#e0e0e0' : undefined,
         backgroundColor: isDarkMode ? '#1e1e1e' : undefined,
         borderBottom: isDarkMode ? '1px solid #333' : undefined,
+        userSelect: 'none',
+        transition: 'background-color 0.2s ease, border-color 0.2s ease',
+        '&:hover': {
+          backgroundColor: isDarkMode ? '#333' : '#f0f4ff',
+        },
         '& .MuiTableSortLabel-icon': { display: 'none' },
         '& .MuiBadge-root': { display: 'none' },
         '& .Mui-TableHeadCell-Content': {
@@ -282,38 +291,69 @@ export function ApplicantsTable({
           display: 'flex',
           alignItems: 'center',
         },
-        '& .Mui-TableHeadCell-Content-Labels': {
-          display: 'flex',
-          alignItems: 'center',
-          gap: '4px',
-          flex: 1,
-          minWidth: 0,
-        },
         '& .Mui-TableHeadCell-Content-Actions': {
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          opacity: 0,
+          pointerEvents: 'none',
           display: 'flex',
           alignItems: 'center',
-          gap: '2px',
+          justifyContent: 'center',
+          zIndex: 0,
+        },
+        '& .Mui-TableHeadCell-Content-Actions button[aria-label="Move"]': {
+          pointerEvents: 'all',
+          width: '100%',
+          height: '100%',
+          cursor: 'grab',
+          zIndex: 1,
+        },
+        '& .Mui-TableHeadCell-Content-Labels': {
+          width: '100%',
+          display: 'flex',
+          justifyContent: 'space-between',
+          position: 'relative',
+          zIndex: 2,
+          pointerEvents: column.id === 'mrt-row-select' ? 'all' : 'none',
+        },
+        '& .Mui-TableHeadCell-Content-Labels button': {
+          pointerEvents: 'all',
+        },
+        '& .Mui-TableHeadCell-Content-Labels .MuiTableSortLabel-root': {
+          pointerEvents: 'all',
         },
       },
-      onMouseDown: (e) => {
-        if ((e.target as HTMLElement).closest('button')) return;
-        const startX = e.clientX;
-        const startY = e.clientY;
-        const currentCell = e.currentTarget as HTMLElement;
-        const onMouseUp = (upEvent: MouseEvent) => {
-          const dx = Math.abs(upEvent.clientX - startX);
-          const dy = Math.abs(upEvent.clientY - startY);
-          if (
-            dx < 5 &&
-            dy < 5 &&
-            currentCell.contains(upEvent.target as Node)
-          ) {
-            column.toggleSorting();
-          }
-          document.removeEventListener('mouseup', onMouseUp);
-        };
-        document.addEventListener('mouseup', onMouseUp);
-      },
+      onMouseDown:
+        column.id === 'mrt-row-select'
+          ? undefined
+          : (e) => {
+              if (
+                (e.target as HTMLElement).closest(
+                  'button:not([aria-label="Move"])'
+                )
+              ) {
+                return;
+              }
+              const startX = e.clientX;
+              const startY = e.clientY;
+              const currentCell = e.currentTarget as HTMLElement;
+              const onMouseUp = (upEvent: MouseEvent) => {
+                const dx = Math.abs(upEvent.clientX - startX);
+                const dy = Math.abs(upEvent.clientY - startY);
+                if (
+                  dx < 5 &&
+                  dy < 5 &&
+                  currentCell.contains(upEvent.target as Node)
+                ) {
+                  column.toggleSorting();
+                }
+                document.removeEventListener('mouseup', onMouseUp);
+              };
+              document.addEventListener('mouseup', onMouseUp);
+            },
     }),
     muiTableBodyRowProps: ({ row, table }) => ({
       sx: {

@@ -1,5 +1,5 @@
 // hooks/queries/useSystemSettings.ts
-import { useEffect, useCallback, useRef } from 'react';
+import { useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { systemSettingsService } from "../../services/systemSettingsService";
 import { useAuth } from '../../context/AuthContext';
@@ -122,8 +122,6 @@ export const useTableLayout = (
   const { user } = useAuth();
   const userId = user?._id;
   const queryClient = useQueryClient();
-  const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingLayout = useRef<TableLayout | null>(null);
 
   const {
     data: fetchedLayout,
@@ -155,26 +153,11 @@ export const useTableLayout = (
       if (!userId) return;
 
       const newLayout = { ...layout, ...updates };
-      pendingLayout.current = newLayout;
       queryClient.setQueryData(systemSettingsKeys.tableLayout(tableKey), newLayout);
-
-      if (saveTimeout.current) clearTimeout(saveTimeout.current);
-      saveTimeout.current = setTimeout(() => {
-        if (pendingLayout.current) {
-          saveMutation.mutate(pendingLayout.current);
-          pendingLayout.current = null;
-        }
-      }, 2000);
+      saveMutation.mutate(newLayout);
     },
     [userId, tableKey, layout, queryClient, saveMutation]
   );
-
-  useEffect(() => {
-    return () => {
-      if (saveTimeout.current) clearTimeout(saveTimeout.current);
-    };
-  }, []);
-
   return {
     layout,
     saveLayout,

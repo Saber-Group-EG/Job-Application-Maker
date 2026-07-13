@@ -41,6 +41,7 @@ import { useTableState } from './hooks/useTableState';
 import { useApplicantSelection } from './hooks/useApplicantSelection';
 import { useBulkActions } from './hooks/useBulkActions';
 import { useApplicantFilters } from './hooks/useApplicantFilters';
+import { useAnimatedColumnDrag } from '../../../../hooks/useAnimatedColumnDrag';
 
 // Utils
 import { exportToExcel } from './utils/exportHelpers';
@@ -69,10 +70,29 @@ type ApiMailResponse = {
   data: Array<{ _id: string; applicant: string | null; [key: string]: any }>;
 };
 
+const APPLICANTS_DEFAULT_COLUMN_ORDER = [
+  'mrt-row-select',
+  'applicantNo',
+  'profilePhoto',
+  'fullName',
+  'email',
+  'messages',
+  'phone',
+  'gender',
+  'companyId',
+  'jobPositionId',
+  'expectedSalary',
+  'sscore',
+  'status',
+  'rejectionReasons',
+  'submittedAt',
+  'actions',
+];
+
 const APPLICANTS_DEFAULT_LAYOUT = {
   columnVisibility: {},
   columnSizing: {},
-  columnOrder: [],
+  columnOrder: APPLICANTS_DEFAULT_COLUMN_ORDER,
 };
 
 // Helper to extract ID from various formats
@@ -480,10 +500,19 @@ export default function Applicants({
   const location = useLocation();
   const params = useParams();
 
-  const { layout, saveLayout } = useTableLayout(
+  const { layout, saveLayout, isLoaded: isLayoutLoaded } = useTableLayout(
     layoutKey || 'applicants_table',
     defaultLayout || APPLICANTS_DEFAULT_LAYOUT
   );
+
+  const { containerRef: tableContainerRef, handleColumnOrderChange, onHeaderMouseDown } =
+    useAnimatedColumnDrag({
+      columnOrder:
+        Array.isArray(layout.columnOrder) && layout.columnOrder.length
+          ? layout.columnOrder
+          : APPLICANTS_DEFAULT_COLUMN_ORDER,
+      onReorder: (nextOrder) => saveLayout({ columnOrder: nextOrder }),
+    });
 
   const updateStatus = useUpdateApplicantStatus();
 
@@ -548,9 +577,8 @@ export default function Applicants({
   );
 
   const { selectedCompanyId: globalSelectedCompanyId } = useCompanyFilter();
-  const companyId = useMemo(() => {
+  const apiCompanyId = useMemo(() => {
     if (companyIdOverride !== undefined) return companyIdOverride as any;
-    if (globalSelectedCompanyId) return [globalSelectedCompanyId];
     if (!user) return undefined;
     const roleName = user?.roleId?.name?.toLowerCase();
     const isSuperAdminRole = roleName === 'super admin';
@@ -559,7 +587,7 @@ export default function Applicants({
     );
     if (isSuperAdminRole) return undefined;
     return userCompanyId?.length ? userCompanyId : undefined;
-  }, [companyIdOverride, user, globalSelectedCompanyId]);
+  }, [companyIdOverride, user]);
 const [excludeModes] = useState<Record<string, boolean>>({});
 
   const [offerModalOpen, setOfferModalOpen] = useState(false);
@@ -576,10 +604,10 @@ const [excludeModes] = useState<Record<string, boolean>>({});
   }, [user]);
 
   const showCompanyColumn = useMemo(() => {
-    if (!companyId) return true;
-    if (Array.isArray(companyId) && companyId.length === 1) return false;
+    if (!apiCompanyId) return true;
+    if (Array.isArray(apiCompanyId) && apiCompanyId.length === 1) return false;
     return true;
-  }, [companyId]);
+  }, [apiCompanyId]);
 
   const assignedCompanyIds = useMemo(() => {
     if (isSuperAdmin) return [];
@@ -602,7 +630,7 @@ const [excludeModes] = useState<Record<string, boolean>>({});
     isFetched: isJobPositionsFetched,
     refetch: refetchJobPositions,
   } = useJobPositions(
-    companyId as any,
+    apiCompanyId as any,
     false,
     departmentIds as any,
     { enabled: true }
@@ -615,7 +643,7 @@ const [excludeModes] = useState<Record<string, boolean>>({});
     isFetching: isApplicantsFetching,
     isFetched: isApplicantsFetched,
   } = useApplicants({
-    companyId: companyId as any,
+    companyId: apiCompanyId as any,
     jobPositionId: effectiveOnlyJobPositions,
     departmentId: departmentIds as any,
     status: effectiveOnlyStatus,
@@ -623,8 +651,8 @@ const [excludeModes] = useState<Record<string, boolean>>({});
   });
   
   // Check the query state directly to detect ongoing fetches for this key
-  const applicantsQueryKey = applicantsKeys.list({
-    companyId: companyId as any,
+const applicantsQueryKey = applicantsKeys.list({
+  companyId: apiCompanyId as any,
     jobPositionId: effectiveOnlyJobPositions,
     departmentId: departmentIds as any,
     status: effectiveOnlyStatus,
@@ -640,7 +668,7 @@ const [excludeModes] = useState<Record<string, boolean>>({});
     refetch: refetchCompanies,
     isFetching: isCompaniesFetching,
     isFetched: isCompaniesFetched,
-  } = useCompanies(companyId as any);
+  } = useCompanies(apiCompanyId as any);
 
   const queryCompanyIds = useMemo(() => {
     if (!isSuperAdmin && assignedCompanyIds.length > 0)
@@ -925,19 +953,24 @@ const jobOptions = useMemo(() => {
     | null
     | undefined => {
     const companyFilter = columnFilters.find((f: any) => f.id === 'companyId');
-    if (!companyFilter?.value) return undefined;
-    const value = companyFilter.value;
-    if (Array.isArray(value)) {
-      return value as string[];
+    if (companyFilter?.value) {
+      const value = companyFilter.value;
+      if (Array.isArray(value)) {
+        return value as string[];
+      }
+      if (typeof value === 'string') {
+        return value;
+      }
+      if (value === null) {
+        return null;
+      }
+      return undefined;
     }
-    if (typeof value === 'string') {
-      return value;
-    }
-    if (value === null) {
-      return null;
+    if (globalSelectedCompanyId) {
+      return globalSelectedCompanyId;
     }
     return undefined;
-  }, [columnFilters]);
+  }, [columnFilters, globalSelectedCompanyId]);
 
   const {
     filteredApplicants,
@@ -2832,6 +2865,7 @@ const jobOptions = useMemo(() => {
     enableFullScreenToggle: false,
     enableColumnActions: false,
     enableColumnResizing: true,
+    enableColumnOrdering: true,
     layoutMode: 'grid',
     manualPagination: false,
     manualFiltering: true,
@@ -2843,17 +2877,6 @@ const jobOptions = useMemo(() => {
       columnVisibility: layout.columnVisibility || {},
       columnSizing: mergedColumnSizing,
       density: 'compact',
-      columnOrder:
-        Array.isArray(layout.columnOrder) && layout.columnOrder.length
-          ? layout.columnOrder
-          : Array.from(
-              new Set([
-                'mrt-row-select',
-                ...columns
-                  .map((c) => (c as any).id ?? (c as any).accessorKey)
-                  .filter(Boolean),
-              ])
-            ),
     },
     state: {
       sorting,
@@ -2864,6 +2887,10 @@ const jobOptions = useMemo(() => {
       rowSelection,
       columnVisibility: layout.columnVisibility || {},
       columnSizing: mergedColumnSizing,
+      columnOrder:
+        Array.isArray(layout.columnOrder) && layout.columnOrder.length
+          ? layout.columnOrder
+          : APPLICANTS_DEFAULT_COLUMN_ORDER,
     },
     onSortingChange: setSorting,
     onPaginationChange: setPagination,
@@ -2884,11 +2911,8 @@ const jobOptions = useMemo(() => {
         typeof updater === 'function' ? updater(mergedColumnSizing) : updater;
       saveLayout({ columnSizing: next });
     },
-    onColumnOrderChange: (updater) => {
-      const next =
-        typeof updater === 'function' ? updater(layout.columnOrder) : updater;
-      saveLayout({ columnOrder: next });
-    },
+    onColumnOrderChange: (updater) =>
+      handleColumnOrderChange(updater, saveLayout),
     renderTopToolbarCustomActions: () => (
       <div className="flex items-center p-2 w-full justify-between">
         <div className="flex items-center gap-2">
@@ -3054,7 +3078,9 @@ const jobOptions = useMemo(() => {
         },
       },
     },
-    muiTableBodyCellProps: () => ({
+    muiTableBodyCellProps: ({ row, cell }) => ({
+      'data-column-id': cell.column.id,
+      'data-flip-key': `${row.id}:${cell.column.id}`,
       sx: {
         whiteSpace: 'nowrap',
         overflow: 'hidden',
@@ -3064,14 +3090,17 @@ const jobOptions = useMemo(() => {
       },
     }),
     muiTableHeadCellProps: ({ column }) => ({
+      'data-column-id': column.id,
+      'data-flip-key': `head:${column.id}`,
       sx: {
         height: '50px',
         fontWeight: 'bold',
         position: 'relative',
-        overflow: 'visible',
         color: isDarkMode ? '#e5e7eb' : undefined,
         backgroundColor: isDarkMode ? '#374151' : undefined,
         borderBottom: isDarkMode ? '1px solid #4b5563' : undefined,
+        userSelect: 'none',
+        transition: 'background-color 0.2s ease',
         '& .MuiTableSortLabel-icon': { display: 'none' },
         '& .MuiBadge-root': { display: 'none' },
         '& .Mui-TableHeadCell-Content': {
@@ -3079,42 +3108,45 @@ const jobOptions = useMemo(() => {
           display: 'flex',
           alignItems: 'center',
         },
-        '& .Mui-TableHeadCell-Content-Labels': {
-          display: 'flex',
-          alignItems: 'center',
-          flex: 1,
-          minWidth: 0,
-          overflow: 'visible',
-        },
         '& .Mui-TableHeadCell-Content-Actions': {
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          opacity: 0,
+          pointerEvents: 'none',
           display: 'flex',
           alignItems: 'center',
-          flex: '0 0 0',
-          width: 0,
-          minWidth: 0,
-          padding: 0,
-          overflow: 'hidden',
+          justifyContent: 'center',
+          zIndex: 0,
+        },
+        '& .Mui-TableHeadCell-Content-Actions button[aria-label="Move"]': {
+          pointerEvents: 'all',
+          width: '100%',
+          height: '100%',
+          cursor: 'grab',
+          zIndex: 1,
+        },
+        '& .Mui-TableHeadCell-Content-Labels': {
+          width: '100%',
+          display: 'flex',
+          justifyContent: 'space-between',
+          position: 'relative',
+          zIndex: 2,
+          pointerEvents: column.id === 'mrt-row-select' ? 'all' : 'none',
+        },
+        '& .Mui-TableHeadCell-Content-Labels button': {
+          pointerEvents: 'all',
+        },
+        '& .Mui-TableHeadCell-Content-Labels .MuiTableSortLabel-root': {
+          pointerEvents: 'all',
         },
       },
-      onMouseDown: (e) => {
-        if ((e.target as HTMLElement).closest('button')) return;
-        const startX = e.clientX;
-        const startY = e.clientY;
-        const currentCell = e.currentTarget as HTMLElement;
-        const onMouseUp = (upEvent: MouseEvent) => {
-          const dx = Math.abs(upEvent.clientX - startX);
-          const dy = Math.abs(upEvent.clientY - startY);
-          if (
-            dx < 5 &&
-            dy < 5 &&
-            currentCell.contains(upEvent.target as Node)
-          ) {
-            column.toggleSorting();
-          }
-          document.removeEventListener('mouseup', onMouseUp);
-        };
-        document.addEventListener('mouseup', onMouseUp);
-      },
+      onMouseDown:
+        column.id === 'mrt-row-select'
+          ? undefined
+          : (e) => onHeaderMouseDown(e, () => column.toggleSorting()),
     }),
     muiTableBodyRowProps: ({ row, table }) => ({
       sx: {
@@ -3290,7 +3322,10 @@ const jobOptions = useMemo(() => {
                   </div>
                 )}
 
-            <div className="w-full overflow-x-auto custom-scrollbar">
+            <div
+              ref={tableContainerRef}
+              className="w-full overflow-x-auto custom-scrollbar"
+            >
               <MaterialReactTable table={table} />
             </div>
 
