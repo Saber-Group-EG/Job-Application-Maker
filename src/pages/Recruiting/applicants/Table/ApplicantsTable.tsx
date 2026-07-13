@@ -500,7 +500,7 @@ export default function Applicants({
   const location = useLocation();
   const params = useParams();
 
-  const { layout, saveLayout, isLoaded: isLayoutLoaded } = useTableLayout(
+  const { layout, saveLayout } = useTableLayout(
     layoutKey || 'applicants_table',
     defaultLayout || APPLICANTS_DEFAULT_LAYOUT
   );
