@@ -19,7 +19,6 @@ import {
 import InterviewScheduleWidget from '../../components/charts/MyInterviewWidget';
 import RejectionInsightsChart from '../../components/charts/RejectionInsightsChart';
 
-// Map status names to icons (fallback icons for common statuses)
 const getStatusIcon = (statusName: string): any => {
   const lowerStatus = statusName.toLowerCase();
   const iconMap: Record<string, any> = {
@@ -32,44 +31,33 @@ const getStatusIcon = (statusName: string): any => {
     trashed: TrashBinIcon,
     deleted: TrashBinIcon,
   };
-
   return iconMap[lowerStatus] || UserIcon;
 };
 
-// Helper to get the appropriate company ID based on user role and selected company
 function getCompanyIdFromUser(
   user: any,
   selectedCompanyId?: string
 ): string[] | undefined {
   const roleName = user?.roleId?.name?.toLowerCase();
-
-  // Super admin can select a company or see all
   if (roleName === 'super admin') {
     if (selectedCompanyId) return [selectedCompanyId];
-    return undefined; // undefined means fetch all
+    return undefined;
   }
-
-  // Regular user - get their assigned companies (from both companies and assignedcompanyId)
   const fromCompanies =
     user?.companies?.map((c: any) =>
       typeof c.companyId === 'string' ? c.companyId : c.companyId?._id
     ).filter(Boolean) || [];
-
   const fromAssigned = user?.assignedcompanyId?.filter(Boolean) || [];
-
   const userCompanyIds = [...new Set([...fromCompanies, ...fromAssigned])];
-
-  // If user has a selected company, filter to that one
   if (selectedCompanyId) {
     return userCompanyIds.includes(selectedCompanyId) ? [selectedCompanyId] : [];
   }
-
   return userCompanyIds.length > 0 ? userCompanyIds : undefined;
 }
 
 export default function Home() {
   const navigate = useNavigate();
-  const { selectedCompanyId: globalSelectedCompanyId } = useCompanyFilter();
+  const { selectedCompanyId, setSelectedCompanyId, companyOptions } = useCompanyFilter();
   const { user } = useAuth();
   const { t, locale } = useLocale();
 
@@ -78,7 +66,6 @@ export default function Home() {
     return roleName === 'super admin';
   }, [user?.roleId?.name]);
 
-  // Get user's accessible company IDs to determine if selector should show
   const userCompanyIds = useMemo(() => {
     const fromCompanies =
       user?.companies?.map((c: any) =>
@@ -88,34 +75,37 @@ export default function Home() {
     return [...new Set([...fromCompanies, ...fromAssigned])];
   }, [user?.companies, user?.assignedcompanyId]);
 
-  // Get companies for selector
   const { data: companies = [] } = useCompanies(
-    isSuperAdmin
-      ? undefined
-      : userCompanyIds
+    isSuperAdmin ? undefined : userCompanyIds
   );
 
-  // Determine companyId for the query
-  const companyIds = useMemo(() => {
-    return getCompanyIdFromUser(user, globalSelectedCompanyId ?? undefined);
-  }, [user, globalSelectedCompanyId]);
+  const isMultiCompany = companyOptions.length > 1;
 
-  // Get the selected company object for status settings
-  const selectedCompany = useMemo(() => {
-    if (globalSelectedCompanyId && companies.length > 0) {
-      return companies.find((c: any) => c._id === globalSelectedCompanyId);
+  useEffect(() => {
+    if (!isMultiCompany && companyOptions.length === 1 && !selectedCompanyId) {
+      setSelectedCompanyId(companyOptions[0].id);
     }
-    // If user is not super admin, get their first company
+  }, [isMultiCompany, companyOptions, selectedCompanyId, setSelectedCompanyId]);
+
+  const hasSelection = !isMultiCompany || selectedCompanyId !== null;
+
+  const companyIds = useMemo(() => {
+    if (isMultiCompany && !selectedCompanyId) return undefined;
+    return getCompanyIdFromUser(user, selectedCompanyId ?? undefined);
+  }, [user, selectedCompanyId, isMultiCompany]);
+
+  const selectedCompany = useMemo(() => {
+    if (selectedCompanyId && companies.length > 0) {
+      return companies.find((c: any) => c._id === selectedCompanyId);
+    }
     if (!isSuperAdmin && companies.length > 0) {
       return companies[0];
     }
     return null;
-  }, [globalSelectedCompanyId, companies, isSuperAdmin]);
+  }, [selectedCompanyId, companies, isSuperAdmin]);
 
-  // Get status settings (colors, display names) for the selected company
   const { statusOptions, getColor } = useStatusSettings(selectedCompany);
 
-  // ✅ Fixed: Use the correct hook with proper parameters
   const {
     data: applicantsData,
     isLoading: loading,
@@ -123,12 +113,9 @@ export default function Home() {
     isFetching,
   } = useApplicantStatuses({
     companyId: companyIds,
-    // The hook expects a string for status, not a date range
-    // Date filtering should be handled separately
-    enabled: true,
+    enabled: hasSelection,
   });
 
-  // Extract counts from the response
   const countsData = useMemo(() => {
     if (applicantsData && typeof applicantsData === 'object' && !Array.isArray(applicantsData)) {
       return applicantsData;
@@ -139,14 +126,12 @@ export default function Home() {
   const [lastRefetch, setLastRefetch] = useState<Date | null>(null);
   const [elapsed, setElapsed] = useState<string | null>(null);
 
-  // When initial load finishes, start the timer from that moment
   useEffect(() => {
     if (!loading && lastRefetch === null) {
       setLastRefetch(new Date());
     }
   }, [loading, lastRefetch]);
 
-  // Tick elapsed timer when lastRefetch is set
   useEffect(() => {
     if (!lastRefetch) {
       setElapsed(null);
@@ -164,33 +149,28 @@ export default function Home() {
       if (days < 7) return t('daysAgo', 'home', { days });
       return d.toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US');
     };
-
     const update = () => setElapsed(formatRelative(lastRefetch));
     update();
     const id = setInterval(update, 30 * 1000);
     return () => clearInterval(id);
   }, [lastRefetch]);
 
-  // Handle card click to navigate to applicants page with status filter
   const handleStatusCardClick = (statusName: string) => {
     const params = new URLSearchParams();
     params.set('status', statusName.toLowerCase());
-    if (globalSelectedCompanyId) params.set('company', globalSelectedCompanyId);
+    if (selectedCompanyId) params.set('company', selectedCompanyId);
     navigate(`/applicants?${params.toString()}`);
   };
 
   const handleTotalCardClick = () => {
     const params = new URLSearchParams();
-    if (globalSelectedCompanyId) params.set('company', globalSelectedCompanyId);
+    if (selectedCompanyId) params.set('company', selectedCompanyId);
     navigate(`/applicants?${params.toString()}`);
   };
 
-  // Build dynamic status cards from the API response with company colors
   const statusCards = useMemo(() => {
     if (!countsData) return [];
-
     const excludeFromCards = ['total', 'trashed', 'deleted'];
-
     const cards = Object.entries(countsData)
       .filter(([key]) => !excludeFromCards.includes(key.toLowerCase()))
       .map(([statusName, count]) => {
@@ -199,9 +179,7 @@ export default function Home() {
             opt.label?.toLowerCase() === statusName.toLowerCase() ||
             opt.value?.toLowerCase() === statusName.toLowerCase()
         );
-
         const bgColor = statusOption?.color || getColor(statusName) || '#94a3b8';
-
         return {
           name: statusName,
           displayName: statusName,
@@ -211,11 +189,9 @@ export default function Home() {
           icon: getStatusIcon(statusName),
         };
       })
-
     return cards;
   }, [countsData, statusOptions, getColor]);
 
-  // Get total excluding trashed/deleted
   const totalApplicants = useMemo(() => {
     if (!countsData) return 0;
     const total = countsData.total || 0;
@@ -260,9 +236,34 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Dynamic Status Cards Grid with Company Colors */}
+        {!hasSelection ? (
+          <div className="flex flex-col items-center justify-center py-16">
+            <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-6">
+              {t('selectCompany', 'home')}
+            </h2>
+            <div className="flex flex-wrap gap-4 justify-center">
+              {companyOptions.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setSelectedCompanyId(c.id)}
+                  className="flex flex-col items-center gap-3 rounded-2xl border-2 border-gray-200 bg-white px-8 py-6 text-sm font-medium text-gray-700 shadow-sm transition hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-brand-400 dark:hover:bg-brand-900/20 min-w-[160px]"
+                >
+                  {c.logoPath ? (
+                    <img src={c.logoPath} alt="" className="size-12 rounded object-cover" />
+                  ) : (
+                    <div className="flex size-12 items-center justify-center rounded-full bg-slate-200 text-lg font-bold text-slate-600 dark:bg-slate-600 dark:text-slate-300">
+                      {c.title.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <span className="text-base font-semibold">{c.title}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-          {/* Total card */}
           <div
             onClick={handleTotalCardClick}
             className="rounded-2xl border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 p-5 dark:from-gray-800 dark:to-gray-900 cursor-pointer transition hover:shadow-md hover:scale-[1.02]"
@@ -284,10 +285,8 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Dynamic status cards from API with company colors */}
           {loading
-            ? // Loading skeletons
-              Array.from({ length: 5 }).map((_, i) => (
+            ? Array.from({ length: 5 }).map((_, i) => (
                 <div
                   key={`skeleton-${i}`}
                   className="rounded-2xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-800"
@@ -332,11 +331,12 @@ export default function Home() {
         <InterviewScheduleWidget />
         <RejectionInsightsChart companyId={companyIds} />
 
-        {/* Show message when no data */}
         {!loading && statusCards.length === 0 && countsData && (
           <div className="text-center py-12">
             <p className="text-gray-500">{t('noStatusData', 'home')}</p>
           </div>
+        )}
+          </>
         )}
       </div>
     </>

@@ -207,7 +207,7 @@ export function useApplicantFilters({
   // Get filtered data based on column filters
   const columnFilteredApplicants = useMemo(() => {
     return applyColumnFilters(applicants);
-  }, [applicants, columnFilters, isSuperAdmin, effectiveOnlyStatus, effectiveOnlyJobPositions, jobPositionMap, normalizeStatus, canViewTrashed, globalFilter]);
+  }, [applicants, columnFilters, isSuperAdmin, effectiveOnlyStatus, effectiveOnlyJobPositions, jobPositionMap, normalizeStatus, canViewTrashed, globalFilter, selectedCompanyFilterValue]);
 
   // Check if duplicates only filter is enabled
   const duplicatesOnlyEnabled = useMemo(

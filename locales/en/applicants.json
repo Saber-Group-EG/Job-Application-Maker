@@ -4,7 +4,7 @@
   "componentTitle": "Job Applicants",
   "componentDesc": "View and manage all applicants",
   "id": "ID",
-  "applicantNo": "ApplicantNo",
+  "applicantNo": "Id",
   "photo": "Photo",
   "name": "Name",
   "email": "Email",

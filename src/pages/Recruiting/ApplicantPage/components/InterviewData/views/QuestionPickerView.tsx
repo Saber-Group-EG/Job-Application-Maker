@@ -47,7 +47,7 @@ export const QuestionPickerView = ({
   );
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
+    <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden max-w-full">
       <div className="bg-gradient-to-r from-slate-900 to-slate-800 px-6 py-7">
         <div className="flex items-center justify-between mb-2 gap-3 flex-wrap">
           <div>
@@ -91,7 +91,7 @@ export const QuestionPickerView = ({
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-8">
             {pool.map((group) => {
               const isSelected = selectedKeys.includes(group.key);
               const groupTotal = group.questions.reduce((s, q) => s + (q.score || 0), 0);
@@ -116,7 +116,7 @@ export const QuestionPickerView = ({
                   }`}
                 >
                   <div className="flex justify-between items-start gap-3">
-                    <div className="flex items-start gap-3">
+                    <div className="flex items-start gap-3 min-w-0">
                       <div
                         className={`p-2 rounded-lg ${
                           isSelected ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'
@@ -124,8 +124,8 @@ export const QuestionPickerView = ({
                       >
                         <SourceIcon className="h-4 w-4" />
                       </div>
-                      <div>
-                        <p className="text-sm font-bold text-slate-800">{group.name}</p>
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-slate-800 truncate">{group.name}</p>
                         <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
                           {sourceLabel} · {t('nQuestionsCount', 'interview', { count: group.questions.length })} · {groupTotal} pts
                         </p>
@@ -143,7 +143,7 @@ export const QuestionPickerView = ({
         <p className="text-xs text-slate-500">
           {t('youCanEditGroupsLater', 'interview')}
         </p>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             type="button"
             onClick={onSaveOnly}

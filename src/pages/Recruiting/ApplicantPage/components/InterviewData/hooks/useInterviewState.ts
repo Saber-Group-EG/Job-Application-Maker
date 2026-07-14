@@ -43,9 +43,11 @@ const resolveApplicantCompanyId = (applicant: Applicant | undefined): string => 
 
 export const useInterviewState = (
   applicantId: string,
-  autoSelectInterviewId: string | null | undefined
+  autoSelectInterviewId: string | null | undefined,
+  externalApplicantData?: Applicant
 ) => {
-  const { data: applicantData } = useApplicant(applicantId, { enabled: !!applicantId });
+  const { data: fetchedData } = useApplicant(applicantId, { enabled: !!applicantId && !externalApplicantData });
+  const applicantData = externalApplicantData ?? fetchedData;
   const companyId = useMemo(() => resolveApplicantCompanyId(applicantData), [applicantData]);
   const { pool: questionPool } = useQuestionPool(companyId);
 

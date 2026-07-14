@@ -32,6 +32,7 @@ import JobContractModal from '../../../components/modals/ContractModal/ContractM
 import { useDebounce } from '../../../hooks/useDebounce';
 import { SidebarNavItem } from '../../../components/common/SidebarNavItem';
 import { useLocale } from '../../../context/LocaleContext';
+import PageMeta from '../../../components/common/PageMeta';
 import { ContractDetail } from './ContractDetails';
 import {
   useUpdateContractStatus,
@@ -153,6 +154,19 @@ export default function JobContractsPage() {
   const total = contractsData?.totalCount ?? 0;
   const totalPages = contractsData?.totalPages ?? 1;
 
+  // ── Per-status counts ────────────────────────────────────────────────────
+  const countBaseParams = {
+    companyId: selectedCompanyId ? [selectedCompanyId] : companyId,
+    isTemplate: false as const,
+    PageCount: 1 as const,
+    page: 1,
+    ...(debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}),
+  };
+
+  const { data: signedCountData } = useJobContracts({ ...countBaseParams, status: 'signed' });
+  const { data: sentCountData } = useJobContracts({ ...countBaseParams, status: 'sent' });
+  const { data: rejectedCountData } = useJobContracts({ ...countBaseParams, status: 'rejected' });
+
   // ── Prefetch next page ─────────────────────────────────────────────────
   useEffect(() => {
     if (page < totalPages) {
@@ -200,7 +214,12 @@ export default function JobContractsPage() {
 
   const getStatusCount = (status: 'all' | ContractStatus) => {
     if (status === 'all') return total;
-    return contracts.filter((c) => c.status === status).length;
+    switch (status) {
+      case 'signed': return signedCountData?.totalCount ?? 0;
+      case 'sent': return sentCountData?.totalCount ?? 0;
+      case 'rejected': return rejectedCountData?.totalCount ?? 0;
+      default: return contracts.filter((c) => c.status === status).length;
+    }
   };
 
   const handleContractClick = (id: string) => {
@@ -243,7 +262,9 @@ export default function JobContractsPage() {
   // ── List View ──────────────────────────────────────────────────────────
   if (view === 'list') {
     return (
-      <div className="mx-auto flex h-full flex-col bg-slate-50 dark:bg-slate-950">
+      <>
+        <PageMeta title={t('pageMetaTitle', 'jobContracts')} description={t('pageMetaDescription', 'jobContracts')} />
+        <div className="mx-auto flex h-full flex-col bg-slate-50 dark:bg-slate-950">
         <div className="flex h-full flex-1">
           {/* Sidebar */}
           <aside className="hidden w-72 flex-shrink-0 overflow-y-auto border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 lg:block">
@@ -291,13 +312,19 @@ export default function JobContractsPage() {
                   <div className="flex justify-between text-xs">
                     <span className="text-slate-500">{t('pending', 'jobContracts')}</span>
                     <span className="font-semibold text-blue-600">
-                      {contracts.filter((c) => c.status === 'sent').length}
+                      {contracts.filter((c) => c.status === 'draft' || c.status === 'sent').length}
                     </span>
                   </div>
                   <div className="flex justify-between text-xs">
                     <span className="text-slate-500">{t('rejected', 'jobContracts')}</span>
                     <span className="font-semibold text-red-500">
                       {contracts.filter((c) => c.status === 'rejected').length}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-slate-500">{t('expired', 'jobContracts')}</span>
+                    <span className="font-semibold text-amber-600">
+                      {contracts.filter((c) => c.status === 'expired').length}
                     </span>
                   </div>
                 </div>
@@ -535,13 +562,16 @@ export default function JobContractsPage() {
 
         {sharedModal}
       </div>
+    </>
     );
   }
 
   // ── Detail View ────────────────────────────────────────────────────────
   if (view === 'detail' && selectedContract) {
     return (
-      <div className="flex h-full overflow-hidden bg-slate-50 dark:bg-slate-950">
+      <>
+        <PageMeta title={t('pageMetaTitle', 'jobContracts')} description={t('pageMetaDescription', 'jobContracts')} />
+        <div className="flex h-full overflow-hidden bg-slate-50 dark:bg-slate-950">
         {/* Sidebar */}
         <aside className="hidden w-72 flex-shrink-0 overflow-y-auto border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 lg:block">
           <div className="sticky top-0 p-4">
@@ -583,6 +613,7 @@ export default function JobContractsPage() {
 
         {sharedModal}
       </div>
+    </>
     );
   }
 

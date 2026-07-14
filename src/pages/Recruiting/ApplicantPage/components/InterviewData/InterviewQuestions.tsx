@@ -38,10 +38,11 @@ const InterviewQuestions = ({
   applicantId = '',
   onRequestScheduleInterview,
   autoSelectInterviewId = null,
+  applicantData,
 }: InterviewQuestionsProps) => {
   const queryClient = useQueryClient();
   const { t, locale } = useLocale();
-  const state = useInterviewState(applicantId, autoSelectInterviewId);
+  const state = useInterviewState(applicantId, autoSelectInterviewId, applicantData ?? undefined);
   const actions = useInterviewActions({
     applicantId,
     interview: state.selectedInterview,

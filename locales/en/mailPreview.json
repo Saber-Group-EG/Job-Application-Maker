@@ -1,7 +1,7 @@
 {
-  "pageTitle": "Mail IQ - Inbox",
+  "pageTitle": "Mail Inbox",
   "pageDesc": "Intelligence Center",
-  "detailPageTitle": "Mail IQ - {subject}",
+  "detailPageTitle": "Mail Inbox - {subject}",
   "detailPageDesc": "Email Details",
   "sidebarTitle": "Messages",
   "sidebarInbox": "Inbox",

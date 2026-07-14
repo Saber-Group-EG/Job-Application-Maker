@@ -21,7 +21,7 @@ export const InterviewStatsBar = ({
 }: InterviewStatsBarProps) => {
   const { t } = useLocale();
   return (
-  <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-slate-100">
+  <div className="grid grid-cols-2 xl:grid-cols-4 gap-px bg-slate-100">
     <div className="bg-white p-4 text-center">
       <Target className="h-4 w-4 text-blue-500 mx-auto mb-1" />
       <p className="text-xs text-slate-500 font-medium">{t('totalScore', 'interview')}</p>
