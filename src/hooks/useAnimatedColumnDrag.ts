@@ -319,6 +319,9 @@ export function useAnimatedColumnDrag({
   ) => {
     if ((e.target as HTMLElement).closest('button:not([aria-label="Move"])')) return;
 
+    // Skip if user is resizing a column (MRT resize handle)
+    if ((e.target as HTMLElement).closest('.Mui-TableHeadCell-ResizeHandle-Wrapper')) return;
+
     if (isDraggingRef.current || draggedColumnIdRef.current) {
       document.querySelectorAll('.col-dragging').forEach((el) => el.classList.remove('col-dragging'));
       clearShift();
@@ -334,23 +337,49 @@ export function useAnimatedColumnDrag({
     const startY = e.clientY;
     let dragActive = false;
 
+    const onDragStart = () => {
+      dragActive = true;
+      sessionRef.current += 1;
+      isDraggingRef.current = true;
+      draggedColumnIdRef.current = th.getAttribute('data-column-id');
+      draggedWidthRef.current = th.getBoundingClientRect().width;
+      currentOverIdRef.current = null;
+
+      const container = containerRef.current;
+      if (container) {
+        container
+          .querySelectorAll(`[data-column-id="${draggedColumnIdRef.current}"]`)
+          .forEach((el) => el.classList.add('col-dragging'));
+      }
+    };
+    document.addEventListener('dragstart', onDragStart);
+
     const endDrag = () => {
       document.removeEventListener('pointermove', onPointerMove);
       document.removeEventListener('pointerup', endDrag);
       document.removeEventListener('mousemove', onPointerMove);
       document.removeEventListener('mouseup', endDrag);
+      document.removeEventListener('dragstart', onDragStart);
 
-      if (!dragActive) {
-        const dx = Math.abs(e.clientX - startX);
-        const dy = Math.abs(e.clientY - startY);
-        if (dx < 5 && dy < 5) {
-          toggleSorting();
+      if (dragActive) {
+        // Prevent MRT's built-in click-to-sort from firing after a column reorder drag
+        const preventClick = (ce: MouseEvent) => {
+          ce.stopPropagation();
+          document.removeEventListener('click', preventClick, true);
+        };
+        document.addEventListener('click', preventClick, true);
+
+        if (isDraggingRef.current) {
+          endDragSession();
         }
         return;
       }
 
-      if (!isDraggingRef.current) return;
-      endDragSession();
+      const dx = Math.abs(e.clientX - startX);
+      const dy = Math.abs(e.clientY - startY);
+      if (dx < 5 && dy < 5) {
+        toggleSorting();
+      }
     };
 
     const onPointerMove = (pe: PointerEvent | MouseEvent) => {
@@ -396,9 +425,9 @@ export function useAnimatedColumnDrag({
       const next =
         typeof updater === 'function' ? updater(columnOrderRef.current) : updater;
       saveLayout({ columnOrder: next });
-      void onReorder;
+
     },
-    [beginReorderCapture, onReorder]
+    [beginReorderCapture]
   );
 
   return { containerRef, handleColumnOrderChange, onHeaderMouseDown };
