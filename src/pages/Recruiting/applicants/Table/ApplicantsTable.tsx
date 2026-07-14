@@ -1883,6 +1883,9 @@ const jobOptions = useMemo(() => {
     };
 
     rows.forEach((a: any) => {
+      // Skip trashed applicants from counts
+      if (a?.status?.toLowerCase() === 'trashed') return;
+
       // gender
       const rawGender =
         a?.gender ||
