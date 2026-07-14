@@ -52,16 +52,6 @@ export const QuestionGroupCard = ({
       }, 0),
     [questions, percentages]
   );
-  const answered = questions.filter((q) => {
-    const qId = getQuestionId(q);
-    const pct = Number((qId && percentages[qId]) || 0);
-    const a = qId ? answers[qId] : undefined;
-    return (
-      pct > 0 ||
-      (typeof a === 'string' && a.trim() !== '') ||
-      (Array.isArray(a) && a.length > 0)
-    );
-  }).length;
   const performance = totalScore > 0 ? (achieved / totalScore) * 100 : 0;
 
   return (
