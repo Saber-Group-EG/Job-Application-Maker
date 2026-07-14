@@ -27,7 +27,26 @@ const CompanyFilterContext = createContext<CompanyFilterContextType | undefined>
 export function CompanyFilterProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const { data: companies = [] } = useCompanies();
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem('company-filter-selected-id');
+    } catch {
+      return null;
+    }
+  });
+
+  // Persist to localStorage whenever selection changes
+  useEffect(() => {
+    try {
+      if (selectedCompanyId) {
+        localStorage.setItem('company-filter-selected-id', selectedCompanyId);
+      } else {
+        localStorage.removeItem('company-filter-selected-id');
+      }
+    } catch {
+      // ignore
+    }
+  }, [selectedCompanyId]);
 
   // Auto-select the user's company when they only have access to one
   useEffect(() => {

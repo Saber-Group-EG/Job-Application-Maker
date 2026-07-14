@@ -441,7 +441,7 @@ export default function MailPreview() {
             }
 
             const responses = await Promise.all(queryCompanyIds.map((companyId) =>
-                axiosInstance.get<ApiMailResponse>('/mail', { params: { ...baseParams, companyId, company: companyId } })
+                axiosInstance.get<ApiMailResponse>('/mail', { params: { ...baseParams, company: companyId } })
             ));
 
             const mergedMap = new Map<string, ApiMailRecord>();

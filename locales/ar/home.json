@@ -16,5 +16,6 @@
   "hourAgo": "منذ {hours} ساعة",
   "hoursAgo": "منذ {hours} ساعات",
   "yesterday": "أمس",
-  "daysAgo": "منذ {days} أيام"
+  "daysAgo": "منذ {days} أيام",
+  "selectCompany": "اختر شركة لعرض لوحة التحكم"
 }

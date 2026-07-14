@@ -485,7 +485,7 @@ const ApplicantDetails: React.FC = () => {
   }>({ date: '', time: '', description: '', comment: '', location: '', link: '', type: 'phone' });
   const [interviewError, setInterviewError] = useState('');
   const [isSubmittingInterview, setIsSubmittingInterview] = useState(false);
-  const [notificationChannels, setNotificationChannels] = useState({ email: true, sms: false, whatsapp: false });
+  const [notificationChannels, setNotificationChannels] = useState({ email: false, sms: false, whatsapp: false });
   const [emailOption, setEmailOption] = useState<'company' | 'user' | 'custom' | 'new'>('company');
   const [customEmail, setCustomEmail] = useState('');
   const [phoneOption, setPhoneOption] = useState<'company' | 'user' | 'whatsapp' | 'custom'>('company');
@@ -669,7 +669,7 @@ const ApplicantDetails: React.FC = () => {
         return bTime - aTime;
       })[0];
       setInterviewForm({ date: '', time: '', description: '', comment: '', location: '', link: '', type: 'phone' });
-      setNotificationChannels({ email: true, sms: false, whatsapp: false });
+      setNotificationChannels({ email: false, sms: false, whatsapp: false });
       setEmailOption('company'); setCustomEmail(''); setPhoneOption('company'); setCustomPhone('');
       setMessageTemplate(''); setInterviewEmailSubject('Interview Invitation');
       setFormResetKey((prev) => prev + 1);
@@ -1036,7 +1036,7 @@ const ApplicantDetails: React.FC = () => {
               {sharedSidebar}
               <div className="flex-1 min-w-0 space-y-6">
                 <div className="flex items-center justify-between border-b border-gray-200 mb-6">{tabBar}</div>
-                <InterviewQuestions applicantId={id} onRequestScheduleInterview={() => setShowScheduleModal(true)} autoSelectInterviewId={autoSelectInterviewId} />
+                <InterviewQuestions applicantId={id} onRequestScheduleInterview={() => setShowScheduleModal(true)} autoSelectInterviewId={autoSelectInterviewId} applicantData={applicant} />
               </div>
             </div>
           </div>

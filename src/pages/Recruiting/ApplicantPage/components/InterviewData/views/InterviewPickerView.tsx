@@ -47,7 +47,7 @@ export const InterviewPickerView = ({
 }: InterviewPickerViewProps) => {
   const { t, locale } = useLocale();
   return (
-  <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
+  <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden max-w-full">
     <div className="bg-gradient-to-r from-slate-900 to-slate-800 px-6 py-8">
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-2xl font-bold text-white">{t('existingInterviews', 'interview')}</h3>
@@ -70,7 +70,7 @@ export const InterviewPickerView = ({
           {t('noScheduledInterviews', 'interview')}
         </p>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           {interviews.map((interview, idx) => {
             const id = String(interview._id || interview.id || `iv_${idx}`);
             const total = Number(interview.totalScore ?? 0);
@@ -108,7 +108,7 @@ export const InterviewPickerView = ({
                     {statusLabel(status, t)}
                   </span>
                 </div>
-                <div className="grid grid-cols-3 gap-2 mb-3">
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-2 mb-3">
                   <div className="bg-slate-50 rounded-lg p-2 text-center">
                     <p className="text-[10px] text-slate-500">{t('type', 'interview')}</p>
                     <p className="text-xs font-bold text-slate-800">

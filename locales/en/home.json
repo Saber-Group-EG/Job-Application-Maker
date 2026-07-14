@@ -16,5 +16,6 @@
   "hourAgo": "{hours} hour ago",
   "hoursAgo": "{hours} hours ago",
   "yesterday": "yesterday",
-  "daysAgo": "{days} days ago"
+  "daysAgo": "{days} days ago",
+  "selectCompany": "Select a company to view dashboard"
 }
