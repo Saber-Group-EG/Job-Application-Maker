@@ -9,6 +9,27 @@ const EMPTY_LAYOUT: TableLayout = {
   columnOrder: [],
 };
 
+function mergeColumnOrder(
+  savedOrder: string[] | undefined,
+  defaultOrder: string[]
+): string[] {
+  if (!savedOrder || savedOrder.length === 0) return defaultOrder;
+  const savedSet = new Set(savedOrder);
+  const result = [...savedOrder];
+  for (let i = 0; i < defaultOrder.length; i++) {
+    const col = defaultOrder[i];
+    if (savedSet.has(col)) continue;
+    if (i === 0) {
+      result.unshift(col);
+    } else {
+      const prevCol = defaultOrder[i - 1];
+      const prevIndex = result.indexOf(prevCol);
+      result.splice(prevIndex + 1, 0, col);
+    }
+  }
+  return result;
+}
+
 export const useTableLayout = (
   tableKey: string,
   defaultLayout: TableLayout = EMPTY_LAYOUT
@@ -25,7 +46,11 @@ export const useTableLayout = (
     try {
       const saved = user.tablePreferences?.[tableKey];
       if (saved) {
-        setLayout({ ...defaultLayout, ...saved });
+        const mergedOrder = mergeColumnOrder(
+          saved.columnOrder,
+          defaultLayout.columnOrder || []
+        );
+        setLayout({ ...defaultLayout, ...saved, columnOrder: mergedOrder });
       } else {
         setLayout(defaultLayout);
       }

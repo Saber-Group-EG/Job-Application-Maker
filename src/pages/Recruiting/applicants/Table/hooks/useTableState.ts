@@ -56,7 +56,6 @@ export function useTableState({
   
   const [pagination, setPagination] = useState<{ pageIndex: number; pageSize: number }>(() => {
     if (isReturningFromDetails && navState?.pagination) return navState.pagination;
-    if (persistedState?.pagination) return persistedState.pagination;
     return { pageIndex: 0, pageSize: 10 };
   });
   
@@ -103,7 +102,6 @@ export function useTableState({
     persistTimeoutRef.current = setTimeout(() => {
       try {
         const toSave = {
-          pagination,
           sorting,
           columnFilters: effectiveColumnFilters,
           customFilters,

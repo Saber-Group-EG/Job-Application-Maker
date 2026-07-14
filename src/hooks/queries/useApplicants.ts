@@ -198,9 +198,9 @@ export function useApplicants(params?: {
       skipPopulation: params?.skipPopulation,
     }),
     staleTime: 2 * 60 * 1000,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    refetchOnMount: false,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    refetchOnMount: true,
     enabled: params?.enabled ?? true,
   });
 }
@@ -218,9 +218,9 @@ export function useApplicant(id: string, options?: {
     queryFn: () => applicantsService.getApplicantById(id),
     enabled: !!id && (options?.enabled ?? true),
     staleTime: options?.staleTime ?? 5 * 60 * 1000,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    refetchOnMount: false,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    refetchOnMount: true,
     initialData: options?.initialData ?? (() => {
       const queryCache = queryClient.getQueryCache();
       const listQueries = queryCache.findAll({ queryKey: applicantsKeys.lists(), type: 'active' });
@@ -253,9 +253,9 @@ export function useApplicantStatuses(params?: {
       status: params?.jobPositionId,
     }),
     staleTime: 2 * 60 * 1000,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    refetchOnMount: false,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    refetchOnMount: true,
     enabled: params?.enabled ?? true,
   });
 }

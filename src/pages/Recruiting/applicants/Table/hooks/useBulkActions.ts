@@ -176,7 +176,7 @@ export function useBulkActions({
     type: 'phone',
   });
   const [bulkNotificationChannels, setBulkNotificationChannels] = useState<BulkNotificationChannels>({
-    email: true,
+    email: false,
     sms: false,
     whatsapp: false,
   });
@@ -432,7 +432,7 @@ export function useBulkActions({
   });
   setBulkInterviewError('');
   setBulkInterviewIntervalMinutes(15);
-  setBulkNotificationChannels({ email: true, sms: false, whatsapp: false });
+  setBulkNotificationChannels({ email: false, sms: false, whatsapp: false });
   setBulkEmailOption('company');
   setBulkCustomEmail('');
   setBulkPhoneOption('company');

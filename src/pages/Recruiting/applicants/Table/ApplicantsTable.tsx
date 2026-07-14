@@ -18,6 +18,7 @@ import {
 import { useTableLayout } from '../../../../hooks/queries/useTableLayout';
 import { buildApplicantDuplicateLookup } from '../../../../utils/applicantDuplicateSort';
 import { toPlainString } from '../../../../utils/strings';
+import { thumbnailCache } from '../../../../utils/persistentThumbnailCache';
 import { paths } from '../../../../router/Paths';
 import { buildFieldToJobIds } from '../../../../components/modals/CustomFilterModal';
 import { useQuery } from '@tanstack/react-query';
@@ -40,6 +41,7 @@ import { useTableState } from './hooks/useTableState';
 import { useApplicantSelection } from './hooks/useApplicantSelection';
 import { useBulkActions } from './hooks/useBulkActions';
 import { useApplicantFilters } from './hooks/useApplicantFilters';
+import { useAnimatedColumnDrag } from '../../../../hooks/useAnimatedColumnDrag';
 
 // Utils
 import { exportToExcel } from './utils/exportHelpers';
@@ -68,10 +70,29 @@ type ApiMailResponse = {
   data: Array<{ _id: string; applicant: string | null; [key: string]: any }>;
 };
 
+const APPLICANTS_DEFAULT_COLUMN_ORDER = [
+  'mrt-row-select',
+  'applicantNo',
+  'profilePhoto',
+  'fullName',
+  'email',
+  'messages',
+  'phone',
+  'gender',
+  'companyId',
+  'jobPositionId',
+  'expectedSalary',
+  'sscore',
+  'status',
+  'rejectionReasons',
+  'submittedAt',
+  'actions',
+];
+
 const APPLICANTS_DEFAULT_LAYOUT = {
   columnVisibility: {},
   columnSizing: {},
-  columnOrder: [],
+  columnOrder: APPLICANTS_DEFAULT_COLUMN_ORDER,
 };
 
 // Helper to extract ID from various formats
@@ -96,45 +117,6 @@ const extractId = (value: unknown): string | null => {
   }
   return null;
 };
-
-// LRU Cache implementation for thumbnails to prevent memory bloat
-class LRUCache<K, V> {
-  private cache = new Map<K, V>();
-  private maxSize: number;
-
-  constructor(maxSize: number = 150) {
-    this.maxSize = maxSize;
-  }
-
-  get(key: K): V | undefined {
-    const value = this.cache.get(key);
-    if (value) {
-      // Refresh - move to end (most recently used)
-      this.cache.delete(key);
-      this.cache.set(key, value);
-    }
-    return value;
-  }
-
-  set(key: K, value: V): void {
-    if (this.cache.size >= this.maxSize) {
-      // Delete oldest (first item)
-      const firstKey = this.cache.keys().next().value;
-      if (firstKey) this.cache.delete(firstKey);
-    }
-    this.cache.set(key, value);
-  }
-
-  has(key: K): boolean {
-    return this.cache.has(key);
-  }
-
-  clear(): void {
-    this.cache.clear();
-  }
-}
-
-const thumbnailCache = new LRUCache<string, string>(150);
 
 // Image loader pool to limit concurrent image loading
 class ImageLoaderPool {
@@ -178,8 +160,8 @@ async function createCompressedDataUrl(
 ): Promise<string> {
   if (!src) return src;
   
-  // Check cache first
-  const cached = thumbnailCache.get(src);
+  // Check cache first (IndexedDB + in-memory)
+  const cached = await thumbnailCache.get(src);
   if (cached) return cached;
 
   // Use OffscreenCanvas if available (better performance)
@@ -189,7 +171,7 @@ async function createCompressedDataUrl(
       const blob = await response.blob();
       const bitmap = await createImageBitmap(blob);
       
-      const MAX_DIM = 48; // Significantly reduced from 160
+      const MAX_DIM = 48;
       let { width, height } = bitmap;
       const ratio = Math.max(width / MAX_DIM, height / MAX_DIM, 1);
       const canvas = new OffscreenCanvas(
@@ -203,14 +185,17 @@ async function createCompressedDataUrl(
       
       const blobResult = await canvas.convertToBlob({ 
         type: 'image/jpeg', 
-        quality: 0.5 // Reduced quality
+        quality: 0.5
       });
-      const dataUrl = URL.createObjectURL(blobResult);
+      const dataUrl = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(blobResult);
+      });
       
-      thumbnailCache.set(src, dataUrl);
+      thumbnailCache.set(src, dataUrl).catch(() => {});
       return dataUrl;
     } catch (e) {
-      // Fallback to regular canvas
       console.debug('OffscreenCanvas failed, falling back to regular canvas', e);
     }
   }
@@ -224,9 +209,7 @@ async function createCompressedDataUrl(
     const finish = (result: string) => {
       if (resolved) return;
       resolved = true;
-      try {
-        thumbnailCache.set(src, result);
-      } catch (e) {}
+      thumbnailCache.set(src, result).catch(() => {});
       resolve(result);
     };
 
@@ -236,14 +219,13 @@ async function createCompressedDataUrl(
         const ctx = canvas.getContext('2d');
         if (!ctx) return finish(src);
         
-        const MAX_DIM = 48; // Smaller thumbnails
+        const MAX_DIM = 48;
         let { width, height } = img;
         const ratio = Math.max(width / MAX_DIM, height / MAX_DIM, 1);
         canvas.width = Math.max(24, Math.round(width / ratio));
         canvas.height = Math.max(24, Math.round(height / ratio));
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-        // Lower quality settings for faster loading
         const qualities = [0.5, 0.4, 0.3, 0.2, 0.15];
         for (const q of qualities) {
           try {
@@ -268,7 +250,7 @@ async function createCompressedDataUrl(
     } catch (e) {
       finish(src);
     }
-    setTimeout(() => finish(src), 1000); // Reduced timeout
+    setTimeout(() => finish(src), 1000);
   });
 }
 
@@ -523,6 +505,15 @@ export default function Applicants({
     defaultLayout || APPLICANTS_DEFAULT_LAYOUT
   );
 
+  const { containerRef: tableContainerRef, handleColumnOrderChange, onHeaderMouseDown } =
+    useAnimatedColumnDrag({
+      columnOrder:
+        Array.isArray(layout.columnOrder) && layout.columnOrder.length
+          ? layout.columnOrder
+          : APPLICANTS_DEFAULT_COLUMN_ORDER,
+      onReorder: (nextOrder) => saveLayout({ columnOrder: nextOrder }),
+    });
+
   const updateStatus = useUpdateApplicantStatus();
 
   const effectiveOnlyStatus = useMemo((): string | string[] | undefined => {
@@ -586,9 +577,8 @@ export default function Applicants({
   );
 
   const { selectedCompanyId: globalSelectedCompanyId } = useCompanyFilter();
-  const companyId = useMemo(() => {
+  const apiCompanyId = useMemo(() => {
     if (companyIdOverride !== undefined) return companyIdOverride as any;
-    if (globalSelectedCompanyId) return [globalSelectedCompanyId];
     if (!user) return undefined;
     const roleName = user?.roleId?.name?.toLowerCase();
     const isSuperAdminRole = roleName === 'super admin';
@@ -597,7 +587,7 @@ export default function Applicants({
     );
     if (isSuperAdminRole) return undefined;
     return userCompanyId?.length ? userCompanyId : undefined;
-  }, [companyIdOverride, user, globalSelectedCompanyId]);
+  }, [companyIdOverride, user]);
 const [excludeModes] = useState<Record<string, boolean>>({});
 
   const [offerModalOpen, setOfferModalOpen] = useState(false);
@@ -614,10 +604,10 @@ const [excludeModes] = useState<Record<string, boolean>>({});
   }, [user]);
 
   const showCompanyColumn = useMemo(() => {
-    if (!companyId) return true;
-    if (Array.isArray(companyId) && companyId.length === 1) return false;
+    if (!apiCompanyId) return true;
+    if (Array.isArray(apiCompanyId) && apiCompanyId.length === 1) return false;
     return true;
-  }, [companyId]);
+  }, [apiCompanyId]);
 
   const assignedCompanyIds = useMemo(() => {
     if (isSuperAdmin) return [];
@@ -640,7 +630,7 @@ const [excludeModes] = useState<Record<string, boolean>>({});
     isFetched: isJobPositionsFetched,
     refetch: refetchJobPositions,
   } = useJobPositions(
-    companyId as any,
+    apiCompanyId as any,
     false,
     departmentIds as any,
     { enabled: true }
@@ -653,7 +643,7 @@ const [excludeModes] = useState<Record<string, boolean>>({});
     isFetching: isApplicantsFetching,
     isFetched: isApplicantsFetched,
   } = useApplicants({
-    companyId: companyId as any,
+    companyId: apiCompanyId as any,
     jobPositionId: effectiveOnlyJobPositions,
     departmentId: departmentIds as any,
     status: effectiveOnlyStatus,
@@ -661,8 +651,8 @@ const [excludeModes] = useState<Record<string, boolean>>({});
   });
   
   // Check the query state directly to detect ongoing fetches for this key
-  const applicantsQueryKey = applicantsKeys.list({
-    companyId: companyId as any,
+const applicantsQueryKey = applicantsKeys.list({
+  companyId: apiCompanyId as any,
     jobPositionId: effectiveOnlyJobPositions,
     departmentId: departmentIds as any,
     status: effectiveOnlyStatus,
@@ -678,7 +668,7 @@ const [excludeModes] = useState<Record<string, boolean>>({});
     refetch: refetchCompanies,
     isFetching: isCompaniesFetching,
     isFetched: isCompaniesFetched,
-  } = useCompanies(companyId as any);
+  } = useCompanies(apiCompanyId as any);
 
   const queryCompanyIds = useMemo(() => {
     if (!isSuperAdmin && assignedCompanyIds.length > 0)
@@ -963,19 +953,24 @@ const jobOptions = useMemo(() => {
     | null
     | undefined => {
     const companyFilter = columnFilters.find((f: any) => f.id === 'companyId');
-    if (!companyFilter?.value) return undefined;
-    const value = companyFilter.value;
-    if (Array.isArray(value)) {
-      return value as string[];
+    if (companyFilter?.value) {
+      const value = companyFilter.value;
+      if (Array.isArray(value)) {
+        return value as string[];
+      }
+      if (typeof value === 'string') {
+        return value;
+      }
+      if (value === null) {
+        return null;
+      }
+      return undefined;
     }
-    if (typeof value === 'string') {
-      return value;
-    }
-    if (value === null) {
-      return null;
+    if (globalSelectedCompanyId) {
+      return globalSelectedCompanyId;
     }
     return undefined;
-  }, [columnFilters]);
+  }, [columnFilters, globalSelectedCompanyId]);
 
   const {
     filteredApplicants,
@@ -1153,12 +1148,12 @@ const jobOptions = useMemo(() => {
     () => ({
       applicantNo: isLaptopViewport ? 56 : 80,
       profilePhoto: isLaptopViewport ? 52 : 72,
-      fullName: isLaptopViewport ? 92 : 120,
-      email: isLaptopViewport ? 128 : 170,
+      fullName: isLaptopViewport ? 160 : 220,
+      email: isLaptopViewport ? 200 : 280,
       phone: isLaptopViewport ? 86 : 110,
       gender: isLaptopViewport ? 70 : 90,
-      companyId: isLaptopViewport ? 96 : 130,
-      jobPositionId: isLaptopViewport ? 118 : 160,
+      companyId: isLaptopViewport ? 150 : 200,
+      jobPositionId: isLaptopViewport ? 180 : 240,
       expectedSalary: isLaptopViewport ? 104 : 140,
       sscore: isLaptopViewport ? 72 : 96,
       status: isLaptopViewport ? 190 : 240,
@@ -1167,6 +1162,26 @@ const jobOptions = useMemo(() => {
     }),
     [isLaptopViewport]
   );
+
+  const mergedColumnSizing = useMemo(() => {
+    const defaults: Record<string, number> = {
+      'mrt-row-select': selectColumnWidth,
+      applicantNo: columnSizeConfig.applicantNo,
+      profilePhoto: columnSizeConfig.profilePhoto,
+      fullName: columnSizeConfig.fullName,
+      email: columnSizeConfig.email,
+      phone: columnSizeConfig.phone,
+      gender: columnSizeConfig.gender,
+      companyId: columnSizeConfig.companyId,
+      jobPositionId: columnSizeConfig.jobPositionId,
+      expectedSalary: columnSizeConfig.expectedSalary,
+      sscore: columnSizeConfig.sscore,
+      status: columnSizeConfig.status,
+      submittedAt: columnSizeConfig.submittedAt,
+      actions: columnSizeConfig.actions,
+    };
+    return { ...defaults, ...layout.columnSizing };
+  }, [columnSizeConfig, layout.columnSizing, selectColumnWidth]);
 
   const getApplicantHref = useCallback((row: any) => {
     const orig: any = row?.original ?? row;
@@ -2850,6 +2865,7 @@ const jobOptions = useMemo(() => {
     enableFullScreenToggle: false,
     enableColumnActions: false,
     enableColumnResizing: true,
+    enableColumnOrdering: true,
     layoutMode: 'grid',
     manualPagination: false,
     manualFiltering: true,
@@ -2859,19 +2875,8 @@ const jobOptions = useMemo(() => {
       pagination,
       columnFilters: isTableLoading ? [] : columnFilters,
       columnVisibility: layout.columnVisibility || {},
-      columnSizing: layout.columnSizing || {},
+      columnSizing: mergedColumnSizing,
       density: 'compact',
-      columnOrder:
-        Array.isArray(layout.columnOrder) && layout.columnOrder.length
-          ? layout.columnOrder
-          : Array.from(
-              new Set([
-                'mrt-row-select',
-                ...columns
-                  .map((c) => (c as any).id ?? (c as any).accessorKey)
-                  .filter(Boolean),
-              ])
-            ),
     },
     state: {
       sorting,
@@ -2881,7 +2886,11 @@ const jobOptions = useMemo(() => {
       columnFilters: isTableLoading ? [] : columnFilters,
       rowSelection,
       columnVisibility: layout.columnVisibility || {},
-      columnSizing: layout.columnSizing || {},
+      columnSizing: mergedColumnSizing,
+      columnOrder:
+        Array.isArray(layout.columnOrder) && layout.columnOrder.length
+          ? layout.columnOrder
+          : APPLICANTS_DEFAULT_COLUMN_ORDER,
     },
     onSortingChange: setSorting,
     onPaginationChange: setPagination,
@@ -2899,14 +2908,11 @@ const jobOptions = useMemo(() => {
     },
     onColumnSizingChange: (updater) => {
       const next =
-        typeof updater === 'function' ? updater(layout.columnSizing) : updater;
+        typeof updater === 'function' ? updater(mergedColumnSizing) : updater;
       saveLayout({ columnSizing: next });
     },
-    onColumnOrderChange: (updater) => {
-      const next =
-        typeof updater === 'function' ? updater(layout.columnOrder) : updater;
-      saveLayout({ columnOrder: next });
-    },
+    onColumnOrderChange: (updater) =>
+      handleColumnOrderChange(updater, saveLayout),
     renderTopToolbarCustomActions: () => (
       <div className="flex items-center p-2 w-full justify-between">
         <div className="flex items-center gap-2">
@@ -3001,9 +3007,20 @@ const jobOptions = useMemo(() => {
           <button
             type="button"
             onClick={() => setCustomFilterOpen(true)}
-            className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-3 py-1 text-sm font-semibold text-white shadow-sm hover:bg-brand-600"
+            className={`inline-flex items-center gap-2 rounded-lg px-3 py-1 text-sm font-semibold shadow-sm transition-all duration-200 ${
+              customFilters.length > 0
+                ? 'bg-amber-500 text-white hover:bg-amber-600 ring-2 ring-amber-300'
+                : 'bg-brand-500 text-white hover:bg-brand-600'
+            }`}
           >
-            {t('filterSettings', 'applicants')}
+            <span className="relative">
+              {t('filterSettings', 'applicants')}
+              {customFilters.length > 0 && (
+                <span className="absolute -top-2 -right-3 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                  {customFilters.length}
+                </span>
+              )}
+            </span>
           </button>
         </div>
       </div>
@@ -3061,7 +3078,9 @@ const jobOptions = useMemo(() => {
         },
       },
     },
-    muiTableBodyCellProps: () => ({
+    muiTableBodyCellProps: ({ row, cell }) => ({
+      'data-column-id': cell.column.id,
+      'data-flip-key': `${row.id}:${cell.column.id}`,
       sx: {
         whiteSpace: 'nowrap',
         overflow: 'hidden',
@@ -3071,14 +3090,17 @@ const jobOptions = useMemo(() => {
       },
     }),
     muiTableHeadCellProps: ({ column }) => ({
+      'data-column-id': column.id,
+      'data-flip-key': `head:${column.id}`,
       sx: {
         height: '50px',
         fontWeight: 'bold',
         position: 'relative',
-        overflow: 'visible',
         color: isDarkMode ? '#e5e7eb' : undefined,
         backgroundColor: isDarkMode ? '#374151' : undefined,
         borderBottom: isDarkMode ? '1px solid #4b5563' : undefined,
+        userSelect: 'none',
+        transition: 'background-color 0.2s ease',
         '& .MuiTableSortLabel-icon': { display: 'none' },
         '& .MuiBadge-root': { display: 'none' },
         '& .Mui-TableHeadCell-Content': {
@@ -3086,42 +3108,45 @@ const jobOptions = useMemo(() => {
           display: 'flex',
           alignItems: 'center',
         },
-        '& .Mui-TableHeadCell-Content-Labels': {
-          display: 'flex',
-          alignItems: 'center',
-          flex: 1,
-          minWidth: 0,
-          overflow: 'visible',
-        },
         '& .Mui-TableHeadCell-Content-Actions': {
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          opacity: 0,
+          pointerEvents: 'none',
           display: 'flex',
           alignItems: 'center',
-          flex: '0 0 0',
-          width: 0,
-          minWidth: 0,
-          padding: 0,
-          overflow: 'hidden',
+          justifyContent: 'center',
+          zIndex: 0,
+        },
+        '& .Mui-TableHeadCell-Content-Actions button[aria-label="Move"]': {
+          pointerEvents: 'all',
+          width: '100%',
+          height: '100%',
+          cursor: 'grab',
+          zIndex: 1,
+        },
+        '& .Mui-TableHeadCell-Content-Labels': {
+          width: '100%',
+          display: 'flex',
+          justifyContent: 'space-between',
+          position: 'relative',
+          zIndex: 2,
+          pointerEvents: column.id === 'mrt-row-select' ? 'all' : 'none',
+        },
+        '& .Mui-TableHeadCell-Content-Labels button': {
+          pointerEvents: 'all',
+        },
+        '& .Mui-TableHeadCell-Content-Labels .MuiTableSortLabel-root': {
+          pointerEvents: 'all',
         },
       },
-      onMouseDown: (e) => {
-        if ((e.target as HTMLElement).closest('button')) return;
-        const startX = e.clientX;
-        const startY = e.clientY;
-        const currentCell = e.currentTarget as HTMLElement;
-        const onMouseUp = (upEvent: MouseEvent) => {
-          const dx = Math.abs(upEvent.clientX - startX);
-          const dy = Math.abs(upEvent.clientY - startY);
-          if (
-            dx < 5 &&
-            dy < 5 &&
-            currentCell.contains(upEvent.target as Node)
-          ) {
-            column.toggleSorting();
-          }
-          document.removeEventListener('mouseup', onMouseUp);
-        };
-        document.addEventListener('mouseup', onMouseUp);
-      },
+      onMouseDown:
+        column.id === 'mrt-row-select'
+          ? undefined
+          : (e) => onHeaderMouseDown(e, () => column.toggleSorting()),
     }),
     muiTableBodyRowProps: ({ row, table }) => ({
       sx: {
@@ -3297,7 +3322,10 @@ const jobOptions = useMemo(() => {
                   </div>
                 )}
 
-            <div className="w-full overflow-x-auto custom-scrollbar">
+            <div
+              ref={tableContainerRef}
+              className="w-full overflow-x-auto custom-scrollbar"
+            >
               <MaterialReactTable table={table} />
             </div>
 

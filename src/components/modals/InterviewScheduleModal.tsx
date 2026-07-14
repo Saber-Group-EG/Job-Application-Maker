@@ -1133,18 +1133,24 @@ export default function InterviewScheduleModal(props: Props) {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">{t('sendNotificationVia', 'modals')}:</label>
               <div className="flex flex-wrap gap-3">
                 <label className="group relative inline-flex items-center gap-3 cursor-pointer rounded-lg border border-gray-300 bg-white px-4 py-2.5 transition-all hover:border-brand-400 hover:bg-brand-50/50 dark:border-gray-600 dark:bg-gray-800 dark:hover:border-brand-600 dark:hover:bg-brand-900/20">
-                  <input type="radio" name="notificationChannel" checked={notificationChannels.email} onChange={() => { const nextChannels = { email: true, sms: false, whatsapp: false }; setNotificationChannels(nextChannels); setEmailOption('company'); setMessageTemplate(generateMessageTemplate(nextChannels)); setSelectedTemplateId(''); }} className="peer sr-only" />
-                  <div className="h-5 w-5 rounded-full border-2 border-gray-300 bg-white transition-all peer-checked:border-brand-600 peer-checked:bg-brand-600 dark:border-gray-600 dark:bg-gray-700 dark:peer-checked:border-brand-500 dark:peer-checked:bg-brand-500 flex items-center justify-center"><div className="h-2 w-2 rounded-full bg-white scale-0 peer-checked:scale-100 transition-transform"></div></div>
+                  <input type="checkbox" checked={notificationChannels.email} onChange={() => { const next = { ...notificationChannels, email: !notificationChannels.email }; setNotificationChannels(next); if (!notificationChannels.email) setEmailOption('company'); setMessageTemplate(generateMessageTemplate(next)); setSelectedTemplateId(''); }} className="peer sr-only" />
+                  <div className="h-5 w-5 rounded border-2 border-gray-300 bg-white transition-all peer-checked:border-brand-600 peer-checked:bg-brand-600 dark:border-gray-600 dark:bg-gray-700 dark:peer-checked:border-brand-500 dark:peer-checked:bg-brand-500 flex items-center justify-center">
+                    <svg className="h-3 w-3 text-white scale-0 peer-checked:scale-100 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                  </div>
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">📧 {t('email', 'modals')}</span>
                 </label>
                 <label className="group relative inline-flex items-center gap-3 cursor-pointer rounded-lg border border-gray-300 bg-white px-4 py-2.5 transition-all hover:border-brand-400 hover:bg-brand-50/50 dark:border-gray-600 dark:bg-gray-800 dark:hover:border-brand-600 dark:hover:bg-brand-900/20">
-                  <input type="radio" name="notificationChannel" checked={notificationChannels.sms} onChange={() => { const nextChannels = { email: false, sms: true, whatsapp: false }; setNotificationChannels(nextChannels); setPhoneOption('company'); setMessageTemplate(generateMessageTemplate(nextChannels)); setSelectedTemplateId(''); }} className="peer sr-only" />
-                  <div className="h-5 w-5 rounded-full border-2 border-gray-300 bg-white transition-all peer-checked:border-brand-600 peer-checked:bg-brand-600 dark:border-gray-600 dark:bg-gray-700 dark:peer-checked:border-brand-500 dark:peer-checked:bg-brand-500 flex items-center justify-center"><div className="h-2 w-2 rounded-full bg-white scale-0 peer-checked:scale-100 transition-transform"></div></div>
+                  <input type="checkbox" checked={notificationChannels.sms} onChange={() => { const next = { ...notificationChannels, sms: !notificationChannels.sms }; setNotificationChannels(next); if (!notificationChannels.sms) setPhoneOption('company'); setMessageTemplate(generateMessageTemplate(next)); setSelectedTemplateId(''); }} className="peer sr-only" />
+                  <div className="h-5 w-5 rounded border-2 border-gray-300 bg-white transition-all peer-checked:border-brand-600 peer-checked:bg-brand-600 dark:border-gray-600 dark:bg-gray-700 dark:peer-checked:border-brand-500 dark:peer-checked:bg-brand-500 flex items-center justify-center">
+                    <svg className="h-3 w-3 text-white scale-0 peer-checked:scale-100 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                  </div>
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">💬 {t('sms', 'modals')}</span>
                 </label>
                 <label className="group relative inline-flex items-center gap-3 cursor-pointer rounded-lg border border-gray-300 bg-white px-4 py-2.5 transition-all hover:border-brand-400 hover:bg-brand-50/50 dark:border-gray-600 dark:bg-gray-800 dark:hover:border-brand-600 dark:hover:bg-brand-900/20">
-                  <input type="radio" name="notificationChannel" checked={notificationChannels.whatsapp} onChange={() => { const nextChannels = { email: false, sms: false, whatsapp: true }; setNotificationChannels(nextChannels); setMessageTemplate(generateMessageTemplate(nextChannels)); setSelectedTemplateId(''); }} className="peer sr-only" />
-                  <div className="h-5 w-5 rounded-full border-2 border-gray-300 bg-white transition-all peer-checked:border-brand-600 peer-checked:bg-brand-600 dark:border-gray-600 dark:bg-gray-700 dark:peer-checked:border-brand-500 dark:peer-checked:bg-brand-500 flex items-center justify-center"><div className="h-2 w-2 rounded-full bg-white scale-0 peer-checked:scale-100 transition-transform"></div></div>
+                  <input type="checkbox" checked={notificationChannels.whatsapp} onChange={() => { const next = { ...notificationChannels, whatsapp: !notificationChannels.whatsapp }; setNotificationChannels(next); if (!notificationChannels.whatsapp) setPhoneOption('whatsapp'); setMessageTemplate(generateMessageTemplate(next)); setSelectedTemplateId(''); }} className="peer sr-only" />
+                  <div className="h-5 w-5 rounded border-2 border-gray-300 bg-white transition-all peer-checked:border-brand-600 peer-checked:bg-brand-600 dark:border-gray-600 dark:bg-gray-700 dark:peer-checked:border-brand-500 dark:peer-checked:bg-brand-500 flex items-center justify-center">
+                    <svg className="h-3 w-3 text-white scale-0 peer-checked:scale-100 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                  </div>
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">📱 {t('whatsapp', 'modals')}</span>
                 </label>
               </div>
@@ -1274,13 +1280,15 @@ export default function InterviewScheduleModal(props: Props) {
 
         <div className="flex items-center gap-3 mt-6 sm:justify-end">
           <button type="button" onClick={onClose} disabled={isSubmittingInterview} className="flex w-full justify-center rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] sm:w-auto">{t('cancel', 'modals')}</button>
-          <button 
-            type="button" 
-            onClick={handlePreview}
-            className="flex w-full justify-center rounded-lg border border-stroke px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-strokedark dark:hover:bg-gray-800 sm:w-auto"
-          >
-            {bulkMode ? t('scheduleBulkPreviewTitle', 'modals') : t('previewEmail', 'modals')}
-          </button>
+          {(notificationChannels.email || notificationChannels.sms || notificationChannels.whatsapp) && (
+            <button 
+              type="button" 
+              onClick={handlePreview}
+              className="flex w-full justify-center rounded-lg border border-stroke px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-strokedark dark:hover:bg-gray-800 sm:w-auto"
+            >
+              {bulkMode ? t('scheduleBulkPreviewTitle', 'modals') : t('previewEmail', 'modals')}
+            </button>
+          )}
           <button type="submit" disabled={isSubmittingInterview} className="flex w-full justify-center items-center gap-2 rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed sm:w-auto">
             {isSubmittingInterview ? (
               <>
