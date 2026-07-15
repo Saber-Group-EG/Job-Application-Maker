@@ -90,40 +90,6 @@ npm run preview
 
 ---
 
-## Project Structure
-
-```
-src/
-├── components/        # Reusable UI components
-│   ├── auth/          # Authentication components
-│   ├── charts/        # Chart and analytics widgets
-│   ├── common/        # Shared components (spinner, breadcrumb, theme toggle)
-│   ├── header/        # Application header and user dropdown
-│   ├── modals/        # Shared modal dialogs
-│   ├── tables/        # Reusable table components
-│   └── ui/            # Base UI elements
-├── config/            # API configuration and Axios instance
-├── context/           # React contexts (Auth, Locale, Theme, Sidebar, CompanyFilter)
-├── hooks/             # Custom hooks and React Query mutations
-│   └── queries/       # Data fetching hooks per domain
-├── icons/             # SVG icon components
-├── layout/            # Application shell (header, sidebar, layout wrapper)
-├── lib/               # Library configuration (query client)
-├── locales/           # Translation files (en/ar, 25+ namespaces each)
-├── pages/             # Route-level page components
-│   ├── AuthPages/     # Sign in / Sign up
-│   ├── Dashboard/     # Main analytics dashboard
-│   ├── Landing/       # Public marketing pages
-│   └── Recruiting/    # Core HR modules (companies, jobs, applicants, offers, contracts)
-├── router/            # Route definitions, guards, and path constants
-├── services/          # API service classes
-├── store/             # Redux store and slices
-├── types/             # TypeScript type definitions
-└── utils/             # Utility functions (PDF generators, error handlers, helpers)
-```
-
----
-
 ## Available Scripts
 
 | Command           | Description                                      |
