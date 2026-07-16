@@ -157,7 +157,12 @@ export default function Home() {
 
   const handleStatusCardClick = (statusName: string) => {
     const params = new URLSearchParams();
-    params.set('status', statusName.toLowerCase());
+    const matched = statusOptions?.find(
+      (opt: any) =>
+        opt.label?.toLowerCase() === statusName.toLowerCase() ||
+        opt.value?.toLowerCase() === statusName.toLowerCase()
+    );
+    params.set('status', matched?.label || statusName);
     if (selectedCompanyId) params.set('company', selectedCompanyId);
     navigate(`/applicants?${params.toString()}`);
   };

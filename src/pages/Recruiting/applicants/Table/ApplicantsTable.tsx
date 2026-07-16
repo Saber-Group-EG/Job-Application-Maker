@@ -747,17 +747,25 @@ const applicantsQueryKey = applicantsKeys.list({
   if (urlParams.status) {
     setColumnFilters((prev: any) => {
       const withoutStatus = prev.filter((f: any) => f.id !== 'status');
-      const hasStatus = prev.some((f: any) => f.id === 'status');
-      if (hasStatus) return prev;
-      return [...withoutStatus, { id: 'status', value: urlParams.status }];
+      const existing = prev.find((f: any) => f.id === 'status');
+      const newValue = [urlParams.status];
+      if (existing) {
+        const existingValue = Array.isArray(existing.value) ? existing.value : [existing.value];
+        if (JSON.stringify(existingValue) === JSON.stringify(newValue)) return prev;
+      }
+      return [...withoutStatus, { id: 'status', value: newValue }];
     });
   }
   if (urlParams.company) {
     setColumnFilters((prev: any) => {
       const withoutCompany = prev.filter((f: any) => f.id !== 'companyId');
-      const hasCompany = prev.some((f: any) => f.id === 'companyId');
-      if (hasCompany) return prev;
-      return [...withoutCompany, { id: 'companyId', value: urlParams.company }];
+      const existing = prev.find((f: any) => f.id === 'companyId');
+      const newValue = [urlParams.company];
+      if (existing) {
+        const existingValue = Array.isArray(existing.value) ? existing.value : [existing.value];
+        if (JSON.stringify(existingValue) === JSON.stringify(newValue)) return prev;
+      }
+      return [...withoutCompany, { id: 'companyId', value: newValue }];
     });
   }
 }, [urlParams.status, urlParams.company, setColumnFilters]);
