@@ -1891,35 +1891,42 @@ const jobOptions = useMemo(() => {
     };
 
     rows.forEach((a: any) => {
-      // Skip trashed applicants from counts
-      if (a?.status?.toLowerCase() === 'trashed') return;
+      const isTrashed = a?.status?.toLowerCase() === 'trashed';
 
       // gender
-      const rawGender =
-        a?.gender ||
-        a?.customResponses?.gender ||
-        a?.customResponses?.genderAr ||
-        a?.customResponses?.['النوع'] ||
-        (a as any)['النوع'] ||
-        (a as any)?.genderAr;
-      addToMap('gender', normalizeGender(rawGender));
+      if (!isTrashed) {
+        const rawGender =
+          a?.gender ||
+          a?.customResponses?.gender ||
+          a?.customResponses?.genderAr ||
+          a?.customResponses?.['النوع'] ||
+          (a as any)['النوع'] ||
+          (a as any)?.genderAr;
+        addToMap('gender', normalizeGender(rawGender));
+      }
 
       // companyId
-      addToMap('companyId', getApplicantCompanyId(a, jobPositionMap) || '');
+      if (!isTrashed) {
+        addToMap('companyId', getApplicantCompanyId(a, jobPositionMap) || '');
+      }
 
       // jobPositionId
-      const rawJob = a?.jobPositionId;
-      const getId = (v: any) =>
-        typeof v === 'string' ? v : (v?._id ?? v?.id ?? '');
-      addToMap('jobPositionId', getId(rawJob));
+      if (!isTrashed) {
+        const rawJob = a?.jobPositionId;
+        const getId = (v: any) =>
+          typeof v === 'string' ? v : (v?._id ?? v?.id ?? '');
+        addToMap('jobPositionId', getId(rawJob));
+      }
 
-      // status
+      // status — always count, even trashed
       addToMap('status', a?.status?.trim?.() ?? a?.status);
 
       // rejectionReasons
-      const reasons = extractRejectionReasons(a);
-      if (Array.isArray(reasons) && reasons.length) {
-        addArrayToMap('rejectionReasons', reasons);
+      if (!isTrashed) {
+        const reasons = extractRejectionReasons(a);
+        if (Array.isArray(reasons) && reasons.length) {
+          addArrayToMap('rejectionReasons', reasons);
+        }
       }
     });
 
