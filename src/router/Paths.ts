@@ -64,6 +64,7 @@ export const paths = {
     recommendedFields: '/recommended-fields',
   },
 
+  
   misc: {
     profile: '/profile',
     calendar: '/calendar',
