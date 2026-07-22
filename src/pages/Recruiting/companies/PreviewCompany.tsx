@@ -284,84 +284,96 @@ export default function PreviewCompany() {
 
           <div className="p-6 sm:p-8">
             {activeTab === "overview" && (
-              <div className="space-y-8">
+              <div className="space-y-6">
                 <div>
-                  <div className="flex items-center gap-2.5 mb-5">
-                    <UserIcon className="size-[18px] text-brand-500" />
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="size-6 rounded-lg bg-brand-500/10 flex items-center justify-center">
+                      <UserIcon className="size-3.5 text-brand-500" />
+                    </div>
                     <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200">Company Identity</h3>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                    <div className="bg-slate-50/60 dark:bg-white/5 rounded-xl p-5">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">{t('legalNameEn', 'companies')}</label>
-                      <input 
-                        readOnly={!isEditingCompany}
-                        value={companyForm.name.en}
-                        onChange={(e) => setCompanyForm(p => ({ ...p, name: { ...p.name, en: e.target.value } }))}
-                        className="w-full bg-white dark:bg-white/10 border border-slate-200 dark:border-white/10 rounded-lg p-3 text-sm font-medium focus:ring-2 ring-brand-500/50 transition-all outline-none"
-                      />
+                  <div className="flex flex-col md:flex-row gap-4">
+                    <div className="flex-1 space-y-4">
+                      <div className="bg-slate-50/60 dark:bg-white/5 rounded-xl p-4">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">{t('legalNameEn', 'companies')}</label>
+                        <input 
+                          readOnly={!isEditingCompany}
+                          value={companyForm.name.en}
+                          onChange={(e) => setCompanyForm(p => ({ ...p, name: { ...p.name, en: e.target.value } }))}
+                          className="w-full bg-transparent border-none text-sm font-medium outline-none placeholder:text-slate-300"
+                          placeholder="Company name (English)"
+                        />
+                      </div>
+                      <div className="bg-slate-50/60 dark:bg-white/5 rounded-xl p-4">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">{t('legalNameAr', 'companies')}</label>
+                        <input 
+                          readOnly={!isEditingCompany}
+                          dir="rtl"
+                          value={companyForm.name.ar}
+                          onChange={(e) => setCompanyForm(p => ({ ...p, name: { ...p.name, ar: e.target.value } }))}
+                          className="w-full bg-transparent border-none text-sm font-medium outline-none placeholder:text-slate-300"
+                          placeholder="اسم الشركة"
+                        />
+                      </div>
                     </div>
-                    <div className="bg-slate-50/60 dark:bg-white/5 rounded-xl p-5">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">{t('legalNameAr', 'companies')}</label>
-                      <input 
-                        readOnly={!isEditingCompany}
-                        dir="rtl"
-                        value={companyForm.name.ar}
-                        onChange={(e) => setCompanyForm(p => ({ ...p, name: { ...p.name, ar: e.target.value } }))}
-                        className="w-full bg-white dark:bg-white/10 border border-slate-200 dark:border-white/10 rounded-lg p-3 text-sm font-medium focus:ring-2 ring-brand-500/50 transition-all outline-none"
-                      />
-                    </div>
-                    <div className="bg-slate-50/60 dark:bg-white/5 rounded-xl p-5">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">{t('corporateBrandAsset', 'companies')}</label>
-                      <div className="relative aspect-square w-full max-w-[120px] mx-auto rounded-lg border-2 border-dashed border-slate-200 dark:border-white/10 flex flex-col items-center justify-center p-3 transition-all hover:border-brand-500/50 overflow-hidden bg-white dark:bg-white/10">
-                        {companyForm.logoPath ? (
-                          <>
-                            <img src={companyForm.logoPath} alt="" className="absolute inset-0 w-full h-full object-contain p-2" />
-                            {isEditingCompany && (
-                              <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
-                                <label className="cursor-pointer bg-white/20 backdrop-blur-md p-2.5 rounded-lg border border-white/20 shadow-lg">
-                                  <Upload className="size-4 text-white" />
-                                  <input type="file" className="hidden" onChange={handleLogoChange} />
-                                </label>
-                              </div>
-                            )}
-                          </>
-                        ) : (
-                          <label className="cursor-pointer flex flex-col items-center gap-1.5">
-                            <ImageIcon className="size-6 text-slate-300" />
-                            <span className="text-[9px] font-bold text-slate-400 uppercase text-center">{t('uploadCompanyMark', 'companies')}</span>
-                            <input type="file" className="hidden" onChange={handleLogoChange} disabled={!isEditingCompany} />
-                          </label>
-                        )}
+                    <div className="w-full md:w-[160px] shrink-0">
+                      <div className="bg-slate-50/60 dark:bg-white/5 rounded-xl p-4 h-full flex flex-col">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">{t('corporateBrandAsset', 'companies')}</label>
+                        <div className="relative flex-1 rounded-lg border-2 border-dashed border-slate-200 dark:border-white/10 flex flex-col items-center justify-center p-3 transition-all hover:border-brand-500/50 overflow-hidden min-h-[120px]">
+                          {companyForm.logoPath ? (
+                            <>
+                              <img src={companyForm.logoPath} alt="" className="absolute inset-0 w-full h-full object-contain p-2" />
+                              {isEditingCompany && (
+                                <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+                                  <label className="cursor-pointer bg-white/20 backdrop-blur-md p-2 rounded-lg border border-white/20">
+                                    <Upload className="size-3.5 text-white" />
+                                    <input type="file" className="hidden" onChange={handleLogoChange} />
+                                  </label>
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <label className="cursor-pointer flex flex-col items-center gap-1.5">
+                              <ImageIcon className="size-6 text-slate-300" />
+                              <span className="text-[8px] font-bold text-slate-400 uppercase text-center leading-tight">{t('uploadCompanyMark', 'companies')}</span>
+                              <input type="file" className="hidden" onChange={handleLogoChange} disabled={!isEditingCompany} />
+                            </label>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 <div>
-                  <div className="flex items-center gap-2.5 mb-5">
-                    <InfoIcon className="size-[18px] text-brand-500" />
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="size-6 rounded-lg bg-brand-500/10 flex items-center justify-center">
+                      <InfoIcon className="size-3.5 text-brand-500" />
+                    </div>
                     <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200">Description</h3>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div className="bg-slate-50/60 dark:bg-white/5 rounded-xl p-5">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-slate-50/60 dark:bg-white/5 rounded-xl p-4">
                       <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">{t('companyDescEnTitle', 'companies')}</label>
                       <textarea 
                         readOnly={!isEditingCompany}
                         value={companyForm.description.en}
                         onChange={(e) => setCompanyForm(p => ({ ...p, description: { ...p.description, en: e.target.value } }))}
-                        rows={4}
-                        className="w-full bg-white dark:bg-white/10 border border-slate-200 dark:border-white/10 rounded-lg p-3 text-sm font-medium focus:ring-2 ring-brand-500/50 transition-all outline-none resize-none"
+                        rows={3}
+                        className="w-full bg-transparent border-none text-sm font-medium outline-none resize-none placeholder:text-slate-300"
+                        placeholder="Describe the company mission and operations..."
                       />
                     </div>
-                    <div className="bg-slate-50/60 dark:bg-white/5 rounded-xl p-5">
+                    <div className="bg-slate-50/60 dark:bg-white/5 rounded-xl p-4">
                       <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">{t('companyDescArTitle', 'companies')}</label>
                       <textarea 
                         readOnly={!isEditingCompany}
                         dir="rtl"
                         value={companyForm.description.ar}
                         onChange={(e) => setCompanyForm(p => ({ ...p, description: { ...p.description, ar: e.target.value } }))}
-                        rows={4}
-                        className="w-full bg-white dark:bg-white/10 border border-slate-200 dark:border-white/10 rounded-lg p-3 text-sm font-medium focus:ring-2 ring-brand-500/50 transition-all outline-none resize-none"
+                        rows={3}
+                        className="w-full bg-transparent border-none text-sm font-medium outline-none resize-none placeholder:text-slate-300"
+                        placeholder="وصف الشركة"
                       />
                     </div>
                   </div>
@@ -523,30 +535,29 @@ export default function PreviewCompany() {
                 </div>
 
                 {departments.length === 0 ? (
-                  <div className="text-center py-14 text-slate-400 text-sm bg-slate-50/50 dark:bg-white/5 rounded-xl">
+                  <div className="text-center py-14 text-slate-400 text-sm bg-slate-50/60 dark:bg-white/5 rounded-xl">
                     <BoxCubeIcon className="size-10 mx-auto mb-3 text-slate-300" />
                     {t('noDepartments', 'companies') || 'No departments found'}
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="space-y-3">
                     {departments.map((dept: any) => (
-                      <div key={dept._id} className="group bg-slate-50/60 dark:bg-white/5 border border-slate-100 dark:border-white/10 rounded-xl p-4 hover:shadow-md hover:border-brand-500/20 transition-all">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div className="size-10 rounded-lg bg-slate-100 dark:bg-white/5 flex items-center justify-center text-slate-500 group-hover:bg-brand-500/10 group-hover:text-brand-500 transition-all shrink-0">
+                      <div key={dept._id} className="bg-slate-50/60 dark:bg-white/5 rounded-xl px-5 py-4">
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-4 min-w-0">
+                            <div className="size-10 rounded-lg bg-white dark:bg-white/10 flex items-center justify-center text-slate-400 shrink-0">
                               <Briefcase className="size-[18px]" />
                             </div>
                             <div className="min-w-0">
-                              <h4 className="font-bold text-sm text-slate-800 dark:text-slate-100 truncate">
+                              <h4 className="font-bold text-sm text-slate-800 dark:text-slate-100">
                                 {locale === 'ar' ? (toPlainString(dept.name?.ar) || toPlainString(dept.name?.en) || '') : (toPlainString(dept.name?.en) || toPlainString(dept.name?.ar) || '')}
                               </h4>
-                              {locale === 'ar' ? null : <p className="text-[10px] font-medium text-brand-500 truncate">{toPlainString(dept.name?.ar)}</p>}
-                              <p className="text-xs text-slate-500 mt-1.5 line-clamp-2 leading-relaxed">
+                              <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">
                                 {locale === 'ar' ? (toPlainString(dept.description?.ar) || toPlainString(dept.description?.en) || t('noOverview', 'companies')) : (toPlainString(dept.description?.en) || toPlainString(dept.description?.ar) || t('noOverview', 'companies'))}
                               </p>
                             </div>
                           </div>
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-2">
+                          <div className="flex items-center gap-1.5 shrink-0">
                             <button 
                               onClick={() => {
                                 setEditingDeptId(dept._id);
@@ -557,13 +568,13 @@ export default function PreviewCompany() {
                                 });
                                 setShowDeptModal(true);
                               }}
-                              className="size-8 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center hover:bg-blue-500 hover:text-white transition-all"
+                              className="size-8 rounded-lg bg-white dark:bg-white/10 text-slate-400 flex items-center justify-center hover:bg-blue-500/10 hover:text-blue-500 transition-all"
                             >
                               <PencilIcon className="size-3.5" />
                             </button>
                             <button 
                               onClick={() => handleDeleteDepartment(dept._id)}
-                              className="size-8 rounded-lg bg-red-500/10 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all"
+                              className="size-8 rounded-lg bg-white dark:bg-white/10 text-slate-400 flex items-center justify-center hover:bg-red-500/10 hover:text-red-500 transition-all"
                             >
                               <TrashBinIcon className="size-3.5" />
                             </button>
