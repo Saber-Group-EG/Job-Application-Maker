@@ -179,7 +179,7 @@ const StickyTopBar: React.FC<{ children: React.ReactNode }> = ({ children }) => 
         bar.style.top = `${TOP_OFFSET}px`;
         bar.style.left = `${left}px`;
         bar.style.width = `${width}px`;
-        bar.style.zIndex = '1000';
+        bar.style.zIndex = '40';
         bar.style.paddingTop = '20px';
         placeholder.style.minHeight = `${bar.scrollHeight}px`;
       } else {
