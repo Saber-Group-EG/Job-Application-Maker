@@ -12,7 +12,6 @@ interface UseApplicantFiltersProps {
   effectiveOnlyStatus?: string | string[];
   effectiveOnlyJobPositions?: string[];
   selectedCompanyFilterValue?: string[] | string | null;
-  companyFilterExclude?: boolean;
   excludeColumns?: string[];
   jobPositionMap: Record<string, any>;
   fieldToJobIds: Map<string, Set<string>> | Record<string, Set<string>>;
@@ -30,7 +29,6 @@ export function useApplicantFilters({
   effectiveOnlyStatus,
   effectiveOnlyJobPositions,
   selectedCompanyFilterValue,
-  companyFilterExclude = false,
   excludeColumns = [],
   jobPositionMap,
   fieldToJobIds,
@@ -277,19 +275,39 @@ export function useApplicantFilters({
   }, [selectedCompanyFilterValue, columnFilters]);
 
   // Applicants filtered only by company (for cascading filter options)
-  const companyFilteredApplicants = useMemo(() => {
-    if (!currentCompanyIds || currentCompanyIds.length === 0) return applicants;
-    return (applicants || []).filter((applicant: any) => {
-      const applicantCompanyId = getApplicantCompanyId(applicant, jobPositionMap);
-      if (!applicantCompanyId) return false;
-      const matches = currentCompanyIds.includes(applicantCompanyId);
-      return companyFilterExclude ? !matches : matches;
-    });
-  }, [applicants, currentCompanyIds, companyFilterExclude, jobPositionMap]);
-
   // Get status filter options
   const statusFilterOptions = useMemo(() => {
-    const source = companyFilteredApplicants || applicants || [];
+    // Start from applicants (raw data) and filter by all non-status column filters
+    let source = Array.isArray(applicants) ? applicants : [];
+
+    const nonStatusFilters = columnFilters.filter(
+      (f: any) => f.id !== 'status' && f.id !== 'rejectionReasons'
+    );
+    for (const filter of nonStatusFilters) {
+      if (!filter.value) continue;
+      const vals = Array.isArray(filter.value) ? filter.value : [filter.value];
+      if (vals.length === 0) continue;
+
+      if (filter.id === 'jobPositionId') {
+        source = source.filter((a: any) => {
+          const raw = a?.jobPositionId;
+          const id = typeof raw === 'string' ? raw : (raw?._id ?? raw?.id ?? '');
+          return vals.includes(id);
+        });
+      } else if (filter.id === 'companyId') {
+        source = source.filter((a: any) => {
+          const cId = getApplicantCompanyId(a, jobPositionMap);
+          return !!cId && vals.includes(cId);
+        });
+      } else if (filter.id === 'gender') {
+        source = source.filter((a: any) => {
+          const raw = a?.gender || a?.customResponses?.gender || a?.customResponses?.['النوع'] || '';
+          const g = normalizeGender(raw);
+          return !!g && vals.includes(g);
+        });
+      }
+    }
+
     const uniqueStatuses = Array.from(
       new Map(
         source
@@ -315,7 +333,7 @@ export function useApplicantFilters({
       id: status,  // ← original casing, matches applicant.status exactly
       title: status.charAt(0).toUpperCase() + status.slice(1),
     }));
-  }, [companyFilteredApplicants, applicants, isSuperAdmin, canViewTrashed]);
+  }, [applicants, columnFilters, jobPositionMap, isSuperAdmin, canViewTrashed]);
 
   // Get status color function
   const getStatusColor = useCallback((status: string) => {
@@ -356,7 +374,6 @@ export function useApplicantFilters({
   return {
     filteredApplicants,
     duplicatesOnlyEnabled,
-    columnFilteredApplicants,
     statusFilterOptions,
     getStatusColor,
     getDescription,

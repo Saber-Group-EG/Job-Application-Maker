@@ -993,7 +993,6 @@ const jobOptions = useMemo(() => {
     effectiveOnlyStatus,
     effectiveOnlyJobPositions,
     selectedCompanyFilterValue,
-    companyFilterExclude: (layout.excludeColumns ?? []).includes('companyId'),
     excludeColumns: layout.excludeColumns ?? [],
     jobPositionMap,
     fieldToJobIds,
@@ -1877,61 +1876,111 @@ const jobOptions = useMemo(() => {
   }, [filteredApplicants, extractRejectionReasons]);
 
   const unfilteredCounts = useMemo(() => {
-    const rows = Array.isArray(applicants) ? applicants : [];
-    const maps: Record<string, Map<string, number>> = {};
+    const allRows = Array.isArray(applicants) ? applicants : [];
+    const globalCompanyIds = (() => {
+      const hasCompanyColumnFilter = columnFilters.some((f: any) => f.id === 'companyId');
+      if (!hasCompanyColumnFilter && selectedCompanyFilterValue) {
+        return Array.isArray(selectedCompanyFilterValue)
+          ? selectedCompanyFilterValue
+          : [selectedCompanyFilterValue];
+      }
+      return null;
+    })();
 
-    const addToMap = (colId: string, key: string) => {
-      if (!key) return;
-      if (!maps[colId]) maps[colId] = new Map();
-      maps[colId].set(key, (maps[colId].get(key) ?? 0) + 1);
+    const getChildColumnIds = (colId: string): string[] => {
+      if (colId === 'companyId') return ['jobPositionId'];
+      return [];
     };
 
-    const addArrayToMap = (colId: string, keys: string[]) => {
-      keys.forEach((k) => addToMap(colId, k));
-    };
+    const applyFilterToRows = (rows: any[], excludeColId: string) => {
+      const skipIds = new Set([excludeColId, ...getChildColumnIds(excludeColId)]);
+      let filtered = rows;
+      for (const filter of columnFilters) {
+        if (skipIds.has(filter.id)) continue;
+        if (!filter.value) continue;
+        const vals = Array.isArray(filter.value) ? filter.value : [filter.value];
+        if (vals.length === 0) continue;
 
-    rows.forEach((a: any) => {
-      const isTrashed = a?.status?.toLowerCase() === 'trashed';
-
-      // gender
-      if (!isTrashed) {
-        const rawGender =
-          a?.gender ||
-          a?.customResponses?.gender ||
-          a?.customResponses?.genderAr ||
-          a?.customResponses?.['النوع'] ||
-          (a as any)['النوع'] ||
-          (a as any)?.genderAr;
-        addToMap('gender', normalizeGender(rawGender));
-      }
-
-      // companyId
-      if (!isTrashed) {
-        addToMap('companyId', getApplicantCompanyId(a, jobPositionMap) || '');
-      }
-
-      // jobPositionId
-      if (!isTrashed) {
-        const rawJob = a?.jobPositionId;
-        const getId = (v: any) =>
-          typeof v === 'string' ? v : (v?._id ?? v?.id ?? '');
-        addToMap('jobPositionId', getId(rawJob));
-      }
-
-      // status — always count, even trashed
-      addToMap('status', a?.status?.trim?.() ?? a?.status);
-
-      // rejectionReasons
-      if (!isTrashed) {
-        const reasons = extractRejectionReasons(a);
-        if (Array.isArray(reasons) && reasons.length) {
-          addArrayToMap('rejectionReasons', reasons);
+        if (filter.id === 'jobPositionId') {
+          filtered = filtered.filter((a: any) => {
+            const raw = a?.jobPositionId;
+            const id = typeof raw === 'string' ? raw : (raw?._id ?? raw?.id ?? '');
+            return vals.includes(id);
+          });
+        } else if (filter.id === 'companyId') {
+          filtered = filtered.filter((a: any) => {
+            const cId = getApplicantCompanyId(a, jobPositionMap);
+            return !!cId && vals.includes(cId);
+          });
+        } else if (filter.id === 'gender') {
+          filtered = filtered.filter((a: any) => {
+            const raw =
+              a?.gender ||
+              a?.customResponses?.gender ||
+              a?.customResponses?.genderAr ||
+              a?.customResponses?.['النوع'] ||
+              (a as any)['النوع'] ||
+              (a as any)?.genderAr;
+            const g = normalizeGender(raw);
+            return !!g && vals.includes(g);
+          });
         }
       }
-    });
+      if (globalCompanyIds && !skipIds.has('companyId')) {
+        filtered = filtered.filter((a: any) => {
+          const cId = getApplicantCompanyId(a, jobPositionMap);
+          return !!cId && globalCompanyIds.includes(cId);
+        });
+      }
+      return filtered;
+    };
+
+    const maps: Record<string, Map<string, number>> = {};
+    const trackedCols = ['status', 'jobPositionId', 'companyId', 'gender', 'rejectionReasons'];
+
+    for (const colId of trackedCols) {
+      const rows = applyFilterToRows(allRows, colId);
+      const map = new Map<string, number>();
+
+      const add = (key: string) => {
+        if (!key) return;
+        map.set(key, (map.get(key) ?? 0) + 1);
+      };
+
+      rows.forEach((a: any) => {
+        const isTrashed = a?.status?.toLowerCase() === 'trashed';
+
+        if (colId === 'status') {
+          add(a?.status?.trim?.() ?? a?.status);
+        } else if (colId === 'gender' && !isTrashed) {
+          const rawGender =
+            a?.gender ||
+            a?.customResponses?.gender ||
+            a?.customResponses?.genderAr ||
+            a?.customResponses?.['النوع'] ||
+            (a as any)['النوع'] ||
+            (a as any)?.genderAr;
+          add(normalizeGender(rawGender));
+        } else if (colId === 'companyId' && !isTrashed) {
+          add(getApplicantCompanyId(a, jobPositionMap) || '');
+        } else if (colId === 'jobPositionId' && !isTrashed) {
+          const rawJob = a?.jobPositionId;
+          const getId = (v: any) =>
+            typeof v === 'string' ? v : (v?._id ?? v?.id ?? '');
+          add(getId(rawJob));
+        } else if (colId === 'rejectionReasons' && !isTrashed) {
+          const reasons = extractRejectionReasons(a);
+          if (Array.isArray(reasons)) {
+            reasons.forEach((r: string) => { if (r) add(r); });
+          }
+        }
+      });
+
+      maps[colId] = map;
+    }
 
     return maps;
-  }, [applicants, isSuperAdmin, jobPositionMap]);
+  }, [applicants, isSuperAdmin, jobPositionMap, columnFilters, selectedCompanyFilterValue]);
 
   const [isDarkMode, setIsDarkMode] = useState(() =>
     typeof document !== 'undefined' && document.documentElement.classList.contains('dark')

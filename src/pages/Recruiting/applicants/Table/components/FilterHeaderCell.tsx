@@ -63,13 +63,20 @@ const FilterHeaderCellComponent = ({
 
   const handleFilterClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    e.preventDefault();
     setAnchorEl(headerRef.current);
+  };
+
+  const preventSort = (e: React.PointerEvent | React.MouseEvent) => {
+    e.stopPropagation();
   };
 
   return (
     <div
       ref={headerRef}
-      onClick={(e) => e.stopPropagation()}
+      onClick={preventSort}
+      onPointerDown={preventSort}
+      onMouseDown={preventSort}
         style={{
           display: 'flex',
           alignItems: 'center',
