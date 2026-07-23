@@ -25,6 +25,8 @@ const LandingAddress = lazy(() => import('../pages/Landing/pages/Address'));
 
 const SignIn = lazy(() => import('../pages/AuthPages/SignIn'));
 const SignUp = lazy(() => import('../pages/AuthPages/SignUp'));
+const ForgotPassword = lazy(() => import('../pages/AuthPages/ForgotPassword'));
+const ResetPassword = lazy(() => import('../pages/AuthPages/ResetPassword'));
 const NotFound = lazy(() => import('../pages/OtherPage/NotFound'));
 const AppLayout = lazy(() => import('../layout/AppLayout'));
 const Home = lazy(() => import('../pages/Dashboard/Home'));
@@ -103,6 +105,9 @@ const RecommendedFields = lazy(
 
 // Misc
 const UserProfiles = lazy(() => import('../pages/UserProfiles'));
+const ProfileEdit = lazy(() => import('../pages/ProfileEdit'));
+const AccountSettings = lazy(() => import('../pages/AccountSettings'));
+const Support = lazy(() => import('../pages/Support'));
 const Calendar = lazy(() => import('../pages/Calendar'));
 const Blank = lazy(() => import('../pages/Blank'));
 const FormElements = lazy(() => import('../pages/Forms/FormElements'));
@@ -136,6 +141,8 @@ export default function App() {
           {/* Auth Routes */}
           <Route path={paths.auth.signIn} element={<SignIn />} />
           <Route path={paths.auth.signUp} element={<SignUp />} />
+          <Route path={paths.auth.forgotPassword} element={<ForgotPassword />} />
+          <Route path={paths.auth.resetPassword} element={<ResetPassword />} />
 
           {/* Protected Routes */}
           <Route element={<ProtectedRoute />}>
@@ -263,6 +270,9 @@ export default function App() {
 
               {/* Misc */}
               <Route path={paths.misc.profile} element={<UserProfiles />} />
+              <Route path={paths.misc.profileEdit} element={<ProfileEdit />} />
+              <Route path={paths.misc.accountSettings} element={<AccountSettings />} />
+              <Route path={paths.misc.support} element={<Support />} />
               <Route path={paths.misc.calendar} element={<Calendar />} />
               <Route path={paths.misc.blank} element={<Blank />} />
               <Route

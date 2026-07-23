@@ -5,6 +5,7 @@ import { useAuth } from "../../context/AuthContext";
 import type {
   CreateUserRequest,
   UpdateUserRequest,
+  UpdateProfileRequest,
   UpdateDepartmentsRequest,
   CreateSavedFieldRequest,
   UpdateSavedFieldRequest,
@@ -172,6 +173,23 @@ export function useUpdateUser() {
     onSuccess: (updatedUser, { id }) => {
       queryClient.setQueryData(usersKeys.detail(id), updatedUser);
       queryClient.invalidateQueries({ queryKey: usersKeys.lists() });
+      showSuccessToast(t('userUpdated', 'common'), t);
+    },
+    onError: (error: ApiError) => {
+      showErrorToast(getDetailedErrorMessage(error), t('userUpdateFailed', 'common'), t);
+    },
+  });
+}
+
+export function useUpdateProfile() {
+  const queryClient = useQueryClient();
+  const { t } = useLocale();
+
+  return useMutation({
+    mutationFn: (data: UpdateProfileRequest) =>
+      usersService.updateProfile(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: usersKeys.all });
       showSuccessToast(t('userUpdated', 'common'), t);
     },
     onError: (error: ApiError) => {

@@ -2,6 +2,8 @@ export const paths = {
   auth: {
     signIn: '/signin',
     signUp: '/signup',
+    forgotPassword: '/forgot-password',
+    resetPassword: '/reset-password',
   },
 
   dashboard: {
@@ -67,6 +69,9 @@ export const paths = {
   
   misc: {
     profile: '/profile',
+    profileEdit: '/profile/edit',
+    accountSettings: '/account-settings',
+    support: '/support',
     calendar: '/calendar',
     blank: '/blank',
     formElements: '/form-elements',

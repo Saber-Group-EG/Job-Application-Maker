@@ -7,8 +7,15 @@ import type {
   AuthResponse,
   UserProfileResponse,
   ChangePasswordRequest,
+  ForgotPasswordRequest,
+  ResetPasswordRequest,
+  Setup2FAResponse,
+  Verify2FASetupRequest,
+  Disable2FARequest,
+  Verify2FALoginRequest,
+  LoginResult,
 } from "../types/auth";
-import { ApiError } from "../types/auth"; // Import the class
+import { ApiError } from "../types/auth";
 
 // ===== API Client (reusable, clean) =====
 class ApiClient {
@@ -109,13 +116,27 @@ class AuthService {
     return { accessToken, refreshToken };
   }
 
-  async login(credentials: LoginRequest): Promise<User> {
-    const response = await this.api.post<AuthResponse>("/auth/login", credentials, false);
-    const { accessToken, refreshToken } = this.extractTokens(response);
-    
-    tokenStorage.setTokens(accessToken, refreshToken);
-    
-    return response.data.user;
+  async login(credentials: LoginRequest): Promise<LoginResult> {
+    try {
+      const response = await this.api.post<any>("/auth/login", credentials, false);
+
+      const body = response.data || response;
+      if (body.twoFactorRequired) {
+        return { type: '2fa', tempToken: body.tempToken };
+      }
+
+      const { accessToken, refreshToken } = this.extractTokens(response);
+      tokenStorage.setTokens(accessToken, refreshToken);
+      return { type: 'success', user: response.data?.user || response.user };
+    } catch (error) {
+      if (error instanceof ApiError) {
+        const errBody = (error.data as any)?.data || error.data;
+        if (errBody?.twoFactorRequired) {
+          return { type: '2fa', tempToken: errBody.tempToken };
+        }
+      }
+      throw error;
+    }
   }
 
   async register(userData: RegisterRequest): Promise<User> {
@@ -154,6 +175,33 @@ class AuthService {
 
   async changePassword(passwords: ChangePasswordRequest): Promise<void> {
     await this.api.put("/auth/change-password", passwords, true);
+  }
+
+  async forgotPassword(data: ForgotPasswordRequest): Promise<void> {
+    await this.api.post("/auth/forgot-password", data, false);
+  }
+
+  async resetPassword(data: ResetPasswordRequest): Promise<void> {
+    await this.api.post("/auth/reset-password", data, false);
+  }
+
+  async setup2FA(): Promise<Setup2FAResponse> {
+    return this.api.post<Setup2FAResponse>("/auth/2fa/setup", {}, true);
+  }
+
+  async verify2FASetup(data: Verify2FASetupRequest): Promise<void> {
+    await this.api.post("/auth/2fa/verify-setup", data, true);
+  }
+
+  async disable2FA(data: Disable2FARequest): Promise<void> {
+    await this.api.post("/auth/2fa/disable", data, true);
+  }
+
+  async verify2FALogin(data: Verify2FALoginRequest): Promise<User> {
+    const response = await this.api.post<any>("/auth/2fa/verify-login", data, false);
+    const { accessToken, refreshToken } = this.extractTokens(response);
+    tokenStorage.setTokens(accessToken, refreshToken);
+    return response.data?.user || response.user;
   }
 
   logout(): void {

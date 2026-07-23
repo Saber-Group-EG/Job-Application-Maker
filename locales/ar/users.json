@@ -74,6 +74,7 @@
   "editMetaDescription": "تحديث بيانات الموظف والوصول التنظيمي",
   "editBackButton": "العودة إلى المستخدمين",
   "editPersonalInfo": "المعلومات الشخصية",
+  "editPersonalInfoDesc": "تحديث بياناتك الشخصية",
   "editFullName": "الاسم الكامل",
   "editFullNamePlaceholder": "John Doe",
   "editEmail": "البريد الإلكتروني",

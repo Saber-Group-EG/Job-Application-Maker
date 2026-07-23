@@ -6,12 +6,13 @@ import {
   useCallback,
   useEffect,
 } from "react";
-import type { User } from "../types/auth";
+import type { User, LoginResult } from "../types/auth";
 import {
   useCurrentUser,
   useLoginMutation,
   useRegisterMutation,
   useLogoutMutation,
+  authKeys,
 } from "../hooks/queries/useAuth";
 import { useQueryClient } from "@tanstack/react-query";
 import { tokenStorage } from "../config/api";
@@ -19,7 +20,7 @@ import { paths } from "../router/Paths";
 
 type AuthContextType = {
   user: User | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<LoginResult>;
   register: (userData: {
     email: string;
     password: string;
@@ -55,10 +56,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     (userError instanceof Error ? userError.message : null) ||
     null;
 
-  const login = async (email: string, password: string) => {
-    await loginMutation.mutateAsync({ email, password });
-    // ✅ Force refetch after login to ensure fresh data
+  const login = async (email: string, password: string): Promise<LoginResult> => {
+    tokenStorage.clearTokens();
+    queryClient.setQueryData(authKeys.currentUser(), null);
+    const result = await loginMutation.mutateAsync({ email, password });
+    if (result.type === '2fa') return result;
     await refetch();
+    return result;
   };
 
   const register = async (userData: {

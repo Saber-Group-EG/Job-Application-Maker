@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { DropdownItem } from "../ui/dropdown/DropdownItem";
 import { Dropdown } from "../ui/dropdown/Dropdown";
+import { paths } from "../../router/Paths";
 import { useAuth } from "../../context/AuthContext";
 import { useLocale } from "../../context/LocaleContext";
 
@@ -80,7 +81,7 @@ export default function UserDropdown({ compact }: { compact?: boolean } = {}) {
             <DropdownItem
               onItemClick={closeDropdown}
               tag="a"
-              to="/profile/edit"
+              to={paths.misc.profileEdit}
               className="flex items-center gap-4 px-4 py-3 font-medium text-gray-700 rounded-xl group text-sm hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300 transition-all duration-200"
             >
               <svg
@@ -105,7 +106,7 @@ export default function UserDropdown({ compact }: { compact?: boolean } = {}) {
             <DropdownItem
               onItemClick={closeDropdown}
               tag="a"
-              to="/account-settings"
+              to={paths.misc.accountSettings}
               className="flex items-center gap-4 px-4 py-3 font-medium text-gray-700 rounded-xl group text-sm hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300 transition-all duration-200"
             >
               <svg
@@ -130,7 +131,7 @@ export default function UserDropdown({ compact }: { compact?: boolean } = {}) {
             <DropdownItem
               onItemClick={closeDropdown}
               tag="a"
-              to="/support"
+              to={paths.misc.support}
               className="flex items-center gap-4 px-4 py-3 font-medium text-gray-700 rounded-xl group text-sm hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300 transition-all duration-200"
             >
               <svg

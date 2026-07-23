@@ -5,8 +5,14 @@ import type {
   LoginRequest, 
   RegisterRequest, 
   ChangePasswordRequest,
+  ForgotPasswordRequest,
+  ResetPasswordRequest,
+  Verify2FASetupRequest,
+  Disable2FARequest,
+  Verify2FALoginRequest,
   User,
-  ApiError 
+  ApiError,
+  LoginResult,
 } from "../../types/auth";
 import { tokenStorage } from "../../config/api";
 import Swal from "../../utils/swal";
@@ -46,13 +52,10 @@ export function useLoginMutation() {
 
   return useMutation({
     mutationFn: (credentials: LoginRequest) => authService.login(credentials),
-    onSuccess: async (user: User) => {
-      // ✅ Set the user data
-      queryClient.setQueryData(authKeys.currentUser(), user);
-      
-      // ✅ Invalidate all auth queries to ensure consistency
+    onSuccess: async (result: LoginResult) => {
+      if (result.type === '2fa') return;
+      queryClient.setQueryData(authKeys.currentUser(), result.user);
       await queryClient.invalidateQueries({ queryKey: authKeys.all });
-      
     },
     onError: (error: ApiError) => {
       queryClient.removeQueries({ queryKey: authKeys.currentUser() });
@@ -153,6 +156,82 @@ export function useRefreshTokenMutation() {
     },
   });
 }
+
+export function useForgotPasswordMutation() {
+  return useMutation({
+    mutationFn: (data: ForgotPasswordRequest) => authService.forgotPassword(data),
+  });
+}
+
+export function useResetPasswordMutation() {
+  const { t } = useLocale();
+
+  return useMutation({
+    mutationFn: (data: ResetPasswordRequest) => authService.resetPassword(data),
+    onError: (error: ApiError) => {
+      if (error.statusCode === 400) {
+        Swal.fire({
+          title: t('error', 'common'),
+          text: t('invalidResetLink', 'common'),
+          icon: 'error',
+        });
+      }
+    },
+  });
+}
+
+export function useSetup2FAMutation() {
+  return useMutation({
+    mutationFn: () => authService.setup2FA(),
+  });
+}
+
+export function useVerify2FASetupMutation() {
+  const { t } = useLocale();
+
+  return useMutation({
+    mutationFn: (data: Verify2FASetupRequest) => authService.verify2FASetup(data),
+    onError: (error: ApiError) => {
+      if (error.statusCode === 400) {
+        Swal.fire({
+          title: t('error', 'common'),
+          text: t('invalidVerificationCode', 'common'),
+          icon: 'error',
+        });
+      } else if (error.statusCode === 429) {
+        Swal.fire({
+          title: t('error', 'common'),
+          text: t('tooManyAttempts', 'common'),
+          icon: 'error',
+        });
+      }
+    },
+  });
+}
+
+export function useDisable2FAMutation() {
+  const { t } = useLocale();
+
+  return useMutation({
+    mutationFn: (data: Disable2FARequest) => authService.disable2FA(data),
+    onError: (error: ApiError) => {
+      if (error.statusCode === 400) {
+        Swal.fire({
+          title: t('error', 'common'),
+          text: t('incorrectPassword', 'common'),
+          icon: 'error',
+        });
+      }
+    },
+  });
+}
+
+export function useVerify2FALoginMutation() {
+  return useMutation({
+    mutationFn: (data: Verify2FALoginRequest) => authService.verify2FALogin(data),
+  });
+}
+
 
 // ===== Toast Helpers =====
 function showErrorToast(message: string, fallback: string, t: (key: string, ns?: string) => string) {
