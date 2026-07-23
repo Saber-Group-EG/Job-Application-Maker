@@ -121,18 +121,25 @@ class AuthService {
       const response = await this.api.post<any>("/auth/login", credentials, false);
 
       const body = response.data || response;
-      if (body.twoFactorRequired) {
-        return { type: '2fa', tempToken: body.tempToken };
+      const deepBody = body.data || body;
+
+      if (deepBody.twoFactorRequired) {
+        return { type: '2fa', tempToken: deepBody.tempToken };
       }
 
       const { accessToken, refreshToken } = this.extractTokens(response);
+      if (!accessToken) {
+        return { type: '2fa', tempToken: deepBody.tempToken || body.tempToken || (response as any).tempToken };
+      }
+
       tokenStorage.setTokens(accessToken, refreshToken);
       return { type: 'success', user: response.data?.user || response.user };
     } catch (error) {
       if (error instanceof ApiError) {
         const errBody = (error.data as any)?.data || error.data;
-        if (errBody?.twoFactorRequired) {
-          return { type: '2fa', tempToken: errBody.tempToken };
+        const deepErr = (errBody as any)?.data || errBody;
+        if (deepErr?.twoFactorRequired || deepErr?.tempToken) {
+          return { type: '2fa', tempToken: deepErr.tempToken || (error.data as any).tempToken };
         }
       }
       throw error;

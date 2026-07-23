@@ -53,7 +53,7 @@ export function useLoginMutation() {
   return useMutation({
     mutationFn: (credentials: LoginRequest) => authService.login(credentials),
     onSuccess: async (result: LoginResult) => {
-      if (result.type === '2fa') return;
+      if (result.type === '2fa' || !result.user) return;
       queryClient.setQueryData(authKeys.currentUser(), result.user);
       await queryClient.invalidateQueries({ queryKey: authKeys.all });
     },

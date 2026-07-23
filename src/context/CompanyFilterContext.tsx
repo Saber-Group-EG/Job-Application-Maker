@@ -20,13 +20,14 @@ type CompanyFilterContextType = {
   resetFilter: () => void;
   userCompanyIds: string[];
   isMultiCompany: boolean;
+  isLoading: boolean;
 };
 
 const CompanyFilterContext = createContext<CompanyFilterContextType | undefined>(undefined);
 
 export function CompanyFilterProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const { data: companies = [] } = useCompanies();
+  const { data: companies = [], isLoading: companiesLoading } = useCompanies();
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(() => {
     try {
       return localStorage.getItem('company-filter-selected-id');
@@ -117,8 +118,9 @@ export function CompanyFilterProvider({ children }: { children: ReactNode }) {
       resetFilter,
       userCompanyIds,
       isMultiCompany,
+      isLoading: companiesLoading,
     }),
-    [selectedCompanyId, companies, companyOptions, companyMap, userCompanyIds, isMultiCompany]
+    [selectedCompanyId, companies, companyOptions, companyMap, userCompanyIds, isMultiCompany, companiesLoading]
   );
 
   return (
