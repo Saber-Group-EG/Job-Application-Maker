@@ -500,9 +500,17 @@ export default function Applicants({
   const location = useLocation();
   const params = useParams();
 
-  const { layout, saveLayout } = useTableLayout(
+  const { layout, saveLayout, isLoaded: isLayoutLoaded } = useTableLayout(
     layoutKey || 'applicants_table',
     defaultLayout || APPLICANTS_DEFAULT_LAYOUT
+  );
+
+  const handleSaveLayout = useCallback(
+    (updates: Parameters<typeof saveLayout>[0]) => {
+      if (!isLayoutLoaded) return;
+      saveLayout(updates);
+    },
+    [isLayoutLoaded, saveLayout]
   );
 
   const { containerRef: tableContainerRef, handleColumnOrderChange, onHeaderMouseDown } =
@@ -511,7 +519,7 @@ export default function Applicants({
         Array.isArray(layout.columnOrder) && layout.columnOrder.length
           ? layout.columnOrder
           : APPLICANTS_DEFAULT_COLUMN_ORDER,
-      onReorder: (nextOrder) => saveLayout({ columnOrder: nextOrder }),
+      onReorder: (nextOrder) => handleSaveLayout({ columnOrder: nextOrder }),
     });
 
   const updateStatus = useUpdateApplicantStatus();
@@ -2039,7 +2047,7 @@ const jobOptions = useMemo(() => {
         selectedCompanyFilterValue={selectedCompanyFilterValue}
         filterValue={header.column.getFilterValue()}
         excludeColumns={layout.excludeColumns ?? []}
-        saveLayout={saveLayout}
+        saveLayout={handleSaveLayout}
         isDarkMode={isDarkMode}
       />
     ),
@@ -2499,7 +2507,7 @@ const jobOptions = useMemo(() => {
               countsMap={unfilteredCounts['status']}
               filterValue={header.column.getFilterValue()}
               excludeColumns={layout.excludeColumns ?? []}
-              saveLayout={saveLayout}
+              saveLayout={handleSaveLayout}
               isDarkMode={isDarkMode}
             />
           );
@@ -2793,7 +2801,7 @@ const jobOptions = useMemo(() => {
       currentUserId,
       selectedCompanyFilterValue,
       layout.excludeColumns,
-      saveLayout,
+      handleSaveLayout,
       canRestore,
       dir,
       unfilteredCounts,
@@ -2971,15 +2979,15 @@ const jobOptions = useMemo(() => {
         typeof updater === 'function'
           ? updater(layout.columnVisibility)
           : updater;
-      saveLayout({ columnVisibility: next });
+      handleSaveLayout({ columnVisibility: next });
     },
     onColumnSizingChange: (updater) => {
       const next =
         typeof updater === 'function' ? updater(mergedColumnSizing) : updater;
-      saveLayout({ columnSizing: next });
+      handleSaveLayout({ columnSizing: next });
     },
     onColumnOrderChange: (updater) =>
-      handleColumnOrderChange(updater, saveLayout),
+      handleColumnOrderChange(updater, handleSaveLayout),
     renderTopToolbarCustomActions: () => (
       <div className="flex items-center p-2 w-full justify-between">
         <div className="flex items-center gap-2">
@@ -3389,12 +3397,18 @@ const jobOptions = useMemo(() => {
                   </div>
                 )}
 
-            <div
-              ref={tableContainerRef}
-              className="w-full overflow-x-auto custom-scrollbar"
-            >
-              <MaterialReactTable table={table} />
-            </div>
+            {!isLayoutLoaded ? (
+              <div className="flex items-center justify-center py-20">
+                <div className="animate-spin rounded-full h-12 w-12 border-4 border-brand-500 border-t-transparent" />
+              </div>
+            ) : (
+              <div
+                ref={tableContainerRef}
+                className="w-full overflow-x-auto custom-scrollbar"
+              >
+                <MaterialReactTable table={table} />
+              </div>
+            )}
 
             <JobContractModal
               isOpen={contractModalOpen}
