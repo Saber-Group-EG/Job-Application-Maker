@@ -57,7 +57,7 @@ function getCompanyIdFromUser(
 
 export default function Home() {
   const navigate = useNavigate();
-  const { selectedCompanyId, setSelectedCompanyId, companyOptions } = useCompanyFilter();
+  const { selectedCompanyId, setSelectedCompanyId, companyOptions, isLoading: companiesLoading } = useCompanyFilter();
   const { user } = useAuth();
   const { t, locale } = useLocale();
 
@@ -203,6 +203,33 @@ export default function Home() {
     const trashed = countsData.Trashed || countsData.Deleted || countsData.trashed || countsData.deleted || 0;
     return total - trashed;
   }, [countsData]);
+
+  if (companiesLoading) {
+    return (
+      <>
+        <PageMeta
+          title={t('pageTitle', 'home')}
+          description={t('pageDescription', 'home')}
+        />
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div
+                key={`skeleton-${i}`}
+                className="rounded-2xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-800"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="h-4 w-20 rounded bg-gray-200 animate-pulse" />
+                  <div className="size-5 rounded bg-gray-200 animate-pulse" />
+                </div>
+                <div className="mt-2 h-8 w-12 rounded bg-gray-200 animate-pulse" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>

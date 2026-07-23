@@ -1,5 +1,5 @@
-import { useState, FormEvent, useEffect } from "react";
-import { Link, useNavigate } from "react-router";
+import { useState, FormEvent } from "react";
+import { Link, useNavigate, Navigate } from "react-router";
 import { paths } from "../../router/Paths";
 import { EyeCloseIcon, EyeIcon } from "../../icons";
 import Label from "../form/Label";
@@ -16,20 +16,18 @@ export default function SignInForm() {
   const [twoFATempToken, setTwoFATempToken] = useState<string | null>(null);
   const [twoFACode, setTwoFACode] = useState("");
   const [twoFAError, setTwoFAError] = useState<string | null>(null);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const [showPassword, setShowPassword] = useState(false);
-
-  useEffect(() => {
-    if (!isLoading && isAuthenticated) {
-      navigate("/home", { replace: true });
-    }
-  }, [isLoading, isAuthenticated, navigate]);
-
   const [isChecked, setIsChecked] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
   const verify2FALoginMutation = useVerify2FALoginMutation();
+
+  if (!twoFATempToken && !isLoading && isAuthenticated && !isLoggingIn) {
+    return <Navigate to="/home" replace />;
+  }
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -45,14 +43,17 @@ export default function SignInForm() {
       return;
     }
 
+    setIsLoggingIn(true);
     try {
       const result = await login(email, password);
       if (result.type === '2fa') {
         setTwoFATempToken(result.tempToken);
         return;
       }
+      setIsLoggingIn(false);
       navigate("/home", { replace: true });
     } catch (err) {
+      setIsLoggingIn(false);
       console.error("Login failed:", err);
     }
   };
@@ -137,6 +138,7 @@ export default function SignInForm() {
                       setTwoFATempToken(null);
                       setTwoFACode("");
                       setTwoFAError(null);
+                      setIsLoggingIn(false);
                     }}
                     className="text-sm text-brand-500 hover:text-brand-600 dark:text-brand-400"
                   >

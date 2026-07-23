@@ -57,6 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     null;
 
   const login = async (email: string, password: string): Promise<LoginResult> => {
+    queryClient.cancelQueries({ queryKey: authKeys.currentUser() });
     tokenStorage.clearTokens();
     queryClient.setQueryData(authKeys.currentUser(), null);
     const result = await loginMutation.mutateAsync({ email, password });
