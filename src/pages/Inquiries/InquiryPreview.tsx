@@ -353,7 +353,7 @@ export default function InquiryPreview() {
                     <button
                       onClick={handleStatusUpdate}
                       disabled={(selectedStatus === inquiry.status && comment === (inquiry.comment || "")) || updateMutation.isPending}
-                      className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-sm font-medium rounded-lg hover:opacity-90 transition-all disabled:opacity-40"
+                      className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-brand-500 dark:bg-white text-white dark:text-gray-900 text-sm font-medium rounded-lg hover:opacity-90 transition-all disabled:opacity-40"
                     >
                       <IconSave className="size-4" />
                       {t("save", "inquiries")}

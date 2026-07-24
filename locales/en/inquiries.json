@@ -24,5 +24,16 @@
   "results": "results",
   "to": "To",
   "comment": "Comment",
-  "reply": "Reply"
+  "reply": "Reply",
+  "viewCards": "Cards",
+  "viewTable": "Table",
+  "tableSubject": "Subject",
+  "tableName": "Name",
+  "tableEmail": "Email",
+  "tableCompany": "Company",
+  "tableStatus": "Status",
+  "tableDate": "Date",
+  "tableActions": "Actions",
+  "selectedCount": "{count} selected",
+  "changeStatusTo": "Change status to..."
 }

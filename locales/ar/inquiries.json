@@ -24,5 +24,16 @@
   "results": "نتيجة",
   "to": "إلى",
   "comment": "تعليق",
-  "reply": "رد"
+  "reply": "رد",
+  "viewCards": "بطاقات",
+  "viewTable": "جدول",
+  "tableSubject": "الموضوع",
+  "tableName": "الاسم",
+  "tableEmail": "البريد الإلكتروني",
+  "tableCompany": "الشركة",
+  "tableStatus": "الحالة",
+  "tableDate": "التاريخ",
+  "tableActions": "الإجراءات",
+  "selectedCount": "{count} محدد",
+  "changeStatusTo": "تغيير الحالة إلى..."
 }

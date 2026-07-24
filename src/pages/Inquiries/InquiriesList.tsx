@@ -1,11 +1,11 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { useAuth } from "../../context/AuthContext";
 import { useLocale } from "../../context/LocaleContext";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import PageMeta from "../../components/common/PageMeta";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
-import { useInquiries, useDeleteInquiry } from "../../hooks/queries";
+import { useInquiries, useDeleteInquiry, useUpdateInquiry } from "../../hooks/queries";
 import { toPlainString } from "../../utils/strings";
 import Swal from "../../utils/swal";
 import { useCompanyFilter } from "../../context/CompanyFilterContext";
@@ -16,11 +16,7 @@ import {
   MailIcon,
   ChevronLeftIcon,
   AngleRightIcon,
-  AngleLeftIcon,
-  ArrowRightIcon,
   ChatIcon,
-  UserIcon,
-  TimeIcon,
 } from "../../icons";
 
 const statusColors: Record<InquiryStatus, { bg: string; text: string; label: string }> = {
@@ -79,8 +75,33 @@ export default function InquiriesList() {
 
   const { data: inquiries, isLoading } = useInquiries();
   const deleteMutation = useDeleteInquiry();
+  const updateMutation = useUpdateInquiry();
   const [replyInquiry, setReplyInquiry] = useState<any>(null);
   const [isMessageModalOpen, setIsMessageModalOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const handleBulkDelete = async () => {
+    const result = await Swal.fire({
+      title: t("confirmDelete", "common"),
+      text: t("actionCannotBeUndone", "common") + ` (${selectedIds.size} items)`,
+      icon: "warning",
+      showCancelButton: true,
+      cancelButtonText: t("cancel", "common"),
+      confirmButtonColor: "#ef4444",
+      confirmButtonText: t("delete", "common"),
+    });
+    if (result.isConfirmed) {
+      await Promise.all([...selectedIds].map((id) => deleteMutation.mutateAsync(id)));
+      setSelectedIds(new Set());
+    }
+  };
+
+  const handleBulkStatusChange = async (status: InquiryStatus) => {
+    await Promise.all(
+      [...selectedIds].map((id) => updateMutation.mutateAsync({ id, payload: { status } }))
+    );
+    setSelectedIds(new Set());
+  };
 
   const rawInquiries = useMemo(() => {
     if (!inquiries) return [];
@@ -89,13 +110,12 @@ export default function InquiriesList() {
 
   const filtered = useMemo(() => {
     let result = rawInquiries;
-    if (!isSystemUser || selectedCompanyId) {
-      result = result.filter((q: any) => !q.companyId);
-    }
     if (selectedCompanyId) {
       result = result.filter(
         (q: any) => q.companyId && (typeof q.companyId === "string" ? q.companyId : q.companyId._id) === selectedCompanyId
       );
+    } else if (!isSystemUser) {
+      result = result.filter((q: any) => !q.companyId);
     }
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
@@ -114,6 +134,24 @@ export default function InquiriesList() {
 
   const totalPages = Math.ceil(filtered.length / pageSize);
   const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
+
+  const allSelected = paginated.length > 0 && paginated.every((q: any) => selectedIds.has(q._id));
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(paginated.map((q: any) => q._id)));
+    }
+  }, [allSelected, paginated]);
 
   const handleDelete = async (inquiry: any) => {
     const result = await Swal.fire({
@@ -190,128 +228,219 @@ export default function InquiriesList() {
           </div>
         </div>
 
+        {selectedIds.size > 0 && (
+          <div className="flex flex-wrap items-center gap-2 px-4 py-3 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/50 rounded-2xl shadow-lg shadow-slate-200/50 dark:shadow-black/20 backdrop-blur-xl">
+            <div className="flex items-center gap-2.5 px-3 py-1.5 bg-brand-500/10 rounded-xl">
+              <svg className="size-4 text-brand-600 dark:text-brand-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z" /><path d="M6.5 10.2a8 8 0 0 1 11 0" /><path d="M12 14v4" /><path d="M12 22v-2" />
+                <circle cx="12" cy="16" r="6" fill="none" />
+              </svg>
+              <span className="text-sm font-semibold text-brand-600 dark:text-brand-400 tabular-nums">
+                {t("selectedCount", "inquiries", { count: selectedIds.size })}
+              </span>
+            </div>
+
+            <div className="w-px h-5 bg-slate-200 dark:bg-slate-700" />
+
+            <div className="relative">
+              <select
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val) handleBulkStatusChange(val as InquiryStatus);
+                  e.target.value = "";
+                }}
+                defaultValue=""
+                className="appearance-none bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-3 pr-8 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500/50 transition-all cursor-pointer hover:border-slate-300 dark:hover:border-slate-600"
+              >
+                <option value="" disabled>{t("changeStatusTo", "inquiries") || "Change status to..."}</option>
+                <option value="new">{t("statusNew", "inquiries")}</option>
+                <option value="in_progress">{t("statusInProgress", "inquiries")}</option>
+                <option value="resolved">{t("statusResolved", "inquiries")}</option>
+                <option value="closed">{t("statusClosed", "inquiries")}</option>
+              </select>
+              <svg className="absolute right-2.5 top-1/2 -translate-y-1/2 size-3.5 text-slate-400 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </div>
+
+            {canWrite && (
+              <button
+                onClick={handleBulkDelete}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-500/10 text-red-600 hover:bg-red-500 hover:text-white text-xs font-semibold transition-all"
+              >
+                <TrashBinIcon className="size-3.5" />
+                {t("delete", "common")}
+              </button>
+            )}
+
+            <button
+              onClick={() => setSelectedIds(new Set())}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium transition-all ml-auto"
+            >
+              <svg className="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+              {t("cancel", "common")}
+            </button>
+          </div>
+        )}
+
         {isLoading ? (
           <div className="py-24 flex items-center justify-center">
             <LoadingSpinner />
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {paginated.map((inquiry: any) => {
-              const statusInfo = statusColors[inquiry.status as InquiryStatus] || statusColors.new;
-              return (
-                <div
-                  key={inquiry._id}
-                  onClick={() => navigate(`/inquiries/${inquiry._id}`)}
-                  className="group relative bg-white/60 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-[2.5rem] p-6 shadow-sm hover:shadow-2xl transition-all duration-500 cursor-pointer overflow-hidden"
-                >
-                  <div className={`absolute top-0 left-0 right-0 h-1.5 transition-all duration-500 ${statusInfo.bg.replace("/10", "/30").replace("text-", "bg-")} group-hover:${statusInfo.text.replace("text-", "bg-")}`} />
-
-                  <div className="space-y-5">
-                    <div className="flex justify-between items-start">
-                      <div className="flex items-center gap-3">
-                        <div className="size-14 rounded-2xl bg-gradient-to-br from-brand-500/10 to-brand-500/5 flex items-center justify-center text-2xl font-black text-brand-500 border border-white/20">
-                          {inquiry.name?.charAt(0) || "?"}
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                          {!inquiry.companyId && (
-                            <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md bg-purple-500/10 text-purple-600">
-                              <IconMonitor className="size-3" />
-                              System
-                            </span>
-                          )}
-                          {showCompanyTag && inquiry.companyId && (
-                            <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md bg-cyan-500/10 text-cyan-600">
-                              <IconBuilding className="size-3" />
-                              {toPlainString(
-                                companyMap[inquiry.companyId._id || inquiry.companyId]?.name || inquiry.companyId.name
-                              )}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setReplyInquiry(inquiry);
-                            setIsMessageModalOpen(true);
-                          }}
-                          className="size-8 rounded-lg bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
+          <div className="bg-white/60 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-[2.5rem] overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-white/10">
+                    <th className="w-12 px-4 py-4">
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={allSelected}
+                          onChange={toggleSelectAll}
+                          className="peer sr-only"
+                        />
+                        <div className="w-5 h-5 rounded-md border-2 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 peer-checked:bg-brand-500 peer-checked:border-brand-500 peer-hover:border-brand-400 transition-all duration-200" />
+                        <svg
+                          className="absolute inset-0 size-5 pointer-events-none text-white opacity-0 peer-checked:opacity-100 transition-opacity duration-200"
+                          viewBox="0 0 14 14"
+                          fill="none"
                         >
-                          <MailIcon className="size-3.5" />
-                        </button>
-                        {canWrite && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDelete(inquiry);
-                            }}
-                            className="size-8 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
-                          >
-                            <TrashBinIcon className="size-3.5" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <h3 className="text-lg font-black text-gray-900 dark:text-white line-clamp-1 tracking-tight">
-                        {toPlainString(inquiry.subject)}
-                      </h3>
-                      <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">
-                        {inquiry.message}
-                      </p>
-                    </div>
-
-                    <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-white/5">
-                      <div className="flex items-center gap-3 text-sm font-medium text-gray-500 dark:text-gray-400">
-                        <UserIcon className="size-4 opacity-50" />
-                        <span className="truncate">{inquiry.name}</span>
-                      </div>
-                      <div className="flex items-center gap-3 text-sm font-medium text-gray-500 dark:text-gray-400">
-                        <MailIcon className="size-4 opacity-50" />
-                        <span className="truncate">{inquiry.email}</span>
-                      </div>
-                      <div className="flex items-center gap-3 text-sm font-medium text-gray-500 dark:text-gray-400">
-                        <TimeIcon className="size-4 opacity-50" />
-                        <span>
-                          {new Date(inquiry.createdAt).toLocaleDateString(
-                            locale === "ar" ? "ar-EG" : "en-US",
-                            { month: "short", day: "numeric", year: "numeric" }
+                          <path d="M11.6666 3.5L5.24992 9.91667L2.33325 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </label>
+                    </th>
+                    <th className="text-left px-6 py-4 text-[10px] font-semibold uppercase tracking-wider text-gray-400">{t("tableSubject", "inquiries")}</th>
+                    <th className="text-left px-6 py-4 text-[10px] font-semibold uppercase tracking-wider text-gray-400">{t("tableName", "inquiries")}</th>
+                    <th className="text-left px-6 py-4 text-[10px] font-semibold uppercase tracking-wider text-gray-400">{t("tableEmail", "inquiries")}</th>
+                    {!selectedCompanyId && <th className="text-left px-6 py-4 text-[10px] font-semibold uppercase tracking-wider text-gray-400">{t("tableCompany", "inquiries")}</th>}
+                    <th className="text-left px-6 py-4 text-[10px] font-semibold uppercase tracking-wider text-gray-400">{t("tableStatus", "inquiries")}</th>
+                    <th className="text-left px-6 py-4 text-[10px] font-semibold uppercase tracking-wider text-gray-400">{t("tableDate", "inquiries")}</th>
+                    <th className="text-right px-6 py-4 text-[10px] font-semibold uppercase tracking-wider text-gray-400">{t("tableActions", "inquiries")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginated.length === 0 ? (
+                    <tr>
+                      <td colSpan={selectedCompanyId ? 7 : 8} className="px-6 py-24 text-center">
+                        <div className="py-16 text-center">
+                          <div className="size-16 rounded-full bg-slate-100 dark:bg-white/5 mx-auto mb-4 flex items-center justify-center">
+                            <ChatIcon className="size-8 text-slate-300 dark:text-slate-700" />
+                          </div>
+                          <h3 className="text-lg font-black text-gray-900 dark:text-white">
+                            {t("noInquiriesFound", "inquiries")}
+                          </h3>
+                          <p className="text-gray-500 dark:text-gray-400 font-medium mt-1">
+                            {t("noInquiriesFoundText", "inquiries")}
+                          </p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    paginated.map((inquiry: any) => {
+                      const statusInfo = statusColors[inquiry.status as InquiryStatus] || statusColors.new;
+                      const isSelected = selectedIds.has(inquiry._id);
+                      return (
+                        <tr
+                          key={inquiry._id}
+                          onClick={() => navigate(`/inquiries/${inquiry._id}`)}
+                          className={`border-b border-slate-100 dark:border-white/5 hover:bg-white/40 dark:hover:bg-white/[0.02] transition-colors cursor-pointer group ${isSelected ? "bg-brand-500/5" : ""}`}
+                        >
+                          <td className="w-12 px-4 py-4" onClick={(e) => e.stopPropagation()}>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => toggleSelect(inquiry._id)}
+                                className="peer sr-only"
+                              />
+                              <div className="w-5 h-5 rounded-md border-2 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 peer-checked:bg-brand-500 peer-checked:border-brand-500 peer-hover:border-brand-400 transition-all duration-200" />
+                              <svg
+                                className="absolute inset-0 size-5 pointer-events-none text-white opacity-0 peer-checked:opacity-100 transition-opacity duration-200"
+                                viewBox="0 0 14 14"
+                                fill="none"
+                              >
+                                <path d="M11.6666 3.5L5.24992 9.91667L2.33325 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            </label>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="size-9 rounded-xl bg-gradient-to-br from-brand-500/10 to-brand-500/5 flex items-center justify-center text-sm font-black text-brand-500 shrink-0">
+                                {inquiry.name?.charAt(0) || "?"}
+                              </div>
+                              <p className="font-bold text-gray-900 dark:text-white line-clamp-1">
+                                {toPlainString(inquiry.subject)}
+                              </p>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-gray-700 dark:text-gray-300 font-medium">{inquiry.name}</td>
+                          <td className="px-6 py-4 text-gray-500 dark:text-gray-400">{inquiry.email}</td>
+                          {!selectedCompanyId && (
+                          <td className="px-6 py-4">
+                            {!inquiry.companyId ? (
+                              <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md bg-purple-500/10 text-purple-600">
+                                <IconMonitor className="size-3" />
+                                System
+                              </span>
+                            ) : showCompanyTag ? (
+                              <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md bg-cyan-500/10 text-cyan-600">
+                                <IconBuilding className="size-3" />
+                                {toPlainString(
+                                  companyMap[inquiry.companyId._id || inquiry.companyId]?.name || inquiry.companyId.name
+                                )}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400 text-xs">—</span>
+                            )}
+                          </td>
                           )}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-2">
-                      <span
-                        className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md ${statusInfo.bg} ${statusInfo.text}`}
-                      >
-                        {t(statusInfo.label, "inquiries")}
-                      </span>
-                      <div className="flex items-center gap-1 text-brand-500 font-black text-[10px] uppercase tracking-widest group-hover:gap-2 transition-all">
-                        {t("detailsLabel", "users")} <ArrowRightIcon className="size-3" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-
-            {filtered.length === 0 && (
-              <div className="col-span-full py-32 text-center bg-white/40 dark:bg-white/5 backdrop-blur-md border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-[3rem]">
-                <div className="size-20 rounded-full bg-slate-100 dark:bg-white/5 mx-auto mb-6 flex items-center justify-center">
-                  <ChatIcon className="size-10 text-slate-300 dark:text-slate-700" />
-                </div>
-                <h3 className="text-xl font-black text-gray-900 dark:text-white">
-                  {t("noInquiriesFound", "inquiries")}
-                </h3>
-                <p className="text-gray-500 dark:text-gray-400 font-medium max-w-xs mx-auto mt-2">
-                  {t("noInquiriesFoundText", "inquiries")}
-                </p>
-              </div>
-            )}
+                          <td className="px-6 py-4">
+                            <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md ${statusInfo.bg} ${statusInfo.text}`}>
+                              {t(statusInfo.label, "inquiries")}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-gray-500 dark:text-gray-400 text-xs font-medium whitespace-nowrap">
+                            {new Date(inquiry.createdAt).toLocaleDateString(
+                              locale === "ar" ? "ar-EG" : "en-US",
+                              { month: "short", day: "numeric", year: "numeric" }
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setReplyInquiry(inquiry);
+                                  setIsMessageModalOpen(true);
+                                }}
+                                className="size-8 rounded-lg bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white flex items-center justify-center transition-all"
+                              >
+                                <MailIcon className="size-3.5" />
+                              </button>
+                              {canWrite && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDelete(inquiry);
+                                  }}
+                                  className="size-8 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white flex items-center justify-center transition-all"
+                                >
+                                  <TrashBinIcon className="size-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
@@ -324,7 +453,7 @@ export default function InquiriesList() {
             >
               {locale === "ar" ? <AngleRightIcon className="size-5" /> : <ChevronLeftIcon className="size-5" />}
             </button>
-            <div className="px-6 py-3 bg-white/60 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl font-black tracking-widest text-sm uppercase">
+            <div className="px-6 py-3 bg-white/60 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl font-semibold text-sm">
               {t("phaseLabel", "users", { page })} <span className="opacity-30 mx-2">/</span> {totalPages}
             </div>
             <button
