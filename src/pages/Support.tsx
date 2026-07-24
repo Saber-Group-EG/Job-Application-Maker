@@ -5,6 +5,10 @@ import Input from "../components/form/input/InputField";
 import TextArea from "../components/form/input/TextArea";
 import Label from "../components/form/Label";
 import { useLocale } from "../context/LocaleContext";
+import { useAuth } from "../context/AuthContext";
+import { useCreateAuthenticatedInquiry, useCompanies } from "../hooks/queries";
+import { toPlainString } from "../utils/strings";
+import { uploadToR2 } from "../utils/uploadToR2";
 
 function ContactInfoCard({
   icon,
@@ -13,7 +17,7 @@ function ContactInfoCard({
 }: {
   icon: React.ReactNode;
   label: string;
-  value: string;
+  value: React.ReactNode;
 }) {
   return (
     <div className="group flex items-center gap-4 rounded-xl border border-gray-100 bg-gray-50/50 p-4 transition-all hover:border-brand-500/30 hover:bg-brand-50/30 dark:border-gray-700 dark:bg-gray-800/30 dark:hover:border-brand-500/30 dark:hover:bg-brand-500/5">
@@ -33,20 +37,68 @@ function ContactInfoCard({
 }
 
 export default function Support() {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
+  const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [attachments, setAttachments] = useState<File[]>([]);
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    subject: "",
+    message: "",
+  });
+  const [companyId, setCompanyId] = useState("");
 
-  function handleSubmit(e: React.FormEvent) {
+  const roleName = (user as any)?.roleId?.name?.toLowerCase();
+  const isSuperAdmin = roleName === "admin" || roleName === "super admin";
+
+  const { data: allCompanies } = useCompanies(isSuperAdmin ? undefined : undefined, { enabled: isSuperAdmin });
+
+  const userCompanies = isSuperAdmin
+    ? (allCompanies ?? [])
+    : (user?.companies?.map((c: any) => c.companyId).filter(Boolean) ?? []);
+
+  const createInquiryMutation = useCreateAuthenticatedInquiry();
+  const [uploading, setUploading] = useState(false);
+
+  function handleChange(field: string, value: string) {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setUploading(true);
+    try {
+      const attachmentPayload = await Promise.all(
+        attachments.map(async (file) => {
+          const url = await uploadToR2(file);
+          return { url, filename: file.name, size: file.size };
+        })
+      );
+      await createInquiryMutation.mutateAsync({
+        name: formData.name,
+        email: formData.email,
+        subject: formData.subject,
+        message: formData.message,
+        attachments: attachmentPayload,
+        ...(companyId ? { companyId } : {}),
+      });
+      setFormData({ name: "", email: "", subject: "", message: "" });
+      setAttachments([]);
+      setCompanyId("");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setUploading(false);
+    }
   }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files;
-    if (files) {
+    if (files && files.length > 0) {
       setAttachments((prev) => [...prev, ...Array.from(files)]);
     }
-    e.target.value = "";
   }
 
   function removeAttachment(index: number) {
@@ -89,7 +141,10 @@ export default function Support() {
                   type="text"
                   id="name"
                   name="name"
+                  value={formData.name}
+                  onChange={(e) => handleChange("name", e.target.value)}
                   placeholder={t('enterName', 'common')}
+                  required
                 />
               </div>
               <div>
@@ -98,9 +153,28 @@ export default function Support() {
                   type="email"
                   id="email"
                   name="email"
+                  value={formData.email}
+                  onChange={(e) => handleChange("email", e.target.value)}
                   placeholder={t('enterEmail', 'common')}
+                  required
                 />
               </div>
+            </div>
+            <div>
+              <Label htmlFor="companyId">To</Label>
+              <select
+                id="companyId"
+                value={companyId}
+                onChange={(e) => setCompanyId(e.target.value)}
+                className="h-11 w-full appearance-none rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 pr-11 text-sm shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900  dark:placeholder:text-white/30 dark:focus:border-brand-800 text-gray-800 dark:text-white/90"
+              >
+                <option value="" className="text-gray-700 dark:bg-gray-900 dark:text-gray-400">System</option>
+                {userCompanies.map((company: any) => (
+                  <option key={company._id} value={company._id} className="text-gray-700 dark:bg-gray-900 dark:text-gray-400">
+                    {toPlainString(company.name)}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <Label htmlFor="subject">{t('subject', 'common')}</Label>
@@ -108,48 +182,80 @@ export default function Support() {
                 type="text"
                 id="subject"
                 name="subject"
+                value={formData.subject}
+                onChange={(e) => handleChange("subject", e.target.value)}
                 placeholder={t('whatIsThisAbout', 'common')}
+                required
               />
             </div>
             <div>
               <Label htmlFor="message">{t('message', 'common')}</Label>
               <TextArea
                 placeholder={t('describeIssue', 'common')}
+                value={formData.message}
+                onChange={(value) => handleChange("message", value)}
                 rows={5}
               />
             </div>
             {/* Attachments */}
             <div>
               <Label>{t('attachments', 'common')}</Label>
-              <div className="flex flex-wrap gap-2 mb-3">
-                {attachments.map((file, index) => (
-                  <span key={index} className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0 text-gray-400">
-                      <path fillRule="evenodd" clipRule="evenodd" d="M18.5 8.5L10.5 16.5L5.5 11.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    <span className="max-w-[160px] truncate">{file.name}</span>
-                    <button type="button" onClick={() => removeAttachment(index)} className="text-gray-400 hover:text-red-500 transition-colors">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </button>
-                  </span>
-                ))}
-              </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                className="focus:border-ring-brand-300 h-11 w-full overflow-hidden rounded-lg border border-gray-300 bg-transparent text-sm text-gray-500 shadow-theme-xs transition-colors file:mr-5 file:border-collapse file:cursor-pointer file:rounded-l-lg file:border-0 file:border-r file:border-solid file:border-gray-200 file:bg-gray-50 file:py-3 file:pl-3.5 file:pr-3 file:text-sm file:text-gray-700 placeholder:text-gray-400 hover:file:bg-gray-100 focus:outline-hidden focus:file:ring-brand-300 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:file:border-gray-800 dark:file:bg-white/[0.03] dark:file:text-gray-400 dark:placeholder:text-gray-400"
-                onChange={handleFileChange}
-              />
+              <label className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50/50 p-6 text-center transition-colors hover:border-brand-500 hover:bg-brand-50/30 dark:border-gray-700 dark:bg-gray-800/30 dark:hover:border-brand-500 dark:hover:bg-brand-500/5">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-gray-400">
+                  <path d="M12 4.5V19.5M19.5 12L4.5 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                  {attachments.length > 0
+                    ? `${attachments.length} ${attachments.length === 1 ? 'file' : 'files'} selected`
+                    : t('attachments', 'common')}
+                </p>
+                <p className="text-xs text-gray-400">Click to browse or drag & drop</p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
+              </label>
+              {attachments.length > 0 && (
+                <div className="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">
+                  {attachments.map((file, index) => (
+                    <div key={index} className="relative group rounded-xl border border-gray-200 bg-white p-2 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                      {file.type.startsWith('image/') ? (
+                        <img
+                          src={URL.createObjectURL(file)}
+                          alt={file.name}
+                          className="h-24 w-full rounded-lg object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-24 w-full items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700">
+                          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-gray-400">
+                            <path fillRule="evenodd" clipRule="evenodd" d="M18.5 8.5L10.5 16.5L5.5 11.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </div>
+                      )}
+                      <p className="mt-1 truncate text-[11px] font-medium text-gray-600 text-center dark:text-gray-400">{file.name}</p>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); removeAttachment(index); }}
+                        className="absolute -top-2 -right-2 flex size-6 items-center justify-center rounded-full bg-red-500 text-white shadow-md opacity-0 transition-opacity group-hover:opacity-100 hover:scale-110"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="flex justify-end pt-2">
-              <button type="submit" className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-500 px-5 py-3.5 text-sm text-white shadow-theme-xs hover:bg-brand-600 disabled:bg-brand-300">
+              <button type="submit" disabled={createInquiryMutation.isPending || uploading} className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-500 px-5 py-3.5 text-sm text-white shadow-theme-xs hover:bg-brand-600 disabled:bg-brand-300">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0">
                   <path fillRule="evenodd" clipRule="evenodd" d="M15.1007 19.247C14.6865 19.247 14.3507 18.9112 14.3507 18.497L14.3507 14.245H12.8507V18.497C12.8507 19.7396 13.8581 20.747 15.1007 20.747H18.5007C19.7434 20.747 20.7507 19.7396 20.7507 18.497L20.7507 5.49609C20.7507 4.25345 19.7433 3.24609 18.5007 3.24609H15.1007C13.8581 3.24609 12.8507 4.25345 12.8507 5.49609V9.74501L14.3507 9.74501V5.49609C14.3507 5.08188 14.6865 4.74609 15.1007 4.74609L18.5007 4.74609C18.9149 4.74609 19.2507 5.08188 19.2507 5.49609L19.2507 18.497C19.2507 18.9112 18.9149 19.247 18.5007 19.247H15.1007ZM3.25073 11.9984C3.25073 12.2144 3.34204 12.4091 3.48817 12.546L8.09483 17.1556C8.38763 17.4485 8.86251 17.4487 9.15549 17.1559C9.44848 16.8631 9.44863 16.3882 9.15583 16.0952L5.81116 12.7484L16.0007 12.7484C16.4149 12.7484 16.7507 12.4127 16.7507 11.9984C16.7507 11.5842 16.4149 11.2484 16.0007 11.2484L5.81528 11.2484L9.15585 7.90554C9.44864 7.61255 9.44847 7.13767 9.15547 6.84488C8.86248 6.55209 8.3876 6.55226 8.09481 6.84525L3.52309 11.4202C3.35673 11.5577 3.25073 11.7657 3.25073 11.9984Z" fill="currentColor" />
                 </svg>
-                {t('sendMessage', 'common')}
+                {uploading ? t('uploadingAttachments', 'common') : createInquiryMutation.isPending ? t('submitting', 'common') : t('sendMessage', 'common')}
               </button>
             </div>
           </form>
@@ -182,7 +288,7 @@ export default function Support() {
                   </svg>
                 }
                 label={t('emailContact', 'common')}
-                value="support@sabergroup.com"
+                value="info@sabergroup-eg.com"
               />
               <ContactInfoCard
                 icon={
@@ -191,7 +297,7 @@ export default function Support() {
                   </svg>
                 }
                 label={t('phoneContact', 'common')}
-                value="+1 (555) 000-0000"
+                value={<a href="https://wa.me/201080099757" target="_blank" rel="noopener noreferrer" className="hover:text-brand-500 transition-colors">01080099757</a>}
               />
               <ContactInfoCard
                 icon={
@@ -200,7 +306,7 @@ export default function Support() {
                   </svg>
                 }
                 label={t('officeContact', 'common')}
-                value="123 Business St, Suite 100"
+                value={locale === 'ar' ? 'شارع الاستاد - طنطا - مصر' : 'El-Stad St - Tanta - Egypt'}
               />
             </div>
           </div>
@@ -221,16 +327,15 @@ export default function Support() {
             </div>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-500 dark:text-gray-400">{t('monFri', 'common')}</span>
-                <span className="text-sm font-medium text-gray-800 dark:text-white/90">9:00 AM - 6:00 PM</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">{t('saturdayToThursday', 'common')}</span>
+                <span className="text-sm font-medium text-gray-800 dark:text-white/90">{t('hoursWeekdays', 'common')}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-500 dark:text-gray-400">{t('saturday', 'common')}</span>
-                <span className="text-sm font-medium text-gray-800 dark:text-white/90">10:00 AM - 2:00 PM</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-500 dark:text-gray-400">{t('sunday', 'common')}</span>
-                <span className="text-sm font-medium text-red-500">{t('closed', 'common')}</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">{t('friday', 'common')}</span>
+                <div className="flex flex-col items-end gap-0.5">
+                  <span className="text-sm font-medium text-red-500">{t('closed', 'common')}</span>
+                  <span className="text-xs text-gray-400 dark:text-gray-500">{t('byAppointmentOnly', 'common')}</span>
+                </div>
               </div>
             </div>
           </div>

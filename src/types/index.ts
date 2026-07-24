@@ -22,3 +22,5 @@ export type {
   CreateSavedFieldRequest,
   UpdateSavedFieldRequest,
 } from './users';
+
+export type * from './inquiries';

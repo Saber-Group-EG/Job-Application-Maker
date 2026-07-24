@@ -8,4 +8,5 @@ export * from './useRoles';
 export * from './useSystemSettings';
 // mail template hooks moved into `useCompanies`
 export * from './useSendEmail';
+export * from './useInquiries';
 
