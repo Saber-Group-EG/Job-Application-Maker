@@ -67,6 +67,11 @@ export const paths = {
   },
 
   
+  inquiries: {
+    root: '/inquiries',
+    preview: (id: string) => `/inquiries/${id}`,
+  },
+
   misc: {
     profile: '/profile',
     profileEdit: '/profile/edit',
@@ -105,6 +110,10 @@ export const patterns = {
     page: 'applicants/page/:pageName',
     details: 'applicant-details/:id',
     completedInterview: 'applicant-details/:id/completed-interview/:interviewId',
+  },
+
+  inquiries: {
+    preview: 'inquiries/:id',
   },
 
   admin: {

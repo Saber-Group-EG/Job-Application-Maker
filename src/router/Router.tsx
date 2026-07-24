@@ -103,6 +103,10 @@ const RecommendedFields = lazy(
   () => import('../pages/Recruiting/systemSettings/RecommendedFields')
 );
 
+// Inquiries
+const InquiriesList = lazy(() => import('../pages/Inquiries/InquiriesList'));
+const InquiryPreview = lazy(() => import('../pages/Inquiries/InquiryPreview'));
+
 // Misc
 const UserProfiles = lazy(() => import('../pages/UserProfiles'));
 const ProfileEdit = lazy(() => import('../pages/ProfileEdit'));
@@ -266,6 +270,19 @@ export default function App() {
                   path={paths.admin.recommendedFields}
                   element={<RecommendedFields />}
                 />
+              </Route>
+
+              {/* Inquiries */}
+              <Route
+                element={
+                  <PermissionProtectedRoute
+                    requiredPermissions={['Inquiry Management']}
+                    accessLevel="read"
+                  />
+                }
+              >
+                <Route path={paths.inquiries.root} element={<InquiriesList />} />
+                <Route path={patterns.inquiries.preview} element={<InquiryPreview />} />
               </Route>
 
               {/* Misc */}
