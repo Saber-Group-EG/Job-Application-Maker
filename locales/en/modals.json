@@ -92,6 +92,7 @@
   "conductedBy": "Conducted By",
   "selectInterviewer": "Select interviewer",
   "requiredConductedBy": "Required — who will conduct the interview",
+  "requiredDate": "Required — interview date must be selected",
   "loadingUsers": "Loading users...",
   "description": "Description",
   "descriptionPlaceholder": "e.g., Technical Interview, HR Round",

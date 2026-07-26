@@ -92,6 +92,7 @@
   "conductedBy": "المُجري",
   "selectInterviewer": "اختر المُجري",
   "requiredConductedBy": "مطلوب — من سيجري المقابلة",
+  "requiredDate": "مطلوب — يجب تحديد تاريخ المقابلة",
   "loadingUsers": "جارٍ تحميل المستخدمين...",
   "description": "الوصف",
   "descriptionPlaceholder": "مثال: مقابلة فنية، مقابلة موارد بشرية",

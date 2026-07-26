@@ -890,6 +890,11 @@ export default function InterviewScheduleModal(props: Props) {
       setCustomEmail(newEmail);
     }
 
+    if (!interviewForm?.date && !bulkMode) {
+      setInterviewError(t('requiredDate', 'modals'));
+      return;
+    }
+
     if (!interviewForm?.conductedBy && !bulkMode) {
       setInterviewError(t('requiredConductedBy', 'modals'));
       return;
