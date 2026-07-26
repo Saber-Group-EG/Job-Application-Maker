@@ -1932,6 +1932,23 @@ const jobOptions = useMemo(() => {
             const g = normalizeGender(raw);
             return !!g && vals.includes(g);
           });
+        } else if (filter.id === 'status') {
+          filtered = filtered.filter((a: any) => {
+            const status = a?.status?.trim?.() ?? a?.status;
+            return !!status && vals.includes(status);
+          });
+        } else if (filter.id === 'rejectionReasons') {
+          filtered = filtered.filter((a: any) => {
+            const reasons = extractRejectionReasons(a);
+            if (!Array.isArray(reasons) || reasons.length === 0) return false;
+            return vals.some((v: string) =>
+              reasons.some(
+                (r: string) =>
+                  r.toLowerCase().includes(v.toLowerCase()) ||
+                  v.toLowerCase().includes(r.toLowerCase())
+              )
+            );
+          });
         }
       }
       if (globalCompanyIds && !skipIds.has('companyId')) {
@@ -1946,6 +1963,12 @@ const jobOptions = useMemo(() => {
     const maps: Record<string, Map<string, number>> = {};
     const trackedCols = ['status', 'jobPositionId', 'companyId', 'gender', 'rejectionReasons'];
 
+    const statusFilterIncludesTrashed = columnFilters.some(
+      (f: any) => f.id === 'status' && Array.isArray(f.value) && f.value.some(
+        (v: string) => String(v).toLowerCase().trim() === 'trashed'
+      )
+    );
+
     for (const colId of trackedCols) {
       const rows = applyFilterToRows(allRows, colId);
       const map = new Map<string, number>();
@@ -1957,10 +1980,11 @@ const jobOptions = useMemo(() => {
 
       rows.forEach((a: any) => {
         const isTrashed = a?.status?.toLowerCase() === 'trashed';
+        const includeRow = !isTrashed || statusFilterIncludesTrashed;
 
         if (colId === 'status') {
           add(a?.status?.trim?.() ?? a?.status);
-        } else if (colId === 'gender' && !isTrashed) {
+        } else if (colId === 'gender' && includeRow) {
           const rawGender =
             a?.gender ||
             a?.customResponses?.gender ||
@@ -1969,14 +1993,14 @@ const jobOptions = useMemo(() => {
             (a as any)['النوع'] ||
             (a as any)?.genderAr;
           add(normalizeGender(rawGender));
-        } else if (colId === 'companyId' && !isTrashed) {
+        } else if (colId === 'companyId' && includeRow) {
           add(getApplicantCompanyId(a, jobPositionMap) || '');
-        } else if (colId === 'jobPositionId' && !isTrashed) {
+        } else if (colId === 'jobPositionId' && includeRow) {
           const rawJob = a?.jobPositionId;
           const getId = (v: any) =>
             typeof v === 'string' ? v : (v?._id ?? v?.id ?? '');
           add(getId(rawJob));
-        } else if (colId === 'rejectionReasons' && !isTrashed) {
+        } else if (colId === 'rejectionReasons' && includeRow) {
           const reasons = extractRejectionReasons(a);
           if (Array.isArray(reasons)) {
             reasons.forEach((r: string) => { if (r) add(r); });
