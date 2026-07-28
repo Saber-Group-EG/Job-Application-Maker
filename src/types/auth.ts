@@ -56,6 +56,7 @@ export interface User {
   address?: string;
   phone?: string;
   bio?: string;
+  twoFactorEnabled?: boolean;
   country?: string;
   city?: string;
   state?: string;
@@ -83,6 +84,48 @@ export interface ChangePasswordRequest {
   currentPassword: string;
   newPassword: string;
 }
+
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ResetPasswordRequest {
+  token: string;
+  newPassword: string;
+}
+
+export interface Setup2FAResponse {
+  success: boolean;
+  message: string;
+}
+
+export interface Verify2FASetupRequest {
+  code: string;
+}
+
+export interface Disable2FARequest {
+  password: string;
+}
+
+export interface Verify2FALoginRequest {
+  tempToken: string;
+  code: string;
+}
+
+export interface LoginResponse {
+  success: boolean;
+  data?: {
+    user: User;
+    accessToken?: string;
+    refreshToken?: string;
+  };
+  twoFactorRequired?: boolean;
+  tempToken?: string;
+}
+
+export type LoginResult =
+  | { type: 'success'; user: User }
+  | { type: '2fa'; tempToken: string };
 
 // API Error class
 export class ApiError extends Error {

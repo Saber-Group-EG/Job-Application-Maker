@@ -74,6 +74,7 @@
   "editMetaDescription": "Update personnel credentials and organizational access",
   "editBackButton": "Back to Users",
   "editPersonalInfo": "Personal Information",
+  "editPersonalInfoDesc": "Update your personal details",
   "editFullName": "Full Name",
   "editFullNamePlaceholder": "John Doe",
   "editEmail": "Email",

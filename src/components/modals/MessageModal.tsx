@@ -69,12 +69,16 @@ const MessageModal = ({
   applicant,
   id,
   company: propCompany,
+  defaultFrom,
+  isInquiry,
 }: {
   isOpen: boolean;
   onClose: () => void;
   applicant: any;
   id: string;
   company?: any;
+  defaultFrom?: string;
+  isInquiry?: boolean;
 }) => {
   const [messageForm, setMessageForm] = useState({
     subject: '',
@@ -283,6 +287,15 @@ const handleTemplateSelect = (templateId: string) => {
     return () => { mounted = false; };
   }, [isOpen, company]);
 
+  const showRegisterEmailWarning = !defaultFrom && !!company && senderOptions.length === 0;
+
+  useEffect(() => {
+    if (defaultFrom) {
+      setCustomSender(defaultFrom);
+      setSenderOption('available');
+    }
+  }, [defaultFrom, isOpen]);
+
   const sendMessageMutation = useSendMessage();
   const sendEmailMutation = useSendEmail();
 
@@ -420,6 +433,11 @@ const handleTemplateSelect = (templateId: string) => {
     e.preventDefault();
     if (!id || !applicant) return;
 
+    if (messageForm.type === 'email' && showRegisterEmailWarning) {
+      setMessageError('Register an email in company settings before sending.');
+      return;
+    }
+
     if (messageForm.type === 'email' && !messageForm.subject?.trim()) {
       setMessageError(t('subjectRequired', 'modals'));
       return;
@@ -479,7 +497,7 @@ const handleTemplateSelect = (templateId: string) => {
 
         await sendEmailMutation.mutateAsync({
           company: companyToSend,
-          applicant: applicant?._id,
+          ...(isInquiry ? {} : { applicant: applicant?._id }),
           to: applicant.email,
           from: companyConfig,
           subject: substitutedSubject,
@@ -487,13 +505,15 @@ const handleTemplateSelect = (templateId: string) => {
           jobPosition: typeof jobPositionId === 'string' ? jobPositionId : undefined,
         } as any);
         
-        await sendMessageMutation.mutateAsync({
-          id,
-          data: {
-            type: messageForm.type,
-            content: substitutedBody,
-          },
-        });
+        if (!isInquiry) {
+          await sendMessageMutation.mutateAsync({
+            id,
+            data: {
+              type: messageForm.type,
+              content: substitutedBody,
+            },
+          });
+        }
 
         setMessageForm({ subject: '', body: '', type: 'email' });
         onClose();
@@ -616,36 +636,56 @@ const handleTemplateSelect = (templateId: string) => {
             </div>
           )}
 
-          {messageForm.type === 'email' && (
+          {messageForm.type === 'email' && showRegisterEmailWarning && (
+            <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+              <p className="text-sm text-amber-700 dark:text-amber-300 font-medium">
+                No email registered for this company.
+              </p>
+              <a
+                href="/recruiting/company-settings"
+                className="mt-2 inline-flex items-center gap-1 text-sm text-blue-600 dark:text-blue-400 hover:underline font-medium"
+              >
+                Register an email in company settings →
+              </a>
+            </div>
+          )}
+
+          {messageForm.type === 'email' && !showRegisterEmailWarning && (
             <div>
               <Label>{t('sender', 'modals')}</Label>
               <div className="space-y-2">
-                <Select
-                  options={[
-                    { value: 'available', label: t('companyMails', 'modals') },
-                    { value: 'custom', label: t('newMail', 'modals') },
-                  ]}
-                  value={senderOption}
-                  onChange={(v: any) => setSenderOption(v)}
-                  placeholder={t('selectSenderOption', 'modals')}
-                />
+                {defaultFrom ? (
+                  <Input value={defaultFrom} readOnly className="bg-gray-50 dark:bg-gray-800" />
+                ) : (
+                  <>
+                    <Select
+                      options={[
+                        { value: 'available', label: t('companyMails', 'modals') },
+                        { value: 'custom', label: t('newMail', 'modals') },
+                      ]}
+                      value={senderOption}
+                      onChange={(v: any) => setSenderOption(v)}
+                      placeholder={t('selectSenderOption', 'modals')}
+                    />
 
-                {senderOption === 'available' && (
-                  <Select
-                    options={senderOptions.length > 0 ? senderOptions : [{ value: '', label: t('noAvailableSenders', 'modals') }]}
-                    value={customSender || (senderOptions[0] && senderOptions[0].value) || ''}
-                    onChange={(v: any) => {
-                      setCustomSender(v);
-                    }}
-                    placeholder={t('noSenderSelected', 'modals')}
-                  />
-                )}
+                    {senderOption === 'available' && (
+                      <Select
+                        options={senderOptions.length > 0 ? senderOptions : [{ value: '', label: t('noAvailableSenders', 'modals') }]}
+                        value={customSender || (senderOptions[0] && senderOptions[0].value) || ''}
+                        onChange={(v: any) => {
+                          setCustomSender(v);
+                        }}
+                        placeholder={t('noSenderSelected', 'modals')}
+                      />
+                    )}
 
-                {senderOption === 'custom' && (
-                  <div className="flex items-center gap-2">
-                    <Input value={newLocalEmail} onChange={(e) => setNewLocalEmail(e.target.value)} placeholder="your-name" />
-                    <div className="text-sm text-gray-600">@{displayDomain}</div>
-                  </div>
+                    {senderOption === 'custom' && (
+                      <div className="flex items-center gap-2">
+                        <Input value={newLocalEmail} onChange={(e) => setNewLocalEmail(e.target.value)} placeholder="your-name" />
+                        <div className="text-sm text-gray-600">@{displayDomain}</div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>

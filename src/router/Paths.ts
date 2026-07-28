@@ -2,6 +2,8 @@ export const paths = {
   auth: {
     signIn: '/signin',
     signUp: '/signup',
+    forgotPassword: '/forgot-password',
+    resetPassword: '/reset-password',
   },
 
   dashboard: {
@@ -66,8 +68,16 @@ export const paths = {
   },
 
   
+  inquiries: {
+    root: '/inquiries',
+    preview: (id: string) => `/inquiries/${id}`,
+  },
+
   misc: {
     profile: '/profile',
+    profileEdit: '/profile/edit',
+    accountSettings: '/account-settings',
+    support: '/support',
     calendar: '/calendar',
     blank: '/blank',
     formElements: '/form-elements',
@@ -101,6 +111,10 @@ export const patterns = {
     page: 'applicants/page/:pageName',
     details: 'applicant-details/:id',
     completedInterview: 'applicant-details/:id/completed-interview/:interviewId',
+  },
+
+  inquiries: {
+    preview: 'inquiries/:id',
   },
 
   admin: {

@@ -10,7 +10,7 @@ const PageBreadcrumb: React.FC<BreadcrumbProps> = ({ pageTitle, actions }) => {
   const { t } = useLocale();
   return (
     
-    <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+    <div className="flex flex-wrap items-center justify-between gap-3 mb-6 pr-4 lg:pr-6">
       <nav>
         <ol className="flex items-center gap-1.5" dir="ltr">
           <li>

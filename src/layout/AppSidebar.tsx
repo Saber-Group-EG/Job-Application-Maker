@@ -162,6 +162,16 @@ const AppSidebar: React.FC = () => {
           },
         ]
       : []),
+    ...(hasPermission('Inquiry Management', 'read')
+      ? [
+          {
+            icon: <TaskIcon />,
+            name: 'Inquiry Preview',
+            tKey: 'inquiryPreview',
+            path: '/inquiries',
+          },
+        ]
+      : []),
     {
       icon: <TaskIcon />,
       name: 'Company Settings',

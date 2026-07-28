@@ -8,6 +8,7 @@ import type {
   User,
   CreateUserRequest,
   UpdateUserRequest,
+  UpdateProfileRequest,
   AddCompanyAccessRequest,
   UpdateDepartmentsRequest,
   SavedQuestionGroup,
@@ -22,6 +23,7 @@ export type {
   User,
   CreateUserRequest,
   UpdateUserRequest,
+  UpdateProfileRequest,
   AddCompanyAccessRequest,
   UpdateDepartmentsRequest,
   UsersResponse,
@@ -188,6 +190,10 @@ class UsersService extends BaseService {
 
   async getUserById(userId: string): Promise<User> {
     return this.request<User>('get', `/users/${userId}`);
+  }
+
+  async updateProfile(userData: UpdateProfileRequest): Promise<User> {
+    return this.request<User>('put', '/auth/update-profile', userData);
   }
 
   async createUser(userData: CreateUserRequest): Promise<User> {

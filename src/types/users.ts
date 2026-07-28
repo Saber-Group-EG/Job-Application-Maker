@@ -47,6 +47,12 @@ export interface UpdateUserRequest {
   department?: string;
 }
 
+export interface UpdateProfileRequest {
+  fullName?: string;
+  email?: string;
+  phone?: string;
+}
+
 // Company Access Types
 export interface AddCompanyAccessRequest {
   companyId: string;
