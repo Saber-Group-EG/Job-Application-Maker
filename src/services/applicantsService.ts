@@ -585,6 +585,35 @@ class ApplicantsService {
     }));
   }
 
+  async searchApplicants(params: {
+    q: string;
+    companyId?: string | string[];
+    page?: number;
+    limit?: number;
+  }): Promise<Applicant[]> {
+    const queryParams: Record<string, any> = { q: params.q };
+    if (params.companyId) queryParams.companyId = params.companyId;
+    if (params.page) queryParams.page = params.page;
+    if (params.limit) queryParams.limit = params.limit;
+    return this.request<any>('get', '/applicants/search', undefined, queryParams, {
+      paramsSerializer: {
+        serialize: (p: Record<string, any>) => {
+          const parts: string[] = [];
+          for (const [key, value] of Object.entries(p)) {
+            if (Array.isArray(value)) {
+              for (const v of value) {
+                parts.push(`${key}=${encodeURIComponent(v)}`);
+              }
+            } else if (value !== undefined && value !== null) {
+              parts.push(`${key}=${encodeURIComponent(value)}`);
+            }
+          }
+          return parts.join('&');
+        },
+      },
+    });
+  }
+
   async getApplicantsByPhone(phone: string, companyId?: string): Promise<Applicant[]> {
     if (!phone || !String(phone).trim()) return [];
     const queryParams: Record<string, string> = { phone: String(phone).trim(), PageCount: 'all' };
