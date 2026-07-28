@@ -1,27 +1,28 @@
-import { useState, FormEvent } from "react";
-import { Link, useNavigate, Navigate } from "react-router";
-import { paths } from "../../router/Paths";
-import { EyeCloseIcon, EyeIcon } from "../../icons";
-import Label from "../form/Label";
-import Input from "../form/input/InputField";
-import Checkbox from "../form/input/Checkbox";
-import { useAuth } from "../../context/AuthContext";
-import { useLocale } from "../../context/LocaleContext";
-import { useVerify2FALoginMutation } from "../../hooks/queries/useAuth";
+import { useState, FormEvent, useEffect } from 'react';
+import { Link, useNavigate, Navigate } from 'react-router';
+import { paths } from '../../router/Paths';
+import { EyeCloseIcon, EyeIcon } from '../../icons';
+import Label from '../form/Label';
+import Input from '../form/input/InputField';
+import Checkbox from '../form/input/Checkbox';
+import { useAuth } from '../../context/AuthContext';
+import { useLocale } from '../../context/LocaleContext';
+import { useVerify2FALoginMutation } from '../../hooks/queries/useAuth';
 
 export default function SignInForm() {
   const navigate = useNavigate();
   const { t, dir } = useLocale();
   const { login, error: authError, isLoading, isAuthenticated } = useAuth();
   const [twoFATempToken, setTwoFATempToken] = useState<string | null>(null);
-  const [twoFACode, setTwoFACode] = useState("");
+  const [sessionNotice, setSessionNotice] = useState<string | null>(null);
+  const [twoFACode, setTwoFACode] = useState('');
   const [twoFAError, setTwoFAError] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const [showPassword, setShowPassword] = useState(false);
   const [isChecked, setIsChecked] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
   const verify2FALoginMutation = useVerify2FALoginMutation();
 
@@ -38,7 +39,7 @@ export default function SignInForm() {
       return;
     }
 
-    if (!email.includes("@")) {
+    if (!email.includes('@')) {
       setValidationError(t('enterValidEmail', 'common'));
       return;
     }
@@ -51,10 +52,10 @@ export default function SignInForm() {
         return;
       }
       setIsLoggingIn(false);
-      navigate("/home", { replace: true });
+      navigate('/home', { replace: true });
     } catch (err) {
       setIsLoggingIn(false);
-      console.error("Login failed:", err);
+      console.error('Login failed:', err);
     }
   };
 
@@ -72,20 +73,27 @@ export default function SignInForm() {
         tempToken: twoFATempToken!,
         code: twoFACode,
       });
-      window.location.href = "/home";
+      window.location.href = '/home';
     } catch (err: any) {
       if (err?.statusCode === 429) {
         setTwoFAError(t('tooManyAttempts', 'common'));
         setTwoFATempToken(null);
-        setTwoFACode("");
+        setTwoFACode('');
       } else {
         setTwoFAError(t('invalidVerificationCode', 'common'));
       }
     }
   }
 
-  const displayError = validationError || authError;
+  useEffect(() => {
+    const notice = sessionStorage.getItem('authNotice');
+    if (notice) {
+      setSessionNotice(notice);
+      sessionStorage.removeItem('authNotice');
+    }
+  }, []);
 
+  const displayError = sessionNotice || validationError || authError;
   if (twoFATempToken) {
     return (
       <div className="flex flex-col flex-1">
@@ -110,7 +118,8 @@ export default function SignInForm() {
               <div className="space-y-6">
                 <div>
                   <Label htmlFor="2faCode">
-                    {t('enter6DigitCode', 'common')} <span className="text-error-500">*</span>
+                    {t('enter6DigitCode', 'common')}{' '}
+                    <span className="text-error-500">*</span>
                   </Label>
                   <input
                     id="2faCode"
@@ -118,7 +127,11 @@ export default function SignInForm() {
                     maxLength={6}
                     placeholder="000000"
                     value={twoFACode}
-                    onChange={(e) => setTwoFACode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    onChange={(e) =>
+                      setTwoFACode(
+                        e.target.value.replace(/\D/g, '').slice(0, 6)
+                      )
+                    }
                     className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800"
                   />
                 </div>
@@ -128,7 +141,9 @@ export default function SignInForm() {
                     disabled={verify2FALoginMutation.isPending}
                     className="w-full rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-600 disabled:opacity-50"
                   >
-                    {verify2FALoginMutation.isPending ? t('submitting', 'common') : t('verifyAndEnable', 'common')}
+                    {verify2FALoginMutation.isPending
+                      ? t('submitting', 'common')
+                      : t('verifyAndEnable', 'common')}
                   </button>
                 </div>
                 <div className="text-center">
@@ -136,7 +151,7 @@ export default function SignInForm() {
                     type="button"
                     onClick={() => {
                       setTwoFATempToken(null);
-                      setTwoFACode("");
+                      setTwoFACode('');
                       setTwoFAError(null);
                       setIsLoggingIn(false);
                     }}
@@ -155,9 +170,7 @@ export default function SignInForm() {
 
   return (
     <div className="flex flex-col flex-1">
-      <div className="w-full max-w-md pt-10 mx-auto">
-        
-      </div>
+      <div className="w-full max-w-md pt-10 mx-auto"></div>
       <div className="flex flex-col justify-center flex-1 w-full max-w-md mx-auto">
         <div>
           <div className="mb-5 sm:mb-8">
@@ -169,7 +182,6 @@ export default function SignInForm() {
             </p>
           </div>
           <div>
-
             {/* Error Message */}
             {displayError && (
               <div className="p-4 mb-5 text-sm text-red-700 bg-red-100 border border-red-300 rounded-lg dark:bg-red-900/20 dark:border-red-800 dark:text-red-400">
@@ -181,7 +193,8 @@ export default function SignInForm() {
               <div className="space-y-6">
                 <div>
                   <Label>
-                    {t('email', 'common')} <span className="text-error-500">*</span>{" "}
+                    {t('email', 'common')}{' '}
+                    <span className="text-error-500">*</span>{' '}
                   </Label>
                   <Input
                     type="email"
@@ -193,11 +206,12 @@ export default function SignInForm() {
                 </div>
                 <div>
                   <Label>
-                    {t('password', 'common')} <span className="text-error-500">*</span>{" "}
+                    {t('password', 'common')}{' '}
+                    <span className="text-error-500">*</span>{' '}
                   </Label>
                   <div className="relative">
                     <Input
-                      type={showPassword ? "text" : "password"}
+                      type={showPassword ? 'text' : 'password'}
                       placeholder={t('enterYourPassword', 'common')}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
@@ -235,7 +249,9 @@ export default function SignInForm() {
                     className="w-full rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-brand-400 dark:hover:bg-brand-500"
                     disabled={isLoading}
                   >
-                    {isLoading ? t('signingIn', 'common') : t('signIn', 'common')}
+                    {isLoading
+                      ? t('signingIn', 'common')
+                      : t('signIn', 'common')}
                   </button>
                 </div>
               </div>
