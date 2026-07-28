@@ -69,6 +69,7 @@ export default function DatePicker({
       // Previously closeOnSelect was true for time mode which caused the picker to close
       // when clicking the minute decrement/increment buttons. Disable closeOnSelect for time.
       closeOnSelect: mode !== 'time' && !isRange,
+      onChange: handleChange,
       onValueUpdate: handleChange,
     });
 

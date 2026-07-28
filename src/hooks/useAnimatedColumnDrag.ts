@@ -20,7 +20,7 @@ function ensureStylesInjected() {
       position: absolute;
       top: 0;
       width: 3px;
-      background: var(--drop-indicator-color, #e42e2b);
+      background: transparent;
       border-radius: 2px;
       pointer-events: none;
       z-index: 20;

@@ -85,12 +85,13 @@ const APPLICANTS_DEFAULT_COLUMN_ORDER = [
   'sscore',
   'status',
   'rejectionReasons',
+  'lastComment',
   'submittedAt',
   'actions',
 ];
 
 const APPLICANTS_DEFAULT_LAYOUT = {
-  columnVisibility: {},
+  columnVisibility: { lastComment: false },
   columnSizing: {},
   columnOrder: APPLICANTS_DEFAULT_COLUMN_ORDER,
 };
@@ -505,6 +506,11 @@ export default function Applicants({
     defaultLayout || APPLICANTS_DEFAULT_LAYOUT
   );
 
+  const mergedVisibility = useMemo(() => ({
+    lastComment: false,
+    ...layout.columnVisibility,
+  }), [layout.columnVisibility]);
+
   const handleSaveLayout = useCallback(
     (updates: Parameters<typeof saveLayout>[0]) => {
       if (!isLayoutLoaded) return;
@@ -532,6 +538,12 @@ export default function Applicants({
     if (qStatus) return qStatus;
     return undefined;
   }, [onlyStatus, params.status, location.search]);
+
+  const effectiveSearch = useMemo((): string | undefined => {
+    const searchParams = new URLSearchParams(location.search);
+    const q = searchParams.get('search');
+    return q || undefined;
+  }, [location.search]);
 
   const effectiveOnlyJobPositions = useMemo((): string[] | undefined => {
     if (onlyJobPositions && onlyJobPositions.length > 0) return onlyJobPositions;
@@ -584,7 +596,7 @@ export default function Applicants({
     [user]
   );
 
-  const { selectedCompanyId: globalSelectedCompanyId } = useCompanyFilter();
+  const { selectedCompanyId: globalSelectedCompanyId, companyOptions: filterCompanyOptions } = useCompanyFilter();
   const apiCompanyId = useMemo(() => {
     if (companyIdOverride !== undefined) return companyIdOverride as any;
     if (!user) return undefined;
@@ -644,6 +656,14 @@ const [excludeModes] = useState<Record<string, boolean>>({});
     { enabled: true }
   );
   
+  const searchCompanyId = useMemo(() => {
+    if (!effectiveSearch) return undefined;
+    if (globalSelectedCompanyId) return [globalSelectedCompanyId];
+    return filterCompanyOptions.map(c => c.id);
+  }, [effectiveSearch, globalSelectedCompanyId, filterCompanyOptions]);
+
+  const finalCompanyId = searchCompanyId ?? apiCompanyId;
+
   const {
     data: applicants = [],
     error,
@@ -651,10 +671,11 @@ const [excludeModes] = useState<Record<string, boolean>>({});
     isFetching: isApplicantsFetching,
     isFetched: isApplicantsFetched,
   } = useApplicants({
-    companyId: apiCompanyId as any,
+    companyId: finalCompanyId as any,
     jobPositionId: effectiveOnlyJobPositions,
     departmentId: departmentIds as any,
     status: effectiveOnlyStatus,
+    search: effectiveSearch,
     enabled: true,
   });
   
@@ -1173,6 +1194,7 @@ const jobOptions = useMemo(() => {
       sscore: isLaptopViewport ? 72 : 96,
       status: isLaptopViewport ? 190 : 240,
       submittedAt: isLaptopViewport ? 88 : 110,
+      lastComment: isLaptopViewport ? 200 : 280,
       actions: 70,
     }),
     [isLaptopViewport]
@@ -1193,6 +1215,7 @@ const jobOptions = useMemo(() => {
       sscore: columnSizeConfig.sscore,
       status: columnSizeConfig.status,
       submittedAt: columnSizeConfig.submittedAt,
+      lastComment: columnSizeConfig.lastComment,
       actions: columnSizeConfig.actions,
     };
     return { ...defaults, ...layout.columnSizing };
@@ -1932,6 +1955,23 @@ const jobOptions = useMemo(() => {
             const g = normalizeGender(raw);
             return !!g && vals.includes(g);
           });
+        } else if (filter.id === 'status') {
+          filtered = filtered.filter((a: any) => {
+            const status = a?.status?.trim?.() ?? a?.status;
+            return !!status && vals.includes(status);
+          });
+        } else if (filter.id === 'rejectionReasons') {
+          filtered = filtered.filter((a: any) => {
+            const reasons = extractRejectionReasons(a);
+            if (!Array.isArray(reasons) || reasons.length === 0) return false;
+            return vals.some((v: string) =>
+              reasons.some(
+                (r: string) =>
+                  r.toLowerCase().includes(v.toLowerCase()) ||
+                  v.toLowerCase().includes(r.toLowerCase())
+              )
+            );
+          });
         }
       }
       if (globalCompanyIds && !skipIds.has('companyId')) {
@@ -1946,6 +1986,12 @@ const jobOptions = useMemo(() => {
     const maps: Record<string, Map<string, number>> = {};
     const trackedCols = ['status', 'jobPositionId', 'companyId', 'gender', 'rejectionReasons'];
 
+    const statusFilterIncludesTrashed = columnFilters.some(
+      (f: any) => f.id === 'status' && Array.isArray(f.value) && f.value.some(
+        (v: string) => String(v).toLowerCase().trim() === 'trashed'
+      )
+    );
+
     for (const colId of trackedCols) {
       const rows = applyFilterToRows(allRows, colId);
       const map = new Map<string, number>();
@@ -1957,10 +2003,11 @@ const jobOptions = useMemo(() => {
 
       rows.forEach((a: any) => {
         const isTrashed = a?.status?.toLowerCase() === 'trashed';
+        const includeRow = !isTrashed || statusFilterIncludesTrashed;
 
         if (colId === 'status') {
           add(a?.status?.trim?.() ?? a?.status);
-        } else if (colId === 'gender' && !isTrashed) {
+        } else if (colId === 'gender' && includeRow) {
           const rawGender =
             a?.gender ||
             a?.customResponses?.gender ||
@@ -1969,14 +2016,14 @@ const jobOptions = useMemo(() => {
             (a as any)['النوع'] ||
             (a as any)?.genderAr;
           add(normalizeGender(rawGender));
-        } else if (colId === 'companyId' && !isTrashed) {
+        } else if (colId === 'companyId' && includeRow) {
           add(getApplicantCompanyId(a, jobPositionMap) || '');
-        } else if (colId === 'jobPositionId' && !isTrashed) {
+        } else if (colId === 'jobPositionId' && includeRow) {
           const rawJob = a?.jobPositionId;
           const getId = (v: any) =>
             typeof v === 'string' ? v : (v?._id ?? v?.id ?? '');
           add(getId(rawJob));
-        } else if (colId === 'rejectionReasons' && !isTrashed) {
+        } else if (colId === 'rejectionReasons' && includeRow) {
           const reasons = extractRejectionReasons(a);
           if (Array.isArray(reasons)) {
             reasons.forEach((r: string) => { if (r) add(r); });
@@ -2609,6 +2656,41 @@ const jobOptions = useMemo(() => {
         },
       },
       {
+        id: 'lastComment',
+        header: 'Last Comment',
+        size: columnSizeConfig.lastComment,
+        enableColumnFilter: false,
+        enableSorting: false,
+        accessorFn: (row: any) => {
+          const comments = row?.comments ?? [];
+          const last = comments.length > 0 ? comments[comments.length - 1] : null;
+          return last?.comment ?? '';
+        },
+        Cell: ({ row }: any) => {
+          if (isTableLoading) return renderCellSkeleton('text');
+          const comments = row.original?.comments ?? [];
+          const last = comments.length > 0 ? comments[comments.length - 1] : null;
+          const commentText = last?.comment ?? '';
+          const commentedByName =
+            typeof last?.commentedBy === 'object' && last?.commentedBy
+              ? last.commentedBy.fullName || last.commentedBy.name || ''
+              : '';
+          if (!commentText) return <span className="text-gray-400">-</span>;
+          return (
+            <div className="flex flex-col gap-0.5 min-w-0 max-w-[280px]">
+              <span className="truncate text-sm text-gray-700 dark:text-gray-300">
+                {commentText}
+              </span>
+              {commentedByName && (
+                <span className="truncate text-xs text-gray-400 dark:text-gray-500">
+                  {commentedByName}
+                </span>
+              )}
+            </div>
+          );
+        },
+      },
+      {
         accessorKey: 'submittedAt',
         header: t('submitted', 'applicants'),
         Header: ({ column, table }: { column: any; table: any }) => {
@@ -2949,7 +3031,7 @@ const jobOptions = useMemo(() => {
     initialState: {
       pagination,
       columnFilters: isTableLoading ? [] : columnFilters,
-      columnVisibility: layout.columnVisibility || {},
+      columnVisibility: mergedVisibility,
       columnSizing: mergedColumnSizing,
       density: 'compact',
     },
@@ -2960,7 +3042,7 @@ const jobOptions = useMemo(() => {
         : pagination,
       columnFilters: isTableLoading ? [] : columnFilters,
       rowSelection,
-      columnVisibility: layout.columnVisibility || {},
+      columnVisibility: mergedVisibility,
       columnSizing: mergedColumnSizing,
       columnOrder:
         Array.isArray(layout.columnOrder) && layout.columnOrder.length
