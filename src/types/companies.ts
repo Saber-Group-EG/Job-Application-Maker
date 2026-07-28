@@ -102,7 +102,13 @@ export interface EmailTemplate {
 }
 
 // Interview Settings Types
-export type InterviewAnswerType = 'text' | 'number' | 'radio' | 'checkbox' | 'dropdown' | 'tags';
+export type InterviewAnswerType =
+  | 'text'
+  | 'number'
+  | 'radio'
+  | 'checkbox'
+  | 'dropdown'
+  | 'tags';
 
 export interface InterviewQuestion {
   question: string;
@@ -155,4 +161,39 @@ export interface CompanyResponse {
 export interface CompaniesResponse {
   success: boolean;
   data: Company[];
+}
+
+export interface Plan {
+  _id: string;
+  name: string;
+  priceCents: number;
+  currency: string;
+  requestQuota: number;
+  frequency: number;
+  isActive: boolean;
+}
+
+export interface CompanySubscriptionInfo {
+  status: 'active' | 'past_due' | 'cancelled' | 'expired' | 'suspended';
+  cancelAtPeriodEnd: boolean;
+  cancelledAt: string | null;
+  startedAt: string;
+  lastPaymentAt: string;
+  currentCycleAmountCents: number;
+}
+
+export interface SubscriptionUsage {
+  used: number;
+  baseLimit: number;
+  bonusQuota: number;
+  effectiveLimit: number;
+  remaining: number;
+  percentUsed: number;
+  nearLimit: boolean;
+}
+
+export interface SubscriptionDetails {
+  subscription: CompanySubscriptionInfo;
+  plan: Plan;
+  usage: SubscriptionUsage;
 }

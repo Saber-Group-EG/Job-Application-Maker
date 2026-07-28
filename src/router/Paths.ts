@@ -24,6 +24,7 @@ export const paths = {
     root: '/recruiting',
     companySettings: '/recruiting/company-settings',
     interviewSettings: '/recruiting/interview-settings',
+    subscription: '/recruiting/subscription',
     savedFields: '/recruiting/saved-fields',
     savedFieldsCreate: '/recruiting/saved-fields/create',
     savedFieldsPreview: (fieldId: string) =>

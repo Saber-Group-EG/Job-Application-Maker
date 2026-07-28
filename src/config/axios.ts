@@ -1,10 +1,11 @@
-import axios from "axios";
-import {  tokenStorage } from "./api";
+import axios from 'axios';
+import { tokenStorage } from './api';
+import { emitQuotaEvent } from '../lib/quotaEvents';
 
 const axiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
   headers: {
-    "Content-Type": "application/json",
+    'Content-Type': 'application/json',
   },
 });
 
@@ -22,17 +23,44 @@ axiosInstance.interceptors.request.use(
   }
 );
 
+// The near-limit header is set by trackRequestQuota on both successful and
+// blocked (402) responses alike, so both interceptor branches need to check
+// it — not just the error branch.
+function handleNearLimitHeader(response: any) {
+  const header = response?.headers?.['x-quota-near-limit-companies'];
+  if (!header) return;
+  const companyIds = String(header)
+    .split(',')
+    .map((s: string) => s.trim())
+    .filter(Boolean);
+  if (companyIds.length > 0) {
+    emitQuotaEvent('near-limit-companies', companyIds);
+  }
+}
+
 // Response interceptor for error handling
 axiosInstance.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    handleNearLimitHeader(response);
+    return response;
+  },
   (error) => {
-    // Enhance error with detailed validation messages
     if (error.response) {
-      const { data } = error.response;
-      
+      handleNearLimitHeader(error.response);
+
+      const { data, status } = error.response;
+
+      // Quota exceeded (402) — flip the app-wide blocked state so the
+      // layout can render the "contact your admin" screen. Deliberately
+      // scoped to 402 only; 403 is also used by unrelated permission
+      // checks elsewhere and must not trigger this.
+      if (status === 402) {
+        emitQuotaEvent('quota-exceeded');
+      }
+
       // Create a user-friendly error message
       let errorMessage = 'An error occurred';
-      
+
       // Check for Joi validation errors (details array)
       if (data?.details && Array.isArray(data.details)) {
         errorMessage = data.details
@@ -57,11 +85,11 @@ axiosInstance.interceptors.response.use(
       else if (data?.message) {
         errorMessage = data.message;
       }
-      
+
       // Attach enhanced message to error
       error.message = errorMessage;
     }
-    
+
     return Promise.reject(error);
   }
 );
