@@ -178,6 +178,8 @@ export function useApplicants(params?: {
   const userCompanyIds = getUserCompanyIds(user);
   const effectiveCompanyId = params?.companyId?.length ? params.companyId : userCompanyIds;
 
+  const isSearch = !!params?.search;
+
   return useQuery({
     queryKey: applicantsKeys.list({
       companyId: effectiveCompanyId,
@@ -188,15 +190,26 @@ export function useApplicants(params?: {
       fields: params?.fields,
       skipPopulation: params?.skipPopulation,
     }),
-    queryFn: () => applicantsService.getAllApplicants({
-      companyId: effectiveCompanyId,
-      jobPositionId: params?.jobPositionId,
-      departmentId: params?.departmentId,
-      status: params?.status,
-      search: params?.search,
-      fields: params?.fields,
-      skipPopulation: params?.skipPopulation,
-    }),
+    queryFn: () => {
+      if (isSearch) {
+        const companyIds = effectiveCompanyId?.length ? effectiveCompanyId : undefined;
+        return applicantsService.searchApplicants({
+          q: params!.search!,
+          companyId: companyIds,
+          page: 1,
+          limit: 9999,
+        });
+      }
+      return applicantsService.getAllApplicants({
+        companyId: effectiveCompanyId,
+        jobPositionId: params?.jobPositionId,
+        departmentId: params?.departmentId,
+        status: params?.status,
+        search: params?.search,
+        fields: params?.fields,
+        skipPopulation: params?.skipPopulation,
+      });
+    },
     staleTime: 2 * 60 * 1000,
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,

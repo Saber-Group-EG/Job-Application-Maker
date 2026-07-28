@@ -8,7 +8,11 @@ import { ThemeToggleButton } from "../components/common/ThemeToggleButton";
 import UserDropdown from "../components/header/UserDropdown";
 import { useLocale } from "../context/LocaleContext";
 import { useCompanyFilter } from "../context/CompanyFilterContext";
-import { X } from "lucide-react";
+import { Search, Loader2, X } from "lucide-react";
+import { useNavigate } from 'react-router';
+import { applicantsService } from "../services/applicantsService";
+import { paths } from "../router/Paths";
+import type { Applicant } from "../types/applicants";
 
 const AppHeader: React.FC = () => {
   const [isApplicationMenuOpen, setApplicationMenuOpen] = useState(false);
@@ -17,6 +21,12 @@ const AppHeader: React.FC = () => {
   const { selectedCompanyId, setSelectedCompanyId, resetFilter, companyOptions, companyMap } = useCompanyFilter();
 
   const { isMobileOpen, toggleSidebar, toggleMobileSidebar } = useSidebar();
+  const navigate = useNavigate();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Applicant[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
 
   const handleToggle = () => {
     if (window.innerWidth >= 1024) {
@@ -57,6 +67,52 @@ const AppHeader: React.FC = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+        setShowSearchResults(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      setShowSearchResults(false);
+      return;
+    }
+
+    const companyId = selectedCompanyId ?? companyOptions.map(c => c.id);
+
+    const timer = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const res = await applicantsService.searchApplicants({
+          q: searchQuery.trim(),
+          companyId: companyId.length > 0 ? companyId : undefined,
+          page: 1,
+          limit: 20,
+        });
+        setSearchResults(res ?? []);
+        setShowSearchResults(true);
+      } catch {
+        // ignore
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, selectedCompanyId, companyOptions]);
+
+  const handleSelectResult = (applicant: Applicant) => {
+    setShowSearchResults(false);
+    setSearchQuery('');
+    navigate(paths.applicants.details(applicant._id));
+  };
 
   const selectedCompany = selectedCompanyId ? companyMap[selectedCompanyId] : null;
   const selectedName = selectedCompany
@@ -106,6 +162,79 @@ const AppHeader: React.FC = () => {
             )}
             {/* Cross Icon */}
           </button>
+
+          <div ref={searchContainerRef} className="relative hidden sm:block">
+            <div className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800">
+              {isSearching ? (
+                <Loader2 className="size-4 shrink-0 animate-spin text-slate-400" />
+              ) : (
+                <Search className="size-4 shrink-0 text-slate-400" />
+              )}
+              <input
+                ref={inputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && searchQuery.trim()) {
+                    setShowSearchResults(false);
+                    navigate(`/applicants?search=${encodeURIComponent(searchQuery.trim())}`);
+                  }
+                }}
+                onFocus={() => { if (searchResults.length > 0) setShowSearchResults(true); }}
+                placeholder="Search applicants..."
+                className="w-44 bg-transparent outline-none text-slate-700 placeholder-slate-400 dark:text-slate-200 dark:placeholder-slate-500"
+              />
+              <kbd className="hidden shrink-0 items-center gap-1 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-medium text-slate-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-500 sm:flex">
+                <span>⌘</span>K
+              </kbd>
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  setSearchResults([]);
+                  setShowSearchResults(false);
+                  navigate('/applicants');
+                }}
+                className="flex items-center justify-center rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-300"
+                title="Reset filters"
+              >
+                <X className="size-3.5" />
+              </button>
+            </div>
+            {showSearchResults && (
+              <div className="absolute left-0 z-50 mt-1 w-80 overflow-auto rounded-lg border border-slate-200 bg-white p-1 shadow-lg dark:border-slate-700 dark:bg-slate-800 max-h-80">
+                {searchResults.length === 0 ? (
+                  <div className="px-3 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
+                    No results found
+                  </div>
+                ) : (
+                  searchResults.map((applicant) => (
+                    <button
+                      key={applicant._id}
+                      type="button"
+                      onClick={() => handleSelectResult(applicant)}
+                      className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm transition hover:bg-slate-100 dark:hover:bg-slate-700/50"
+                    >
+                      <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-bold text-slate-600 dark:bg-slate-600 dark:text-slate-300">
+                        {(applicant.fullName || applicant.firstName || '?').charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate font-medium text-slate-800 dark:text-slate-100">
+                          {applicant.fullName || `${applicant.firstName || ''} ${applicant.lastName || ''}`.trim() || 'Unknown'}
+                        </div>
+                        {applicant.email && (
+                          <div className="truncate text-xs text-slate-500 dark:text-slate-400">
+                            {applicant.email}
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
 
           <button
             onClick={toggleApplicationMenu}
