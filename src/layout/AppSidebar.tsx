@@ -169,6 +169,7 @@ const AppSidebar: React.FC = () => {
       subItems: [
         { name: 'Create Company', tKey: 'createCompany', path: '/recruiting', pro: false },
         { name: 'Companies', tKey: 'companies', path: '/companies', pro: false },
+        { name: 'Subscription', tKey: 'subscription', path: '/recruiting/subscription', pro: false },
         {
           name: 'Mail Settings',
           tKey: 'mailSettings',
@@ -272,6 +273,8 @@ const AppSidebar: React.FC = () => {
           return hasPermission('Company Management', 'create');
         if (subItem.path === '/companies')
           return hasPermission('Company Management', 'read');
+        if (subItem.path === '/recruiting/subscription')
+          return hasPermission('Interview Settings Management', 'write');
         if (subItem.path === '/recruiting/company-settings')
           return hasPermission('Mail Management', 'read');
         if (subItem.path === '/recruiting/interview-settings')

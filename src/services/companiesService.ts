@@ -11,6 +11,7 @@ import type {
   CompanyStatus,
   InterviewSettings,
   SectionTemplate,
+  SubscriptionDetails,
 } from '../types/companies';
 
 // Re-export types
@@ -287,6 +288,24 @@ class CompaniesService {
       `/companies/${settingsId}/settings/contract-sections`,
       { contractSectionTemplates: templates }
     );
+  }
+  async getSubscription(companyId: string): Promise<SubscriptionDetails> {
+    return this.request<SubscriptionDetails>(
+      'get',
+      `/companies/${companyId}/subscription`
+    );
+  }
+
+  async cancelSubscription(
+    companyId: string
+  ): Promise<{ cancelAtPeriodEnd: boolean; cancelledAt: string | null }> {
+    return this.request('put', `/companies/${companyId}/subscription/cancel`);
+  }
+
+  async resumeSubscription(
+    companyId: string
+  ): Promise<{ cancelAtPeriodEnd: boolean }> {
+    return this.request('put', `/companies/${companyId}/subscription/resume`);
   }
 }
 

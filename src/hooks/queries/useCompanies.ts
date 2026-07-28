@@ -50,6 +50,11 @@ export const emailTemplatesKeys = {
     [...emailTemplatesKeys.all, settingsId] as const,
 };
 
+export const subscriptionKeys = {
+  all: ['subscription'] as const,
+  detail: (companyId: string) => [...subscriptionKeys.all, companyId] as const,
+};
+
 // ===== Helpers =====
 function getUserCompanyIds(user: any): string[] | undefined {
   const roleName = user?.roleId?.name?.toLowerCase?.();
@@ -107,10 +112,10 @@ export function useCompanies(
         const company = await companiesService.getCompanyById(effectiveIds[0]);
         return company ? [company] : [];
       }
-      
+
       // Multiple companies case - fetch all in parallel
-      const companiesPromises = effectiveIds.map(id => 
-        companiesService.getCompanyById(id).catch(error => {
+      const companiesPromises = effectiveIds.map((id) =>
+        companiesService.getCompanyById(id).catch((error) => {
           console.error(`Failed to fetch company ${id}:`, error);
           return null;
         })
@@ -148,14 +153,24 @@ export function useCompany(id: string, options?: { enabled?: boolean }) {
     },
     select: (company) => {
       if (!company) return company;
-      const fromList = queryClient.getQueryData<Company[]>(companiesKeys.list())?.find(c => c._id === id);
+      const fromList = queryClient
+        .getQueryData<Company[]>(companiesKeys.list())
+        ?.find((c) => c._id === id);
       if (!fromList) return company;
       const merged: any = { ...company };
       const listCompany: any = fromList;
-      if ((!merged.address || (Array.isArray(merged.address) && merged.address.length === 0)) && listCompany.address) {
+      if (
+        (!merged.address ||
+          (Array.isArray(merged.address) && merged.address.length === 0)) &&
+        listCompany.address
+      ) {
         merged.address = listCompany.address;
       }
-      if ((!merged.addresses || (Array.isArray(merged.addresses) && merged.addresses.length === 0)) && listCompany.addresses) {
+      if (
+        (!merged.addresses ||
+          (Array.isArray(merged.addresses) && merged.addresses.length === 0)) &&
+        listCompany.addresses
+      ) {
         merged.addresses = listCompany.addresses;
       }
       if (!merged.settings && listCompany.settings) {
@@ -164,7 +179,11 @@ export function useCompany(id: string, options?: { enabled?: boolean }) {
       if (!merged.location && listCompany.location) {
         merged.location = listCompany.location;
       }
-      if ((!merged.locations || (Array.isArray(merged.locations) && merged.locations.length === 0)) && listCompany.locations) {
+      if (
+        (!merged.locations ||
+          (Array.isArray(merged.locations) && merged.locations.length === 0)) &&
+        listCompany.locations
+      ) {
         merged.locations = listCompany.locations;
       }
       if (!merged.officeAddress && listCompany.officeAddress) {
@@ -271,6 +290,19 @@ export function useCompaniesWithApplicants(
         : [],
     enabled: companyIds.length > 0,
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useSubscription(
+  companyId: string,
+  options?: { enabled?: boolean; refetchInterval?: number | false }
+) {
+  return useQuery({
+    queryKey: subscriptionKeys.detail(companyId),
+    queryFn: () => companiesService.getSubscription(companyId),
+    enabled: options?.enabled ?? !!companyId,
+    staleTime: 60 * 1000, // usage numbers are more time-sensitive than company profile data
+    refetchInterval: options?.refetchInterval,
   });
 }
 
@@ -399,7 +431,11 @@ export function useUpdateCompanyInterviewSettings() {
       showSuccessToast(t('interviewSettingsUpdated', 'common'), t);
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, t('interviewSettingsUpdateFailed', 'common'), t);
+      showErrorToast(
+        error.message,
+        t('interviewSettingsUpdateFailed', 'common'),
+        t
+      );
     },
   });
 }
@@ -455,7 +491,11 @@ export function useUpdateCompanyRejectionReasons() {
       showSuccessToast(t('rejectionReasonsUpdated', 'common'), t);
     },
     onError: (error: ApiError) => {
-      showErrorToast(error.message, t('rejectionReasonsUpdateFailed', 'common'), t);
+      showErrorToast(
+        error.message,
+        t('rejectionReasonsUpdateFailed', 'common'),
+        t
+      );
     },
   });
 }
@@ -510,7 +550,11 @@ export function useUpdateCompanyApplicantPages() {
       showSuccessToast(t('applicantPagesUpdated', 'common'), t);
     },
     onError: (error: ApiError) =>
-      showErrorToast(error.message, t('applicantPagesUpdateFailed', 'common'), t),
+      showErrorToast(
+        error.message,
+        t('applicantPagesUpdateFailed', 'common'),
+        t
+      ),
   });
 }
 
@@ -542,7 +586,11 @@ export function useCreateMailTemplate() {
       showSuccessToast(t('emailTemplateCreated', 'common'), t);
     },
     onError: (error: ApiError) =>
-      showErrorToast(error.message, t('emailTemplateCreateFailed', 'common'), t),
+      showErrorToast(
+        error.message,
+        t('emailTemplateCreateFailed', 'common'),
+        t
+      ),
   });
 }
 
@@ -575,7 +623,11 @@ export function useUpdateMailTemplate() {
       showSuccessToast(t('emailTemplateUpdated', 'common'), t);
     },
     onError: (error: ApiError) =>
-      showErrorToast(error.message, t('emailTemplateUpdateFailed', 'common'), t),
+      showErrorToast(
+        error.message,
+        t('emailTemplateUpdateFailed', 'common'),
+        t
+      ),
   });
 }
 
@@ -605,7 +657,11 @@ export function useDeleteMailTemplate() {
       showSuccessToast(t('emailTemplateDeleted', 'common'), t);
     },
     onError: (error: ApiError) =>
-      showErrorToast(error.message, t('emailTemplateDeleteFailed', 'common'), t),
+      showErrorToast(
+        error.message,
+        t('emailTemplateDeleteFailed', 'common'),
+        t
+      ),
   });
 }
 
@@ -641,7 +697,11 @@ export function useDuplicateMailTemplate() {
       showSuccessToast(t('emailTemplateDuplicated', 'common'), t);
     },
     onError: (error: ApiError) =>
-      showErrorToast(error.message, t('emailTemplateDuplicateFailed', 'common'), t),
+      showErrorToast(
+        error.message,
+        t('emailTemplateDuplicateFailed', 'common'),
+        t
+      ),
   });
 }
 
@@ -666,7 +726,11 @@ export function useUpdateOfferSectionTemplates() {
       showSuccessToast(t('offerSectionTemplatesSaved', 'common'), t);
     },
     onError: (error: ApiError) =>
-      showErrorToast(error.message, t('offerSectionTemplatesSaveFailed', 'common'), t),
+      showErrorToast(
+        error.message,
+        t('offerSectionTemplatesSaveFailed', 'common'),
+        t
+      ),
   });
 }
 
@@ -693,8 +757,45 @@ export function useUpdateContractSectionTemplates() {
     onError: (error: ApiError) =>
       showErrorToast(
         error.message,
-        t('contractSectionTemplatesSaveFailed', 'common'), t
+        t('contractSectionTemplatesSaveFailed', 'common'),
+        t
       ),
+  });
+}
+
+export function useCancelSubscription() {
+  const queryClient = useQueryClient();
+  const { t } = useLocale();
+
+  return useMutation({
+    mutationFn: (companyId: string) =>
+      companiesService.cancelSubscription(companyId),
+    onSuccess: (_, companyId) => {
+      queryClient.invalidateQueries({
+        queryKey: subscriptionKeys.detail(companyId),
+      });
+      showSuccessToast(t('subscriptionCancelScheduled', 'common'), t);
+    },
+    onError: (error: ApiError) =>
+      showErrorToast(error.message, t('subscriptionCancelFailed', 'common'), t),
+  });
+}
+
+export function useResumeSubscription() {
+  const queryClient = useQueryClient();
+  const { t } = useLocale();
+
+  return useMutation({
+    mutationFn: (companyId: string) =>
+      companiesService.resumeSubscription(companyId),
+    onSuccess: (_, companyId) => {
+      queryClient.invalidateQueries({
+        queryKey: subscriptionKeys.detail(companyId),
+      });
+      showSuccessToast(t('subscriptionResumed', 'common'), t);
+    },
+    onError: (error: ApiError) =>
+      showErrorToast(error.message, t('subscriptionResumeFailed', 'common'), t),
   });
 }
 
@@ -747,7 +848,10 @@ export function previewEmailTemplate(
 }
 
 // ===== Toast Helpers =====
-function showSuccessToast(message: string, t: (key: string, ns?: string) => string) {
+function showSuccessToast(
+  message: string,
+  t: (key: string, ns?: string) => string
+) {
   Swal.fire({
     title: t('success', 'common'),
     text: message,
@@ -757,6 +861,14 @@ function showSuccessToast(message: string, t: (key: string, ns?: string) => stri
   });
 }
 
-function showErrorToast(message: string, fallback: string, t: (key: string, ns?: string) => string) {
-  Swal.fire({ title: t('error', 'common'), text: message || fallback, icon: 'error' });
+function showErrorToast(
+  message: string,
+  fallback: string,
+  t: (key: string, ns?: string) => string
+) {
+  Swal.fire({
+    title: t('error', 'common'),
+    text: message || fallback,
+    icon: 'error',
+  });
 }
