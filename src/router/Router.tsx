@@ -205,7 +205,7 @@ export default function App() {
               <Route
                 element={
                   <PermissionProtectedRoute
-                    requiredPermissions={['Settings Management']}
+                    requiredPermissions={['Billing Management']}
                     accessLevel="write"
                   />
                 }

@@ -284,7 +284,7 @@ const AppSidebar: React.FC = () => {
         if (subItem.path === '/companies')
           return hasPermission('Company Management', 'read');
         if (subItem.path === '/recruiting/subscription')
-          return hasPermission('Interview Settings Management', 'write');
+          return hasPermission('Billing Management', 'write');
         if (subItem.path === '/recruiting/company-settings')
           return hasPermission('Mail Management', 'read');
         if (subItem.path === '/recruiting/interview-settings')

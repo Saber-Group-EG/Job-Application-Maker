@@ -70,7 +70,7 @@ const STATUS_STYLES: Record<string, string> = {
 export default function SubscriptionPage() {
   const { t, locale } = useLocale();
   const { hasPermission } = useAuth();
-  const canEdit = hasPermission('Interview Settings Management', 'write');
+  const canEdit = hasPermission('Billing Management', 'write');
   const { data: companies = [] } = useCompanies();
   const { selectedCompanyId } = useCompanyFilter();
   const companyId = selectedCompanyId ?? (companies as CompanyShape[])[0]?._id;

@@ -36,7 +36,7 @@ const RENEW_PATH = '/recruiting/subscription';
 
 export const QuotaProvider = ({ children }: { children: ReactNode }) => {
   const { hasPermission } = useAuth();
-  const canRenew = hasPermission('Interview Settings Management', 'write');
+  const canRenew = hasPermission('Billing Management', 'write');
 
   const { data: companies = [] } = useCompanies();
   const { selectedCompanyId } = useCompanyFilter();
