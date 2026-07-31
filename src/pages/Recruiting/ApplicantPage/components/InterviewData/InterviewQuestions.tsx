@@ -2,15 +2,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocale } from '../../../../../context/LocaleContext';
 import type {
-  Applicant,
   Interview,
   InterviewAnswer,
   InterviewQuestionsProps,
 } from '../../../../../types/applicants';
+import { applicantsKeys } from '../../../../../hooks/queries/useApplicants';
 import { useInterviewActions } from './hooks/useInterviewActions';
 import { useInterviewState } from './hooks/useInterviewState';
 import { useInterviewTimer } from './hooks/useInterviewTimer';
-import { applicantsKeys } from '../../../../../hooks/queries/useApplicants';
+import { useDeleteInterview } from '../../../../../hooks/queries';
+import Swal from '../../../../../utils/swal';
 import { getInterviewId } from './utils/interviewUtils';
 import { AssessmentView } from './views/AssessmentView';
 import type { NewCustomQuestion } from './views/AssessmentView';
@@ -37,22 +38,29 @@ const formatScheduledAt = (iso: string | undefined, locale: string, t?: (key: st
 const InterviewQuestions = ({
   applicantId = '',
   onRequestScheduleInterview,
+  onRequestStartInterview,
   autoSelectInterviewId = null,
   applicantData,
+  authUser,
 }: InterviewQuestionsProps) => {
   const queryClient = useQueryClient();
   const { t, locale } = useLocale();
-  const state = useInterviewState(applicantId, autoSelectInterviewId, applicantData ?? undefined);
+  const currentUserId = authUser?._id || authUser?.id || '';
+  const state = useInterviewState(applicantId, autoSelectInterviewId, applicantData ?? undefined, currentUserId);
+  const deleteInterview = useDeleteInterview();
   const actions = useInterviewActions({
     applicantId,
     interview: state.selectedInterview,
-    onQuestionsPersisted: (saved) => {
-      // Seed group meta from the response so reopened interviews still know
-      // which group each question belongs to.
-      if (saved && saved.length > 0) {
-        state.groupMeta.seedFromSaved(saved as InterviewAnswer[], saved);
-      }
-    },
+    currentUserId: currentUserId || undefined,
+      onQuestionsPersisted: (saved, built) => {
+        // Seed group meta from the built questions (which carry groupKey)
+        // paired by index with the server response (which has the real IDs).
+        // Without this, after refresh the server returns no groupKey and
+        // groupMeta has no mapping, collapsing questions into __ungrouped__.
+        if (saved && saved.length > 0 && built && built.length > 0) {
+          state.groupMeta.seedFromSaved(built, saved);
+        }
+      },
   });
 
   // Timer (ticks when in-progress)
@@ -66,6 +74,8 @@ const InterviewQuestions = ({
   const [pendingRemoveGroups, setPendingRemoveGroups] = useState<string[]>([]);
   const saveInFlightRef = useRef(false);
   const pendingGenRef = useRef(0);
+  const syncedRemoveGenRef = useRef(0);
+  const saveQuestionInFlightRef = useRef(false);
 
 
   // When entering the question picker, pre-select the currently attached
@@ -126,6 +136,7 @@ const InterviewQuestions = ({
             notes: '',
             answerType: q.answerType,
             choices: q.choices,
+            tags: q.tags,
             groupKey: group.key,
             groupName: group.name,
             groupSource: group.source,
@@ -145,8 +156,8 @@ const InterviewQuestions = ({
       const qId = String(q?.id || q?._id || '');
       if (deletedSet.has(qId)) return false;
       const meta = (qId && state.groupMeta.meta[qId]) || null;
-      const gKey = meta?.key || q?.groupKey || '';
-      if (removedGroupsSet.has(gKey)) return false;
+    const gKey = meta?.key || q?.groupKey || '__ungrouped__';
+    if (removedGroupsSet.has(gKey)) return false;
       return true;
     });
     // Add questions from pending groups
@@ -163,6 +174,7 @@ const InterviewQuestions = ({
           notes: '',
           answerType: q.answerType,
           choices: q.choices,
+          tags: q.tags,
           groupKey: group.key,
           groupName: group.name,
           groupSource: group.source,
@@ -263,10 +275,11 @@ const InterviewQuestions = ({
     try {
       const ok = await actions.savePickedGroups(updated, false, true);
       if (ok && gen === pendingGenRef.current) {
+        syncedRemoveGenRef.current = pendingGenRef.current;
         setPendingAddGroups([]);
         setNewCustomQuestions([]);
-        setPendingRemoveIds([]);
         setPendingRemoveGroups([]);
+        setPendingRemoveIds([]);
         cleared = true;
       }
     } catch {
@@ -307,34 +320,13 @@ const InterviewQuestions = ({
   const handleStart = useCallback(async () => {
     const interview = state.selectedInterview;
     if (!interview) return;
-    if (interview.startedAt) return; // already started
+    if (interview.startedAt) return;
     if (startInFlightRef.current) return;
     startInFlightRef.current = true;
 
-    // LOCAL-ONLY: write startedAt + status into the React Query cache.
-    // No network request. The server only hears about it on End Interview.
-    const startedAtIso = new Date().toISOString();
-    const interviewId = getInterviewId(interview);
-    if (applicantId && interviewId) {
-      queryClient.setQueryData<Applicant | undefined>(
-        applicantsKeys.detail(applicantId),
-        (prev) => {
-          if (!prev || !Array.isArray(prev.interviews)) return prev;
-          return {
-            ...prev,
-            interviews: prev.interviews.map((iv) =>
-              getInterviewId(iv) === interviewId
-                ? { ...iv, startedAt: startedAtIso, status: 'in_progress' }
-                : iv
-            ),
-          };
-        }
-      );
-    }
-
     await actions.startInterview();
     startInFlightRef.current = false;
-  }, [state.selectedInterview, applicantId, queryClient, actions]);
+  }, [state.selectedInterview, actions]);
 
   const handleEnd = useCallback(async () => {
     if (!state.selectedInterview) return;
@@ -343,20 +335,57 @@ const InterviewQuestions = ({
     const finalQuestions = state.buildQuestionsPayload();
     actions.clearDebounce();
     try {
-      await actions.endInterview(finalQuestions);
+      const ok = await actions.endInterview(finalQuestions);
+      if (ok && applicantId) {
+        queryClient.invalidateQueries({ queryKey: applicantsKeys.detail(applicantId) });
+      }
     } finally {
       endInFlightRef.current = false;
     }
+  }, [state, actions, applicantId, queryClient]);
+
+  const handleSaveProgress = useCallback(async () => {
+    if (!state.selectedInterview) return;
+    if (saveQuestionInFlightRef.current) return;
+    saveQuestionInFlightRef.current = true;
+    const finalQuestions = state.buildQuestionsPayload();
+    actions.clearDebounce();
+    try {
+      await actions.saveQuestion(finalQuestions);
+    } finally {
+      saveQuestionInFlightRef.current = false;
+    }
   }, [state, actions]);
 
-  const handleSaveProgress = useCallback(() => {
-    // Disabled per product decision: no network requests until End Interview.
-    // The score/notes are kept in local state and persisted on End.
-  }, []);
+  const handleDeleteInterview = useCallback(
+    async (interview: Interview) => {
+      if (!applicantId) return;
+      const id = getInterviewId(interview);
+      if (!id) return;
+      const result = await Swal.fire({
+        title: t('deleteInterviewTitle', 'interview'),
+        text: t('deleteInterviewDescription', 'interview'),
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: t('deleteConfirm', 'interview'),
+        cancelButtonText: t('cancel', 'common'),
+      });
+      if (!result.isConfirmed) return;
+      try {
+        await deleteInterview.mutateAsync({ applicantId, interviewId: id });
+        state.setSelectedInterviewId(null);
+        state.setView('selection');
+      } catch {
+        // toast handled by mutation
+      }
+    },
+    [applicantId, deleteInterview, state, t],
+  );
 
   const handleQuestionChange = useCallback(
-    (questionId: string, patch: { percentage?: number; answer?: unknown }) => {
-      // Local state only — no auto-save. All data is persisted on End Interview.
+    (questionId: string, patch: { percentage?: number; answer?: unknown; selectedTags?: string[] }) => {
       state.updateField(questionId, patch);
     },
     [state]
@@ -366,12 +395,10 @@ const InterviewQuestions = ({
   const triggerSaveRef = useRef(triggerBackgroundSave);
   triggerSaveRef.current = triggerBackgroundSave;
   useEffect(() => {
-    const hasPending =
-      pendingAddGroups.length > 0 ||
-      pendingRemoveGroups.length > 0 ||
-      pendingRemoveIds.length > 0 ||
-      newCustomQuestions.length > 0;
-    if (!hasPending || isEnded) return;
+    const hasUnsyncedRemovals = syncedRemoveGenRef.current !== pendingGenRef.current;
+    const hasPendingAdd =
+      pendingAddGroups.length > 0 || newCustomQuestions.length > 0;
+    if ((!hasPendingAdd && !hasUnsyncedRemovals) || isEnded) return;
     triggerSaveRef.current();
   }, [pendingAddGroups, pendingRemoveGroups, pendingRemoveIds, newCustomQuestions, isEnded]);
 
@@ -382,6 +409,7 @@ const InterviewQuestions = ({
         hasExistingInterview={state.scheduledInterviews.length > 0}
         interviewCount={state.scheduledInterviews.length}
         onSchedule={() => onRequestScheduleInterview?.()}
+        onStart={() => { onRequestStartInterview?.(); }}
         onUseExisting={() => {
           if (state.scheduledInterviews.length === 1) {
             state.openInterview(state.scheduledInterviews[0]);
@@ -389,6 +417,7 @@ const InterviewQuestions = ({
             state.setView('interview-picker');
           }
         }}
+        authUser={authUser}
       />
     );
   }
@@ -399,6 +428,8 @@ const InterviewQuestions = ({
         interviews={state.scheduledInterviews as Interview[]}
         onBack={() => state.setView('selection')}
         onPick={(iv) => state.openInterview(iv)}
+        onDelete={handleDeleteInterview}
+        authUser={authUser}
       />
     );
   }
@@ -435,6 +466,7 @@ const InterviewQuestions = ({
         openGroups={state.openGroups}
         percentages={state.achievedPercentages}
         answers={state.answers}
+        selectedTags={state.selectedTagsByQuestion}
         totals={state.totals}
         elapsedMs={elapsedMs}
         isInteractive={isInteractive}
@@ -468,6 +500,7 @@ const InterviewQuestions = ({
         onSaveProgress={handleSaveProgress}
         onToggleGroup={state.toggleGroup}
         onQuestionChange={handleQuestionChange}
+        authUser={authUser}
       />
     );
   }
@@ -478,6 +511,7 @@ const InterviewQuestions = ({
       hasExistingInterview={state.scheduledInterviews.length > 0}
       interviewCount={state.scheduledInterviews.length}
       onSchedule={() => onRequestScheduleInterview?.()}
+      onStart={() => { onRequestStartInterview?.(); }}
       onUseExisting={() => {
         if (state.scheduledInterviews.length === 1) {
           state.openInterview(state.scheduledInterviews[0]);

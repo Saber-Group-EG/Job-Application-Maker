@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Building2, ChevronDown, ChevronUp, Library, Trash2 } from 'lucide-react';
+import { Building2, ChevronDown, ChevronUp, Library, Save, Trash2 } from 'lucide-react';
 import { QuestionRow } from './QuestionRow';
 import type { InterviewAnswer } from '../../../../../../types/applicants';
 import { computeTotalScore, getQuestionId } from '../utils/interviewUtils';
@@ -15,13 +15,16 @@ export type QuestionGroupCardProps = {
   canRemove: boolean;
   percentages: Record<string, number>;
   answers: Record<string, unknown>;
+  selectedTags?: Record<string, string[]>;
   onToggle: () => void;
   onQuestionChange: (
     questionId: string,
-    patch: { percentage?: number; answer?: unknown }
+    patch: { percentage?: number; answer?: unknown; selectedTags?: string[] }
   ) => void;
   onRemove?: () => void;
   onDeleteQuestion?: (questionId: string) => void;
+  onSaveProgress?: () => void;
+  isMutating?: boolean;
 };
 
 export const QuestionGroupCard = ({
@@ -34,10 +37,13 @@ export const QuestionGroupCard = ({
   canRemove,
   percentages,
   answers,
+  selectedTags,
   onToggle,
   onQuestionChange,
   onRemove,
   onDeleteQuestion,
+  onSaveProgress,
+  isMutating,
 }: QuestionGroupCardProps) => {
   const { t } = useLocale();
   const SourceIcon = source === 'company' ? Building2 : Library;
@@ -78,7 +84,21 @@ export const QuestionGroupCard = ({
             </p>
           </div>
         </button>
-
+ {isInteractive && onSaveProgress && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSaveProgress();
+              }}
+              disabled={isMutating}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors disabled:opacity-50"
+              title={t('saveAnswers', 'interview')}
+            >
+              <Save className="h-3.5 w-3.5" />
+              {t('saveAnswers', 'interview')}
+            </button>
+          )}
         <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
           <div className="flex items-center gap-1.5 w-20 xl:w-24">
             <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
@@ -104,6 +124,7 @@ export const QuestionGroupCard = ({
               <Trash2 className="h-4 w-4" />
             </button>
           )}
+         
           <button
             type="button"
             onClick={onToggle}
@@ -120,14 +141,15 @@ export const QuestionGroupCard = ({
             const qId = getQuestionId(q);
             return (
               <div key={qId || `${groupKey}_${q?.question}`}>
-                <QuestionRow
-                  question={q}
-                  isInteractive={isInteractive}
-                  percentage={Number((qId && percentages[qId]) || 0)}
-                  answer={qId ? answers[qId] : undefined}
-                  onChange={(patch) => onQuestionChange(qId, patch)}
-                  onDelete={onDeleteQuestion}
-                />
+                  <QuestionRow
+                    question={q}
+                    isInteractive={isInteractive}
+                    percentage={Number((qId && percentages[qId]) || 0)}
+                    answer={qId ? answers[qId] : undefined}
+                    selectedTags={qId ? selectedTags?.[qId] : undefined}
+                    onChange={(patch) => onQuestionChange(qId, patch)}
+                    onDelete={onDeleteQuestion}
+                  />
               </div>
             );
           })}

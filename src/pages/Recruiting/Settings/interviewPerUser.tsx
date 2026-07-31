@@ -22,6 +22,7 @@ import type {
 	SavedQuestionAnswerType,
 	SavedQuestionGroup,
 } from "../../../services/usersService";
+import { normalizeChoices } from "../../../types/companies";
 
 const ANSWER_TYPES: SavedQuestionAnswerType[] = [
 	"text",
@@ -36,6 +37,7 @@ const EMPTY_QUESTION: SavedQuestion = {
 	question: "",
 	score: 0,
 	answerType: "text",
+	tags: [],
 };
 
 const normalizeGroups = (
@@ -56,9 +58,12 @@ const normalizeGroups = (
 					question: String(question?.question ?? ""),
 					score: Number.isFinite(score) ? score : 0,
 					answerType,
-					choices: Array.isArray(question?.choices)
-						? (question as any).choices.map((c: any) => String(c ?? "").trim()).filter(Boolean)
-						: [],
+				choices: Array.isArray(question?.choices)
+					? normalizeChoices(question.choices)
+					: [],
+				tags: Array.isArray(question?.tags)
+					? (question.tags as any[]).map((tag) => String(tag ?? '')).filter(Boolean)
+					: [],
 				};
 			})
 			: [],
@@ -78,6 +83,8 @@ export default function SavedQuestionsPage() {
 	const [groups, setGroups] = useState<SavedQuestionGroup[]>([]);
 	const [isSaving, setIsSaving] = useState(false);
 	const [choiceBuffers, setChoiceBuffers] = useState<Record<string, string>>({});
+	const [scoreBuffers, setScoreBuffers] = useState<Record<string, string>>({});
+	const [tagBuffers, setTagBuffers] = useState<Record<string, string>>({});
 
 	const isLoading = isGroupsLoading || isGroupsFetching;
 
@@ -225,6 +232,30 @@ export default function SavedQuestionsPage() {
 					);
 					return null;
 				}
+
+				if (question.answerType === 'radio' && Array.isArray(question.choices)) {
+					const sum = (question.choices as any[]).reduce((s: number, c: any) => s + (Number(c.score) || 0), 0);
+					if (sum > Number(question.score)) {
+						Swal.fire(
+							t('commonValidation', 'settings'),
+							t('interviewPerUser.validationRadioScoreExceeded', 'settings', { qNumber: questionIndex + 1, gNumber: groupIndex + 1 }),
+							'warning'
+						);
+						return null;
+					}
+				}
+
+				if (question.answerType === 'dropdown' && Array.isArray(question.choices)) {
+					const exceeded = (question.choices as any[]).find((c: any) => (Number(c.score) || 0) > Number(question.score));
+					if (exceeded) {
+						Swal.fire(
+							t('commonValidation', 'settings'),
+							t('interviewPerUser.validationDropdownScoreExceeded', 'settings', { qNumber: questionIndex + 1, gNumber: groupIndex + 1, choice: exceeded.label }),
+							'warning'
+						);
+						return null;
+					}
+				}
 			}
 		}
 
@@ -234,9 +265,8 @@ export default function SavedQuestionsPage() {
 				question: question.question.trim(),
 				score: Number(question.score),
 				answerType: question.answerType,
-				choices: Array.isArray((question as any).choices)
-					? (question as any).choices.map((c: any) => String(c ?? "").trim()).filter(Boolean)
-					: [],
+			choices: Array.isArray(question.choices) ? question.choices : [],
+			tags: Array.isArray(question.tags) ? question.tags : [],
 			})),
 		}));
 	};
@@ -453,13 +483,30 @@ export default function SavedQuestionsPage() {
 													{t('interviewPerUser.labelScore', 'settings')}
 												</label>
 												<input
-													type="number"
-													value={question.score}
+													type="text"
+													inputMode="numeric"
+													value={scoreBuffers[`${groupIndex}_${questionIndex}`] ?? String(question.score ?? 0)}
 													onChange={(e) => {
-														const value = Number(e.target.value);
-														updateQuestion(groupIndex, questionIndex, {
-															score: Number.isFinite(value) ? value : 0,
-														});
+														const key = `${groupIndex}_${questionIndex}`;
+														const raw = e.target.value;
+														if (raw === '') {
+															setScoreBuffers((prev) => ({ ...prev, [key]: '' }));
+															return;
+														}
+														const num = Number(raw);
+														if (Number.isFinite(num)) {
+															setScoreBuffers((prev) => ({ ...prev, [key]: raw }));
+															updateQuestion(groupIndex, questionIndex, {
+																score: num,
+															});
+														}
+													}}
+													onBlur={() => {
+														const key = `${groupIndex}_${questionIndex}`;
+														if ((scoreBuffers[key] ?? '') === '') {
+															setScoreBuffers((prev) => ({ ...prev, [key]: '0' }));
+															updateQuestion(groupIndex, questionIndex, { score: 0 });
+														}
 													}}
 													className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-900"
 												/>
@@ -480,56 +527,173 @@ export default function SavedQuestionsPage() {
 													<label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
 														{t('interviewPerUser.labelChoices', 'settings')}
 													</label>
-													<div className="mb-2 flex flex-wrap gap-2">
-														{(Array.isArray(question.choices) ? question.choices : []).map((c) => (
-															<div key={c} className="group flex items-center justify-center rounded-full border-[0.7px] border-transparent bg-gray-100 py-1 pl-2.5 pr-2 text-sm text-gray-800 hover:border-gray-200 dark:bg-gray-800 dark:text-white/90 dark:hover:border-gray-800">
-																<span className="flex-initial max-w-full">{c}</span>
-																<button
-																	type="button"
-																	onClick={() => {
-																	const existing = Array.isArray(question.choices) ? question.choices : [];
-																	const next = existing.filter((x) => String(x) !== String(c));
-																	updateQuestion(groupIndex, questionIndex, { choices: next });
-																}}
-																	className="pl-2 text-gray-500 cursor-pointer group-hover:text-gray-400 dark:text-gray-400"
-																	aria-label={t('interviewPerUser.removeChoice', 'settings', { value: c })}
-																>
-																	<svg className="fill-current" width="14" height="14" viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg">
-																		<path fillRule="evenodd" clipRule="evenodd" d="M3.40717 4.46881C3.11428 4.17591 3.11428 3.70104 3.40717 3.40815C3.70006 3.11525 4.17494 3.11525 4.46783 3.40815L6.99943 5.93975L9.53095 3.40822C9.82385 3.11533 10.2987 3.11533 10.5916 3.40822C10.8845 3.70112 10.8845 4.17599 10.5916 4.46888L8.06009 7.00041L10.5916 9.53193C10.8845 9.82482 10.8845 10.2997 10.5916 10.5926C10.2987 10.8855 9.82385 10.8855 9.53095 10.5926L6.99943 8.06107L4.46783 10.5927C4.17494 10.8856 3.70006 10.8856 3.40717 10.5927C3.11428 10.2998 3.11428 9.8249 3.40717 9.53201L5.93877 7.00041L3.40717 4.46881Z" />
-																	</svg>
-																</button>
-															</div>
-														))}
+													<div className="space-y-2">
+														{(Array.isArray(question.choices) ? question.choices : []).map((c: any, i: number) => {
+															const label = String(c?.label ?? c ?? '');
+															if (!label) return null;
+															return (
+																<div key={i} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white p-2 dark:border-slate-700 dark:bg-slate-900">
+																	<span className="flex-1 truncate text-sm text-slate-800 dark:text-slate-200">{label}</span>
+																	<input
+																		type="text"
+																		inputMode="numeric"
+																		value={scoreBuffers[`${groupIndex}_${questionIndex}_${i}`] ?? String(c?.score ?? 0)}
+																		onChange={(e) => {
+																			const raw = e.target.value;
+																			const key = `${groupIndex}_${questionIndex}_${i}`;
+																			setScoreBuffers((prev) => ({ ...prev, [key]: raw }));
+																			if (raw === '') return;
+																			const num = Number(raw);
+																			if (Number.isFinite(num)) {
+																				const updated = [...(Array.isArray(question.choices) ? question.choices : [])];
+																				updated[i] = { ...updated[i], score: num };
+																				updateQuestion(groupIndex, questionIndex, { choices: updated });
+																			}
+																		}}
+																		onBlur={() => {
+																			const key = `${groupIndex}_${questionIndex}_${i}`;
+																			const raw = scoreBuffers[key];
+																			if (raw === '' || raw === undefined) {
+																				const updated = [...(Array.isArray(question.choices) ? question.choices : [])];
+																				updated[i] = { ...updated[i], score: 0 };
+																				updateQuestion(groupIndex, questionIndex, { choices: updated });
+																				setScoreBuffers((prev) => ({ ...prev, [key]: '0' }));
+																			}
+																		}}
+																		className="w-20 rounded border border-slate-300 bg-white px-2 py-1 text-xs text-center outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800"
+																	/>
+																	<button
+																		type="button"
+																		onClick={() => {
+																			const existing = Array.isArray(question.choices) ? question.choices : [];
+																			const next = existing.filter((_: any, idx: number) => idx !== i);
+																			updateQuestion(groupIndex, questionIndex, { choices: next });
+																		}}
+																		className="cursor-pointer p-1 text-gray-400 hover:text-red-500"
+																		aria-label={t('interviewPerUser.removeChoice', 'settings', { value: label })}
+																	>
+																		<svg className="fill-current" width="14" height="14" viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg">
+																			<path fillRule="evenodd" clipRule="evenodd" d="M3.40717 4.46881C3.11428 4.17591 3.11428 3.70104 3.40717 3.40815C3.70006 3.11525 4.17494 3.11525 4.46783 3.40815L6.99943 5.93975L9.53095 3.40822C9.82385 3.11533 10.2987 3.11533 10.5916 3.40822C10.8845 3.70112 10.8845 4.17599 10.5916 4.46888L8.06009 7.00041L10.5916 9.53193C10.8845 9.82482 10.8845 10.2997 10.5916 10.5926C10.2987 10.8855 9.82385 10.8855 9.53095 10.5926L6.99943 8.06107L4.46783 10.5927C4.17494 10.8856 3.70006 10.8856 3.40717 10.5927C3.11428 10.2998 3.11428 9.8249 3.40717 9.53201L5.93877 7.00041L3.40717 4.46881Z" />
+																		</svg>
+																	</button>
+																</div>
+															);
+														})}
 													</div>
+													<div className="mt-2 flex items-center gap-2">
+														<input
+															type="text"
+															value={choiceBuffers[`${groupIndex}_${questionIndex}`] ?? ''}
+															onChange={(e) => setChoiceBuffers((prev) => ({ ...prev, [`${groupIndex}_${questionIndex}`]: e.target.value }))}
+															onKeyDown={(e) => {
+																if (e.key === 'Enter') {
+																	e.preventDefault();
+																	const key = `${groupIndex}_${questionIndex}`;
+																	const buf = (choiceBuffers[key] ?? '').trim();
+																	if (!buf) return;
+																	const existing = Array.isArray(question.choices) ? question.choices : [];
+																	const scoreKey = `${groupIndex}_${questionIndex}_new`;
+																	const rawScore = scoreBuffers[scoreKey] ?? '';
+																	const score = rawScore === '' ? 0 : Number(rawScore);
+																	const next = [...existing, { label: buf, score: Number.isFinite(score) ? score : 0 }];
+																	updateQuestion(groupIndex, questionIndex, { choices: next });
+																	setChoiceBuffers((prev) => ({ ...prev, [key]: '' }));
+																	setScoreBuffers((prev) => ({ ...prev, [scoreKey]: '' }));
+																}
+															}}
+															placeholder={t('interviewPerUser.choicePlaceholder', 'settings')}
+															className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-900"
+														/>
+														<input
+															type="text"
+															inputMode="numeric"
+															value={scoreBuffers[`${groupIndex}_${questionIndex}_new`] ?? ''}
+															onChange={(e) => {
+																const key = `${groupIndex}_${questionIndex}_new`;
+																setScoreBuffers((prev) => ({ ...prev, [key]: e.target.value }));
+															}}
+															onKeyDown={(e) => {
+																if (e.key === 'Enter') {
+																	e.preventDefault();
+																	const key = `${groupIndex}_${questionIndex}`;
+																	const buf = (choiceBuffers[key] ?? '').trim();
+																	if (!buf) return;
+																	const existing = Array.isArray(question.choices) ? question.choices : [];
+																	const scoreKey = `${groupIndex}_${questionIndex}_new`;
+																	const rawScore = scoreBuffers[scoreKey] ?? '';
+																	const score = rawScore === '' ? 0 : Number(rawScore);
+																	const next = [...existing, { label: buf, score: Number.isFinite(score) ? score : 0 }];
+																	updateQuestion(groupIndex, questionIndex, { choices: next });
+																	setChoiceBuffers((prev) => ({ ...prev, [key]: '' }));
+																	setScoreBuffers((prev) => ({ ...prev, [scoreKey]: '' }));
+																}
+															}}
+															placeholder="Score"
+															className="w-20 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-center outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-900"
+														/>
+													</div>
+												</div>
+											)}
+
+											<div className="lg:col-span-4">
+												<label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+													{t('interviewPerUser.labelTags', 'settings')}
+												</label>
+												<div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white p-2 dark:border-slate-700 dark:bg-slate-900">
+													{(Array.isArray(question.tags) ? question.tags : []).map((tag: string, i: number) => (
+														<span
+															key={`${tag}_${i}`}
+															className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-700 dark:bg-brand-500/10 dark:text-brand-300"
+														>
+															{tag}
+															<button
+																type="button"
+																onClick={() => {
+																	const existing = Array.isArray(question.tags) ? question.tags : [];
+																	const next = existing.filter((_: string, idx: number) => idx !== i);
+																	updateQuestion(groupIndex, questionIndex, { tags: next });
+																}}
+																className="cursor-pointer text-brand-500 hover:text-red-500"
+																aria-label={t('interviewPerUser.removeTag', 'settings', { value: tag })}
+															>
+																<svg className="fill-current" width="12" height="12" viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg">
+																	<path fillRule="evenodd" clipRule="evenodd" d="M3.40717 4.46881C3.11428 4.17591 3.11428 3.70104 3.40717 3.40815C3.70006 3.11525 4.17494 3.11525 4.46783 3.40815L6.99943 5.93975L9.53095 3.40822C9.82385 3.11533 10.2987 3.11533 10.5916 3.40822C10.8845 3.70112 10.8845 4.17599 10.5916 4.46888L8.06009 7.00041L10.5916 9.53193C10.8845 9.82482 10.8845 10.2997 10.5916 10.5926C10.2987 10.8855 9.82385 10.8855 9.53095 10.5926L6.99943 8.06107L4.46783 10.5927C4.17494 10.8856 3.70006 10.8856 3.40717 10.5927C3.11428 10.2998 3.11428 9.8249 3.40717 9.53201L5.93877 7.00041L3.40717 4.46881Z" />
+																</svg>
+															</button>
+														</span>
+													))}
 													<input
 														type="text"
-														value={choiceBuffers[`${groupIndex}_${questionIndex}`] ?? ''}
-														onChange={(e) => setChoiceBuffers((prev) => ({ ...prev, [`${groupIndex}_${questionIndex}`]: e.target.value }))}
+														value={tagBuffers[`${groupIndex}_${questionIndex}`] ?? ''}
+														onChange={(e) => setTagBuffers((prev) => ({ ...prev, [`${groupIndex}_${questionIndex}`]: e.target.value }))}
 														onKeyDown={(e) => {
 															if (e.key === 'Enter') {
 																e.preventDefault();
 																const key = `${groupIndex}_${questionIndex}`;
-																const buf = (choiceBuffers[key] ?? '').trim();
-																if (!buf) return;
-																const existing = Array.isArray(question.choices) ? question.choices : [];
-																const next = [...existing, buf];
-																updateQuestion(groupIndex, questionIndex, { choices: next });
-																setChoiceBuffers((prev) => ({ ...prev, [key]: '' }));
+																const value = (tagBuffers[key] ?? '').trim();
+																if (!value) return;
+																const existing = Array.isArray(question.tags) ? question.tags : [];
+																if (!existing.includes(value)) {
+																	updateQuestion(groupIndex, questionIndex, { tags: [...existing, value] });
+																}
+																setTagBuffers((prev) => ({ ...prev, [key]: '' }));
 															}
 														}}
 														onBlur={() => {
 															const key = `${groupIndex}_${questionIndex}`;
-															const buf = (choiceBuffers[key] ?? '').trim();
-															if (!buf) return;
-															const existing = Array.isArray(question.choices) ? question.choices : [];
-															updateQuestion(groupIndex, questionIndex, { choices: [...existing, buf] });
-															setChoiceBuffers((prev) => ({ ...prev, [key]: '' }));
+															const value = (tagBuffers[key] ?? '').trim();
+															if (!value) return;
+															const existing = Array.isArray(question.tags) ? question.tags : [];
+															if (!existing.includes(value)) {
+																updateQuestion(groupIndex, questionIndex, { tags: [...existing, value] });
+															}
+															setTagBuffers((prev) => ({ ...prev, [key]: '' }));
 														}}
-														placeholder={t('interviewPerUser.choicePlaceholder', 'settings')}
-														className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-900"
+														placeholder={t('interviewPerUser.tagsPlaceholder', 'settings')}
+														className="min-w-32 flex-1 border-0 bg-transparent px-1 py-0.5 text-sm outline-none focus:ring-0"
 													/>
 												</div>
-											)}
+											</div>
 										</div>
 									))}
 

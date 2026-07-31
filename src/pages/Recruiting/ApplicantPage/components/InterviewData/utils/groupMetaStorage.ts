@@ -4,6 +4,8 @@ export type GroupMeta = {
   key: string;
   name: string;
   source: GroupSource;
+  answerType?: string;
+  tags?: string[];
 };
 
 export const buildMetaKey = (applicantId: string, interviewId: string): string =>

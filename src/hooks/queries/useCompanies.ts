@@ -363,18 +363,28 @@ export function useUpdateCompanyInterviewSettings() {
   return useMutation({
     mutationFn: ({
       settingsId,
+      companyId,
       data,
     }: {
       settingsId: string;
+      companyId?: string;
       data: UpdateInterviewSettingsRequest;
     }) => companiesService.updateCompanyInterviewSettings(settingsId, data),
-    onSuccess: (interviewSettings, variables) => {
-      const settingsId = variables.settingsId;
+    onSuccess: (response, variables) => {
+      const { settingsId, companyId } = variables;
 
-      if (settingsId) {
-        // ✅ FIXED: Use 'interviewSettings' (plural) not 'interviewSetting'
+      const raw = (response as any)?.interviewSettings ?? response;
+      const groups = Array.isArray(raw?.groups)
+        ? raw.groups
+        : Array.isArray((raw as any)?.data?.groups)
+          ? (raw as any).data.groups
+          : null;
+      const interviewSettings = groups ? { ...raw, groups } : null;
+
+      if (settingsId && interviewSettings) {
+        const keyId = companyId || settingsId;
         queryClient.setQueryData(
-          companiesKeys.interviewSettings(settingsId),
+          companiesKeys.interviewSettings(keyId),
           interviewSettings
         );
         queryClient.setQueryData(companiesKeys.list(), (old: any) => {

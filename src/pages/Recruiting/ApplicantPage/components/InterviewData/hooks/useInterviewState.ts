@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useApplicant } from '../../../../../../hooks/queries';
+import { useLocale } from '../../../../../../context/LocaleContext';
+import Swal from '../../../../../../utils/swal';
 import type { Applicant, Interview, InterviewAnswer } from '../../../../../../types/applicants';
 import {
   isScheduled,
@@ -20,7 +22,7 @@ export type InterviewViewName =
 type ExistingInterview = Interview;
 type ExistingQuestion = InterviewAnswer;
 
-const resolveApplicantCompanyId = (applicant: Applicant | undefined): string => {
+export const resolveApplicantCompanyId = (applicant: Applicant | undefined): string => {
   if (!applicant) return '';
   const resolve = (v: unknown): string => {
     if (!v) return '';
@@ -44,12 +46,14 @@ const resolveApplicantCompanyId = (applicant: Applicant | undefined): string => 
 export const useInterviewState = (
   applicantId: string,
   autoSelectInterviewId: string | null | undefined,
-  externalApplicantData?: Applicant
+  externalApplicantData?: Applicant,
+  currentUserId?: string
 ) => {
   const { data: fetchedData } = useApplicant(applicantId, { enabled: !!applicantId && !externalApplicantData });
   const applicantData = externalApplicantData ?? fetchedData;
   const companyId = useMemo(() => resolveApplicantCompanyId(applicantData), [applicantData]);
   const { pool: questionPool } = useQuestionPool(companyId);
+  const { t } = useLocale();
 
   const allInterviews = useMemo<ExistingInterview[]>(
     () =>
@@ -70,6 +74,7 @@ export const useInterviewState = (
   const [openGroups, setOpenGroups] = useState<string[]>([]);
   const [achievedPercentages, setAchievedPercentages] = useState<Record<string, number>>({});
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
+  const [selectedTagsByQuestion, setSelectedTagsByQuestion] = useState<Record<string, string[]>>({});
 
   const selectedInterview = useMemo<ExistingInterview | null>(() => {
     if (!selectedInterviewId) return null;
@@ -78,13 +83,44 @@ export const useInterviewState = (
     );
   }, [allInterviews, selectedInterviewId]);
 
-  const flatExistingQuestions = useMemo<ExistingQuestion[]>(
-    () => (selectedInterview && Array.isArray(selectedInterview.questions) ? selectedInterview.questions : []),
-    [selectedInterview]
-  );
+  const questionTypeMap = useMemo(() => {
+    const map: Record<string, { answerType: string; choices: { label: string; score: number }[]; tags?: string[] }> = {};
+    questionPool.forEach((group) => {
+      group.questions.forEach((q) => {
+        const id = q._id || q.id;
+        if (id) map[id] = { answerType: q.answerType, choices: q.choices, tags: q.tags };
+      });
+    });
+    return map;
+  }, [questionPool]);
 
-  // Group meta (persisted)
+  // Group meta (persisted) — must be declared before flatExistingQuestions
   const groupMeta = useGroupMeta(applicantId, selectedInterviewId ?? '');
+
+  const flatExistingQuestions = useMemo<ExistingQuestion[]>(
+    () => {
+      const raw = selectedInterview && Array.isArray(selectedInterview.questions) ? selectedInterview.questions : [];
+      return raw.map((q) => {
+        const qId = (q as any)?._id || (q as any)?.id;
+        const enriched = qId ? questionTypeMap[qId] : undefined;
+        if (enriched) {
+          return { ...q, answerType: enriched.answerType, choices: enriched.choices, tags: enriched.tags };
+        }
+        const meta = qId ? groupMeta.meta[qId] : undefined;
+        const fallbackAnswerType = meta?.answerType || (q as any)?.answerType || 'text';
+        if ((q as any)?.answerType !== fallbackAnswerType || (meta?.tags && Array.isArray(meta.tags))) {
+          const fallbackTags = meta?.tags && meta.tags.length > 0 ? meta.tags : undefined;
+          return {
+            ...(q as any),
+            answerType: fallbackAnswerType,
+            ...(fallbackTags ? { tags: fallbackTags } : {}),
+          };
+        }
+        return q;
+      });
+    },
+    [selectedInterview, questionTypeMap, groupMeta.meta]
+  );
 
   // Auto-load on first data arrival: pick a single interview directly, or
   // open the picker if there are multiple. Auto-select a newly created
@@ -95,11 +131,15 @@ export const useInterviewState = (
   const initialLoadDoneRef = useRef<boolean>(false);
   useEffect(() => {
     if (autoSelectInterviewId && autoSelectInterviewId !== lastConsumedAutoSelectRef.current) {
-      lastConsumedAutoSelectRef.current = autoSelectInterviewId;
       const found = allInterviews.find((iv) => getInterviewId(iv) === autoSelectInterviewId);
       if (found) {
+        lastConsumedAutoSelectRef.current = autoSelectInterviewId;
         initialLoadDoneRef.current = true;
         openInterview(found);
+        if (found.status === 'in_progress') {
+          const questions = Array.isArray(found.questions) ? found.questions : [];
+          if (questions.length === 0) setView('assessment');
+        }
         return;
       }
     }
@@ -120,18 +160,38 @@ export const useInterviewState = (
   // groupedQuestions collapses everything into __ungrouped__.
   //
   // We preserve the user's existing slider state for any question whose id
+  // Seed group meta from loaded questions so answerType is available for
+  // enrichment even before the question pool finishes loading.
+  useEffect(() => {
+    if (!selectedInterview) return;
+    const questions = Array.isArray(selectedInterview.questions) ? selectedInterview.questions : [];
+    if (questions.length === 0) return;
+    groupMeta.seedFromLoaded(questions);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedInterviewId]);
+  
   // is still present, and only seed entries for new questions from their
   // achievedScore. This way, the slider responds to drags immediately after
   // a "Save & Start" replaces the question list.
+  const seededQIdsRef = useRef<string>('');
   useLayoutEffect(() => {
     if (!selectedInterview) return;
     const questions = Array.isArray(selectedInterview.questions) ? selectedInterview.questions : [];
     if (questions.length === 0) {
-      setAchievedPercentages({});
-      setAnswers({});
-      setOpenGroups([]);
+      if (seededQIdsRef.current) {
+        setAchievedPercentages({});
+        setAnswers({});
+        setOpenGroups([]);
+        seededQIdsRef.current = '';
+      }
       return;
     }
+    const key = questions.map((q) => {
+      const qId = getQuestionId(q);
+      return `${qId}:${q?.achievedScore ?? ''}:${q?.score ?? ''}:${q?.notes ?? ''}`;
+    }).join('|');
+    if (key === seededQIdsRef.current) return;
+    seededQIdsRef.current = key;
     setAchievedPercentages((prev) => {
       const next: Record<string, number> = {};
       questions.forEach((q) => {
@@ -155,19 +215,78 @@ export const useInterviewState = (
         if (prev[qId] !== undefined) {
           next[qId] = prev[qId];
         } else if (q?.notes) {
-          next[qId] = q.notes;
+          const raw = q.notes;
+          if (raw === 'true') {
+            next[qId] = true;
+          } else if (raw === 'false') {
+            next[qId] = false;
+          } else if (raw.startsWith('[') || raw.startsWith('{')) {
+            try {
+              next[qId] = JSON.parse(raw);
+            } catch {
+              next[qId] = raw;
+            }
+          } else {
+            next[qId] = raw;
+          }
         }
       });
       return next;
     });
-    groupMeta.seedFromLoaded(questions);
+    setSelectedTagsByQuestion((prev) => {
+      const next: Record<string, string[]> = {};
+      questions.forEach((q) => {
+        const qId = getQuestionId(q);
+        if (!qId) return;
+        if (prev[qId] !== undefined) {
+          next[qId] = prev[qId];
+        } else if (Array.isArray(q?.tags)) {
+          const qTags = (q.tags as any[])
+            .map((tag) => String(tag ?? ''))
+            .filter(Boolean);
+          const fullList = questionTypeMap[qId]?.tags;
+          const isFullList =
+            Array.isArray(fullList) &&
+            qTags.length === fullList.length &&
+            fullList.every((tag) => qTags.includes(String(tag ?? '')));
+          // A freshly built question carries the full predefined tag list
+          // (the selection lives separately); only seed the selection when
+          // the tags are NOT the full pool list (i.e. a saved subset).
+          if (!isFullList) {
+            next[qId] = qTags;
+          }
+        }
+      });
+      return next;
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedInterviewId, flatExistingQuestions]);
 
   // ---- Actions ----------------------------------------------------------
+  const resolveConductedById = (v: unknown): string => {
+    if (!v) return '';
+    if (typeof v === 'string') return v;
+    if (typeof v === 'object') {
+      const obj = v as { _id?: unknown; id?: unknown };
+      return String(obj._id || obj.id || '');
+    }
+    return String(v);
+  };
+
   const openInterview = useCallback((interview: ExistingInterview) => {
     const id = getInterviewId(interview);
     if (!id) return;
+    const status = String(interview.status || '').toLowerCase();
+    const conductedById = resolveConductedById(interview.conductedBy);
+    if (status === 'in_progress' && conductedById && currentUserId && conductedById !== currentUserId) {
+      Swal.fire({
+        icon: 'warning',
+        title: t('interviewLocked', 'interview'),
+        text: t('interviewLockedDescription', 'interview'),
+        confirmButtonColor: '#3085d6',
+      });
+      return;
+    }
     initialLoadDoneRef.current = true;
     setSelectedInterviewId(id);
     const questions = Array.isArray(interview.questions) ? interview.questions : [];
@@ -176,7 +295,7 @@ export const useInterviewState = (
     } else {
       setView('assessment');
     }
-  }, []);
+  }, [currentUserId, t]);
 
   const goBack = useCallback(() => {
     if (scheduledInterviews.length > 1) {
@@ -189,12 +308,15 @@ export const useInterviewState = (
   }, [scheduledInterviews.length]);
 
   const updateField = useCallback(
-    (questionId: string, patch: { percentage?: number; answer?: unknown }) => {
+    (questionId: string, patch: { percentage?: number; answer?: unknown; selectedTags?: string[] }) => {
       if (patch.percentage !== undefined) {
         setAchievedPercentages((prev) => ({ ...prev, [questionId]: patch.percentage! }));
       }
       if (patch.answer !== undefined) {
         setAnswers((prev) => ({ ...prev, [questionId]: patch.answer }));
+      }
+      if (patch.selectedTags !== undefined) {
+        setSelectedTagsByQuestion((prev) => ({ ...prev, [questionId]: patch.selectedTags! }));
       }
     },
     []
@@ -231,9 +353,14 @@ export const useInterviewState = (
               ? ''
               : typeof notesValue === 'string'
               ? notesValue
+              : Array.isArray(notesValue)
+              ? JSON.stringify(notesValue)
               : String(notesValue),
           answerType: q?.answerType,
           choices: Array.isArray(q?.choices) ? q?.choices : [],
+          tags: Array.isArray(selectedTagsByQuestion[qId])
+            ? selectedTagsByQuestion[qId]
+            : [],
           groupKey: meta?.key || q?.groupKey,
           groupName: meta?.name || q?.groupName,
           groupSource: (meta?.source || q?.groupSource) as 'company' | 'user' | undefined,
@@ -313,6 +440,7 @@ export const useInterviewState = (
     toggleGroup,
     achievedPercentages,
     answers,
+    selectedTagsByQuestion,
     selectedInterviewId,
     setSelectedInterviewId,
     // meta

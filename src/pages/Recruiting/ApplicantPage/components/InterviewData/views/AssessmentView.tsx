@@ -15,7 +15,7 @@ export type NewCustomQuestion = {
   question: string;
   score: number;
   answerType: string;
-  choices: string[];
+  choices: { label: string; score: number }[];
 };
 
 type GroupedGroup = {
@@ -31,6 +31,7 @@ export type AssessmentViewProps = {
   openGroups: string[];
   percentages: Record<string, number>;
   answers: Record<string, unknown>;
+  selectedTags?: Record<string, string[]>;
   totals: {
     totalScore: number;
     achieved: number;
@@ -64,8 +65,9 @@ export type AssessmentViewProps = {
   onToggleGroup: (key: string) => void;
   onQuestionChange: (
     questionId: string,
-    patch: { percentage?: number; answer?: unknown }
+    patch: { percentage?: number; answer?: unknown; selectedTags?: string[] }
   ) => void;
+  authUser?: { _id?: string; id?: string; fullName?: string; name?: string; email?: string } | null;
 };
 
 const CREATE_QUESTION_INITIAL: NewCustomQuestion = {
@@ -90,7 +92,7 @@ const CreateQuestionForm = ({
     if (!isFormValid) return;
     const choices = form.answerType === 'text' || form.answerType === 'number'
       ? []
-      : choicesText.split(',').map((c) => c.trim()).filter(Boolean);
+      : choicesText.split(',').map((c) => c.trim()).filter(Boolean).map((label) => ({ label, score: 0 }));
     onAdd({ ...form, choices });
     setForm({ ...CREATE_QUESTION_INITIAL });
     setChoicesText('');
@@ -114,8 +116,8 @@ const CreateQuestionForm = ({
           <input
             type="number"
             min={0}
-            value={form.score}
-            onChange={(e) => setForm((f) => ({ ...f, score: Math.max(0, Number(e.target.value)) }))}
+            value={form.score || ''}
+            onChange={(e) => setForm((f) => ({ ...f, score: e.target.value === '' ? 0 : Math.max(0, Number(e.target.value)) }))}
             className="w-full text-sm px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none"
           />
         </div>
@@ -204,6 +206,7 @@ const buildMergedGroups = (
       notes: '',
       answerType: q.answerType,
       choices: q.choices,
+      tags: q.tags,
       groupKey: group.key,
       groupName: group.name,
       groupSource: group.source,
@@ -225,6 +228,7 @@ export const AssessmentView = ({
   openGroups,
   percentages,
   answers,
+  selectedTags,
   elapsedMs,
   isStarted,
   isEnded,
@@ -248,6 +252,7 @@ export const AssessmentView = ({
   onSaveProgress,
   onToggleGroup,
   onQuestionChange,
+  authUser,
 }: AssessmentViewProps) => {
   const { t } = useLocale();
   const questionsEditable = isStarted && !isEnded;
@@ -274,6 +279,7 @@ export const AssessmentView = ({
         notes: '',
         answerType: q.answerType,
         choices: q.choices,
+        tags: q.tags,
       }));
     return [...free, ...pending];
   }, [groupedQuestions, newCustomQuestions]);
@@ -371,10 +377,13 @@ export const AssessmentView = ({
               canRemove={!isEnded}
               percentages={percentages}
               answers={answers}
+              selectedTags={selectedTags}
               onToggle={() => onToggleGroup(g.key)}
               onQuestionChange={onQuestionChange}
               onDeleteQuestion={onDeleteQuestion}
               onRemove={() => onRemoveGroup(g.key)}
+              onSaveProgress={onSaveProgress}
+              isMutating={isMutating}
             />
           ))}
           {standaloneQuestions.map((q) => {
@@ -386,6 +395,7 @@ export const AssessmentView = ({
                 isInteractive={questionsEditable}
                 percentage={Number((qId && percentages[qId]) || 0)}
                 answer={qId ? answers[qId] : undefined}
+                selectedTags={qId ? selectedTags?.[qId] : undefined}
                 onChange={(patch) => onQuestionChange(qId, patch)}
                 onDelete={onDeleteQuestion}
               />

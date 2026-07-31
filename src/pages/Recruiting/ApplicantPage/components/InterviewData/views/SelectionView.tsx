@@ -1,4 +1,4 @@
-import { History, MessageSquare, Sparkles } from 'lucide-react';
+import { History, Lock, MessageSquare, PlayCircle, Sparkles } from 'lucide-react';
 import type { InterviewViewName } from '../hooks/useInterviewState';
 import { useLocale } from '../../../../../../context/LocaleContext';
 
@@ -7,6 +7,8 @@ export type SelectionViewProps = {
   interviewCount: number;
   onSchedule: () => void;
   onUseExisting: () => void;
+  onStart: () => void;
+  authUser?: { _id?: string; id?: string; fullName?: string; name?: string; email?: string } | null;
 };
 
 export const SelectionView = ({
@@ -14,8 +16,11 @@ export const SelectionView = ({
   interviewCount,
   onSchedule,
   onUseExisting,
+  onStart,
+  authUser,
 }: SelectionViewProps) => {
   const { t } = useLocale();
+  const currentUserId = authUser?._id || authUser?.id || '';
   return (
     <div className="min-h-[500px] flex flex-col items-center justify-center p-6 sm:p-12 bg-gradient-to-br from-slate-50 to-white rounded-2xl border border-slate-200 shadow-xl max-w-full">
       <div className="text-center max-w-md">
@@ -32,6 +37,14 @@ export const SelectionView = ({
             : t('noInterviewScheduled', 'interview')}
         </p>
         <div className="flex gap-3 justify-center items-center flex-wrap">
+          <button
+            type="button"
+            onClick={onStart}
+            className="group inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-lg font-medium hover:from-emerald-700 hover:to-emerald-800 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-sm"
+          >
+            <PlayCircle className="h-3.5 w-3.5 group-hover:scale-110 transition-transform" />
+            {t('startInterview', 'interview')}
+          </button>
           <button
             type="button"
             onClick={onSchedule}

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router';
+import { useParams, useNavigate } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import axiosInstance from '../../../config/axios';
 import DOMPurify from 'dompurify';
@@ -11,6 +11,7 @@ import InterviewQuestions from './components/InterviewData/InterviewQuestions';
 import History from './components/history/History';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import Swal from '../../../utils/swal';
+import { useAuth } from '../../../context/AuthContext';
 import {
   useApplicant,
   useUpdateApplicant,
@@ -322,13 +323,9 @@ const Stickysidebar: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 const ApplicantDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const location = useLocation();
   const { t, dir } = useLocale();
-  const navApplicant = (location.state as any)?.applicant;
-
-  const { data: applicant, isLoading: isApplicantLoading, isFetching: isApplicantFetching, isError, error, refetch } = useApplicant(id || '', {
-    initialData: navApplicant,
-  });
+  const { user } = useAuth();
+  const { data: applicant, isLoading: isApplicantLoading, isFetching: isApplicantFetching, isError, error, refetch } = useApplicant(id || '');
   const updateApplicant = useUpdateApplicant();
   const updateStatus = useUpdateApplicantStatus();
   const addComment = useAddComment();
@@ -656,14 +653,19 @@ const ApplicantDetails: React.FC = () => {
         location: interviewForm.location || undefined, videoLink: interviewForm.link || undefined,
         notes: interviewForm.comment || undefined, conductedBy: interviewForm.conductedBy || undefined,
         status: 'scheduled',
+        scheduledBy: user?._id || user?.id || undefined,
         notifications: {
           channels: { email: notificationChannels.email, sms: notificationChannels.sms, whatsapp: notificationChannels.whatsapp },
           emailOption, customEmail: customEmail || undefined, phoneOption, customPhone: customPhone || undefined,
         },
       };
       const result = await scheduleInterviewMutation.mutateAsync({ id, data: interviewData });
-      const updatedApplicant = result as { interviews?: Interview[] } | undefined;
-      const created = (updatedApplicant?.interviews || []).slice().sort((a, b) => {
+      const res = result as {
+        succeeded?: Array<{ applicantId?: string; interviews?: Interview[] }>;
+        interviews?: Interview[];
+      };
+      const interviews: Interview[] = res.succeeded?.[0]?.interviews ?? res.interviews ?? [];
+      const created = interviews.slice().sort((a, b) => {
         const aTime = new Date(a.createdAt || a.scheduledAt || 0).getTime();
         const bTime = new Date(b.createdAt || b.scheduledAt || 0).getTime();
         return bTime - aTime;
@@ -681,6 +683,52 @@ const ApplicantDetails: React.FC = () => {
       setInterviewError(getErrorMessage(err));
     } finally {
       setIsSubmittingInterview(false);
+    }
+  };
+
+  const handleStartInterview = async () => {
+    if (!id || !applicant) return;
+    try {
+      const conductedById = user?._id ? String(user._id) : user?.id ? String(user.id) : '';
+      const interviewData: ScheduleInterviewRequest = {
+        status: 'in_progress',
+        scheduledAt: new Date().toISOString(),
+        type: 'in-person',
+        ...(conductedById ? { conductedBy: conductedById } : {}),
+      };
+      const result = await scheduleInterviewMutation.mutateAsync({ id, data: interviewData });
+      const res = result as {
+        succeeded?: Array<{ applicantId?: string; interviews?: Interview[] }>;
+        interviews?: Interview[];
+      };
+
+      const interviews: Interview[] =
+        res.succeeded?.[0]?.interviews ?? res.interviews ?? [];
+
+      let interviewId = '';
+
+      const inProgress = interviews.find((iv) => iv.status === 'in_progress');
+      if (inProgress) {
+        interviewId = String(inProgress._id || inProgress.id || '');
+      } else if (interviews.length) {
+        const sorted = interviews.slice().sort((a, b) => {
+          const aTime = new Date(a.createdAt || a.scheduledAt || 0).getTime();
+          const bTime = new Date(b.createdAt || b.scheduledAt || 0).getTime();
+          return bTime - aTime;
+        });
+        interviewId = String(sorted[0]?._id || sorted[0]?.id || '');
+      }
+
+      if (interviewId) {
+        await updateInterviewStatusMutation.mutateAsync({
+          applicantId: id,
+          interviewId,
+          data: { startedAt: new Date().toISOString(), status: 'in_progress' },
+        });
+        navigate(paths.applicants.interview(id, interviewId));
+      }
+    } catch (err) {
+      setInterviewError(getErrorMessage(err));
     }
   };
 
@@ -1036,7 +1084,7 @@ const ApplicantDetails: React.FC = () => {
               {sharedSidebar}
               <div className="flex-1 min-w-0 space-y-6">
                 <div className="flex items-center justify-between border-b border-gray-200 mb-6">{tabBar}</div>
-                <InterviewQuestions applicantId={id} onRequestScheduleInterview={() => setShowScheduleModal(true)} autoSelectInterviewId={autoSelectInterviewId} applicantData={applicant} />
+                <InterviewQuestions applicantId={id} onRequestScheduleInterview={() => setShowScheduleModal(true)} onRequestStartInterview={handleStartInterview} autoSelectInterviewId={autoSelectInterviewId} applicantData={applicant} authUser={user} />
               </div>
             </div>
           </div>
