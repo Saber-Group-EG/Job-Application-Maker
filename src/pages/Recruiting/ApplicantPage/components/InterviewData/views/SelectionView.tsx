@@ -1,4 +1,4 @@
-import { History, Lock, MessageSquare, PlayCircle, Sparkles } from 'lucide-react';
+import { History, MessageSquare, PlayCircle, Sparkles } from 'lucide-react';
 import type { InterviewViewName } from '../hooks/useInterviewState';
 import { useLocale } from '../../../../../../context/LocaleContext';
 
@@ -21,6 +21,7 @@ export const SelectionView = ({
 }: SelectionViewProps) => {
   const { t } = useLocale();
   const currentUserId = authUser?._id || authUser?.id || '';
+  void currentUserId; // Currently unused, but may be used in future for permission checks or user-specific logic.
   return (
     <div className="min-h-[500px] flex flex-col items-center justify-center p-6 sm:p-12 bg-gradient-to-br from-slate-50 to-white rounded-2xl border border-slate-200 shadow-xl max-w-full">
       <div className="text-center max-w-md">

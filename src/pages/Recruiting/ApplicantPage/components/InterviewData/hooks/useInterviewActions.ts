@@ -67,7 +67,7 @@ export const useInterviewActions = ({
   }, []);
 
   const [fieldSaveStatusMap, setFieldSaveStatusMap] = useState<Record<string, FieldSaveStatus>>({});
-
+void setFieldSaveStatusMap;
   const saveQuestion = useCallback(
     async (builtQuestions: InterviewAnswer[]): Promise<boolean> => {
       if (!applicantId || !interviewId) return false;

@@ -48,7 +48,9 @@ function normalizeInterviewQuestions(questions: any): InterviewAnswer[] {
     ),
     notes: q?.notes ?? '',
     answerType: q?.answerType || 'text',
-    choices: Array.isArray(q?.choices) ? normalizeChoicesToServer(q.choices) : undefined,
+    choices: Array.isArray(q?.choices)
+      ? (normalizeChoicesToServer(q.choices) as unknown as InterviewAnswer['choices'])
+      : undefined,
     tags: Array.isArray(q?.tags) ? (q.tags as any[]).map((tag) => String(tag ?? '')).filter(Boolean) : undefined,
   }));
 }

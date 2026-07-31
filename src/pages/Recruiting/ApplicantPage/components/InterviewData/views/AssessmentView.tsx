@@ -266,6 +266,7 @@ export const AssessmentView = ({
     [groupedQuestions, availableGroups, pendingAddGroups, pendingRemoveIds, pendingRemoveGroups]
   );
 
+  void authUser; // Currently unused, but may be used in future for permission checks or user-specific logic.
   const standaloneQuestions = useMemo(() => {
     const free = groupedQuestions.find((g) => g.key === '__free__')?.questions || [];
     const freeTexts = new Set(free.map((q) => q.question));
@@ -279,7 +280,6 @@ export const AssessmentView = ({
         notes: '',
         answerType: q.answerType,
         choices: q.choices,
-        tags: q.tags,
       }));
     return [...free, ...pending];
   }, [groupedQuestions, newCustomQuestions]);

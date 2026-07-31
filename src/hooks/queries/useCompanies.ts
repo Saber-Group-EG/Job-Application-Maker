@@ -363,7 +363,6 @@ export function useUpdateCompanyInterviewSettings() {
   return useMutation({
     mutationFn: ({
       settingsId,
-      companyId,
       data,
     }: {
       settingsId: string;
