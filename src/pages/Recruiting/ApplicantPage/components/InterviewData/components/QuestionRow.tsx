@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Trash2, Check, X } from 'lucide-react';
 import type { InterviewAnswer } from '../../../../../../types/applicants';
 import { getQuestionId } from '../utils/interviewUtils';
@@ -48,6 +48,42 @@ export const QuestionRow = ({
       ? [answer.trim()]
       : [];
   const [tagInput, setTagInput] = useState('');
+
+  // Animate the slider toward the target percentage when it changes
+  // programmatically (evaluation/choice clicks); manual drags stay instant.
+  const [displayPct, setDisplayPct] = useState(Number(percentage || 0));
+  const [isDragging, setIsDragging] = useState(false);
+  const rafRef = useRef<number | null>(null);
+  const displayRef = useRef(Number(percentage || 0));
+
+  useEffect(() => {
+    const target = Number(percentage || 0);
+    const from = displayRef.current;
+    if (isDragging || Math.abs(target - from) < 0.5) {
+      displayRef.current = target;
+      setDisplayPct(target);
+      return;
+    }
+    const start = performance.now();
+    const duration = 350;
+    const step = (now: number) => {
+      const progress = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const value = from + (target - from) * eased;
+      displayRef.current = value;
+      setDisplayPct(value);
+      if (progress < 1) {
+        rafRef.current = requestAnimationFrame(step);
+      }
+    };
+    rafRef.current = requestAnimationFrame(step);
+    return () => {
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+    };
+  }, [percentage, isDragging]);
 
   const handleAddAnswerTag = () => {
     const value = tagInput.trim();
@@ -246,18 +282,21 @@ export const QuestionRow = ({
         <div className="space-y-2 pt-2 border-t border-slate-50">
           <div className="flex justify-between text-[10px] text-gray-500 font-medium">
             <span>{t('performanceWeight', 'interview')}</span>
-            <span>{Number(percentage || 0)}%</span>
+            <span>{Math.round(displayPct)}%</span>
           </div>
           <input
             type="range"
             min={0}
             max={100}
             step={1}
-            value={Number(percentage || 0)}
+            value={Math.round(displayPct)}
             disabled={!isInteractive}
             onChange={(e) => onChange({ percentage: Number(e.target.value) })}
+            onPointerDown={() => setIsDragging(true)}
+            onPointerUp={() => setIsDragging(false)}
+            onPointerLeave={() => setIsDragging(false)}
             style={{
-              background: `linear-gradient(to right, #3b82f6 ${percentage}%, #e5e7eb ${percentage}%)`,
+              background: `linear-gradient(to right, #3b82f6 ${displayPct}%, #e5e7eb ${displayPct}%)`,
             }}
             className="w-full h-1.5 bg-gray-200 rounded-lg cursor-pointer accent-blue-600 disabled:opacity-60 disabled:cursor-not-allowed"
           />
