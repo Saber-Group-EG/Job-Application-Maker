@@ -104,11 +104,51 @@ export interface EmailTemplate {
 // Interview Settings Types
 export type InterviewAnswerType = 'text' | 'number' | 'radio' | 'checkbox' | 'dropdown' | 'tags';
 
+export interface ChoiceItem {
+  label: string;
+  score: number;
+}
+
+export function normalizeChoices(choices: unknown): ChoiceItem[] {
+  if (!Array.isArray(choices)) return [];
+  return choices
+    .map((c: unknown) => {
+      if (typeof c === 'string') return { label: c, score: 0 } as ChoiceItem;
+      if (c && typeof c === 'object') {
+        const obj = c as Record<string, unknown>;
+        return {
+          label: String(obj.label ?? obj.text ?? obj.en ?? obj.ar ?? ''),
+          score: Number(obj.score) || 0,
+        } as ChoiceItem;
+      }
+      return { label: String(c ?? ''), score: 0 } as ChoiceItem;
+    })
+    .filter((c) => c.label !== '');
+}
+
+export function normalizeChoicesToServer(choices: unknown): { text: string; score: number }[] {
+  if (!Array.isArray(choices)) return [];
+  return choices
+    .map((c: unknown) => {
+      if (typeof c === 'string') return { text: c, score: 0 };
+      if (c && typeof c === 'object') {
+        const obj = c as Record<string, unknown>;
+        return {
+          text: String(obj.label ?? obj.text ?? obj.en ?? obj.ar ?? ''),
+          score: Number(obj.score) || 0,
+        };
+      }
+      return { text: String(c ?? ''), score: 0 };
+    })
+    .filter((c) => c.text !== '');
+}
+
 export interface InterviewQuestion {
   question: string;
   score: number;
   answerType: InterviewAnswerType;
-  choices?: string[];
+  choices?: ChoiceItem[];
+  tags?: string[];
 }
 
 export interface InterviewGroup {

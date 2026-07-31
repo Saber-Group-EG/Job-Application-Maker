@@ -71,6 +71,9 @@ const ApplicantDetails = lazy(
 const CompletedInterviewDetails = lazy(
   () => import('../pages/Recruiting/ApplicantPage/CompletedInterviewDetails')
 );
+const InterviewSession = lazy(
+  () => import('../pages/Recruiting/ApplicantPage/InterviewSession')
+);
 const MailPreview = lazy(
   () => import('../pages/Recruiting/applicants/MailPreview')
 );
@@ -222,6 +225,9 @@ export default function App() {
               <Route
                 path={patterns.applicants.completedInterview}
                 element={<CompletedInterviewDetails />} />
+              <Route
+                path={patterns.applicants.interview}
+                element={<InterviewSession />} />
               <Route
                 element={
                   <PermissionProtectedRoute

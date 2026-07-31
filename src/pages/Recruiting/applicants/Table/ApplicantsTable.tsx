@@ -2444,9 +2444,14 @@ const jobOptions = useMemo(() => {
             return v._id ?? v.id ?? '';
           };
           const jobId = getId(raw);
+          const snapshot = row.original.jobPositionNameSnapshot;
           const job = jobPositionMap[jobId];
           const title =
-            typeof job?.title === 'string'
+            snapshot
+              ? locale === 'ar'
+                ? (snapshot.ar || snapshot.en || t('nA', 'applicants'))
+                : (snapshot.en || snapshot.ar || t('nA', 'applicants'))
+              : typeof job?.title === 'string'
               ? job.title
               : locale === 'ar'
                 ? (job?.title?.ar || job?.title?.en || jobOptions.find((o) => o.id === jobId)?.title || t('nA', 'applicants'))

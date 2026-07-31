@@ -82,6 +82,8 @@
   "achieved": "Achieved",
   "trueYes": "True / Yes",
   "enterCandidateAnswer": "Enter candidate answer...",
+  "typeTagAndPressEnter": "Type a tag and press Enter",
+  "removeTag": "Remove tag",
   "performanceWeight": "Performance Weight",
   "deleteThisQuestion": "Delete this question",
   "answered": "Answered",
@@ -99,9 +101,14 @@
   "saveFailed": "Save failed",
   "saveCurrentProgress": "Save current progress",
   "saveProgress": "Save Progress",
+  "saveAnswers": "Save Answers",
   "startTheInterviewTimer": "Start the interview timer",
   "startInterview": "Start Interview",
   "stopTheTimerAndSubmit": "Stop the timer and submit",
   "endInterviewBtn": "End Interview",
-  "score": "Score"
+  "score": "Score",
+  "deleteInterview": "Delete interview",
+  "deleteInterviewTitle": "Delete interview?",
+  "deleteInterviewDescription": "This action is permanent and cannot be undone.",
+  "deleteConfirm": "Yes, delete"
 }

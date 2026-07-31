@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Ban,
   ClipboardList,
@@ -47,6 +48,7 @@ import {
   useCompanies,
   useCompanyInterviewSettings,
   useUpdateCompanyInterviewSettings,
+  companiesKeys,
 } from '../../../hooks/queries/useCompanies';
 import RejectionTab from './Rejectiontab';
 import StatusSettings from './StatusSettings';
@@ -55,7 +57,9 @@ import type {
   InterviewAnswerType,
   InterviewGroup,
   InterviewQuestion,
+  ChoiceItem,
 } from '../../../services/companiesService';
+import { normalizeChoices, normalizeChoicesToServer } from '../../../services/companiesService';
 import ApplicantPagesSettings from './ApplicantsPagesTab';
 import JobOffersTab from './JobOffersTab';
 import ContractsTab from './ContractsTab';
@@ -93,6 +97,7 @@ const EMPTY_QUESTION: QuestionItem = {
   question: '',
   score: 0,
   answerType: 'text',
+  tags: [],
 };
 
 const normalizeQuestion = (
@@ -109,10 +114,9 @@ const normalizeQuestion = (
     question: String(question?.question ?? ''),
     score: Number.isFinite(score) ? score : 0,
     answerType,
-    choices: Array.isArray((question as any)?.choices)
-      ? (question as any).choices
-          .map((c: any) => String(c ?? '').trim())
-          .filter(Boolean)
+    choices: normalizeChoices((question as any)?.choices),
+    tags: Array.isArray((question as any)?.tags)
+      ? ((question as any).tags as any[]).map((tag) => String(tag ?? '')).filter(Boolean)
       : [],
   };
 };
@@ -141,21 +145,55 @@ const getCompanyName = (company: CompanyShape | undefined, locale?: string): str
 function SortableQuestionItem({
   question,
   canEdit,
-  choiceBuffer,
   onUpdate,
   onRemove,
-  onChoiceBufferChange,
 }: {
   question: any;
   questionIndex: number;
   groupIndex: number;
   canEdit: boolean;
-  choiceBuffer: string;
   onUpdate: (patch: Partial<InterviewQuestion>) => void;
   onRemove: () => void;
-  onChoiceBufferChange: (value: string) => void;
 }) {
   const { t } = useLocale();
+  const [scoreStr, setScoreStr] = useState(() => String(question.score ?? 0));
+  useEffect(() => {
+    setScoreStr(String(question.score ?? 0));
+  }, [question.score]);
+  const [choiceScoreStrs, setChoiceScoreStrs] = useState<Record<number, string>>({});
+  useEffect(() => {
+    setChoiceScoreStrs((prev) => {
+      const next: Record<number, string> = {};
+      (Array.isArray(question.choices) ? question.choices : []).forEach((c: any, i: number) => {
+        const existing = prev[i];
+        next[i] = existing ?? String(c?.score ?? 0);
+      });
+      return next;
+    });
+  }, [question.choices]);
+  const [addChoiceLabel, setAddChoiceLabel] = useState('');
+  const [addChoiceScore, setAddChoiceScore] = useState('');
+  const [tagInput, setTagInput] = useState('');
+
+  const handleAddTag = () => {
+    const value = tagInput.trim();
+    if (!value) return;
+    const existing = Array.isArray(question.tags) ? question.tags : [];
+    if (!existing.includes(value)) {
+      onUpdate({ tags: [...existing, value] });
+    }
+    setTagInput('');
+  };
+
+  const handleAddChoice = () => {
+    const label = addChoiceLabel.trim();
+    if (!label) return;
+    const existing = Array.isArray(question.choices) ? question.choices : [];
+    const score = addChoiceScore === '' ? 0 : Number(addChoiceScore);
+    onUpdate({ choices: [...existing, { label, score: Number.isFinite(score) ? score : 0 }] });
+    setAddChoiceLabel('');
+    setAddChoiceScore('');
+  };
 
   const {
     attributes,
@@ -190,9 +228,7 @@ function SortableQuestionItem({
       </div>
 
       <div>
-        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-          {t('interviewCompany.labelQuestion', 'settings')}
-        </label>
+
         <input
           value={question.question}
           onChange={(e) => onUpdate({ question: e.target.value })}
@@ -203,9 +239,7 @@ function SortableQuestionItem({
       </div>
 
       <div>
-        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-          {t('interviewCompany.labelAnswerType', 'settings')}
-        </label>
+
         <select
           value={question.answerType}
           onChange={(e) => onUpdate({ answerType: e.target.value as InterviewAnswerType })}
@@ -219,14 +253,29 @@ function SortableQuestionItem({
       </div>
 
       <div>
-        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-          {t('interviewCompany.labelScore', 'settings')}
-        </label>
+  
         <input
-          type="number"
-          min={0}
-          value={question.score}
-          onChange={(e) => onUpdate({ score: Number(e.target.value) })}
+          type="text"
+          inputMode="numeric"
+          value={scoreStr}
+          onChange={(e) => {
+            const raw = e.target.value;
+            if (raw === '') {
+              setScoreStr('');
+              return;
+            }
+            const num = Number(raw);
+            if (Number.isFinite(num)) {
+              setScoreStr(raw);
+              onUpdate({ score: num });
+            }
+          }}
+          onBlur={() => {
+            if (scoreStr === '') {
+              setScoreStr('0');
+              onUpdate({ score: 0 });
+            }
+          }}
           disabled={!canEdit}
           className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900"
         />
@@ -243,26 +292,96 @@ function SortableQuestionItem({
         </button>
       </div>
 
+      <div className="lg:col-span-5">
+        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+          {t('interviewCompany.labelTags', 'settings')}
+        </label>
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white p-2 dark:border-slate-700 dark:bg-slate-900">
+          {(Array.isArray(question.tags) ? question.tags : []).map((tag: string, i: number) => (
+            <span
+              key={`${tag}_${i}`}
+              className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-700 dark:bg-brand-500/10 dark:text-brand-300"
+            >
+              {tag}
+              <button
+                type="button"
+                onClick={() => {
+                  const existing = Array.isArray(question.tags) ? question.tags : [];
+                  onUpdate({ tags: existing.filter((_: string, idx: number) => idx !== i) });
+                }}
+                disabled={!canEdit}
+                className="cursor-pointer text-brand-500 hover:text-red-500 disabled:opacity-50"
+                aria-label={t('interviewCompany.removeTag', 'settings', { value: tag })}
+              >
+                <svg className="fill-current" width="12" height="12" viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg">
+                  <path fillRule="evenodd" clipRule="evenodd" d="M3.40717 4.46881C3.11428 4.17591 3.11428 3.70104 3.40717 3.40815C3.70006 3.11525 4.17494 3.11525 4.46783 3.40815L6.99943 5.93975L9.53095 3.40822C9.82385 3.11533 10.2987 3.11533 10.5916 3.40822C10.8845 3.70112 10.8845 4.17599 10.5916 4.46888L8.06009 7.00041L10.5916 9.53193C10.8845 9.82482 10.8845 10.2997 10.5916 10.5926C10.2987 10.8855 9.82385 10.8855 9.53095 10.5926L6.99943 8.06107L4.46783 10.5927C4.17494 10.8856 3.70006 10.8856 3.40717 10.5927C3.11428 10.2998 3.11428 9.8249 3.40717 9.53201L5.93877 7.00041L3.40717 4.46881Z" />
+                </svg>
+              </button>
+            </span>
+          ))}
+          <input
+            type="text"
+            value={tagInput}
+            onChange={(e) => setTagInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handleAddTag();
+              }
+            }}
+            onBlur={handleAddTag}
+            disabled={!canEdit}
+            placeholder={t('interviewCompany.tagsPlaceholder', 'settings')}
+            className="min-w-32 flex-1 border-0 bg-transparent px-1 py-0.5 text-sm outline-none focus:ring-0 disabled:cursor-not-allowed disabled:opacity-70"
+          />
+        </div>
+      </div>
+
       {(question.answerType === 'radio' || question.answerType === 'dropdown') && (
         <div className="lg:col-span-5">
           <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
             {t('interviewCompany.labelChoices', 'settings')}
           </label>
-          <div className="mb-2 flex flex-wrap gap-2">
-            {(Array.isArray(question.choices) ? question.choices : []).map((c: string) => (
-              <div
-                key={c}
-                className="group flex items-center justify-center rounded-full border-[0.7px] border-transparent bg-gray-100 py-1 pl-2.5 pr-2 text-sm text-gray-800 hover:border-gray-200 dark:bg-gray-800 dark:text-white/90 dark:hover:border-gray-800"
-              >
-                <span className="flex-initial max-w-full">{c}</span>
+          <div className="space-y-2">
+            {(Array.isArray(question.choices) ? question.choices : []).map((c: ChoiceItem, i: number) => (
+              <div key={i} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white p-2 dark:border-slate-700 dark:bg-slate-900">
+                <span className="flex-1 truncate text-sm text-slate-800 dark:text-slate-200">{c.label}</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={choiceScoreStrs[i] ?? String(c.score ?? 0)}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    setChoiceScoreStrs((prev) => ({ ...prev, [i]: raw }));
+                    if (raw === '') return;
+                    const num = Number(raw);
+                    if (Number.isFinite(num)) {
+                      const updated = [...(Array.isArray(question.choices) ? question.choices : [])];
+                      updated[i] = { ...updated[i], score: num };
+                      onUpdate({ choices: updated });
+                    }
+                  }}
+                  onBlur={() => {
+                    const raw = choiceScoreStrs[i];
+                    if (raw === '' || raw === undefined) {
+                      const updated = [...(Array.isArray(question.choices) ? question.choices : [])];
+                      updated[i] = { ...updated[i], score: 0 };
+                      onUpdate({ choices: updated });
+                      setChoiceScoreStrs((prev) => ({ ...prev, [i]: '0' }));
+                    }
+                  }}
+                  disabled={!canEdit}
+                  className="w-20 rounded border border-slate-300 bg-white px-2 py-1 text-xs text-center outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-800"
+                />
                 <button
                   type="button"
                   onClick={() => {
                     const existing = Array.isArray(question.choices) ? question.choices : [];
-                    onUpdate({ choices: existing.filter((x: string) => String(x) !== String(c)) });
+                    onUpdate({ choices: existing.filter((_: ChoiceItem, idx: number) => idx !== i) });
                   }}
-                  className="cursor-pointer pl-2 text-gray-500 group-hover:text-gray-400 dark:text-gray-400"
-                  aria-label={t('interviewCompany.removeChoice', 'settings', { value: c })}
+                  disabled={!canEdit}
+                  className="cursor-pointer p-1 text-gray-400 hover:text-red-500 disabled:opacity-50"
+                  aria-label={t('interviewCompany.removeChoice', 'settings', { value: c.label })}
                 >
                   <svg className="fill-current" width="14" height="14" viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg">
                     <path fillRule="evenodd" clipRule="evenodd" d="M3.40717 4.46881C3.11428 4.17591 3.11428 3.70104 3.40717 3.40815C3.70006 3.11525 4.17494 3.11525 4.46783 3.40815L6.99943 5.93975L9.53095 3.40822C9.82385 3.11533 10.2987 3.11533 10.5916 3.40822C10.8845 3.70112 10.8845 4.17599 10.5916 4.46888L8.06009 7.00041L10.5916 9.53193C10.8845 9.82482 10.8845 10.2997 10.5916 10.5926C10.2987 10.8855 9.82385 10.8855 9.53095 10.5926L6.99943 8.06107L4.46783 10.5927C4.17494 10.8856 3.70006 10.8856 3.40717 10.5927C3.11428 10.2998 3.11428 9.8249 3.40717 9.53201L5.93877 7.00041L3.40717 4.46881Z" />
@@ -271,30 +390,37 @@ function SortableQuestionItem({
               </div>
             ))}
           </div>
-          <input
-            type="text"
-            value={choiceBuffer}
-            onChange={(e) => onChoiceBufferChange(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                const buf = choiceBuffer.trim();
-                if (!buf) return;
-                const existing = Array.isArray(question.choices) ? question.choices : [];
-                onUpdate({ choices: [...existing, buf] });
-                onChoiceBufferChange('');
-              }
-            }}
-            onBlur={() => {
-              const buf = choiceBuffer.trim();
-              if (!buf) return;
-              const existing = Array.isArray(question.choices) ? question.choices : [];
-              onUpdate({ choices: [...existing, buf] });
-              onChoiceBufferChange('');
-            }}
-            placeholder={t('interviewCompany.choicesPlaceholder', 'settings')}
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900"
-          />
+          <div className="mt-2 flex items-center gap-2">
+            <input
+              type="text"
+              value={addChoiceLabel}
+              onChange={(e) => setAddChoiceLabel(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleAddChoice();
+                }
+              }}
+              disabled={!canEdit}
+              placeholder={t('interviewCompany.choicesPlaceholder', 'settings')}
+              className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900"
+            />
+            <input
+              type="text"
+              inputMode="numeric"
+              value={addChoiceScore}
+              onChange={(e) => setAddChoiceScore(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleAddChoice();
+                }
+              }}
+              disabled={!canEdit}
+              placeholder="Score"
+              className="w-20 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-center outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900"
+            />
+          </div>
         </div>
       )}
     </div>
@@ -312,8 +438,6 @@ function SortableGroupItem({
   onAddQuestion,
   onUpdateQuestion,
   onRemoveQuestion,
-  choiceBuffers,
-  onChoiceBufferChange,
   activeQuestionId,
   onQuestionDragStart,
   onQuestionDragEnd,
@@ -332,8 +456,6 @@ function SortableGroupItem({
   onAddQuestion: () => void;
   onUpdateQuestion: (questionIndex: number, patch: Partial<InterviewQuestion>) => void;
   onRemoveQuestion: (questionIndex: number) => void;
-  choiceBuffers: Record<string, string>;
-  onChoiceBufferChange: (key: string, value: string) => void;
   activeQuestionId: string | null;
   onQuestionDragStart: (event: DragStartEvent) => void;
   onQuestionDragEnd: (event: DragEndEvent) => void;
@@ -358,16 +480,27 @@ function SortableGroupItem({
 
   const isCollapsed = collapsedGroupIds.has(group._id);
   const contentRef = useRef<HTMLDivElement>(null);
+  const [contentHeight, setContentHeight] = useState(0);
+
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const updateHeight = () => setContentHeight(el.scrollHeight);
+    updateHeight();
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`overflow-hidden rounded-xl border ${
+      className={`rounded-xl border ${
         isDragging
           ? 'border-brand-400 bg-white shadow-lg ring-2 ring-brand-500 dark:bg-slate-800'
           : 'border-slate-200 dark:border-slate-700'
-      }`}
+      } ${isCollapsed ? 'overflow-hidden' : ''}`}
     >
       <div className="flex items-center gap-3 bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
         <div
@@ -388,9 +521,7 @@ function SortableGroupItem({
             <ChevronDown className="size-4 shrink-0 text-slate-400" />
           )}
           <div className="min-w-0 flex-1">
-            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
-              {t('interviewCompany.labelGroupName', 'settings')}
-            </label>
+
             <input
               value={group.name}
               onChange={(e) => onUpdateGroupName(e.target.value)}
@@ -416,9 +547,9 @@ function SortableGroupItem({
 
       <div
         style={{
-          maxHeight: isCollapsed ? 0 : (contentRef.current?.scrollHeight ?? 5000),
+          maxHeight: isCollapsed ? 0 : contentHeight,
           opacity: isCollapsed ? 0 : 1,
-          overflow: 'hidden',
+          overflow: isCollapsed ? 'hidden' : 'visible',
           transition: 'max-height 0.3s cubic-bezier(0.2, 0, 0, 1), opacity 0.25s cubic-bezier(0.2, 0, 0, 1)',
         }}
       >
@@ -441,12 +572,8 @@ function SortableGroupItem({
                   questionIndex={questionIndex}
                   groupIndex={groupIndex}
                   canEdit={canEdit}
-                  choiceBuffer={choiceBuffers[`${groupIndex}_${questionIndex}`] ?? ''}
                   onUpdate={(patch) => onUpdateQuestion(questionIndex, patch)}
                   onRemove={() => onRemoveQuestion(questionIndex)}
-                  onChoiceBufferChange={(value) =>
-                    onChoiceBufferChange(`${groupIndex}_${questionIndex}`, value)
-                  }
                 />
               ))}
             </SortableContext>
@@ -543,9 +670,6 @@ export default function InterviewCompanySettingsPage() {
     easing: 'cubic-bezier(0.2, 0, 0, 1)',
   };
   const [isSaving, setIsSaving] = useState(false);
-  const [choiceBuffers, setChoiceBuffers] = useState<Record<string, string>>(
-    {}
-  );
   const [collapsedGroupIds, setCollapsedGroupIds] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<
     | 'interview-groups'
@@ -575,6 +699,7 @@ export default function InterviewCompanySettingsPage() {
   );
 
   const updateInterviewMutation = useUpdateCompanyInterviewSettings();
+  const queryClient = useQueryClient();
 
   const {
     data: interviewSettingsFromQuery,
@@ -598,7 +723,11 @@ export default function InterviewCompanySettingsPage() {
   const hasInitializedCollapsed = useRef(false);
 
   useEffect(() => {
-    const normalized = normalizeGroups(derivedInterviewSettings?.groups);
+    const hasGroupsField =
+      !!derivedInterviewSettings &&
+      'groups' in (derivedInterviewSettings as any);
+    if (!hasGroupsField) return;
+    const normalized = normalizeGroups((derivedInterviewSettings as any)?.groups);
     setGroups((prev) =>
       normalized.map((g, i) => ({
         ...g,
@@ -792,6 +921,30 @@ export default function InterviewCompanySettingsPage() {
           );
           return null;
         }
+
+        if (question.answerType === 'radio' && Array.isArray(question.choices)) {
+          const sum = (question.choices as ChoiceItem[]).reduce((s, c) => s + (Number(c.score) || 0), 0);
+          if (sum > Number(question.score)) {
+            Swal.fire(
+              t('commonValidation', 'settings'),
+              t('interviewCompany.validationRadioScoreExceeded', 'settings', { qNumber: questionIndex + 1, gNumber: groupIndex + 1 }),
+              'warning'
+            );
+            return null;
+          }
+        }
+
+        if (question.answerType === 'dropdown' && Array.isArray(question.choices)) {
+          const exceeded = (question.choices as ChoiceItem[]).find((c) => (Number(c.score) || 0) > Number(question.score));
+          if (exceeded) {
+            Swal.fire(
+              t('commonValidation', 'settings'),
+              t('interviewCompany.validationDropdownScoreExceeded', 'settings', { qNumber: questionIndex + 1, gNumber: groupIndex + 1, choice: exceeded.label }),
+              'warning'
+            );
+            return null;
+          }
+        }
       }
     }
 
@@ -801,11 +954,8 @@ export default function InterviewCompanySettingsPage() {
         question: question.question.trim(),
         score: Number(question.score),
         answerType: question.answerType,
-        choices: Array.isArray((question as any).choices)
-          ? (question as any).choices
-              .map((c: any) => String(c ?? '').trim())
-              .filter(Boolean)
-          : [],
+        choices: Array.isArray(question.choices) ? question.choices : [],
+        tags: Array.isArray(question.tags) ? question.tags : [],
       })),
     }));
   };
@@ -832,15 +982,45 @@ export default function InterviewCompanySettingsPage() {
     }
 
     setIsSaving(true);
+    // Optimistic: apply the saved groups immediately so the UI never clears
+    const optimisticGroups = payloadGroups.map((g, i) => ({
+      ...g,
+      _id: groups[i]?._id ?? uid(),
+    }));
+    setGroups(optimisticGroups);
+    if (isSuperAdmin) {
+      queryClient.setQueryData(companiesKeys.list(), (old: any) => {
+        if (!old) return old;
+        if (Array.isArray(old)) {
+          return old.map((c: any) => {
+            if (!c || c._id !== effectiveCompanyId) return c;
+            return {
+              ...c,
+              interviewSettings: { groups: optimisticGroups },
+              settings: { ...(c.settings ?? {}), interviewSettings: { groups: optimisticGroups } },
+            };
+          });
+        }
+        return old;
+      });
+    } else {
+      queryClient.setQueryData(companiesKeys.interviewSettings(effectiveCompanyId), {
+        groups: optimisticGroups,
+      });
+    }
+
     try {
+      const serverGroups = payloadGroups.map((g) => ({
+        ...g,
+        questions: g.questions.map((q) => ({
+          ...q,
+          choices: Array.isArray(q.choices) ? normalizeChoicesToServer(q.choices) : [],
+        })),
+      }));
       await updateInterviewMutation.mutateAsync({
-        settingsId, // Use settingsId
-        data: {
-          interviewSettings: {
-            // ✅ Wrap groups inside interviewSettings
-            groups: payloadGroups,
-          },
-        },
+        settingsId,
+        companyId: effectiveCompanyId,
+        data: { interviewSettings: { groups: serverGroups } } as any,
       });
 
       Swal.fire({
@@ -1129,10 +1309,6 @@ export default function InterviewCompanySettingsPage() {
                             }
                             onRemoveQuestion={(questionIndex) =>
                               removeQuestion(groupIndex, questionIndex)
-                            }
-                            choiceBuffers={choiceBuffers}
-                            onChoiceBufferChange={(key, value) =>
-                              setChoiceBuffers((prev) => ({ ...prev, [key]: value }))
                             }
                             activeQuestionId={activeQuestionId}
                             onQuestionDragStart={handleQuestionDragStart}

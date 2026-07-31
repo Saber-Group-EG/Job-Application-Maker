@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useCompany } from '../../../../../../hooks/queries/useCompanies';
 import { useSavedQuestionGroups } from '../../../../../../hooks/queries/useUsers';
 import { useLocale } from '../../../../../../context/LocaleContext';
+import { normalizeChoices } from '../../../../../../types/companies';
 
 export type PoolGroup = {
   key: string;
@@ -13,7 +14,8 @@ export type PoolGroup = {
     question: string;
     score: number;
     answerType: string;
-    choices: string[];
+    choices: { label: string; score: number }[];
+    tags?: string[];
   }>;
 };
 
@@ -28,6 +30,7 @@ type RawGroup = {
     score?: number;
     answerType?: string;
     choices?: unknown[];
+    tags?: string[];
   }>;
 };
 
@@ -50,9 +53,8 @@ const normalizeGroup = (
       question: String(q?.question || '').trim(),
       score: Number(q.score || 0),
       answerType: String(q?.answerType || 'text'),
-      choices: Array.isArray(q?.choices)
-        ? q.choices.map((c) => String(c ?? '').trim()).filter(Boolean)
-        : [],
+      choices: Array.isArray(q?.choices) ? normalizeChoices(q.choices) : [],
+      tags: Array.isArray(q?.tags) ? (q.tags as any[]).map((tag) => String(tag ?? '')).filter(Boolean) : [],
     }))
     .filter((q) => Boolean(q.question));
   if (questions.length === 0) return null;

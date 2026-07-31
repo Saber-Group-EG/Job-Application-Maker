@@ -63,10 +63,7 @@ export function useCustomResponses(
   );
   const initialExpanded = (() => {
     if (options.defaultExpandedSectionIds) return options.defaultExpandedSectionIds;
-    if (options.sections && options.sections.length > 0) {
-      return options.sections.map((s) => s.id);
-    }
-    return ['personal_info', 'skills', 'experience'];
+    return [];
   })();
   const collectGroupIds = (secs: ResponseSection[]): string[] => {
     const ids: string[] = [];
@@ -87,31 +84,6 @@ export function useCustomResponses(
   const dropdownRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   const sections = options.sections ?? internalSections;
-
-  useEffect(() => {
-    setExpandedSectionIds((prev) => {
-      const next = new Set(prev);
-      let changed = false;
-      sections.forEach((s) => {
-        if (!next.has(s.id)) {
-          next.add(s.id);
-          changed = true;
-        }
-      });
-      return changed ? next : prev;
-    });
-    setExpandedGroupIds((prev) => {
-      const next = new Set(prev);
-      let changed = false;
-      collectGroupIds(sections).forEach((id) => {
-        if (!next.has(id)) {
-          next.add(id);
-          changed = true;
-        }
-      });
-      return changed ? next : prev;
-    });
-  }, [sections]);
 
   useEffect(() => {
     if (options.sections) return;

@@ -230,17 +230,17 @@ export function useApplicant(id: string, options?: {
     queryKey: applicantsKeys.detail(id),
     queryFn: () => applicantsService.getApplicantById(id),
     enabled: !!id && (options?.enabled ?? true),
-    staleTime: options?.staleTime ?? 5 * 60 * 1000,
+    staleTime: options?.staleTime ?? 0,
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
     refetchOnMount: true,
-    initialData: options?.initialData ?? (() => {
+    placeholderData: options?.initialData ?? (() => {
       const queryCache = queryClient.getQueryCache();
-      const listQueries = queryCache.findAll({ queryKey: applicantsKeys.lists(), type: 'active' });
+      const listQueries = queryCache.findAll({ queryKey: applicantsKeys.lists() });
       for (const query of listQueries) {
-        const data = query.state.data as Applicant[] | undefined;
-        if (data) {
-          const found = data.find(a => a._id === id);
+        const data = query.state.data;
+        if (Array.isArray(data)) {
+          const found = (data as Applicant[]).find(a => a._id === id);
           if (found) return found;
         }
       }
@@ -504,9 +504,10 @@ export function useScheduleInterview() {
     mutationFn: ({ id, data }: { id: string; data: ScheduleInterviewRequest }) =>
       applicantsService.scheduleInterview(id, data),
     onSuccess: (response, { id }) => {
-      mergeApplicantResponseIntoCache(queryClient, id, response, {
-        appendKey: 'interviews',
-      });
+      const res = response as Record<string, unknown>;
+      const succeeded = res.succeeded as Array<Record<string, unknown>> | undefined;
+      const unwrapped = succeeded?.[0] ?? res;
+      mergeApplicantResponseIntoCache(queryClient, id, unwrapped);
       showSuccessToast(t('interviewScheduled', 'common'), t);
     },
     onError: (error: ApiError) => {

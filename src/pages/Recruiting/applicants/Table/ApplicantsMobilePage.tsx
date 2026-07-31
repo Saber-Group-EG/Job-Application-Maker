@@ -1118,7 +1118,15 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
                         const rawCompany = (a as any).companyId || (a as any).company || (a as any).companyObj;
                         const rawJob = (a as any).jobPositionId || (a as any).job;
                         const displayCompany = companyMap[normalizeIdGlobal(rawCompany) || ''] || '';
-                        const displayJob = jobMap[normalizeIdGlobal(rawJob) || ''] || '';
+                        const displayJob =
+                          jobMap[normalizeIdGlobal(rawJob) || ''] ||
+                          (() => {
+                            const snap = (a as any).jobPositionNameSnapshot;
+                            if (!snap) return '';
+                            return locale === 'ar'
+                              ? (snap.ar || snap.en || '')
+                              : (snap.en || snap.ar || '');
+                          })();
                         
                         if (!displayCompany && !displayJob) return null;
                         

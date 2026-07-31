@@ -2,6 +2,7 @@
 import axios from '../config/axios';
 import { getErrorMessage } from '../utils/errorHandler';
 import { jobPositionsService } from './jobPositionsService';
+import { normalizeChoicesToServer } from '../types/companies';
 import type {
   Applicant,
   CreateApplicantRequest,
@@ -46,6 +47,11 @@ function normalizeInterviewQuestions(questions: any): InterviewAnswer[] {
       Number.isFinite(Number(q?.achievedScore)) ? Number(q?.achievedScore) : 0
     ),
     notes: q?.notes ?? '',
+    answerType: q?.answerType || 'text',
+    choices: Array.isArray(q?.choices)
+      ? (normalizeChoicesToServer(q.choices) as unknown as InterviewAnswer['choices'])
+      : undefined,
+    tags: Array.isArray(q?.tags) ? (q.tags as any[]).map((tag) => String(tag ?? '')).filter(Boolean) : undefined,
   }));
 }
 
