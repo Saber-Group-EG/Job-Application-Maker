@@ -100,6 +100,9 @@ const EMPTY_QUESTION: QuestionItem = {
   tags: [],
 };
 
+const choicePct = (choiceScore: number, questionScore: number) =>
+  questionScore > 0 ? Math.round((choiceScore / questionScore) * 100) : 0;
+
 const normalizeQuestion = (
   question: Partial<InterviewQuestion & { _id?: string }> | undefined
 ): QuestionItem => {
@@ -160,17 +163,6 @@ function SortableQuestionItem({
   useEffect(() => {
     setScoreStr(String(question.score ?? 0));
   }, [question.score]);
-  const [choiceScoreStrs, setChoiceScoreStrs] = useState<Record<number, string>>({});
-  useEffect(() => {
-    setChoiceScoreStrs((prev) => {
-      const next: Record<number, string> = {};
-      (Array.isArray(question.choices) ? question.choices : []).forEach((c: any, i: number) => {
-        const existing = prev[i];
-        next[i] = existing ?? String(c?.score ?? 0);
-      });
-      return next;
-    });
-  }, [question.choices]);
   const [addChoiceLabel, setAddChoiceLabel] = useState('');
   const [addChoiceScore, setAddChoiceScore] = useState('');
   const [tagInput, setTagInput] = useState('');
@@ -189,7 +181,8 @@ function SortableQuestionItem({
     const label = addChoiceLabel.trim();
     if (!label) return;
     const existing = Array.isArray(question.choices) ? question.choices : [];
-    const score = addChoiceScore === '' ? 0 : Number(addChoiceScore);
+    const pct = addChoiceScore === '' ? 0 : Number(addChoiceScore);
+    const score = Math.round((pct / 100) * (Number(question.score) || 0));
     onUpdate({ choices: [...existing, { label, score: Number.isFinite(score) ? score : 0 }] });
     setAddChoiceLabel('');
     setAddChoiceScore('');
@@ -292,6 +285,80 @@ function SortableQuestionItem({
         </button>
       </div>
 
+      {(question.answerType === 'radio' || question.answerType === 'dropdown' || question.answerType === 'checkbox') && (
+        <div className="lg:col-span-5">
+          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+            {t('interviewCompany.labelChoices', 'settings')}
+          </label>
+          <div className="space-y-2">
+            {(Array.isArray(question.choices) ? question.choices : []).map((c: ChoiceItem, i: number) => (
+              <div key={i} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white p-2 dark:border-slate-700 dark:bg-slate-900">
+                <span className="flex-1 truncate text-sm text-slate-800 dark:text-slate-200">{c.label}</span>
+                <span className="w-10 text-center text-xs font-semibold text-slate-600 dark:text-slate-300">
+                  {choicePct(Number(c.score) || 0, Number(question.score) || 0)}%
+                </span>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={choicePct(Number(c.score) || 0, Number(question.score) || 0)}
+                  onChange={(e) => {
+                    const pct = Number(e.target.value);
+                    const updated = [...(Array.isArray(question.choices) ? question.choices : [])];
+                    updated[i] = { ...updated[i], score: Math.round((pct / 100) * (Number(question.score) || 0)) };
+                    onUpdate({ choices: updated });
+                  }}
+                  disabled={!canEdit}
+                  className="w-24 accent-brand-500 disabled:cursor-not-allowed disabled:opacity-50"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const existing = Array.isArray(question.choices) ? question.choices : [];
+                    onUpdate({ choices: existing.filter((_: ChoiceItem, idx: number) => idx !== i) });
+                  }}
+                  disabled={!canEdit}
+                  className="cursor-pointer p-1 text-gray-400 hover:text-red-500 disabled:opacity-50"
+                  aria-label={t('interviewCompany.removeChoice', 'settings', { value: c.label })}
+                >
+                  <svg className="fill-current" width="14" height="14" viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg">
+                    <path fillRule="evenodd" clipRule="evenodd" d="M3.40717 4.46881C3.11428 4.17591 3.11428 3.70104 3.40717 3.40815C3.70006 3.11525 4.17494 3.11525 4.46783 3.40815L6.99943 5.93975L9.53095 3.40822C9.82385 3.11533 10.2987 3.11533 10.5916 3.40822C10.8845 3.70112 10.8845 4.17599 10.5916 4.46888L8.06009 7.00041L10.5916 9.53193C10.8845 9.82482 10.8845 10.2997 10.5916 10.5926C10.2987 10.8855 9.82385 10.8855 9.53095 10.5926L6.99943 8.06107L4.46783 10.5927C4.17494 10.8856 3.70006 10.8856 3.40717 10.5927C3.11428 10.2998 3.11428 9.8249 3.40717 9.53201L5.93877 7.00041L3.40717 4.46881Z" />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+          <div className="mt-2 flex items-center gap-2">
+            <input
+              type="text"
+              value={addChoiceLabel}
+              onChange={(e) => setAddChoiceLabel(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleAddChoice();
+                }
+              }}
+              disabled={!canEdit}
+              placeholder={t('interviewCompany.choicesPlaceholder', 'settings')}
+              className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900"
+            />
+            <span className="w-10 text-center text-sm font-semibold text-slate-600 dark:text-slate-300">
+              {addChoiceScore === '' ? 0 : Number(addChoiceScore)}%
+            </span>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={addChoiceScore === '' ? 0 : Number(addChoiceScore)}
+              onChange={(e) => setAddChoiceScore(e.target.value)}
+              disabled={!canEdit}
+              className="w-24 accent-brand-500 disabled:cursor-not-allowed disabled:opacity-50"
+            />
+          </div>
+        </div>
+      )}
+
       <div className="lg:col-span-5">
         <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
           {t('interviewCompany.labelTags', 'settings')}
@@ -336,93 +403,6 @@ function SortableQuestionItem({
           />
         </div>
       </div>
-
-      {(question.answerType === 'radio' || question.answerType === 'dropdown') && (
-        <div className="lg:col-span-5">
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-            {t('interviewCompany.labelChoices', 'settings')}
-          </label>
-          <div className="space-y-2">
-            {(Array.isArray(question.choices) ? question.choices : []).map((c: ChoiceItem, i: number) => (
-              <div key={i} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white p-2 dark:border-slate-700 dark:bg-slate-900">
-                <span className="flex-1 truncate text-sm text-slate-800 dark:text-slate-200">{c.label}</span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={choiceScoreStrs[i] ?? String(c.score ?? 0)}
-                  onChange={(e) => {
-                    const raw = e.target.value;
-                    setChoiceScoreStrs((prev) => ({ ...prev, [i]: raw }));
-                    if (raw === '') return;
-                    const num = Number(raw);
-                    if (Number.isFinite(num)) {
-                      const updated = [...(Array.isArray(question.choices) ? question.choices : [])];
-                      updated[i] = { ...updated[i], score: num };
-                      onUpdate({ choices: updated });
-                    }
-                  }}
-                  onBlur={() => {
-                    const raw = choiceScoreStrs[i];
-                    if (raw === '' || raw === undefined) {
-                      const updated = [...(Array.isArray(question.choices) ? question.choices : [])];
-                      updated[i] = { ...updated[i], score: 0 };
-                      onUpdate({ choices: updated });
-                      setChoiceScoreStrs((prev) => ({ ...prev, [i]: '0' }));
-                    }
-                  }}
-                  disabled={!canEdit}
-                  className="w-20 rounded border border-slate-300 bg-white px-2 py-1 text-xs text-center outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-800"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    const existing = Array.isArray(question.choices) ? question.choices : [];
-                    onUpdate({ choices: existing.filter((_: ChoiceItem, idx: number) => idx !== i) });
-                  }}
-                  disabled={!canEdit}
-                  className="cursor-pointer p-1 text-gray-400 hover:text-red-500 disabled:opacity-50"
-                  aria-label={t('interviewCompany.removeChoice', 'settings', { value: c.label })}
-                >
-                  <svg className="fill-current" width="14" height="14" viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg">
-                    <path fillRule="evenodd" clipRule="evenodd" d="M3.40717 4.46881C3.11428 4.17591 3.11428 3.70104 3.40717 3.40815C3.70006 3.11525 4.17494 3.11525 4.46783 3.40815L6.99943 5.93975L9.53095 3.40822C9.82385 3.11533 10.2987 3.11533 10.5916 3.40822C10.8845 3.70112 10.8845 4.17599 10.5916 4.46888L8.06009 7.00041L10.5916 9.53193C10.8845 9.82482 10.8845 10.2997 10.5916 10.5926C10.2987 10.8855 9.82385 10.8855 9.53095 10.5926L6.99943 8.06107L4.46783 10.5927C4.17494 10.8856 3.70006 10.8856 3.40717 10.5927C3.11428 10.2998 3.11428 9.8249 3.40717 9.53201L5.93877 7.00041L3.40717 4.46881Z" />
-                  </svg>
-                </button>
-              </div>
-            ))}
-          </div>
-          <div className="mt-2 flex items-center gap-2">
-            <input
-              type="text"
-              value={addChoiceLabel}
-              onChange={(e) => setAddChoiceLabel(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  handleAddChoice();
-                }
-              }}
-              disabled={!canEdit}
-              placeholder={t('interviewCompany.choicesPlaceholder', 'settings')}
-              className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900"
-            />
-            <input
-              type="text"
-              inputMode="numeric"
-              value={addChoiceScore}
-              onChange={(e) => setAddChoiceScore(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  handleAddChoice();
-                }
-              }}
-              disabled={!canEdit}
-              placeholder="Score"
-              className="w-20 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-center outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900"
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -445,6 +425,8 @@ function SortableGroupItem({
   sensors,
   dropAnimation,
   t,
+  isFlashing,
+  onFlashDismiss,
 }: {
   group: any;
   groupIndex: number;
@@ -463,6 +445,8 @@ function SortableGroupItem({
   sensors: any;
   dropAnimation: any;
   t: (key: string, ...args: any[]) => string;
+  isFlashing: boolean;
+  onFlashDismiss: () => void;
 }) {
   const {
     attributes,
@@ -496,11 +480,16 @@ function SortableGroupItem({
     <div
       ref={setNodeRef}
       style={style}
+      onMouseEnter={() => {
+        if (isFlashing) onFlashDismiss();
+      }}
       className={`rounded-xl border ${
         isDragging
           ? 'border-brand-400 bg-white shadow-lg ring-2 ring-brand-500 dark:bg-slate-800'
           : 'border-slate-200 dark:border-slate-700'
-      } ${isCollapsed ? 'overflow-hidden' : ''}`}
+      } ${isCollapsed ? 'overflow-hidden' : ''} ${
+        isFlashing ? 'animate-flash-group' : ''
+      }`}
     >
       <div className="flex items-center gap-3 bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
         <div
@@ -656,6 +645,17 @@ export default function InterviewCompanySettingsPage() {
   const [groups, setGroups] = useState<(InterviewGroup & { _id: string })[]>([]);
   const [activeQuestionId, setActiveQuestionId] = useState<string | null>(null);
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
+  const [flashGroupIds, setFlashGroupIds] = useState<Set<string>>(new Set());
+
+  // Safety net: stop flashing a newly added group after a while even if the
+  // user never hovers it.
+  useEffect(() => {
+    if (flashGroupIds.size === 0) return;
+    const timer = window.setTimeout(() => {
+      setFlashGroupIds(new Set());
+    }, 10000);
+    return () => window.clearTimeout(timer);
+  }, [flashGroupIds]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -759,6 +759,7 @@ export default function InterviewCompanySettingsPage() {
       ...prev,
     ]);
     setCollapsedGroupIds((prev) => new Set(prev).add(newId));
+    setFlashGroupIds((prev) => new Set(prev).add(newId));
   };
 
   const removeGroup = (groupIndex: number) => {
@@ -911,7 +912,8 @@ export default function InterviewCompanySettingsPage() {
 
         if (
           (question.answerType === 'radio' ||
-            question.answerType === 'dropdown') &&
+            question.answerType === 'dropdown' ||
+            question.answerType === 'checkbox') &&
           (!Array.isArray(question.choices) || question.choices.length === 0)
         ) {
           Swal.fire(
@@ -922,12 +924,12 @@ export default function InterviewCompanySettingsPage() {
           return null;
         }
 
-        if (question.answerType === 'radio' && Array.isArray(question.choices)) {
+        if (question.answerType === 'checkbox' && Array.isArray(question.choices)) {
           const sum = (question.choices as ChoiceItem[]).reduce((s, c) => s + (Number(c.score) || 0), 0);
           if (sum > Number(question.score)) {
             Swal.fire(
               t('commonValidation', 'settings'),
-              t('interviewCompany.validationRadioScoreExceeded', 'settings', { qNumber: questionIndex + 1, gNumber: groupIndex + 1 }),
+              t('interviewCompany.validationCheckboxScoreExceeded', 'settings', { qNumber: questionIndex + 1, gNumber: groupIndex + 1 }),
               'warning'
             );
             return null;
@@ -1317,6 +1319,14 @@ export default function InterviewCompanySettingsPage() {
                             sensors={sensors}
                             dropAnimation={dropAnimation}
                             t={t}
+                            isFlashing={flashGroupIds.has(group._id)}
+                            onFlashDismiss={() => {
+                              setFlashGroupIds((prev) => {
+                                const next = new Set(prev);
+                                next.delete(group._id);
+                                return next;
+                              });
+                            }}
                           />
                         ))}
                       </SortableContext>

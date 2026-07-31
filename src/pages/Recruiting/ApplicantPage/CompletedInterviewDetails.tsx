@@ -141,7 +141,17 @@ const QuestionDisplay: React.FC<{
 
   const parsedAnswer = useMemo(() => {
     const notes = (question?.notes ?? '').toString();
-    if (answerType === 'checkbox') return notes === 'true';
+    if (answerType === 'checkbox') {
+      if (choices.length > 0) {
+        try {
+          const parsed = JSON.parse(notes);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch {
+          return [];
+        }
+      }
+      return notes === 'true';
+    }
     if (answerType === 'radio' || answerType === 'dropdown' || answerType === 'tags') {
       try {
         const parsed = JSON.parse(notes);
@@ -149,7 +159,7 @@ const QuestionDisplay: React.FC<{
       } catch { return notes; }
     }
     return notes;
-  }, [question?.notes, answerType]);
+  }, [question?.notes, answerType, choices]);
 
   const handleChange = (field: 'score' | 'achievedScore' | 'notes', value: string | number) => {
     if (!onChange) return;
@@ -252,13 +262,13 @@ const QuestionDisplay: React.FC<{
               const value = choice.label;
               if (!value) return null;
               const choiceScore = choice.score;
-              const isMulti = answerType === 'radio';
+              const isMulti = answerType === 'checkbox';
               const selectedValues = isMulti
                 ? (Array.isArray(parsedAnswer) ? parsedAnswer : [])
-                : [typeof parsedAnswer === 'string' ? parsedAnswer : ''];
+                : (Array.isArray(parsedAnswer) ? parsedAnswer : [typeof parsedAnswer === 'string' ? parsedAnswer : '']);
               const isSelected = selectedValues.includes(value);
 
-              if (editable && (answerType === 'radio' || answerType === 'dropdown')) {
+              if (editable && (answerType === 'radio' || answerType === 'dropdown' || answerType === 'checkbox')) {
                 return (
                   <button
                     key={`${value}_${i}`}
@@ -278,7 +288,7 @@ const QuestionDisplay: React.FC<{
                         onChange({ ...question, notes, achievedScore });
                       } else {
                         const achievedScore = isSelected ? 0 : Math.min(choiceScore, score);
-                        onChange({ ...question, notes: value, achievedScore });
+                        onChange({ ...question, notes: isSelected ? '' : value, achievedScore });
                       }
                     }}
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
@@ -316,7 +326,7 @@ const QuestionDisplay: React.FC<{
         </div>
       )}
 
-      {editable && answerType === 'checkbox' ? (
+      {editable && answerType === 'checkbox' && choices.length === 0 ? (
         <div className="mt-1.5 rounded-lg border border-gray-100 bg-gray-50/60 p-3">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
             {t('candidateAnswer', 'completedInterview')}
@@ -391,7 +401,7 @@ const QuestionDisplay: React.FC<{
             )}
           </div>
         </div>
-      ) : !editable && (answerType === 'radio' || answerType === 'dropdown') ? null : !editable && answerType === 'checkbox' ? (
+      ) : !editable && (answerType === 'radio' || answerType === 'dropdown' || (answerType === 'checkbox' && choices.length > 0)) ? null : !editable && answerType === 'checkbox' && choices.length === 0 ? (
         <div className="mt-1.5 rounded-lg border border-gray-100 bg-gray-50/60 p-3">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
             {t('candidateAnswer', 'completedInterview')}

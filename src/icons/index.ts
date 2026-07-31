@@ -55,9 +55,13 @@ import { ReactComponent as MoreDotIcon } from "./moredot.svg?react";
 import { ReactComponent as AlertHexaIcon } from "./alert-hexa.svg?react";
 import { ReactComponent as ErrorHexaIcon } from "./info-hexa.svg?react";
 import { ReactComponent as PrintIcon } from "./print-icon.svg?react";
+import { ReactComponent as SmileCircleIcon } from "./smile-circle-svgrepo-com.svg?react";
+import { ReactComponent as SadCircleIcon } from "./sad-circle-svgrepo-com.svg?react";
 
 export {
   PrintIcon,
+  SmileCircleIcon,
+  SadCircleIcon,
   ErrorHexaIcon,
   AlertHexaIcon,
   MoreDotIcon,

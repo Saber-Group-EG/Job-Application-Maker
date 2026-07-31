@@ -3,6 +3,7 @@ import { Trash2, Check, X } from 'lucide-react';
 import type { InterviewAnswer } from '../../../../../../types/applicants';
 import { getQuestionId } from '../utils/interviewUtils';
 import { useLocale } from '../../../../../../context/LocaleContext';
+import QuestionEvaluation from './QuestionEvaluation';
 
 export type QuestionRowProps = {
   question: InterviewAnswer;
@@ -124,7 +125,7 @@ export const QuestionRow = ({
       </div>
 
       <div className="space-y-3">
-        {answerType === 'checkbox' ? (
+        {answerType === 'checkbox' && choices.length === 0 ? (
           <label className="flex items-center gap-2.5 cursor-pointer group">
             <input
               type="checkbox"
@@ -141,7 +142,7 @@ export const QuestionRow = ({
               const value = choice.label;
               if (!value) return null;
               const choiceScore = choice.score;
-              const isMulti = answerType === 'radio';
+              const isMulti = answerType === 'checkbox';
               const selectedValues = isMulti
                 ? (Array.isArray(answer) ? answer : [])
                 : [selectedChoice];
@@ -242,7 +243,7 @@ export const QuestionRow = ({
       </div>
 
       {score > 0 && (
-        <div className="space-y-2 pt-2 border-t border-gray-50">
+        <div className="space-y-2 pt-2 border-t border-slate-50">
           <div className="flex justify-between text-[10px] text-gray-500 font-medium">
             <span>{t('performanceWeight', 'interview')}</span>
             <span>{Number(percentage || 0)}%</span>
@@ -259,6 +260,11 @@ export const QuestionRow = ({
               background: `linear-gradient(to right, #3b82f6 ${percentage}%, #e5e7eb ${percentage}%)`,
             }}
             className="w-full h-1.5 bg-gray-200 rounded-lg cursor-pointer accent-blue-600 disabled:opacity-60 disabled:cursor-not-allowed"
+          />
+          <QuestionEvaluation
+            percentage={Number(percentage || 0)}
+            onEvaluate={(value) => onChange({ percentage: value })}
+            disabled={!isInteractive}
           />
         </div>
       )}

@@ -50,7 +50,7 @@
   "contracts.deleteConfirm": "Delete",
 
   "interviewCompany.labelQuestion": "Question",
-  "interviewCompany.questionPlaceholder": "Tell us about a complex challenge you solved",
+  "interviewCompany.questionPlaceholder": "Type your question",
   "interviewCompany.labelAnswerType": "Answer Type",
   "interviewCompany.labelScore": "Score",
   "interviewCompany.labelChoices": "Choices",
@@ -106,6 +106,7 @@
   "interviewCompany.validationQuestionNeedsScore": "Question {qNumber} in group {gNumber} needs a valid numeric score.",
   "interviewCompany.validationChoiceRequired": "Question {qNumber} in group {gNumber} must include at least one choice for radio/dropdown.",
   "interviewCompany.validationRadioScoreExceeded": "Question {qNumber} in group {gNumber}: The sum of all choice scores must not exceed the question score.",
+  "interviewCompany.validationCheckboxScoreExceeded": "Question {qNumber} in group {gNumber}: The sum of all checkbox choice percentages must not exceed 100% of the question score.",
   "interviewCompany.validationDropdownScoreExceeded": "Question {qNumber} in group {gNumber}: The score for choice \"{choice}\" must not exceed the question score.",
   "interviewCompany.swalSaveFailed": "Save Failed",
   "interviewCompany.swalSaveFailedMsg": "Failed to save interview settings.",
@@ -153,6 +154,7 @@
   "interviewPerUser.validationQuestionNeedsScore": "Question {qNumber} in group {gNumber} needs a valid numeric score.",
   "interviewPerUser.validationChoiceRequired": "Question {qNumber} in group {gNumber} must include at least one choice for radio/dropdown.",
   "interviewPerUser.validationRadioScoreExceeded": "Question {qNumber} in group {gNumber}: The sum of all choice scores must not exceed the question score.",
+  "interviewPerUser.validationCheckboxScoreExceeded": "Question {qNumber} in group {gNumber}: The sum of all checkbox choice percentages must not exceed 100% of the question score.",
   "interviewPerUser.validationDropdownScoreExceeded": "Question {qNumber} in group {gNumber}: The score for choice \"{choice}\" must not exceed the question score.",
 
   "jobOffers.fullTime": "Full-time",
