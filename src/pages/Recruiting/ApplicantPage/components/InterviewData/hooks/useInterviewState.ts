@@ -174,6 +174,10 @@ export const useInterviewState = (
   // achievedScore. This way, the slider responds to drags immediately after
   // a "Save & Start" replaces the question list.
   const seededQIdsRef = useRef<string>('');
+  // Keeps the question text for every id we have seeded, so a value can be
+  // preserved by text when a server round trip replaces question ids (while
+  // leaving the text intact).
+  const questionTextRef = useRef<Record<string, string>>({});
   useLayoutEffect(() => {
     if (!selectedInterview) return;
     const questions = Array.isArray(selectedInterview.questions) ? selectedInterview.questions : [];
@@ -183,6 +187,7 @@ export const useInterviewState = (
         setAnswers({});
         setOpenGroups([]);
         seededQIdsRef.current = '';
+        questionTextRef.current = {};
       }
       return;
     }
@@ -192,8 +197,17 @@ export const useInterviewState = (
     }).join('|');
     if (key === seededQIdsRef.current) return;
     seededQIdsRef.current = key;
+    questions.forEach((q) => {
+      const qId = getQuestionId(q);
+      if (qId) questionTextRef.current[qId] = String(q?.question ?? '');
+    });
     setAchievedPercentages((prev) => {
       const next: Record<string, number> = {};
+      const byText: Record<string, number> = {};
+      Object.entries(prev).forEach(([id, pct]) => {
+        const text = questionTextRef.current[id];
+        if (text) byText[text] = pct;
+      });
       questions.forEach((q) => {
         const qId = getQuestionId(q);
         if (!qId) return;
@@ -201,19 +215,31 @@ export const useInterviewState = (
         const achieved = Number(q?.achievedScore ?? 0);
         if (prev[qId] !== undefined) {
           next[qId] = prev[qId];
-        } else if (score > 0) {
-          next[qId] = Math.max(0, Math.min(100, (achieved / score) * 100));
+        } else {
+          const matched = byText[String(q?.question ?? '')];
+          if (matched !== undefined) {
+            next[qId] = matched;
+          } else if (score > 0) {
+            next[qId] = Math.max(0, Math.min(100, (achieved / score) * 100));
+          }
         }
       });
       return next;
     });
     setAnswers((prev) => {
       const next: Record<string, unknown> = {};
+      const byText: Record<string, unknown> = {};
+      Object.entries(prev).forEach(([id, value]) => {
+        const text = questionTextRef.current[id];
+        if (text) byText[text] = value;
+      });
       questions.forEach((q) => {
         const qId = getQuestionId(q);
         if (!qId) return;
         if (prev[qId] !== undefined) {
           next[qId] = prev[qId];
+        } else if (byText[String(q?.question ?? '')] !== undefined) {
+          next[qId] = byText[String(q?.question ?? '')];
         } else if (q?.notes) {
           const raw = q.notes;
           if (raw === 'true') {
@@ -235,11 +261,18 @@ export const useInterviewState = (
     });
     setSelectedTagsByQuestion((prev) => {
       const next: Record<string, string[]> = {};
+      const byText: Record<string, string[]> = {};
+      Object.entries(prev).forEach(([id, tags]) => {
+        const text = questionTextRef.current[id];
+        if (text) byText[text] = tags;
+      });
       questions.forEach((q) => {
         const qId = getQuestionId(q);
         if (!qId) return;
         if (prev[qId] !== undefined) {
           next[qId] = prev[qId];
+        } else if (byText[String(q?.question ?? '')] !== undefined) {
+          next[qId] = byText[String(q?.question ?? '')];
         } else if (Array.isArray(q?.tags)) {
           const qTags = (q.tags as any[])
             .map((tag) => String(tag ?? ''))

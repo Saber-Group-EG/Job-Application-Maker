@@ -33,6 +33,9 @@ const ANSWER_TYPES: SavedQuestionAnswerType[] = [
 	"tags",
 ];
 
+const choicePct = (choiceScore: number, questionScore: number) =>
+	questionScore > 0 ? Math.round((choiceScore / questionScore) * 100) : 0;
+
 const EMPTY_QUESTION: SavedQuestion = {
 	question: "",
 	score: 0,
@@ -222,7 +225,7 @@ export default function SavedQuestionsPage() {
 				}
 
 				if (
-					(question.answerType === 'radio' || question.answerType === 'dropdown') &&
+					(question.answerType === 'radio' || question.answerType === 'dropdown' || question.answerType === 'checkbox') &&
 					(!Array.isArray(question.choices) || question.choices.length === 0)
 				) {
 					Swal.fire(
@@ -233,12 +236,12 @@ export default function SavedQuestionsPage() {
 					return null;
 				}
 
-				if (question.answerType === 'radio' && Array.isArray(question.choices)) {
+				if (question.answerType === 'checkbox' && Array.isArray(question.choices)) {
 					const sum = (question.choices as any[]).reduce((s: number, c: any) => s + (Number(c.score) || 0), 0);
 					if (sum > Number(question.score)) {
 						Swal.fire(
 							t('commonValidation', 'settings'),
-							t('interviewPerUser.validationRadioScoreExceeded', 'settings', { qNumber: questionIndex + 1, gNumber: groupIndex + 1 }),
+							t('interviewPerUser.validationCheckboxScoreExceeded', 'settings', { qNumber: questionIndex + 1, gNumber: groupIndex + 1 }),
 							'warning'
 						);
 						return null;
@@ -522,7 +525,7 @@ export default function SavedQuestionsPage() {
 												</button>
 											</div>
 
-											{(question.answerType === 'radio' || question.answerType === 'dropdown') && (
+											{(question.answerType === 'radio' || question.answerType === 'dropdown' || question.answerType === 'checkbox') && (
 												<div className="lg:col-span-4">
 													<label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
 														{t('interviewPerUser.labelChoices', 'settings')}
@@ -534,33 +537,21 @@ export default function SavedQuestionsPage() {
 															return (
 																<div key={i} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white p-2 dark:border-slate-700 dark:bg-slate-900">
 																	<span className="flex-1 truncate text-sm text-slate-800 dark:text-slate-200">{label}</span>
+																	<span className="w-10 text-center text-xs font-semibold text-slate-600 dark:text-slate-300">
+																		{choicePct(Number(c?.score) || 0, Number(question.score) || 0)}%
+																	</span>
 																	<input
-																		type="text"
-																		inputMode="numeric"
-																		value={scoreBuffers[`${groupIndex}_${questionIndex}_${i}`] ?? String(c?.score ?? 0)}
+																		type="range"
+																		min={0}
+																		max={100}
+																		value={choicePct(Number(c?.score) || 0, Number(question.score) || 0)}
 																		onChange={(e) => {
-																			const raw = e.target.value;
-																			const key = `${groupIndex}_${questionIndex}_${i}`;
-																			setScoreBuffers((prev) => ({ ...prev, [key]: raw }));
-																			if (raw === '') return;
-																			const num = Number(raw);
-																			if (Number.isFinite(num)) {
-																				const updated = [...(Array.isArray(question.choices) ? question.choices : [])];
-																				updated[i] = { ...updated[i], score: num };
-																				updateQuestion(groupIndex, questionIndex, { choices: updated });
-																			}
+																			const pct = Number(e.target.value);
+																			const updated = [...(Array.isArray(question.choices) ? question.choices : [])];
+																			updated[i] = { ...updated[i], score: Math.round((pct / 100) * (Number(question.score) || 0)) };
+																			updateQuestion(groupIndex, questionIndex, { choices: updated });
 																		}}
-																		onBlur={() => {
-																			const key = `${groupIndex}_${questionIndex}_${i}`;
-																			const raw = scoreBuffers[key];
-																			if (raw === '' || raw === undefined) {
-																				const updated = [...(Array.isArray(question.choices) ? question.choices : [])];
-																				updated[i] = { ...updated[i], score: 0 };
-																				updateQuestion(groupIndex, questionIndex, { choices: updated });
-																				setScoreBuffers((prev) => ({ ...prev, [key]: '0' }));
-																			}
-																		}}
-																		className="w-20 rounded border border-slate-300 bg-white px-2 py-1 text-xs text-center outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800"
+																		className="w-24 accent-brand-500"
 																	/>
 																	<button
 																		type="button"

@@ -50,7 +50,7 @@
   "contracts.deleteConfirm": "حذف",
 
   "interviewCompany.labelQuestion": "السؤال",
-  "interviewCompany.questionPlaceholder": "أخبرنا عن تحدٍ معقد قمت بحله",
+  "interviewCompany.questionPlaceholder": "أكتب سؤالك",
   "interviewCompany.labelAnswerType": "نوع الإجابة",
   "interviewCompany.labelScore": "الدرجة",
   "interviewCompany.labelChoices": "الخيارات",
@@ -106,6 +106,7 @@
   "interviewCompany.validationQuestionNeedsScore": "يحتاج السؤال {qNumber} في المجموعة {gNumber} إلى درجة رقمية صالحة.",
   "interviewCompany.validationChoiceRequired": "يجب أن يتضمن السؤال {qNumber} في المجموعة {gNumber} خياراً واحداً على الأقل للراديو/القائمة المنسدلة.",
   "interviewCompany.validationRadioScoreExceeded": "السؤال {qNumber} في المجموعة {gNumber}: مجموع درجات الخيارات يجب ألا يتجاوز درجة السؤال.",
+  "interviewCompany.validationCheckboxScoreExceeded": "السؤال {qNumber} في المجموعة {gNumber}: مجموع نسب خيارات الاختيار المتعدد يجب ألا يتجاوز 100% من درجة السؤال.",
   "interviewCompany.validationDropdownScoreExceeded": "السؤال {qNumber} في المجموعة {gNumber}: درجة الخيار \"{choice}\" يجب ألا تتجاوز درجة السؤال.",
   "interviewCompany.swalSaveFailed": "فشل الحفظ",
   "interviewCompany.swalSaveFailedMsg": "فشل حفظ إعدادات المقابلة.",
@@ -153,6 +154,7 @@
   "interviewPerUser.validationQuestionNeedsScore": "يحتاج السؤال {qNumber} في المجموعة {gNumber} إلى درجة رقمية صالحة.",
   "interviewPerUser.validationChoiceRequired": "يجب أن يتضمن السؤال {qNumber} في المجموعة {gNumber} خياراً واحداً على الأقل للراديو/القائمة المنسدلة.",
   "interviewPerUser.validationRadioScoreExceeded": "السؤال {qNumber} في المجموعة {gNumber}: مجموع درجات الخيارات يجب ألا يتجاوز درجة السؤال.",
+  "interviewPerUser.validationCheckboxScoreExceeded": "السؤال {qNumber} في المجموعة {gNumber}: مجموع نسب خيارات الاختيار المتعدد يجب ألا يتجاوز 100% من درجة السؤال.",
   "interviewPerUser.validationDropdownScoreExceeded": "السؤال {qNumber} في المجموعة {gNumber}: درجة الخيار \"{choice}\" يجب ألا تتجاوز درجة السؤال.",
 
   "jobOffers.fullTime": "دوام كامل",
