@@ -173,15 +173,6 @@ export interface Plan {
   isActive: boolean;
 }
 
-export interface CompanySubscriptionInfo {
-  status: 'active' | 'past_due' | 'cancelled' | 'expired' | 'suspended';
-  cancelAtPeriodEnd: boolean;
-  cancelledAt: string | null;
-  startedAt: string;
-  lastPaymentAt: string;
-  currentCycleAmountCents: number;
-}
-
 export interface SubscriptionUsage {
   used: number;
   baseLimit: number;
@@ -195,5 +186,21 @@ export interface SubscriptionUsage {
 export interface SubscriptionDetails {
   subscription: CompanySubscriptionInfo;
   plan: Plan;
+  pendingPlan: Plan | null;
+  upgradeInProgressPlan: Plan | null;
   usage: SubscriptionUsage;
 }
+
+export interface CompanySubscriptionInfo {
+  status: 'active' | 'past_due' | 'cancelled' | 'expired' | 'suspended';
+  cancelAtPeriodEnd: boolean;
+  cancelledAt: string | null;
+  startedAt: string;
+  lastPaymentAt: string;
+  currentCycleAmountCents: number;
+}
+
+export type ChangePlanResponse =
+  | { queued: true; effectiveAt: string | null }
+  | { success: true; charged: true }
+  | { checkoutUrl: string };

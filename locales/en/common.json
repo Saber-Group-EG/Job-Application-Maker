@@ -306,7 +306,6 @@
   "monFri": "Mon - Fri",
   "saturday": "Saturday",
   "sunday": "Sunday",
-  "closed": "Closed",
   "supportPageTitle": "Saber Group - Hiring Management System - Support",
   "supportPageDesc": "Get help and support for the platform",
   "user": "User",
@@ -356,5 +355,8 @@
   "resendCode": "Resend code",
   "checkYourEmail": "Check your email",
   "checkYourEmailDesc": "We sent a verification code to your email. Please enter it below.",
-  "enter6DigitCode": "Enter 6-digit code"
+  "enter6DigitCode": "Enter 6-digit code",
+  "changePlanFailed": "Plan change failed.",
+  "planChangeCancelled": "Plan change cancelled.",
+  "planChangeCancelFailed": "Failed to cancel plan change."
 }

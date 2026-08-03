@@ -30,6 +30,7 @@ export const paths = {
     savedFieldsPreview: (fieldId: string) =>
       `/recruiting/saved-fields/preview/${fieldId}`,
     savedQuestions: '/recruiting/saved-questions',
+    subscriptionComplete: '/recruiting/subscription/complete',
   },
 
   companies: {
@@ -67,7 +68,6 @@ export const paths = {
     recommendedFields: '/recommended-fields',
   },
 
-  
   inquiries: {
     root: '/inquiries',
     preview: (id: string) => `/inquiries/${id}`,

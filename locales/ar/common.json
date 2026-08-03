@@ -306,7 +306,6 @@
   "monFri": "الإثنين - الجمعة",
   "saturday": "السبت",
   "sunday": "الأحد",
-  "closed": "مغلق",
   "supportPageTitle": "Saber Group - نظام إدارة التوظيف - الدعم",
   "supportPageDesc": "احصل على المساعدة والدعم للمنصة",
   "user": "مستخدم",
@@ -356,5 +355,8 @@
   "resendCode": "إعادة إرسال الرمز",
   "checkYourEmail": "تحقق من بريدك الإلكتروني",
   "checkYourEmailDesc": "لقد أرسلنا رمز التحقق إلى بريدك الإلكتروني. يرجى إدخاله أدناه.",
-  "enter6DigitCode": "أدخل الرمز المكون من 6 أرقام"
+  "enter6DigitCode": "أدخل الرمز المكون من 6 أرقام",
+  "changePlanFailed": "فشل تغيير الخطة.",
+  "planChangeCancelled": "تم إلغاء تغيير الخطة.",
+  "planChangeCancelFailed": "فشل إلغاء تغيير الخطة."
 }

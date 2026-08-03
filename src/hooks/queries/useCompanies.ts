@@ -306,6 +306,75 @@ export function useSubscription(
   });
 }
 
+export function useTopUpStatus(companyId: string, ref: string | null) {
+  return useQuery({
+    queryKey: ['topup-status', companyId, ref],
+    queryFn: () => companiesService.getTopUpStatus(companyId, ref!),
+    enabled: !!companyId && !!ref,
+    refetchInterval: (query) =>
+      query.state.data?.status === 'pending' ? 3000 : false,
+  });
+}
+
+export function useStartTopUp() {
+  const { t } = useLocale();
+
+  return useMutation({
+    mutationFn: ({
+      companyId,
+      packId,
+    }: {
+      companyId: string;
+      packId: string;
+    }) => companiesService.startTopUp(companyId, packId),
+    onError: (error: ApiError) =>
+      showErrorToast(error.message, t('subscriptionTopUpFailed', 'common'), t),
+  });
+}
+
+export function usePlans() {
+  return useQuery({
+    queryKey: ['plans'],
+    queryFn: () => companiesService.getPlans(),
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
+export function useChangePlan() {
+  const queryClient = useQueryClient();
+  const { t } = useLocale();
+
+  return useMutation({
+    mutationFn: ({ companyId, planId }: { companyId: string; planId: string }) =>
+      companiesService.changePlan(companyId, planId),
+    onSuccess: (_, { companyId }) => {
+      queryClient.invalidateQueries({
+        queryKey: subscriptionKeys.detail(companyId),
+      });
+    },
+    onError: (error: ApiError) =>
+      showErrorToast(error.message, t('changePlanFailed', 'common'), t),
+  });
+}
+
+export function useCancelPlanChange() {
+  const queryClient = useQueryClient();
+  const { t } = useLocale();
+
+  return useMutation({
+    mutationFn: (companyId: string) =>
+      companiesService.cancelPlanChange(companyId),
+    onSuccess: (_, companyId) => {
+      queryClient.invalidateQueries({
+        queryKey: subscriptionKeys.detail(companyId),
+      });
+      showSuccessToast(t('planChangeCancelled', 'common'), t);
+    },
+    onError: (error: ApiError) =>
+      showErrorToast(error.message, t('planChangeCancelFailed', 'common'), t),
+  });
+}
+
 // ===== MUTATIONS =====
 
 export function useCreateCompany() {
@@ -796,6 +865,14 @@ export function useResumeSubscription() {
     },
     onError: (error: ApiError) =>
       showErrorToast(error.message, t('subscriptionResumeFailed', 'common'), t),
+  });
+}
+
+export function useTopUpPacks() {
+  return useQuery({
+    queryKey: ['topup-packs'],
+    queryFn: () => companiesService.getTopUpPacks(),
+    staleTime: 10 * 60 * 1000,
   });
 }
 
