@@ -293,7 +293,17 @@ function SortableQuestionItem({
           <div className="space-y-2">
             {(Array.isArray(question.choices) ? question.choices : []).map((c: ChoiceItem, i: number) => (
               <div key={i} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white p-2 dark:border-slate-700 dark:bg-slate-900">
-                <span className="flex-1 truncate text-sm text-slate-800 dark:text-slate-200">{c.label}</span>
+                <input
+                  type="text"
+                  value={c.label}
+                  onChange={(e) => {
+                    const updated = [...(Array.isArray(question.choices) ? question.choices : [])];
+                    updated[i] = { ...updated[i], label: e.target.value };
+                    onUpdate({ choices: updated });
+                  }}
+                  disabled={!canEdit}
+                  className="min-w-0 flex-1 truncate rounded-lg border border-transparent bg-transparent px-1 py-0.5 text-sm text-slate-800 outline-none transition-colors hover:border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:text-slate-200 dark:hover:border-slate-600"
+                />
                 <span className="w-10 text-center text-xs font-semibold text-slate-600 dark:text-slate-300">
                   {choicePct(Number(c.score) || 0, Number(question.score) || 0)}%
                 </span>
