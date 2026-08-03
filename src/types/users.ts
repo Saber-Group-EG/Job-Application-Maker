@@ -45,6 +45,10 @@ export interface UpdateUserRequest {
   isActive?: boolean;
   phone?: string;
   department?: string;
+  companies?: Array<{
+    companyId: string;
+    departments?: string[];
+  }>;
 }
 
 export interface UpdateProfileRequest {
