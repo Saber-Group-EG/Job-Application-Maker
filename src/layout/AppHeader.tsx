@@ -185,9 +185,7 @@ const AppHeader: React.FC = () => {
                 placeholder="Search applicants..."
                 className="w-44 bg-transparent outline-none text-slate-700 placeholder-slate-400 dark:text-slate-200 dark:placeholder-slate-500"
               />
-              <kbd className="hidden shrink-0 items-center gap-1 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-medium text-slate-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-500 sm:flex">
-                <span>⌘</span>K
-              </kbd>
+    
               <button
                 type="button"
                 onClick={() => {
