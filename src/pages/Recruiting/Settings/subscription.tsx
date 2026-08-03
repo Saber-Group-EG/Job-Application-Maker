@@ -9,6 +9,9 @@ import {
   ArrowDownCircle,
   X,
   Check,
+  Receipt,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useLocale } from '../../../context/LocaleContext';
@@ -21,12 +24,23 @@ import {
   useTopUpPacks,
   usePlans,
   useChangePlan,
+  useTransactions,
   useCancelPlanChange,
 } from '../../../hooks/queries/useCompanies';
 import Swal from '../../../utils/swal';
 import { useCompanyFilter } from '../../../context/CompanyFilterContext';
 import { requestsToCredits } from '../../../utils/credits';
-import type { Plan } from '../../../types/companies';
+import type {
+  Plan,
+  SubscriptionCard,
+  TransactionRecord,
+} from '../../../types/companies';
+import { CreditCard as CardIcon, Trash2, Star } from 'lucide-react';
+import {
+  useCards,
+  useDeleteCard,
+  useChangePrimaryCard,
+} from '../../../hooks/queries/useCompanies';
 
 type CompanyShape = {
   _id: string;
@@ -70,6 +84,24 @@ const STATUS_STYLES: Record<string, string> = {
   suspended: 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400',
 };
 
+const TRANSACTION_STATUS_STYLES: Record<string, string> = {
+  paid: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400',
+  failed: 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400',
+  pending:
+    'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400',
+};
+
+const TRANSACTION_TYPE_ICONS: Record<
+  TransactionRecord['type'],
+  typeof ArrowUpCircle
+> = {
+  signup: Package,
+  renewal: RotateCcw,
+  upgrade: ArrowUpCircle,
+  downgrade: ArrowDownCircle,
+  topup: Package,
+};
+
 export default function SubscriptionPage() {
   const { t, locale } = useLocale();
   const { hasPermission } = useAuth();
@@ -93,6 +125,25 @@ export default function SubscriptionPage() {
   const [pendingSelectionId, setPendingSelectionId] = useState<string | null>(
     null
   );
+  const { data: cards = [], isLoading: cardsLoading } = useCards(companyId);
+  const deleteCardMutation = useDeleteCard();
+  const changePrimaryMutation = useChangePrimaryCard();
+  const [isCardsOpen, setIsCardsOpen] = useState(false);
+
+  const [transactionPage, setTransactionPage] = useState(1);
+  const [transactionType, setTransactionType] = useState<
+    TransactionRecord['type'] | ''
+  >('');
+
+  const { data: transactionsData, isLoading: transactionsLoading } =
+    useTransactions(companyId, {
+      page: transactionPage,
+      PageCount: 10,
+      ...(transactionType ? { type: transactionType } : {}),
+    });
+    
+  const transactions = transactionsData?.data ?? [];
+  const totalPages = transactionsData?.totalPages ?? 1;
 
   if (!companyId) {
     return (
@@ -261,6 +312,29 @@ export default function SubscriptionPage() {
     );
   };
 
+  const handleDeleteCard = async (card: SubscriptionCard) => {
+    const result = await Swal.fire({
+      title: t('subscription.confirmDeleteCardTitle', 'settings'),
+      text: `${t('subscription.confirmDeleteCardText', 'settings')} ${card.maskedPan}?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: t('subscription.confirmDelete', 'settings'),
+      cancelButtonText: t('back', 'common'),
+      confirmButtonColor: '#ef4444',
+    });
+    if (result.isConfirmed)
+      deleteCardMutation.mutate({ companyId, cardId: card.id });
+  };
+
+  const handleMakePrimary = (card: SubscriptionCard) => {
+    changePrimaryMutation.mutate({ companyId, cardId: card.id });
+  };
+
+  const handleTypeFilterChange = (value: TransactionRecord['type'] | '') => {
+    setTransactionType(value);
+    setTransactionPage(1);
+  };
+
   return (
     <div className="space-y-6 p-6">
       {/* ── Current Plan card ─────────────────────────────────────────── */}
@@ -400,6 +474,14 @@ export default function SubscriptionPage() {
                 {t('subscription.cancelSubscription', 'settings')}
               </button>
             )}
+            <button
+              type="button"
+              onClick={() => setIsCardsOpen(true)}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+            >
+              <CardIcon className="size-4" />
+              {t('subscription.manageCards', 'settings')}
+            </button>
           </div>
         )}
       </div>
@@ -445,6 +527,155 @@ export default function SubscriptionPage() {
           </div>
         </div>
       )}
+      {/* ── Transaction history card ────────────────────────────────────── */}
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex flex-col gap-4 border-b border-slate-200 px-6 py-6 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex size-11 items-center justify-center rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400">
+              <Receipt className="size-6" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+                {t('subscription.transactionHistory', 'settings')}
+              </h2>
+              <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
+                {t('subscription.transactionHistoryDescription', 'settings')}
+              </p>
+            </div>
+          </div>
+
+          <select
+            value={transactionType}
+            onChange={(e) =>
+              handleTypeFilterChange(
+                e.target.value as TransactionRecord['type'] | ''
+              )
+            }
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+          >
+            <option value="">{t('subscription.allTypes', 'settings')}</option>
+            <option value="signup">
+              {t('subscription.type_signup', 'settings')}
+            </option>
+            <option value="renewal">
+              {t('subscription.type_renewal', 'settings')}
+            </option>
+            <option value="upgrade">
+              {t('subscription.type_upgrade', 'settings')}
+            </option>
+            <option value="downgrade">
+              {t('subscription.type_downgrade', 'settings')}
+            </option>
+            <option value="topup">
+              {t('subscription.type_topup', 'settings')}
+            </option>
+          </select>
+        </div>
+
+        {transactionsLoading && (
+          <div className="space-y-3 p-6">
+            {[...Array(4)].map((_, i) => (
+              <div
+                key={i}
+                className="h-10 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800"
+              />
+            ))}
+          </div>
+        )}
+
+        {!transactionsLoading && transactions.length === 0 && (
+          <p className="p-6 text-sm text-slate-500 dark:text-slate-400">
+            {t('subscription.noTransactions', 'settings')}
+          </p>
+        )}
+
+        {!transactionsLoading && transactions.length > 0 && (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:border-slate-800">
+                    <th className="px-6 py-3">
+                      {t('subscription.date', 'settings')}
+                    </th>
+                    <th className="px-6 py-3">
+                      {t('subscription.type', 'settings')}
+                    </th>
+                    <th className="px-6 py-3">
+                      {t('subscription.amount', 'settings')}
+                    </th>
+                    <th className="px-6 py-3">
+                      {t('subscription.txnStatus', 'settings')}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {transactions.map((txn) => {
+                    const TypeIcon =
+                      TRANSACTION_TYPE_ICONS[txn.type] ?? Package;
+                    return (
+                      <tr key={txn._id}>
+                        <td className="px-6 py-3 text-slate-700 dark:text-slate-300">
+                          {formatDate(txn.createdAt, locale)}
+                        </td>
+                        <td className="px-6 py-3">
+                          <span className="inline-flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                            <TypeIcon className="size-4 text-slate-400" />
+                            {t(`subscription.type_${txn.type}`, 'settings')}
+                          </span>
+                        </td>
+                        <td className="px-6 py-3 font-semibold text-slate-900 dark:text-slate-100">
+                          {formatMoney(txn.amountCents, txn.currency)}
+                        </td>
+                        <td className="px-6 py-3">
+                          <span
+                            className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
+                              TRANSACTION_STATUS_STYLES[txn.status] ??
+                              TRANSACTION_STATUS_STYLES.pending
+                            }`}
+                          >
+                            {t(
+                              `subscription.txnStatus_${txn.status}`,
+                              'settings'
+                            )}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex items-center justify-between border-t border-slate-200 px-6 py-4 dark:border-slate-800">
+              <span className="text-xs text-slate-500 dark:text-slate-400">
+                {t('subscription.page', 'settings')} {transactionsData?.page} /{' '}
+                {totalPages}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setTransactionPage((p) => Math.max(1, p - 1))}
+                  disabled={transactionPage <= 1}
+                  className="rounded-lg border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:hover:bg-slate-800"
+                >
+                  <ChevronLeft className="size-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setTransactionPage((p) => Math.min(totalPages, p + 1))
+                  }
+                  disabled={transactionPage >= totalPages}
+                  className="rounded-lg border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:hover:bg-slate-800"
+                >
+                  <ChevronRight className="size-4" />
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
 
       {/* ── Plan picker modal ────────────────────────────────────────── */}
       {isPickerOpen && (
@@ -512,6 +743,98 @@ export default function SubscriptionPage() {
                     </button>
                   );
                 })}
+            </div>
+          </div>
+        </div>
+      )}
+      {isCardsOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-xl dark:bg-slate-900">
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-800">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                {t('subscription.manageCards', 'settings')}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsCardsOpen(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 p-6">
+              {cardsLoading && (
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  {t('subscription.loadingCards', 'settings')}
+                </p>
+              )}
+
+              {!cardsLoading && cards.length === 0 && (
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  {t('subscription.noCards', 'settings')}
+                </p>
+              )}
+
+              {cards.map((card) => (
+                <div
+                  key={card.id}
+                  className={`flex items-center justify-between rounded-xl border px-4 py-3 ${
+                    card.isPrimary
+                      ? 'border-brand-300 bg-brand-50 dark:border-brand-500/40 dark:bg-brand-500/10'
+                      : 'border-slate-200 dark:border-slate-700'
+                  }`}
+                >
+                  <div>
+                    <p className="flex items-center gap-2 font-semibold text-slate-900 dark:text-slate-100">
+                      {card.maskedPan}
+                      {card.isPrimary && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-brand-500/10 px-2 py-0.5 text-[10px] font-semibold text-brand-600 dark:text-brand-400">
+                          <Star className="size-3" />
+                          {t('subscription.primaryCard', 'settings')}
+                        </span>
+                      )}
+                    </p>
+                    {card.failedAttempts > 0 && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400">
+                        {card.failedAttempts}{' '}
+                        {t('subscription.failedAttempts', 'settings')}
+                      </p>
+                    )}
+                  </div>
+                  {!card.isPrimary && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleMakePrimary(card)}
+                        disabled={changePrimaryMutation.isPending}
+                        title={t('subscription.makePrimary', 'settings')}
+                        className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-brand-600 dark:hover:bg-slate-800"
+                      >
+                        <Star className="size-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteCard(card)}
+                        disabled={deleteCardMutation.isPending}
+                        title={t('subscription.deleteCard', 'settings')}
+                        className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10"
+                      >
+                        <Trash2 className="size-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              <button
+                type="button"
+                disabled
+                title={t('subscription.addCardComingSoon', 'settings')}
+                className="w-full rounded-xl border border-dashed border-slate-300 px-4 py-3 text-sm font-semibold text-slate-400 dark:border-slate-700"
+              >
+                {t('subscription.addCard', 'settings')}
+              </button>
             </div>
           </div>
         </div>

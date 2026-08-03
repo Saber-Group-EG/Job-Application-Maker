@@ -204,3 +204,26 @@ export type ChangePlanResponse =
   | { queued: true; effectiveAt: string | null }
   | { success: true; charged: true }
   | { checkoutUrl: string };
+
+export interface SubscriptionCard {
+  id: number; // pass this to delete/change-primary — never the `token`
+  maskedPan: string;
+  isPrimary: boolean;
+  failedAttempts: number;
+  createdAt: string;
+}
+
+export interface TransactionRecord {
+  _id: string;
+  companyId: string;
+  subscriptionId: string;
+  type: 'signup' | 'renewal' | 'upgrade' | 'downgrade' | 'topup';
+  status: 'paid' | 'failed';
+  amountCents: number;
+  currency: string;
+  metadata: Record<string, any>;
+  paymobTransactionId: string | null;
+  paymobOrderId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}

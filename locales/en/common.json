@@ -358,5 +358,9 @@
   "enter6DigitCode": "Enter 6-digit code",
   "changePlanFailed": "Plan change failed.",
   "planChangeCancelled": "Plan change cancelled.",
-  "planChangeCancelFailed": "Failed to cancel plan change."
+  "planChangeCancelFailed": "Failed to cancel plan change.",
+  "cardDeleted": "Card deleted.",
+  "cardDeleteFailed": "Failed to delete card.",
+  "cardPrimaryChanged": "Primary card updated.",
+  "cardPrimaryChangeFailed": "Failed to update primary card."
 }

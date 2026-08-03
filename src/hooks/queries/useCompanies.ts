@@ -1,5 +1,10 @@
 // hooks/queries/useCompanies.ts
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  keepPreviousData,
+} from '@tanstack/react-query';
 import {
   companiesService,
   emailTemplatesService,
@@ -20,6 +25,11 @@ import type { Applicant } from '../../types/applicants';
 import { useAuth } from '../../context/AuthContext';
 
 // ===== Query Keys =====
+export const cardsKeys = {
+  all: ['subscription-cards'] as const,
+  detail: (companyId: string) => [...cardsKeys.all, companyId] as const,
+};
+
 export const companiesKeys = {
   all: ['companies'] as const,
   lists: () => [...companiesKeys.all, 'list'] as const,
@@ -345,8 +355,13 @@ export function useChangePlan() {
   const { t } = useLocale();
 
   return useMutation({
-    mutationFn: ({ companyId, planId }: { companyId: string; planId: string }) =>
-      companiesService.changePlan(companyId, planId),
+    mutationFn: ({
+      companyId,
+      planId,
+    }: {
+      companyId: string;
+      planId: string;
+    }) => companiesService.changePlan(companyId, planId),
     onSuccess: (_, { companyId }) => {
       queryClient.invalidateQueries({
         queryKey: subscriptionKeys.detail(companyId),
@@ -375,6 +390,73 @@ export function useCancelPlanChange() {
   });
 }
 
+export function useCards(companyId: string) {
+  return useQuery({
+    queryKey: cardsKeys.detail(companyId),
+    queryFn: () => companiesService.getCards(companyId),
+    enabled: !!companyId,
+  });
+}
+
+export function useDeleteCard() {
+  const queryClient = useQueryClient();
+  const { t } = useLocale();
+
+  return useMutation({
+    mutationFn: ({
+      companyId,
+      cardId,
+    }: {
+      companyId: string;
+      cardId: number;
+    }) => companiesService.deleteCard(companyId, cardId),
+    onSuccess: (_, { companyId }) => {
+      queryClient.invalidateQueries({ queryKey: cardsKeys.detail(companyId) });
+      showSuccessToast(t('cardDeleted', 'common'), t);
+    },
+    onError: (error: ApiError) =>
+      showErrorToast(error.message, t('cardDeleteFailed', 'common'), t),
+  });
+}
+
+export function useChangePrimaryCard() {
+  const queryClient = useQueryClient();
+  const { t } = useLocale();
+
+  return useMutation({
+    mutationFn: ({
+      companyId,
+      cardId,
+    }: {
+      companyId: string;
+      cardId: number;
+    }) => companiesService.changePrimaryCard(companyId, cardId),
+    onSuccess: (_, { companyId }) => {
+      queryClient.invalidateQueries({ queryKey: cardsKeys.detail(companyId) });
+      showSuccessToast(t('cardPrimaryChanged', 'common'), t);
+    },
+    onError: (error: ApiError) =>
+      showErrorToast(error.message, t('cardPrimaryChangeFailed', 'common'), t),
+  });
+}
+
+export function useTransactions(
+  companyId: string,
+  params: {
+    page?: number;
+    PageCount?: number;
+    type?: 'downgrade' | 'renewal' | 'signup' | 'topup' | 'upgrade' | undefined;
+    startDate?: string;
+    endDate?: string;
+  } = {}
+) {
+  return useQuery({
+    queryKey: ['transactions', companyId, params],
+    queryFn: () => companiesService.getTransactions(companyId, params),
+    enabled: !!companyId,
+    placeholderData: keepPreviousData,
+  });
+}
 // ===== MUTATIONS =====
 
 export function useCreateCompany() {

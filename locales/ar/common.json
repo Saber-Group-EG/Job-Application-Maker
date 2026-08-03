@@ -358,5 +358,9 @@
   "enter6DigitCode": "أدخل الرمز المكون من 6 أرقام",
   "changePlanFailed": "فشل تغيير الخطة.",
   "planChangeCancelled": "تم إلغاء تغيير الخطة.",
-  "planChangeCancelFailed": "فشل إلغاء تغيير الخطة."
+  "planChangeCancelFailed": "فشل إلغاء تغيير الخطة.",
+  "cardDeleted": "تم حذف البطاقة.",
+  "cardDeleteFailed": "فشل حذف البطاقة.",
+  "cardPrimaryChanged": "تم تحديث البطاقة الأساسية.",
+  "cardPrimaryChangeFailed": "فشل تحديث البطاقة الأساسية."
 }

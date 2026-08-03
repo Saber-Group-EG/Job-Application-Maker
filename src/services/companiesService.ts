@@ -14,6 +14,8 @@ import type {
   SubscriptionDetails,
   Plan,
   ChangePlanResponse,
+  SubscriptionCard,
+  TransactionRecord
 } from '../types/companies';
 
 // Re-export types
@@ -357,6 +359,77 @@ class CompaniesService {
       'delete',
       `/billing/${companyId}/subscription/change-plan`
     );
+  }
+
+  async getCards(companyId: string): Promise<SubscriptionCard[]> {
+    const response = await this.request<SubscriptionCard[]>(
+      'get',
+      `/billing/${companyId}/subscription/cards`
+    );
+    return Array.isArray(response) ? response : [];
+  }
+
+  async deleteCard(
+    companyId: string,
+    cardId: number
+  ): Promise<{ success: boolean }> {
+    return this.request(
+      'post',
+      `/billing/${companyId}/subscription/cards/delete`,
+      { cardId }
+    );
+  }
+
+  async changePrimaryCard(
+    companyId: string,
+    cardId: number
+  ): Promise<{ success: boolean }> {
+    return this.request(
+      'post',
+      `/billing/${companyId}/subscription/cards/primary`,
+      { cardId }
+    );
+  }
+
+  async getTransactions(
+    companyId: string,
+    params: {
+      page?: number;
+      PageCount?: number;
+      type?: 'signup' | 'renewal' | 'upgrade' | 'downgrade' | 'topup';
+      startDate?: string;
+      endDate?: string;
+    } = {}
+  ): Promise<{
+    message: string;
+    page: number;
+    totalPages: number;
+    pageCount: number;
+    totalCount: number;
+    data: TransactionRecord[];
+  }> {
+    const query = new URLSearchParams();
+    if (params.page) query.set('page', String(params.page));
+    if (params.PageCount) query.set('PageCount', String(params.PageCount));
+    if (params.type) query.set('type', params.type);
+    if (params.startDate) query.set('startDate', params.startDate);
+    if (params.endDate) query.set('endDate', params.endDate);
+    query.set('sort', '-createdAt'); // matches the {companyId:1, createdAt:-1} index; backend has no default
+
+    const qs = query.toString();
+
+    try {
+      const response = await axios.get(
+        `/billing/${companyId}/transactions${qs ? `?${qs}` : ''}`
+      );
+      return response.data; // full envelope: { message, page, totalPages, pageCount, totalCount, data }
+    } catch (error: any) {
+      throw new ApiError(
+        getErrorMessage(error),
+        error.response?.status,
+        error.response?.data?.details
+      );
+    }
   }
 }
 
