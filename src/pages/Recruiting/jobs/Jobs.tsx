@@ -70,6 +70,14 @@ const toLocalized = (value: any, fallback = ''): { en: string; ar: string } => {
   return { en: fallback, ar: fallback };
 };
 
+const isJobExpired = (job: any): boolean => {
+  if (!job?.registrationEnd) return false;
+  const end = new Date(job.registrationEnd);
+  if (Number.isNaN(end.getTime())) return false;
+  const endOfDay = end.getTime() + 24 * 60 * 60 * 1000 - 1;
+  return endOfDay < Date.now();
+};
+
 const getJobOrderValue = (job: any): number => {
   const rawOrder = job?.order;
   const parsedOrder =
@@ -170,12 +178,18 @@ function SortableJobCard({
             </span>
             <span
               className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                job.isActive !== false
-                  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400'
-                  : 'bg-slate-100 text-slate-700 dark:bg-slate-500/10 dark:text-slate-400'
+                isJobExpired(job)
+                  ? 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400'
+                  : job.isActive !== false
+                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400'
+                    : 'bg-slate-100 text-slate-700 dark:bg-slate-500/10 dark:text-slate-400'
               }`}
             >
-              {job.isActive !== false ? t('jobsActiveBadge', 'jobs') : t('jobsDeprioritizedBadge', 'jobs')}
+              {isJobExpired(job)
+                ? t('jobsExpiredBadge', 'jobs')
+                : job.isActive !== false
+                  ? t('jobsActiveBadge', 'jobs')
+                  : t('jobsDeprioritizedBadge', 'jobs')}
             </span>
           </div>
           <h3 className="text-lg font-bold text-slate-900 transition-colors group-hover:text-brand-600 dark:text-white dark:group-hover:text-brand-400">
@@ -339,12 +353,18 @@ function SortableJobRow({
       <td className="px-6 py-4">
         <span
           className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${
-            job.isActive !== false
-              ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400'
-              : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400'
+            isJobExpired(job)
+              ? 'border-red-200 bg-red-50 text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400'
+              : job.isActive !== false
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400'
+                : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400'
           }`}
         >
-          {job.isActive !== false ? t('jobsActiveStatus', 'jobs') : t('jobsInactiveStatus', 'jobs')}
+          {isJobExpired(job)
+            ? t('jobsExpiredStatus', 'jobs')
+            : job.isActive !== false
+              ? t('jobsActiveStatus', 'jobs')
+              : t('jobsInactiveStatus', 'jobs')}
         </span>
       </td>
       <td className="px-6 py-4 text-right">
