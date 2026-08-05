@@ -21,7 +21,7 @@ import Swal from '../../../utils/swal';
 import {
   useJobPositions,
   useDeleteJobPosition,
-  useUpdateJobPosition,
+  jobPositionsKeys,
 } from '../../../hooks/queries';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import { useAuth } from '../../../context/AuthContext';
@@ -51,6 +51,7 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { queryClient } from '../../../lib/queryClient';
 
 const getTranslation = (value: any, defaultValue = '', locale?: string): string => {
   const plain = toPlainString(value, locale);
@@ -437,7 +438,6 @@ export default function Jobs() {
   );
 
   const deleteJobMutation = useDeleteJobPosition();
-  const updateJobMutation = useUpdateJobPosition();
 
   useEffect(() => {
     setOrderedJobIds((prevIds) => {
@@ -788,38 +788,52 @@ export default function Jobs() {
       .filter((g) => g.jobs.length > 0);
   }, [orderedJobs, filteredJobs]);
 
-  const handleToggleActive = async (job: any) => {
-    try {
-      const newStatus = !job.isActive;
-      const payload: any = {
-        isActive: newStatus,
-        title: toLocalized(job.title, t('jobsUntitledRole', 'jobs')),
-        description: toLocalized(job.description, ''),
-        employmentType: job.employmentType || 'full-time',
-        workArrangement: job.workArrangement || 'on-site',
-      };
-      if (typeof job.salary === 'number') payload.salary = job.salary;
-      if (typeof job.salaryVisible === 'boolean')
-        payload.salaryVisible = job.salaryVisible;
-      payload.fieldConfig = normalizeFieldConfig(job?.fieldConfig, job?.salaryFieldVisible);
-      if (typeof job.bilingual === 'boolean') payload.bilingual = job.bilingual;
+  const handleToggleActive = (job: any) => {
+  const jobId = job._id;
+  const newStatus = !job.isActive;
 
-      await updateJobMutation.mutateAsync({ id: job._id, data: payload });
-      await refetchJobs();
-      Swal.fire({
-        title: t('jobsStatusUpdated', 'jobs'),
-        text: t('jobsStatusUpdatedText', 'jobs', { status: newStatus ? t('jobsActive', 'jobs') : t('jobsInactive', 'jobs') }),
-        icon: 'success',
-        timer: 1500,
-        showConfirmButton: false,
-      });
-    } catch (err: any) {
-      const details = err?.response?.data?.details;
-      const detailMessage =
-        Array.isArray(details) && details.length > 0 ? details[0]?.message : '';
-      Swal.fire(t('jobsError', 'jobs'), detailMessage || t('jobsUpdateFailed', 'jobs'), 'error');
-    }
+  const listKey = jobPositionsKeys.list(
+    jobQueryCompanyParam as any,
+    jobQueryDepartmentParam as any
+  );
+  const detailKey = jobPositionsKeys.detail(jobId);
+
+  // snapshot for rollback
+  const previousList = queryClient.getQueryData<any[]>(listKey);
+  const previousDetail = queryClient.getQueryData<any>(detailKey);
+
+  // flip instantly, no waiting on the network
+  queryClient.setQueryData<any[]>(listKey, (old) =>
+    old ? old.map((j) => (j._id === jobId ? { ...j, isActive: newStatus } : j)) : old
+  );
+  queryClient.setQueryData(detailKey, (old: any) =>
+    old ? { ...old, isActive: newStatus } : old
+  );
+
+  const payload: any = {
+    isActive: newStatus,
+    title: toLocalized(job.title, t('jobsUntitledRole', 'jobs')),
+    description: toLocalized(job.description, ''),
+    employmentType: job.employmentType || 'full-time',
+    workArrangement: job.workArrangement || 'on-site',
   };
+  if (typeof job.salary === 'number') payload.salary = job.salary;
+  if (typeof job.salaryVisible === 'boolean') payload.salaryVisible = job.salaryVisible;
+  payload.fieldConfig = normalizeFieldConfig(job?.fieldConfig, job?.salaryFieldVisible);
+  if (typeof job.bilingual === 'boolean') payload.bilingual = job.bilingual;
+
+  // fire and forget — UI already reflects the new state
+  jobPositionsService.updateJobPosition(jobId, payload).catch((err: any) => {
+    // roll back on failure
+    queryClient.setQueryData(listKey, previousList);
+    queryClient.setQueryData(detailKey, previousDetail);
+
+    const details = err?.response?.data?.details;
+    const detailMessage =
+      Array.isArray(details) && details.length > 0 ? details[0]?.message : '';
+    Swal.fire(t('jobsError', 'jobs'), detailMessage || t('jobsUpdateFailed', 'jobs'), 'error');
+  });
+};
 
   const handleDelete = async (e: React.MouseEvent, jobId: string) => {
     e.stopPropagation();

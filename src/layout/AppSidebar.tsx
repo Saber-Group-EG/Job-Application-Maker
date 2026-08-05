@@ -166,7 +166,7 @@ const AppSidebar: React.FC = () => {
       ? [
           {
             icon: <TaskIcon />,
-            name: 'Inquiry Preview',
+            name: 'Support Inbox',
             tKey: 'inquiryPreview',
             path: '/inquiries',
           },

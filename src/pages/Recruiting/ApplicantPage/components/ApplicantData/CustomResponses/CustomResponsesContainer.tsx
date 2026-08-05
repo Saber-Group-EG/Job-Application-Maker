@@ -29,7 +29,7 @@ export const CustomResponsesContainer: React.FC<CustomResponsesContainerProps> =
     updateDropdown,
     updateTextarea,
     updateTags,
-  } = useCustomResponses({ sections, onSectionsChange });
+  } = useCustomResponses({ sections, onSectionsChange, defaultExpandedSectionIds: sections.map((s) => s.id) });
 
   const handlers: QuestionHandlers = {
     isEditable,

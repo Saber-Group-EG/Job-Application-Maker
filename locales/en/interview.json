@@ -1,5 +1,7 @@
 {
   "title": "My Interview Schedule",
+  "filterByCompany": "Filter by company",
+  "myCompanyInterview": "My Company Interview",
   "upcomingCount": "{count} upcoming interview",
   "upcomingCount_plural": "{count} upcoming interviews",
   "pastCount": "{count} past interview",

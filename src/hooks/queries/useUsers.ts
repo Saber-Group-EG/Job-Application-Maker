@@ -19,6 +19,7 @@ import { useLocale } from "../../context/LocaleContext";
 interface UseMyInterviewsParams {
   direction?: 'future' | 'past';
   status?: string;
+  company?: string;
   page?: number;
   limit?: number;
 }
@@ -376,11 +377,11 @@ export function useDeleteSavedQuestionGroup() {
 
 // ===== My Interviews =====
 export function useMyInterviews(params: UseMyInterviewsParams = {}) {
-  const { direction = 'future', status, page = 1, limit = 20 } = params;
+  const { direction = 'future', status, company, page = 1, limit = 20 } = params;
 
   return useQuery({
-    queryKey: myInterviewsKeys.list({ direction, status, page, limit }),
-    queryFn: () => usersService.getMyInterviews({ direction, status, page, limit }),
+    queryKey: myInterviewsKeys.list({ direction, status, company, page, limit }),
+    queryFn: () => usersService.getMyInterviews({ direction, status, company, page, limit }),
     staleTime: 2 * 60 * 1000,
   });
 }

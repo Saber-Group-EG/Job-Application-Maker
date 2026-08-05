@@ -19,6 +19,7 @@ import { InterviewPickerView } from './views/InterviewPickerView';
 import { QuestionPickerView } from './views/QuestionPickerView';
 import { SelectionView } from './views/SelectionView';
 import type { PoolGroup } from './hooks/useQuestionPool';
+import type { FieldSaveStatus } from './hooks/useInterviewActions';
 
 const formatScheduledAt = (iso: string | undefined, locale: string, t?: (key: string, ns?: string, params?: Record<string, string | number>) => string): string => {
   if (!iso) return t ? t('unscheduledTime', 'interview') : 'an unscheduled time';
@@ -76,6 +77,68 @@ const InterviewQuestions = ({
   const pendingGenRef = useRef(0);
   const syncedRemoveGenRef = useRef(0);
   const saveQuestionInFlightRef = useRef(false);
+  const [saveStatusByQuestion, setSaveStatusByQuestion] = useState<Record<string, FieldSaveStatus>>({});
+  const autoSaveTimersRef = useRef<Record<string, number>>({});
+  const autoSaveResetRef = useRef<number | null>(null);
+  const pendingAutoSaveRef = useRef(false);
+  const stateRef = useRef(state);
+  stateRef.current = state;
+  const actionsRef = useRef(actions);
+  actionsRef.current = actions;
+
+  const scheduleSaveStatusReset = useCallback(() => {
+    if (autoSaveResetRef.current !== null) window.clearTimeout(autoSaveResetRef.current);
+    autoSaveResetRef.current = window.setTimeout(() => {
+      autoSaveResetRef.current = null;
+      setSaveStatusByQuestion((prev) => {
+        const next = { ...prev };
+        Object.keys(next).forEach((id) => {
+          if (next[id] === 'saved' || next[id] === 'error') delete next[id];
+        });
+        return next;
+      });
+    }, 3000);
+  }, []);
+
+  const runAutoSave = useCallback(async () => {
+    if (saveQuestionInFlightRef.current) {
+      pendingAutoSaveRef.current = true;
+      return;
+    }
+    saveQuestionInFlightRef.current = true;
+    let ok = false;
+    try {
+      ok = await actionsRef.current.saveQuestion(stateRef.current.buildQuestionsPayload());
+    } catch {
+      ok = false;
+    } finally {
+      saveQuestionInFlightRef.current = false;
+    }
+    setSaveStatusByQuestion((prev) => {
+      const next = { ...prev };
+      Object.keys(next).forEach((id) => {
+        if (next[id] === 'saving') next[id] = ok ? 'saved' : 'error';
+      });
+      return next;
+    });
+    scheduleSaveStatusReset();
+    if (pendingAutoSaveRef.current) {
+      pendingAutoSaveRef.current = false;
+      runAutoSave();
+    }
+  }, [scheduleSaveStatusReset]);
+
+  useEffect(() => {
+    return () => {
+      Object.values(autoSaveTimersRef.current).forEach((id) => window.clearTimeout(id));
+      autoSaveTimersRef.current = {};
+      if (autoSaveResetRef.current !== null) window.clearTimeout(autoSaveResetRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    setSaveStatusByQuestion({});
+  }, [state.selectedInterviewId]);
 
 
   // When entering the question picker, pre-select the currently attached
@@ -332,6 +395,9 @@ const InterviewQuestions = ({
     if (!state.selectedInterview) return;
     if (endInFlightRef.current) return;
     endInFlightRef.current = true;
+    Object.values(autoSaveTimersRef.current).forEach((id) => window.clearTimeout(id));
+    autoSaveTimersRef.current = {};
+    pendingAutoSaveRef.current = false;
     const finalQuestions = state.buildQuestionsPayload();
     actions.clearDebounce();
     try {
@@ -387,8 +453,16 @@ const InterviewQuestions = ({
   const handleQuestionChange = useCallback(
     (questionId: string, patch: { percentage?: number; answer?: unknown; selectedTags?: string[] }) => {
       state.updateField(questionId, patch);
+      if (!questionId) return;
+      setSaveStatusByQuestion((prev) => ({ ...prev, [questionId]: 'saving' }));
+      const existing = autoSaveTimersRef.current[questionId];
+      if (existing) window.clearTimeout(existing);
+      autoSaveTimersRef.current[questionId] = window.setTimeout(() => {
+        delete autoSaveTimersRef.current[questionId];
+        runAutoSave();
+      }, 1000);
     },
-    [state]
+    [state, runAutoSave]
   );
 
   // ---- Background auto-save --------------------------------------------
@@ -472,6 +546,7 @@ const InterviewQuestions = ({
         isInteractive={isInteractive}
         isStarted={isStarted}
         isEnded={isEnded}
+        saveStatusByQuestion={saveStatusByQuestion}
         fieldSaveStatus={actions.fieldSaveStatus}
         isMutating={actions.isMutating}
         canStart={canStart}

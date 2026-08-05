@@ -35,6 +35,7 @@ export function useApplicantFilters({
   currentUserId,
   canViewTrashed = false,
   globalFilter = '',
+  allCompaniesRaw = [],
 }: UseApplicantFiltersProps) {
   const normalizeStatus = useCallback((value: unknown) => {
     return String(value ?? '').trim().toLowerCase();
@@ -54,12 +55,65 @@ export function useApplicantFilters({
         const fullName = String(applicant?.fullName || '').toLowerCase();
         const email = String(applicant?.email || '').toLowerCase();
         const phone = String(applicant?.phone || '').toLowerCase();
-        const applicantNo = String(applicant?.applicantNo || '').toLowerCase();
+        const applicantNo = String(
+          applicant?.applicantNo ||
+            applicant?.applicantNumber ||
+            applicant?.applicationNo ||
+            ''
+        ).toLowerCase();
+        const status = String(applicant?.status || '').toLowerCase();
+
+        const rawJob = applicant?.jobPositionId;
+        const jobId =
+          typeof rawJob === 'string' ? rawJob : (rawJob?._id ?? rawJob?.id ?? '');
+        const job = jobId ? jobPositionMap[jobId] : undefined;
+        const jobTitleParts: string[] = [];
+        if (job?.title) {
+          if (typeof job.title === 'string') {
+            jobTitleParts.push(job.title);
+          } else if (typeof job.title === 'object') {
+            ['en', 'ar', 'name']
+              .map((k) => job.title[k])
+              .filter(Boolean)
+              .forEach((v) => jobTitleParts.push(String(v)));
+          }
+        }
+        const snapshot = applicant?.jobPositionNameSnapshot;
+        if (snapshot && typeof snapshot === 'object') {
+          ['en', 'ar']
+            .map((k) => snapshot[k])
+            .filter(Boolean)
+            .forEach((v) => jobTitleParts.push(String(v)));
+        }
+        const jobTitle = jobTitleParts.join(' ').toLowerCase();
+
+        const companyId = getApplicantCompanyId(applicant, jobPositionMap);
+        const company = allCompaniesRaw.find((c: any) => {
+          const cId =
+            typeof c?._id === 'string' ? c._id : c?._id?._id ?? c?.id;
+          return cId === companyId;
+        });
+        const companyNameParts: string[] = [];
+        if (company?.name) {
+          if (typeof company.name === 'string') companyNameParts.push(company.name);
+          else if (typeof company.name === 'object') {
+            ['en', 'ar', 'name']
+              .map((k) => company.name[k])
+              .filter(Boolean)
+              .forEach((v) => companyNameParts.push(String(v)));
+          }
+        }
+        if (company?.title) companyNameParts.push(company.title);
+        const companyName = companyNameParts.join(' ').toLowerCase();
+
         return (
           fullName.includes(q) ||
           email.includes(q) ||
           phone.includes(q) ||
-          applicantNo.includes(q)
+          applicantNo.includes(q) ||
+          status.includes(q) ||
+          jobTitle.includes(q) ||
+          companyName.includes(q)
         );
       });
     }
@@ -152,6 +206,7 @@ export function useApplicantFilters({
       const statusFilter = columnFilters.find((f: any) => f.id === 'status');
       const statusVal = statusFilter?.value;
       const statusExcludeMode = excludeColumns.includes('status');
+      const hasGlobalSearch = Boolean(globalFilter.trim());
 
       if (isSuperAdmin || canViewTrashed) {
         if (normalizeStatus(statusVal) === 'trashed') {
@@ -170,7 +225,10 @@ export function useApplicantFilters({
           });
           return filtered;
         }
-        // When no status selected, exclude trashed in both modes
+        // When no status selected, exclude trashed (but include when searching)
+        if (hasGlobalSearch) {
+          return filtered;
+        }
         filtered = filtered.filter((a: any) => !isTrashed(a.status));
         return filtered;
       }
@@ -194,18 +252,21 @@ export function useApplicantFilters({
         return filtered;
       }
 
-      // Default: always exclude trashed
+      // Default: exclude trashed (but include when searching)
+      if (hasGlobalSearch) {
+        return filtered;
+      }
       filtered = filtered.filter((a: any) => !isTrashed(a.status));
       return filtered;
     }
 
     return filtered;
-  }, [columnFilters, isSuperAdmin, effectiveOnlyStatus, selectedCompanyFilterValue, jobPositionMap, normalizeStatus, isTrashed, globalFilter]);
+  }, [columnFilters, isSuperAdmin, effectiveOnlyStatus, selectedCompanyFilterValue, jobPositionMap, normalizeStatus, isTrashed, globalFilter, allCompaniesRaw]);
 
   // Get filtered data based on column filters
   const columnFilteredApplicants = useMemo(() => {
     return applyColumnFilters(applicants);
-  }, [applicants, columnFilters, isSuperAdmin, effectiveOnlyStatus, effectiveOnlyJobPositions, jobPositionMap, normalizeStatus, canViewTrashed, globalFilter, selectedCompanyFilterValue]);
+  }, [applicants, columnFilters, isSuperAdmin, effectiveOnlyStatus, effectiveOnlyJobPositions, jobPositionMap, normalizeStatus, canViewTrashed, globalFilter, selectedCompanyFilterValue, allCompaniesRaw]);
 
   // Check if duplicates only filter is enabled
   const duplicatesOnlyEnabled = useMemo(

@@ -182,7 +182,7 @@ const AppHeader: React.FC = () => {
                   }
                 }}
                 onFocus={() => { if (searchResults.length > 0) setShowSearchResults(true); }}
-                placeholder="Search applicants..."
+                placeholder="Deep Searching..."
                 className="w-44 bg-transparent outline-none text-slate-700 placeholder-slate-400 dark:text-slate-200 dark:placeholder-slate-500"
               />
     

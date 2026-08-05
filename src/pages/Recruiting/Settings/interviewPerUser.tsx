@@ -36,6 +36,42 @@ const ANSWER_TYPES: SavedQuestionAnswerType[] = [
 const choicePct = (choiceScore: number, questionScore: number) =>
 	questionScore > 0 ? Math.round((choiceScore / questionScore) * 100) : 0;
 
+const autoFixChoiceScores = (question: any): any[] => {
+	const choices = Array.isArray(question?.choices) ? question.choices : [];
+	const questionScore = Number(question?.score) || 0;
+
+	if (question?.answerType === 'checkbox' && questionScore > 0) {
+		const sum = choices.reduce((s: number, c: any) => s + (Number(c.score) || 0), 0);
+		if (sum > questionScore) {
+			const scale = questionScore / sum;
+			const fixed = choices.map((c: any) => ({
+				...c,
+				score: Math.round((Number(c.score) || 0) * scale),
+			}));
+			const fixedSum = fixed.reduce((s: number, c: any) => s + (Number(c.score) || 0), 0);
+			const diff = questionScore - fixedSum;
+			if (fixed.length > 0) {
+				const last = fixed[fixed.length - 1];
+				fixed[fixed.length - 1] = {
+					...last,
+					score: Math.max(0, (Number(last.score) || 0) + diff),
+				};
+			}
+			return fixed;
+		}
+		return choices;
+	}
+
+	if (question?.answerType === 'dropdown' && questionScore > 0) {
+		return choices.map((c: any) => {
+			const score = Number(c.score) || 0;
+			return score > questionScore ? { ...c, score: questionScore } : c;
+		});
+	}
+
+	return choices;
+};
+
 const EMPTY_QUESTION: SavedQuestion = {
 	question: "",
 	score: 0,
@@ -235,30 +271,6 @@ export default function SavedQuestionsPage() {
 					);
 					return null;
 				}
-
-				if (question.answerType === 'checkbox' && Array.isArray(question.choices)) {
-					const sum = (question.choices as any[]).reduce((s: number, c: any) => s + (Number(c.score) || 0), 0);
-					if (sum > Number(question.score)) {
-						Swal.fire(
-							t('commonValidation', 'settings'),
-							t('interviewPerUser.validationCheckboxScoreExceeded', 'settings', { qNumber: questionIndex + 1, gNumber: groupIndex + 1 }),
-							'warning'
-						);
-						return null;
-					}
-				}
-
-				if (question.answerType === 'dropdown' && Array.isArray(question.choices)) {
-					const exceeded = (question.choices as any[]).find((c: any) => (Number(c.score) || 0) > Number(question.score));
-					if (exceeded) {
-						Swal.fire(
-							t('commonValidation', 'settings'),
-							t('interviewPerUser.validationDropdownScoreExceeded', 'settings', { qNumber: questionIndex + 1, gNumber: groupIndex + 1, choice: exceeded.label }),
-							'warning'
-						);
-						return null;
-					}
-				}
 			}
 		}
 
@@ -268,7 +280,7 @@ export default function SavedQuestionsPage() {
 				question: question.question.trim(),
 				score: Number(question.score),
 				answerType: question.answerType,
-			choices: Array.isArray(question.choices) ? question.choices : [],
+			choices: autoFixChoiceScores(question),
 			tags: Array.isArray(question.tags) ? question.tags : [],
 			})),
 		}));

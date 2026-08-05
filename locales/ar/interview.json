@@ -1,5 +1,7 @@
 {
   "title": "جدول المقابلات الخاص بي",
+  "filterByCompany": "تصفية حسب الشركة",
+  "myCompanyInterview": "مقابلة شركتي",
   "upcomingCount": "{count} مقابلة قادمة",
   "upcomingCount_plural": "{count} مقابلات قادمة",
   "pastCount": "{count} مقابلة سابقة",

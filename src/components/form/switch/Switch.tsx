@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 interface SwitchProps {
   label: string;
@@ -18,6 +18,7 @@ const Switch: React.FC<SwitchProps> = ({
   color = "blue", // Default to blue color
 }) => {
   const [isChecked, setIsChecked] = useState(defaultChecked);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // If `checked` is provided, treat component as controlled and sync state
   useEffect(() => {
@@ -36,6 +37,16 @@ const Switch: React.FC<SwitchProps> = ({
     if (onChange) {
       onChange(newCheckedState);
     }
+  };
+
+  const handleLabelClick = (e: React.MouseEvent<HTMLLabelElement>) => {
+    // Let the hidden checkbox handle its own activation (e.g. keyboard space)
+    if (e.target === inputRef.current) return;
+    // Calling preventDefault stops the label's native forwarding to the
+    // checkbox, which ancestors (e.g. clickable cards) would otherwise cancel
+    // with their own preventDefault, leaving the toggle unclickable.
+    e.preventDefault();
+    handleToggle();
   };
 
   const switchColors =
@@ -62,9 +73,11 @@ const Switch: React.FC<SwitchProps> = ({
       className={`flex cursor-pointer select-none items-center gap-3 text-sm font-medium ${
         disabled ? "text-gray-400" : "text-gray-700 dark:text-gray-400"
       }`}
+      onClick={handleLabelClick}
     >
       <div className="relative">
         <input
+          ref={inputRef}
           type="checkbox"
           className="sr-only"
           aria-label={label || "toggle"}
