@@ -45,6 +45,10 @@ export interface UpdateUserRequest {
   isActive?: boolean;
   phone?: string;
   department?: string;
+  companies?: Array<{
+    companyId: string;
+    departments?: string[];
+  }>;
 }
 
 export interface UpdateProfileRequest {
@@ -126,7 +130,8 @@ export type SavedQuestion = {
   question: string;
   score: number;
   answerType: SavedQuestionAnswerType;
-  choices?: string[];
+  choices?: { label: string; score: number }[];
+  tags?: string[];
 };
 
 export type SavedQuestionGroup = {

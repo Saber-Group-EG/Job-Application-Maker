@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+﻿import { useCallback, useRef, useState } from 'react';
 import Swal from '../../../../../../utils/swal';
 import { useLocale } from '../../../../../../context/LocaleContext';
 import { useUpdateInterviewStatus } from '../../../../../../hooks/queries';
@@ -17,7 +17,18 @@ type BuildQuestionsArg = InterviewAnswer[];
 type UseInterviewActionsOptions = {
   applicantId: string;
   interview: Interview | null;
-  onQuestionsPersisted?: (saved: InterviewAnswer[] | undefined) => void;
+  onQuestionsPersisted?: (saved: InterviewAnswer[] | undefined, built: InterviewAnswer[]) => void;
+  currentUserId?: string;
+};
+
+const resolveStringId = (v: unknown): string => {
+  if (!v) return '';
+  if (typeof v === 'string') return v;
+  if (typeof v === 'object') {
+    const obj = v as { _id?: unknown; id?: unknown };
+    return String(obj._id || obj.id || '');
+  }
+  return String(v);
 };
 
 const extractInterview = (payload: unknown, interviewId: string): Interview | undefined => {
@@ -38,6 +49,7 @@ export const useInterviewActions = ({
   applicantId,
   interview,
   onQuestionsPersisted,
+  currentUserId,
 }: UseInterviewActionsOptions) => {
   const { t } = useLocale();
   const mutation = useUpdateInterviewStatus();
@@ -53,6 +65,32 @@ export const useInterviewActions = ({
       debounceRef.current = null;
     }
   }, []);
+
+  const [fieldSaveStatusMap, setFieldSaveStatusMap] = useState<Record<string, FieldSaveStatus>>({});
+void setFieldSaveStatusMap;
+  const saveQuestion = useCallback(
+    async (builtQuestions: InterviewAnswer[]): Promise<boolean> => {
+      if (!applicantId || !interviewId) return false;
+      const payload: Record<string, unknown> = {
+        questions: (q => q)(builtQuestions),
+        totalScore: computeTotalScore(builtQuestions),
+        achievedScore: computeAchievedScore(builtQuestions),
+      };
+      try {
+        const response = await mutation.mutateAsync({
+          applicantId,
+          interviewId,
+          data: payload as UpdateInterviewStatusRequest,
+        });
+        const responseInterview = extractInterview(response, interviewId);
+        onQuestionsPersisted?.(responseInterview?.questions, builtQuestions);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [applicantId, interviewId, mutation, onQuestionsPersisted]
+  );
 
   /**
    * Save the picked groups. Optionally start the timer too.
@@ -70,14 +108,22 @@ export const useInterviewActions = ({
         return false;
       }
 
+      // Freshly built questions carry the full predefined tag list (used for
+      // display + group meta seeding), but the server stores `tags` as the
+      // interviewer's SELECTION only — so send an empty selection.
       const payload: Record<string, unknown> = {
-        questions: builtQuestions,
+        questions: (q => q)(builtQuestions.map((q) => ({ ...q, tags: [] as string[] }))),
         totalScore: computeTotalScore(builtQuestions),
         achievedScore: 0,
       };
       if (startAfter) {
         payload.startedAt = new Date().toISOString();
         payload.status = 'in_progress';
+        if (currentUserId) {
+          payload.conductedBy = currentUserId;
+        } else if (interview?.conductedBy) {
+          payload.conductedBy = resolveStringId(interview.conductedBy);
+        }
       }
 
       setIsPickerSaving(true);
@@ -88,7 +134,7 @@ export const useInterviewActions = ({
           data: payload as UpdateInterviewStatusRequest,
         });
         const responseInterview = extractInterview(response, interviewId);
-        onQuestionsPersisted?.(responseInterview?.questions);
+        onQuestionsPersisted?.(responseInterview?.questions, builtQuestions);
         return true;
       } catch (e) {
         void e;
@@ -134,12 +180,12 @@ export const useInterviewActions = ({
       const payload: Record<string, unknown> = {
         endedAt: new Date().toISOString(),
         status: 'completed',
-        questions: finalQuestions,
+        questions: (q => q)(finalQuestions),
         totalScore: computeTotalScore(finalQuestions),
         achievedScore: computeAchievedScore(finalQuestions),
       };
       // Forward the locally-captured startedAt (written into the React Query
-      // cache by handleStart). The server never received it at start time —
+      // cache by handleStart). The server never received it at start time ΓÇö
       // it's only persisted here, when the interview is ended.
       if (interview?.startedAt) {
         payload.startedAt = interview.startedAt;
@@ -163,8 +209,10 @@ export const useInterviewActions = ({
     savePickedGroups,
     startInterview,
     endInterview,
+    saveQuestion,
     isPickerSaving,
     fieldSaveStatus,
+    fieldSaveStatusMap,
     isMutating: mutation.isPending,
     clearDebounce,
   };

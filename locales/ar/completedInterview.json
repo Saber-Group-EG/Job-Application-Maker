@@ -24,6 +24,7 @@
   "interviewInformation": "معلومات المقابلة",
   "type": "النوع",
   "scheduledAt": "المجدولة في",
+  "scheduledBy": "تمت الجدولة بواسطة",
   "startedAt": "بدأت في",
   "endedAt": "انتهت في",
   "conductedBy": "أجراها",

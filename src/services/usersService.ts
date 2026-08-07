@@ -1,6 +1,7 @@
 // services/usersService.ts
 import axios from "../config/axios";
 import { getErrorMessage } from "../utils/errorHandler";
+import { normalizeChoicesToServer } from "../types/companies";
 import type {
   SavedField,
   CreateSavedFieldRequest,
@@ -12,6 +13,7 @@ import type {
   AddCompanyAccessRequest,
   UpdateDepartmentsRequest,
   SavedQuestionGroup,
+  SavedQuestion,
 } from '../types/users';
 import { ApiError } from "./companiesService";
 
@@ -43,8 +45,8 @@ function normalizeQuestionGroup(group: SavedQuestionGroup): SavedQuestionGroup {
           question: String(q?.question ?? "").trim(),
           score: Number.isFinite(Number(q?.score)) ? Number(q?.score) : 0,
           answerType: q?.answerType ?? "text",
-          choices: Array.isArray(q?.choices) 
-            ? q.choices.map((c: any) => String(c ?? "").trim()).filter(Boolean)
+          choices: Array.isArray(q?.choices)
+            ? (normalizeChoicesToServer(q.choices) as unknown as SavedQuestion['choices'])
             : [],
         }))
       : [],

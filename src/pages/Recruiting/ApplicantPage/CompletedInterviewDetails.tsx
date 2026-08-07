@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   Award,
   Calendar,
+  Check,
   CheckCircle2,
   Clock,
   Clock4,
@@ -15,6 +16,7 @@ import {
   Target,
   User as UserIcon,
   Video,
+  X,
   XCircle,
 } from 'lucide-react';
 import PageBreadCrumb from '../../../components/common/PageBreadCrumb';
@@ -29,6 +31,8 @@ import type {
   UpdateInterviewStatusRequest,
 } from '../../../types/applicants';
 import { paths } from '../../../router/Paths';
+import { useQuestionPool } from './components/InterviewData/hooks/useQuestionPool';
+import { resolveApplicantCompanyId } from './components/InterviewData/hooks/useInterviewState';
 import {
   formatDate,
 } from './components/history/historyUtils';
@@ -121,17 +125,63 @@ const QuestionDisplay: React.FC<{
   index: number;
   editable?: boolean;
   onChange?: (updated: InterviewAnswer) => void;
-}> = ({ question, index, editable, onChange }) => {
+  fullTags?: string[];
+}> = ({ question, index, editable, onChange, fullTags }) => {
   const { t } = useLocale();
   const score = Number(question?.score || 0);
   const achieved = Number(question?.achievedScore || 0);
   const percentage = score > 0 ? Math.round((achieved / score) * 100) : 0;
-  const choices = Array.isArray(question?.choices) ? question!.choices : [];
+  const rawChoices = Array.isArray(question?.choices) ? question!.choices : [];
+  const choices = useMemo(() => rawChoices.map((c: any) => ({
+    label: String(c?.label ?? c?.text ?? ''),
+    score: Number(c?.score) || 0,
+  })), [rawChoices]);
+  const answerType = String(question?.answerType || 'text');
   const answer = getAnswerDisplay(question, t);
+
+  const parsedAnswer = useMemo(() => {
+    const notes = (question?.notes ?? '').toString();
+    if (answerType === 'checkbox') {
+      if (choices.length > 0) {
+        try {
+          const parsed = JSON.parse(notes);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch {
+          return [];
+        }
+      }
+      return notes === 'true';
+    }
+    if (answerType === 'radio' || answerType === 'dropdown' || answerType === 'tags') {
+      try {
+        const parsed = JSON.parse(notes);
+        return Array.isArray(parsed) ? parsed : notes;
+      } catch { return notes; }
+    }
+    return notes;
+  }, [question?.notes, answerType, choices]);
 
   const handleChange = (field: 'score' | 'achievedScore' | 'notes', value: string | number) => {
     if (!onChange) return;
     onChange({ ...question, [field]: value });
+  };
+
+  const answerTags = useMemo(
+    () =>
+      Array.isArray(parsedAnswer)
+        ? parsedAnswer.map((x) => String(x ?? '')).filter(Boolean)
+        : [],
+    [parsedAnswer],
+  );
+  const [tagInput, setTagInput] = useState('');
+
+  const handleAddAnswerTag = () => {
+    const value = tagInput.trim();
+    if (!value) return;
+    if (!answerTags.includes(value)) {
+      handleChange('notes', JSON.stringify([...answerTags, value]));
+    }
+    setTagInput('');
   };
 
   return (
@@ -145,6 +195,51 @@ const QuestionDisplay: React.FC<{
             {question?.question || t('untitledQuestion', 'completedInterview')}
           </p>
           <div className="mt-1.5 flex flex-wrap items-center gap-2">
+            {(fullTags && fullTags.length > 0
+              ? fullTags
+              : Array.isArray(question?.tags)
+                ? question.tags
+                : []
+            ).map((tag: string, i: number) => {
+              const isSelected = Array.isArray(question?.tags) && question.tags.includes(tag);
+              if (editable) {
+                return (
+                  <button
+                    key={`${tag}_${i}`}
+                    type="button"
+                    onClick={() => {
+                      if (!onChange) return;
+                      const current = Array.isArray(question?.tags) ? question.tags : [];
+                      const next = isSelected
+                        ? current.filter((x) => x !== tag)
+                        : [...current, tag];
+                      onChange({ ...question, tags: next });
+                    }}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all ${
+                      isSelected
+                        ? 'bg-blue-600 text-white shadow-sm ring-2 ring-blue-600/30'
+                        : 'bg-white text-blue-600 border border-blue-200 hover:bg-blue-50'
+                    }`}
+                  >
+                    {isSelected && <Check className="h-3 w-3" />}
+                    {tag}
+                  </button>
+                );
+              }
+              return (
+                <span
+                  key={`${tag}_${i}`}
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${
+                    isSelected
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'bg-slate-100 text-slate-500 border border-slate-200'
+                  }`}
+                >
+                  {isSelected && <Check className="h-3 w-3" />}
+                  {tag}
+                </span>
+              );
+            })}
           </div>
         </div>
         {score > 0 && (
@@ -164,10 +259,52 @@ const QuestionDisplay: React.FC<{
           </p>
           <div className="flex flex-wrap gap-2">
             {choices.map((choice, i) => {
-              const value = String(choice ?? '');
+              const value = choice.label;
               if (!value) return null;
-              const isSelected =
-                answer.type === 'text' && answer.text === value;
+              const choiceScore = choice.score;
+              const isMulti = answerType === 'checkbox';
+              const selectedValues = isMulti
+                ? (Array.isArray(parsedAnswer) ? parsedAnswer : [])
+                : (Array.isArray(parsedAnswer) ? parsedAnswer : [typeof parsedAnswer === 'string' ? parsedAnswer : '']);
+              const isSelected = selectedValues.includes(value);
+
+              if (editable && (answerType === 'radio' || answerType === 'dropdown' || answerType === 'checkbox')) {
+                return (
+                  <button
+                    key={`${value}_${i}`}
+                    type="button"
+                    onClick={() => {
+                      if (!onChange) return;
+                      if (isMulti) {
+                        const next = isSelected
+                          ? selectedValues.filter((v: string) => v !== value)
+                          : [...selectedValues, value];
+                        const notes = next.length ? JSON.stringify(next) : '';
+                        const sumScore = next.reduce((s: number, label: string) => {
+                          const c = choices.find((ch) => ch.label === label);
+                          return s + (c?.score || 0);
+                        }, 0);
+                        const achievedScore = score > 0 ? Math.min(sumScore, score) : sumScore;
+                        onChange({ ...question, notes, achievedScore });
+                      } else {
+                        const achievedScore = isSelected ? 0 : Math.min(choiceScore, score);
+                        onChange({ ...question, notes: isSelected ? '' : value, achievedScore });
+                      }
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      isSelected
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {value}
+                    {choiceScore > 0 && (
+                      <span className="ml-1.5 text-[10px] opacity-70">({choiceScore})</span>
+                    )}
+                  </button>
+                );
+              }
+
               return (
                 <span
                   key={`${value}_${i}`}
@@ -179,6 +316,9 @@ const QuestionDisplay: React.FC<{
                 >
                   {isSelected && <CheckCircle2 className="h-3 w-3" />}
                   {value}
+                  {choiceScore > 0 && (
+                    <span className="ml-1 text-[10px] opacity-60">({choiceScore})</span>
+                  )}
                 </span>
               );
             })}
@@ -186,11 +326,26 @@ const QuestionDisplay: React.FC<{
         </div>
       )}
 
-      <div className="mt-1.5 rounded-lg border border-gray-100 bg-gray-50/60 p-3">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-          {t('candidateAnswer', 'completedInterview')}
-        </p>
-        {editable ? (
+      {editable && answerType === 'checkbox' && choices.length === 0 ? (
+        <div className="mt-1.5 rounded-lg border border-gray-100 bg-gray-50/60 p-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+            {t('candidateAnswer', 'completedInterview')}
+          </p>
+          <label className="mt-2 flex items-center gap-2.5 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={parsedAnswer === true}
+              onChange={() => handleChange('notes', parsedAnswer === true ? '' : 'true')}
+              className="h-4 w-4 accent-blue-600"
+            />
+            <span className="text-sm text-gray-700">{t('trueYes', 'interview')}</span>
+          </label>
+        </div>
+      ) : editable && answerType === 'text' || editable && answerType === 'number' ? (
+        <div className="mt-1.5 rounded-lg border border-gray-100 bg-gray-50/60 p-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+            {t('candidateAnswer', 'completedInterview')}
+          </p>
           <textarea
             value={question?.notes ?? ''}
             onChange={e => handleChange('notes', e.target.value)}
@@ -198,12 +353,82 @@ const QuestionDisplay: React.FC<{
             rows={3}
             placeholder={t('editAnswerNotes', 'completedInterview')}
           />
-        ) : answer.type === 'text' ? (
-          <p className="whitespace-pre-wrap text-sm text-gray-800">{answer.text}</p>
-        ) : (
-          <p className="text-sm italic text-gray-400">{answer.text}</p>
-        )}
-      </div>
+        </div>
+      ) : answerType === 'tags' ? (
+        <div className="mt-1.5 rounded-lg border border-gray-100 bg-gray-50/60 p-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+            {t('candidateAnswer', 'completedInterview')}
+          </p>
+          {editable && (
+            <input
+              type="text"
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleAddAnswerTag();
+                }
+              }}
+              onBlur={handleAddAnswerTag}
+              placeholder={t('typeTagAndPressEnter', 'interview')}
+              className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+            />
+          )}
+          <div className="mt-2 flex flex-wrap gap-2">
+            {answerTags.map((tag: string, i: number) => (
+              <span
+                key={`${tag}_${i}`}
+                className="inline-flex items-center gap-1.5 rounded-md bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-xs font-semibold text-emerald-700"
+              >
+                {tag}
+                {editable && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleChange('notes', JSON.stringify(answerTags.filter((_, idx) => idx !== i)))
+                    }
+                    className="cursor-pointer text-emerald-400 hover:text-red-500 transition-colors"
+                    title={t('removeTag', 'interview')}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+              </span>
+            ))}
+            {answerTags.length === 0 && (
+              <p className="text-sm italic text-gray-400">{t('noAnswerRecorded', 'completedInterview')}</p>
+            )}
+          </div>
+        </div>
+      ) : !editable && (answerType === 'radio' || answerType === 'dropdown' || (answerType === 'checkbox' && choices.length > 0)) ? null : !editable && answerType === 'checkbox' && choices.length === 0 ? (
+        <div className="mt-1.5 rounded-lg border border-gray-100 bg-gray-50/60 p-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+            {t('candidateAnswer', 'completedInterview')}
+          </p>
+          <label className="mt-2 flex items-center gap-2.5">
+            <div className={`h-5 w-5 flex items-center justify-center rounded border-2 ${parsedAnswer === true ? 'bg-blue-600 border-blue-600' : 'border-gray-300 bg-white'}`}>
+              {parsedAnswer === true && (
+                <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+            </div>
+            <span className="text-sm text-gray-700">{t('trueYes', 'interview')}</span>
+          </label>
+        </div>
+      ) : !editable ? (
+        <div className="mt-1.5 rounded-lg border border-gray-100 bg-gray-50/60 p-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+            {t('candidateAnswer', 'completedInterview')}
+          </p>
+          {answer.type === 'text' ? (
+            <p className="whitespace-pre-wrap text-sm text-gray-800">{answer.text}</p>
+          ) : (
+            <p className="text-sm italic text-gray-400">{answer.text}</p>
+          )}
+        </div>
+      ) : null}
 
       {editable && score > 0 && (
         <div className="mt-3 space-y-2 pt-3 border-t border-gray-100">
@@ -255,6 +480,35 @@ const CompletedInterviewDetails: React.FC = () => {
   const isEditing = (location.state as { mode?: string } | null)?.mode === 'edit';
 
   const { data: applicant, isLoading, isError, error } = useApplicant(applicantId || '');
+
+  const companyId = useMemo(() => resolveApplicantCompanyId(applicant), [applicant]);
+  const { pool: questionPool } = useQuestionPool(companyId);
+
+  const poolTagsById = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    questionPool.forEach((g) =>
+      g.questions.forEach((q) => {
+        const id = q._id || q.id;
+        if (id && Array.isArray(q.tags) && q.tags.length > 0) map[id] = q.tags;
+      }),
+    );
+    return map;
+  }, [questionPool]);
+
+  // Server round-trips can change question ids, so fall back to matching by
+  // question text — the text survives saves.
+  const poolTagsByText = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    questionPool.forEach((g) =>
+      g.questions.forEach((q) => {
+        const text = String(q.question || '').trim();
+        if (text && Array.isArray(q.tags) && q.tags.length > 0 && !map[text]) {
+          map[text] = q.tags;
+        }
+      }),
+    );
+    return map;
+  }, [questionPool]);
 
   const interview = useMemo<CompletedInterview | null>(() => {
     if (!applicant && !passedInterview) return null;
@@ -344,6 +598,24 @@ const CompletedInterviewDetails: React.FC = () => {
     () => isEditing ? editForm.questions : flattenQuestions(interview?.questions),
     [isEditing, editForm.questions, interview],
   );
+
+  // Full predefined tag list per question id (from the pool), used to show
+  // the unselected tags in edit mode — the saved `tags` only hold the
+  // selection.
+  const fullTagsMap = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    effectiveQuestions.forEach((q) => {
+      const qId = String(q?._id || q?.id || '');
+      const poolTags =
+        (qId && poolTagsById[qId]) ||
+        poolTagsByText[String(q?.question || '').trim()];
+      const savedTags = Array.isArray(q.tags) ? q.tags : [];
+      const set = new Set<string>(poolTags ?? []);
+      savedTags.forEach((tag) => set.add(String(tag ?? '')));
+      if (set.size > 0) map[qId || `__text_${String(q?.question || '').trim()}`] = Array.from(set);
+    });
+    return map;
+  }, [effectiveQuestions, poolTagsById, poolTagsByText]);
 
   const totalScore = useMemo(
     () =>
@@ -441,6 +713,7 @@ const CompletedInterviewDetails: React.FC = () => {
   const typeLabel = interview.type
     ? t(interview.type.replace(/-([a-z])/g, (_, c) => c.toUpperCase()), 'modals')
     : t('interview', 'completedInterview');
+  const scheduledByLabel = toUserLabel(interview.scheduledBy);
   const conductedByLabel = toUserLabel(interview.conductedBy);
   const interviewerLabels = Array.isArray(interview.interviewers)
     ? interview.interviewers.map((i) => toUserLabel(i)).filter(Boolean)
@@ -603,6 +876,14 @@ const CompletedInterviewDetails: React.FC = () => {
               value={formatDate(interview.endedAt, locale)}
               accent="amber"
             />
+            {scheduledByLabel && (
+              <InfoTile
+                icon={<UserIcon className="h-4 w-4" />}
+                label={t('scheduledBy', 'completedInterview')}
+                value={scheduledByLabel}
+                accent="purple"
+              />
+            )}
             {conductedByLabel && (
               <InfoTile
                 icon={<UserIcon className="h-4 w-4" />}
@@ -695,6 +976,7 @@ const CompletedInterviewDetails: React.FC = () => {
                   question={q}
                   index={i}
                   editable={isEditing}
+                  fullTags={fullTagsMap[String(q?._id || q?.id || '') || `__text_${String(q?.question || '').trim()}`]}
                   onChange={isEditing ? (updated) => handleQuestionChange(i, updated) : undefined}
                 />
               ))}

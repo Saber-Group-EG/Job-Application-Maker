@@ -195,7 +195,7 @@ export default function InquiriesList() {
               placeholder={t("searchInquiries", "inquiries")}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-11 pr-4 py-3 bg-white/60 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-[1.25rem] focus:ring-2 focus:ring-brand-500/20 outline-none transition-all dark:text-white placeholder:text-gray-400 font-medium"
+              className="w-full pl-11 pr-4 py-3 bg-white dark:bg-white/5 backdrop-blur-md border-2 border-slate-200 dark:border-white/10 rounded-[1.25rem] shadow-sm focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 outline-none transition-all dark:text-white placeholder:text-gray-400 font-medium hover:border-slate-300"
             />
           </div>
         </div>

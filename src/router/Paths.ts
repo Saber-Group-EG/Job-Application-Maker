@@ -56,6 +56,8 @@ export const paths = {
     details: (id: string) => `/applicant-details/${id}`,
     completedInterview: (id: string, interviewId: string) =>
       `/applicant-details/${id}/completed-interview/${interviewId}`,
+    interview: (id: string, interviewId: string) =>
+      `/applicant-details/${id}/interview/${interviewId}`,
   },
 
   admin: {
@@ -111,6 +113,7 @@ export const patterns = {
     page: 'applicants/page/:pageName',
     details: 'applicant-details/:id',
     completedInterview: 'applicant-details/:id/completed-interview/:interviewId',
+    interview: 'applicant-details/:id/interview/:interviewId',
   },
 
   inquiries: {

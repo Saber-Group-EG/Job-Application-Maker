@@ -30,7 +30,9 @@ export type {
   InterviewAnswerType,
   InterviewGroup,
   InterviewQuestion,
+  ChoiceItem,
 } from '../types/companies';
+export { normalizeChoices, normalizeChoicesToServer } from '../types/companies';
 
 // ===== Custom Error =====
 export class ApiError extends Error {

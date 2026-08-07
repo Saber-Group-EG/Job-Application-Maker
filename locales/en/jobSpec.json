@@ -1,7 +1,7 @@
 {
   "noJobSpecifications": "No job specifications",
   "noJobSpecificationsDesc": "This job position has no specifications configured yet.",
-  "compatibilityScore": "Compatibility Score",
+  "compatibilityScore": "Job Match Score",
   "requirementsMet": "Requirements Met",
   "zeroPercent": "0%",
   "fiftyPercent": "50%",

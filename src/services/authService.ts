@@ -1,5 +1,6 @@
 // services/authService.ts
 import { tokenStorage } from "../config/api";
+import { refreshAccessToken } from "../config/tokenRefresh";
 import type {
   LoginRequest,
   RegisterRequest,
@@ -50,12 +51,26 @@ class ApiClient {
     };
 
     try {
-      const response = await fetch(url, config);
-      const data = await response.json();
+      let response = await fetch(url, config);
+      let data = await response.json();
+
+      // Expired access token — refresh once and retry the request
+      if (
+        response.status === 401 &&
+        requiresAuth &&
+        !endpoint.includes("/auth/")
+      ) {
+        const newToken = await refreshAccessToken();
+        if (newToken) {
+          headers["Authorization"] = `Bearer ${newToken}`;
+          response = await fetch(url, { ...config, headers });
+          data = await response.json();
+        }
+      }
 
       if (!response.ok) {
         throw new ApiError(
-          data.message || "An error occurred",
+          data?.message || "An error occurred",
           response.status,
           data
         );
@@ -164,20 +179,10 @@ class AuthService {
   }
 
   async refreshToken(): Promise<void> {
-    const refreshToken = tokenStorage.getRefreshToken();
-    if (!refreshToken) {
-      throw new ApiError("No refresh token available");
+    const newToken = await refreshAccessToken();
+    if (!newToken) {
+      throw new ApiError("Token refresh failed", 401);
     }
-
-    const response = await this.api.post<AuthResponse>(
-      "/auth/refresh-token",
-      { refreshToken },
-      false
-    );
-    
-    const { accessToken, refreshToken: newRefreshToken } = this.extractTokens(response);
-    
-    tokenStorage.setTokens(accessToken, newRefreshToken);
   }
 
   async changePassword(passwords: ChangePasswordRequest): Promise<void> {

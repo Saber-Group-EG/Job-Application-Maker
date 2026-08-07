@@ -40,7 +40,8 @@ export type InterviewAnswer = {
   achievedScore?: number;
   notes?: string | null;
   answerType?: string;
-  choices?: string[];
+  choices?: { label: string; score: number }[];
+  tags?: string[];
   groupKey?: string;
   groupName?: string;
   groupSource?: 'company' | 'user';
@@ -87,6 +88,7 @@ export type Applicant = {
   _id: string;
   companyId: string;
   jobPositionId: { _id: string; title: string; jobCode?: string, companyId: { _id: string; name: { en: string; ar: string } } };
+  jobPositionNameSnapshot?: { en?: string | null; ar?: string | null };
   departmentId: string;
   status: string;
   submittedAt: string;
@@ -339,15 +341,17 @@ export type ApplicantView = Omit<Applicant, 'companyId' | 'jobPositionId'> & {
 export interface InterviewQuestionsProps {
   applicantId?: string;
   onRequestScheduleInterview?: () => void;
+  onRequestStartInterview?: () => void;
   autoSelectInterviewId?: string | null;
   applicantData?: Applicant | null;
+  authUser?: { _id?: string; id?: string; fullName?: string; name?: string; email?: string } | null;
 }
 
 export interface InterviewQuestionData {
   question: string;
   score: number;
   answerType: string;
-  choices: string[];
+  choices: { label: string; score: number }[];
   _id: string;
   id: string;
   description?: string;
