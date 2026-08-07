@@ -40,6 +40,7 @@ import {
   useCards,
   useDeleteCard,
   useChangePrimaryCard,
+  useStartAddCard,
 } from '../../../hooks/queries/useCompanies';
 
 type CompanyShape = {
@@ -128,6 +129,7 @@ export default function SubscriptionPage() {
   const { data: cards = [], isLoading: cardsLoading } = useCards(companyId);
   const deleteCardMutation = useDeleteCard();
   const changePrimaryMutation = useChangePrimaryCard();
+  const startAddCardMutation = useStartAddCard(); // NEW
   const [isCardsOpen, setIsCardsOpen] = useState(false);
 
   const [transactionPage, setTransactionPage] = useState(1);
@@ -141,7 +143,7 @@ export default function SubscriptionPage() {
       PageCount: 10,
       ...(transactionType ? { type: transactionType } : {}),
     });
-    
+
   const transactions = transactionsData?.data ?? [];
   const totalPages = transactionsData?.totalPages ?? 1;
 
@@ -333,6 +335,14 @@ export default function SubscriptionPage() {
   const handleTypeFilterChange = (value: TransactionRecord['type'] | '') => {
     setTransactionType(value);
     setTransactionPage(1);
+  };
+
+  const handleAddCard = () => {
+    startAddCardMutation.mutate(companyId, {
+      onSuccess: (res) => {
+        window.location.href = res.checkoutUrl;
+      },
+    });
   };
 
   return (
@@ -826,15 +836,17 @@ export default function SubscriptionPage() {
                   )}
                 </div>
               ))}
-
               <button
                 type="button"
-                disabled
-                title={t('subscription.addCardComingSoon', 'settings')}
-                className="w-full rounded-xl border border-dashed border-slate-300 px-4 py-3 text-sm font-semibold text-slate-400 dark:border-slate-700"
+                onClick={handleAddCard}
+                disabled={startAddCardMutation.isPending}
+                className="w-full rounded-xl border border-dashed border-slate-300 px-4 py-3 text-sm font-semibold text-slate-500 transition hover:border-brand-300 hover:bg-brand-50 hover:text-brand-600 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-400 dark:hover:border-brand-500/40 dark:hover:bg-brand-500/10"
               >
-                {t('subscription.addCard', 'settings')}
+                {startAddCardMutation.isPending
+                  ? t('addingCard', 'common')
+                  : t('addCard', 'common')}
               </button>
+
             </div>
           </div>
         </div>

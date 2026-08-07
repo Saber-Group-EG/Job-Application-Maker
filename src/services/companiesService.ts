@@ -15,7 +15,7 @@ import type {
   Plan,
   ChangePlanResponse,
   SubscriptionCard,
-  TransactionRecord
+  TransactionRecord,
 } from '../types/companies';
 
 // Re-export types
@@ -430,6 +430,9 @@ class CompaniesService {
         error.response?.data?.details
       );
     }
+  }
+  async startAddCard(companyId: string): Promise<{ checkoutUrl: string }> {
+    return this.request('post', `/billing/${companyId}/subscription/cards/add`);
   }
 }
 

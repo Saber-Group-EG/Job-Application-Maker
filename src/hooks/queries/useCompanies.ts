@@ -398,6 +398,16 @@ export function useCards(companyId: string) {
   });
 }
 
+export function useStartAddCard() {
+  const { t } = useLocale();
+
+  return useMutation({
+    mutationFn: (companyId: string) => companiesService.startAddCard(companyId),
+    onError: (error: ApiError) =>
+      showErrorToast(error.message, t('addCardFailed', 'common'), t),
+  });
+}
+
 export function useDeleteCard() {
   const queryClient = useQueryClient();
   const { t } = useLocale();
