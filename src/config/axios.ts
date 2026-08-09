@@ -3,6 +3,7 @@ import { tokenStorage } from './api';
 import { refreshAccessToken } from './tokenRefresh';
 import { paths } from '../router/Paths';
 import { emitQuotaEvent } from '../lib/quotaEvents';
+import { emitAuthEvent } from '../lib/authEvents';
 
 const axiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
@@ -82,7 +83,17 @@ axiosInstance.interceptors.response.use(
       if (status === 402) {
         emitQuotaEvent('quota-exceeded');
       }
-
+      if (status === 401 && data?.code === 'SESSION_SUPERSEDED') {
+        sessionStorage.setItem(
+          'authNotice',
+          data.message ?? 'Signed in on another device'
+        );
+        tokenStorage.clearTokens();
+        emitAuthEvent(
+          'session-superseded',
+          data.message ?? 'Signed in on another device'
+        );
+      }
       // Create a user-friendly error message
       let errorMessage = 'An error occurred';
 

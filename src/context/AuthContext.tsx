@@ -18,6 +18,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { tokenStorage } from "../config/api";
 import { refreshAccessToken, getAccessTokenExpiry } from "../config/tokenRefresh";
 import { paths } from "../router/Paths";
+import { subscribeAuthEvent } from "../lib/authEvents";
 
 type AuthContextType = {
   user: User | null;
@@ -165,6 +166,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       document.removeEventListener("visibilitychange", handleCheck);
     };
   }, [user, queryClient]);
+  useEffect(() => {
+    return subscribeAuthEvent('session-superseded', () => {
+      queryClient.clear();
+      window.location.href = paths.auth.signIn;
+    });
+  }, [queryClient]);
 
   const canAccessCompany = (companyId: string): boolean => {
     if (!user) return false;
