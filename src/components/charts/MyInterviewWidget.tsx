@@ -55,29 +55,38 @@ const toUserLabel = (value?: InterviewLike['scheduledBy']): string => {
   return value.fullName ?? value.name ?? (value._id ?? value.id ?? '—');
 };
 
-const getStatusLabel = (status: string, t: (key: string, ns?: string) => string) => {
+const getStatusLabel = (status: string | undefined, t: (key: string, ns?: string) => string) => {
   const map: Record<string, string> = {
     scheduled: t('scheduled', 'interview'),
     in_progress: t('inProgress', 'interview'),
     completed: t('completed', 'interview'),
     cancelled: t('cancelled', 'interview'),
   };
-  return map[status] ?? status;
+  return status ? (map[status] ?? status) : '—';
 };
 
-const getStatusStyle = (s: string, t: (key: string, ns?: string) => string) => {
+const getStatusStyle = (s: string | undefined, t: (key: string, ns?: string) => string) => {
   const base: Record<string, { dot: string; badge: string }> = {
     scheduled:   { dot: 'bg-blue-500',   badge: 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' },
     in_progress: { dot: 'bg-amber-500',  badge: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' },
     completed:   { dot: 'bg-green-500',  badge: 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300' },
     cancelled:   { dot: 'bg-red-400',    badge: 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-300' },
   };
-  const style = base[s] ?? { dot: 'bg-gray-400', badge: 'bg-gray-100 text-gray-600' };
+  const style = (s && base[s]) ?? { dot: 'bg-gray-400', badge: 'bg-gray-100 text-gray-600' };
   return { ...style, label: getStatusLabel(s, t) };
 };
 
-function formatDate(dateStr: string, locale: string) {
-  const d = new Date(dateStr);
+function formatDate(dateStr: string | undefined, locale: string) {
+  const d = dateStr ? new Date(dateStr) : null;
+  if (!d || isNaN(d.getTime())) {
+    return {
+      dayName: '—',
+      day: '—',
+      month: '—',
+      time: '—',
+      full: '—',
+    };
+  }
   return {
     dayName:  d.toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', { weekday: 'short' }),
     day:      d.getDate(),
@@ -87,20 +96,22 @@ function formatDate(dateStr: string, locale: string) {
   };
 }
 
-function isToday(dateStr: string) {
+function isToday(dateStr?: string) {
+  if (!dateStr) return false;
   const d = new Date(dateStr);
   const today = new Date();
   return d.toDateString() === today.toDateString();
 }
 
-function isTomorrow(dateStr: string) {
+function isTomorrow(dateStr?: string) {
+  if (!dateStr) return false;
   const d = new Date(dateStr);
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   return d.toDateString() === tomorrow.toDateString();
 }
 
-function getRelativeDay(dateStr: string, t: (key: string, ns?: string) => string) {
+function getRelativeDay(dateStr: string | undefined, t: (key: string, ns?: string) => string) {
   if (isToday(dateStr)) return t('today', 'interview');
   if (isTomorrow(dateStr)) return t('tomorrow', 'interview');
   return null;
@@ -116,7 +127,7 @@ function TimelineCard({ interview, t, locale }: { interview: InterviewLike; t: (
 
   return (
     <div
-      onClick={() => navigate(paths.applicants.details(String(interview.applicant._id || '')))}
+      onClick={() => navigate(paths.applicants.details(String(interview.applicant?._id ?? '')))}
       className="group flex gap-4 cursor-pointer"
     >
       {/* Date column */}
@@ -152,10 +163,10 @@ function TimelineCard({ interview, t, locale }: { interview: InterviewLike; t: (
           <div className="flex items-start justify-between gap-2 flex-wrap">
             <div>
               <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">
-                {interview.applicant.fullName}
+                {interview.applicant?.fullName ?? '—'}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                #{interview.applicant.applicantNo}
+                {interview.applicant?.applicantNo != null && `#${interview.applicant.applicantNo}`}
                 {interview.jobPosition?.name && (
                   <> · {interview.jobPosition.name}</>
                 )}
@@ -207,15 +218,15 @@ function PastRow({ interview, t, locale, showPeople }: { interview: InterviewLik
 
   return (
     <tr
-      onClick={() => navigate(paths.applicants.details(String(interview.applicant._id || '')))}
+      onClick={() => navigate(paths.applicants.details(String(interview.applicant?._id ?? '')))}
       className="group cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors"
     >
       <td className="py-3 px-4 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
         {d.full}
       </td>
       <td className="py-3 px-4">
-        <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{interview.applicant.fullName}</p>
-        <p className="text-xs text-gray-400">#{interview.applicant.applicantNo}</p>
+        <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{interview.applicant?.fullName ?? '—'}</p>
+        <p className="text-xs text-gray-400">{interview.applicant?.applicantNo != null && `#${interview.applicant.applicantNo}`}</p>
       </td>
       <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">
         {interview.jobPosition?.name ?? '—'}
