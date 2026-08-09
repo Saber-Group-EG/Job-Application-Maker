@@ -1,5 +1,10 @@
 // hooks/queries/useCompanies.ts
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  keepPreviousData,
+} from '@tanstack/react-query';
 import {
   companiesService,
   emailTemplatesService,
@@ -20,6 +25,11 @@ import type { Applicant } from '../../types/applicants';
 import { useAuth } from '../../context/AuthContext';
 
 // ===== Query Keys =====
+export const cardsKeys = {
+  all: ['subscription-cards'] as const,
+  detail: (companyId: string) => [...cardsKeys.all, companyId] as const,
+};
+
 export const companiesKeys = {
   all: ['companies'] as const,
   lists: () => [...companiesKeys.all, 'list'] as const,
@@ -306,6 +316,157 @@ export function useSubscription(
   });
 }
 
+export function useTopUpStatus(companyId: string, ref: string | null) {
+  return useQuery({
+    queryKey: ['topup-status', companyId, ref],
+    queryFn: () => companiesService.getTopUpStatus(companyId, ref!),
+    enabled: !!companyId && !!ref,
+    refetchInterval: (query) =>
+      query.state.data?.status === 'pending' ? 3000 : false,
+  });
+}
+
+export function useStartTopUp() {
+  const { t } = useLocale();
+
+  return useMutation({
+    mutationFn: ({
+      companyId,
+      packId,
+    }: {
+      companyId: string;
+      packId: string;
+    }) => companiesService.startTopUp(companyId, packId),
+    onError: (error: ApiError) =>
+      showErrorToast(error.message, t('subscriptionTopUpFailed', 'common'), t),
+  });
+}
+
+export function usePlans() {
+  return useQuery({
+    queryKey: ['plans'],
+    queryFn: () => companiesService.getPlans(),
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
+export function useChangePlan() {
+  const queryClient = useQueryClient();
+  const { t } = useLocale();
+
+  return useMutation({
+    mutationFn: ({
+      companyId,
+      planId,
+    }: {
+      companyId: string;
+      planId: string;
+    }) => companiesService.changePlan(companyId, planId),
+    onSuccess: (_, { companyId }) => {
+      queryClient.invalidateQueries({
+        queryKey: subscriptionKeys.detail(companyId),
+      });
+    },
+    onError: (error: ApiError) =>
+      showErrorToast(error.message, t('changePlanFailed', 'common'), t),
+  });
+}
+
+export function useCancelPlanChange() {
+  const queryClient = useQueryClient();
+  const { t } = useLocale();
+
+  return useMutation({
+    mutationFn: (companyId: string) =>
+      companiesService.cancelPlanChange(companyId),
+    onSuccess: (_, companyId) => {
+      queryClient.invalidateQueries({
+        queryKey: subscriptionKeys.detail(companyId),
+      });
+      showSuccessToast(t('planChangeCancelled', 'common'), t);
+    },
+    onError: (error: ApiError) =>
+      showErrorToast(error.message, t('planChangeCancelFailed', 'common'), t),
+  });
+}
+
+export function useCards(companyId: string) {
+  return useQuery({
+    queryKey: cardsKeys.detail(companyId),
+    queryFn: () => companiesService.getCards(companyId),
+    enabled: !!companyId,
+  });
+}
+
+export function useStartAddCard() {
+  const { t } = useLocale();
+
+  return useMutation({
+    mutationFn: (companyId: string) => companiesService.startAddCard(companyId),
+    onError: (error: ApiError) =>
+      showErrorToast(error.message, t('addCardFailed', 'common'), t),
+  });
+}
+
+export function useDeleteCard() {
+  const queryClient = useQueryClient();
+  const { t } = useLocale();
+
+  return useMutation({
+    mutationFn: ({
+      companyId,
+      cardId,
+    }: {
+      companyId: string;
+      cardId: number;
+    }) => companiesService.deleteCard(companyId, cardId),
+    onSuccess: (_, { companyId }) => {
+      queryClient.invalidateQueries({ queryKey: cardsKeys.detail(companyId) });
+      showSuccessToast(t('cardDeleted', 'common'), t);
+    },
+    onError: (error: ApiError) =>
+      showErrorToast(error.message, t('cardDeleteFailed', 'common'), t),
+  });
+}
+
+export function useChangePrimaryCard() {
+  const queryClient = useQueryClient();
+  const { t } = useLocale();
+
+  return useMutation({
+    mutationFn: ({
+      companyId,
+      cardId,
+    }: {
+      companyId: string;
+      cardId: number;
+    }) => companiesService.changePrimaryCard(companyId, cardId),
+    onSuccess: (_, { companyId }) => {
+      queryClient.invalidateQueries({ queryKey: cardsKeys.detail(companyId) });
+      showSuccessToast(t('cardPrimaryChanged', 'common'), t);
+    },
+    onError: (error: ApiError) =>
+      showErrorToast(error.message, t('cardPrimaryChangeFailed', 'common'), t),
+  });
+}
+
+export function useTransactions(
+  companyId: string,
+  params: {
+    page?: number;
+    PageCount?: number;
+    type?: 'downgrade' | 'renewal' | 'signup' | 'topup' | 'upgrade' | undefined;
+    startDate?: string;
+    endDate?: string;
+  } = {}
+) {
+  return useQuery({
+    queryKey: ['transactions', companyId, params],
+    queryFn: () => companiesService.getTransactions(companyId, params),
+    enabled: !!companyId,
+    placeholderData: keepPreviousData,
+  });
+}
 // ===== MUTATIONS =====
 
 export function useCreateCompany() {
@@ -398,15 +559,24 @@ export function useUpdateCompanyInterviewSettings() {
       data,
     }: {
       settingsId: string;
+      companyId?: string;
       data: UpdateInterviewSettingsRequest;
     }) => companiesService.updateCompanyInterviewSettings(settingsId, data),
-    onSuccess: (interviewSettings, variables) => {
-      const settingsId = variables.settingsId;
+    onSuccess: (response, variables) => {
+      const { settingsId, companyId } = variables;
 
-      if (settingsId) {
-        // ✅ FIXED: Use 'interviewSettings' (plural) not 'interviewSetting'
+      const raw = (response as any)?.interviewSettings ?? response;
+      const groups = Array.isArray(raw?.groups)
+        ? raw.groups
+        : Array.isArray((raw as any)?.data?.groups)
+          ? (raw as any).data.groups
+          : null;
+      const interviewSettings = groups ? { ...raw, groups } : null;
+
+      if (settingsId && interviewSettings) {
+        const keyId = companyId || settingsId;
         queryClient.setQueryData(
-          companiesKeys.interviewSettings(settingsId),
+          companiesKeys.interviewSettings(keyId),
           interviewSettings
         );
         queryClient.setQueryData(companiesKeys.list(), (old: any) => {
@@ -796,6 +966,14 @@ export function useResumeSubscription() {
     },
     onError: (error: ApiError) =>
       showErrorToast(error.message, t('subscriptionResumeFailed', 'common'), t),
+  });
+}
+
+export function useTopUpPacks() {
+  return useQuery({
+    queryKey: ['topup-packs'],
+    queryFn: () => companiesService.getTopUpPacks(),
+    staleTime: 10 * 60 * 1000,
   });
 }
 

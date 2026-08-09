@@ -19,8 +19,7 @@ const LandingContact = lazy(() => import('../pages/Landing/pages/Contact'));
 // @ts-expect-error - JS module without declarations
 const LandingPolicies = lazy(() => import('../pages/Landing/pages/Policies'));
 // @ts-expect-error - JS module without declarations
-const LandingTerms = lazy(() => import('../pages/Landing/pages/TermsAndConditions')
-);
+const LandingTerms = lazy(() => import('../pages/Landing/pages/TermsAndConditions'));
 // @ts-expect-error - JS module without declarations
 const LandingAddress = lazy(() => import('../pages/Landing/pages/Address'));
 
@@ -75,6 +74,9 @@ const ApplicantDetails = lazy(
 const CompletedInterviewDetails = lazy(
   () => import('../pages/Recruiting/ApplicantPage/CompletedInterviewDetails')
 );
+const InterviewSession = lazy(
+  () => import('../pages/Recruiting/ApplicantPage/InterviewSession')
+);
 const MailPreview = lazy(
   () => import('../pages/Recruiting/applicants/MailPreview')
 );
@@ -94,6 +96,10 @@ const SavedFieldsPreview = lazy(
 );
 const CreateSavedField = lazy(
   () => import('../pages/Recruiting/savedFields/CreateSavedField')
+);
+
+const SubscriptionComplete = lazy(
+  () => import('../pages/OtherPage/subscriptionComplete')
 );
 
 // Admin
@@ -155,7 +161,10 @@ export default function App() {
           {/* Auth Routes */}
           <Route path={paths.auth.signIn} element={<SignIn />} />
           <Route path={paths.auth.signUp} element={<SignUp />} />
-          <Route path={paths.auth.forgotPassword} element={<ForgotPassword />} />
+          <Route
+            path={paths.auth.forgotPassword}
+            element={<ForgotPassword />}
+          />
           <Route path={paths.auth.resetPassword} element={<ResetPassword />} />
 
           {/* Protected Routes */}
@@ -250,6 +259,9 @@ export default function App() {
                 element={<CompletedInterviewDetails />}
               />
               <Route
+                path={patterns.applicants.interview}
+                element={<InterviewSession />} />
+              <Route
                 element={
                   <PermissionProtectedRoute
                     requiredPermissions={['Mail Management']}
@@ -308,14 +320,35 @@ export default function App() {
                   />
                 }
               >
-                <Route path={paths.inquiries.root} element={<InquiriesList />} />
-                <Route path={patterns.inquiries.preview} element={<InquiryPreview />} />
+                <Route
+                  path={paths.inquiries.root}
+                  element={<InquiriesList />}
+                />
+                <Route
+                  path={patterns.inquiries.preview}
+                  element={<InquiryPreview />}
+                />
               </Route>
-
+              <Route
+                element={
+                  <PermissionProtectedRoute
+                    requiredPermissions={['Billing Management']}
+                    accessLevel="read"
+                  />
+                }
+              >
+                <Route
+                  path={paths.recruiting.subscriptionComplete}
+                  element={<SubscriptionComplete />}
+                />
+              </Route>
               {/* Misc */}
               <Route path={paths.misc.profile} element={<UserProfiles />} />
               <Route path={paths.misc.profileEdit} element={<ProfileEdit />} />
-              <Route path={paths.misc.accountSettings} element={<AccountSettings />} />
+              <Route
+                path={paths.misc.accountSettings}
+                element={<AccountSettings />}
+              />
               <Route path={paths.misc.support} element={<Support />} />
               <Route path={paths.misc.calendar} element={<Calendar />} />
               <Route path={paths.misc.blank} element={<Blank />} />

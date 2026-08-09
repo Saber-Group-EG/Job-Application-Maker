@@ -110,11 +110,51 @@ export type InterviewAnswerType =
   | 'dropdown'
   | 'tags';
 
+export interface ChoiceItem {
+  label: string;
+  score: number;
+}
+
+export function normalizeChoices(choices: unknown): ChoiceItem[] {
+  if (!Array.isArray(choices)) return [];
+  return choices
+    .map((c: unknown) => {
+      if (typeof c === 'string') return { label: c, score: 0 } as ChoiceItem;
+      if (c && typeof c === 'object') {
+        const obj = c as Record<string, unknown>;
+        return {
+          label: String(obj.label ?? obj.text ?? obj.en ?? obj.ar ?? ''),
+          score: Number(obj.score) || 0,
+        } as ChoiceItem;
+      }
+      return { label: String(c ?? ''), score: 0 } as ChoiceItem;
+    })
+    .filter((c) => c.label !== '');
+}
+
+export function normalizeChoicesToServer(choices: unknown): { text: string; score: number }[] {
+  if (!Array.isArray(choices)) return [];
+  return choices
+    .map((c: unknown) => {
+      if (typeof c === 'string') return { text: c, score: 0 };
+      if (c && typeof c === 'object') {
+        const obj = c as Record<string, unknown>;
+        return {
+          text: String(obj.label ?? obj.text ?? obj.en ?? obj.ar ?? ''),
+          score: Number(obj.score) || 0,
+        };
+      }
+      return { text: String(c ?? ''), score: 0 };
+    })
+    .filter((c) => c.text !== '');
+}
+
 export interface InterviewQuestion {
   question: string;
   score: number;
   answerType: InterviewAnswerType;
-  choices?: string[];
+  choices?: ChoiceItem[];
+  tags?: string[];
 }
 
 export interface InterviewGroup {
@@ -173,15 +213,6 @@ export interface Plan {
   isActive: boolean;
 }
 
-export interface CompanySubscriptionInfo {
-  status: 'active' | 'past_due' | 'cancelled' | 'expired' | 'suspended';
-  cancelAtPeriodEnd: boolean;
-  cancelledAt: string | null;
-  startedAt: string;
-  lastPaymentAt: string;
-  currentCycleAmountCents: number;
-}
-
 export interface SubscriptionUsage {
   used: number;
   baseLimit: number;
@@ -195,5 +226,44 @@ export interface SubscriptionUsage {
 export interface SubscriptionDetails {
   subscription: CompanySubscriptionInfo;
   plan: Plan;
+  pendingPlan: Plan | null;
+  upgradeInProgressPlan: Plan | null;
   usage: SubscriptionUsage;
+}
+
+export interface CompanySubscriptionInfo {
+  status: 'active' | 'past_due' | 'cancelled' | 'expired' | 'suspended';
+  cancelAtPeriodEnd: boolean;
+  cancelledAt: string | null;
+  startedAt: string;
+  lastPaymentAt: string;
+  currentCycleAmountCents: number;
+}
+
+export type ChangePlanResponse =
+  | { queued: true; effectiveAt: string | null }
+  | { success: true; charged: true }
+  | { checkoutUrl: string };
+
+export interface SubscriptionCard {
+  id: number; // pass this to delete/change-primary — never the `token`
+  maskedPan: string;
+  isPrimary: boolean;
+  failedAttempts: number;
+  createdAt: string;
+}
+
+export interface TransactionRecord {
+  _id: string;
+  companyId: string;
+  subscriptionId: string;
+  type: 'signup' | 'renewal' | 'upgrade' | 'downgrade' | 'topup';
+  status: 'paid' | 'failed';
+  amountCents: number;
+  currency: string;
+  metadata: Record<string, any>;
+  paymobTransactionId: string | null;
+  paymobOrderId: string | null;
+  createdAt: string;
+  updatedAt: string;
 }

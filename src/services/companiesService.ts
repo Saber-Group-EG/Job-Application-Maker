@@ -12,6 +12,10 @@ import type {
   InterviewSettings,
   SectionTemplate,
   SubscriptionDetails,
+  Plan,
+  ChangePlanResponse,
+  SubscriptionCard,
+  TransactionRecord,
 } from '../types/companies';
 
 // Re-export types
@@ -26,7 +30,9 @@ export type {
   InterviewAnswerType,
   InterviewGroup,
   InterviewQuestion,
+  ChoiceItem,
 } from '../types/companies';
+export { normalizeChoices, normalizeChoicesToServer } from '../types/companies';
 
 // ===== Custom Error =====
 export class ApiError extends Error {
@@ -292,20 +298,143 @@ class CompaniesService {
   async getSubscription(companyId: string): Promise<SubscriptionDetails> {
     return this.request<SubscriptionDetails>(
       'get',
-      `/companies/${companyId}/subscription`
+      `/billing/${companyId}/subscription`
     );
   }
 
   async cancelSubscription(
     companyId: string
   ): Promise<{ cancelAtPeriodEnd: boolean; cancelledAt: string | null }> {
-    return this.request('put', `/companies/${companyId}/subscription/cancel`);
+    return this.request('put', `/billing/${companyId}/subscription/cancel`);
   }
 
   async resumeSubscription(
     companyId: string
   ): Promise<{ cancelAtPeriodEnd: boolean }> {
-    return this.request('put', `/companies/${companyId}/subscription/resume`);
+    return this.request('put', `/billing/${companyId}/subscription/resume`);
+  }
+
+  async getTopUpStatus(
+    companyId: string,
+    ref: string
+  ): Promise<{ status: 'pending' | 'paid' | 'failed' }> {
+    return this.request(
+      'get',
+      `/billing/${companyId}/subscription/top-up/status?ref=${ref}`
+    );
+  }
+
+  async startTopUp(
+    companyId: string,
+    packId: string
+  ): Promise<{ checkoutUrl: string; topUpId: string }> {
+    return this.request('put', `/billing/${companyId}/subscription/top-up`, {
+      packId,
+    });
+  }
+  async getTopUpPacks(): Promise<
+    { id: string; amount: number; priceCents: number }[]
+  > {
+    return this.request('get', `/billing/subscription/top-up/packs`);
+  }
+
+  async getPlans(): Promise<Plan[]> {
+    const response = await this.request<Plan[]>('get', '/public/plans');
+    return Array.isArray(response) ? response : [];
+  }
+
+  async changePlan(
+    companyId: string,
+    planId: string
+  ): Promise<ChangePlanResponse> {
+    return this.request(
+      'put',
+      `/billing/${companyId}/subscription/change-plan`,
+      {
+        planId,
+      }
+    );
+  }
+
+  async cancelPlanChange(companyId: string): Promise<{ cancelled: boolean }> {
+    return this.request(
+      'delete',
+      `/billing/${companyId}/subscription/change-plan`
+    );
+  }
+
+  async getCards(companyId: string): Promise<SubscriptionCard[]> {
+    const response = await this.request<SubscriptionCard[]>(
+      'get',
+      `/billing/${companyId}/subscription/cards`
+    );
+    return Array.isArray(response) ? response : [];
+  }
+
+  async deleteCard(
+    companyId: string,
+    cardId: number
+  ): Promise<{ success: boolean }> {
+    return this.request(
+      'post',
+      `/billing/${companyId}/subscription/cards/delete`,
+      { cardId }
+    );
+  }
+
+  async changePrimaryCard(
+    companyId: string,
+    cardId: number
+  ): Promise<{ success: boolean }> {
+    return this.request(
+      'post',
+      `/billing/${companyId}/subscription/cards/primary`,
+      { cardId }
+    );
+  }
+
+  async getTransactions(
+    companyId: string,
+    params: {
+      page?: number;
+      PageCount?: number;
+      type?: 'signup' | 'renewal' | 'upgrade' | 'downgrade' | 'topup';
+      startDate?: string;
+      endDate?: string;
+    } = {}
+  ): Promise<{
+    message: string;
+    page: number;
+    totalPages: number;
+    pageCount: number;
+    totalCount: number;
+    data: TransactionRecord[];
+  }> {
+    const query = new URLSearchParams();
+    if (params.page) query.set('page', String(params.page));
+    if (params.PageCount) query.set('PageCount', String(params.PageCount));
+    if (params.type) query.set('type', params.type);
+    if (params.startDate) query.set('startDate', params.startDate);
+    if (params.endDate) query.set('endDate', params.endDate);
+    query.set('sort', '-createdAt'); // matches the {companyId:1, createdAt:-1} index; backend has no default
+
+    const qs = query.toString();
+
+    try {
+      const response = await axios.get(
+        `/billing/${companyId}/transactions${qs ? `?${qs}` : ''}`
+      );
+      return response.data; // full envelope: { message, page, totalPages, pageCount, totalCount, data }
+    } catch (error: any) {
+      throw new ApiError(
+        getErrorMessage(error),
+        error.response?.status,
+        error.response?.data?.details
+      );
+    }
+  }
+  async startAddCard(companyId: string): Promise<{ checkoutUrl: string }> {
+    return this.request('post', `/billing/${companyId}/subscription/cards/add`);
   }
 }
 

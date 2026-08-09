@@ -30,6 +30,7 @@ export const paths = {
     savedFieldsPreview: (fieldId: string) =>
       `/recruiting/saved-fields/preview/${fieldId}`,
     savedQuestions: '/recruiting/saved-questions',
+    subscriptionComplete: '/recruiting/subscription/complete',
   },
 
   companies: {
@@ -55,6 +56,8 @@ export const paths = {
     details: (id: string) => `/applicant-details/${id}`,
     completedInterview: (id: string, interviewId: string) =>
       `/applicant-details/${id}/completed-interview/${interviewId}`,
+    interview: (id: string, interviewId: string) =>
+      `/applicant-details/${id}/interview/${interviewId}`,
   },
 
   admin: {
@@ -67,7 +70,6 @@ export const paths = {
     recommendedFields: '/recommended-fields',
   },
 
-  
   inquiries: {
     root: '/inquiries',
     preview: (id: string) => `/inquiries/${id}`,
@@ -111,6 +113,7 @@ export const patterns = {
     page: 'applicants/page/:pageName',
     details: 'applicant-details/:id',
     completedInterview: 'applicant-details/:id/completed-interview/:interviewId',
+    interview: 'applicant-details/:id/interview/:interviewId',
   },
 
   inquiries: {

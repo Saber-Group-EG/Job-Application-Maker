@@ -1,5 +1,7 @@
-import axios from 'axios';
+import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { tokenStorage } from './api';
+import { refreshAccessToken } from './tokenRefresh';
+import { paths } from '../router/Paths';
 import { emitQuotaEvent } from '../lib/quotaEvents';
 import { emitAuthEvent } from '../lib/authEvents';
 
@@ -39,17 +41,40 @@ function handleNearLimitHeader(response: any) {
   }
 }
 
+// ===== Token refresh handling (single-flight + queued retries) =====
+let isRefreshing = false;
+let refreshQueue: Array<{
+  resolve: (value: unknown) => void;
+  reject: (reason: unknown) => void;
+}> = [];
+
+function processQueue(newToken: string | null, error?: unknown) {
+  refreshQueue.forEach(({ resolve, reject }) => {
+    if (newToken) resolve(newToken);
+    else reject(error);
+  });
+  refreshQueue = [];
+}
+
+function redirectToSignIn() {
+  tokenStorage.clearTokens();
+  if (!window.location.pathname.startsWith(paths.auth.signIn)) {
+    window.location.href = paths.auth.signIn;
+  }
+}
+
 // Response interceptor for error handling
 axiosInstance.interceptors.response.use(
   (response) => {
     handleNearLimitHeader(response);
     return response;
   },
-  (error) => {
+  async (error: AxiosError) => {
+    // Enhance error with detailed validation messages
     if (error.response) {
       handleNearLimitHeader(error.response);
 
-      const { data, status } = error.response;
+      const { data, status } = error.response as { data: any; status: number };
 
       // Quota exceeded (402) — flip the app-wide blocked state so the
       // layout can render the "contact your admin" screen. Deliberately
@@ -99,6 +124,52 @@ axiosInstance.interceptors.response.use(
 
       // Attach enhanced message to error
       error.message = errorMessage;
+    }
+
+    // ===== Auto-refresh expired access token on 401 and retry once =====
+    const status = error.response?.status;
+    const originalRequest = error.config as
+      | (InternalAxiosRequestConfig & { _retry?: boolean })
+      | undefined;
+    const url = originalRequest?.url ?? '';
+
+    if (
+      status === 401 &&
+      originalRequest &&
+      !originalRequest._retry &&
+      !url.includes('/auth/')
+    ) {
+      if (isRefreshing) {
+        // Another request is already refreshing — wait, then retry
+        return new Promise<unknown>((resolve, reject) => {
+          refreshQueue.push({ resolve, reject });
+        }).then(
+          () => axiosInstance(originalRequest),
+          () => {
+            redirectToSignIn();
+            return Promise.reject(error);
+          }
+        );
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const newToken = await refreshAccessToken();
+        processQueue(newToken);
+        if (newToken) {
+          originalRequest.headers.set('Authorization', `Bearer ${newToken}`);
+          return axiosInstance(originalRequest);
+        }
+      } catch (refreshError) {
+        processQueue(null, refreshError);
+      } finally {
+        isRefreshing = false;
+      }
+
+      // Refresh failed — force re-login
+      redirectToSignIn();
     }
 
     return Promise.reject(error);

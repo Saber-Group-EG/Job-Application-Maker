@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router';
+import { useParams, useNavigate } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import axiosInstance from '../../../config/axios';
 import DOMPurify from 'dompurify';
 import PersonalInfo from './components/ApplicantData/PersonalInfo';
+import { StickyTopBar, Stickysidebar } from './components/common/StickyLayout';
 import ActivityFeed from './components/ActivityFeed';
 import CustomResponses from './components/ApplicantData/CustomResponses';
 import JobSpec from './components/ApplicantData/JobSpec';
@@ -11,6 +12,7 @@ import InterviewQuestions from './components/InterviewData/InterviewQuestions';
 import History from './components/history/History';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import Swal from '../../../utils/swal';
+import { useAuth } from '../../../context/AuthContext';
 import {
   useApplicant,
   useUpdateApplicant,
@@ -119,216 +121,12 @@ const formatTime12Hour = (value: string): string => {
   return raw;
 };
 
-const getAllScrollParents = (el: HTMLElement | null): Array<HTMLElement | Window> => {
-  const parents: Array<HTMLElement | Window> = [];
-  let current = el?.parentElement ?? null;
-  while (current) {
-    const { overflowY } = getComputedStyle(current);
-    if ((overflowY === 'auto' || overflowY === 'scroll') && current.scrollHeight > current.clientHeight) {
-      parents.push(current);
-    }
-    current = current.parentElement;
-  }
-  parents.push(window);
-  return parents;
-};
-
-const StickyTopBar: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const placeholderRef = useRef<HTMLDivElement>(null);
-  const barRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const placeholder = placeholderRef.current;
-    const bar = barRef.current;
-    if (!placeholder || !bar) return;
-
-    const getTopOffset = (): number => {
-      const header =
-        (document.querySelector('header') as HTMLElement | null) ??
-        (document.querySelector('[class*="AppHeader"]') as HTMLElement | null) ??
-        (document.querySelector('[class*="header"]') as HTMLElement | null) ??
-        (document.querySelector('nav') as HTMLElement | null);
-      const h = header ? header.getBoundingClientRect().bottom : 0;
-      return Math.max(h, 0);
-    };
-
-    const resetPosition = () => {
-      bar.style.position = '';
-      bar.style.top = '';
-      bar.style.left = '';
-      bar.style.width = '';
-      bar.style.zIndex = '';
-      bar.style.paddingTop = '';
-      bar.style.paddingBottom = '';
-      placeholder.style.minHeight = '';
-    };
-
-    const update = () => {
-      if (window.innerWidth < 1024) {
-        resetPosition();
-        return;
-      }
-      if (placeholder.offsetParent === null) return;
-
-      const TOP_OFFSET = getTopOffset();
-      const rect = placeholder.getBoundingClientRect();
-      if (rect.top <= TOP_OFFSET) {
-        const width = placeholder.offsetWidth;
-        const left = rect.left;
-        bar.style.position = 'fixed';
-        bar.style.top = `${TOP_OFFSET}px`;
-        bar.style.left = `${left}px`;
-        bar.style.width = `${width}px`;
-        bar.style.zIndex = '40';
-        bar.style.paddingTop = '20px';
-        placeholder.style.minHeight = `${bar.scrollHeight}px`;
-      } else {
-        resetPosition();
-      }
-    };
-
-    const scrollParents = getAllScrollParents(placeholder);
-    scrollParents.forEach(p => p.addEventListener('scroll', update, { passive: true }));
-    window.addEventListener('resize', update, { passive: true });
-
-    const ro = new ResizeObserver(update);
-    ro.observe(placeholder);
-
-    update();
-
-    return () => {
-      scrollParents.forEach(p => p.removeEventListener('scroll', update));
-      window.removeEventListener('resize', update);
-      ro.disconnect();
-    };
-  }, []);
-
-  return (
-    <div ref={placeholderRef}>
-      <div ref={barRef} className="bg-gray-50/95 backdrop-blur-sm">
-        {children}
-      </div>
-    </div>
-  );
-};
-
-const Stickysidebar: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const placeholderRef = React.useRef<HTMLDivElement>(null);
-  const sidebarRef = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    const placeholder = placeholderRef.current;
-    const sidebar = sidebarRef.current;
-    if (!placeholder || !sidebar) return;
-
-    const getTopOffset = (): number => {
-      const header =
-        (document.querySelector('header') as HTMLElement | null) ??
-        (document.querySelector('[class*="AppHeader"]') as HTMLElement | null) ??
-        (document.querySelector('[class*="header"]') as HTMLElement | null) ??
-        (document.querySelector('nav') as HTMLElement | null);
-      const h = header ? header.getBoundingClientRect().bottom : 0;
-      const topBarEl = document.querySelector('[class*="backdrop-blur"]') as HTMLElement | null;
-      const topBarH = topBarEl ? topBarEl.getBoundingClientRect().height : 0;
-      return Math.max(h + topBarH, 0);
-    };
-
-    const resetPosition = () => {
-      sidebar.style.position = '';
-      sidebar.style.top = '';
-      sidebar.style.left = '';
-      sidebar.style.width = '';
-      sidebar.style.maxHeight = '';
-      sidebar.style.overflowY = '';
-      sidebar.style.zIndex = '';
-      placeholder.style.minHeight = '';
-    };
-
-    const update = () => {
-      if (window.innerWidth < 1024) {
-        resetPosition();
-        return;
-      }
-      if (placeholder.offsetParent === null) return;
-
-      const TOP_OFFSET = getTopOffset();
-      const rect = placeholder.getBoundingClientRect();
-      const sidebarHeight = sidebar.scrollHeight;
-      const windowHeight = window.innerHeight;
-
-      if (rect.top <= TOP_OFFSET) {
-        const width = placeholder.offsetWidth;
-        const left = rect.left;
-        const availableHeight = windowHeight - TOP_OFFSET - 24;
-        sidebar.style.position = 'fixed';
-        sidebar.style.top = `${TOP_OFFSET + 24}px`;
-        sidebar.style.left = `${left}px`;
-        sidebar.style.width = `${width}px`;
-        if (sidebarHeight > availableHeight) {
-          sidebar.style.maxHeight = `${availableHeight}px`;
-          sidebar.style.overflowY = 'auto';
-        }
-        sidebar.style.zIndex = '20';
-        placeholder.style.minHeight = `${sidebarHeight}px`;
-      } else {
-        resetPosition();
-      }
-    };
-
-    let pageAtBottom = false;
-    const onPageScroll = () => {
-      pageAtBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 5;
-    };
-    window.addEventListener('scroll', onPageScroll, { passive: true });
-
-    const handleWheel = (e: WheelEvent) => {
-      if (window.innerWidth < 1024 || sidebar.style.position !== 'fixed') return;
-      if (sidebar.scrollHeight <= sidebar.clientHeight) return;
-      if (e.deltaY > 0 && pageAtBottom) {
-        e.preventDefault();
-        sidebar.scrollTop += 40;
-      }
-    };
-
-    const scrollParents = getAllScrollParents(placeholder);
-    scrollParents.forEach(p => p.addEventListener('scroll', update, { passive: true }));
-    window.addEventListener('resize', update, { passive: true });
-    window.addEventListener('scroll', onPageScroll, { passive: true });
-    window.addEventListener('wheel', handleWheel, { passive: false });
-
-    const ro = new ResizeObserver(update);
-    ro.observe(placeholder);
-
-    update();
-
-    return () => {
-      scrollParents.forEach(p => p.removeEventListener('scroll', update));
-      window.removeEventListener('resize', update);
-      window.removeEventListener('scroll', onPageScroll);
-      window.removeEventListener('wheel', handleWheel);
-      ro.disconnect();
-    };
-  }, []);
-
-  return (
-    <div ref={placeholderRef} className="lg:w-72 xl:w-80 flex-shrink-0 self-start">
-      <div ref={sidebarRef} className="space-y-4 w-full pb-4">
-        {children}
-      </div>
-    </div>
-  );
-};
-
 const ApplicantDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const location = useLocation();
   const { t, dir } = useLocale();
-  const navApplicant = (location.state as any)?.applicant;
-
-  const { data: applicant, isLoading: isApplicantLoading, isFetching: isApplicantFetching, isError, error, refetch } = useApplicant(id || '', {
-    initialData: navApplicant,
-  });
+  const { user } = useAuth();
+  const { data: applicant, isLoading: isApplicantLoading, isFetching: isApplicantFetching, isError, error, refetch } = useApplicant(id || '');
   const updateApplicant = useUpdateApplicant();
   const updateStatus = useUpdateApplicantStatus();
   const addComment = useAddComment();
@@ -656,14 +454,19 @@ const ApplicantDetails: React.FC = () => {
         location: interviewForm.location || undefined, videoLink: interviewForm.link || undefined,
         notes: interviewForm.comment || undefined, conductedBy: interviewForm.conductedBy || undefined,
         status: 'scheduled',
+        scheduledBy: user?._id || user?.id || undefined,
         notifications: {
           channels: { email: notificationChannels.email, sms: notificationChannels.sms, whatsapp: notificationChannels.whatsapp },
           emailOption, customEmail: customEmail || undefined, phoneOption, customPhone: customPhone || undefined,
         },
       };
       const result = await scheduleInterviewMutation.mutateAsync({ id, data: interviewData });
-      const updatedApplicant = result as { interviews?: Interview[] } | undefined;
-      const created = (updatedApplicant?.interviews || []).slice().sort((a, b) => {
+      const res = result as {
+        succeeded?: Array<{ applicantId?: string; interviews?: Interview[] }>;
+        interviews?: Interview[];
+      };
+      const interviews: Interview[] = res.succeeded?.[0]?.interviews ?? res.interviews ?? [];
+      const created = interviews.slice().sort((a, b) => {
         const aTime = new Date(a.createdAt || a.scheduledAt || 0).getTime();
         const bTime = new Date(b.createdAt || b.scheduledAt || 0).getTime();
         return bTime - aTime;
@@ -681,6 +484,52 @@ const ApplicantDetails: React.FC = () => {
       setInterviewError(getErrorMessage(err));
     } finally {
       setIsSubmittingInterview(false);
+    }
+  };
+
+  const handleStartInterview = async () => {
+    if (!id || !applicant) return;
+    try {
+      const conductedById = user?._id ? String(user._id) : user?.id ? String(user.id) : '';
+      const interviewData: ScheduleInterviewRequest = {
+        status: 'in_progress',
+        scheduledAt: new Date().toISOString(),
+        type: 'in-person',
+        ...(conductedById ? { conductedBy: conductedById } : {}),
+      };
+      const result = await scheduleInterviewMutation.mutateAsync({ id, data: interviewData });
+      const res = result as {
+        succeeded?: Array<{ applicantId?: string; interviews?: Interview[] }>;
+        interviews?: Interview[];
+      };
+
+      const interviews: Interview[] =
+        res.succeeded?.[0]?.interviews ?? res.interviews ?? [];
+
+      let interviewId = '';
+
+      const inProgress = interviews.find((iv) => iv.status === 'in_progress');
+      if (inProgress) {
+        interviewId = String(inProgress._id || inProgress.id || '');
+      } else if (interviews.length) {
+        const sorted = interviews.slice().sort((a, b) => {
+          const aTime = new Date(a.createdAt || a.scheduledAt || 0).getTime();
+          const bTime = new Date(b.createdAt || b.scheduledAt || 0).getTime();
+          return bTime - aTime;
+        });
+        interviewId = String(sorted[0]?._id || sorted[0]?.id || '');
+      }
+
+      if (interviewId) {
+        await updateInterviewStatusMutation.mutateAsync({
+          applicantId: id,
+          interviewId,
+          data: { startedAt: new Date().toISOString(), status: 'in_progress' },
+        });
+        navigate(paths.applicants.interview(id, interviewId));
+      }
+    } catch (err) {
+      setInterviewError(getErrorMessage(err));
     }
   };
 
@@ -1036,7 +885,7 @@ const ApplicantDetails: React.FC = () => {
               {sharedSidebar}
               <div className="flex-1 min-w-0 space-y-6">
                 <div className="flex items-center justify-between border-b border-gray-200 mb-6">{tabBar}</div>
-                <InterviewQuestions applicantId={id} onRequestScheduleInterview={() => setShowScheduleModal(true)} autoSelectInterviewId={autoSelectInterviewId} applicantData={applicant} />
+                <InterviewQuestions applicantId={id} onRequestScheduleInterview={() => setShowScheduleModal(true)} onRequestStartInterview={handleStartInterview} autoSelectInterviewId={autoSelectInterviewId} applicantData={applicant} authUser={user} />
               </div>
             </div>
           </div>

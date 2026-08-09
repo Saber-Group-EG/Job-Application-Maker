@@ -1,4 +1,4 @@
-import { ArrowLeft, Briefcase, Calendar } from 'lucide-react';
+import { ArrowLeft, Briefcase, Calendar, Lock, Trash2, User } from 'lucide-react';
 import type { Interview } from '../../../../../../types/applicants';
 import { useLocale } from '../../../../../../context/LocaleContext';
 
@@ -6,6 +6,8 @@ export type InterviewPickerViewProps = {
   interviews: Interview[];
   onBack: () => void;
   onPick: (interview: Interview) => void;
+  onDelete?: (interview: Interview) => void;
+  authUser?: { _id?: string; id?: string; fullName?: string; name?: string; email?: string } | null;
 };
 
 const statusLabel = (status: string, t: (key: string, ns?: string, params?: Record<string, string | number>) => string): string => {
@@ -44,8 +46,11 @@ export const InterviewPickerView = ({
   interviews,
   onBack,
   onPick,
+  onDelete,
+  authUser,
 }: InterviewPickerViewProps) => {
   const { t, locale } = useLocale();
+  const currentUserId = authUser?._id || authUser?.id || '';
   return (
   <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden max-w-full">
     <div className="bg-gradient-to-r from-slate-900 to-slate-800 px-6 py-8">
@@ -80,12 +85,27 @@ export const InterviewPickerView = ({
               ? interview.questions.length
               : 0;
             const status = String(interview.status || 'unknown');
+            const isInProgress = status === 'in_progress';
+            const conductedByRaw = interview.conductedBy;
+            const conductedById = conductedByRaw
+              ? String(typeof conductedByRaw === 'string' ? conductedByRaw : (conductedByRaw as { _id?: string; id?: string })?._id || (conductedByRaw as { _id?: string; id?: string })?.id || '')
+              : '';
+            const conductedByName = conductedByRaw && typeof conductedByRaw === 'object'
+              ? (conductedByRaw as { fullName?: string; name?: string })?.fullName || (conductedByRaw as { fullName?: string; name?: string })?.name || ''
+              : '';
+            const isMyInterview = !conductedById || conductedById === currentUserId;
+            const isLocked = isInProgress && !isMyInterview;
             return (
               <button
                 key={id}
                 type="button"
-                onClick={() => onPick(interview)}
-                className="text-left p-5 rounded-xl border-2 border-slate-200 bg-white hover:border-blue-400 hover:shadow-md transition-all duration-200 group"
+                onClick={() => !isLocked && onPick(interview)}
+                disabled={isLocked}
+                className={`text-left p-5 rounded-xl border-2 bg-white transition-all duration-200 group ${
+                  isLocked
+                    ? 'border-red-200 opacity-70 cursor-not-allowed'
+                    : 'border-slate-200 hover:border-blue-400 hover:shadow-md'
+                }`}
               >
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="flex items-center gap-2">
@@ -102,11 +122,32 @@ export const InterviewPickerView = ({
                       </p>
                     </div>
                   </div>
-                  <span
-                    className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${statusClasses(status)}`}
-                  >
-                    {statusLabel(status, t)}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    {isLocked && (
+                      <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-semibold">
+                        <Lock className="h-3 w-3" />
+                        {t('locked', 'interview')}
+                      </span>
+                    )}
+                    <span
+                      className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${statusClasses(status)}`}
+                    >
+                      {statusLabel(status, t)}
+                    </span>
+                    {onDelete && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDelete(interview);
+                        }}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                        title={t('deleteInterview', 'interview')}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-2 mb-3">
                   <div className="bg-slate-50 rounded-lg p-2 text-center">
@@ -126,6 +167,14 @@ export const InterviewPickerView = ({
                     </p>
                   </div>
                 </div>
+                {conductedById && (
+                  <div className="mb-2 flex items-center gap-1.5 text-[11px] text-slate-500">
+                    <User className="h-3 w-3" />
+                    {isMyInterview
+                      ? t('interviewerYou', 'interview')
+                      : `${t('interviewer', 'interview')}: ${conductedByName || conductedById}`}
+                  </div>
+                )}
                 <div className="flex items-center justify-between">
                   <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden mr-3">
                     <div

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router";
 import { useLocale } from "../../../context/LocaleContext";
 import Swal from '../../../utils/swal';
@@ -12,9 +12,6 @@ import {
   usePermissions,
   useCompanies,
   useDepartments,
-  useAddUserCompany,
-  useRemoveUserCompany,
-  useUpdateUserCompanies,
 } from "../../../hooks/queries";
 import { toPlainString } from "../../../utils/strings";
 import { 
@@ -58,10 +55,6 @@ export default function EditUser() {
 
   // Mutations
   const updateUserMutation = useUpdateUser();
-  const addUserCompanyMutation = useAddUserCompany();
-  const updateUserCompaniesMutation = useUpdateUserCompanies();
-  const removeUserCompanyMutation = useRemoveUserCompany();
-
 
   const [formData, setFormData] = useState({
     email: "",
@@ -73,7 +66,6 @@ export default function EditUser() {
   });
 
   const [userCompanies, setUserCompanies] = useState<UserCompany[]>([]);
-  const originalCompaniesRef = useRef<UserCompany[]>([]);
   const [formError, setFormError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [selectedCompanyId, setSelectedCompanyId] = useState("");
@@ -177,7 +169,6 @@ export default function EditUser() {
         }).filter(Boolean) || [],
       })) || [];
       setUserCompanies(initialCompanies);
-      originalCompaniesRef.current = structuredClone(initialCompanies);
 
       const fromUser = normalizeUserPermissions(user);
       if (fromUser.length > 0) {
@@ -328,7 +319,9 @@ const handleUpdateDepartments = (companyId: string, departments: string[]) => {
         throw new Error(t('editErrorRequired', 'users'));
       }
 
-      // 1. Update basic user info and permissions
+      // Update basic user info, permissions and the complete companies list.
+      // The companies array must include the existing companies as well,
+      // otherwise the backend replaces them and the previous access is lost.
       await updateUserMutation.mutateAsync({
         id: id!,
         data: {
@@ -341,46 +334,12 @@ const handleUpdateDepartments = (companyId: string, departments: string[]) => {
             permission: item.permission,
             access: item.access,
           })),
+          companies: userCompanies.map((c) => ({
+            companyId: c.companyId,
+            departments: c.departments,
+          })),
         }
       });
-
-      // 2. Batch company changes: diff current vs original
-      const originalMap = new Map(originalCompaniesRef.current.map((c) => [c.companyId, c]));
-      const currentMap = new Map(userCompanies.map((c) => [c.companyId, c]));
-
-      const addIds = userCompanies.filter((c) => !originalMap.has(c.companyId));
-      const removeIds = originalCompaniesRef.current.filter((c) => !currentMap.has(c.companyId));
-      const updateDepts = userCompanies.filter((c) => {
-        const orig = originalMap.get(c.companyId);
-        if (!orig) return false;
-        const origStr = [...orig.departments].sort().join(',');
-        const currStr = [...c.departments].sort().join(',');
-        return origStr !== currStr;
-      });
-
-      const companyMutations: Promise<any>[] = [];
-
-      for (const c of removeIds) {
-        companyMutations.push(
-          removeUserCompanyMutation.mutateAsync({ userId: id!, companyId: c.companyId })
-        );
-      }
-      for (const c of addIds) {
-        companyMutations.push(
-          addUserCompanyMutation.mutateAsync({ userId: id!, companyId: c.companyId, departments: c.departments })
-        );
-      }
-      for (const c of updateDepts) {
-        companyMutations.push(
-          updateUserCompaniesMutation.mutateAsync({
-            userId: id!,
-            companyId: c.companyId,
-            data: { departments: c.departments },
-          })
-        );
-      }
-
-      await Promise.all(companyMutations);
 
       await Swal.fire({
         title: t('editSuccessTitle', 'users'),

@@ -53,27 +53,39 @@ export const useGroupMeta = (applicantId: string, interviewId: string) => {
    * Seed meta from a freshly built list of questions (e.g. right after the
    * user picked groups and saved). Pairs by index with the server-returned
    * questions (which carry new IDs but no group metadata).
+   *
+   * `built` carries only the SELECTED tags (the backend accepts `tags` as
+   * the answer's selection only), so the full predefined tag list is kept
+   * by preferring whatever was stored earlier (creation seeded the full
+   * list) and falling back to `q.tags` only when nothing is stored yet.
    */
   const seedFromSaved = useCallback(
     (built: InterviewAnswer[], savedQuestions: InterviewAnswer[] | undefined) => {
       if (!Array.isArray(savedQuestions)) return;
+      const stored = readStoredMeta(applicantId, interviewId);
       const additions: GroupMetaMap = {};
       built.forEach((q, idx) => {
         const saved = savedQuestions[idx];
         const qId = saved ? getQuestionId(saved) : '';
         if (!q.groupKey) return;
+        const idxKey = `__idx_${idx}`;
         const meta = {
           key: q.groupKey,
           name: q.groupName || t('groupName', 'interview'),
           source: q.groupSource || 'company',
+          answerType: q.answerType || 'text',
+          tags:
+            stored[qId]?.tags ??
+            stored[idxKey]?.tags ??
+            (Array.isArray(q.tags) ? q.tags : undefined),
         };
         if (qId) additions[qId] = meta;
-        additions[`__idx_${idx}`] = meta;
+        additions[idxKey] = meta;
       });
       if (Object.keys(additions).length === 0) return;
       setMetaAndPersist((prev) => ({ ...prev, ...additions }));
     },
-    [setMetaAndPersist]
+    [applicantId, interviewId, setMetaAndPersist]
   );
 
   /**
@@ -93,12 +105,17 @@ export const useGroupMeta = (applicantId: string, interviewId: string) => {
               key: q.groupKey,
               name: q.groupName || t('groupName', 'interview'),
               source: q.groupSource || 'company',
+              answerType: q.answerType || stored[qId]?.answerType || 'text',
+              tags:
+                (Array.isArray(q.tags) && q.tags.length > 0
+                  ? q.tags
+                  : undefined) ??
+                stored[qId]?.tags,
             };
           } else if (stored[qId]) {
             additions[qId] = stored[qId];
           }
         }
-        // Fallback: match by index when server stripped IDs
         const idxKey = `__idx_${idx}`;
         if (stored[idxKey]) {
           const targetKey = qId || idxKey;

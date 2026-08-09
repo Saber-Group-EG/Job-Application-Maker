@@ -16,6 +16,7 @@ import {
 } from "../hooks/queries/useAuth";
 import { useQueryClient } from "@tanstack/react-query";
 import { tokenStorage } from "../config/api";
+import { refreshAccessToken, getAccessTokenExpiry } from "../config/tokenRefresh";
 import { paths } from "../router/Paths";
 import { subscribeAuthEvent } from "../lib/authEvents";
 
@@ -115,6 +116,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [user, queryClient]);
 
+  // ✅ Proactive token refresh — backend access token expires after 1 hour
+  useEffect(() => {
+    if (!user) return;
+
+    let disposed = false;
+    let lastRefreshAt = Date.now();
+
+    const REFRESH_BEFORE_EXPIRY_MS = 5 * 60 * 1000; // refresh 5 min before expiry
+    const FALLBACK_INTERVAL_MS = 50 * 60 * 1000;    // opaque tokens: refresh every 50 min
+
+    const doRefresh = async () => {
+      const newToken = await refreshAccessToken();
+      if (disposed) return;
+      lastRefreshAt = Date.now();
+
+      // Only force re-login if the session is truly gone (refresh rejected).
+      // A transient network error keeps the old tokens and retries next cycle.
+      if (!newToken && !tokenStorage.getAccessToken()) {
+        queryClient.clear();
+        if (!window.location.pathname.startsWith(paths.auth.signIn)) {
+          window.location.href = paths.auth.signIn;
+        }
+      }
+    };
+
+    const shouldRefresh = () => {
+      const expiry = getAccessTokenExpiry();
+      if (expiry !== null) {
+        return Date.now() >= expiry - REFRESH_BEFORE_EXPIRY_MS;
+      }
+      return Date.now() - lastRefreshAt >= FALLBACK_INTERVAL_MS;
+    };
+
+    const handleCheck = () => {
+      if (shouldRefresh()) doRefresh();
+    };
+
+    handleCheck();
+
+    const interval = setInterval(handleCheck, 60 * 1000);
+    window.addEventListener("focus", handleCheck);
+    document.addEventListener("visibilitychange", handleCheck);
+
+    return () => {
+      disposed = true;
+      clearInterval(interval);
+      window.removeEventListener("focus", handleCheck);
+      document.removeEventListener("visibilitychange", handleCheck);
+    };
+  }, [user, queryClient]);
   useEffect(() => {
     return subscribeAuthEvent('session-superseded', () => {
       queryClient.clear();
