@@ -1,5 +1,7 @@
 {
   "title": "My Interview Schedule",
+  "myInterviews": "My Interviews",
+  "companyInterviews": "Company Interviews",
   "filterByCompany": "Filter by company",
   "myCompanyInterview": "My Company Interview",
   "upcomingCount": "{count} upcoming interview",
@@ -23,6 +25,9 @@
   "position": "Position",
   "type": "Type",
   "status": "Status",
+  "scheduledBy": "Scheduled By",
+  "conductedBy": "Conducted By",
+  "noCompanySelected": "Select a company to view its interviews",
   "pageInfo": "Page {page} of {totalPages} · {total} total",
   "previous": "Previous",
   "next": "Next",

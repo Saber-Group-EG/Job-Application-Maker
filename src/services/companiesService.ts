@@ -436,6 +436,35 @@ class CompaniesService {
   async startAddCard(companyId: string): Promise<{ checkoutUrl: string }> {
     return this.request('post', `/billing/${companyId}/subscription/cards/add`);
   }
+
+  // ===== Company Interviews =====
+  async getCompanyInterviews(companyId: string, params?: {
+    direction?: 'future' | 'past';
+    scheduledBy?: string;
+    conductedBy?: string;
+    status?: string;
+    from?: string;
+    to?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<CompanyInterviewsResponse> {
+    return this.request<CompanyInterviewsResponse>(
+      'get',
+      `/companies/${companyId}/interviews`,
+      undefined,
+      params
+    );
+  }
+}
+
+interface CompanyInterviewsResponse {
+  interviews?: Array<Record<string, unknown>>;
+  counts?: Record<string, number>;
+  pagination?: {
+    page: number;
+    totalPages: number;
+    total: number;
+  };
 }
 
 // ===== Email Templates Service =====

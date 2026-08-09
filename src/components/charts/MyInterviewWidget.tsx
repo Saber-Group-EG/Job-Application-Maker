@@ -1,7 +1,12 @@
 // components/dashboard/InterviewScheduleWidget.tsx
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { myInterviewsKeys, useMyInterviews } from '../../hooks/queries';
+import {
+  companyInterviewsKeys,
+  myInterviewsKeys,
+  useCompanyInterviews,
+  useMyInterviews,
+} from '../../hooks/queries';
 import {
   ChatIcon,
   CheckCircleIcon,
@@ -9,6 +14,7 @@ import {
 } from '../../icons';
 import { useQueryClient } from '@tanstack/react-query';
 import { usersService } from '../../services/usersService';
+import { companiesService } from '../../services/companiesService';
 import { paths } from '../../router/Paths';
 import { useLocale } from '../../context/LocaleContext';
 import { useCompanyFilter } from '../../context/CompanyFilterContext';
@@ -24,6 +30,8 @@ interface InterviewLike {
   videoLink?: string;
   companyId?: string;
   company?: string | { _id?: string; id?: string };
+  scheduledBy?: string | { _id?: string; id?: string; fullName?: string; name?: string };
+  conductedBy?: string | { _id?: string; id?: string; fullName?: string; name?: string };
   applicant?: {
     _id?: string;
     id?: string;
@@ -41,23 +49,10 @@ interface InterviewLike {
   };
 }
 
-const getInterviewCompanyId = (interview: InterviewLike): string | null => {
-  const candidates = [
-    interview?.companyId,
-    interview?.company,
-    interview?.jobPosition?.companyId,
-    interview?.jobPosition?.company,
-    interview?.applicant?.companyId,
-    interview?.applicant?.company,
-  ];
-  for (const c of candidates) {
-    if (typeof c === 'string' && c) return c;
-    if (c && typeof c === 'object') {
-      const nested = c?._id ?? c?.id;
-      if (typeof nested === 'string' && nested) return nested;
-    }
-  }
-  return null;
+const toUserLabel = (value?: InterviewLike['scheduledBy']): string => {
+  if (!value) return '—';
+  if (typeof value === 'string') return value;
+  return value.fullName ?? value.name ?? (value._id ?? value.id ?? '—');
 };
 
 const getStatusLabel = (status: string, t: (key: string, ns?: string) => string) => {
@@ -205,7 +200,7 @@ function TimelineCard({ interview, t, locale }: { interview: InterviewLike; t: (
 
 // ─── Past interviews table row ───────────────────────────────────────────────
 
-function PastRow({ interview, t, locale }: { interview: InterviewLike; t: (key: string, ns?: string) => string; locale: string }) {
+function PastRow({ interview, t, locale, showPeople }: { interview: InterviewLike; t: (key: string, ns?: string) => string; locale: string; showPeople?: boolean }) {
   const navigate = useNavigate();
   const d = formatDate(interview.scheduledAt, locale);
   const style = getStatusStyle(interview.status, t);
@@ -225,6 +220,16 @@ function PastRow({ interview, t, locale }: { interview: InterviewLike; t: (key: 
       <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">
         {interview.jobPosition?.name ?? '—'}
       </td>
+      {showPeople && (
+        <>
+          <td className="py-3 px-4 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
+            {toUserLabel(interview.scheduledBy)}
+          </td>
+          <td className="py-3 px-4 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
+            {toUserLabel(interview.conductedBy)}
+          </td>
+        </>
+      )}
       <td className="py-3 px-4 text-sm text-gray-500 dark:text-gray-400">
         {t(interview.type === 'in-person' ? 'inPerson' : interview.type || '', 'modals')}
       </td>
@@ -241,23 +246,32 @@ function PastRow({ interview, t, locale }: { interview: InterviewLike; t: (key: 
 
 export default function InterviewScheduleWidget({ companyId }: { companyId?: string | null }) {
   const { t, dir, locale } = useLocale();
-  const { selectedCompanyId, companyOptions } = useCompanyFilter();
+  const { selectedCompanyId } = useCompanyFilter();
+  const [tab, setTab] = useState<'mine' | 'company'>('mine');
   const [direction, setDirection] = useState<'future' | 'past'>('future');
   const [page, setPage] = useState(1);
-  const [filteredByCompany, setFilteredByCompany] = useState(false);
   const queryClient = useQueryClient();
 
-  const effectiveCompanyId = companyId ?? (filteredByCompany ? selectedCompanyId : null);
+  const effectiveCompanyId = companyId ?? selectedCompanyId ?? null;
 
-  const { data, isLoading, isFetching } = useMyInterviews({ direction, page, company: effectiveCompanyId || undefined });
+  const myInterviewsQuery = useMyInterviews({
+    direction,
+    page,
+    enabled: tab === 'mine',
+  });
+  const companyInterviewsQuery = useCompanyInterviews(effectiveCompanyId, {
+    direction,
+    page,
+    enabled: tab === 'company',
+  });
+
+  const { data, isLoading, isFetching } = tab === 'company'
+    ? companyInterviewsQuery
+    : myInterviewsQuery;
 
   const interviews = useMemo(
-    () => (data?.interviews ?? []).filter((interview: InterviewLike) => {
-      if (!effectiveCompanyId) return true;
-      const interviewCompanyId = getInterviewCompanyId(interview);
-      return !interviewCompanyId || interviewCompanyId === effectiveCompanyId;
-    }),
-    [data, effectiveCompanyId]
+    () => (data?.interviews ?? []) as InterviewLike[],
+    [data]
   );
   const counts = data?.counts ?? {};
   const pagination = data?.pagination;
@@ -268,23 +282,38 @@ export default function InterviewScheduleWidget({ companyId }: { companyId?: str
     if (pagination && page >= pagination.totalPages) return; // no next page exists
 
     const nextPage = page + 1;
-    queryClient.prefetchQuery({
-      queryKey: myInterviewsKeys.list({
-        direction: 'past',
-        company: effectiveCompanyId || undefined,
-        page: nextPage,
-        limit: 20,
-      }),
-      queryFn: () =>
-        usersService.getMyInterviews({
+    if (tab === 'company' && effectiveCompanyId) {
+      queryClient.prefetchQuery({
+        queryKey: companyInterviewsKeys.list(effectiveCompanyId, {
           direction: 'past',
-          company: effectiveCompanyId || undefined,
           page: nextPage,
           limit: 20,
         }),
-      staleTime: 2 * 60 * 1000, // same staleTime as the hook so it won't re-fetch unnecessarily
-    });
-  }, [direction, page, pagination, queryClient, effectiveCompanyId]);
+        queryFn: () =>
+          companiesService.getCompanyInterviews(effectiveCompanyId, {
+            direction: 'past',
+            page: nextPage,
+            limit: 20,
+          }),
+        staleTime: 2 * 60 * 1000, // same staleTime as the hook so it won't re-fetch unnecessarily
+      });
+    } else {
+      queryClient.prefetchQuery({
+        queryKey: myInterviewsKeys.list({
+          direction: 'past',
+          page: nextPage,
+          limit: 20,
+        }),
+        queryFn: () =>
+          usersService.getMyInterviews({
+            direction: 'past',
+            page: nextPage,
+            limit: 20,
+          }),
+        staleTime: 2 * 60 * 1000, // same staleTime as the hook so it won't re-fetch unnecessarily
+      });
+    }
+  }, [direction, page, pagination, queryClient, effectiveCompanyId, tab]);
 
   // When switching to past, page 1 loads normally and this prefetches page 2 immediately
   // When on page 1 → prefetches page 2
@@ -312,20 +341,23 @@ export default function InterviewScheduleWidget({ companyId }: { companyId?: str
                 : t('pastCount' + (counts.total !== 1 ? '_plural' : ''), 'interview', { count: counts.total ?? 0 })}
             </p>
           </div>
-          {companyOptions.length > 1 && (
-            <button
-              type="button"
-              onClick={() => { setFilteredByCompany((v) => !v); setPage(1); }}
-              className={`ml-1 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
-                filteredByCompany
-                  ? 'bg-brand-500 text-white shadow-sm'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
-              }`}
-              title={t('filterByCompany', 'interview')}
-            >
-              {t('myCompanyInterview', 'interview')}
-            </button>
-          )}
+
+          {/* Tabs */}
+          <div className="flex items-center gap-1 rounded-lg bg-gray-100 dark:bg-gray-800 p-1">
+            {(['mine', 'company'] as const).map((tb) => (
+              <button
+                key={tb}
+                onClick={() => { setTab(tb); setPage(1); }}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+                  tab === tb
+                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                }`}
+              >
+                {tb === 'mine' ? t('myInterviews', 'interview') : t('companyInterviews', 'interview')}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Toggle */}
@@ -380,12 +412,20 @@ export default function InterviewScheduleWidget({ companyId }: { companyId?: str
             <div className="size-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-3">
               <CheckCircleIcon className="size-6 text-gray-400" />
             </div>
-            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-              {direction === 'future' ? t('noUpcoming', 'interview') : t('noPast', 'interview')}
-            </p>
-            <p className="text-xs text-gray-400 mt-1">
-              {direction === 'future' ? t('allClear', 'interview') : t('nothingToShow', 'interview')}
-            </p>
+            {tab === 'company' && !effectiveCompanyId ? (
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                {t('noCompanySelected', 'interview')}
+              </p>
+            ) : (
+              <>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                  {direction === 'future' ? t('noUpcoming', 'interview') : t('noPast', 'interview')}
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {direction === 'future' ? t('allClear', 'interview') : t('nothingToShow', 'interview')}
+                </p>
+              </>
+            )}
           </div>
         ) : direction === 'future' ? (
           // Timeline
@@ -401,16 +441,19 @@ export default function InterviewScheduleWidget({ companyId }: { companyId?: str
               <table className="w-full text-start" dir={dir}>
                 <thead>
                   <tr className="border-b border-gray-100 dark:border-gray-800">
-                    {['date', 'applicant', 'position', 'type', 'status'].map((h) => (
-                      <th key={h} className="py-2.5 px-4 text-start text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                        {t(h, 'interview')}
-                      </th>
-                    ))}
+                    {['date', 'applicant', 'position']
+                      .concat(tab === 'company' ? ['scheduledBy', 'conductedBy'] : [])
+                      .concat(['type', 'status'])
+                      .map((h) => (
+                        <th key={h} className="py-2.5 px-4 text-start text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                          {t(h, 'interview')}
+                        </th>
+                      ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                   {interviews.map((interview: InterviewLike) => (
-                    <PastRow key={interview.interviewId} interview={interview} t={t} locale={locale} />
+                    <PastRow key={interview.interviewId} interview={interview} t={t} locale={locale} showPeople={tab === 'company'} />
                   ))}
                 </tbody>
               </table>

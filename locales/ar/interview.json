@@ -1,5 +1,7 @@
 {
   "title": "جدول المقابلات الخاص بي",
+  "myInterviews": "مقابلاتي",
+  "companyInterviews": "مقابلات الشركة",
   "filterByCompany": "تصفية حسب الشركة",
   "myCompanyInterview": "مقابلة شركتي",
   "upcomingCount": "{count} مقابلة قادمة",
@@ -23,6 +25,9 @@
   "position": "الوظيفة",
   "type": "النوع",
   "status": "الحالة",
+  "scheduledBy": "تمت الجدولة بواسطة",
+  "conductedBy": "أجرى المقابلة",
+  "noCompanySelected": "اختر شركة لعرض مقابلاتها",
   "pageInfo": "الصفحة {page} من {totalPages} · {total} إجمالي",
   "previous": "السابق",
   "next": "التالي",

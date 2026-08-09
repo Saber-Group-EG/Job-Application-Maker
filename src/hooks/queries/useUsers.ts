@@ -1,6 +1,7 @@
 // hooks/queries/useUsers.ts
 import { useQuery, useMutation, useQueryClient, UseQueryResult } from "@tanstack/react-query";
 import { usersService, savedFieldsService, savedQuestionGroupsService } from "../../services/usersService";
+import { companiesService } from "../../services/companiesService";
 import { useAuth } from "../../context/AuthContext";
 import type {
   CreateUserRequest,
@@ -22,6 +23,19 @@ interface UseMyInterviewsParams {
   company?: string;
   page?: number;
   limit?: number;
+  enabled?: boolean;
+}
+
+interface UseCompanyInterviewsParams {
+  direction?: 'future' | 'past';
+  scheduledBy?: string;
+  conductedBy?: string;
+  status?: string;
+  from?: string;
+  to?: string;
+  page?: number;
+  limit?: number;
+  enabled?: boolean;
 }
 
 // ===== Query Keys =====
@@ -45,6 +59,12 @@ export const savedQuestionGroupsKeys = {
 export const myInterviewsKeys = {
   all: ['my-interviews'] as const,
   list: (params: UseMyInterviewsParams) => [...myInterviewsKeys.all, params] as const,
+};
+
+export const companyInterviewsKeys = {
+  all: ['company-interviews'] as const,
+  list: (companyId: string, params: UseCompanyInterviewsParams) =>
+    [...companyInterviewsKeys.all, companyId, params] as const,
 };
 
 // ===== Helper Functions =====
@@ -377,11 +397,46 @@ export function useDeleteSavedQuestionGroup() {
 
 // ===== My Interviews =====
 export function useMyInterviews(params: UseMyInterviewsParams = {}) {
-  const { direction = 'future', status, company, page = 1, limit = 20 } = params;
+  const { direction = 'future', status, company, page = 1, limit = 20, enabled = true } = params;
 
   return useQuery({
     queryKey: myInterviewsKeys.list({ direction, status, company, page, limit }),
     queryFn: () => usersService.getMyInterviews({ direction, status, company, page, limit }),
+    staleTime: 2 * 60 * 1000,
+    enabled,
+  });
+}
+
+// ===== Company Interviews =====
+export function useCompanyInterviews(
+  companyId: string | null | undefined,
+  params: UseCompanyInterviewsParams = {}
+) {
+  const { direction = 'future', scheduledBy, conductedBy, status, from, to, page = 1, limit = 20, enabled = true } = params;
+
+  return useQuery({
+    queryKey: companyInterviewsKeys.list(companyId ?? '', {
+      direction,
+      scheduledBy,
+      conductedBy,
+      status,
+      from,
+      to,
+      page,
+      limit,
+    }),
+    queryFn: () =>
+      companiesService.getCompanyInterviews(companyId!, {
+        direction,
+        scheduledBy,
+        conductedBy,
+        status,
+        from,
+        to,
+        page,
+        limit,
+      }),
+    enabled: !!companyId && enabled,
     staleTime: 2 * 60 * 1000,
   });
 }
