@@ -1,12 +1,14 @@
-import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
-import { tokenStorage } from "./api";
-import { refreshAccessToken } from "./tokenRefresh";
-import { paths } from "../router/Paths";
+import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import { tokenStorage } from './api';
+import { refreshAccessToken } from './tokenRefresh';
+import { paths } from '../router/Paths';
+import { emitQuotaEvent } from '../lib/quotaEvents';
+import { emitAuthEvent } from '../lib/authEvents';
 
 const axiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
   headers: {
-    "Content-Type": "application/json",
+    'Content-Type': 'application/json',
   },
 });
 
@@ -24,6 +26,21 @@ axiosInstance.interceptors.request.use(
   }
 );
 
+// The near-limit header is set by trackRequestQuota on both successful and
+// blocked (402) responses alike, so both interceptor branches need to check
+// it — not just the error branch.
+function handleNearLimitHeader(response: any) {
+  const header = response?.headers?.['x-quota-near-limit-companies'];
+  if (!header) return;
+  const companyIds = String(header)
+    .split(',')
+    .map((s: string) => s.trim())
+    .filter(Boolean);
+  if (companyIds.length > 0) {
+    emitQuotaEvent('near-limit-companies', companyIds);
+  }
+}
+
 // ===== Token refresh handling (single-flight + queued retries) =====
 let isRefreshing = false;
 let refreshQueue: Array<{
@@ -39,17 +56,47 @@ function processQueue(newToken: string | null, error?: unknown) {
   refreshQueue = [];
 }
 
+function redirectToSignIn() {
+  tokenStorage.clearTokens();
+  if (!window.location.pathname.startsWith(paths.auth.signIn)) {
+    window.location.href = paths.auth.signIn;
+  }
+}
+
 // Response interceptor for error handling
 axiosInstance.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    handleNearLimitHeader(response);
+    return response;
+  },
   async (error: AxiosError) => {
     // Enhance error with detailed validation messages
     if (error.response) {
-      const { data } = error.response as { data: any };
-      
+      handleNearLimitHeader(error.response);
+
+      const { data, status } = error.response as { data: any; status: number };
+
+      // Quota exceeded (402) — flip the app-wide blocked state so the
+      // layout can render the "contact your admin" screen. Deliberately
+      // scoped to 402 only; 403 is also used by unrelated permission
+      // checks elsewhere and must not trigger this.
+      if (status === 402) {
+        emitQuotaEvent('quota-exceeded');
+      }
+      if (status === 401 && data?.code === 'SESSION_SUPERSEDED') {
+        sessionStorage.setItem(
+          'authNotice',
+          data.message ?? 'Signed in on another device'
+        );
+        tokenStorage.clearTokens();
+        emitAuthEvent(
+          'session-superseded',
+          data.message ?? 'Signed in on another device'
+        );
+      }
       // Create a user-friendly error message
       let errorMessage = 'An error occurred';
-      
+
       // Check for Joi validation errors (details array)
       if (data?.details && Array.isArray(data.details)) {
         errorMessage = data.details
@@ -74,7 +121,7 @@ axiosInstance.interceptors.response.use(
       else if (data?.message) {
         errorMessage = data.message;
       }
-      
+
       // Attach enhanced message to error
       error.message = errorMessage;
     }
@@ -84,13 +131,13 @@ axiosInstance.interceptors.response.use(
     const originalRequest = error.config as
       | (InternalAxiosRequestConfig & { _retry?: boolean })
       | undefined;
-    const url = originalRequest?.url ?? "";
+    const url = originalRequest?.url ?? '';
 
     if (
       status === 401 &&
       originalRequest &&
       !originalRequest._retry &&
-      !url.includes("/auth/")
+      !url.includes('/auth/')
     ) {
       if (isRefreshing) {
         // Another request is already refreshing — wait, then retry
@@ -99,10 +146,7 @@ axiosInstance.interceptors.response.use(
         }).then(
           () => axiosInstance(originalRequest),
           () => {
-            tokenStorage.clearTokens();
-            if (!window.location.pathname.startsWith(paths.auth.signIn)) {
-              window.location.href = paths.auth.signIn;
-            }
+            redirectToSignIn();
             return Promise.reject(error);
           }
         );
@@ -115,10 +159,7 @@ axiosInstance.interceptors.response.use(
         const newToken = await refreshAccessToken();
         processQueue(newToken);
         if (newToken) {
-          originalRequest.headers.set(
-            "Authorization",
-            `Bearer ${newToken}`
-          );
+          originalRequest.headers.set('Authorization', `Bearer ${newToken}`);
           return axiosInstance(originalRequest);
         }
       } catch (refreshError) {
@@ -128,10 +169,7 @@ axiosInstance.interceptors.response.use(
       }
 
       // Refresh failed — force re-login
-      tokenStorage.clearTokens();
-      if (!window.location.pathname.startsWith(paths.auth.signIn)) {
-        window.location.href = paths.auth.signIn;
-      }
+      redirectToSignIn();
     }
 
     return Promise.reject(error);

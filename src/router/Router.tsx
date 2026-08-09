@@ -42,6 +42,9 @@ const PreviewCompany = lazy(
 const CompanySettingsPage = lazy(
   () => import('../pages/Recruiting/companies/companysettings')
 );
+const Subscription = lazy(
+  () => import('../pages/Recruiting/Settings/subscription')
+);
 const InterviewCompanySettingsPage = lazy(
   () => import('../pages/Recruiting/Settings/interviewCompany')
 );
@@ -95,6 +98,10 @@ const CreateSavedField = lazy(
   () => import('../pages/Recruiting/savedFields/CreateSavedField')
 );
 
+const SubscriptionComplete = lazy(
+  () => import('../pages/OtherPage/subscriptionComplete')
+);
+
 // Admin
 const Users = lazy(() => import('../pages/Recruiting/users/Users'));
 const CreateUser = lazy(() => import('../pages/Recruiting/users/CreateUser'));
@@ -137,10 +144,16 @@ export default function App() {
           {/* Public Landing Routes */}
           <Route element={<LandingLayout />}>
             <Route index element={<LandingHome />} />
-            <Route path={paths.landing.services} element={<LandingServices />} />
+            <Route
+              path={paths.landing.services}
+              element={<LandingServices />}
+            />
             <Route path={paths.landing.about} element={<LandingAbout />} />
             <Route path={paths.landing.contact} element={<LandingContact />} />
-            <Route path={paths.landing.policies} element={<LandingPolicies />} />
+            <Route
+              path={paths.landing.policies}
+              element={<LandingPolicies />}
+            />
             <Route path={paths.landing.terms} element={<LandingTerms />} />
             <Route path={paths.landing.address} element={<LandingAddress />} />
           </Route>
@@ -148,7 +161,10 @@ export default function App() {
           {/* Auth Routes */}
           <Route path={paths.auth.signIn} element={<SignIn />} />
           <Route path={paths.auth.signUp} element={<SignUp />} />
-          <Route path={paths.auth.forgotPassword} element={<ForgotPassword />} />
+          <Route
+            path={paths.auth.forgotPassword}
+            element={<ForgotPassword />}
+          />
           <Route path={paths.auth.resetPassword} element={<ResetPassword />} />
 
           {/* Protected Routes */}
@@ -195,10 +211,25 @@ export default function App() {
                   element={<InterviewCompanySettingsPage />}
                 />
               </Route>
-
+              <Route
+                element={
+                  <PermissionProtectedRoute
+                    requiredPermissions={['Billing Management']}
+                    accessLevel="write"
+                  />
+                }
+              >
+                <Route
+                  path={paths.recruiting.subscription}
+                  element={<Subscription />}
+                />
+              </Route>
               {/* Companies */}
               <Route path={paths.companies.root} element={<Companies />} />
-              <Route path={patterns.companies.preview} element={<PreviewCompany />} />
+              <Route
+                path={patterns.companies.preview}
+                element={<PreviewCompany />}
+              />
               <Route
                 path={patterns.companies.createJob}
                 element={<CreateJob />}
@@ -221,10 +252,12 @@ export default function App() {
               />
               <Route
                 path={patterns.applicants.details}
-                element={<ApplicantDetails />} />
+                element={<ApplicantDetails />}
+              />
               <Route
                 path={patterns.applicants.completedInterview}
-                element={<CompletedInterviewDetails />} />
+                element={<CompletedInterviewDetails />}
+              />
               <Route
                 path={patterns.applicants.interview}
                 element={<InterviewSession />} />
@@ -240,14 +273,8 @@ export default function App() {
                   path={paths.applicants.mailPreview}
                   element={<MailPreview />}
                 />
-                <Route
-                  path={paths.jobs.offers}
-                  element={<JobOffersPage />}
-                />
-                <Route
-                  path={paths.jobs.contracts}
-                  element={<ContractPage />}
-                />
+                <Route path={paths.jobs.offers} element={<JobOffersPage />} />
+                <Route path={paths.jobs.contracts} element={<ContractPage />} />
               </Route>
 
               {/* Admin */}
@@ -265,13 +292,19 @@ export default function App() {
               >
                 <Route path={paths.admin.users} element={<Users />} />
                 <Route path={paths.admin.userAdd} element={<CreateUser />} />
-                <Route path={patterns.admin.userPreview} element={<PreviewUser />} />
+                <Route
+                  path={patterns.admin.userPreview}
+                  element={<PreviewUser />}
+                />
                 <Route path={patterns.admin.userEdit} element={<EditUser />} />
                 <Route
                   path={paths.admin.permissions}
                   element={<Permissions />}
                 />
-                <Route path={patterns.admin.rolePreview} element={<PreviewRole />} />
+                <Route
+                  path={patterns.admin.rolePreview}
+                  element={<PreviewRole />}
+                />
                 <Route
                   path={paths.admin.recommendedFields}
                   element={<RecommendedFields />}
@@ -287,14 +320,35 @@ export default function App() {
                   />
                 }
               >
-                <Route path={paths.inquiries.root} element={<InquiriesList />} />
-                <Route path={patterns.inquiries.preview} element={<InquiryPreview />} />
+                <Route
+                  path={paths.inquiries.root}
+                  element={<InquiriesList />}
+                />
+                <Route
+                  path={patterns.inquiries.preview}
+                  element={<InquiryPreview />}
+                />
               </Route>
-
+              <Route
+                element={
+                  <PermissionProtectedRoute
+                    requiredPermissions={['Billing Management']}
+                    accessLevel="read"
+                  />
+                }
+              >
+                <Route
+                  path={paths.recruiting.subscriptionComplete}
+                  element={<SubscriptionComplete />}
+                />
+              </Route>
               {/* Misc */}
               <Route path={paths.misc.profile} element={<UserProfiles />} />
               <Route path={paths.misc.profileEdit} element={<ProfileEdit />} />
-              <Route path={paths.misc.accountSettings} element={<AccountSettings />} />
+              <Route
+                path={paths.misc.accountSettings}
+                element={<AccountSettings />}
+              />
               <Route path={paths.misc.support} element={<Support />} />
               <Route path={paths.misc.calendar} element={<Calendar />} />
               <Route path={paths.misc.blank} element={<Blank />} />

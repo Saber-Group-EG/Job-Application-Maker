@@ -24,11 +24,13 @@ export const paths = {
     root: '/recruiting',
     companySettings: '/recruiting/company-settings',
     interviewSettings: '/recruiting/interview-settings',
+    subscription: '/recruiting/subscription',
     savedFields: '/recruiting/saved-fields',
     savedFieldsCreate: '/recruiting/saved-fields/create',
     savedFieldsPreview: (fieldId: string) =>
       `/recruiting/saved-fields/preview/${fieldId}`,
     savedQuestions: '/recruiting/saved-questions',
+    subscriptionComplete: '/recruiting/subscription/complete',
   },
 
   companies: {
@@ -68,7 +70,6 @@ export const paths = {
     recommendedFields: '/recommended-fields',
   },
 
-  
   inquiries: {
     root: '/inquiries',
     preview: (id: string) => `/inquiries/${id}`,

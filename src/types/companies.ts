@@ -102,7 +102,13 @@ export interface EmailTemplate {
 }
 
 // Interview Settings Types
-export type InterviewAnswerType = 'text' | 'number' | 'radio' | 'checkbox' | 'dropdown' | 'tags';
+export type InterviewAnswerType =
+  | 'text'
+  | 'number'
+  | 'radio'
+  | 'checkbox'
+  | 'dropdown'
+  | 'tags';
 
 export interface ChoiceItem {
   label: string;
@@ -195,4 +201,69 @@ export interface CompanyResponse {
 export interface CompaniesResponse {
   success: boolean;
   data: Company[];
+}
+
+export interface Plan {
+  _id: string;
+  name: string;
+  priceCents: number;
+  currency: string;
+  requestQuota: number;
+  frequency: number;
+  isActive: boolean;
+}
+
+export interface SubscriptionUsage {
+  used: number;
+  baseLimit: number;
+  bonusQuota: number;
+  effectiveLimit: number;
+  remaining: number;
+  percentUsed: number;
+  nearLimit: boolean;
+}
+
+export interface SubscriptionDetails {
+  subscription: CompanySubscriptionInfo;
+  plan: Plan;
+  pendingPlan: Plan | null;
+  upgradeInProgressPlan: Plan | null;
+  usage: SubscriptionUsage;
+}
+
+export interface CompanySubscriptionInfo {
+  status: 'active' | 'past_due' | 'cancelled' | 'expired' | 'suspended';
+  cancelAtPeriodEnd: boolean;
+  cancelledAt: string | null;
+  startedAt: string;
+  lastPaymentAt: string;
+  currentCycleAmountCents: number;
+}
+
+export type ChangePlanResponse =
+  | { queued: true; effectiveAt: string | null }
+  | { success: true; charged: true }
+  | { checkoutUrl: string };
+
+export interface SubscriptionCard {
+  id: number; // pass this to delete/change-primary — never the `token`
+  maskedPan: string;
+  isPrimary: boolean;
+  failedAttempts: number;
+  createdAt: string;
+}
+
+export interface TransactionRecord {
+  _id: string;
+  companyId: string;
+  subscriptionId: string;
+  type: 'signup' | 'renewal' | 'upgrade' | 'downgrade' | 'topup';
+  status: 'paid' | 'failed';
+  amountCents: number;
+  currency: string;
+  metadata: Record<string, any>;
+  paymobTransactionId: string | null;
+  paymobOrderId: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
