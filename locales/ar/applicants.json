@@ -199,5 +199,13 @@
   "goToFirstPage": "الانتقال إلى الصفحة الأولى",
   "goToLastPage": "الانتقال إلى الصفحة الأخيرة",
   "goToNextPage": "الانتقال إلى الصفحة التالية",
-  "goToPreviousPage": "الانتقال إلى الصفحة السابقة"
+  "goToPreviousPage": "الانتقال إلى الصفحة السابقة",
+  "aiCandidateSummary": "ملخص المرشح بالذكاء الاصطناعي",
+  "generateSummary": "إنشاء ملخص",
+  "regenerate": "إعادة الإنشاء",
+  "generating": "جاري الإنشاء...",
+  "generatingSummaryText": "جاري تحليل بيانات المرشح — قد يستغرق ذلك بضع ثوانٍ.",
+  "noSummaryYet": "لم يتم إنشاء ملخص بعد.",
+  "strengths": "نقاط القوة",
+  "weaknesses": "نقاط الضعف"
 }

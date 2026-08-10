@@ -16,6 +16,7 @@ import type {
   SendMessageRequest,
   InterviewAnswer,
   RejectionInsights,
+  CandidateSummaryResult,
 } from '../types/applicants';
 import { ApiError } from './companiesService';
 
@@ -317,7 +318,8 @@ class ApplicantsService {
           !Array.isArray(applicant.jobSpecsResponses) ||
           applicant.jobSpecsResponses.length === 0
         ) {
-          applicant.jobSpecsResponses = applicant.jobPositionId.jobSpecsResponses;
+          applicant.jobSpecsResponses =
+            applicant.jobPositionId.jobSpecsResponses;
         }
       }
 
@@ -601,28 +603,40 @@ class ApplicantsService {
     if (params.companyId) queryParams.companyId = params.companyId;
     if (params.page) queryParams.page = params.page;
     if (params.limit) queryParams.limit = params.limit;
-    return this.request<any>('get', '/applicants/search', undefined, queryParams, {
-      paramsSerializer: {
-        serialize: (p: Record<string, any>) => {
-          const parts: string[] = [];
-          for (const [key, value] of Object.entries(p)) {
-            if (Array.isArray(value)) {
-              for (const v of value) {
-                parts.push(`${key}=${encodeURIComponent(v)}`);
+    return this.request<any>(
+      'get',
+      '/applicants/search',
+      undefined,
+      queryParams,
+      {
+        paramsSerializer: {
+          serialize: (p: Record<string, any>) => {
+            const parts: string[] = [];
+            for (const [key, value] of Object.entries(p)) {
+              if (Array.isArray(value)) {
+                for (const v of value) {
+                  parts.push(`${key}=${encodeURIComponent(v)}`);
+                }
+              } else if (value !== undefined && value !== null) {
+                parts.push(`${key}=${encodeURIComponent(value)}`);
               }
-            } else if (value !== undefined && value !== null) {
-              parts.push(`${key}=${encodeURIComponent(value)}`);
             }
-          }
-          return parts.join('&');
+            return parts.join('&');
+          },
         },
-      },
-    });
+      }
+    );
   }
 
-  async getApplicantsByPhone(phone: string, companyId?: string): Promise<Applicant[]> {
+  async getApplicantsByPhone(
+    phone: string,
+    companyId?: string
+  ): Promise<Applicant[]> {
     if (!phone || !String(phone).trim()) return [];
-    const queryParams: Record<string, string> = { phone: String(phone).trim(), PageCount: 'all' };
+    const queryParams: Record<string, string> = {
+      phone: String(phone).trim(),
+      PageCount: 'all',
+    };
     if (companyId) queryParams.companyId = companyId;
     const response = await this.request<any>(
       'get',
@@ -631,6 +645,17 @@ class ApplicantsService {
       queryParams
     );
     return this.extractApplicants(response);
+  }
+
+  async generateCandidateSummary(
+    applicantId: string,
+    companyId: string
+  ): Promise<CandidateSummaryResult> {
+    return this.request<CandidateSummaryResult>(
+      'post',
+      `/applicants/${applicantId}/ai-summary`,
+      { companyId }
+    );
   }
 }
 

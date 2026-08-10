@@ -1,7 +1,7 @@
 // hooks/queries/useApplicants.ts
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { applicantsService } from "../../services/applicantsService";
-import { useAuth } from "../../context/AuthContext";
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { applicantsService } from '../../services/applicantsService';
+import { useAuth } from '../../context/AuthContext';
 import type {
   CreateApplicantRequest,
   UpdateApplicantRequest,
@@ -11,15 +11,15 @@ import type {
   AddCommentRequest,
   SendMessageRequest,
   Applicant,
-} from "../../types/applicants";
-import { ApiError } from "../../services/companiesService";
-import Swal from "../../utils/swal";
-import { useLocale } from "../../context/LocaleContext";
+} from '../../types/applicants';
+import { ApiError } from '../../services/companiesService';
+import Swal from '../../utils/swal';
+import { useLocale } from '../../context/LocaleContext';
 
 // Query keys
 export const applicantsKeys = {
-  all: ["applicants"] as const,
-  lists: () => [...applicantsKeys.all, "list"] as const,
+  all: ['applicants'] as const,
+  lists: () => [...applicantsKeys.all, 'list'] as const,
   list: (params?: {
     companyId?: string[];
     jobPositionId?: string | string[];
@@ -29,19 +29,24 @@ export const applicantsKeys = {
     departmentId?: string[];
     skipPopulation?: boolean;
   }) => [...applicantsKeys.lists(), params] as const,
-  detail: (id: string) => [...applicantsKeys.all, "detail", id] as const,
-  rejectionInsights: (companyId?: string[]) => [...applicantsKeys.all, "rejection-insights", companyId] as const,
-  byPhone: (phone: string) => [...applicantsKeys.all, "by-phone", phone] as const,
+  detail: (id: string) => [...applicantsKeys.all, 'detail', id] as const,
+  rejectionInsights: (companyId?: string[]) =>
+    [...applicantsKeys.all, 'rejection-insights', companyId] as const,
+  byPhone: (phone: string) =>
+    [...applicantsKeys.all, 'by-phone', phone] as const,
 };
 
 // Helper to get user's company IDs from AuthContext
 function getUserCompanyIds(user: any): string[] | undefined {
   const roleName = user?.roleId?.name?.toLowerCase?.();
-  if (roleName === "admin" || roleName === "super admin") return undefined;
+  if (roleName === 'admin' || roleName === 'super admin') return undefined;
 
-  const fromCompanies = user?.companies?.map((c: any) =>
-    typeof c?.companyId === "string" ? c.companyId : c?.companyId?._id
-  ).filter(Boolean) ?? [];
+  const fromCompanies =
+    user?.companies
+      ?.map((c: any) =>
+        typeof c?.companyId === 'string' ? c.companyId : c?.companyId?._id
+      )
+      .filter(Boolean) ?? [];
 
   const fromAssigned = user?.assignedcompanyId?.filter(Boolean) ?? [];
   const merged = [...new Set([...fromCompanies, ...fromAssigned])];
@@ -71,10 +76,10 @@ function mergeApplicantResponseIntoCache(
   queryClient: ReturnType<typeof useQueryClient>,
   id: string,
   response: unknown,
-  options: { appendKey?: 'interviews' | 'comments' | 'activities' } = {},
+  options: { appendKey?: 'interviews' | 'comments' | 'activities' } = {}
 ): void {
   const previous = queryClient.getQueryData<Applicant | undefined>(
-    applicantsKeys.detail(id),
+    applicantsKeys.detail(id)
   );
 
   if (!response || typeof response !== 'object') {
@@ -85,7 +90,9 @@ function mergeApplicantResponseIntoCache(
   }
 
   const resp = response as Record<string, unknown>;
-  const respId = String((resp._id as string | undefined) || (resp.id as string | undefined) || '');
+  const respId = String(
+    (resp._id as string | undefined) || (resp.id as string | undefined) || ''
+  );
 
   const looksLikeFullApplicant =
     respId === id &&
@@ -103,7 +110,9 @@ function mergeApplicantResponseIntoCache(
   }
 
   if (looksLikeFullApplicant) {
-    const merged: Record<string, unknown> = { ...(previous as unknown as Record<string, unknown>) };
+    const merged: Record<string, unknown> = {
+      ...(previous as unknown as Record<string, unknown>),
+    };
     for (const key of Object.keys(resp)) {
       const value = resp[key];
       if (value === undefined) continue;
@@ -129,8 +138,12 @@ function mergeApplicantResponseIntoCache(
   const respHasInterviewsArray = Array.isArray(resp.interviews);
 
   if (appendKey) {
-    const existing = Array.isArray((previous as unknown as Record<string, unknown>)[appendKey])
-      ? ((previous as unknown as Record<string, unknown>)[appendKey] as unknown[])
+    const existing = Array.isArray(
+      (previous as unknown as Record<string, unknown>)[appendKey]
+    )
+      ? ((previous as unknown as Record<string, unknown>)[
+          appendKey
+        ] as unknown[])
       : [];
     queryClient.setQueryData(applicantsKeys.detail(id), {
       ...(previous as object),
@@ -145,12 +158,24 @@ function mergeApplicantResponseIntoCache(
       : [];
     const byId = new Map<string, unknown>();
     (existingInterviews || []).forEach((iv) => {
-      const k = String((iv as { _id?: string; id?: string })?._id || (iv as { _id?: string; id?: string })?.id || '');
+      const k = String(
+        (iv as { _id?: string; id?: string })?._id ||
+          (iv as { _id?: string; id?: string })?.id ||
+          ''
+      );
       if (k) byId.set(k, iv);
     });
     (resp.interviews as unknown[]).forEach((iv) => {
-      const k = String((iv as { _id?: string; id?: string })?._id || (iv as { _id?: string; id?: string })?.id || '');
-      if (k) byId.set(k, { ...(byId.get(k) as object | undefined), ...(iv as object) });
+      const k = String(
+        (iv as { _id?: string; id?: string })?._id ||
+          (iv as { _id?: string; id?: string })?.id ||
+          ''
+      );
+      if (k)
+        byId.set(k, {
+          ...(byId.get(k) as object | undefined),
+          ...(iv as object),
+        });
     });
     queryClient.setQueryData(applicantsKeys.detail(id), {
       ...(previous as object),
@@ -176,7 +201,9 @@ export function useApplicants(params?: {
 }) {
   const { user } = useAuth();
   const userCompanyIds = getUserCompanyIds(user);
-  const effectiveCompanyId = params?.companyId?.length ? params.companyId : userCompanyIds;
+  const effectiveCompanyId = params?.companyId?.length
+    ? params.companyId
+    : userCompanyIds;
 
   const isSearch = !!params?.search;
 
@@ -192,7 +219,9 @@ export function useApplicants(params?: {
     }),
     queryFn: () => {
       if (isSearch) {
-        const companyIds = effectiveCompanyId?.length ? effectiveCompanyId : undefined;
+        const companyIds = effectiveCompanyId?.length
+          ? effectiveCompanyId
+          : undefined;
         return applicantsService.searchApplicants({
           q: params!.search!,
           companyId: companyIds,
@@ -219,11 +248,14 @@ export function useApplicants(params?: {
 }
 
 // Get applicant by ID
-export function useApplicant(id: string, options?: {
-  initialData?: Applicant;
-  enabled?: boolean;
-  staleTime?: number;
-}) {
+export function useApplicant(
+  id: string,
+  options?: {
+    initialData?: Applicant;
+    enabled?: boolean;
+    staleTime?: number;
+  }
+) {
   const queryClient = useQueryClient();
 
   return useQuery({
@@ -234,18 +266,22 @@ export function useApplicant(id: string, options?: {
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
     refetchOnMount: true,
-    placeholderData: options?.initialData ?? (() => {
-      const queryCache = queryClient.getQueryCache();
-      const listQueries = queryCache.findAll({ queryKey: applicantsKeys.lists() });
-      for (const query of listQueries) {
-        const data = query.state.data;
-        if (Array.isArray(data)) {
-          const found = (data as Applicant[]).find(a => a._id === id);
-          if (found) return found;
+    placeholderData:
+      options?.initialData ??
+      (() => {
+        const queryCache = queryClient.getQueryCache();
+        const listQueries = queryCache.findAll({
+          queryKey: applicantsKeys.lists(),
+        });
+        for (const query of listQueries) {
+          const data = query.state.data;
+          if (Array.isArray(data)) {
+            const found = (data as Applicant[]).find((a) => a._id === id);
+            if (found) return found;
+          }
         }
-      }
-      return undefined;
-    }),
+        return undefined;
+      }),
   });
 }
 
@@ -257,14 +293,23 @@ export function useApplicantStatuses(params?: {
 }) {
   const { user } = useAuth();
   const userCompanyIds = getUserCompanyIds(user);
-  const effectiveCompanyId = params?.companyId?.length ? params.companyId : userCompanyIds;
+  const effectiveCompanyId = params?.companyId?.length
+    ? params.companyId
+    : userCompanyIds;
 
   return useQuery({
-    queryKey: [...applicantsKeys.list({ companyId: effectiveCompanyId, jobPositionId: params?.jobPositionId }), 'statuses'],
-    queryFn: () => applicantsService.getApplicantStatuses({
-      companyId: effectiveCompanyId,
-      status: params?.jobPositionId,
-    }),
+    queryKey: [
+      ...applicantsKeys.list({
+        companyId: effectiveCompanyId,
+        jobPositionId: params?.jobPositionId,
+      }),
+      'statuses',
+    ],
+    queryFn: () =>
+      applicantsService.getApplicantStatuses({
+        companyId: effectiveCompanyId,
+        status: params?.jobPositionId,
+      }),
     staleTime: 2 * 60 * 1000,
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
@@ -279,19 +324,32 @@ export function useBatchUpdateApplicantStatus() {
   const { t } = useLocale();
 
   return useMutation({
-    mutationFn: (updates: Array<{ applicantId: string; status: string; notes?: string; reasons?: string[] }>) =>
-      applicantsService.batchUpdateStatus(updates),
+    mutationFn: (
+      updates: Array<{
+        applicantId: string;
+        status: string;
+        notes?: string;
+        reasons?: string[];
+      }>
+    ) => applicantsService.batchUpdateStatus(updates),
     onMutate: async (updates) => {
       await queryClient.cancelQueries({ queryKey: applicantsKeys.lists() });
 
       const previousLists: Record<string, any[] | undefined> = {};
       const queryCache = queryClient.getQueryCache();
-      const listQueries = queryCache.findAll({ queryKey: applicantsKeys.lists(), type: 'active' });
+      const listQueries = queryCache.findAll({
+        queryKey: applicantsKeys.lists(),
+        type: 'active',
+      });
       listQueries.forEach((query) => {
-        previousLists[JSON.stringify(query.queryKey)] = query.state.data as any[] | undefined;
+        previousLists[JSON.stringify(query.queryKey)] = query.state.data as
+          | any[]
+          | undefined;
         queryClient.setQueryData(query.queryKey, (old: any[] | undefined) => {
           if (!old) return old;
-          const updateMap = new Map(updates.map((u) => [u.applicantId, u.status]));
+          const updateMap = new Map(
+            updates.map((u) => [u.applicantId, u.status])
+          );
           return old.map((a) => {
             if (updateMap.has(a._id)) {
               return { ...a, status: updateMap.get(a._id) };
@@ -335,7 +393,8 @@ export function useCreateApplicant() {
   const { t } = useLocale();
 
   return useMutation({
-    mutationFn: (data: CreateApplicantRequest) => applicantsService.createApplicant(data),
+    mutationFn: (data: CreateApplicantRequest) =>
+      applicantsService.createApplicant(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: applicantsKeys.lists() });
       showSuccessToast(t('applicantCreated', 'common'), t);
@@ -399,7 +458,7 @@ export function useMarkApplicantSeen() {
       queryClient.invalidateQueries({ queryKey: applicantsKeys.detail(id) });
     },
     onError: (error: ApiError) => {
-      console.error("Failed to mark as seen:", error.message);
+      console.error('Failed to mark as seen:', error.message);
     },
   });
 }
@@ -415,17 +474,29 @@ export function useUpdateApplicantStatus() {
     onMutate: async ({ id, data }) => {
       await queryClient.cancelQueries({ queryKey: applicantsKeys.all });
 
-      const previousDetail = queryClient.getQueryData<Applicant>(applicantsKeys.detail(id));
+      const previousDetail = queryClient.getQueryData<Applicant>(
+        applicantsKeys.detail(id)
+      );
 
       const previousLists: Record<string, Applicant[] | undefined> = {};
       const queryCache = queryClient.getQueryCache();
-      const listQueries = queryCache.findAll({ queryKey: applicantsKeys.lists(), type: 'active' });
+      const listQueries = queryCache.findAll({
+        queryKey: applicantsKeys.lists(),
+        type: 'active',
+      });
       listQueries.forEach((query) => {
-        previousLists[JSON.stringify(query.queryKey)] = query.state.data as Applicant[] | undefined;
-        queryClient.setQueryData(query.queryKey, (old: Applicant[] | undefined) => {
-          if (!old) return old;
-          return old.map((a) => a._id === id ? { ...a, status: data.status } : a);
-        });
+        previousLists[JSON.stringify(query.queryKey)] = query.state.data as
+          | Applicant[]
+          | undefined;
+        queryClient.setQueryData(
+          query.queryKey,
+          (old: Applicant[] | undefined) => {
+            if (!old) return old;
+            return old.map((a) =>
+              a._id === id ? { ...a, status: data.status } : a
+            );
+          }
+        );
       });
 
       if (previousDetail) {
@@ -456,7 +527,10 @@ export function useUpdateApplicantStatus() {
     },
     onError: (error: ApiError, { id }, context) => {
       if (context?.previousDetail) {
-        queryClient.setQueryData(applicantsKeys.detail(id), context.previousDetail);
+        queryClient.setQueryData(
+          applicantsKeys.detail(id),
+          context.previousDetail
+        );
       }
       if (context?.previousLists) {
         Object.entries(context.previousLists).forEach(([key, data]) => {
@@ -481,12 +555,12 @@ export function useDeleteApplicant() {
       // Remove from list cache
       queryClient.setQueryData<Applicant[]>(applicantsKeys.list(), (old) => {
         if (!old) return [];
-        return old.filter(applicant => applicant._id !== id);
+        return old.filter((applicant) => applicant._id !== id);
       });
-      
+
       // Remove detail cache
       queryClient.removeQueries({ queryKey: applicantsKeys.detail(id) });
-      
+
       showSuccessToast(t('applicantDeleted', 'common'), t);
     },
     onError: (error: ApiError) => {
@@ -501,17 +575,41 @@ export function useScheduleInterview() {
   const { t } = useLocale();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: ScheduleInterviewRequest }) =>
-      applicantsService.scheduleInterview(id, data),
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: ScheduleInterviewRequest;
+    }) => applicantsService.scheduleInterview(id, data),
     onSuccess: (response, { id }) => {
       const res = response as Record<string, unknown>;
-      const succeeded = res.succeeded as Array<Record<string, unknown>> | undefined;
+      const succeeded = res.succeeded as
+        | Array<Record<string, unknown>>
+        | undefined;
       const unwrapped = succeeded?.[0] ?? res;
       mergeApplicantResponseIntoCache(queryClient, id, unwrapped);
       showSuccessToast(t('interviewScheduled', 'common'), t);
     },
     onError: (error: ApiError) => {
       showErrorToast(error.message, t('interviewScheduleFailed', 'common'), t);
+    },
+  });
+}
+
+export function useGenerateCandidateSummary() {
+  const { t } = useLocale();
+
+  return useMutation({
+    mutationFn: ({
+      applicantId,
+      companyId,
+    }: {
+      applicantId: string;
+      companyId: string;
+    }) => applicantsService.generateCandidateSummary(applicantId, companyId),
+    onError: (error: ApiError) => {
+      showErrorToast(error.message, t('aiSummaryFailed', 'common'), t);
     },
   });
 }
@@ -525,10 +623,14 @@ export function useScheduleBulkInterviews() {
     mutationFn: (payload: { interviews: Array<any> } | Array<any>) =>
       applicantsService.scheduleBulkInterviews(payload),
     onSuccess: (_, payload) => {
-      const items = Array.isArray(payload) ? payload : (payload as any).interviews ?? [];
+      const items = Array.isArray(payload)
+        ? payload
+        : ((payload as any).interviews ?? []);
       items.forEach((item: any) => {
         if (item?.applicantId) {
-          queryClient.invalidateQueries({ queryKey: applicantsKeys.detail(item.applicantId) });
+          queryClient.invalidateQueries({
+            queryKey: applicantsKeys.detail(item.applicantId),
+          });
         }
       });
       showSuccessToast(t('interviewsScheduled', 'common'), t);
@@ -545,15 +647,22 @@ export function useUpdateInterviewStatus() {
   const { t } = useLocale();
 
   return useMutation({
-    mutationFn: ({ applicantId, interviewId, data }: {
+    mutationFn: ({
+      applicantId,
+      interviewId,
+      data,
+    }: {
       applicantId: string;
       interviewId: string;
       data: UpdateInterviewStatusRequest;
-    }) => applicantsService.updateInterviewStatus(applicantId, interviewId, data),
+    }) =>
+      applicantsService.updateInterviewStatus(applicantId, interviewId, data),
     onMutate: async ({ applicantId, interviewId, data }) => {
-      await queryClient.cancelQueries({ queryKey: applicantsKeys.detail(applicantId) });
+      await queryClient.cancelQueries({
+        queryKey: applicantsKeys.detail(applicantId),
+      });
       const previousApplicant = queryClient.getQueryData<Applicant | undefined>(
-        applicantsKeys.detail(applicantId),
+        applicantsKeys.detail(applicantId)
       );
       if (previousApplicant && Array.isArray(previousApplicant.interviews)) {
         const nextInterviews = previousApplicant.interviews.map((iv) => {
@@ -575,8 +684,12 @@ export function useUpdateInterviewStatus() {
       // question picker view.
     },
     onError: (error: ApiError, _variables, context) => {
-      if ((context as { previousApplicant?: unknown } | undefined)?.previousApplicant) {
-        const previous = (context as { previousApplicant: unknown }).previousApplicant;
+      if (
+        (context as { previousApplicant?: unknown } | undefined)
+          ?.previousApplicant
+      ) {
+        const previous = (context as { previousApplicant: unknown })
+          .previousApplicant;
         const { applicantId } = _variables;
         queryClient.setQueryData(applicantsKeys.detail(applicantId), previous);
       }
@@ -591,13 +704,21 @@ export function useDeleteInterview() {
   const { t } = useLocale();
 
   return useMutation({
-    mutationFn: ({ applicantId, interviewId }: {
+    mutationFn: ({
+      applicantId,
+      interviewId,
+    }: {
       applicantId: string;
       interviewId: string;
     }) => applicantsService.deleteInterview(applicantId, interviewId),
     onSuccess: (updatedApplicant, { applicantId }) => {
-      queryClient.setQueryData(applicantsKeys.detail(applicantId), updatedApplicant);
-      queryClient.invalidateQueries({ queryKey: applicantsKeys.detail(applicantId) });
+      queryClient.setQueryData(
+        applicantsKeys.detail(applicantId),
+        updatedApplicant
+      );
+      queryClient.invalidateQueries({
+        queryKey: applicantsKeys.detail(applicantId),
+      });
       showSuccessToast(t('interviewDeleted', 'common'), t);
     },
     onError: (error: ApiError) => {
@@ -644,14 +765,20 @@ export function useSendMessage() {
   });
 }
 
-export function useRejectionInsights(params?: { companyId?: string[]; enabled?: boolean }) {
+export function useRejectionInsights(params?: {
+  companyId?: string[];
+  enabled?: boolean;
+}) {
   const { user } = useAuth();
   const userCompanyIds = getUserCompanyIds(user);
-  const effectiveCompanyId = params?.companyId?.length ? params.companyId : userCompanyIds;
+  const effectiveCompanyId = params?.companyId?.length
+    ? params.companyId
+    : userCompanyIds;
 
   return useQuery({
     queryKey: applicantsKeys.rejectionInsights(effectiveCompanyId),
-    queryFn: () => applicantsService.getRejectionInsights({ companyId: effectiveCompanyId }),
+    queryFn: () =>
+      applicantsService.getRejectionInsights({ companyId: effectiveCompanyId }),
     staleTime: 2 * 60 * 1000,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
@@ -662,10 +789,14 @@ export function useRejectionInsights(params?: { companyId?: string[]; enabled?: 
 }
 
 // Get applicants by phone number
-export function useApplicantsByPhone(phone?: string, options?: { enabled?: boolean; companyId?: string }) {
+export function useApplicantsByPhone(
+  phone?: string,
+  options?: { enabled?: boolean; companyId?: string }
+) {
   return useQuery({
     queryKey: applicantsKeys.byPhone(phone || ''),
-    queryFn: () => applicantsService.getApplicantsByPhone(phone || '', options?.companyId),
+    queryFn: () =>
+      applicantsService.getApplicantsByPhone(phone || '', options?.companyId),
     staleTime: 2 * 60 * 1000,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
@@ -676,20 +807,27 @@ export function useApplicantsByPhone(phone?: string, options?: { enabled?: boole
 }
 
 // ===== Toast Helpers =====
-function showSuccessToast(message: string, t: (key: string, ns?: string) => string) {
+function showSuccessToast(
+  message: string,
+  t: (key: string, ns?: string) => string
+) {
   Swal.fire({
     title: t('success', 'common'),
     text: message,
-    icon: "success",
+    icon: 'success',
     timer: 1500,
     showConfirmButton: false,
   });
 }
 
-function showErrorToast(message: string, fallback: string, t: (key: string, ns?: string) => string) {
+function showErrorToast(
+  message: string,
+  fallback: string,
+  t: (key: string, ns?: string) => string
+) {
   Swal.fire({
     title: t('error', 'common'),
     text: message || fallback,
-    icon: "error",
+    icon: 'error',
   });
 }
