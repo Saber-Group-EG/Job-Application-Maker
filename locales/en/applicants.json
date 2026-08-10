@@ -199,5 +199,13 @@
   "uploadingAttachments": "Uploading attachments and creating the applicant record.",
   "interviewsScheduledFor": "Interviews scheduled for {count} applicant(s).",
   "emailSentTo": "Email sent to {sent} applicant(s); {skipped} without email were skipped.",
-  "emailSentSuccess": "Email sent successfully."
+  "emailSentSuccess": "Email sent successfully.",
+  "aiCandidateSummary": "AI Candidate Summary",
+  "generateSummary": "Generate Summary",
+  "regenerate": "Regenerate",
+  "generating": "Generating...",
+  "generatingSummaryText": "Analyzing candidate data — this may take a few seconds.",
+  "noSummaryYet": "No summary generated yet.",
+  "strengths": "Strengths",
+  "weaknesses": "Weaknesses"
 }

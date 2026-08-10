@@ -311,6 +311,12 @@ export type JobSpecResponseLike = {
   answer?: boolean;
 };
 
+export interface CandidateSummaryResult {
+  summary: string;
+  strengths: string[];
+  weaknesses: string[];
+}
+
 // ─── PersonalInfo ─────────────────────────────────────────────────────────────
 
 export interface PersonalInfoProps {
