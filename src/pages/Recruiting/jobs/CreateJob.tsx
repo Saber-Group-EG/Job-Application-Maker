@@ -1,32 +1,40 @@
-﻿import { useMemo, useState, useEffect, useRef, type ReactNode } from "react";
+﻿import { useMemo, useState, useEffect, useRef, type ReactNode } from 'react';
 import Swal from '../../../utils/swal';
-import { useNavigate, useSearchParams, useLocation } from "react-router";
-import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
-import PageMeta from "../../../components/common/PageMeta";
-import LoadingSpinner from "../../../components/common/LoadingSpinner";
-import Label from "../../../components/form/Label";
-import Input from "../../../components/form/input/InputField";
-import TextArea from "../../../components/form/input/TextArea";
-import Switch from "../../../components/form/switch/Switch";
-import Select from "../../../components/form/Select";
-import MultiSelect from "../../../components/form/MultiSelect";
-import { PlusIcon, TrashBinIcon, CheckCircleIcon } from "../../../icons";
+import { useNavigate, useSearchParams, useLocation } from 'react-router';
+import PageBreadcrumb from '../../../components/common/PageBreadCrumb';
+import PageMeta from '../../../components/common/PageMeta';
+import LoadingSpinner from '../../../components/common/LoadingSpinner';
+import Label from '../../../components/form/Label';
+import Input from '../../../components/form/input/InputField';
+import TextArea from '../../../components/form/input/TextArea';
+import Switch from '../../../components/form/switch/Switch';
+import Select from '../../../components/form/Select';
+import MultiSelect from '../../../components/form/MultiSelect';
+import { PlusIcon, TrashBinIcon, CheckCircleIcon } from '../../../icons';
 import { Languages } from 'lucide-react';
-import { useAuth } from "../../../context/AuthContext";
-import { useLocale } from "../../../context/LocaleContext";
-import { jobPositionsService } from "../../../services/jobPositionsService";
+import { useAuth } from '../../../context/AuthContext';
+import { useLocale } from '../../../context/LocaleContext';
+import { jobPositionsService } from '../../../services/jobPositionsService';
 import {
   useCompanies,
   useDepartments,
-} from "../../../hooks/queries";
-import { useSavedFields } from "../../../hooks/queries";
-import { useRecommendedFields } from "../../../hooks/queries/useSystemSettings";
-import { useCreateJobPosition, useUpdateJobPosition, useJobPositions } from "../../../hooks/queries/useJobPositions";
-import { toPlainString } from "../../../utils/strings";
-import { translateText } from "../../../utils/translate";
-import { normalizeFieldConfig, getDefaultFieldConfig } from "../../../utils/jobUtils";
-import type { JobFieldConfig } from "../../../utils/jobUtils";
-import { useQueryClient } from "@tanstack/react-query";
+  useGenerateJobFields,
+} from '../../../hooks/queries';
+import { useSavedFields } from '../../../hooks/queries';
+import { useRecommendedFields } from '../../../hooks/queries/useSystemSettings';
+import {
+  useCreateJobPosition,
+  useUpdateJobPosition,
+  useJobPositions,
+} from '../../../hooks/queries/useJobPositions';
+import { toPlainString } from '../../../utils/strings';
+import { translateText } from '../../../utils/translate';
+import {
+  normalizeFieldConfig,
+  getDefaultFieldConfig,
+} from '../../../utils/jobUtils';
+import type { JobFieldConfig } from '../../../utils/jobUtils';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   DndContext,
   closestCenter,
@@ -45,7 +53,6 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-
 type JobSpec = {
   spec: string;
   specAr?: string;
@@ -57,17 +64,17 @@ type SubField = {
   label: string;
   labelAr?: string;
   inputType:
-    | "text"
-    | "number"
-    | "email"
-    | "date"
-    | "checkbox"
-    | "radio"
-    | "dropdown"
-    | "textarea"
-    | "url"
-    | "tags"
-    | "repeatable_group";
+    | 'text'
+    | 'number'
+    | 'email'
+    | 'date'
+    | 'checkbox'
+    | 'radio'
+    | 'dropdown'
+    | 'textarea'
+    | 'url'
+    | 'tags'
+    | 'repeatable_group';
   isRequired: boolean;
   choices?: string[];
   choicesAr?: string[];
@@ -78,17 +85,17 @@ type CustomField = {
   label: string;
   labelAr?: string;
   inputType:
-    | "text"
-    | "number"
-    | "email"
-    | "date"
-    | "checkbox"
-    | "radio"
-    | "dropdown"
-    | "textarea"
-    | "url"
-    | "tags"
-    | "repeatable_group";
+    | 'text'
+    | 'number'
+    | 'email'
+    | 'date'
+    | 'checkbox'
+    | 'radio'
+    | 'dropdown'
+    | 'textarea'
+    | 'url'
+    | 'tags'
+    | 'repeatable_group';
   isRequired: boolean;
   minValue?: number;
   maxValue?: number;
@@ -107,53 +114,55 @@ type CompanyStatus = {
   name?: string;
 };
 
-const getApplicantFieldConfigMeta = (t: (key: string, ns?: string) => string): Array<{
+const getApplicantFieldConfigMeta = (
+  t: (key: string, ns?: string) => string
+): Array<{
   key: keyof JobFieldConfig;
   label: string;
   description: string;
 }> => [
   {
-    key: "fullName",
+    key: 'fullName',
     label: t('createFieldFullName', 'jobs'),
     description: t('createFieldFullNameDesc', 'jobs'),
   },
   {
-    key: "email",
+    key: 'email',
     label: t('createFieldEmail', 'jobs'),
     description: t('createFieldEmailDesc', 'jobs'),
   },
   {
-    key: "phone",
+    key: 'phone',
     label: t('createFieldPhone', 'jobs'),
     description: t('createFieldPhoneDesc', 'jobs'),
   },
   {
-    key: "gender",
+    key: 'gender',
     label: t('createFieldGender', 'jobs'),
     description: t('createFieldGenderDesc', 'jobs'),
   },
   {
-    key: "birthDate",
+    key: 'birthDate',
     label: t('createFieldBirthDate', 'jobs'),
     description: t('createFieldBirthDateDesc', 'jobs'),
   },
   {
-    key: "address",
+    key: 'address',
     label: t('createFieldAddress', 'jobs'),
     description: t('createFieldAddressDesc', 'jobs'),
   },
   {
-    key: "profilePhoto",
+    key: 'profilePhoto',
     label: t('createFieldPhoto', 'jobs'),
     description: t('createFieldPhotoDesc', 'jobs'),
   },
   {
-    key: "cvFilePath",
+    key: 'cvFilePath',
     label: t('createFieldCv', 'jobs'),
     description: t('createFieldCvDesc', 'jobs'),
   },
   {
-    key: "expectedSalary",
+    key: 'expectedSalary',
     label: t('createFieldSalary', 'jobs'),
     description: t('createFieldSalaryDesc', 'jobs'),
   },
@@ -183,7 +192,11 @@ const normalizeAllowedStatuses = (
       if (!entry) return '';
       if (typeof entry === 'string') {
         const trimmed = entry.trim();
-        return statusMap.get(trimmed) || statusMap.get(normalizeStatusLabel(trimmed)) || trimmed;
+        return (
+          statusMap.get(trimmed) ||
+          statusMap.get(normalizeStatusLabel(trimmed)) ||
+          trimmed
+        );
       }
       if (typeof entry === 'object') {
         const id = String(entry._id || entry.id || '').trim();
@@ -222,34 +235,49 @@ type JobForm = {
 };
 
 const inputTypeOptions = (t: (key: string, ns?: string) => string) => [
-  { value: "text", label: t('createInputTypeText', 'jobs') },
-  { value: "number", label: t('createInputTypeNumber', 'jobs') },
-  { value: "email", label: t('createInputTypeEmail', 'jobs') },
-  { value: "date", label: t('createInputTypeDate', 'jobs') },
-  { value: "url", label: t('createInputTypeUrl', 'jobs') },
-  { value: "checkbox", label: t('createInputTypeCheckbox', 'jobs') },
-  { value: "radio", label: t('createInputTypeRadio', 'jobs') },
-  { value: "dropdown", label: t('createInputTypeDropdown', 'jobs') },
-  { value: "textarea", label: t('createInputTypeTextarea', 'jobs') },
-  { value: "tags", label: t('createInputTypeTags', 'jobs') },
-  { value: "repeatable_group", label: t('createInputTypeGroup', 'jobs') },
+  { value: 'text', label: t('createInputTypeText', 'jobs') },
+  { value: 'number', label: t('createInputTypeNumber', 'jobs') },
+  { value: 'email', label: t('createInputTypeEmail', 'jobs') },
+  { value: 'date', label: t('createInputTypeDate', 'jobs') },
+  { value: 'url', label: t('createInputTypeUrl', 'jobs') },
+  { value: 'checkbox', label: t('createInputTypeCheckbox', 'jobs') },
+  { value: 'radio', label: t('createInputTypeRadio', 'jobs') },
+  { value: 'dropdown', label: t('createInputTypeDropdown', 'jobs') },
+  { value: 'textarea', label: t('createInputTypeTextarea', 'jobs') },
+  { value: 'tags', label: t('createInputTypeTags', 'jobs') },
+  { value: 'repeatable_group', label: t('createInputTypeGroup', 'jobs') },
 ];
 
 const subFieldTypeOptions = (t: (key: string, ns?: string) => string) => [
-  { value: "text", label: t('createInputTypeText', 'jobs') },
-  { value: "textarea", label: t('createInputTypeTextarea', 'jobs') },
-  { value: "number", label: t('createInputTypeNumber', 'jobs') },
-  { value: "email", label: t('createInputTypeEmail', 'jobs') },
-  { value: "date", label: t('createInputTypeDate', 'jobs') },
-  { value: "radio", label: t('createInputTypeRadio', 'jobs') },
-  { value: "dropdown", label: t('createInputTypeDropdown', 'jobs') },
-  { value: "checkbox", label: t('createInputTypeCheckbox', 'jobs') },
-  { value: "url", label: t('createInputTypeUrl', 'jobs') },
-  { value: "tags", label: t('createInputTypeTags', 'jobs') },
+  { value: 'text', label: t('createInputTypeText', 'jobs') },
+  { value: 'textarea', label: t('createInputTypeTextarea', 'jobs') },
+  { value: 'number', label: t('createInputTypeNumber', 'jobs') },
+  { value: 'email', label: t('createInputTypeEmail', 'jobs') },
+  { value: 'date', label: t('createInputTypeDate', 'jobs') },
+  { value: 'radio', label: t('createInputTypeRadio', 'jobs') },
+  { value: 'dropdown', label: t('createInputTypeDropdown', 'jobs') },
+  { value: 'checkbox', label: t('createInputTypeCheckbox', 'jobs') },
+  { value: 'url', label: t('createInputTypeUrl', 'jobs') },
+  { value: 'tags', label: t('createInputTypeTags', 'jobs') },
 ];
 
-function SortableCustomFieldCard({ id, children, dragHandle }: { id: string; children: ReactNode; dragHandle: ReactNode }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+function SortableCustomFieldCard({
+  id,
+  children,
+  dragHandle,
+}: {
+  id: string;
+  children: ReactNode;
+  dragHandle: ReactNode;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -258,7 +286,11 @@ function SortableCustomFieldCard({ id, children, dragHandle }: { id: string; chi
   };
   return (
     <div ref={setNodeRef} style={style} className="relative">
-      <div {...attributes} {...listeners} className="absolute left-2 top-1/2 z-10 -translate-y-1/2 cursor-grab active:cursor-grabbing">
+      <div
+        {...attributes}
+        {...listeners}
+        className="absolute left-2 top-1/2 z-10 -translate-y-1/2 cursor-grab active:cursor-grabbing"
+      >
         {dragHandle}
       </div>
       {children}
@@ -271,7 +303,7 @@ export default function CreateJob() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const location = useLocation();
-  const editJobId = searchParams.get("id");
+  const editJobId = searchParams.get('id');
   const jobFromState = location.state?.job;
   const { user } = useAuth();
   const { t, locale } = useLocale();
@@ -279,16 +311,16 @@ export default function CreateJob() {
   const userRole = user?.role ? String(user.role).toLowerCase() : undefined;
 
   const isAdmin =
-    userRole === "admin" ||
-    userRole === "super_admin" ||
-    userRole === "superadmin" ||
+    userRole === 'admin' ||
+    userRole === 'super_admin' ||
+    userRole === 'superadmin' ||
     ((user as any)?.roleId &&
-      typeof (user as any).roleId === "object" &&
-      (String((user as any).roleId.name).toLowerCase() === "admin" ||
-        String((user as any).roleId.name).toLowerCase() === "super_admin" ||
-        String((user as any).roleId.name).toLowerCase() === "superadmin" ||
-        String((user as any).roleId.name) === "Admin" ||
-        String((user as any).roleId.name) === "Super Admin"));
+      typeof (user as any).roleId === 'object' &&
+      (String((user as any).roleId.name).toLowerCase() === 'admin' ||
+        String((user as any).roleId.name).toLowerCase() === 'super_admin' ||
+        String((user as any).roleId.name).toLowerCase() === 'superadmin' ||
+        String((user as any).roleId.name) === 'Admin' ||
+        String((user as any).roleId.name) === 'Super Admin'));
 
   // Check if user has multiple companies assigned
   const userCompaniesCount = user?.companies?.length || 0;
@@ -298,23 +330,28 @@ export default function CreateJob() {
   // Determine companyId to pass to company queries (undefined for super admin -> fetch all)
   const companyId = useMemo(() => {
     if (!user) return undefined;
-    const roleName = (user as any)?.roleId?.name || String(user.role || "");
+    const roleName = (user as any)?.roleId?.name || String(user.role || '');
     const normalized = String(roleName).toLowerCase();
-    const isSuperAdmin = normalized === "super admin" || normalized === "superadmin" || normalized === "super_admin";
+    const isSuperAdmin =
+      normalized === 'super admin' ||
+      normalized === 'superadmin' ||
+      normalized === 'super_admin';
     if (isSuperAdmin) return undefined;
-    const ids = user.companies?.map((c: any) => (typeof c.companyId === "string" ? c.companyId : c.companyId?._id));
+    const ids = user.companies?.map((c: any) =>
+      typeof c.companyId === 'string' ? c.companyId : c.companyId?._id
+    );
     return ids && ids.length ? ids : undefined;
   }, [user?.companies, user?.roleId?.name, user?.role]);
 
   // Explicitly detect super admin for clarity
   const isSuperAdmin = useMemo(() => {
     if (!user) return false;
-    const roleName = (user as any)?.roleId?.name || String(user.role || "");
+    const roleName = (user as any)?.roleId?.name || String(user.role || '');
     const normalized = String(roleName).toLowerCase();
     return (
-      normalized === "super admin" ||
-      normalized === "superadmin" ||
-      normalized === "super_admin"
+      normalized === 'super admin' ||
+      normalized === 'superadmin' ||
+      normalized === 'super_admin'
     );
   }, [user?.role, user?.roleId?.name]);
 
@@ -327,20 +364,20 @@ export default function CreateJob() {
   }, [isSuperAdmin, companyId]);
 
   const [jobForm, setJobForm] = useState<JobForm>({
-    companyId: "",
-    departmentId: "",
-    jobCode: "",
-    title: "",
-    titleAr: "",
-    description: "",
-    descriptionAr: "",
+    companyId: '',
+    departmentId: '',
+    jobCode: '',
+    title: '',
+    titleAr: '',
+    description: '',
+    descriptionAr: '',
     salary: 0,
     salaryVisible: true,
     fieldConfig: getDefaultFieldConfig(),
     bilingual: false,
     openPositions: 1,
-    registrationStart: "",
-    registrationEnd: "",
+    registrationStart: '',
+    registrationEnd: '',
     allowedStatuses: [],
     hideAfterRegistrationEnd: false,
     termsAndConditions: [],
@@ -351,41 +388,127 @@ export default function CreateJob() {
     workArrangement: 'on-site',
   });
 
-  const [newTerm, setNewTerm] = useState("");
-  const [newTermAr, setNewTermAr] = useState("");
+  const [newTerm, setNewTerm] = useState('');
+  const [newTermAr, setNewTermAr] = useState('');
   const [newChoice, setNewChoice] = useState<Record<number, string>>({});
   const [newChoiceAr, setNewChoiceAr] = useState<Record<number, string>>({});
-  const [newSubFieldChoice, setNewSubFieldChoice] = useState<Record<string, string>>({});
-  const [newSubFieldChoiceAr, setNewSubFieldChoiceAr] = useState<Record<string, string>>({});
-  const [collapsedFields, setCollapsedFields] = useState<Set<number>>(new Set());
+  const [newSubFieldChoice, setNewSubFieldChoice] = useState<
+    Record<string, string>
+  >({});
+  const [newSubFieldChoiceAr, setNewSubFieldChoiceAr] = useState<
+    Record<string, string>
+  >({});
+  const [collapsedFields, setCollapsedFields] = useState<Set<number>>(
+    new Set()
+  );
   const [editingFieldIndex, setEditingFieldIndex] = useState<number | null>(
     null
   );
   const [editingTermIndex, setEditingTermIndex] = useState<number | null>(null);
   const [editingSpecIndex, setEditingSpecIndex] = useState<number | null>(null);
-  const [jobStatus, setJobStatus] = useState("");
+  const [jobStatus, setJobStatus] = useState('');
   const [isEditMode, setIsEditMode] = useState(false);
-  const [formError, setFormError] = useState("");
+  const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedJobId, setSelectedJobId] = useState<string>("");
+  const [selectedJobId, setSelectedJobId] = useState<string>('');
   const [translatingAll, setTranslatingAll] = useState(false);
 
   // Use React Query hooks for data fetching
-  const { data: allCompanies = [], isLoading: companiesLoading } = useCompanies(companyId as any);
+  const { data: allCompanies = [], isLoading: companiesLoading } = useCompanies(
+    companyId as any
+  );
   // Fetch jobs for duplication dropdown. Always fetch only active jobs.
   // Super Admin: companyId is undefined -> fetches active jobs across all companies
   // Regular users: companyId contains their assigned company IDs -> fetches active jobs for those companies
-  const { data: allJobs = [], isLoading: jobsLoading } = useJobPositions(companyIdForJobQuery, false);
+  const { data: allJobs = [], isLoading: jobsLoading } = useJobPositions(
+    companyIdForJobQuery,
+    false
+  );
   const createJobMutation = useCreateJobPosition();
+  const generateFieldsMutation = useGenerateJobFields();
+  const [aiPrompt, setAiPrompt] = useState('');
+
+  const handleGenerateWithAI = async () => {
+    if (!jobForm.companyId) {
+      await Swal.fire({
+        title: t('createValidationError', 'jobs'),
+        text: t('createValSelectCompany', 'jobs'),
+        icon: 'error',
+        confirmButtonText: t('createOk', 'jobs'),
+      });
+      return;
+    }
+    if (!aiPrompt.trim()) return;
+
+    generateFieldsMutation.mutate(
+      {
+        companyId: jobForm.companyId,
+        jobTitle: jobForm.title,
+        prompt: aiPrompt,
+      },
+      {
+        onSuccess: (res) => {
+          setJobForm((prev) => ({
+            ...prev,
+            title: res.title || prev.title,
+            description: res.description || prev.description,
+            jobSpecs: res.jobSpecs?.length
+              ? res.jobSpecs.map((s) => ({
+                  spec: s.spec,
+                  specAr: '',
+                  weight: s.weight,
+                }))
+              : prev.jobSpecs,
+            termsAndConditions: res.termsAndConditions?.length
+              ? [...prev.termsAndConditions, ...res.termsAndConditions]
+              : prev.termsAndConditions,
+            termsAndConditionsAr: res.termsAndConditions?.length
+              ? [
+                  ...prev.termsAndConditionsAr,
+                  ...res.termsAndConditions.map(() => ''),
+                ]
+              : prev.termsAndConditionsAr,
+            customFields: res.customFields?.length
+              ? [
+                  ...prev.customFields,
+                  ...res.customFields.map((cf: any) => ({
+                    ...cf,
+                    labelAr: '',
+                    subFields: (cf.groupFields || []).map((sf: any) => ({
+                      ...sf,
+                      labelAr: '',
+                    })),
+                  })),
+                ]
+              : prev.customFields,
+          }));
+          // AI-added fields start collapsed, matching your existing pattern for duplicated/recommended fields
+          if (res.customFields?.length) {
+            setCollapsedFields((prev) => {
+              const next = new Set(prev);
+              const base = jobForm.customFields.length;
+              res.customFields.forEach((_: any, i: number) =>
+                next.add(base + i)
+              );
+              return next;
+            });
+          }
+        },
+      }
+    );
+  };
   const updateJobMutation = useUpdateJobPosition();
-  
+
   // Fetch all departments if admin or has multiple companies, otherwise fetch for specific company
   const shouldFetchAllDepartments = isAdmin || hasMultipleCompanies;
-  const departmentsEnabled = !companiesLoading && (shouldFetchAllDepartments ? true : !!jobForm.companyId);
-  const { data: allDepartments = [], isLoading: departmentsLoading } = useDepartments(
-    shouldFetchAllDepartments ? undefined : (jobForm.companyId || undefined),
-    { enabled: departmentsEnabled }
-  );
+  const departmentsEnabled =
+    !companiesLoading &&
+    (shouldFetchAllDepartments ? true : !!jobForm.companyId);
+  const { data: allDepartments = [], isLoading: departmentsLoading } =
+    useDepartments(
+      shouldFetchAllDepartments ? undefined : jobForm.companyId || undefined,
+      { enabled: departmentsEnabled }
+    );
 
   // Transform companies based on user role
   const companies = useMemo(() => {
@@ -398,9 +521,11 @@ export default function CreateJob() {
       return (
         user?.companies?.map((c) => ({
           value:
-            typeof c.companyId === "string" ? c.companyId : c.companyId._id,
+            typeof c.companyId === 'string' ? c.companyId : c.companyId._id,
           label:
-            typeof c.companyId === "string" ? c.companyId : toPlainString(c.companyId.name),
+            typeof c.companyId === 'string'
+              ? c.companyId
+              : toPlainString(c.companyId.name),
         })) || []
       );
     }
@@ -413,12 +538,13 @@ export default function CreateJob() {
       if (!jobForm.companyId) {
         return []; // No company selected, show no departments
       }
-      
+
       return allDepartments
         .filter((dept) => {
-          const deptCompanyId = typeof dept.companyId === 'string' 
-            ? dept.companyId 
-            : (dept.companyId as any)?._id;
+          const deptCompanyId =
+            typeof dept.companyId === 'string'
+              ? dept.companyId
+              : (dept.companyId as any)?._id;
           return deptCompanyId === jobForm.companyId;
         })
         .map((dept) => ({
@@ -436,15 +562,16 @@ export default function CreateJob() {
 
   const isLoading = companiesLoading;
 
-  const departmentSelectDisabled = departmentsLoading || (!jobForm.companyId && shouldFetchAllDepartments);
+  const departmentSelectDisabled =
+    departmentsLoading || (!jobForm.companyId && shouldFetchAllDepartments);
 
   const getJobCompanyId = (job: any): string => {
     const companyValue = job?.companyId;
-    if (typeof companyValue === "string") return companyValue;
-    if (companyValue && typeof companyValue === "object") {
-      return companyValue._id || companyValue.id || "";
+    if (typeof companyValue === 'string') return companyValue;
+    if (companyValue && typeof companyValue === 'object') {
+      return companyValue._id || companyValue.id || '';
     }
-    return "";
+    return '';
   };
 
   const nextCompanyOrder = useMemo(() => {
@@ -483,22 +610,22 @@ export default function CreateJob() {
     ) {
       return err.response.data.details
         .map((detail: any) => {
-          const field = detail.path?.[0] || "";
-          const message = detail.message || "";
+          const field = detail.path?.[0] || '';
+          const message = detail.message || '';
           return field ? `${field}: ${message}` : message;
         })
-        .join(", ");
+        .join(', ');
     }
     // Check for validation errors in 'errors' array (old format)
     if (err.response?.data?.errors) {
       const errors = err.response.data.errors;
       if (Array.isArray(errors)) {
-        return errors.map((e: any) => e.msg || e.message).join(", ");
+        return errors.map((e: any) => e.msg || e.message).join(', ');
       }
-      if (typeof errors === "object") {
+      if (typeof errors === 'object') {
         return Object.entries(errors)
           .map(([field, msg]) => `${field}: ${msg}`)
-          .join(", ");
+          .join(', ');
       }
     }
     if (err.response?.data?.message) return err.response.data.message;
@@ -511,24 +638,24 @@ export default function CreateJob() {
   // Handle job selection for duplication
   const handleJobSelect = (jobId: string) => {
     setSelectedJobId(jobId);
-    
+
     if (!jobId) {
       // Reset form if no job selected
       setJobForm({
-        companyId: jobForm.companyId || "",
-        departmentId: "",
-        jobCode: "",
-        title: "",
-        titleAr: "",
-        description: "",
-        descriptionAr: "",
+        companyId: jobForm.companyId || '',
+        departmentId: '',
+        jobCode: '',
+        title: '',
+        titleAr: '',
+        description: '',
+        descriptionAr: '',
         salary: 0,
         salaryVisible: true,
         fieldConfig: getDefaultFieldConfig(),
         bilingual: false,
         openPositions: 1,
-        registrationStart: "",
-        registrationEnd: "",
+        registrationStart: '',
+        registrationEnd: '',
         allowedStatuses: [],
         hideAfterRegistrationEnd: false,
         termsAndConditions: [],
@@ -540,21 +667,36 @@ export default function CreateJob() {
       });
       return;
     }
-    
+
     const selectedJob = allJobs.find((j: any) => j._id === jobId);
     if (selectedJob) {
       // Extract company and department IDs
-      const departmentId = typeof selectedJob.departmentId === 'string' ? selectedJob.departmentId : (selectedJob.departmentId as any)?._id;
+      const departmentId =
+        typeof selectedJob.departmentId === 'string'
+          ? selectedJob.departmentId
+          : (selectedJob.departmentId as any)?._id;
 
       // Populate form with selected job data (with "Copy" suffix)
       setJobForm({
-        companyId: "",
-        departmentId: departmentId || "",
-        jobCode: "", // Will be auto-generated
-        title: (typeof selectedJob.title === 'object' ? selectedJob.title.en : selectedJob.title),
-titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selectedJob.title.ar : '',
-        description: typeof selectedJob.description === 'object' ? selectedJob.description.en || '' : (selectedJob.description || ''),
-        descriptionAr: typeof selectedJob.description === 'object' ? selectedJob.description.ar || '' : '',
+        companyId: '',
+        departmentId: departmentId || '',
+        jobCode: '', // Will be auto-generated
+        title:
+          typeof selectedJob.title === 'object'
+            ? selectedJob.title.en
+            : selectedJob.title,
+        titleAr:
+          typeof selectedJob.title === 'object' && selectedJob.title.ar
+            ? selectedJob.title.ar
+            : '',
+        description:
+          typeof selectedJob.description === 'object'
+            ? selectedJob.description.en || ''
+            : selectedJob.description || '',
+        descriptionAr:
+          typeof selectedJob.description === 'object'
+            ? selectedJob.description.ar || ''
+            : '',
         salary: selectedJob.salary || 0,
         salaryVisible: selectedJob.salaryVisible ?? true,
         fieldConfig: normalizeFieldConfig(
@@ -563,17 +705,29 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
         ),
         bilingual: selectedJob.bilingual ?? false,
         openPositions: selectedJob.openPositions || 1,
-        registrationStart: selectedJob.registrationStart ? new Date(selectedJob.registrationStart).toISOString().split("T")[0] : "",
-        registrationEnd: selectedJob.registrationEnd ? new Date(selectedJob.registrationEnd).toISOString().split("T")[0] : "",
+        registrationStart: selectedJob.registrationStart
+          ? new Date(selectedJob.registrationStart).toISOString().split('T')[0]
+          : '',
+        registrationEnd: selectedJob.registrationEnd
+          ? new Date(selectedJob.registrationEnd).toISOString().split('T')[0]
+          : '',
         allowedStatuses: Array.isArray((selectedJob as any).allowedStatuses)
-          ? (selectedJob as any).allowedStatuses.map((status: any) => String(status || '').trim()).filter(Boolean)
+          ? (selectedJob as any).allowedStatuses
+              .map((status: any) => String(status || '').trim())
+              .filter(Boolean)
           : [],
-        hideAfterRegistrationEnd: Boolean((selectedJob as any).hideAfterRegistrationEnd),
+        hideAfterRegistrationEnd: Boolean(
+          (selectedJob as any).hideAfterRegistrationEnd
+        ),
         termsAndConditions: Array.isArray(selectedJob.termsAndConditions)
-          ? selectedJob.termsAndConditions.map((t: any) => typeof t === 'string' ? t : t?.en || '')
+          ? selectedJob.termsAndConditions.map((t: any) =>
+              typeof t === 'string' ? t : t?.en || ''
+            )
           : [],
         termsAndConditionsAr: Array.isArray(selectedJob.termsAndConditions)
-          ? selectedJob.termsAndConditions.map((t: any) => typeof t === 'object' ? t?.ar || '' : '')
+          ? selectedJob.termsAndConditions.map((t: any) =>
+              typeof t === 'object' ? t?.ar || '' : ''
+            )
           : [],
         jobSpecs: Array.isArray(selectedJob.jobSpecs)
           ? selectedJob.jobSpecs.map((s: any) => ({
@@ -585,30 +739,43 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
         customFields: Array.isArray(selectedJob.customFields)
           ? selectedJob.customFields.map((cf: any) => ({
               fieldId: `dup_${Date.now()}_${Math.random()}`,
-              label: typeof cf.label === 'string' ? cf.label : cf.label?.en || '',
+              label:
+                typeof cf.label === 'string' ? cf.label : cf.label?.en || '',
               labelAr: typeof cf.label === 'object' ? cf.label?.ar || '' : '',
               inputType: cf.inputType,
               isRequired: cf.isRequired,
               minValue: cf.minValue,
               maxValue: cf.maxValue,
               choices: Array.isArray(cf.choices)
-                ? cf.choices.map((c: any) => typeof c === 'string' ? c : c?.en || '')
+                ? cf.choices.map((c: any) =>
+                    typeof c === 'string' ? c : c?.en || ''
+                  )
                 : [],
               choicesAr: Array.isArray(cf.choices)
-                ? cf.choices.map((c: any) => typeof c === 'object' ? c?.ar || '' : '')
+                ? cf.choices.map((c: any) =>
+                    typeof c === 'object' ? c?.ar || '' : ''
+                  )
                 : [],
               subFields: Array.isArray(cf.groupFields || cf.subFields)
                 ? (cf.groupFields || cf.subFields).map((sf: any) => ({
                     fieldId: `dup_sub_${Date.now()}_${Math.random()}`,
-                    label: typeof sf.label === 'string' ? sf.label : sf.label?.en || '',
-                    labelAr: typeof sf.label === 'object' ? sf.label?.ar || '' : '',
+                    label:
+                      typeof sf.label === 'string'
+                        ? sf.label
+                        : sf.label?.en || '',
+                    labelAr:
+                      typeof sf.label === 'object' ? sf.label?.ar || '' : '',
                     inputType: sf.inputType,
                     isRequired: sf.isRequired,
                     choices: Array.isArray(sf.choices)
-                      ? sf.choices.map((c: any) => typeof c === 'string' ? c : c?.en || '')
+                      ? sf.choices.map((c: any) =>
+                          typeof c === 'string' ? c : c?.en || ''
+                        )
                       : [],
                     choicesAr: Array.isArray(sf.choices)
-                      ? sf.choices.map((c: any) => typeof c === 'object' ? c?.ar || '' : '')
+                      ? sf.choices.map((c: any) =>
+                          typeof c === 'object' ? c?.ar || '' : ''
+                        )
                       : [],
                   }))
                 : [],
@@ -618,10 +785,14 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
         employmentType: selectedJob.employmentType || 'full-time',
         workArrangement: selectedJob.workArrangement || 'on-site',
       });
-      
+
       // Collapse all custom fields by default when duplicating
       if (selectedJob.customFields && selectedJob.customFields.length > 0) {
-        setCollapsedFields(new Set(Array.from({ length: selectedJob.customFields.length }, (_, i) => i)));
+        setCollapsedFields(
+          new Set(
+            Array.from({ length: selectedJob.customFields.length }, (_, i) => i)
+          )
+        );
       }
     }
   };
@@ -632,45 +803,49 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
       if (editJobId && !jobDataLoaded.current && companies.length > 0) {
         try {
           setIsEditMode(true);
-          
+
           // Use job data from state if available, otherwise fetch from API
-          const job = jobFromState || await jobPositionsService.getJobPositionById(editJobId);
+          const job =
+            jobFromState ||
+            (await jobPositionsService.getJobPositionById(editJobId));
 
           // Normalize company and department IDs
           const companyId =
-            typeof job.companyId === "string"
+            typeof job.companyId === 'string'
               ? job.companyId
               : (job.companyId as any)?._id;
           const departmentId =
-            typeof job.departmentId === "string"
+            typeof job.departmentId === 'string'
               ? job.departmentId
               : (job.departmentId as any)?._id;
 
           // Format dates for input fields
           const formatDateForInput = (dateString?: string) => {
-            if (!dateString) return "";
+            if (!dateString) return '';
             const date = new Date(dateString);
-            return date.toISOString().split("T")[0];
+            return date.toISOString().split('T')[0];
           };
 
           setJobForm({
-            companyId: companyId || "",
-            departmentId: departmentId || "",
-            jobCode: job.jobCode || "",
+            companyId: companyId || '',
+            departmentId: departmentId || '',
+            jobCode: job.jobCode || '',
             title:
-              (typeof job.title === "object" && job.title?.en) ||
-              (typeof job.title === "string" ? job.title : ""),
-            titleAr:
-              (typeof job.title === "object" && job.title?.ar) || "",
+              (typeof job.title === 'object' && job.title?.en) ||
+              (typeof job.title === 'string' ? job.title : ''),
+            titleAr: (typeof job.title === 'object' && job.title?.ar) || '',
             description:
-              (typeof job.description === "object" && job.description?.en) ||
-              (typeof job.description === "string" ? job.description : ""),
+              (typeof job.description === 'object' && job.description?.en) ||
+              (typeof job.description === 'string' ? job.description : ''),
             descriptionAr:
-              (typeof job.description === "object" && job.description?.ar) || "",
+              (typeof job.description === 'object' && job.description?.ar) ||
+              '',
             salary:
               // handle previous shape { min } or new numeric salary
-              (job.salary && typeof job.salary === "object" && (job.salary as any).min) ||
-              (typeof job.salary === "number" ? job.salary : 0),
+              (job.salary &&
+                typeof job.salary === 'object' &&
+                (job.salary as any).min) ||
+              (typeof job.salary === 'number' ? job.salary : 0),
             salaryVisible: job.salaryVisible ?? true,
             fieldConfig: normalizeFieldConfig(
               (job as any).fieldConfig,
@@ -681,90 +856,128 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
             registrationStart: formatDateForInput(job.registrationStart),
             registrationEnd: formatDateForInput(job.registrationEnd),
             allowedStatuses: Array.isArray((job as any).allowedStatuses)
-              ? (job as any).allowedStatuses.map((status: any) => String(status || '').trim()).filter(Boolean)
+              ? (job as any).allowedStatuses
+                  .map((status: any) => String(status || '').trim())
+                  .filter(Boolean)
               : [],
-            hideAfterRegistrationEnd: Boolean((job as any).hideAfterRegistrationEnd),
+            hideAfterRegistrationEnd: Boolean(
+              (job as any).hideAfterRegistrationEnd
+            ),
             termsAndConditions:
               job.termsAndConditions && job.termsAndConditions.length > 0
                 ? job.termsAndConditions.map((t: any) =>
-                    typeof t === "string" ? t : t?.en || ""
+                    typeof t === 'string' ? t : t?.en || ''
                   )
                 : job.requirements && job.requirements.length > 0
-                ? job.requirements
-                : [],
+                  ? job.requirements
+                  : [],
             termsAndConditionsAr:
               job.termsAndConditions && job.termsAndConditions.length > 0
                 ? job.termsAndConditions.map((t: any) =>
-                    typeof t === "string" ? "" : t?.ar || ""
+                    typeof t === 'string' ? '' : t?.ar || ''
                   )
                 : [],
             jobSpecs:
               job.jobSpecs && job.jobSpecs.length > 0
                 ? job.jobSpecs.map((s: any) => ({
-                    spec: typeof s.spec === "string" ? s.spec : s.spec?.en || "",
-                    specAr: typeof s.spec === "object" ? s.spec?.ar || "" : "",
+                    spec:
+                      typeof s.spec === 'string' ? s.spec : s.spec?.en || '',
+                    specAr: typeof s.spec === 'object' ? s.spec?.ar || '' : '',
                     weight: s.weight || 0,
                   }))
                 : [],
             customFields: Array.isArray(job.customFields)
               ? (job.customFields as any[]).map((cf: any) => ({
                   fieldId: cf.fieldId,
-                  label: typeof cf.label === "string" ? cf.label : cf.label?.en || "",
-                  labelAr: typeof cf.label === "object" ? cf.label?.ar || "" : "",
+                  label:
+                    typeof cf.label === 'string'
+                      ? cf.label
+                      : cf.label?.en || '',
+                  labelAr:
+                    typeof cf.label === 'object' ? cf.label?.ar || '' : '',
                   inputType: cf.inputType,
                   isRequired: cf.isRequired,
                   minValue: cf.minValue,
                   maxValue: cf.maxValue,
                   choices: Array.isArray(cf.choices)
-                    ? cf.choices.map((c: any) => (typeof c === "string" ? c : c?.en || ""))
+                    ? cf.choices.map((c: any) =>
+                        typeof c === 'string' ? c : c?.en || ''
+                      )
                     : [],
                   choicesAr: Array.isArray(cf.choices)
-                    ? cf.choices.map((c: any) => (typeof c === "object" ? c?.ar || "" : ""))
+                    ? cf.choices.map((c: any) =>
+                        typeof c === 'object' ? c?.ar || '' : ''
+                      )
                     : [],
                   subFields: Array.isArray(cf.groupFields)
                     ? cf.groupFields.map((sf: any) => ({
                         fieldId: sf.fieldId,
-                        label: typeof sf.label === "string" ? sf.label : sf.label?.en || "",
-                        labelAr: typeof sf.label === "object" ? sf.label?.ar || "" : "",
+                        label:
+                          typeof sf.label === 'string'
+                            ? sf.label
+                            : sf.label?.en || '',
+                        labelAr:
+                          typeof sf.label === 'object'
+                            ? sf.label?.ar || ''
+                            : '',
                         inputType: sf.inputType,
                         isRequired: sf.isRequired,
                         choices: Array.isArray(sf.choices)
-                          ? sf.choices.map((c: any) => (typeof c === "string" ? c : c?.en || ""))
+                          ? sf.choices.map((c: any) =>
+                              typeof c === 'string' ? c : c?.en || ''
+                            )
                           : [],
                         choicesAr: Array.isArray(sf.choices)
-                          ? sf.choices.map((c: any) => (typeof c === "object" ? c?.ar || "" : ""))
+                          ? sf.choices.map((c: any) =>
+                              typeof c === 'object' ? c?.ar || '' : ''
+                            )
                           : [],
                       }))
                     : Array.isArray(cf.subFields)
-                    ? cf.subFields.map((sf: any) => ({
-                        fieldId: sf.fieldId,
-                        label: typeof sf.label === "string" ? sf.label : sf.label?.en || "",
-                        labelAr: typeof sf.label === "object" ? sf.label?.ar || "" : "",
-                        inputType: sf.inputType,
-                        isRequired: sf.isRequired,
-                        choices: Array.isArray(sf.choices)
-                          ? sf.choices.map((c: any) => (typeof c === "string" ? c : c?.en || ""))
-                          : [],
-                        choicesAr: Array.isArray(sf.choices)
-                          ? sf.choices.map((c: any) => (typeof c === "object" ? c?.ar || "" : ""))
-                          : [],
-                      }))
-                    : [],
+                      ? cf.subFields.map((sf: any) => ({
+                          fieldId: sf.fieldId,
+                          label:
+                            typeof sf.label === 'string'
+                              ? sf.label
+                              : sf.label?.en || '',
+                          labelAr:
+                            typeof sf.label === 'object'
+                              ? sf.label?.ar || ''
+                              : '',
+                          inputType: sf.inputType,
+                          isRequired: sf.isRequired,
+                          choices: Array.isArray(sf.choices)
+                            ? sf.choices.map((c: any) =>
+                                typeof c === 'string' ? c : c?.en || ''
+                              )
+                            : [],
+                          choicesAr: Array.isArray(sf.choices)
+                            ? sf.choices.map((c: any) =>
+                                typeof c === 'object' ? c?.ar || '' : ''
+                              )
+                            : [],
+                        }))
+                      : [],
                   displayOrder: cf.displayOrder ?? cf.order ?? 0,
                 }))
               : [],
-            employmentType: normalizeEmploymentType(job.employmentType) || 'full-time',
+            employmentType:
+              normalizeEmploymentType(job.employmentType) || 'full-time',
             workArrangement: (job as any).workArrangement || 'on-site',
           });
 
           // Collapse all custom fields by default when editing
           if (job.customFields && job.customFields.length > 0) {
-            setCollapsedFields(new Set(Array.from({ length: job.customFields.length }, (_, i) => i)));
+            setCollapsedFields(
+              new Set(
+                Array.from({ length: job.customFields.length }, (_, i) => i)
+              )
+            );
           }
 
           jobDataLoaded.current = true;
         } catch (err) {
-          console.error("Failed to load job data:", err);
+          console.error('Failed to load job data:', err);
           const errorMsg = getErrorMessage(err);
           setFormError(errorMsg);
           setJobStatus(`Error: ${errorMsg}`);
@@ -773,11 +986,21 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
     };
 
     loadJobData();
-  }, [editJobId, companies, jobFromState, getErrorMessage, normalizeEmploymentType]);
+  }, [
+    editJobId,
+    companies,
+    jobFromState,
+    getErrorMessage,
+    normalizeEmploymentType,
+  ]);
 
   const selectedCompany = useMemo(() => {
     if (!jobForm.companyId) return null;
-    return (allCompanies as any[]).find((company: any) => company._id === jobForm.companyId) || null;
+    return (
+      (allCompanies as any[]).find(
+        (company: any) => company._id === jobForm.companyId
+      ) || null
+    );
   }, [allCompanies, jobForm.companyId]);
 
   const allowedStatusOptions = useMemo(() => {
@@ -800,9 +1023,18 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
   useEffect(() => {
     if (!jobForm.companyId) return;
     setJobForm((prev) => {
-      const normalized = normalizeAllowedStatuses(prev.allowedStatuses, selectedCompany?.settings?.statuses || []);
-      const sameLength = normalized.length === (Array.isArray(prev.allowedStatuses) ? prev.allowedStatuses.length : 0);
-      const sameValues = sameLength && normalized.every((value, index) => value === prev.allowedStatuses[index]);
+      const normalized = normalizeAllowedStatuses(
+        prev.allowedStatuses,
+        selectedCompany?.settings?.statuses || []
+      );
+      const sameLength =
+        normalized.length ===
+        (Array.isArray(prev.allowedStatuses) ? prev.allowedStatuses.length : 0);
+      const sameValues =
+        sameLength &&
+        normalized.every(
+          (value, index) => value === prev.allowedStatuses[index]
+        );
       if (sameValues) return prev;
       return { ...prev, allowedStatuses: normalized };
     });
@@ -821,7 +1053,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
       // Extract the first (and only) company ID from user.companies array
       const firstCompany = (user as any)?.companies?.[0];
       const userCompanyId =
-        typeof firstCompany?.companyId === "string"
+        typeof firstCompany?.companyId === 'string'
           ? firstCompany.companyId
           : firstCompany?.companyId?._id;
 
@@ -836,18 +1068,21 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
   useEffect(() => {
     if (!isEditMode && jobForm.companyId && allCompanies.length > 0) {
       // Find the selected company
-      const selectedCompany = allCompanies.find((c) => c._id === jobForm.companyId);
+      const selectedCompany = allCompanies.find(
+        (c) => c._id === jobForm.companyId
+      );
       if (selectedCompany) {
         // Generate job code: CompanyAbbreviation-Timestamp
-        const companyName = toPlainString((selectedCompany as any).name) || "COMP";
+        const companyName =
+          toPlainString((selectedCompany as any).name) || 'COMP';
         const companyAbbr = companyName
           .split(/\s+/)
           .map((word) => word.charAt(0).toUpperCase())
-          .join("")
+          .join('')
           .slice(0, 4);
         const timestamp = Date.now().toString().slice(-6);
         const autoJobCode = `${companyAbbr}-${timestamp}`;
-        
+
         setJobForm((prev) => ({ ...prev, jobCode: autoJobCode }));
       }
     }
@@ -863,13 +1098,16 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
     value: boolean
   ) => {
     setJobForm((prev) => {
-      const currentRule = prev.fieldConfig[field] ?? { visible: false, required: false };
+      const currentRule = prev.fieldConfig[field] ?? {
+        visible: false,
+        required: false,
+      };
       const nextRule = {
         ...currentRule,
         [prop]: value,
       };
 
-      if (prop === "visible" && !value) {
+      if (prop === 'visible' && !value) {
         nextRule.required = false;
       }
 
@@ -887,10 +1125,22 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
   function normalizeEmploymentType(val: any): EmploymentType | undefined {
     if (!val) return undefined;
     const s = String(val).toLowerCase().trim();
-    if (s === "full-time" || s === "full time" || s === "fulltime" || s === "full") return "full-time";
-    if (s === "part-time" || s === "part time" || s === "parttime" || s === "part") return "part-time";
-    if (s === "contract") return "contract";
-    if (s === "internship" || s === "intern") return "internship";
+    if (
+      s === 'full-time' ||
+      s === 'full time' ||
+      s === 'fulltime' ||
+      s === 'full'
+    )
+      return 'full-time';
+    if (
+      s === 'part-time' ||
+      s === 'part time' ||
+      s === 'parttime' ||
+      s === 'part'
+    )
+      return 'part-time';
+    if (s === 'contract') return 'contract';
+    if (s === 'internship' || s === 'intern') return 'internship';
     return undefined;
   }
 
@@ -901,8 +1151,8 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
         termsAndConditions: [...prev.termsAndConditions, newTerm],
         termsAndConditionsAr: [...prev.termsAndConditionsAr, newTermAr],
       }));
-      setNewTerm("");
-      setNewTermAr("");
+      setNewTerm('');
+      setNewTermAr('');
     }
   };
 
@@ -910,14 +1160,16 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
     setJobForm((prev) => ({
       ...prev,
       termsAndConditions: prev.termsAndConditions.filter((_, i) => i !== index),
-      termsAndConditionsAr: prev.termsAndConditionsAr.filter((_, i) => i !== index),
+      termsAndConditionsAr: prev.termsAndConditionsAr.filter(
+        (_, i) => i !== index
+      ),
     }));
   };
 
   const handleAddJobSpec = () => {
     setJobForm((prev) => ({
       ...prev,
-      jobSpecs: [...prev.jobSpecs, { spec: "", specAr: "", weight: 0 }],
+      jobSpecs: [...prev.jobSpecs, { spec: '', specAr: '', weight: 0 }],
     }));
     // Set the newly added spec to edit mode
     setEditingSpecIndex(jobForm.jobSpecs.length);
@@ -947,8 +1199,8 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
     const tempId = `temp_${Date.now()}`;
     const newField: CustomField = {
       fieldId: tempId,
-      label: "",
-      inputType: "text",
+      label: '',
+      inputType: 'text',
       isRequired: false,
       displayOrder: jobForm.customFields.length + 1,
     };
@@ -957,12 +1209,15 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
       customFields: [...prev.customFields, newField],
     }));
     // New fields start collapsed by default
-    setCollapsedFields(prev => new Set(prev).add(jobForm.customFields.length));
+    setCollapsedFields((prev) =>
+      new Set(prev).add(jobForm.customFields.length)
+    );
     setEditingFieldIndex(jobForm.customFields.length);
   };
 
   // Recommended fields
-  const { data: recommendedFields = [], isLoading: recommendedLoading } = useRecommendedFields();
+  const { data: recommendedFields = [], isLoading: recommendedLoading } =
+    useRecommendedFields();
 
   // Helper to convert API response objects to strings
   const convertToString = (value: any): string => {
@@ -972,9 +1227,9 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
       if (value.en) return value.en;
       // Otherwise it's an indexed object
       return Object.keys(value)
-        .filter(key => !isNaN(Number(key)) && key !== '_id')
+        .filter((key) => !isNaN(Number(key)) && key !== '_id')
         .sort((a, b) => Number(a) - Number(b))
-        .map(key => value[key])
+        .map((key) => value[key])
         .join('');
     }
     return '';
@@ -1001,26 +1256,33 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
   };
 
   const isRecommendedAdded = (fieldId: string) => {
-    return jobForm.customFields.some((cf) => cf.fieldId === `rec_${fieldId}` || cf.fieldId === fieldId);
+    return jobForm.customFields.some(
+      (cf) => cf.fieldId === `rec_${fieldId}` || cf.fieldId === fieldId
+    );
   };
-
-  
 
   // Recommended selection panel state
   const [showRecommendedPanel, setShowRecommendedPanel] = useState(false);
   const [selectedRecommended, setSelectedRecommended] = useState<string[]>([]);
 
   // Saved fields (same UI/logic as recommended fields but for user's saved fields)
-  const { data: savedFields = [], isLoading: savedFieldsLoading } = useSavedFields();
+  const { data: savedFields = [], isLoading: savedFieldsLoading } =
+    useSavedFields();
   const [showSavedPanel, setShowSavedPanel] = useState(false);
   const [selectedSaved, setSelectedSaved] = useState<string[]>([]);
 
   const toggleSelectSaved = (fieldId: string) => {
-    setSelectedSaved((prev) => (prev.includes(fieldId) ? prev.filter((n) => n !== fieldId) : [...prev, fieldId]));
+    setSelectedSaved((prev) =>
+      prev.includes(fieldId)
+        ? prev.filter((n) => n !== fieldId)
+        : [...prev, fieldId]
+    );
   };
 
   const isSavedAdded = (fieldId: string) => {
-    return jobForm.customFields.some((cf) => cf.fieldId === `sav_${fieldId}` || cf.fieldId === fieldId);
+    return jobForm.customFields.some(
+      (cf) => cf.fieldId === `sav_${fieldId}` || cf.fieldId === fieldId
+    );
   };
 
   const handleAddSelectedSaved = () => {
@@ -1028,16 +1290,27 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
     const currentFieldCount = jobForm.customFields.length;
     setJobForm((prev) => {
       const additions: CustomField[] = [];
-      let currentMax = prev.customFields.reduce((m, cf) => Math.max(m, cf.displayOrder || 0), 0);
+      let currentMax = prev.customFields.reduce(
+        (m, cf) => Math.max(m, cf.displayOrder || 0),
+        0
+      );
       selectedSaved.forEach((fieldId) => {
-        if (prev.customFields.some((cf) => cf.fieldId === `sav_${fieldId}` || cf.fieldId === fieldId)) return;
+        if (
+          prev.customFields.some(
+            (cf) => cf.fieldId === `sav_${fieldId}` || cf.fieldId === fieldId
+          )
+        )
+          return;
         const sf = (savedFields as any).find((s: any) => s.fieldId === fieldId);
         if (!sf) return;
         currentMax += 1;
         const newField: CustomField = {
           fieldId: `sav_${sf.fieldId}`,
-          label: convertToString(sf.label) || "",
-          labelAr: (sf.label && typeof sf.label === 'object' && sf.label.ar) ? sf.label.ar : convertToString(sf.label),
+          label: convertToString(sf.label) || '',
+          labelAr:
+            sf.label && typeof sf.label === 'object' && sf.label.ar
+              ? sf.label.ar
+              : convertToString(sf.label),
           inputType: sf.inputType as CustomField['inputType'],
           isRequired: sf.isRequired || false,
           minValue: sf.minValue,
@@ -1047,11 +1320,18 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
           subFields: Array.isArray(sf.groupFields)
             ? sf.groupFields.map((g: any) => ({
                 fieldId: g.fieldId || `sub_${Date.now()}`,
-                label: convertToString(g.label) || "",
-                labelAr: (g.label && typeof g.label === 'object' && g.label.ar) ? g.label.ar : convertToString(g.label),
+                label: convertToString(g.label) || '',
+                labelAr:
+                  g.label && typeof g.label === 'object' && g.label.ar
+                    ? g.label.ar
+                    : convertToString(g.label),
                 inputType: g.inputType as SubField['inputType'],
                 isRequired: g.isRequired || false,
-                choices: Array.isArray(g.choices) ? g.choices.map((c: any) => (typeof c === 'object' && c.en ? c.en : convertToString(c))) : [],
+                choices: Array.isArray(g.choices)
+                  ? g.choices.map((c: any) =>
+                      typeof c === 'object' && c.en ? c.en : convertToString(c)
+                    )
+                  : [],
               }))
             : undefined,
           displayOrder: currentMax,
@@ -1061,7 +1341,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
       return { ...prev, customFields: [...prev.customFields, ...additions] };
     });
     // collapse newly added
-    setCollapsedFields(prev => {
+    setCollapsedFields((prev) => {
       const next = new Set(prev);
       for (let i = 0; i < selectedSaved.length; i++) {
         next.add(currentFieldCount + i);
@@ -1074,7 +1354,9 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
 
   const toggleSelectRecommended = (fieldId: string) => {
     setSelectedRecommended((prev) =>
-      prev.includes(fieldId) ? prev.filter((n) => n !== fieldId) : [...prev, fieldId]
+      prev.includes(fieldId)
+        ? prev.filter((n) => n !== fieldId)
+        : [...prev, fieldId]
     );
   };
 
@@ -1095,32 +1377,54 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
     const currentFieldCount = jobForm.customFields.length;
     setJobForm((prev) => {
       const additions: CustomField[] = [];
-      let currentMax = prev.customFields.reduce((m, cf) => Math.max(m, cf.displayOrder || 0), 0);
+      let currentMax = prev.customFields.reduce(
+        (m, cf) => Math.max(m, cf.displayOrder || 0),
+        0
+      );
       selectedRecommended.forEach((fieldId) => {
-        if (prev.customFields.some((cf) => cf.fieldId === `rec_${fieldId}` || cf.fieldId === fieldId)) return;
+        if (
+          prev.customFields.some(
+            (cf) => cf.fieldId === `rec_${fieldId}` || cf.fieldId === fieldId
+          )
+        )
+          return;
         const rf = recommendedFields.find((r: any) => r.fieldId === fieldId);
         if (!rf) return;
         currentMax += 1;
         const newField: CustomField = {
           fieldId: `rec_${rf.fieldId}`,
-          label: convertToString(rf.label) || "",
-          labelAr: (rf.label && typeof rf.label === 'object' && rf.label.ar) ? rf.label.ar : convertToString(rf.label),
-          inputType: rf.inputType as CustomField["inputType"],
+          label: convertToString(rf.label) || '',
+          labelAr:
+            rf.label && typeof rf.label === 'object' && rf.label.ar
+              ? rf.label.ar
+              : convertToString(rf.label),
+          inputType: rf.inputType as CustomField['inputType'],
           isRequired: rf.isRequired || false,
           minValue: rf.minValue,
           maxValue: rf.maxValue,
           choices: convertChoicesArray(rf.choices),
           choicesAr: convertChoicesArrayAr(rf.choices),
-          subFields: (Array.isArray(rf.subFields) || Array.isArray((rf as any).groupFields))
-            ? (rf.subFields || (rf as any).groupFields)?.map((g: any) => ({
-                fieldId: g.fieldId || `sub_${Date.now()}`,
-                label: convertToString(g.label) || "",
-                labelAr: (g.label && typeof g.label === 'object' && g.label.ar) ? g.label.ar : convertToString(g.label),
-                inputType: g.inputType as SubField["inputType"],
-                isRequired: g.isRequired || false,
-                choices: Array.isArray(g.choices) ? g.choices.map((c: any) => (typeof c === 'object' && c.en ? c.en : convertToString(c))) : [],
-              }))
-            : undefined,
+          subFields:
+            Array.isArray(rf.subFields) ||
+            Array.isArray((rf as any).groupFields)
+              ? (rf.subFields || (rf as any).groupFields)?.map((g: any) => ({
+                  fieldId: g.fieldId || `sub_${Date.now()}`,
+                  label: convertToString(g.label) || '',
+                  labelAr:
+                    g.label && typeof g.label === 'object' && g.label.ar
+                      ? g.label.ar
+                      : convertToString(g.label),
+                  inputType: g.inputType as SubField['inputType'],
+                  isRequired: g.isRequired || false,
+                  choices: Array.isArray(g.choices)
+                    ? g.choices.map((c: any) =>
+                        typeof c === 'object' && c.en
+                          ? c.en
+                          : convertToString(c)
+                      )
+                    : [],
+                }))
+              : undefined,
           displayOrder: currentMax,
         };
         additions.push(newField);
@@ -1128,7 +1432,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
       return { ...prev, customFields: [...prev.customFields, ...additions] };
     });
     // Set newly added recommended fields to collapsed by default
-    setCollapsedFields(prev => {
+    setCollapsedFields((prev) => {
       const next = new Set(prev);
       for (let i = 0; i < selectedRecommended.length; i++) {
         next.add(currentFieldCount + i);
@@ -1148,8 +1452,12 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
   const handleCustomFieldDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (active.id !== over?.id) {
-      const oldIndex = jobForm.customFields.findIndex((f) => f.fieldId === active.id);
-      const newIndex = jobForm.customFields.findIndex((f) => f.fieldId === over?.id);
+      const oldIndex = jobForm.customFields.findIndex(
+        (f) => f.fieldId === active.id
+      );
+      const newIndex = jobForm.customFields.findIndex(
+        (f) => f.fieldId === over?.id
+      );
       if (oldIndex !== -1 && newIndex !== -1) {
         setJobForm((prev) => ({
           ...prev,
@@ -1182,25 +1490,25 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
   };
 
   const handleAddChoice = (fieldIndex: number) => {
-    const choice = newChoice[fieldIndex] || "";
-    const choiceAr = newChoiceAr[fieldIndex] || "";
+    const choice = newChoice[fieldIndex] || '';
+    const choiceAr = newChoiceAr[fieldIndex] || '';
     if (choice.trim()) {
       setJobForm((prev) => ({
         ...prev,
         customFields: prev.customFields.map((cf, i) =>
           i === fieldIndex
-            ? { 
-                ...cf, 
+            ? {
+                ...cf,
                 choices: [...(cf.choices || []), choice],
-                choicesAr: jobForm.bilingual 
+                choicesAr: jobForm.bilingual
                   ? [...(cf.choicesAr || []), choiceAr.trim()]
-                  : cf.choicesAr
+                  : cf.choicesAr,
               }
             : cf
         ),
       }));
-      setNewChoice(prev => ({ ...prev, [fieldIndex]: "" }));
-      setNewChoiceAr(prev => ({ ...prev, [fieldIndex]: "" }));
+      setNewChoice((prev) => ({ ...prev, [fieldIndex]: '' }));
+      setNewChoiceAr((prev) => ({ ...prev, [fieldIndex]: '' }));
     }
   };
 
@@ -1223,8 +1531,8 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
   const handleAddSubField = (fieldIndex: number) => {
     const newSubField: SubField = {
       fieldId: `subfield_${Date.now()}`,
-      label: "",
-      inputType: "text",
+      label: '',
+      inputType: 'text',
       isRequired: false,
     };
     setJobForm((prev) => ({
@@ -1277,8 +1585,8 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
     subFieldIndex: number
   ) => {
     const key = `${fieldIndex}-${subFieldIndex}`;
-    const choice = newSubFieldChoice[key] || "";
-    const choiceAr = newSubFieldChoiceAr[key] || "";
+    const choice = newSubFieldChoice[key] || '';
+    const choiceAr = newSubFieldChoiceAr[key] || '';
     if (choice.trim()) {
       setJobForm((prev) => ({
         ...prev,
@@ -1301,8 +1609,8 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
             : cf
         ),
       }));
-      setNewSubFieldChoice(prev => ({ ...prev, [key]: "" }));
-      setNewSubFieldChoiceAr(prev => ({ ...prev, [key]: "" }));
+      setNewSubFieldChoice((prev) => ({ ...prev, [key]: '' }));
+      setNewSubFieldChoiceAr((prev) => ({ ...prev, [key]: '' }));
     }
   };
 
@@ -1354,7 +1662,8 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
 
       const descResult = await st(jobForm.description, jobForm.descriptionAr);
       if (descResult) {
-        if (jobForm.description.trim()) handleInputChange('descriptionAr', descResult);
+        if (jobForm.description.trim())
+          handleInputChange('descriptionAr', descResult);
         else handleInputChange('description', descResult);
       }
 
@@ -1362,7 +1671,11 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
         const termResults = await Promise.all(
           jobForm.termsAndConditions.map((en, i) => {
             const ar = jobForm.termsAndConditionsAr[i] || '';
-            return en.trim() ? translateText(en, 'en', 'ar') : ar.trim() ? translateText(ar, 'ar', 'en') : Promise.resolve('');
+            return en.trim()
+              ? translateText(en, 'en', 'ar')
+              : ar.trim()
+                ? translateText(ar, 'ar', 'en')
+                : Promise.resolve('');
           })
         );
         setJobForm((prev) => {
@@ -1370,10 +1683,15 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
           const newTermsAr = [...prev.termsAndConditionsAr];
           termResults.forEach((result, i) => {
             if (!result) return;
-            if ((prev.termsAndConditions[i] || '').trim()) newTermsAr[i] = result;
+            if ((prev.termsAndConditions[i] || '').trim())
+              newTermsAr[i] = result;
             else newTerms[i] = result;
           });
-          return { ...prev, termsAndConditions: newTerms, termsAndConditionsAr: newTermsAr };
+          return {
+            ...prev,
+            termsAndConditions: newTerms,
+            termsAndConditionsAr: newTermsAr,
+          };
         });
       }
 
@@ -1383,7 +1701,8 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
         );
         specResults.forEach((result, i) => {
           if (!result) return;
-          if (jobForm.jobSpecs[i].spec.trim()) handleJobSpecChange(i, 'specAr', result);
+          if (jobForm.jobSpecs[i].spec.trim())
+            handleJobSpecChange(i, 'specAr', result);
           else handleJobSpecChange(i, 'spec', result);
         });
       }
@@ -1393,7 +1712,8 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
           const cf = jobForm.customFields[fi];
           const labelResult = await st(cf.label, cf.labelAr || '');
           if (labelResult) {
-            if (cf.label.trim()) handleCustomFieldChange(fi, 'labelAr', labelResult);
+            if (cf.label.trim())
+              handleCustomFieldChange(fi, 'labelAr', labelResult);
             else handleCustomFieldChange(fi, 'label', labelResult);
           }
 
@@ -1401,7 +1721,9 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
             const choiceResults = await Promise.all(
               cf.choices.map((en: string, ci: number) => {
                 const ar = cf.choicesAr?.[ci] || '';
-                return en.trim() && !ar.trim() ? translateText(en, 'en', 'ar') : Promise.resolve('');
+                return en.trim() && !ar.trim()
+                  ? translateText(en, 'en', 'ar')
+                  : Promise.resolve('');
               })
             );
             const hasNew = choiceResults.some(Boolean);
@@ -1419,7 +1741,8 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
               const sf = cf.subFields[si];
               const sfLabelResult = await st(sf.label, sf.labelAr || '');
               if (sfLabelResult) {
-                if (sf.label.trim()) handleSubFieldChange(fi, si, 'labelAr', sfLabelResult);
+                if (sf.label.trim())
+                  handleSubFieldChange(fi, si, 'labelAr', sfLabelResult);
                 else handleSubFieldChange(fi, si, 'label', sfLabelResult);
               }
 
@@ -1427,7 +1750,9 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                 const sfChoiceResults = await Promise.all(
                   sf.choices.map((en: string, ci: number) => {
                     const ar = sf.choicesAr?.[ci] || '';
-                    return en.trim() && !ar.trim() ? translateText(en, 'en', 'ar') : Promise.resolve('');
+                    return en.trim() && !ar.trim()
+                      ? translateText(en, 'en', 'ar')
+                      : Promise.resolve('');
                   })
                 );
                 const hasNew = sfChoiceResults.some(Boolean);
@@ -1449,303 +1774,335 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-  e.preventDefault();
-  setIsSubmitting(true);
+    e.preventDefault();
+    setIsSubmitting(true);
 
-  try {
-    if (!jobForm.companyId) {
-      const errorMsg = t('createValSelectCompany', 'jobs');
-      setFormError(errorMsg);
-      setJobStatus(t('createErrorPrefix', 'jobs', { msg: errorMsg }));
-      setIsSubmitting(false);
-      await Swal.fire({
-        title: t('createValidationError', 'jobs'),
-        text: errorMsg,
-        icon: "error",
-        confirmButtonText: t('createOk', 'jobs'),
-      });
-      return;
-    }
-
-    if (!jobForm.departmentId) {
-      const errorMsg = t('createValSelectDept', 'jobs');
-      setFormError(errorMsg);
-      setJobStatus(t('createErrorPrefix', 'jobs', { msg: errorMsg }));
-      setIsSubmitting(false);
-      await Swal.fire({
-        title: t('createValidationError', 'jobs'),
-        text: errorMsg,
-        icon: "error",
-        confirmButtonText: t('createOk', 'jobs'),
-      });
-      return;
-    }
-
-    if (!isEditMode && !jobForm.jobCode?.trim()) {
-      const errorMsg = t('createValCodeRequired', 'jobs');
-      setFormError(errorMsg);
-      setJobStatus(t('createErrorPrefix', 'jobs', { msg: errorMsg }));
-      setIsSubmitting(false);
-      await Swal.fire({
-        title: t('createValidationError', 'jobs'),
-        text: errorMsg,
-        icon: "error",
-        confirmButtonText: t('createOk', 'jobs'),
-      });
-      return;
-    }
-
-    if (!jobForm.title?.trim() || (jobForm.bilingual && !jobForm.titleAr?.trim())) {
-      const errorMsg = jobForm.bilingual
-        ? t('createValTitleBilingual', 'jobs')
-        : t('createValTitleRequired', 'jobs');
-      setFormError(errorMsg);
-      setJobStatus(t('createErrorPrefix', 'jobs', { msg: errorMsg }));
-      setIsSubmitting(false);
-      await Swal.fire({
-        title: t('createValidationError', 'jobs'),
-        text: errorMsg,
-        icon: "error",
-        confirmButtonText: t('createOk', 'jobs'),
-      });
-      return;
-    }
-
-    if (!jobForm.employmentType) {
-      const errorMsg = t('createValEmploymentType', 'jobs');
-      setFormError(errorMsg);
-      setJobStatus(t('createErrorPrefix', 'jobs', { msg: errorMsg }));
-      setIsSubmitting(false);
-      await Swal.fire({
-        title: t('createValidationError', 'jobs'),
-        text: errorMsg,
-        icon: "error",
-        confirmButtonText: t('createOk', 'jobs'),
-      });
-      return;
-    }
-
-    if (!jobForm.workArrangement) {
-      const errorMsg = t('createValWorkArrangement', 'jobs');
-      setFormError(errorMsg);
-      setJobStatus(t('createErrorPrefix', 'jobs', { msg: errorMsg }));
-      setIsSubmitting(false);
-      await Swal.fire({
-        title: t('createValidationError', 'jobs'),
-        text: errorMsg,
-        icon: "error",
-        confirmButtonText: t('createOk', 'jobs'),
-      });
-      return;
-    }
-
-    if (!isEditMode && jobsLoading) {
-      const errorMsg = t('createValWaitLoading', 'jobs');
-      setFormError(errorMsg);
-      setJobStatus(t('createErrorPrefix', 'jobs', { msg: errorMsg }));
-      setIsSubmitting(false);
-      await Swal.fire({
-        title: t('createPleaseWait', 'jobs'),
-        text: errorMsg,
-        icon: "info",
-        confirmButtonText: t('createOk', 'jobs'),
-      });
-      return;
-    }
-
-    if (!jobForm.registrationStart) {
-      const errorMsg = t('createValStartDate', 'jobs');
-      setFormError(errorMsg);
-      setJobStatus(t('createErrorPrefix', 'jobs', { msg: errorMsg }));
-      setIsSubmitting(false);
-      await Swal.fire({
-        title: t('createValidationError', 'jobs'),
-        text: errorMsg,
-        icon: "error",
-        confirmButtonText: t('createOk', 'jobs'),
-      });
-      return;
-    }
-
-    if (!jobForm.registrationEnd) {
-      const errorMsg = t('createValEndDate', 'jobs');
-      setFormError(errorMsg);
-      setJobStatus(t('createErrorPrefix', 'jobs', { msg: errorMsg }));
-      setIsSubmitting(false);
-      await Swal.fire({
-        title: t('createValidationError', 'jobs'),
-        text: errorMsg,
-        icon: "error",
-        confirmButtonText: t('createOk', 'jobs'),
-      });
-      return;
-    }
-
-    const emptyGroupFieldLabels = jobForm.customFields
-      .map((field, index) => ({ field, index }))
-      .filter(({ field }) => field.inputType === "repeatable_group" && !field.label.trim());
-    
-    if (emptyGroupFieldLabels.length > 0) {
-      const errorMsg = t('createValGroupFieldLabel', 'jobs', { number: emptyGroupFieldLabels[0].index + 1 });
-      setFormError(errorMsg);
-      setJobStatus(t('createErrorPrefix', 'jobs', { msg: errorMsg }));
-      setIsSubmitting(false);
-      await Swal.fire({
-        title: t('createValidationError', 'jobs'),
-        text: errorMsg,
-        icon: "error",
-        confirmButtonText: t('createOk', 'jobs'),
-      });
-      return;
-    }
-
-    const salaryValue = Number(jobForm.salary);
-
-    const makeBilingualObject = (en: any, ar?: any) =>
-      jobForm.bilingual ? { en: en ?? "", ar: ar ?? en ?? "" } : { en: en ?? "" };
-
-    const buildChoices = (choices: any, choicesAr?: any) => {
-      const out: any[] = [];
-      if (!Array.isArray(choices)) return out;
-      choices.forEach((c: any, i: number) => {
-        const enVal = (typeof c === "string" ? c : (c?.en || "") + "").toString().trim();
-        const arVal = (Array.isArray(choicesAr) ? (choicesAr[i] || "") : (typeof c === "object" && c?.ar ? c.ar : "")).toString().trim();
-        if (jobForm.bilingual) {
-          if (!enVal && !arVal) return;
-          out.push({ en: enVal || arVal, ar: arVal || enVal });
-        } else {
-          if (!enVal) return;
-          out.push({ en: enVal });
-        }
-      });
-      return out;
-    };
-
-    const payload: any = {};
-    
-    // Only include companyId and jobCode when creating (not updating)
-    if (!isEditMode) {
-      if (jobForm.jobCode) payload.jobCode = jobForm.jobCode;
-      payload.order = nextCompanyOrder;
-    }
-    
-    payload.companyId = jobForm.companyId;
-    payload.title = makeBilingualObject(jobForm.title, jobForm.titleAr);
-    payload.description = makeBilingualObject(jobForm.description, jobForm.descriptionAr);
-    payload.departmentId = jobForm.departmentId || "";
-    payload.termsAndConditions = jobForm.termsAndConditions
-      .filter((term, idx) => term.trim() || (jobForm.bilingual && jobForm.termsAndConditionsAr[idx]?.trim()))
-      .map((t, idx) => makeBilingualObject(t, jobForm.termsAndConditionsAr[idx] || t));
-    payload.salary = isNaN(salaryValue) ? undefined : salaryValue;
-    payload.salaryVisible = jobForm.salaryVisible;
-    payload.fieldConfig = normalizeFieldConfig(jobForm.fieldConfig);
-    payload.openPositions = jobForm.openPositions;
-    payload.registrationStart = jobForm.registrationStart;
-    payload.registrationEnd = jobForm.registrationEnd;
-    payload.allowedStatuses = Array.isArray(jobForm.allowedStatuses)
-      ? jobForm.allowedStatuses.filter(Boolean)
-      : [];
-    payload.hideAfterRegistrationEnd = Boolean(jobForm.hideAfterRegistrationEnd);
-    payload.jobSpecs = jobForm.jobSpecs
-      .filter((spec) => spec.spec.trim() || (jobForm.bilingual && spec.specAr?.trim()))
-      .map((spec) => ({
-        spec: makeBilingualObject(spec.spec, spec.specAr || spec.spec),
-        weight: spec.weight,
-      }));
-    payload.customFields = jobForm.customFields.map((cf) => ({
-      fieldId: cf.fieldId,
-      label: makeBilingualObject(cf.label, cf.labelAr || cf.label),
-      inputType: cf.inputType,
-      isRequired: cf.isRequired,
-      minValue: cf.minValue,
-      maxValue: cf.maxValue,
-      choices: buildChoices(cf.choices, cf.choicesAr),
-      groupFields: Array.isArray(cf.subFields)
-        ? cf.subFields.map((sf) => ({
-            fieldId: sf.fieldId,
-            label: makeBilingualObject(sf.label, sf.labelAr || sf.label),
-            inputType: sf.inputType,
-            isRequired: sf.isRequired,
-            choices: buildChoices(sf.choices, sf.choicesAr),
-          }))
-        : [],
-      displayOrder: cf.displayOrder,
-    }));
-    payload.employmentType = jobForm.employmentType;
-    payload.workArrangement = jobForm.workArrangement;
-    payload.bilingual = jobForm.bilingual;
-
-    if (isEditMode && editJobId) {
-      await updateJobMutation.mutateAsync({ id: editJobId, data: payload });
-      setJobStatus(t('createUpdatedSuccess', 'jobs'));
-      
-      await queryClient.invalidateQueries({ queryKey: ['jobPositions'] });
-      await queryClient.refetchQueries({ queryKey: ['jobPositions'] });
-      
-      Swal.fire({
-        title: t('createSuccess', 'jobs'),
-        text: t('createUpdatedSuccess', 'jobs'),
-        icon: "success",
-        position: "top-end",
-        timer: 1500,
-        showConfirmButton: false,
-        toast: true,
-        customClass: {
-          container: "!mt-16",
-        },
-      });
-      
-      setTimeout(() => {
-        navigate("/jobs");
-      }, 500);
-    } else {
-      try {
-        const createdBy = (user as any)?._id ?? (user as any)?.id ?? undefined;
-        if (createdBy) payload.createdBy = createdBy;
-      } catch (e) {
+    try {
+      if (!jobForm.companyId) {
+        const errorMsg = t('createValSelectCompany', 'jobs');
+        setFormError(errorMsg);
+        setJobStatus(t('createErrorPrefix', 'jobs', { msg: errorMsg }));
+        setIsSubmitting(false);
+        await Swal.fire({
+          title: t('createValidationError', 'jobs'),
+          text: errorMsg,
+          icon: 'error',
+          confirmButtonText: t('createOk', 'jobs'),
+        });
+        return;
       }
-      
-      await createJobMutation.mutateAsync(payload);
-      setJobStatus(t('createCreatedSuccess', 'jobs'));
-      
-      await queryClient.invalidateQueries({ queryKey: ['jobPositions'] });
-      await queryClient.refetchQueries({ queryKey: ['jobPositions'] });
-      
-      Swal.fire({
-        title: t('createSuccess', 'jobs'),
-        text: t('createCreatedSuccess', 'jobs'),
-        icon: "success",
-        position: "top-end",
-        timer: 1500,
-        showConfirmButton: false,
-        toast: true,
-        customClass: {
-          container: "!mt-16",
-        },
-      });
-      
-      setTimeout(() => {
-        navigate("/jobs");
-      }, 500);
-    }
-  } catch (err) {
-    const errorMsg = getErrorMessage(err);
-    setFormError(errorMsg);
-    setJobStatus(t('createErrorPrefix', 'jobs', { msg: errorMsg }));
-    console.error(`Error ${isEditMode ? "updating" : "creating"} job:`, err);
-    
-    await Swal.fire({
-      title: t('createErrorTitle', 'jobs'),
-      text: errorMsg,
-      icon: "error",
-      confirmButtonText: t('createOk', 'jobs'),
-    });
-  } finally {
-    setIsSubmitting(false);
-  }
-};
 
- 
+      if (!jobForm.departmentId) {
+        const errorMsg = t('createValSelectDept', 'jobs');
+        setFormError(errorMsg);
+        setJobStatus(t('createErrorPrefix', 'jobs', { msg: errorMsg }));
+        setIsSubmitting(false);
+        await Swal.fire({
+          title: t('createValidationError', 'jobs'),
+          text: errorMsg,
+          icon: 'error',
+          confirmButtonText: t('createOk', 'jobs'),
+        });
+        return;
+      }
+
+      if (!isEditMode && !jobForm.jobCode?.trim()) {
+        const errorMsg = t('createValCodeRequired', 'jobs');
+        setFormError(errorMsg);
+        setJobStatus(t('createErrorPrefix', 'jobs', { msg: errorMsg }));
+        setIsSubmitting(false);
+        await Swal.fire({
+          title: t('createValidationError', 'jobs'),
+          text: errorMsg,
+          icon: 'error',
+          confirmButtonText: t('createOk', 'jobs'),
+        });
+        return;
+      }
+
+      if (
+        !jobForm.title?.trim() ||
+        (jobForm.bilingual && !jobForm.titleAr?.trim())
+      ) {
+        const errorMsg = jobForm.bilingual
+          ? t('createValTitleBilingual', 'jobs')
+          : t('createValTitleRequired', 'jobs');
+        setFormError(errorMsg);
+        setJobStatus(t('createErrorPrefix', 'jobs', { msg: errorMsg }));
+        setIsSubmitting(false);
+        await Swal.fire({
+          title: t('createValidationError', 'jobs'),
+          text: errorMsg,
+          icon: 'error',
+          confirmButtonText: t('createOk', 'jobs'),
+        });
+        return;
+      }
+
+      if (!jobForm.employmentType) {
+        const errorMsg = t('createValEmploymentType', 'jobs');
+        setFormError(errorMsg);
+        setJobStatus(t('createErrorPrefix', 'jobs', { msg: errorMsg }));
+        setIsSubmitting(false);
+        await Swal.fire({
+          title: t('createValidationError', 'jobs'),
+          text: errorMsg,
+          icon: 'error',
+          confirmButtonText: t('createOk', 'jobs'),
+        });
+        return;
+      }
+
+      if (!jobForm.workArrangement) {
+        const errorMsg = t('createValWorkArrangement', 'jobs');
+        setFormError(errorMsg);
+        setJobStatus(t('createErrorPrefix', 'jobs', { msg: errorMsg }));
+        setIsSubmitting(false);
+        await Swal.fire({
+          title: t('createValidationError', 'jobs'),
+          text: errorMsg,
+          icon: 'error',
+          confirmButtonText: t('createOk', 'jobs'),
+        });
+        return;
+      }
+
+      if (!isEditMode && jobsLoading) {
+        const errorMsg = t('createValWaitLoading', 'jobs');
+        setFormError(errorMsg);
+        setJobStatus(t('createErrorPrefix', 'jobs', { msg: errorMsg }));
+        setIsSubmitting(false);
+        await Swal.fire({
+          title: t('createPleaseWait', 'jobs'),
+          text: errorMsg,
+          icon: 'info',
+          confirmButtonText: t('createOk', 'jobs'),
+        });
+        return;
+      }
+
+      if (!jobForm.registrationStart) {
+        const errorMsg = t('createValStartDate', 'jobs');
+        setFormError(errorMsg);
+        setJobStatus(t('createErrorPrefix', 'jobs', { msg: errorMsg }));
+        setIsSubmitting(false);
+        await Swal.fire({
+          title: t('createValidationError', 'jobs'),
+          text: errorMsg,
+          icon: 'error',
+          confirmButtonText: t('createOk', 'jobs'),
+        });
+        return;
+      }
+
+      if (!jobForm.registrationEnd) {
+        const errorMsg = t('createValEndDate', 'jobs');
+        setFormError(errorMsg);
+        setJobStatus(t('createErrorPrefix', 'jobs', { msg: errorMsg }));
+        setIsSubmitting(false);
+        await Swal.fire({
+          title: t('createValidationError', 'jobs'),
+          text: errorMsg,
+          icon: 'error',
+          confirmButtonText: t('createOk', 'jobs'),
+        });
+        return;
+      }
+
+      const emptyGroupFieldLabels = jobForm.customFields
+        .map((field, index) => ({ field, index }))
+        .filter(
+          ({ field }) =>
+            field.inputType === 'repeatable_group' && !field.label.trim()
+        );
+
+      if (emptyGroupFieldLabels.length > 0) {
+        const errorMsg = t('createValGroupFieldLabel', 'jobs', {
+          number: emptyGroupFieldLabels[0].index + 1,
+        });
+        setFormError(errorMsg);
+        setJobStatus(t('createErrorPrefix', 'jobs', { msg: errorMsg }));
+        setIsSubmitting(false);
+        await Swal.fire({
+          title: t('createValidationError', 'jobs'),
+          text: errorMsg,
+          icon: 'error',
+          confirmButtonText: t('createOk', 'jobs'),
+        });
+        return;
+      }
+
+      const salaryValue = Number(jobForm.salary);
+
+      const makeBilingualObject = (en: any, ar?: any) =>
+        jobForm.bilingual
+          ? { en: en ?? '', ar: ar ?? en ?? '' }
+          : { en: en ?? '' };
+
+      const buildChoices = (choices: any, choicesAr?: any) => {
+        const out: any[] = [];
+        if (!Array.isArray(choices)) return out;
+        choices.forEach((c: any, i: number) => {
+          const enVal = (typeof c === 'string' ? c : (c?.en || '') + '')
+            .toString()
+            .trim();
+          const arVal = (
+            Array.isArray(choicesAr)
+              ? choicesAr[i] || ''
+              : typeof c === 'object' && c?.ar
+                ? c.ar
+                : ''
+          )
+            .toString()
+            .trim();
+          if (jobForm.bilingual) {
+            if (!enVal && !arVal) return;
+            out.push({ en: enVal || arVal, ar: arVal || enVal });
+          } else {
+            if (!enVal) return;
+            out.push({ en: enVal });
+          }
+        });
+        return out;
+      };
+
+      const payload: any = {};
+
+      // Only include companyId and jobCode when creating (not updating)
+      if (!isEditMode) {
+        if (jobForm.jobCode) payload.jobCode = jobForm.jobCode;
+        payload.order = nextCompanyOrder;
+      }
+
+      payload.companyId = jobForm.companyId;
+      payload.title = makeBilingualObject(jobForm.title, jobForm.titleAr);
+      payload.description = makeBilingualObject(
+        jobForm.description,
+        jobForm.descriptionAr
+      );
+      payload.departmentId = jobForm.departmentId || '';
+      payload.termsAndConditions = jobForm.termsAndConditions
+        .filter(
+          (term, idx) =>
+            term.trim() ||
+            (jobForm.bilingual && jobForm.termsAndConditionsAr[idx]?.trim())
+        )
+        .map((t, idx) =>
+          makeBilingualObject(t, jobForm.termsAndConditionsAr[idx] || t)
+        );
+      payload.salary = isNaN(salaryValue) ? undefined : salaryValue;
+      payload.salaryVisible = jobForm.salaryVisible;
+      payload.fieldConfig = normalizeFieldConfig(jobForm.fieldConfig);
+      payload.openPositions = jobForm.openPositions;
+      payload.registrationStart = jobForm.registrationStart;
+      payload.registrationEnd = jobForm.registrationEnd;
+      payload.allowedStatuses = Array.isArray(jobForm.allowedStatuses)
+        ? jobForm.allowedStatuses.filter(Boolean)
+        : [];
+      payload.hideAfterRegistrationEnd = Boolean(
+        jobForm.hideAfterRegistrationEnd
+      );
+      payload.jobSpecs = jobForm.jobSpecs
+        .filter(
+          (spec) =>
+            spec.spec.trim() || (jobForm.bilingual && spec.specAr?.trim())
+        )
+        .map((spec) => ({
+          spec: makeBilingualObject(spec.spec, spec.specAr || spec.spec),
+          weight: spec.weight,
+        }));
+      payload.customFields = jobForm.customFields.map((cf) => ({
+        fieldId: cf.fieldId,
+        label: makeBilingualObject(cf.label, cf.labelAr || cf.label),
+        inputType: cf.inputType,
+        isRequired: cf.isRequired,
+        minValue: cf.minValue,
+        maxValue: cf.maxValue,
+        choices: buildChoices(cf.choices, cf.choicesAr),
+        groupFields: Array.isArray(cf.subFields)
+          ? cf.subFields.map((sf) => ({
+              fieldId: sf.fieldId,
+              label: makeBilingualObject(sf.label, sf.labelAr || sf.label),
+              inputType: sf.inputType,
+              isRequired: sf.isRequired,
+              choices: buildChoices(sf.choices, sf.choicesAr),
+            }))
+          : [],
+        displayOrder: cf.displayOrder,
+      }));
+      payload.employmentType = jobForm.employmentType;
+      payload.workArrangement = jobForm.workArrangement;
+      payload.bilingual = jobForm.bilingual;
+
+      if (isEditMode && editJobId) {
+        await updateJobMutation.mutateAsync({ id: editJobId, data: payload });
+        setJobStatus(t('createUpdatedSuccess', 'jobs'));
+
+        await queryClient.invalidateQueries({ queryKey: ['jobPositions'] });
+        await queryClient.refetchQueries({ queryKey: ['jobPositions'] });
+
+        Swal.fire({
+          title: t('createSuccess', 'jobs'),
+          text: t('createUpdatedSuccess', 'jobs'),
+          icon: 'success',
+          position: 'top-end',
+          timer: 1500,
+          showConfirmButton: false,
+          toast: true,
+          customClass: {
+            container: '!mt-16',
+          },
+        });
+
+        setTimeout(() => {
+          navigate('/jobs');
+        }, 500);
+      } else {
+        try {
+          const createdBy =
+            (user as any)?._id ?? (user as any)?.id ?? undefined;
+          if (createdBy) payload.createdBy = createdBy;
+        } catch (e) {}
+
+        await createJobMutation.mutateAsync(payload);
+        setJobStatus(t('createCreatedSuccess', 'jobs'));
+
+        await queryClient.invalidateQueries({ queryKey: ['jobPositions'] });
+        await queryClient.refetchQueries({ queryKey: ['jobPositions'] });
+
+        Swal.fire({
+          title: t('createSuccess', 'jobs'),
+          text: t('createCreatedSuccess', 'jobs'),
+          icon: 'success',
+          position: 'top-end',
+          timer: 1500,
+          showConfirmButton: false,
+          toast: true,
+          customClass: {
+            container: '!mt-16',
+          },
+        });
+
+        setTimeout(() => {
+          navigate('/jobs');
+        }, 500);
+      }
+    } catch (err) {
+      const errorMsg = getErrorMessage(err);
+      setFormError(errorMsg);
+      setJobStatus(t('createErrorPrefix', 'jobs', { msg: errorMsg }));
+      console.error(`Error ${isEditMode ? 'updating' : 'creating'} job:`, err);
+
+      await Swal.fire({
+        title: t('createErrorTitle', 'jobs'),
+        text: errorMsg,
+        icon: 'error',
+        confirmButtonText: t('createOk', 'jobs'),
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const totalWeight = jobForm.jobSpecs.reduce(
     (sum, spec) => sum + spec.weight,
@@ -1755,13 +2112,21 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
   return (
     <div className="space-y-6">
       <PageMeta
-        title={t('createPageTitle', 'jobs', { mode: isEditMode ? t('createEdit', 'jobs') : t('createCreate', 'jobs') })}
-        description={t('createPageDesc', 'jobs', { mode: isEditMode ? t('createEdit', 'jobs') : t('createCreate', 'jobs') })}
+        title={t('createPageTitle', 'jobs', {
+          mode: isEditMode
+            ? t('createEdit', 'jobs')
+            : t('createCreate', 'jobs'),
+        })}
+        description={t('createPageDesc', 'jobs', {
+          mode: isEditMode
+            ? t('createEdit', 'jobs')
+            : t('createCreate', 'jobs'),
+        })}
       />
 
       <div className="flex items-center gap-4">
         <button
-          onClick={() => navigate("/jobs")}
+          onClick={() => navigate('/jobs')}
           className="flex items-center gap-2 text-sm text-gray-600 hover:text-brand-600 dark:text-gray-400 dark:hover:text-brand-400"
         >
           <svg
@@ -1782,12 +2147,22 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
         </button>
       </div>
 
-      <PageBreadcrumb pageTitle={t('createBreadcrumb', 'jobs', { mode: isEditMode ? t('createEdit', 'jobs') : t('createCreate', 'jobs') })} />
+      <PageBreadcrumb
+        pageTitle={t('createBreadcrumb', 'jobs', {
+          mode: isEditMode
+            ? t('createEdit', 'jobs')
+            : t('createCreate', 'jobs'),
+        })}
+      />
 
       {isLoading ? (
         <LoadingSpinner
           fullPage
-          message={isEditMode ? t('createLoadingJobData', 'jobs') : t('createLoadingForm', 'jobs')}
+          message={
+            isEditMode
+              ? t('createLoadingJobData', 'jobs')
+              : t('createLoadingForm', 'jobs')
+          }
         />
       ) : (
         <form onSubmit={handleSubmit} className="space-y-8">
@@ -1796,8 +2171,16 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
               <div className="flex items-start justify-between">
                 <div className="flex gap-3">
                   <div className="flex-shrink-0">
-                    <svg className="size-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    <svg
+                      className="size-5 text-red-500"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                        clipRule="evenodd"
+                      />
                     </svg>
                   </div>
                   <p className="text-sm font-medium text-red-800 dark:text-red-400">
@@ -1806,11 +2189,19 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                 </div>
                 <button
                   type="button"
-                  onClick={() => setFormError("")}
+                  onClick={() => setFormError('')}
                   className="rounded-md p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-800/20"
                 >
-                  <svg className="size-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                  <svg
+                    className="size-4"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                      clipRule="evenodd"
+                    />
                   </svg>
                 </button>
               </div>
@@ -1821,18 +2212,31 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
           {!isEditMode && (
             <div className="group relative overflow-hidden rounded-3xl border border-blue-100 bg-gradient-to-br from-blue-50/50 to-white p-6 shadow-sm transition-all hover:shadow-md dark:border-blue-900/20 dark:from-blue-900/5 dark:to-gray-900">
               <div className="absolute top-0 ltr:right-0 rtl:left-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                <svg className="size-12 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+                <svg
+                  className="size-12 text-blue-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"
+                  />
                 </svg>
               </div>
               <div className="relative">
-                <Label htmlFor="duplicateJob" className="mb-3 block text-sm font-semibold text-blue-900 dark:text-blue-300">
+                <Label
+                  htmlFor="duplicateJob"
+                  className="mb-3 block text-sm font-semibold text-blue-900 dark:text-blue-300"
+                >
                   {t('createQuickStart', 'jobs')}
                 </Label>
                 <div className="max-w-2xl">
                   <Select
                     options={[
-                      { value: "", label: t('createStartScratch', 'jobs') },
+                      { value: '', label: t('createStartScratch', 'jobs') },
                       ...allJobs.map((job: any) => ({
                         value: job._id,
                         label: `${toPlainString(job.title)} - ${toPlainString((job as any).companyId?.name || '')}`,
@@ -1851,8 +2255,16 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                 )}
                 {selectedJobId && (
                   <div className="mt-3 flex items-center gap-2 text-sm font-medium text-emerald-600 dark:text-emerald-400">
-                    <svg className="size-4" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    <svg
+                      className="size-4"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                        clipRule="evenodd"
+                      />
                     </svg>
                     {t('createTemplatesLoaded', 'jobs')}
                   </div>
@@ -1869,37 +2281,59 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                   {t('createCompanyOrg', 'jobs')}
                 </h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {isEditMode ? t('createCompanyOrgDescEdit', 'jobs') : t('createCompanyOrgDescCreate', 'jobs')}
+                  {isEditMode
+                    ? t('createCompanyOrgDescEdit', 'jobs')
+                    : t('createCompanyOrgDescCreate', 'jobs')}
                 </p>
               </div>
               <div className="rounded-xl bg-brand-50 p-2.5 text-brand-600 dark:bg-brand-500/10">
-                <svg className="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                <svg
+                  className="size-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                  />
                 </svg>
               </div>
             </div>
 
-            <div className={`grid grid-cols-1 gap-6 ${!isEditMode && shouldShowCompanyField ? 'md:grid-cols-2' : ''}`}>
-              {(
+            <div
+              className={`grid grid-cols-1 gap-6 ${!isEditMode && shouldShowCompanyField ? 'md:grid-cols-2' : ''}`}
+            >
+              {
                 <div className="space-y-2">
-                  <Label htmlFor="companyId" required>{t('createTargetCompany', 'jobs')}</Label>
+                  <Label htmlFor="companyId" required>
+                    {t('createTargetCompany', 'jobs')}
+                  </Label>
                   {companies.length > 0 ? (
-                  <Select
+                    <Select
                       options={companies}
                       placeholder={t('createSelectCompany', 'jobs')}
                       value={jobForm.companyId}
                       onChange={(value) => {
-                        handleInputChange("companyId", value);
-                        handleInputChange("departmentId", "");
-                        const companyData = jobForm.companyId === value 
-                          ? selectedCompany 
-                          : allCompanies.find((c: any) => c._id === value);
+                        handleInputChange('companyId', value);
+                        handleInputChange('departmentId', '');
+                        const companyData =
+                          jobForm.companyId === value
+                            ? selectedCompany
+                            : allCompanies.find((c: any) => c._id === value);
                         const allStatusIds = companyData
-                          ? (Array.isArray(companyData.settings?.statuses) ? companyData.settings.statuses : [])
-                              .map((s: any) => String(s?._id || s?.id || '').trim())
+                          ? (Array.isArray(companyData.settings?.statuses)
+                              ? companyData.settings.statuses
+                              : []
+                            )
+                              .map((s: any) =>
+                                String(s?._id || s?.id || '').trim()
+                              )
                               .filter(Boolean)
                           : [];
-                        handleInputChange("allowedStatuses", allStatusIds);
+                        handleInputChange('allowedStatuses', allStatusIds);
                       }}
                       required
                     />
@@ -1909,10 +2343,18 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                     </div>
                   )}
                 </div>
-              )}
+              }
               <div className="space-y-2">
-                <Label htmlFor="departmentId" required>{t('createDepartment', 'jobs')}</Label>
-                <div className={departmentSelectDisabled ? "opacity-50 grayscale pointer-events-none" : ""}>
+                <Label htmlFor="departmentId" required>
+                  {t('createDepartment', 'jobs')}
+                </Label>
+                <div
+                  className={
+                    departmentSelectDisabled
+                      ? 'opacity-50 grayscale pointer-events-none'
+                      : ''
+                  }
+                >
                   <Select
                     options={departments}
                     value={jobForm.departmentId}
@@ -1920,13 +2362,14 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                       departmentsLoading
                         ? t('createLoadingDepts', 'jobs')
                         : !jobForm.companyId && shouldFetchAllDepartments
-                        ? t('createSelectCompanyFirst', 'jobs')
-                        : departments.length === 0
-                        ? t('createNoDepts', 'jobs')
-                        : t('createSelectDept', 'jobs')
+                          ? t('createSelectCompanyFirst', 'jobs')
+                          : departments.length === 0
+                            ? t('createNoDepts', 'jobs')
+                            : t('createSelectDept', 'jobs')
                     }
                     onChange={(value) => {
-                      if (!departmentSelectDisabled) handleInputChange("departmentId", value);
+                      if (!departmentSelectDisabled)
+                        handleInputChange('departmentId', value);
                     }}
                     required
                   />
@@ -1935,16 +2378,78 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
             </div>
           </div>
 
+          <div className="rounded-2xl border border-brand-100 bg-brand-50/30 p-5 dark:border-brand-900/20 dark:bg-brand-500/5">
+            <Label htmlFor="aiPrompt">
+              {t('createAiGenerateLabel', 'jobs')}
+            </Label>
+            <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
+              {t('createAiGenerateDesc', 'jobs')}
+            </p>
+            <TextArea
+              value={aiPrompt}
+              onChange={setAiPrompt}
+              placeholder={t('createAiGeneratePlaceholder', 'jobs')}
+              rows={3}
+            />
+            <button
+              type="button"
+              onClick={handleGenerateWithAI}
+              disabled={generateFieldsMutation.isPending || !aiPrompt.trim()}
+              className="mt-3 inline-flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-brand-500/20 transition-all hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {generateFieldsMutation.isPending ? (
+                <>
+                  <svg
+                    className="size-4 animate-spin"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                    />
+                  </svg>
+                  {t('createAiGenerating', 'jobs')}
+                </>
+              ) : (
+                t('createAiGenerateButton', 'jobs')
+              )}
+            </button>
+          </div>
+
           {/* Basic Job Information */}
           <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:border-gray-800 dark:bg-gray-900">
             <div className="mb-6 flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">{t('createBasicInfo', 'jobs')}</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">{t('createBasicInfoDesc', 'jobs')}</p>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                  {t('createBasicInfo', 'jobs')}
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {t('createBasicInfoDesc', 'jobs')}
+                </p>
               </div>
               <div className="rounded-xl bg-orange-50 p-2.5 text-orange-600 dark:bg-orange-500/10">
-                <svg className="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <svg
+                  className="size-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
                 </svg>
               </div>
             </div>
@@ -1955,7 +2460,9 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                   <Switch
                     label={t('createBilingual', 'jobs')}
                     checked={jobForm.bilingual}
-                    onChange={(checked) => handleInputChange("bilingual", checked)}
+                    onChange={(checked) =>
+                      handleInputChange('bilingual', checked)
+                    }
                   />
                 </div>
                 {jobForm.bilingual && (
@@ -1974,20 +2481,32 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                 )}
                 <div className="h-8 w-px bg-gray-200 dark:bg-gray-700 hidden sm:block" />
                 <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                  {t('createCurrentlyViewing', 'jobs')} {jobForm.bilingual ? 
-                    <span className="inline-flex items-center gap-1.5 text-brand-600"><span className="flex h-2 w-2 rounded-full bg-brand-500" />{t('createBilingualMode', 'jobs')}</span> : 
-                    <span className="inline-flex items-center gap-1.5 text-gray-600"><span className="flex h-2 w-2 rounded-full bg-gray-400" />{t('createEnglishOnly', 'jobs')}</span>
-                  }
+                  {t('createCurrentlyViewing', 'jobs')}{' '}
+                  {jobForm.bilingual ? (
+                    <span className="inline-flex items-center gap-1.5 text-brand-600">
+                      <span className="flex h-2 w-2 rounded-full bg-brand-500" />
+                      {t('createBilingualMode', 'jobs')}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 text-gray-600">
+                      <span className="flex h-2 w-2 rounded-full bg-gray-400" />
+                      {t('createEnglishOnly', 'jobs')}
+                    </span>
+                  )}
                 </span>
               </div>
 
               {!isEditMode && (
                 <div className="max-w-md space-y-2">
-                  <Label htmlFor="jobCode" required>{t('createPositionCode', 'jobs')}</Label>
+                  <Label htmlFor="jobCode" required>
+                    {t('createPositionCode', 'jobs')}
+                  </Label>
                   <Input
                     id="jobCode"
                     value={jobForm.jobCode}
-                    onChange={(e) => handleInputChange("jobCode", e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange('jobCode', e.target.value)
+                    }
                     placeholder={t('createPositionCodePlaceholder', 'jobs')}
                     required
                   />
@@ -1998,34 +2517,63 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
               )}
 
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                <div className={`space-y-2 ${locale === 'ar' ? 'order-2' : 'order-1'}`}>
-                  <Label htmlFor="title" required>{t('createJobTitle', 'jobs')} {jobForm.bilingual && "(EN)"}</Label>
+                <div
+                  className={`space-y-2 ${locale === 'ar' ? 'order-2' : 'order-1'}`}
+                >
+                  <Label htmlFor="title" required>
+                    {t('createJobTitle', 'jobs')} {jobForm.bilingual && '(EN)'}
+                  </Label>
                   <Input
                     id="title"
                     value={jobForm.title}
-                    onChange={(e) => handleInputChange("title", e.target.value)}
+                    onChange={(e) => handleInputChange('title', e.target.value)}
                     placeholder={t('createJobTitlePlaceholder', 'jobs')}
                     required
                   />
                 </div>
                 {jobForm.bilingual && (
-                  <div className={`space-y-2 ${locale === 'ar' ? 'order-1' : 'order-2'}`} dir="rtl">
+                  <div
+                    className={`space-y-2 ${locale === 'ar' ? 'order-1' : 'order-2'}`}
+                    dir="rtl"
+                  >
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="titleAr" required className="text-right block w-full">{locale === 'ar' ? 'مسمى الوظيفة (بالعربية)' : t('createJobTitle', 'jobs') + ' (AR)'}</Label>
+                      <Label
+                        htmlFor="titleAr"
+                        required
+                        className="text-right block w-full"
+                      >
+                        {locale === 'ar'
+                          ? 'مسمى الوظيفة (بالعربية)'
+                          : t('createJobTitle', 'jobs') + ' (AR)'}
+                      </Label>
                       <button
                         type="button"
                         onClick={async () => {
                           if (jobForm.title.trim()) {
-                            const t = await translateText(jobForm.title, 'en', 'ar');
-                            if (t) handleInputChange("titleAr", t);
+                            const t = await translateText(
+                              jobForm.title,
+                              'en',
+                              'ar'
+                            );
+                            if (t) handleInputChange('titleAr', t);
                           } else if (jobForm.titleAr.trim()) {
-                            const t = await translateText(jobForm.titleAr, 'ar', 'en');
-                            if (t) handleInputChange("title", t);
+                            const t = await translateText(
+                              jobForm.titleAr,
+                              'ar',
+                              'en'
+                            );
+                            if (t) handleInputChange('title', t);
                           }
                         }}
-                        disabled={!jobForm.title.trim() && !jobForm.titleAr.trim()}
+                        disabled={
+                          !jobForm.title.trim() && !jobForm.titleAr.trim()
+                        }
                         className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
-                        title={jobForm.title.trim() ? t('createTranslateEnAr', 'jobs') : t('createTranslateArEn', 'jobs')}
+                        title={
+                          jobForm.title.trim()
+                            ? t('createTranslateEnAr', 'jobs')
+                            : t('createTranslateArEn', 'jobs')
+                        }
                       >
                         <Languages className="size-3" />
                       </button>
@@ -2033,7 +2581,9 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                     <Input
                       id="titleAr"
                       value={jobForm.titleAr}
-                      onChange={(e) => handleInputChange("titleAr", e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange('titleAr', e.target.value)
+                      }
                       placeholder="مثال: مطور واجهة أمامية أول"
                       required
                       className="text-right"
@@ -2043,40 +2593,74 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
               </div>
 
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                <div className={`space-y-2 ${locale === 'ar' ? 'order-2' : 'order-1'}`}>
-                  <Label htmlFor="description">{t('createJobDescLabel', 'jobs')} {jobForm.bilingual && "(EN)"}</Label>
+                <div
+                  className={`space-y-2 ${locale === 'ar' ? 'order-2' : 'order-1'}`}
+                >
+                  <Label htmlFor="description">
+                    {t('createJobDescLabel', 'jobs')}{' '}
+                    {jobForm.bilingual && '(EN)'}
+                  </Label>
                   <TextArea
                     value={jobForm.description}
-                    onChange={(value) => handleInputChange("description", value)}
+                    onChange={(value) =>
+                      handleInputChange('description', value)
+                    }
                     placeholder={t('createJobDescPlaceholder', 'jobs')}
                     rows={6}
                   />
                 </div>
                 {jobForm.bilingual && (
-                  <div className={`space-y-2 ${locale === 'ar' ? 'order-1' : 'order-2'}`} dir="rtl">
+                  <div
+                    className={`space-y-2 ${locale === 'ar' ? 'order-1' : 'order-2'}`}
+                    dir="rtl"
+                  >
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="descriptionAr" className="text-right block w-full">{locale === 'ar' ? 'وصف الوظيفة (بالعربية)' : t('createJobDescLabel', 'jobs') + ' (AR)'}</Label>
+                      <Label
+                        htmlFor="descriptionAr"
+                        className="text-right block w-full"
+                      >
+                        {locale === 'ar'
+                          ? 'وصف الوظيفة (بالعربية)'
+                          : t('createJobDescLabel', 'jobs') + ' (AR)'}
+                      </Label>
                       <button
                         type="button"
                         onClick={async () => {
                           if (jobForm.description.trim()) {
-                            const t = await translateText(jobForm.description, 'en', 'ar');
-                            if (t) handleInputChange("descriptionAr", t);
+                            const t = await translateText(
+                              jobForm.description,
+                              'en',
+                              'ar'
+                            );
+                            if (t) handleInputChange('descriptionAr', t);
                           } else if (jobForm.descriptionAr.trim()) {
-                            const t = await translateText(jobForm.descriptionAr, 'ar', 'en');
-                            if (t) handleInputChange("description", t);
+                            const t = await translateText(
+                              jobForm.descriptionAr,
+                              'ar',
+                              'en'
+                            );
+                            if (t) handleInputChange('description', t);
                           }
                         }}
-                        disabled={!jobForm.description.trim() && !jobForm.descriptionAr.trim()}
+                        disabled={
+                          !jobForm.description.trim() &&
+                          !jobForm.descriptionAr.trim()
+                        }
                         className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
-                        title={jobForm.description.trim() ? t('createTranslateEnAr', 'jobs') : t('createTranslateArEn', 'jobs')}
+                        title={
+                          jobForm.description.trim()
+                            ? t('createTranslateEnAr', 'jobs')
+                            : t('createTranslateArEn', 'jobs')
+                        }
                       >
                         <Languages className="size-3" />
                       </button>
                     </div>
                     <TextArea
                       value={jobForm.descriptionAr}
-                      onChange={(value) => handleInputChange("descriptionAr", value)}
+                      onChange={(value) =>
+                        handleInputChange('descriptionAr', value)
+                      }
                       placeholder="حدد المسؤوليات والأهداف الأساسية..."
                       rows={6}
                       className="text-right"
@@ -2087,33 +2671,58 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
 
               <div className="rounded-2xl border border-gray-100 bg-gray-50/50 p-6 dark:border-gray-800 dark:bg-gray-800/30">
                 <div className="mb-4 flex items-center gap-2">
-                  <svg className="size-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <svg
+                    className="size-5 text-gray-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
                   </svg>
-                  <h4 className="font-semibold text-gray-900 dark:text-white text-sm uppercase tracking-wider">{t('createCompensation', 'jobs')}</h4>
+                  <h4 className="font-semibold text-gray-900 dark:text-white text-sm uppercase tracking-wider">
+                    {t('createCompensation', 'jobs')}
+                  </h4>
                 </div>
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
                   <div className="space-y-2">
-                    <Label htmlFor="salary">{t('createSalaryBase', 'jobs')}</Label>
+                    <Label htmlFor="salary">
+                      {t('createSalaryBase', 'jobs')}
+                    </Label>
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                        $
+                      </span>
                       <Input
                         id="salary"
                         type="number"
                         className="pl-7"
                         value={jobForm.salary}
-                        onChange={(e) => handleInputChange("salary", Number(e.target.value))}
+                        onChange={(e) =>
+                          handleInputChange('salary', Number(e.target.value))
+                        }
                         placeholder={t('createSalaryPlaceholder', 'jobs')}
                       />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="openPositions">{t('createTotalVacancies', 'jobs')}</Label>
+                    <Label htmlFor="openPositions">
+                      {t('createTotalVacancies', 'jobs')}
+                    </Label>
                     <Input
                       id="openPositions"
                       type="number"
                       value={jobForm.openPositions}
-                      onChange={(e) => handleInputChange("openPositions", Number(e.target.value))}
+                      onChange={(e) =>
+                        handleInputChange(
+                          'openPositions',
+                          Number(e.target.value)
+                        )
+                      }
                       min="1"
                     />
                   </div>
@@ -2122,7 +2731,9 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                       <Switch
                         label={t('createSalaryVisible', 'jobs')}
                         checked={jobForm.salaryVisible}
-                        onChange={(checked) => handleInputChange("salaryVisible", checked)}
+                        onChange={(checked) =>
+                          handleInputChange('salaryVisible', checked)
+                        }
                       />
                       <p className="mt-1.5 ml-11 text-[11px] leading-relaxed text-gray-500 dark:text-gray-400 opacity-70 group-hover/toggle:opacity-100 transition-opacity">
                         {t('createSalaryVisibleHelp', 'jobs')}
@@ -2134,7 +2745,12 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
 
               <div className="rounded-2xl border border-gray-100 bg-white p-6 dark:border-gray-800 dark:bg-gray-800/30">
                 <div className="mb-2 flex items-center gap-2">
-                  <svg className="size-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg
+                    className="size-5 text-gray-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -2159,14 +2775,20 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                         className="rounded-xl border border-gray-100 bg-gray-50/80 p-4 dark:border-gray-700 dark:bg-gray-900/40"
                       >
                         <div className="mb-3">
-                          <p className="text-sm font-semibold text-gray-900 dark:text-white">{item.label}</p>
+                          <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                            {item.label}
+                          </p>
                         </div>
                         <div className="flex flex-wrap items-center gap-4">
                           <Switch
                             label={t('createVisible', 'jobs')}
                             checked={rule.visible}
                             onChange={(checked) =>
-                              handleFieldConfigChange(item.key, "visible", checked)
+                              handleFieldConfigChange(
+                                item.key,
+                                'visible',
+                                checked
+                              )
                             }
                           />
                           <Switch
@@ -2174,7 +2796,11 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                             checked={rule.required}
                             disabled={!rule.visible}
                             onChange={(checked) =>
-                              handleFieldConfigChange(item.key, "required", checked)
+                              handleFieldConfigChange(
+                                item.key,
+                                'required',
+                                checked
+                              )
                             }
                           />
                         </div>
@@ -2186,31 +2812,46 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
 
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="employmentType" required>{t('createEmploymentType', 'jobs')}</Label>
+                  <Label htmlFor="employmentType" required>
+                    {t('createEmploymentType', 'jobs')}
+                  </Label>
                   <Select
                     options={[
-                      { value: "full-time", label: t('createFullTime', 'jobs') },
-                      { value: "part-time", label: t('createPartTime', 'jobs') },
-                      { value: "contract", label: t('createContract', 'jobs') },
-                      { value: "internship", label: t('createInternship', 'jobs') },
+                      {
+                        value: 'full-time',
+                        label: t('createFullTime', 'jobs'),
+                      },
+                      {
+                        value: 'part-time',
+                        label: t('createPartTime', 'jobs'),
+                      },
+                      { value: 'contract', label: t('createContract', 'jobs') },
+                      {
+                        value: 'internship',
+                        label: t('createInternship', 'jobs'),
+                      },
                     ]}
                     value={jobForm.employmentType}
                     placeholder={t('createSelectOption', 'jobs')}
-                    onChange={(val) => handleInputChange("employmentType", val)}
+                    onChange={(val) => handleInputChange('employmentType', val)}
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="workArrangement" required>{t('createWorkspacePolicy', 'jobs')}</Label>
+                  <Label htmlFor="workArrangement" required>
+                    {t('createWorkspacePolicy', 'jobs')}
+                  </Label>
                   <Select
                     options={[
-                      { value: "on-site", label: t('createOnSite', 'jobs') },
-                      { value: "remote", label: t('createRemote', 'jobs') },
-                      { value: "hybrid", label: t('createHybrid', 'jobs') },
+                      { value: 'on-site', label: t('createOnSite', 'jobs') },
+                      { value: 'remote', label: t('createRemote', 'jobs') },
+                      { value: 'hybrid', label: t('createHybrid', 'jobs') },
                     ]}
                     value={jobForm.workArrangement}
                     placeholder={t('createSelectArrangement', 'jobs')}
-                    onChange={(val) => handleInputChange("workArrangement", val)}
+                    onChange={(val) =>
+                      handleInputChange('workArrangement', val)
+                    }
                     required
                   />
                 </div>
@@ -2218,23 +2859,31 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
 
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="registrationStart" required>{t('createRegOpen', 'jobs')}</Label>
+                  <Label htmlFor="registrationStart" required>
+                    {t('createRegOpen', 'jobs')}
+                  </Label>
                   <Input
                     id="registrationStart"
                     type="date"
                     value={jobForm.registrationStart}
-                    onChange={(e) => handleInputChange("registrationStart", e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange('registrationStart', e.target.value)
+                    }
                     onClick={(e) => (e.currentTarget as any).showPicker?.()}
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="registrationEnd" required>{t('createRegDeadline', 'jobs')}</Label>
+                  <Label htmlFor="registrationEnd" required>
+                    {t('createRegDeadline', 'jobs')}
+                  </Label>
                   <Input
                     id="registrationEnd"
                     type="date"
                     value={jobForm.registrationEnd}
-                    onChange={(e) => handleInputChange("registrationEnd", e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange('registrationEnd', e.target.value)
+                    }
                     onClick={(e) => (e.currentTarget as any).showPicker?.()}
                     required
                   />
@@ -2249,17 +2898,27 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                         label={t('createAllowedStatuses', 'jobs')}
                         options={allowedStatusOptions}
                         value={jobForm.allowedStatuses}
-                        onChange={(selected) => handleInputChange("allowedStatuses", selected)}
-                        placeholder={allowedStatusOptions.length > 0 ? t('createSelectStatuses', 'jobs') : t('createNoStatuses', 'jobs')}
+                        onChange={(selected) =>
+                          handleInputChange('allowedStatuses', selected)
+                        }
+                        placeholder={
+                          allowedStatusOptions.length > 0
+                            ? t('createSelectStatuses', 'jobs')
+                            : t('createNoStatuses', 'jobs')
+                        }
                         disabled={allowedStatusOptions.length === 0}
                       />
                       {jobForm.allowedStatuses.length > 0 && (
                         <div className="mt-4 flex flex-wrap gap-2">
                           {jobForm.allowedStatuses.map((statusId: string) => {
-                            const status = selectedCompany?.settings?.statuses?.find((s: any) => s._id === statusId || s.id === statusId);
+                            const status =
+                              selectedCompany?.settings?.statuses?.find(
+                                (s: any) =>
+                                  s._id === statusId || s.id === statusId
+                              );
                             if (!status) return null;
                             return (
-                              <div 
+                              <div
                                 key={statusId}
                                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm"
                                 style={{
@@ -2267,12 +2926,15 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                                   borderColor: status.color || '#e0e0e0',
                                 }}
                               >
-                                <div 
+                                <div
                                   className="size-2 rounded-full"
-                                  style={{ backgroundColor: status.color || '#e0e0e0' }}
+                                  style={{
+                                    backgroundColor: status.color || '#e0e0e0',
+                                  }}
                                 />
                                 <span className="font-medium text-gray-700 dark:text-gray-300">
-                                    {toPlainString(status?.name) || t('createUnknownStatus', 'jobs')}
+                                  {toPlainString(status?.name) ||
+                                    t('createUnknownStatus', 'jobs')}
                                 </span>
                               </div>
                             );
@@ -2291,7 +2953,9 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                     <Switch
                       label={t('createHideAfterEnd', 'jobs')}
                       checked={jobForm.hideAfterRegistrationEnd}
-                      onChange={(checked) => handleInputChange("hideAfterRegistrationEnd", checked)}
+                      onChange={(checked) =>
+                        handleInputChange('hideAfterRegistrationEnd', checked)
+                      }
                     />
                     <p className="mt-1.5 ml-11 text-[11px] leading-relaxed text-gray-500 dark:text-gray-400 opacity-70 group-hover/toggle:opacity-100 transition-opacity">
                       {t('createHideAfterEndHelp', 'jobs')}
@@ -2306,12 +2970,26 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
           <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:border-gray-800 dark:bg-gray-900">
             <div className="mb-6 flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">{t('createTerms', 'jobs')}</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">{t('createTermsDesc', 'jobs')}</p>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                  {t('createTerms', 'jobs')}
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {t('createTermsDesc', 'jobs')}
+                </p>
               </div>
               <div className="rounded-xl bg-purple-50 p-2.5 text-purple-600 dark:bg-purple-500/10">
-                <svg className="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                <svg
+                  className="size-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                  />
                 </svg>
               </div>
             </div>
@@ -2319,38 +2997,65 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
             <div className="space-y-6">
               <div className="rounded-2xl bg-gray-50 p-5 dark:bg-gray-800/50">
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div className={`space-y-2 ${locale === 'ar' ? 'order-2' : 'order-1'}`}>
-                    <Label>{t('createNewTerm', 'jobs')} {jobForm.bilingual && "(EN)"}</Label>
+                  <div
+                    className={`space-y-2 ${locale === 'ar' ? 'order-2' : 'order-1'}`}
+                  >
+                    <Label>
+                      {t('createNewTerm', 'jobs')} {jobForm.bilingual && '(EN)'}
+                    </Label>
                     <Input
                       value={newTerm}
                       onChange={(e) => setNewTerm(e.target.value)}
                       onKeyDown={(e) => {
-                        if (e.key === "Enter") {
+                        if (e.key === 'Enter') {
                           e.preventDefault();
                           handleAddTerm();
                         }
                       }}
-                      placeholder={jobForm.bilingual ? t('createTermEnPlaceholder', 'jobs') : t('createTermPlaceholder', 'jobs')}
+                      placeholder={
+                        jobForm.bilingual
+                          ? t('createTermEnPlaceholder', 'jobs')
+                          : t('createTermPlaceholder', 'jobs')
+                      }
                     />
                   </div>
                   {jobForm.bilingual && (
-                    <div className={`space-y-2 ${locale === 'ar' ? 'order-1' : 'order-2'}`} dir="rtl">
+                    <div
+                      className={`space-y-2 ${locale === 'ar' ? 'order-1' : 'order-2'}`}
+                      dir="rtl"
+                    >
                       <div className="flex items-center justify-between">
-                        <Label className="text-right block w-full">{locale === 'ar' ? 'الشرط الجديد (بالعربية)' : t('createNewTerm', 'jobs') + ' (AR)'}</Label>
+                        <Label className="text-right block w-full">
+                          {locale === 'ar'
+                            ? 'الشرط الجديد (بالعربية)'
+                            : t('createNewTerm', 'jobs') + ' (AR)'}
+                        </Label>
                         <button
                           type="button"
                           onClick={async () => {
                             if (newTerm.trim()) {
-                              const t = await translateText(newTerm, 'en', 'ar');
+                              const t = await translateText(
+                                newTerm,
+                                'en',
+                                'ar'
+                              );
                               if (t) setNewTermAr(t);
                             } else if (newTermAr.trim()) {
-                              const t = await translateText(newTermAr, 'ar', 'en');
+                              const t = await translateText(
+                                newTermAr,
+                                'ar',
+                                'en'
+                              );
                               if (t) setNewTerm(t);
                             }
                           }}
                           disabled={!newTerm.trim() && !newTermAr.trim()}
                           className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
-                          title={newTerm.trim() ? t('createTranslateEnAr', 'jobs') : t('createTranslateArEn', 'jobs')}
+                          title={
+                            newTerm.trim()
+                              ? t('createTranslateEnAr', 'jobs')
+                              : t('createTranslateArEn', 'jobs')
+                          }
                         >
                           <Languages className="size-3" />
                         </button>
@@ -2359,7 +3064,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                         value={newTermAr}
                         onChange={(e) => setNewTermAr(e.target.value)}
                         onKeyDown={(e) => {
-                          if (e.key === "Enter") {
+                          if (e.key === 'Enter') {
                             e.preventDefault();
                             handleAddTerm();
                           }
@@ -2389,7 +3094,7 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                     className="group item animate-in fade-in slide-in-from-bottom-2 duration-300 relative rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:border-brand-200 hover:shadow-md dark:border-gray-800 dark:bg-gray-900"
                   >
                     <div className="absolute left-0 top-0 h-full w-1 rounded-l-2xl bg-brand-500 opacity-0 transition-opacity group-hover:opacity-100" />
-                    
+
                     {editingTermIndex === index ? (
                       <div className="space-y-4">
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -2398,18 +3103,28 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                             onChange={(e) => {
                               const newTerms = [...jobForm.termsAndConditions];
                               newTerms[index] = e.target.value;
-                              setJobForm(prev => ({ ...prev, termsAndConditions: newTerms }));
+                              setJobForm((prev) => ({
+                                ...prev,
+                                termsAndConditions: newTerms,
+                              }));
                             }}
                             autoFocus
                           />
                           {jobForm.bilingual && (
                             <div className="relative" dir="rtl">
                               <Input
-                                value={jobForm.termsAndConditionsAr[index] || ""}
+                                value={
+                                  jobForm.termsAndConditionsAr[index] || ''
+                                }
                                 onChange={(e) => {
-                                  const newTermsAr = [...jobForm.termsAndConditionsAr];
+                                  const newTermsAr = [
+                                    ...jobForm.termsAndConditionsAr,
+                                  ];
                                   newTermsAr[index] = e.target.value;
-                                  setJobForm(prev => ({ ...prev, termsAndConditionsAr: newTermsAr }));
+                                  setJobForm((prev) => ({
+                                    ...prev,
+                                    termsAndConditionsAr: newTermsAr,
+                                  }));
                                 }}
                                 className="text-right"
                               />
@@ -2417,26 +3132,54 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                                 type="button"
                                 onClick={async () => {
                                   const en = term;
-                                  const ar = jobForm.termsAndConditionsAr[index] || "";
+                                  const ar =
+                                    jobForm.termsAndConditionsAr[index] || '';
                                   if (en.trim()) {
-                                    const t = await translateText(en, 'en', 'ar');
+                                    const t = await translateText(
+                                      en,
+                                      'en',
+                                      'ar'
+                                    );
                                     if (t) {
-                                      const newTermsAr = [...jobForm.termsAndConditionsAr];
+                                      const newTermsAr = [
+                                        ...jobForm.termsAndConditionsAr,
+                                      ];
                                       newTermsAr[index] = t;
-                                      setJobForm(prev => ({ ...prev, termsAndConditionsAr: newTermsAr }));
+                                      setJobForm((prev) => ({
+                                        ...prev,
+                                        termsAndConditionsAr: newTermsAr,
+                                      }));
                                     }
                                   } else if (ar.trim()) {
-                                    const t = await translateText(ar, 'ar', 'en');
+                                    const t = await translateText(
+                                      ar,
+                                      'ar',
+                                      'en'
+                                    );
                                     if (t) {
-                                      const newTerms = [...jobForm.termsAndConditions];
+                                      const newTerms = [
+                                        ...jobForm.termsAndConditions,
+                                      ];
                                       newTerms[index] = t;
-                                      setJobForm(prev => ({ ...prev, termsAndConditions: newTerms }));
+                                      setJobForm((prev) => ({
+                                        ...prev,
+                                        termsAndConditions: newTerms,
+                                      }));
                                     }
                                   }
                                 }}
-                                disabled={!term.trim() && !(jobForm.termsAndConditionsAr[index] || "").trim()}
+                                disabled={
+                                  !term.trim() &&
+                                  !(
+                                    jobForm.termsAndConditionsAr[index] || ''
+                                  ).trim()
+                                }
                                 className="absolute left-1.5 top-1/2 -translate-y-1/2 flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
-                                title={term.trim() ? t('createTranslateEnAr', 'jobs') : t('createTranslateArEn', 'jobs')}
+                                title={
+                                  term.trim()
+                                    ? t('createTranslateEnAr', 'jobs')
+                                    : t('createTranslateArEn', 'jobs')
+                                }
                               >
                                 <Languages className="size-3" />
                               </button>
@@ -2462,13 +3205,28 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                           </span>
                           <div className="space-y-1.5">
                             <div className="text-sm font-medium text-gray-900 dark:text-white">
-                              {jobForm.bilingual && <span className="text-[10px] uppercase tracking-wider text-gray-400 mr-2">EN:</span>}
-                              {term || <em className="text-gray-400">{t('createEmptyTerm', 'jobs')}</em>}
+                              {jobForm.bilingual && (
+                                <span className="text-[10px] uppercase tracking-wider text-gray-400 mr-2">
+                                  EN:
+                                </span>
+                              )}
+                              {term || (
+                                <em className="text-gray-400">
+                                  {t('createEmptyTerm', 'jobs')}
+                                </em>
+                              )}
                             </div>
                             {jobForm.bilingual && (
-                              <div className="text-sm font-medium text-gray-700 dark:text-gray-300" dir="rtl">
-                                <span className="text-[10px] uppercase tracking-wider text-gray-400 ml-2">AR:</span>
-                                {jobForm.termsAndConditionsAr[index] || <em className="text-gray-400">فارغ</em>}
+                              <div
+                                className="text-sm font-medium text-gray-700 dark:text-gray-300"
+                                dir="rtl"
+                              >
+                                <span className="text-[10px] uppercase tracking-wider text-gray-400 ml-2">
+                                  AR:
+                                </span>
+                                {jobForm.termsAndConditionsAr[index] || (
+                                  <em className="text-gray-400">فارغ</em>
+                                )}
                               </div>
                             )}
                           </div>
@@ -2480,8 +3238,18 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                             className="rounded-lg p-2 text-blue-600 transition hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-500/10"
                             title={t('createQuickEdit', 'jobs')}
                           >
-                            <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            <svg
+                              className="size-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                              />
                             </svg>
                           </button>
                           <button
@@ -2505,12 +3273,26 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
           <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:border-gray-800 dark:bg-gray-900">
             <div className="mb-6 flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">{t('createSpecs', 'jobs')}</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">{t('createSpecsDesc', 'jobs')}</p>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                  {t('createSpecs', 'jobs')}
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {t('createSpecsDesc', 'jobs')}
+                </p>
               </div>
               <div className="rounded-xl bg-blue-50 p-2.5 text-blue-600 dark:bg-blue-500/10">
-                <svg className="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                <svg
+                  className="size-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                  />
                 </svg>
               </div>
             </div>
@@ -2522,39 +3304,79 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                     <div className="rounded-2xl border border-blue-200 bg-blue-50/30 p-4 dark:border-blue-800/30 dark:bg-blue-900/10 space-y-4">
                       <div className="grid grid-cols-1 gap-4 md:grid-cols-12 items-end">
                         <div className="md:col-span-10 grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className={`space-y-2 ${locale === 'ar' ? 'order-2' : 'order-1'}`}>
-                            <Label>{t('createSpecName', 'jobs')} {jobForm.bilingual && "(EN)"}</Label>
+                          <div
+                            className={`space-y-2 ${locale === 'ar' ? 'order-2' : 'order-1'}`}
+                          >
+                            <Label>
+                              {t('createSpecName', 'jobs')}{' '}
+                              {jobForm.bilingual && '(EN)'}
+                            </Label>
                             <Input
                               value={spec.spec}
-                              onChange={(e) => handleJobSpecChange(index, "spec", e.target.value)}
+                              onChange={(e) =>
+                                handleJobSpecChange(
+                                  index,
+                                  'spec',
+                                  e.target.value
+                                )
+                              }
                               autoFocus
                             />
                           </div>
                           {jobForm.bilingual && (
-                            <div className={`space-y-2 ${locale === 'ar' ? 'order-1' : 'order-2'}`} dir="rtl">
+                            <div
+                              className={`space-y-2 ${locale === 'ar' ? 'order-1' : 'order-2'}`}
+                              dir="rtl"
+                            >
                               <div className="flex items-center justify-between">
-                                <Label className="text-right block w-full">{locale === 'ar' ? 'اسم المواصفة (بالعربية)' : t('createSpecName', 'jobs') + ' (AR)'}</Label>
+                                <Label className="text-right block w-full">
+                                  {locale === 'ar'
+                                    ? 'اسم المواصفة (بالعربية)'
+                                    : t('createSpecName', 'jobs') + ' (AR)'}
+                                </Label>
                                 <button
                                   type="button"
                                   onClick={async () => {
                                     if (spec.spec.trim()) {
-                                      const t = await translateText(spec.spec, 'en', 'ar');
-                                      if (t) handleJobSpecChange(index, "specAr", t);
+                                      const t = await translateText(
+                                        spec.spec,
+                                        'en',
+                                        'ar'
+                                      );
+                                      if (t)
+                                        handleJobSpecChange(index, 'specAr', t);
                                     } else if (spec.specAr?.trim()) {
-                                      const t = await translateText(spec.specAr, 'ar', 'en');
-                                      if (t) handleJobSpecChange(index, "spec", t);
+                                      const t = await translateText(
+                                        spec.specAr,
+                                        'ar',
+                                        'en'
+                                      );
+                                      if (t)
+                                        handleJobSpecChange(index, 'spec', t);
                                     }
                                   }}
-                                  disabled={!spec.spec.trim() && !spec.specAr?.trim()}
+                                  disabled={
+                                    !spec.spec.trim() && !spec.specAr?.trim()
+                                  }
                                   className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
-                                  title={spec.spec.trim() ? t('createTranslateEnAr', 'jobs') : t('createTranslateArEn', 'jobs')}
+                                  title={
+                                    spec.spec.trim()
+                                      ? t('createTranslateEnAr', 'jobs')
+                                      : t('createTranslateArEn', 'jobs')
+                                  }
                                 >
                                   <Languages className="size-3" />
                                 </button>
                               </div>
                               <Input
-                                value={spec.specAr || ""}
-                                onChange={(e) => handleJobSpecChange(index, "specAr", e.target.value)}
+                                value={spec.specAr || ''}
+                                onChange={(e) =>
+                                  handleJobSpecChange(
+                                    index,
+                                    'specAr',
+                                    e.target.value
+                                  )
+                                }
                                 className="text-right"
                               />
                             </div>
@@ -2565,7 +3387,13 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                           <Input
                             type="number"
                             value={spec.weight}
-                            onChange={(e) => handleJobSpecChange(index, "weight", Number(e.target.value))}
+                            onChange={(e) =>
+                              handleJobSpecChange(
+                                index,
+                                'weight',
+                                Number(e.target.value)
+                              )
+                            }
                             min="0"
                             max="100"
                           />
@@ -2592,19 +3420,40 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                           <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-8">
                             <div className="flex-1">
                               <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
-                                {jobForm.bilingual && <span className="text-[10px] uppercase text-gray-400 mr-2">EN:</span>}
-                                {spec.spec || <em className="text-gray-400 font-normal italic">{t('createUndefinedSpec', 'jobs')}</em>}
+                                {jobForm.bilingual && (
+                                  <span className="text-[10px] uppercase text-gray-400 mr-2">
+                                    EN:
+                                  </span>
+                                )}
+                                {spec.spec || (
+                                  <em className="text-gray-400 font-normal italic">
+                                    {t('createUndefinedSpec', 'jobs')}
+                                  </em>
+                                )}
                               </p>
                               {jobForm.bilingual && (
-                                <p className="text-sm font-medium text-gray-600 dark:text-gray-400 truncate" dir="rtl">
-                                  <span className="text-[10px] uppercase text-gray-400 ml-2">AR:</span>
-                                  {spec.specAr || <em className="text-gray-400 font-normal italic">غير محدد</em>}
+                                <p
+                                  className="text-sm font-medium text-gray-600 dark:text-gray-400 truncate"
+                                  dir="rtl"
+                                >
+                                  <span className="text-[10px] uppercase text-gray-400 ml-2">
+                                    AR:
+                                  </span>
+                                  {spec.specAr || (
+                                    <em className="text-gray-400 font-normal italic">
+                                      غير محدد
+                                    </em>
+                                  )}
                                 </p>
                               )}
                             </div>
                             <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 w-fit">
-                              <span className="text-xs font-bold uppercase tracking-wider">{t('createWeight', 'jobs')}</span>
-                              <span className="text-sm font-black">{spec.weight}%</span>
+                              <span className="text-xs font-bold uppercase tracking-wider">
+                                {t('createWeight', 'jobs')}
+                              </span>
+                              <span className="text-sm font-black">
+                                {spec.weight}%
+                              </span>
                             </div>
                           </div>
                         </div>
@@ -2615,8 +3464,18 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                           onClick={() => setEditingSpecIndex(index)}
                           className="rounded-lg p-2 text-blue-600 transition hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-500/10"
                         >
-                          <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          <svg
+                            className="size-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                            />
                           </svg>
                         </button>
                         <button
@@ -2643,19 +3502,31 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                 </button>
                 <div className="flex flex-col items-end">
                   <div className="flex items-center gap-3">
-                    <span className="text-xs font-bold uppercase tracking-widest text-gray-500">{t('createCumulativeWeight', 'jobs')}</span>
-                    <div className={`flex items-center gap-2 rounded-lg px-4 py-2 text-lg font-black ${
-                      totalWeight === 100
-                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400"
-                        : "bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400 animate-pulse"
-                    }`}>
+                    <span className="text-xs font-bold uppercase tracking-widest text-gray-500">
+                      {t('createCumulativeWeight', 'jobs')}
+                    </span>
+                    <div
+                      className={`flex items-center gap-2 rounded-lg px-4 py-2 text-lg font-black ${
+                        totalWeight === 100
+                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400'
+                          : 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400 animate-pulse'
+                      }`}
+                    >
                       {totalWeight}%
                     </div>
                   </div>
                   {totalWeight !== 100 && (
                     <p className="mt-1 text-[11px] font-bold text-red-500 uppercase flex items-center gap-1">
-                      <svg className="size-3" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      <svg
+                        className="size-3"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                          clipRule="evenodd"
+                        />
                       </svg>
                       {t('createSpecsTotalWarning', 'jobs')}
                     </p>
@@ -2669,565 +3540,1120 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
           <div className="group relative overflow-visible rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:border-gray-800 dark:bg-gray-900">
             <div className="mb-6 flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">{t('createCustomFields', 'jobs')}</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">{t('createCustomFieldsDesc', 'jobs')}</p>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                  {t('createCustomFields', 'jobs')}
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {t('createCustomFieldsDesc', 'jobs')}
+                </p>
               </div>
               <div className="rounded-xl bg-orange-50 p-2.5 text-orange-600 dark:bg-orange-500/10">
-                <svg className="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                <svg
+                  className="size-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                  />
                 </svg>
               </div>
             </div>
 
             <div className="mb-6 flex flex-wrap gap-4 p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/50">
+              <button
+                type="button"
+                onClick={handleAddCustomField}
+                className="flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-brand-500/20 transition-all hover:bg-brand-600 active:scale-95"
+              >
+                <PlusIcon className="size-4" />
+                {t('createNewField', 'jobs')}
+              </button>
+              <div className="flex gap-2 relative">
                 <button
                   type="button"
-                  onClick={handleAddCustomField}
-                  className="flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-brand-500/20 transition-all hover:bg-brand-600 active:scale-95"
+                  onClick={() => setShowRecommendedPanel((s) => !s)}
+                  className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300"
                 >
-                  <PlusIcon className="size-4" />
-                  {t('createNewField', 'jobs')}
+                  <svg
+                    className="size-4 text-orange-500"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                  {t('createRecommended', 'jobs')}
                 </button>
-                <div className="flex gap-2 relative">
-                  <button
-                    type="button"
-                    onClick={() => setShowRecommendedPanel((s) => !s)}
-                    className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300"
+
+                <button
+                  type="button"
+                  onClick={() => setShowSavedPanel((s) => !s)}
+                  className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300"
+                >
+                  <svg
+                    className="size-4 text-brand-500"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
                   >
-                    <svg className="size-4 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                    </svg>
-                    {t('createRecommended', 'jobs')}
-                  </button>
+                    <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" />
+                  </svg>
+                  {t('createSavedFields', 'jobs')}
+                </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setShowSavedPanel((s) => !s)}
-                    className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300"
-                  >
-                    <svg className="size-4 text-brand-500" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" />
-                    </svg>
-                    {t('createSavedFields', 'jobs')}
-                  </button>
-
-                  {/* Panels - Enhanced UI */}
-                  {showSavedPanel && (
-                    <div className="absolute left-0 top-full mt-2 w-80 rounded-2xl border border-gray-200 bg-white p-5 shadow-2xl z-50 animate-in zoom-in-95 duration-200 dark:border-gray-700 dark:bg-gray-900">
-                      <h4 className="mb-4 text-xs font-black uppercase tracking-widest text-gray-400">{t('createSavedFieldsLibrary', 'jobs')}</h4>
-                      <div className="max-h-80 overflow-auto scrollbar-hide space-y-3">
-                        {savedFieldsLoading ? (
-                          <div className="flex justify-center p-4">
-                            <div className="h-5 w-5 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
-                          </div>
-                        ) : (
-                          (savedFields as any).map((sf: any, idx: number) => {
-                            const fieldId = sf.fieldId;
-                            const disabled = isSavedAdded(fieldId);
-                            const checked = selectedSaved.includes(fieldId);
-                            const inputId = `sav_${idx}_${fieldId}`;
-                            return (
-                              <label key={`${fieldId}_${idx}`} htmlFor={inputId} className={`group flex cursor-pointer items-start gap-3 rounded-xl border border-transparent p-3 transition hover:border-brand-100 hover:bg-brand-50/30 dark:hover:bg-brand-500/5 ${disabled ? 'opacity-40 grayscale pointer-events-none' : ''}`}>
-                                <input
-                                  id={inputId}
-                                  type="checkbox"
-                                  checked={disabled || checked}
-                                  disabled={disabled}
-                                  onChange={() => toggleSelectSaved(fieldId)}
-                                  className="mt-1 h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
-                                />
-                                <div className="min-w-0 flex-1">
-                                  <div className="text-sm font-bold text-gray-900 dark:text-white truncate">{convertToString(sf.label) || fieldId}</div>
-                                  {sf.description && <div className="line-clamp-2 text-xs text-gray-500 mt-0.5">{convertToString(sf.description)}</div>}
-                                </div>
-                                {disabled && <CheckCircleIcon className="size-4 text-emerald-500 shrink-0" />}
-                              </label>
-                            );
-                          })
-                        )}
-                      </div>
-                      <div className="mt-5 flex items-center justify-end gap-2 border-t border-gray-100 pt-4 dark:border-gray-800">
-                        <button
-                          type="button"
-                          onClick={() => { setSelectedSaved([]); setShowSavedPanel(false); }}
-                          className="rounded-lg px-4 py-2 text-xs font-bold text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
-                        >
-                          {t('createCancel', 'jobs')}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleAddSelectedSaved}
-                          disabled={selectedSaved.length === 0}
-                          className="rounded-lg bg-brand-500 px-4 py-2 text-xs font-bold text-white transition hover:bg-brand-600 disabled:opacity-30"
-                        >
-                          {t('createAddSelected', 'jobs', { count: selectedSaved.length })}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {showRecommendedPanel && (
-                    <div className="absolute left-0 top-full mt-2 w-80 rounded-2xl border border-gray-200 bg-white p-5 shadow-2xl z-50 animate-in zoom-in-95 duration-200 dark:border-gray-700 dark:bg-gray-900">
-                      <h4 className="mb-4 text-xs font-black uppercase tracking-widest text-orange-500">{t('createRecommendedPanel', 'jobs')}</h4>
-                      <div className="max-h-80 overflow-auto scrollbar-hide space-y-3">
-                        {recommendedLoading ? (
-                          <div className="flex justify-center p-4">
-                            <div className="h-5 w-5 animate-spin rounded-full border-2 border-orange-500 border-t-transparent" />
-                          </div>
-                        ) : (
-                          recommendedFields.map((rf: any, idx: number) => {
-                            const fieldId = rf.fieldId;
-                            const disabled = isRecommendedAdded(fieldId);
-                            const checked = selectedRecommended.includes(fieldId);
-                            const inputId = `rec_${idx}_${fieldId}`;
-                            return (
-                              <label key={`${fieldId}_${idx}`} htmlFor={inputId} className={`group flex cursor-pointer items-start gap-3 rounded-xl border border-transparent p-3 transition hover:border-orange-100 hover:bg-orange-50/30 dark:hover:bg-orange-500/5 ${disabled ? 'opacity-40 grayscale pointer-events-none' : ''}`}>
-                                <input
-                                  id={inputId}
-                                  type="checkbox"
-                                  checked={disabled || checked}
-                                  disabled={disabled}
-                                  onChange={() => toggleSelectRecommended(fieldId)}
-                                  className="mt-1 h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
-                                />
-                                <div className="min-w-0 flex-1">
-                                  <div className="text-sm font-bold text-gray-900 dark:text-white truncate">{convertToString(rf.label) || fieldId}</div>
-                                  {rf.description && <div className="line-clamp-2 text-xs text-gray-500 mt-0.5">{convertToString(rf.description)}</div>}
-                                </div>
-                                {disabled && <CheckCircleIcon className="size-4 text-emerald-500 shrink-0" />}
-                              </label>
-                            );
-                          })
-                        )}
-                      </div>
-                      <div className="mt-5 flex items-center justify-end gap-2 border-t border-gray-100 pt-4 dark:border-gray-800">
-                        <button
-                          type="button"
-                          onClick={() => { setSelectedRecommended([]); setShowRecommendedPanel(false); }}
-                          className="rounded-lg px-4 py-2 text-xs font-bold text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
-                        >
-                          {t('createCancel', 'jobs')}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleAddSelectedRecommended}
-                          disabled={selectedRecommended.length === 0}
-                          className="rounded-lg bg-orange-500 px-4 py-2 text-xs font-bold text-white transition hover:bg-orange-600 disabled:opacity-30"
-                        >
-                          {t('createAddStrategic', 'jobs', { count: selectedRecommended.length })}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-            </div>
-
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleCustomFieldDragEnd}>
-              <SortableContext items={jobForm.customFields.map(f => f.fieldId)} strategy={verticalListSortingStrategy}>
-            <div className="grid grid-cols-1 gap-6">
-              {jobForm.customFields.map((field, fieldIndex) => {
-                const isCollapsed = collapsedFields.has(fieldIndex);
-                return (
-                  <SortableCustomFieldCard key={field.fieldId} id={field.fieldId} dragHandle={
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-sm ring-1 ring-gray-200 transition-all hover:scale-110 dark:bg-gray-800 dark:ring-gray-700 cursor-grab active:cursor-grabbing">
-                      <svg className="size-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M7 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4z" />
-                      </svg>
-                    </div>
-                  }>
-                  <div
-                    className="group/field relative overflow-hidden rounded-2xl border border-gray-100 bg-gray-50/50 p-5 pl-14 transition-all hover:border-brand-100 hover:bg-white hover:shadow-lg dark:border-gray-800 dark:bg-gray-900/40"
-                  >
-                    <div className="absolute left-0 top-0 h-full w-1 bg-brand-500 opacity-0 transition-opacity group-hover/field:opacity-100" />
-                    
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <button
-                            type="button"
-                            onClick={() => toggleFieldCollapse(fieldIndex)}
-                            className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-sm ring-1 ring-gray-200 transition-all hover:scale-110 dark:bg-gray-800 dark:ring-gray-700"
-                          >
-                            <svg
-                              className={`size-4 text-gray-500 transition-transform duration-300 ${isCollapsed ? '' : 'rotate-90'}`}
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
+                {/* Panels - Enhanced UI */}
+                {showSavedPanel && (
+                  <div className="absolute left-0 top-full mt-2 w-80 rounded-2xl border border-gray-200 bg-white p-5 shadow-2xl z-50 animate-in zoom-in-95 duration-200 dark:border-gray-700 dark:bg-gray-900">
+                    <h4 className="mb-4 text-xs font-black uppercase tracking-widest text-gray-400">
+                      {t('createSavedFieldsLibrary', 'jobs')}
+                    </h4>
+                    <div className="max-h-80 overflow-auto scrollbar-hide space-y-3">
+                      {savedFieldsLoading ? (
+                        <div className="flex justify-center p-4">
+                          <div className="h-5 w-5 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
+                        </div>
+                      ) : (
+                        (savedFields as any).map((sf: any, idx: number) => {
+                          const fieldId = sf.fieldId;
+                          const disabled = isSavedAdded(fieldId);
+                          const checked = selectedSaved.includes(fieldId);
+                          const inputId = `sav_${idx}_${fieldId}`;
+                          return (
+                            <label
+                              key={`${fieldId}_${idx}`}
+                              htmlFor={inputId}
+                              className={`group flex cursor-pointer items-start gap-3 rounded-xl border border-transparent p-3 transition hover:border-brand-100 hover:bg-brand-50/30 dark:hover:bg-brand-500/5 ${disabled ? 'opacity-40 grayscale pointer-events-none' : ''}`}
                             >
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
-                            </svg>
-                          </button>
-                          <div>
-                            <span className="text-[10px] font-black uppercase tracking-widest text-brand-500">{t('createFormElement', 'jobs', { number: fieldIndex + 1 })}</span>
-                            <h4 className="text-base font-bold text-gray-900 dark:text-white">
-                              {field.label || <em className="font-normal text-gray-400 italic">{t('createUntitledField', 'jobs')}</em>}
-                            </h4>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className={`rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-wider ${field.isRequired ? 'bg-red-50 text-red-600 dark:bg-red-900/20' : 'bg-gray-100 text-gray-500 dark:bg-gray-800'}`}>
-                            {field.isRequired ? t('createRequiredBadge', 'jobs') : t('createOptionalBadge', 'jobs')}
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveCustomField(fieldIndex)}
-                            className="rounded-lg p-2 text-gray-400 transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
-                          >
-                            <TrashBinIcon className="size-5" />
-                          </button>
-                        </div>
-                      </div>
-
-                      {!isCollapsed && (
-                        <div className="animate-in slide-in-from-top-2 duration-300 space-y-6 pt-4 border-t border-gray-100 dark:border-gray-800">
-                          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                            <div className={`space-y-2 ${locale === 'ar' ? 'order-2' : 'order-1'}`}>
-                              <Label htmlFor={`field-label-${fieldIndex}`}>{t('createDisplayLabel', 'jobs')} {jobForm.bilingual && "(EN)"}</Label>
-                              <Input
-                                id={`field-label-${fieldIndex}`}
-                                value={field.label}
-                                onChange={(e) => handleCustomFieldChange(fieldIndex, "label", e.target.value)}
-                                placeholder={t('createLabelPlaceholder', 'jobs')}
+                              <input
+                                id={inputId}
+                                type="checkbox"
+                                checked={disabled || checked}
+                                disabled={disabled}
+                                onChange={() => toggleSelectSaved(fieldId)}
+                                className="mt-1 h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
                               />
-                            </div>
-                            {jobForm.bilingual && (
-                              <div className={`space-y-2 ${locale === 'ar' ? 'order-1' : 'order-2'}`} dir="rtl">
-                                <div className="flex items-center justify-between">
-                                  <Label htmlFor={`field-label-ar-${fieldIndex}`} className="text-right block w-full">{locale === 'ar' ? 'تسمية الحقل (بالعربية)' : t('createDisplayLabel', 'jobs') + ' (AR)'}</Label>
-                                  <button
-                                    type="button"
-                                    onClick={async () => {
-                                      if (field.label.trim()) {
-                                        const t = await translateText(field.label, 'en', 'ar');
-                                        if (t) handleCustomFieldChange(fieldIndex, "labelAr", t);
-                                      } else if (field.labelAr?.trim()) {
-                                        const t = await translateText(field.labelAr, 'ar', 'en');
-                                        if (t) handleCustomFieldChange(fieldIndex, "label", t);
-                                      }
-                                    }}
-                                    disabled={!field.label.trim() && !field.labelAr?.trim()}
-                                    className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
-                                    title={field.label.trim() ? t('createTranslateEnAr', 'jobs') : t('createTranslateArEn', 'jobs')}
-                                  >
-                                    <Languages className="size-3" />
-                                  </button>
+                              <div className="min-w-0 flex-1">
+                                <div className="text-sm font-bold text-gray-900 dark:text-white truncate">
+                                  {convertToString(sf.label) || fieldId}
                                 </div>
-                                <Input
-                                  id={`field-label-ar-${fieldIndex}`}
-                                  value={field.labelAr || ""}
-                                  onChange={(e) => handleCustomFieldChange(fieldIndex, "labelAr", e.target.value)}
-                                  placeholder="مثال: سنوات الخبرة"
-                                  className="text-right"
-                                />
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="grid grid-cols-1 gap-6 md:grid-cols-3 items-end">
-                            <div className="space-y-2">
-                              <Label htmlFor={`field-type-${fieldIndex}`}>{t('createFieldType', 'jobs')}</Label>
-                              <Select
-                                options={inputTypeOptions(t)}
-                                value={field.inputType}
-                                placeholder={t('createSelectComponent', 'jobs')}
-                                onChange={(value) => handleCustomFieldChange(fieldIndex, "inputType", value)}
-                              />
-                            </div>
-                            <div className="space-y-2 text-center">
-                              <Label htmlFor={`field-display-order-${fieldIndex}`}>{t('createSequence', 'jobs')}</Label>
-                              <div className="flex justify-center">
-                                <Input
-                                  id={`field-display-order-${fieldIndex}`}
-                                  type="number"
-                                  className="text-center w-24"
-                                  value={field.displayOrder}
-                                  onChange={(e) => handleCustomFieldChange(fieldIndex, "displayOrder", Number(e.target.value))}
-                                  min="1"
-                                />
-                              </div>
-                            </div>
-                            <div className="flex h-[44px] items-center justify-center rounded-xl bg-gray-100/50 px-4 dark:bg-gray-800/50">
-                              <Switch
-                                label={t('createRequired', 'jobs')}
-                                checked={field.isRequired}
-                                onChange={(checked) => handleCustomFieldChange(fieldIndex, "isRequired", checked)}
-                              />
-                            </div>
-                          </div>
-
-                          {field.inputType === "number" && (
-                            <div className="grid grid-cols-2 gap-6 rounded-2xl bg-brand-50/30 p-4 dark:bg-brand-500/5">
-                              <div className="space-y-2">
-                                <Label htmlFor={`field-min-${fieldIndex}`}>{t('createMinThreshold', 'jobs')}</Label>
-                                <Input
-                                  id={`field-min-${fieldIndex}`}
-                                  type="number"
-                                  value={field.minValue || ""}
-                                  onChange={(e) => handleCustomFieldChange(fieldIndex, "minValue", Number(e.target.value))}
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label htmlFor={`field-max-${fieldIndex}`}>{t('createMaxLimit', 'jobs')}</Label>
-                                <Input
-                                  id={`field-max-${fieldIndex}`}
-                                  type="number"
-                                  value={field.maxValue || ""}
-                                  onChange={(e) => handleCustomFieldChange(fieldIndex, "maxValue", Number(e.target.value))}
-                                />
-                              </div>
-                            </div>
-                          )}
-
-                          {(field.inputType === "checkbox" || field.inputType === "radio" || field.inputType === "dropdown") && (
-                            <div className="rounded-2xl border border-gray-100 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
-                              <Label className="mb-4 block text-xs font-black uppercase tracking-wider text-gray-400">{t('createResponseOptions', 'jobs')} {jobForm.bilingual && "(EN)"}</Label>
-                              <div className={`grid gap-4 items-end mb-4 ${jobForm.bilingual ? 'md:grid-cols-2' : ''}`}>
-                                <div className={`space-y-2 ${locale === 'ar' ? 'order-2' : 'order-1'}`}>
-                                  <Input
-                                    value={newChoice[fieldIndex] || ""}
-                                    onChange={(e) => setNewChoice(prev => ({ ...prev, [fieldIndex]: e.target.value }))}
-                                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddChoice(fieldIndex))}
-                                    placeholder={t('createChoicePlaceholder', 'jobs')}
-                                  />
-                                </div>
-                                {jobForm.bilingual && (
-                                  <div className={`relative ${locale === 'ar' ? 'order-1' : 'order-2'}`} dir="rtl">
-                                    <Label className="mb-2 block text-right text-xs font-black uppercase tracking-wider text-gray-400">{locale === 'ar' ? 'خيارات الاستجابة (بالعربية)' : t('createResponseOptions', 'jobs') + ' (AR)'}</Label>
-                                    <div className="space-y-2">
-                                      <Input
-                                        value={newChoiceAr[fieldIndex] || ""}
-                                        onChange={(e) => setNewChoiceAr(prev => ({ ...prev, [fieldIndex]: e.target.value }))}
-                                        onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddChoice(fieldIndex))}
-                                        placeholder="الخيار بالعربية..."
-                                        className="text-right"
-                                      />
-                                    </div>
-                                    <button
-                                      type="button"
-                                      onClick={async () => {
-                                        const en = newChoice[fieldIndex] || "";
-                                        const ar = newChoiceAr[fieldIndex] || "";
-                                        if (en.trim()) {
-                                          const t = await translateText(en, 'en', 'ar');
-                                          if (t) setNewChoiceAr(prev => ({ ...prev, [fieldIndex]: t }));
-                                        } else if (ar.trim()) {
-                                          const t = await translateText(ar, 'ar', 'en');
-                                          if (t) setNewChoice(prev => ({ ...prev, [fieldIndex]: t }));
-                                        }
-                                      }}
-                                      disabled={!(newChoice[fieldIndex] || "").trim() && !(newChoiceAr[fieldIndex] || "").trim()}
-                                      className="absolute left-1.5 top-1/2 -translate-y-1/2 flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
-                                       title={(newChoice[fieldIndex] || "").trim() ? t('createTranslateEnAr', 'jobs') : t('createTranslateArEn', 'jobs')}
-                                    >
-                                      <Languages className="size-3" />
-                                    </button>
+                                {sf.description && (
+                                  <div className="line-clamp-2 text-xs text-gray-500 mt-0.5">
+                                    {convertToString(sf.description)}
                                   </div>
                                 )}
                               </div>
-                              <button
-                                type="button"
-                                onClick={() => handleAddChoice(fieldIndex)}
-                                className="inline-flex items-center gap-2 rounded-xl bg-gray-900 px-4 py-2 text-xs font-bold text-white transition hover:bg-black dark:bg-brand-500 dark:hover:bg-brand-600"
-                              >
-                                <PlusIcon className="size-3" />
-                                {t('createSaveChoice', 'jobs')}
-                              </button>
+                              {disabled && (
+                                <CheckCircleIcon className="size-4 text-emerald-500 shrink-0" />
+                              )}
+                            </label>
+                          );
+                        })
+                      )}
+                    </div>
+                    <div className="mt-5 flex items-center justify-end gap-2 border-t border-gray-100 pt-4 dark:border-gray-800">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedSaved([]);
+                          setShowSavedPanel(false);
+                        }}
+                        className="rounded-lg px-4 py-2 text-xs font-bold text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+                      >
+                        {t('createCancel', 'jobs')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleAddSelectedSaved}
+                        disabled={selectedSaved.length === 0}
+                        className="rounded-lg bg-brand-500 px-4 py-2 text-xs font-bold text-white transition hover:bg-brand-600 disabled:opacity-30"
+                      >
+                        {t('createAddSelected', 'jobs', {
+                          count: selectedSaved.length,
+                        })}
+                      </button>
+                    </div>
+                  </div>
+                )}
 
-                              <div className="mt-6 flex flex-wrap gap-2">
-                                {field.choices?.map((choice, choiceIndex) => (
-                                  <div
-                                    key={choiceIndex}
-                                    className="group/choice flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 pl-4 pr-2 py-2 text-sm dark:border-gray-800 dark:bg-gray-800/50"
+                {showRecommendedPanel && (
+                  <div className="absolute left-0 top-full mt-2 w-80 rounded-2xl border border-gray-200 bg-white p-5 shadow-2xl z-50 animate-in zoom-in-95 duration-200 dark:border-gray-700 dark:bg-gray-900">
+                    <h4 className="mb-4 text-xs font-black uppercase tracking-widest text-orange-500">
+                      {t('createRecommendedPanel', 'jobs')}
+                    </h4>
+                    <div className="max-h-80 overflow-auto scrollbar-hide space-y-3">
+                      {recommendedLoading ? (
+                        <div className="flex justify-center p-4">
+                          <div className="h-5 w-5 animate-spin rounded-full border-2 border-orange-500 border-t-transparent" />
+                        </div>
+                      ) : (
+                        recommendedFields.map((rf: any, idx: number) => {
+                          const fieldId = rf.fieldId;
+                          const disabled = isRecommendedAdded(fieldId);
+                          const checked = selectedRecommended.includes(fieldId);
+                          const inputId = `rec_${idx}_${fieldId}`;
+                          return (
+                            <label
+                              key={`${fieldId}_${idx}`}
+                              htmlFor={inputId}
+                              className={`group flex cursor-pointer items-start gap-3 rounded-xl border border-transparent p-3 transition hover:border-orange-100 hover:bg-orange-50/30 dark:hover:bg-orange-500/5 ${disabled ? 'opacity-40 grayscale pointer-events-none' : ''}`}
+                            >
+                              <input
+                                id={inputId}
+                                type="checkbox"
+                                checked={disabled || checked}
+                                disabled={disabled}
+                                onChange={() =>
+                                  toggleSelectRecommended(fieldId)
+                                }
+                                className="mt-1 h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                              />
+                              <div className="min-w-0 flex-1">
+                                <div className="text-sm font-bold text-gray-900 dark:text-white truncate">
+                                  {convertToString(rf.label) || fieldId}
+                                </div>
+                                {rf.description && (
+                                  <div className="line-clamp-2 text-xs text-gray-500 mt-0.5">
+                                    {convertToString(rf.description)}
+                                  </div>
+                                )}
+                              </div>
+                              {disabled && (
+                                <CheckCircleIcon className="size-4 text-emerald-500 shrink-0" />
+                              )}
+                            </label>
+                          );
+                        })
+                      )}
+                    </div>
+                    <div className="mt-5 flex items-center justify-end gap-2 border-t border-gray-100 pt-4 dark:border-gray-800">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedRecommended([]);
+                          setShowRecommendedPanel(false);
+                        }}
+                        className="rounded-lg px-4 py-2 text-xs font-bold text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+                      >
+                        {t('createCancel', 'jobs')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleAddSelectedRecommended}
+                        disabled={selectedRecommended.length === 0}
+                        className="rounded-lg bg-orange-500 px-4 py-2 text-xs font-bold text-white transition hover:bg-orange-600 disabled:opacity-30"
+                      >
+                        {t('createAddStrategic', 'jobs', {
+                          count: selectedRecommended.length,
+                        })}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleCustomFieldDragEnd}
+            >
+              <SortableContext
+                items={jobForm.customFields.map((f) => f.fieldId)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="grid grid-cols-1 gap-6">
+                  {jobForm.customFields.map((field, fieldIndex) => {
+                    const isCollapsed = collapsedFields.has(fieldIndex);
+                    return (
+                      <SortableCustomFieldCard
+                        key={field.fieldId}
+                        id={field.fieldId}
+                        dragHandle={
+                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-sm ring-1 ring-gray-200 transition-all hover:scale-110 dark:bg-gray-800 dark:ring-gray-700 cursor-grab active:cursor-grabbing">
+                            <svg
+                              className="size-4 text-gray-400"
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                            >
+                              <path d="M7 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4z" />
+                            </svg>
+                          </div>
+                        }
+                      >
+                        <div className="group/field relative overflow-hidden rounded-2xl border border-gray-100 bg-gray-50/50 p-5 pl-14 transition-all hover:border-brand-100 hover:bg-white hover:shadow-lg dark:border-gray-800 dark:bg-gray-900/40">
+                          <div className="absolute left-0 top-0 h-full w-1 bg-brand-500 opacity-0 transition-opacity group-hover/field:opacity-100" />
+
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-4">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    toggleFieldCollapse(fieldIndex)
+                                  }
+                                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-sm ring-1 ring-gray-200 transition-all hover:scale-110 dark:bg-gray-800 dark:ring-gray-700"
+                                >
+                                  <svg
+                                    className={`size-4 text-gray-500 transition-transform duration-300 ${isCollapsed ? '' : 'rotate-90'}`}
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
                                   >
-                                    <div className="flex flex-col">
-                                      <span className="font-bold text-gray-900 dark:text-white">{choice}</span>
-                                      {jobForm.bilingual && field.choicesAr?.[choiceIndex] && (
-                                        <span className="text-[10px] text-gray-500 font-medium" dir="rtl">{field.choicesAr[choiceIndex]}</span>
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2.5}
+                                      d="M9 5l7 7-7 7"
+                                    />
+                                  </svg>
+                                </button>
+                                <div>
+                                  <span className="text-[10px] font-black uppercase tracking-widest text-brand-500">
+                                    {t('createFormElement', 'jobs', {
+                                      number: fieldIndex + 1,
+                                    })}
+                                  </span>
+                                  <h4 className="text-base font-bold text-gray-900 dark:text-white">
+                                    {field.label || (
+                                      <em className="font-normal text-gray-400 italic">
+                                        {t('createUntitledField', 'jobs')}
+                                      </em>
+                                    )}
+                                  </h4>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div
+                                  className={`rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-wider ${field.isRequired ? 'bg-red-50 text-red-600 dark:bg-red-900/20' : 'bg-gray-100 text-gray-500 dark:bg-gray-800'}`}
+                                >
+                                  {field.isRequired
+                                    ? t('createRequiredBadge', 'jobs')
+                                    : t('createOptionalBadge', 'jobs')}
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleRemoveCustomField(fieldIndex)
+                                  }
+                                  className="rounded-lg p-2 text-gray-400 transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
+                                >
+                                  <TrashBinIcon className="size-5" />
+                                </button>
+                              </div>
+                            </div>
+
+                            {!isCollapsed && (
+                              <div className="animate-in slide-in-from-top-2 duration-300 space-y-6 pt-4 border-t border-gray-100 dark:border-gray-800">
+                                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                                  <div
+                                    className={`space-y-2 ${locale === 'ar' ? 'order-2' : 'order-1'}`}
+                                  >
+                                    <Label
+                                      htmlFor={`field-label-${fieldIndex}`}
+                                    >
+                                      {t('createDisplayLabel', 'jobs')}{' '}
+                                      {jobForm.bilingual && '(EN)'}
+                                    </Label>
+                                    <Input
+                                      id={`field-label-${fieldIndex}`}
+                                      value={field.label}
+                                      onChange={(e) =>
+                                        handleCustomFieldChange(
+                                          fieldIndex,
+                                          'label',
+                                          e.target.value
+                                        )
+                                      }
+                                      placeholder={t(
+                                        'createLabelPlaceholder',
+                                        'jobs'
+                                      )}
+                                    />
+                                  </div>
+                                  {jobForm.bilingual && (
+                                    <div
+                                      className={`space-y-2 ${locale === 'ar' ? 'order-1' : 'order-2'}`}
+                                      dir="rtl"
+                                    >
+                                      <div className="flex items-center justify-between">
+                                        <Label
+                                          htmlFor={`field-label-ar-${fieldIndex}`}
+                                          className="text-right block w-full"
+                                        >
+                                          {locale === 'ar'
+                                            ? 'تسمية الحقل (بالعربية)'
+                                            : t('createDisplayLabel', 'jobs') +
+                                              ' (AR)'}
+                                        </Label>
+                                        <button
+                                          type="button"
+                                          onClick={async () => {
+                                            if (field.label.trim()) {
+                                              const t = await translateText(
+                                                field.label,
+                                                'en',
+                                                'ar'
+                                              );
+                                              if (t)
+                                                handleCustomFieldChange(
+                                                  fieldIndex,
+                                                  'labelAr',
+                                                  t
+                                                );
+                                            } else if (field.labelAr?.trim()) {
+                                              const t = await translateText(
+                                                field.labelAr,
+                                                'ar',
+                                                'en'
+                                              );
+                                              if (t)
+                                                handleCustomFieldChange(
+                                                  fieldIndex,
+                                                  'label',
+                                                  t
+                                                );
+                                            }
+                                          }}
+                                          disabled={
+                                            !field.label.trim() &&
+                                            !field.labelAr?.trim()
+                                          }
+                                          className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
+                                          title={
+                                            field.label.trim()
+                                              ? t('createTranslateEnAr', 'jobs')
+                                              : t('createTranslateArEn', 'jobs')
+                                          }
+                                        >
+                                          <Languages className="size-3" />
+                                        </button>
+                                      </div>
+                                      <Input
+                                        id={`field-label-ar-${fieldIndex}`}
+                                        value={field.labelAr || ''}
+                                        onChange={(e) =>
+                                          handleCustomFieldChange(
+                                            fieldIndex,
+                                            'labelAr',
+                                            e.target.value
+                                          )
+                                        }
+                                        placeholder="مثال: سنوات الخبرة"
+                                        className="text-right"
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="grid grid-cols-1 gap-6 md:grid-cols-3 items-end">
+                                  <div className="space-y-2">
+                                    <Label htmlFor={`field-type-${fieldIndex}`}>
+                                      {t('createFieldType', 'jobs')}
+                                    </Label>
+                                    <Select
+                                      options={inputTypeOptions(t)}
+                                      value={field.inputType}
+                                      placeholder={t(
+                                        'createSelectComponent',
+                                        'jobs'
+                                      )}
+                                      onChange={(value) =>
+                                        handleCustomFieldChange(
+                                          fieldIndex,
+                                          'inputType',
+                                          value
+                                        )
+                                      }
+                                    />
+                                  </div>
+                                  <div className="space-y-2 text-center">
+                                    <Label
+                                      htmlFor={`field-display-order-${fieldIndex}`}
+                                    >
+                                      {t('createSequence', 'jobs')}
+                                    </Label>
+                                    <div className="flex justify-center">
+                                      <Input
+                                        id={`field-display-order-${fieldIndex}`}
+                                        type="number"
+                                        className="text-center w-24"
+                                        value={field.displayOrder}
+                                        onChange={(e) =>
+                                          handleCustomFieldChange(
+                                            fieldIndex,
+                                            'displayOrder',
+                                            Number(e.target.value)
+                                          )
+                                        }
+                                        min="1"
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="flex h-[44px] items-center justify-center rounded-xl bg-gray-100/50 px-4 dark:bg-gray-800/50">
+                                    <Switch
+                                      label={t('createRequired', 'jobs')}
+                                      checked={field.isRequired}
+                                      onChange={(checked) =>
+                                        handleCustomFieldChange(
+                                          fieldIndex,
+                                          'isRequired',
+                                          checked
+                                        )
+                                      }
+                                    />
+                                  </div>
+                                </div>
+
+                                {field.inputType === 'number' && (
+                                  <div className="grid grid-cols-2 gap-6 rounded-2xl bg-brand-50/30 p-4 dark:bg-brand-500/5">
+                                    <div className="space-y-2">
+                                      <Label
+                                        htmlFor={`field-min-${fieldIndex}`}
+                                      >
+                                        {t('createMinThreshold', 'jobs')}
+                                      </Label>
+                                      <Input
+                                        id={`field-min-${fieldIndex}`}
+                                        type="number"
+                                        value={field.minValue || ''}
+                                        onChange={(e) =>
+                                          handleCustomFieldChange(
+                                            fieldIndex,
+                                            'minValue',
+                                            Number(e.target.value)
+                                          )
+                                        }
+                                      />
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label
+                                        htmlFor={`field-max-${fieldIndex}`}
+                                      >
+                                        {t('createMaxLimit', 'jobs')}
+                                      </Label>
+                                      <Input
+                                        id={`field-max-${fieldIndex}`}
+                                        type="number"
+                                        value={field.maxValue || ''}
+                                        onChange={(e) =>
+                                          handleCustomFieldChange(
+                                            fieldIndex,
+                                            'maxValue',
+                                            Number(e.target.value)
+                                          )
+                                        }
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+
+                                {(field.inputType === 'checkbox' ||
+                                  field.inputType === 'radio' ||
+                                  field.inputType === 'dropdown') && (
+                                  <div className="rounded-2xl border border-gray-100 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+                                    <Label className="mb-4 block text-xs font-black uppercase tracking-wider text-gray-400">
+                                      {t('createResponseOptions', 'jobs')}{' '}
+                                      {jobForm.bilingual && '(EN)'}
+                                    </Label>
+                                    <div
+                                      className={`grid gap-4 items-end mb-4 ${jobForm.bilingual ? 'md:grid-cols-2' : ''}`}
+                                    >
+                                      <div
+                                        className={`space-y-2 ${locale === 'ar' ? 'order-2' : 'order-1'}`}
+                                      >
+                                        <Input
+                                          value={newChoice[fieldIndex] || ''}
+                                          onChange={(e) =>
+                                            setNewChoice((prev) => ({
+                                              ...prev,
+                                              [fieldIndex]: e.target.value,
+                                            }))
+                                          }
+                                          onKeyDown={(e) =>
+                                            e.key === 'Enter' &&
+                                            (e.preventDefault(),
+                                            handleAddChoice(fieldIndex))
+                                          }
+                                          placeholder={t(
+                                            'createChoicePlaceholder',
+                                            'jobs'
+                                          )}
+                                        />
+                                      </div>
+                                      {jobForm.bilingual && (
+                                        <div
+                                          className={`relative ${locale === 'ar' ? 'order-1' : 'order-2'}`}
+                                          dir="rtl"
+                                        >
+                                          <Label className="mb-2 block text-right text-xs font-black uppercase tracking-wider text-gray-400">
+                                            {locale === 'ar'
+                                              ? 'خيارات الاستجابة (بالعربية)'
+                                              : t(
+                                                  'createResponseOptions',
+                                                  'jobs'
+                                                ) + ' (AR)'}
+                                          </Label>
+                                          <div className="space-y-2">
+                                            <Input
+                                              value={
+                                                newChoiceAr[fieldIndex] || ''
+                                              }
+                                              onChange={(e) =>
+                                                setNewChoiceAr((prev) => ({
+                                                  ...prev,
+                                                  [fieldIndex]: e.target.value,
+                                                }))
+                                              }
+                                              onKeyDown={(e) =>
+                                                e.key === 'Enter' &&
+                                                (e.preventDefault(),
+                                                handleAddChoice(fieldIndex))
+                                              }
+                                              placeholder="الخيار بالعربية..."
+                                              className="text-right"
+                                            />
+                                          </div>
+                                          <button
+                                            type="button"
+                                            onClick={async () => {
+                                              const en =
+                                                newChoice[fieldIndex] || '';
+                                              const ar =
+                                                newChoiceAr[fieldIndex] || '';
+                                              if (en.trim()) {
+                                                const t = await translateText(
+                                                  en,
+                                                  'en',
+                                                  'ar'
+                                                );
+                                                if (t)
+                                                  setNewChoiceAr((prev) => ({
+                                                    ...prev,
+                                                    [fieldIndex]: t,
+                                                  }));
+                                              } else if (ar.trim()) {
+                                                const t = await translateText(
+                                                  ar,
+                                                  'ar',
+                                                  'en'
+                                                );
+                                                if (t)
+                                                  setNewChoice((prev) => ({
+                                                    ...prev,
+                                                    [fieldIndex]: t,
+                                                  }));
+                                              }
+                                            }}
+                                            disabled={
+                                              !(
+                                                newChoice[fieldIndex] || ''
+                                              ).trim() &&
+                                              !(
+                                                newChoiceAr[fieldIndex] || ''
+                                              ).trim()
+                                            }
+                                            className="absolute left-1.5 top-1/2 -translate-y-1/2 flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
+                                            title={
+                                              (
+                                                newChoice[fieldIndex] || ''
+                                              ).trim()
+                                                ? t(
+                                                    'createTranslateEnAr',
+                                                    'jobs'
+                                                  )
+                                                : t(
+                                                    'createTranslateArEn',
+                                                    'jobs'
+                                                  )
+                                            }
+                                          >
+                                            <Languages className="size-3" />
+                                          </button>
+                                        </div>
                                       )}
                                     </div>
                                     <button
                                       type="button"
-                                      onClick={() => handleRemoveChoice(fieldIndex, choiceIndex)}
-                                      className="rounded-lg p-1 text-gray-300 hover:bg-red-50 hover:text-red-500"
+                                      onClick={() =>
+                                        handleAddChoice(fieldIndex)
+                                      }
+                                      className="inline-flex items-center gap-2 rounded-xl bg-gray-900 px-4 py-2 text-xs font-bold text-white transition hover:bg-black dark:bg-brand-500 dark:hover:bg-brand-600"
                                     >
-                                      <TrashBinIcon className="size-4" />
+                                      <PlusIcon className="size-3" />
+                                      {t('createSaveChoice', 'jobs')}
                                     </button>
+
+                                    <div className="mt-6 flex flex-wrap gap-2">
+                                      {field.choices?.map(
+                                        (choice, choiceIndex) => (
+                                          <div
+                                            key={choiceIndex}
+                                            className="group/choice flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 pl-4 pr-2 py-2 text-sm dark:border-gray-800 dark:bg-gray-800/50"
+                                          >
+                                            <div className="flex flex-col">
+                                              <span className="font-bold text-gray-900 dark:text-white">
+                                                {choice}
+                                              </span>
+                                              {jobForm.bilingual &&
+                                                field.choicesAr?.[
+                                                  choiceIndex
+                                                ] && (
+                                                  <span
+                                                    className="text-[10px] text-gray-500 font-medium"
+                                                    dir="rtl"
+                                                  >
+                                                    {
+                                                      field.choicesAr[
+                                                        choiceIndex
+                                                      ]
+                                                    }
+                                                  </span>
+                                                )}
+                                            </div>
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                handleRemoveChoice(
+                                                  fieldIndex,
+                                                  choiceIndex
+                                                )
+                                              }
+                                              className="rounded-lg p-1 text-gray-300 hover:bg-red-50 hover:text-red-500"
+                                            >
+                                              <TrashBinIcon className="size-4" />
+                                            </button>
+                                          </div>
+                                        )
+                                      )}
+                                    </div>
                                   </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
+                                )}
 
-                          {field.inputType === "repeatable_group" && (
-                            <div className="rounded-2xl border-2 border-dashed border-brand-100 bg-brand-50/20 p-6 dark:border-brand-900/20 dark:bg-brand-500/5">
-                              <div className="mb-6 flex items-center justify-between">
-                                <div>
-                                  <h5 className="text-sm font-black uppercase tracking-widest text-brand-600">{t('createSubQuestionMatrix', 'jobs')}</h5>
-                                  <p className="text-xs text-brand-500/70">{t('createSubQuestionDesc', 'jobs')}</p>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => handleAddSubField(fieldIndex)}
-                                  className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-brand-500/20 hover:bg-brand-600"
-                                >
-                                  <PlusIcon className="size-3" />
-                                  {t('createAddSubField', 'jobs')}
-                                </button>
-                              </div>
-
-                              <div className="space-y-4">
-                                {field.subFields?.map((subField, subFieldIndex) => (
-                                  <div
-                                    key={subField.fieldId}
-                                    className="relative rounded-xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900"
-                                  >
-                                    <div className="mb-4 flex items-center justify-between">
-                                      <span className="text-[10px] font-bold text-gray-400 uppercase">{t('createSubField', 'jobs', { number: subFieldIndex + 1 })}</span>
+                                {field.inputType === 'repeatable_group' && (
+                                  <div className="rounded-2xl border-2 border-dashed border-brand-100 bg-brand-50/20 p-6 dark:border-brand-900/20 dark:bg-brand-500/5">
+                                    <div className="mb-6 flex items-center justify-between">
+                                      <div>
+                                        <h5 className="text-sm font-black uppercase tracking-widest text-brand-600">
+                                          {t('createSubQuestionMatrix', 'jobs')}
+                                        </h5>
+                                        <p className="text-xs text-brand-500/70">
+                                          {t('createSubQuestionDesc', 'jobs')}
+                                        </p>
+                                      </div>
                                       <button
                                         type="button"
-                                        onClick={() => handleRemoveSubField(fieldIndex, subFieldIndex)}
-                                        className="text-gray-300 hover:text-red-500 transition-colors"
+                                        onClick={() =>
+                                          handleAddSubField(fieldIndex)
+                                        }
+                                        className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-brand-500/20 hover:bg-brand-600"
                                       >
-                                        <TrashBinIcon className="size-4" />
+                                        <PlusIcon className="size-3" />
+                                        {t('createAddSubField', 'jobs')}
                                       </button>
                                     </div>
 
                                     <div className="space-y-4">
-                                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                        <div className={`space-y-1 ${locale === 'ar' ? 'order-2' : 'order-1'}`}>
-                                          <Label className="text-[11px] font-bold text-gray-500">{t('createSubFieldLabelEn', 'jobs')}</Label>
-                                          <Input
-                                            value={subField.label}
-                                            onChange={(e) => handleSubFieldChange(fieldIndex, subFieldIndex, "label", e.target.value)}
-                                            placeholder={t('createSubFieldLabelPlaceholder', 'jobs')}
-                                            className="h-9 text-sm"
-                                          />
-                                        </div>
-                                        {jobForm.bilingual && (
-                                          <div className={`space-y-1 ${locale === 'ar' ? 'order-1' : 'order-2'}`} dir="rtl">
-                                            <div className="flex items-center justify-between">
-                                              <Label className="text-[11px] font-bold text-gray-500">{t('createSubFieldLabelAr', 'jobs')}</Label>
+                                      {field.subFields?.map(
+                                        (subField, subFieldIndex) => (
+                                          <div
+                                            key={subField.fieldId}
+                                            className="relative rounded-xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900"
+                                          >
+                                            <div className="mb-4 flex items-center justify-between">
+                                              <span className="text-[10px] font-bold text-gray-400 uppercase">
+                                                {t('createSubField', 'jobs', {
+                                                  number: subFieldIndex + 1,
+                                                })}
+                                              </span>
                                               <button
                                                 type="button"
-                                                onClick={async () => {
-                                                  if (subField.label.trim()) {
-                                                    const t = await translateText(subField.label, 'en', 'ar');
-                                                    if (t) handleSubFieldChange(fieldIndex, subFieldIndex, "labelAr", t);
-                                                  } else if (subField.labelAr?.trim()) {
-                                                    const t = await translateText(subField.labelAr, 'ar', 'en');
-                                                    if (t) handleSubFieldChange(fieldIndex, subFieldIndex, "label", t);
-                                                  }
-                                                }}
-                                                disabled={!subField.label.trim() && !subField.labelAr?.trim()}
-                                                className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
-                                                title={subField.label.trim() ? t('createTranslateEnAr', 'jobs') : t('createTranslateArEn', 'jobs')}
+                                                onClick={() =>
+                                                  handleRemoveSubField(
+                                                    fieldIndex,
+                                                    subFieldIndex
+                                                  )
+                                                }
+                                                className="text-gray-300 hover:text-red-500 transition-colors"
                                               >
-                                                <Languages className="size-3" />
+                                                <TrashBinIcon className="size-4" />
                                               </button>
                                             </div>
-                                            <Input
-                                              value={subField.labelAr || ""}
-                                              onChange={(e) => handleSubFieldChange(fieldIndex, subFieldIndex, "labelAr", e.target.value)}
-                                              placeholder="السؤال بالعربية..."
-                                              className="h-9 text-sm text-right"
-                                            />
-                                          </div>
-                                        )}
-                                      </div>
 
-                                      <div className="grid grid-cols-2 gap-4 items-end">
-                                        <div className="space-y-1">
-                                          <Label className="text-[11px] font-bold text-gray-500">{t('createSubFieldInputType', 'jobs')}</Label>
-                                          <Select
-                                            options={subFieldTypeOptions(t)}
-                                            value={subField.inputType}
-                                            onChange={(value) => handleSubFieldChange(fieldIndex, subFieldIndex, "inputType", value)}
-                                          />
-                                        </div>
-                                        <div className="flex h-[40px] items-center px-3 rounded-lg bg-gray-50 dark:bg-gray-800/50">
-                                          <Switch
-                                            label={t('createRequired', 'jobs')}
-                                            checked={subField.isRequired}
-                                            onChange={(checked) => handleSubFieldChange(fieldIndex, subFieldIndex, "isRequired", checked)}
-                                          />
-                                        </div>
-                                      </div>
-
-                                      {(subField.inputType === "radio" || subField.inputType === "checkbox" || subField.inputType === "dropdown") && (
-                                        <div className="mt-4 pt-4 border-t border-gray-50 dark:border-gray-800">
-                                          <div className="grid gap-4 md:grid-cols-2 mb-3">
-                                            <div className={locale === 'ar' ? 'order-2' : 'order-1'}>
-                                              <Input
-                                                value={newSubFieldChoice[`${fieldIndex}-${subFieldIndex}`] || ""}
-                                                onChange={(e) => setNewSubFieldChoice(prev => ({ ...prev, [`${fieldIndex}-${subFieldIndex}`]: e.target.value }))}
-                                                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddSubFieldChoice(fieldIndex, subFieldIndex))}
-                                                placeholder={t('createSubFieldChoicePlaceholder', 'jobs')}
-                                                className="h-8 text-xs"
-                                              />
-                                            </div>
-                                            {jobForm.bilingual && (
-                                              <div className={`relative ${locale === 'ar' ? 'order-1' : 'order-2'}`} dir="rtl">
-                                                <Input
-                                                  value={newSubFieldChoiceAr[`${fieldIndex}-${subFieldIndex}`] || ""}
-                                                  onChange={(e) => setNewSubFieldChoiceAr(prev => ({ ...prev, [`${fieldIndex}-${subFieldIndex}`]: e.target.value }))}
-                                                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddSubFieldChoice(fieldIndex, subFieldIndex))}
-                                                  placeholder="الخيار بالعربية..."
-                                                  className="h-8 text-xs text-right"
-                                                />
-                                                <button
-                                                  type="button"
-                                                  onClick={async () => {
-                                                    const key = `${fieldIndex}-${subFieldIndex}`;
-                                                    const en = newSubFieldChoice[key] || "";
-                                                    const ar = newSubFieldChoiceAr[key] || "";
-                                                    if (en.trim()) {
-                                                      const t = await translateText(en, 'en', 'ar');
-                                                      if (t) setNewSubFieldChoiceAr(prev => ({ ...prev, [key]: t }));
-                                                    } else if (ar.trim()) {
-                                                      const t = await translateText(ar, 'ar', 'en');
-                                                      if (t) setNewSubFieldChoice(prev => ({ ...prev, [key]: t }));
-                                                    }
-                                                  }}
-                                                  disabled={!(newSubFieldChoice[`${fieldIndex}-${subFieldIndex}`] || "").trim() && !(newSubFieldChoiceAr[`${fieldIndex}-${subFieldIndex}`] || "").trim()}
-                                                  className="absolute left-1.5 top-1/2 -translate-y-1/2 flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
-                                                  title={(newSubFieldChoice[`${fieldIndex}-${subFieldIndex}`] || "").trim() ? t('createTranslateEnAr', 'jobs') : t('createTranslateArEn', 'jobs')}
+                                            <div className="space-y-4">
+                                              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                                <div
+                                                  className={`space-y-1 ${locale === 'ar' ? 'order-2' : 'order-1'}`}
                                                 >
-                                                  <Languages className="size-3" />
-                                                </button>
+                                                  <Label className="text-[11px] font-bold text-gray-500">
+                                                    {t(
+                                                      'createSubFieldLabelEn',
+                                                      'jobs'
+                                                    )}
+                                                  </Label>
+                                                  <Input
+                                                    value={subField.label}
+                                                    onChange={(e) =>
+                                                      handleSubFieldChange(
+                                                        fieldIndex,
+                                                        subFieldIndex,
+                                                        'label',
+                                                        e.target.value
+                                                      )
+                                                    }
+                                                    placeholder={t(
+                                                      'createSubFieldLabelPlaceholder',
+                                                      'jobs'
+                                                    )}
+                                                    className="h-9 text-sm"
+                                                  />
+                                                </div>
+                                                {jobForm.bilingual && (
+                                                  <div
+                                                    className={`space-y-1 ${locale === 'ar' ? 'order-1' : 'order-2'}`}
+                                                    dir="rtl"
+                                                  >
+                                                    <div className="flex items-center justify-between">
+                                                      <Label className="text-[11px] font-bold text-gray-500">
+                                                        {t(
+                                                          'createSubFieldLabelAr',
+                                                          'jobs'
+                                                        )}
+                                                      </Label>
+                                                      <button
+                                                        type="button"
+                                                        onClick={async () => {
+                                                          if (
+                                                            subField.label.trim()
+                                                          ) {
+                                                            const t =
+                                                              await translateText(
+                                                                subField.label,
+                                                                'en',
+                                                                'ar'
+                                                              );
+                                                            if (t)
+                                                              handleSubFieldChange(
+                                                                fieldIndex,
+                                                                subFieldIndex,
+                                                                'labelAr',
+                                                                t
+                                                              );
+                                                          } else if (
+                                                            subField.labelAr?.trim()
+                                                          ) {
+                                                            const t =
+                                                              await translateText(
+                                                                subField.labelAr,
+                                                                'ar',
+                                                                'en'
+                                                              );
+                                                            if (t)
+                                                              handleSubFieldChange(
+                                                                fieldIndex,
+                                                                subFieldIndex,
+                                                                'label',
+                                                                t
+                                                              );
+                                                          }
+                                                        }}
+                                                        disabled={
+                                                          !subField.label.trim() &&
+                                                          !subField.labelAr?.trim()
+                                                        }
+                                                        className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
+                                                        title={
+                                                          subField.label.trim()
+                                                            ? t(
+                                                                'createTranslateEnAr',
+                                                                'jobs'
+                                                              )
+                                                            : t(
+                                                                'createTranslateArEn',
+                                                                'jobs'
+                                                              )
+                                                        }
+                                                      >
+                                                        <Languages className="size-3" />
+                                                      </button>
+                                                    </div>
+                                                    <Input
+                                                      value={
+                                                        subField.labelAr || ''
+                                                      }
+                                                      onChange={(e) =>
+                                                        handleSubFieldChange(
+                                                          fieldIndex,
+                                                          subFieldIndex,
+                                                          'labelAr',
+                                                          e.target.value
+                                                        )
+                                                      }
+                                                      placeholder="السؤال بالعربية..."
+                                                      className="h-9 text-sm text-right"
+                                                    />
+                                                  </div>
+                                                )}
                                               </div>
-                                            )}
-                                          </div>
-                                          <button
-                                            type="button"
-                                            onClick={() => handleAddSubFieldChoice(fieldIndex, subFieldIndex)}
-                                            className="text-[10px] font-black uppercase text-brand-600 hover:text-brand-700 flex items-center gap-1"
-                                          >
-                                             <PlusIcon className="size-3" /> {t('createSubFieldAddChoice', 'jobs')}
-                                          </button>
-                                          <div className="mt-3 flex flex-wrap gap-2">
-                                            {subField.choices?.map((choice, choiceIndex) => (
-                                              <div key={choiceIndex} className="flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-1 text-[11px] font-medium dark:bg-gray-800 dark:text-gray-300">
-                                                <span>{choice}</span>
-                                                <button onClick={() => handleRemoveSubFieldChoice(fieldIndex, subFieldIndex, choiceIndex)} className="text-gray-400 hover:text-red-500">×</button>
+
+                                              <div className="grid grid-cols-2 gap-4 items-end">
+                                                <div className="space-y-1">
+                                                  <Label className="text-[11px] font-bold text-gray-500">
+                                                    {t(
+                                                      'createSubFieldInputType',
+                                                      'jobs'
+                                                    )}
+                                                  </Label>
+                                                  <Select
+                                                    options={subFieldTypeOptions(
+                                                      t
+                                                    )}
+                                                    value={subField.inputType}
+                                                    onChange={(value) =>
+                                                      handleSubFieldChange(
+                                                        fieldIndex,
+                                                        subFieldIndex,
+                                                        'inputType',
+                                                        value
+                                                      )
+                                                    }
+                                                  />
+                                                </div>
+                                                <div className="flex h-[40px] items-center px-3 rounded-lg bg-gray-50 dark:bg-gray-800/50">
+                                                  <Switch
+                                                    label={t(
+                                                      'createRequired',
+                                                      'jobs'
+                                                    )}
+                                                    checked={
+                                                      subField.isRequired
+                                                    }
+                                                    onChange={(checked) =>
+                                                      handleSubFieldChange(
+                                                        fieldIndex,
+                                                        subFieldIndex,
+                                                        'isRequired',
+                                                        checked
+                                                      )
+                                                    }
+                                                  />
+                                                </div>
                                               </div>
-                                            ))}
+
+                                              {(subField.inputType ===
+                                                'radio' ||
+                                                subField.inputType ===
+                                                  'checkbox' ||
+                                                subField.inputType ===
+                                                  'dropdown') && (
+                                                <div className="mt-4 pt-4 border-t border-gray-50 dark:border-gray-800">
+                                                  <div className="grid gap-4 md:grid-cols-2 mb-3">
+                                                    <div
+                                                      className={
+                                                        locale === 'ar'
+                                                          ? 'order-2'
+                                                          : 'order-1'
+                                                      }
+                                                    >
+                                                      <Input
+                                                        value={
+                                                          newSubFieldChoice[
+                                                            `${fieldIndex}-${subFieldIndex}`
+                                                          ] || ''
+                                                        }
+                                                        onChange={(e) =>
+                                                          setNewSubFieldChoice(
+                                                            (prev) => ({
+                                                              ...prev,
+                                                              [`${fieldIndex}-${subFieldIndex}`]:
+                                                                e.target.value,
+                                                            })
+                                                          )
+                                                        }
+                                                        onKeyDown={(e) =>
+                                                          e.key === 'Enter' &&
+                                                          (e.preventDefault(),
+                                                          handleAddSubFieldChoice(
+                                                            fieldIndex,
+                                                            subFieldIndex
+                                                          ))
+                                                        }
+                                                        placeholder={t(
+                                                          'createSubFieldChoicePlaceholder',
+                                                          'jobs'
+                                                        )}
+                                                        className="h-8 text-xs"
+                                                      />
+                                                    </div>
+                                                    {jobForm.bilingual && (
+                                                      <div
+                                                        className={`relative ${locale === 'ar' ? 'order-1' : 'order-2'}`}
+                                                        dir="rtl"
+                                                      >
+                                                        <Input
+                                                          value={
+                                                            newSubFieldChoiceAr[
+                                                              `${fieldIndex}-${subFieldIndex}`
+                                                            ] || ''
+                                                          }
+                                                          onChange={(e) =>
+                                                            setNewSubFieldChoiceAr(
+                                                              (prev) => ({
+                                                                ...prev,
+                                                                [`${fieldIndex}-${subFieldIndex}`]:
+                                                                  e.target
+                                                                    .value,
+                                                              })
+                                                            )
+                                                          }
+                                                          onKeyDown={(e) =>
+                                                            e.key === 'Enter' &&
+                                                            (e.preventDefault(),
+                                                            handleAddSubFieldChoice(
+                                                              fieldIndex,
+                                                              subFieldIndex
+                                                            ))
+                                                          }
+                                                          placeholder="الخيار بالعربية..."
+                                                          className="h-8 text-xs text-right"
+                                                        />
+                                                        <button
+                                                          type="button"
+                                                          onClick={async () => {
+                                                            const key = `${fieldIndex}-${subFieldIndex}`;
+                                                            const en =
+                                                              newSubFieldChoice[
+                                                                key
+                                                              ] || '';
+                                                            const ar =
+                                                              newSubFieldChoiceAr[
+                                                                key
+                                                              ] || '';
+                                                            if (en.trim()) {
+                                                              const t =
+                                                                await translateText(
+                                                                  en,
+                                                                  'en',
+                                                                  'ar'
+                                                                );
+                                                              if (t)
+                                                                setNewSubFieldChoiceAr(
+                                                                  (prev) => ({
+                                                                    ...prev,
+                                                                    [key]: t,
+                                                                  })
+                                                                );
+                                                            } else if (
+                                                              ar.trim()
+                                                            ) {
+                                                              const t =
+                                                                await translateText(
+                                                                  ar,
+                                                                  'ar',
+                                                                  'en'
+                                                                );
+                                                              if (t)
+                                                                setNewSubFieldChoice(
+                                                                  (prev) => ({
+                                                                    ...prev,
+                                                                    [key]: t,
+                                                                  })
+                                                                );
+                                                            }
+                                                          }}
+                                                          disabled={
+                                                            !(
+                                                              newSubFieldChoice[
+                                                                `${fieldIndex}-${subFieldIndex}`
+                                                              ] || ''
+                                                            ).trim() &&
+                                                            !(
+                                                              newSubFieldChoiceAr[
+                                                                `${fieldIndex}-${subFieldIndex}`
+                                                              ] || ''
+                                                            ).trim()
+                                                          }
+                                                          className="absolute left-1.5 top-1/2 -translate-y-1/2 flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
+                                                          title={
+                                                            (
+                                                              newSubFieldChoice[
+                                                                `${fieldIndex}-${subFieldIndex}`
+                                                              ] || ''
+                                                            ).trim()
+                                                              ? t(
+                                                                  'createTranslateEnAr',
+                                                                  'jobs'
+                                                                )
+                                                              : t(
+                                                                  'createTranslateArEn',
+                                                                  'jobs'
+                                                                )
+                                                          }
+                                                        >
+                                                          <Languages className="size-3" />
+                                                        </button>
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                  <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                      handleAddSubFieldChoice(
+                                                        fieldIndex,
+                                                        subFieldIndex
+                                                      )
+                                                    }
+                                                    className="text-[10px] font-black uppercase text-brand-600 hover:text-brand-700 flex items-center gap-1"
+                                                  >
+                                                    <PlusIcon className="size-3" />{' '}
+                                                    {t(
+                                                      'createSubFieldAddChoice',
+                                                      'jobs'
+                                                    )}
+                                                  </button>
+                                                  <div className="mt-3 flex flex-wrap gap-2">
+                                                    {subField.choices?.map(
+                                                      (choice, choiceIndex) => (
+                                                        <div
+                                                          key={choiceIndex}
+                                                          className="flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-1 text-[11px] font-medium dark:bg-gray-800 dark:text-gray-300"
+                                                        >
+                                                          <span>{choice}</span>
+                                                          <button
+                                                            onClick={() =>
+                                                              handleRemoveSubFieldChoice(
+                                                                fieldIndex,
+                                                                subFieldIndex,
+                                                                choiceIndex
+                                                              )
+                                                            }
+                                                            className="text-gray-400 hover:text-red-500"
+                                                          >
+                                                            ×
+                                                          </button>
+                                                        </div>
+                                                      )
+                                                    )}
+                                                  </div>
+                                                </div>
+                                              )}
+                                            </div>
                                           </div>
-                                        </div>
+                                        )
                                       )}
                                     </div>
                                   </div>
-                                ))}
+                                )}
                               </div>
-                            </div>
-                          )}
+                            )}
+                          </div>
                         </div>
-                      )}
-                    </div>
-                  </div>
-                  </SortableCustomFieldCard>
-                );
-              })}
-            </div>
+                      </SortableCustomFieldCard>
+                    );
+                  })}
+                </div>
               </SortableContext>
             </DndContext>
           </div>
@@ -3236,10 +4662,14 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
           <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-8 shadow-sm transition-all hover:shadow-xl dark:border-gray-800 dark:bg-gray-900">
             <div className="flex flex-col items-center gap-6">
               <div className="text-center">
-                <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-wider">{t('createReadyToFinalize', 'jobs')}</h3>
-                <p className="mt-1 text-sm text-gray-500">{t('createReadyDesc', 'jobs')}</p>
+                <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-wider">
+                  {t('createReadyToFinalize', 'jobs')}
+                </h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  {t('createReadyDesc', 'jobs')}
+                </p>
               </div>
-              
+
               <div className="flex flex-wrap items-center justify-center gap-4">
                 <button
                   type="submit"
@@ -3249,26 +4679,47 @@ titleAr: typeof selectedJob.title === 'object' && selectedJob.title.ar ? selecte
                   <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 animate-shimmer" />
                   {isSubmitting ? (
                     <>
-                      <svg className="size-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      <svg
+                        className="size-5 animate-spin"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
                       </svg>
-                      {isEditMode ? t('createPropagating', 'jobs') : t('createPublishing', 'jobs')}
+                      {isEditMode
+                        ? t('createPropagating', 'jobs')
+                        : t('createPublishing', 'jobs')}
                     </>
                   ) : (
                     <>
                       <CheckCircleIcon className="size-6 transition-transform group-hover:scale-110" />
-                      {isEditMode ? t('createSaveChanges', 'jobs') : t('createLaunchPosition', 'jobs')}
+                      {isEditMode
+                        ? t('createSaveChanges', 'jobs')
+                        : t('createLaunchPosition', 'jobs')}
                     </>
                   )}
                 </button>
-                
+
                 {jobStatus && (
                   <div className="animate-in fade-in zoom-in slide-in-from-right-4 duration-500 flex items-center gap-3 rounded-2xl bg-emerald-50 px-6 py-4 text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:ring-emerald-500/20">
                     <div className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg">
                       <CheckCircleIcon className="size-4" />
                     </div>
-                    <span className="text-sm font-bold uppercase tracking-wider">{jobStatus}</span>
+                    <span className="text-sm font-bold uppercase tracking-wider">
+                      {jobStatus}
+                    </span>
                   </div>
                 )}
               </div>

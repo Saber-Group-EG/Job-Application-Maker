@@ -311,5 +311,10 @@
   "previewErrorFallback": "حدث خطأ غير متوقع",
 
   "jobsCreatedAt": "تم الإنشاء {date}",
-  "previewDetailsFor": "تفاصيل {title}"
+  "previewDetailsFor": "تفاصيل {title}",
+  "createAiGenerateLabel": "إنشاء باستخدام الذكاء الاصطناعي",
+  "createAiGenerateDesc": "صف الوظيفة ودع الذكاء الاصطناعي يصيغ لك العنوان والوصف والشروط ومعايير التقييم والحقول المخصصة.",
+  "createAiGeneratePlaceholder": "مثال: وظيفة مهندس باك إند أول تركز على Node.js وMongoDB، خبرة 5 سنوات فأكثر...",
+  "createAiGenerateButton": "إنشاء",
+  "createAiGenerating": "جارٍ الإنشاء..."
 }
