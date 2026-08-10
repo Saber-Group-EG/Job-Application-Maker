@@ -362,5 +362,6 @@
   "cardDeleted": "تم حذف البطاقة.",
   "cardDeleteFailed": "فشل حذف البطاقة.",
   "cardPrimaryChanged": "تم تحديث البطاقة الأساسية.",
-  "cardPrimaryChangeFailed": "فشل تحديث البطاقة الأساسية."
+  "cardPrimaryChangeFailed": "فشل تحديث البطاقة الأساسية.",
+  "aiGenerateFailed": "فشل الإنشاء بالذكاء الاصطناعي"
 }

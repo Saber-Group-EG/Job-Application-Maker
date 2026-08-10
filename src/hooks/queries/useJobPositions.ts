@@ -231,6 +231,19 @@ export function useReorderJobPositions() {
   });
 }
 
+export function useGenerateJobFields() {
+  const { t } = useLocale();
+  return useMutation({
+    mutationFn: (payload: {
+      companyId: string;
+      jobTitle?: string;
+      prompt: string;
+    }) => jobPositionsService.generateFields(payload),
+    onError: (error: ApiError) =>
+      showErrorToast(error.message, t('aiGenerateFailed', 'common'), t),
+  });
+}
+
 // ===== Toast Helpers =====
 function showSuccessToast(message: string, t: (key: string, ns?: string) => string) {
   Swal.fire({

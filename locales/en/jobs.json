@@ -311,5 +311,10 @@
   "previewErrorFallback": "An unexpected error occurred",
 
   "jobsCreatedAt": "Created {date}",
-  "previewDetailsFor": "Details for {title}"
+  "previewDetailsFor": "Details for {title}",
+  "createAiGenerateLabel": "Generate with AI",
+  "createAiGenerateDesc": "Describe the role and let AI draft the title, description, terms, evaluation criteria, and custom fields for you.",
+  "createAiGeneratePlaceholder": "e.g. A senior backend engineer role focused on Node.js and MongoDB, 5+ years experience...",
+  "createAiGenerateButton": "Generate",
+  "createAiGenerating": "Generating..."
 }
