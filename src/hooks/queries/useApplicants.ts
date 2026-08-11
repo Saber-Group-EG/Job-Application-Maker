@@ -598,6 +598,7 @@ export function useScheduleInterview() {
 }
 
 export function useGenerateCandidateSummary() {
+  const queryClient = useQueryClient();
   const { t } = useLocale();
 
   return useMutation({
@@ -608,6 +609,9 @@ export function useGenerateCandidateSummary() {
       applicantId: string;
       companyId: string;
     }) => applicantsService.generateCandidateSummary(applicantId, companyId),
+    onSuccess: (aiSummary, { applicantId }) => {
+      mergeApplicantResponseIntoCache(queryClient, applicantId, { aiSummary });
+    },
     onError: (error: ApiError) => {
       showErrorToast(error.message, t('aiSummaryFailed', 'common'), t);
     },

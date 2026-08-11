@@ -1,22 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useGenerateCandidateSummary } from '../../../../../hooks/queries';
 import { getErrorMessage } from '../../../../../utils/errorHandler';
 import { useLocale } from '../../../../../context/LocaleContext';
-import type { CandidateSummaryResult } from '../../../../../types/applicants';
+import type { Applicant } from '../../../../../types/applicants';
 
 interface CandidateSummaryCardProps {
   applicantId: string;
   companyId: string;
+  aiSummary?: Applicant['aiSummary'];
 }
 
 const CandidateSummaryCard: React.FC<CandidateSummaryCardProps> = ({
   applicantId,
   companyId,
+  aiSummary,
 }) => {
   const { t } = useLocale();
   const generateSummary = useGenerateCandidateSummary();
-  const [result, setResult] = useState<CandidateSummaryResult | null>(null);
+  const [result, setResult] = useState(aiSummary?.summary ? aiSummary : null);
   const [error, setError] = useState('');
+
+    useEffect(() => {
+    console.log('aiSummary changed:', aiSummary);
+    if (aiSummary?.summary) {
+      setResult(aiSummary);
+    }
+  }, [aiSummary]);
 
   const handleGenerate = async () => {
     setError('');
@@ -61,6 +70,12 @@ const CandidateSummaryCard: React.FC<CandidateSummaryCardProps> = ({
       {!generateSummary.isPending && !result && !error && (
         <p className="text-sm text-gray-400">
           {t('noSummaryYet', 'applicants')}
+        </p>
+      )}
+
+      {result && !result.updated && (
+        <p className="text-xs text-amber-600 mb-2">
+          {t('summaryMayBeStale', 'applicants')}
         </p>
       )}
 

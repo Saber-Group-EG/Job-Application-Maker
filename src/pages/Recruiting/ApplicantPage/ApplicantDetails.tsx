@@ -1353,6 +1353,7 @@ const ApplicantDetails: React.FC = () => {
                 <CandidateSummaryCard
                   applicantId={id || ''}
                   companyId={applicantCompanyId}
+                  aiSummary={applicant?.aiSummary}
                 />{' '}
               </div>
 
