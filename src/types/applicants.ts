@@ -114,6 +114,13 @@ export type Applicant = {
   statusHistory?: StatusHistory[];
   createdAt?: string;
   updatedAt?: string;
+  aiSummary?: {
+    summary: string;
+    strengths: string[];
+    weaknesses: string[];
+    updated: boolean;
+    generatedAt?: string;
+  };
 };
 
 export type CreateApplicantRequest = {
@@ -315,6 +322,8 @@ export interface CandidateSummaryResult {
   summary: string;
   strengths: string[];
   weaknesses: string[];
+  updated: boolean;
+  generatedAt?: string;
 }
 
 // ─── PersonalInfo ─────────────────────────────────────────────────────────────

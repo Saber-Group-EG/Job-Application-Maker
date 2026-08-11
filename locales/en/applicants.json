@@ -207,5 +207,6 @@
   "generatingSummaryText": "Analyzing candidate data — this may take a few seconds.",
   "noSummaryYet": "No summary generated yet.",
   "strengths": "Strengths",
-  "weaknesses": "Weaknesses"
+  "weaknesses": "Weaknesses",
+  "summaryMayBeStale": "The summary may be stale. Regenerate to get the latest insights."
 }
