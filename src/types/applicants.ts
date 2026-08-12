@@ -87,7 +87,12 @@ export type StatusHistory = {
 export type Applicant = {
   _id: string;
   companyId: string;
-  jobPositionId: { _id: string; title: string; jobCode?: string, companyId: { _id: string; name: { en: string; ar: string } } };
+  jobPositionId: {
+    _id: string;
+    title: string;
+    jobCode?: string;
+    companyId: { _id: string; name: { en: string; ar: string } };
+  };
   jobPositionNameSnapshot?: { en?: string | null; ar?: string | null };
   departmentId: string;
   status: string;
@@ -120,6 +125,13 @@ export type Applicant = {
     weaknesses: string[];
     updated: boolean;
     generatedAt?: string;
+  };
+  matchScore?: {
+    score: number;
+    reasoning: string;
+    breakdown: { criterion: string; note: string }[];
+    generatedAt: string;
+    model: string;
   };
 };
 

@@ -46,7 +46,10 @@ import { useAnimatedColumnDrag } from '../../../../hooks/useAnimatedColumnDrag';
 // Utils
 import { exportToExcel } from './utils/exportHelpers';
 import { normalizeGender, getApplicantCompanyId } from './utils/filterHelpers';
-import { getPreviousStatus, isTrashed } from '../../../../pages/Recruiting/ApplicantPage/utils/statusUtils';
+import {
+  getPreviousStatus,
+  isTrashed,
+} from '../../../../pages/Recruiting/ApplicantPage/utils/statusUtils';
 
 // Type
 import {
@@ -83,6 +86,7 @@ const APPLICANTS_DEFAULT_COLUMN_ORDER = [
   'jobPositionId',
   'expectedSalary',
   'sscore',
+  'aiMatchScore',
   'status',
   'rejectionReasons',
   'lastComment',
@@ -160,7 +164,7 @@ async function createCompressedDataUrl(
   maxBytes = 3072 // Reduced from 5120
 ): Promise<string> {
   if (!src) return src;
-  
+
   // Check cache first (IndexedDB + in-memory)
   const cached = await thumbnailCache.get(src);
   if (cached) return cached;
@@ -171,7 +175,7 @@ async function createCompressedDataUrl(
       const response = await fetch(src);
       const blob = await response.blob();
       const bitmap = await createImageBitmap(blob);
-      
+
       const MAX_DIM = 48;
       let { width, height } = bitmap;
       const ratio = Math.max(width / MAX_DIM, height / MAX_DIM, 1);
@@ -181,23 +185,26 @@ async function createCompressedDataUrl(
       );
       const ctx = canvas.getContext('2d');
       if (!ctx) throw new Error('No context');
-      
+
       ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-      
-      const blobResult = await canvas.convertToBlob({ 
-        type: 'image/jpeg', 
-        quality: 0.5
+
+      const blobResult = await canvas.convertToBlob({
+        type: 'image/jpeg',
+        quality: 0.5,
       });
       const dataUrl = await new Promise<string>((resolve) => {
         const reader = new FileReader();
         reader.onloadend = () => resolve(reader.result as string);
         reader.readAsDataURL(blobResult);
       });
-      
+
       thumbnailCache.set(src, dataUrl).catch(() => {});
       return dataUrl;
     } catch (e) {
-      console.debug('OffscreenCanvas failed, falling back to regular canvas', e);
+      console.debug(
+        'OffscreenCanvas failed, falling back to regular canvas',
+        e
+      );
     }
   }
 
@@ -219,7 +226,7 @@ async function createCompressedDataUrl(
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         if (!ctx) return finish(src);
-        
+
         const MAX_DIM = 48;
         let { width, height } = img;
         const ratio = Math.max(width / MAX_DIM, height / MAX_DIM, 1);
@@ -307,7 +314,7 @@ function ProgressiveImage({
 
   const loadImageAsync = async () => {
     if (!src) return;
-    
+
     if (typeof src === 'string' && src.startsWith('data:')) {
       setThumb(src);
       setIsLoading(false);
@@ -501,15 +508,22 @@ export default function Applicants({
   const location = useLocation();
   const params = useParams();
 
-  const { layout, saveLayout, isLoaded: isLayoutLoaded } = useTableLayout(
+  const {
+    layout,
+    saveLayout,
+    isLoaded: isLayoutLoaded,
+  } = useTableLayout(
     layoutKey || 'applicants_table',
     defaultLayout || APPLICANTS_DEFAULT_LAYOUT
   );
 
-  const mergedVisibility = useMemo(() => ({
-    lastComment: false,
-    ...layout.columnVisibility,
-  }), [layout.columnVisibility]);
+  const mergedVisibility = useMemo(
+    () => ({
+      lastComment: false,
+      ...layout.columnVisibility,
+    }),
+    [layout.columnVisibility]
+  );
 
   const handleSaveLayout = useCallback(
     (updates: Parameters<typeof saveLayout>[0]) => {
@@ -519,19 +533,23 @@ export default function Applicants({
     [isLayoutLoaded, saveLayout]
   );
 
-  const { containerRef: tableContainerRef, handleColumnOrderChange, onHeaderMouseDown } =
-    useAnimatedColumnDrag({
-      columnOrder:
-        Array.isArray(layout.columnOrder) && layout.columnOrder.length
-          ? layout.columnOrder
-          : APPLICANTS_DEFAULT_COLUMN_ORDER,
-      onReorder: (nextOrder) => handleSaveLayout({ columnOrder: nextOrder }),
-    });
+  const {
+    containerRef: tableContainerRef,
+    handleColumnOrderChange,
+    onHeaderMouseDown,
+  } = useAnimatedColumnDrag({
+    columnOrder:
+      Array.isArray(layout.columnOrder) && layout.columnOrder.length
+        ? layout.columnOrder
+        : APPLICANTS_DEFAULT_COLUMN_ORDER,
+    onReorder: (nextOrder) => handleSaveLayout({ columnOrder: nextOrder }),
+  });
 
   const updateStatus = useUpdateApplicantStatus();
 
   const effectiveOnlyStatus = useMemo((): string | string[] | undefined => {
-    if (onlyStatus && !(Array.isArray(onlyStatus) && onlyStatus.length === 0)) return onlyStatus;
+    if (onlyStatus && !(Array.isArray(onlyStatus) && onlyStatus.length === 0))
+      return onlyStatus;
     if (params.status) return params.status;
     const searchParams = new URLSearchParams(location.search);
     const qStatus = searchParams.get('status');
@@ -546,10 +564,12 @@ export default function Applicants({
   }, [location.search]);
 
   const effectiveOnlyJobPositions = useMemo((): string[] | undefined => {
-    if (onlyJobPositions && onlyJobPositions.length > 0) return onlyJobPositions;
+    if (onlyJobPositions && onlyJobPositions.length > 0)
+      return onlyJobPositions;
     const searchParams = new URLSearchParams(location.search);
     const qJobPositions = searchParams.get('jobPositions');
-    if (qJobPositions) return qJobPositions.split(',').map(decodeURIComponent).filter(Boolean);
+    if (qJobPositions)
+      return qJobPositions.split(',').map(decodeURIComponent).filter(Boolean);
     return undefined;
   }, [onlyJobPositions, location.search]);
 
@@ -562,7 +582,10 @@ export default function Applicants({
 
   const canRestore = useMemo(() => {
     if (isSuperAdmin) return true;
-    return hasPermission('Restore Applicant', 'write') || hasPermission('Restore Applicant', 'create');
+    return (
+      hasPermission('Restore Applicant', 'write') ||
+      hasPermission('Restore Applicant', 'create')
+    );
   }, [isSuperAdmin, hasPermission]);
 
   const canViewTrashed = useMemo(() => {
@@ -596,7 +619,10 @@ export default function Applicants({
     [user]
   );
 
-  const { selectedCompanyId: globalSelectedCompanyId, companyOptions: filterCompanyOptions } = useCompanyFilter();
+  const {
+    selectedCompanyId: globalSelectedCompanyId,
+    companyOptions: filterCompanyOptions,
+  } = useCompanyFilter();
   const apiCompanyId = useMemo(() => {
     if (companyIdOverride !== undefined) return companyIdOverride as any;
     if (!user) return undefined;
@@ -608,11 +634,11 @@ export default function Applicants({
     if (isSuperAdminRole) return undefined;
     return userCompanyId?.length ? userCompanyId : undefined;
   }, [companyIdOverride, user]);
-const [excludeModes] = useState<Record<string, boolean>>({});
+  const [excludeModes] = useState<Record<string, boolean>>({});
 
   const [offerModalOpen, setOfferModalOpen] = useState(false);
   const [contractModalOpen, setContractModalOpen] = useState(false);
-  
+
   // Extract department IDs from user companies
   const departmentIds = useMemo(() => {
     if (!user?.companies || !Array.isArray(user.companies)) return undefined;
@@ -649,17 +675,14 @@ const [excludeModes] = useState<Record<string, boolean>>({});
     isFetching: isJobPositionsFetching,
     isFetched: isJobPositionsFetched,
     refetch: refetchJobPositions,
-  } = useJobPositions(
-    apiCompanyId as any,
-    false,
-    departmentIds as any,
-    { enabled: true }
-  );
-  
+  } = useJobPositions(apiCompanyId as any, false, departmentIds as any, {
+    enabled: true,
+  });
+
   const searchCompanyId = useMemo(() => {
     if (!effectiveSearch) return undefined;
     if (globalSelectedCompanyId) return [globalSelectedCompanyId];
-    return filterCompanyOptions.map(c => c.id);
+    return filterCompanyOptions.map((c) => c.id);
   }, [effectiveSearch, globalSelectedCompanyId, filterCompanyOptions]);
 
   const finalCompanyId = searchCompanyId ?? apiCompanyId;
@@ -678,10 +701,10 @@ const [excludeModes] = useState<Record<string, boolean>>({});
     search: effectiveSearch,
     enabled: true,
   });
-  
+
   // Check the query state directly to detect ongoing fetches for this key
-const applicantsQueryKey = applicantsKeys.list({
-  companyId: apiCompanyId as any,
+  const applicantsQueryKey = applicantsKeys.list({
+    companyId: apiCompanyId as any,
     jobPositionId: effectiveOnlyJobPositions,
     departmentId: departmentIds as any,
     status: effectiveOnlyStatus,
@@ -691,7 +714,7 @@ const applicantsQueryKey = applicantsKeys.list({
   );
   const isApplicantsQueryFetching =
     applicantsQueryState?.fetchStatus === 'fetching';
-  
+
   const {
     data: allCompaniesRaw = [],
     refetch: refetchCompanies,
@@ -773,32 +796,37 @@ const applicantsQueryKey = applicantsKeys.list({
   });
 
   useEffect(() => {
-  if (urlParams.status) {
-    setColumnFilters((prev: any) => {
-      const withoutStatus = prev.filter((f: any) => f.id !== 'status');
-      const existing = prev.find((f: any) => f.id === 'status');
-      const newValue = [urlParams.status];
-      if (existing) {
-        const existingValue = Array.isArray(existing.value) ? existing.value : [existing.value];
-        if (JSON.stringify(existingValue) === JSON.stringify(newValue)) return prev;
-      }
-      return [...withoutStatus, { id: 'status', value: newValue }];
-    });
-  }
-  if (urlParams.company) {
-    setColumnFilters((prev: any) => {
-      const withoutCompany = prev.filter((f: any) => f.id !== 'companyId');
-      const existing = prev.find((f: any) => f.id === 'companyId');
-      const newValue = [urlParams.company];
-      if (existing) {
-        const existingValue = Array.isArray(existing.value) ? existing.value : [existing.value];
-        if (JSON.stringify(existingValue) === JSON.stringify(newValue)) return prev;
-      }
-      return [...withoutCompany, { id: 'companyId', value: newValue }];
-    });
-  }
-}, [urlParams.status, urlParams.company, setColumnFilters]);
-  
+    if (urlParams.status) {
+      setColumnFilters((prev: any) => {
+        const withoutStatus = prev.filter((f: any) => f.id !== 'status');
+        const existing = prev.find((f: any) => f.id === 'status');
+        const newValue = [urlParams.status];
+        if (existing) {
+          const existingValue = Array.isArray(existing.value)
+            ? existing.value
+            : [existing.value];
+          if (JSON.stringify(existingValue) === JSON.stringify(newValue))
+            return prev;
+        }
+        return [...withoutStatus, { id: 'status', value: newValue }];
+      });
+    }
+    if (urlParams.company) {
+      setColumnFilters((prev: any) => {
+        const withoutCompany = prev.filter((f: any) => f.id !== 'companyId');
+        const existing = prev.find((f: any) => f.id === 'companyId');
+        const newValue = [urlParams.company];
+        if (existing) {
+          const existingValue = Array.isArray(existing.value)
+            ? existing.value
+            : [existing.value];
+          if (JSON.stringify(existingValue) === JSON.stringify(newValue))
+            return prev;
+        }
+        return [...withoutCompany, { id: 'companyId', value: newValue }];
+      });
+    }
+  }, [urlParams.status, urlParams.company, setColumnFilters]);
 
   const jobPositionMap = useMemo(() => {
     const map: Record<string, any> = {};
@@ -833,8 +861,8 @@ const applicantsQueryKey = applicantsKeys.list({
   const genderOptions = useMemo(() => {
     const s = new Set<string>();
     const rows = Array.isArray(applicants) ? applicants : [];
-      rows.forEach((a: any) => {
-        if (!isSuperAdmin && !canViewTrashed && a?.status === 'trashed') return;
+    rows.forEach((a: any) => {
+      if (!isSuperAdmin && !canViewTrashed && a?.status === 'trashed') return;
       const raw =
         a?.gender ||
         a?.customResponses?.gender ||
@@ -855,50 +883,55 @@ const applicantsQueryKey = applicantsKeys.list({
     return ordered.map((g) => ({ id: g, title: g }));
   }, [applicants, isSuperAdmin, canViewTrashed]);
 
-const jobOptions = useMemo(() => {
-  const getIdValue = (v: any) =>
-    typeof v === 'string' ? v : (v?._id ?? v?.id);
-  
-  // Helper function to extract string title from object or string (locale-aware)
-  const getTitleString = (title: any): string => {
-    if (!title) return '';
-    if (typeof title === 'string') return title;
-    if (typeof title === 'object') {
-      if (locale === 'ar') {
-        return title.ar || title.en || title.name || Object.values(title)[0] || '';
+  const jobOptions = useMemo(() => {
+    const getIdValue = (v: any) =>
+      typeof v === 'string' ? v : (v?._id ?? v?.id);
+
+    // Helper function to extract string title from object or string (locale-aware)
+    const getTitleString = (title: any): string => {
+      if (!title) return '';
+      if (typeof title === 'string') return title;
+      if (typeof title === 'object') {
+        if (locale === 'ar') {
+          return (
+            title.ar || title.en || title.name || Object.values(title)[0] || ''
+          );
+        }
+        return (
+          title.en || title.ar || title.name || Object.values(title)[0] || ''
+        );
       }
-      return title.en || title.ar || title.name || Object.values(title)[0] || '';
-    }
-    return String(title);
-  };
-  
-  return jobPositions
-    .map((j: any) => {
-      const id = getIdValue(j._id) || getIdValue(j.id) || '';
-      const title = getTitleString(j.title);
-      
-      const companyId = j.companyId?._id || j.companyId;
-      const company = allCompaniesRaw.find((c: any) => {
-        const cId = typeof c._id === 'string' ? c._id : c._id?._id;
-        return cId === companyId;
-      });
-      const companyName = getTitleString(company?.name || '');
-      
-      // ✅ Calculate applicant count for this job - EXCLUDE trashed status
-      const applicantCount = applicants.filter((applicant: any) => {
-        // Skip trashed applicants
-        if (applicant?.status?.toLowerCase() === 'trashed') return false;
-        
-        const applicantJobId = typeof applicant.jobPositionId === 'string' 
-          ? applicant.jobPositionId 
-          : applicant.jobPositionId?._id || applicant.jobPositionId?.id;
-        return applicantJobId === id;
-      }).length;
-      
-      return { id, title, companyName, companyId, applicantCount };
-    })
-    .filter((x) => x.id && x.title);
-}, [jobPositions, allCompaniesRaw, applicants, locale]);
+      return String(title);
+    };
+
+    return jobPositions
+      .map((j: any) => {
+        const id = getIdValue(j._id) || getIdValue(j.id) || '';
+        const title = getTitleString(j.title);
+
+        const companyId = j.companyId?._id || j.companyId;
+        const company = allCompaniesRaw.find((c: any) => {
+          const cId = typeof c._id === 'string' ? c._id : c._id?._id;
+          return cId === companyId;
+        });
+        const companyName = getTitleString(company?.name || '');
+
+        // ✅ Calculate applicant count for this job - EXCLUDE trashed status
+        const applicantCount = applicants.filter((applicant: any) => {
+          // Skip trashed applicants
+          if (applicant?.status?.toLowerCase() === 'trashed') return false;
+
+          const applicantJobId =
+            typeof applicant.jobPositionId === 'string'
+              ? applicant.jobPositionId
+              : applicant.jobPositionId?._id || applicant.jobPositionId?.id;
+          return applicantJobId === id;
+        }).length;
+
+        return { id, title, companyName, companyId, applicantCount };
+      })
+      .filter((x) => x.id && x.title);
+  }, [jobPositions, allCompaniesRaw, applicants, locale]);
 
   const companyOptions = useMemo(() => {
     return allCompaniesRaw
@@ -944,12 +977,22 @@ const jobOptions = useMemo(() => {
 
   // Clear invalid job filters when company selection changes
   useEffect(() => {
-    const selectedJobIds = columnFilters.find((f: any) => f.id === 'jobPositionId')?.value;
-    if (selectedJobIds && Array.isArray(selectedJobIds) && selectedJobIds.length > 0) {
+    const selectedJobIds = columnFilters.find(
+      (f: any) => f.id === 'jobPositionId'
+    )?.value;
+    if (
+      selectedJobIds &&
+      Array.isArray(selectedJobIds) &&
+      selectedJobIds.length > 0
+    ) {
       const validJobIds = filteredJobOptions.map((j) => j.id);
-      const invalidJobs = selectedJobIds.filter((jobId: string) => !validJobIds.includes(jobId));
+      const invalidJobs = selectedJobIds.filter(
+        (jobId: string) => !validJobIds.includes(jobId)
+      );
       if (invalidJobs.length > 0) {
-        const remainingJobs = selectedJobIds.filter((jobId: string) => validJobIds.includes(jobId));
+        const remainingJobs = selectedJobIds.filter((jobId: string) =>
+          validJobIds.includes(jobId)
+        );
         setColumnFilters((prev: any[]) => {
           const without = prev.filter((f) => f.id !== 'jobPositionId');
           if (remainingJobs.length === 0) {
@@ -959,13 +1002,19 @@ const jobOptions = useMemo(() => {
         });
       }
     }
-  }, [selectedCompanyIdsForJobs, filteredJobOptions, columnFilters, setColumnFilters]);
+  }, [
+    selectedCompanyIdsForJobs,
+    filteredJobOptions,
+    columnFilters,
+    setColumnFilters,
+  ]);
 
   const jobPositionFilterOptions = useMemo(() => {
     return jobOptions.map((j) => {
-      const coId = typeof j.companyId === 'string'
-        ? j.companyId
-        : (j.companyId?._id ?? j.companyId?.id ?? '');
+      const coId =
+        typeof j.companyId === 'string'
+          ? j.companyId
+          : (j.companyId?._id ?? j.companyId?.id ?? '');
       const company = companyMap[coId];
       const companyName = company
         ? toPlainString(company?.name, locale) || company?.title || ''
@@ -1071,7 +1120,10 @@ const jobOptions = useMemo(() => {
       for (const applicant of selectedTrashedApplicants) {
         const orig = applicant as any;
         const previousStatus = getPreviousStatus(orig);
-        await updateStatus.mutateAsync({ id: orig._id, data: { status: previousStatus } });
+        await updateStatus.mutateAsync({
+          id: orig._id,
+          data: { status: previousStatus },
+        });
         setRowSelection((prev: any) => {
           const next = { ...prev };
           delete next[orig._id];
@@ -1192,6 +1244,7 @@ const jobOptions = useMemo(() => {
       jobPositionId: isLaptopViewport ? 180 : 240,
       expectedSalary: isLaptopViewport ? 104 : 140,
       sscore: isLaptopViewport ? 72 : 96,
+      aiMatchScore: isLaptopViewport ? 72 : 96,
       status: isLaptopViewport ? 190 : 240,
       submittedAt: isLaptopViewport ? 88 : 110,
       lastComment: isLaptopViewport ? 200 : 280,
@@ -1364,7 +1417,10 @@ const jobOptions = useMemo(() => {
       const mins = Math.floor(diffSec / 60);
       if (mins < 60) return t('minAgo', 'applicants', { mins });
       const hours = Math.floor(mins / 60);
-      if (hours < 24) return hours === 1 ? t('hourAgo', 'applicants', { hours }) : t('hoursAgo', 'applicants', { hours });
+      if (hours < 24)
+        return hours === 1
+          ? t('hourAgo', 'applicants', { hours })
+          : t('hoursAgo', 'applicants', { hours });
       const days = Math.floor(hours / 24);
       if (days === 1) return t('yesterday', 'applicants');
       if (days < 7) return t('daysAgo', 'applicants', { days });
@@ -1694,24 +1750,29 @@ const jobOptions = useMemo(() => {
     [jobPositionMap, resolveAnyId]
   );
 
-  const formatDate = useCallback((dateString: string) => {
-    if (!dateString) return '-';
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-      const [year, month, day] = dateString.split('-').map(Number);
-      return new Date(year, month - 1, day).toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', {
+  const formatDate = useCallback(
+    (dateString: string) => {
+      if (!dateString) return '-';
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+        const [year, month, day] = dateString.split('-').map(Number);
+        return new Date(year, month - 1, day).toLocaleDateString(
+          locale === 'ar' ? 'ar-EG' : 'en-US',
+          {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+          }
+        );
+      }
+      const date = new Date(dateString);
+      return date.toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', {
         year: 'numeric',
         month: 'short',
         day: 'numeric',
       });
-    }
-    const date = new Date(dateString);
-    return date.toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  }, [locale]);
-
+    },
+    [locale]
+  );
 
   const downloadCvForApplicant = useCallback(async (a: any) => {
     if (!a)
@@ -1798,7 +1859,9 @@ const jobOptions = useMemo(() => {
       if (result.success) {
         await Swal.fire({
           title: t('exportSuccessful', 'applicants'),
-          text: t('successfullyExported', 'applicants', { count: selectedApplicantIds.length }),
+          text: t('successfullyExported', 'applicants', {
+            count: selectedApplicantIds.length,
+          }),
           icon: 'success',
           timer: 2000,
           showConfirmButton: false,
@@ -1909,7 +1972,9 @@ const jobOptions = useMemo(() => {
   const unfilteredCounts = useMemo(() => {
     const allRows = Array.isArray(applicants) ? applicants : [];
     const globalCompanyIds = (() => {
-      const hasCompanyColumnFilter = columnFilters.some((f: any) => f.id === 'companyId');
+      const hasCompanyColumnFilter = columnFilters.some(
+        (f: any) => f.id === 'companyId'
+      );
       if (!hasCompanyColumnFilter && selectedCompanyFilterValue) {
         return Array.isArray(selectedCompanyFilterValue)
           ? selectedCompanyFilterValue
@@ -1924,18 +1989,24 @@ const jobOptions = useMemo(() => {
     };
 
     const applyFilterToRows = (rows: any[], excludeColId: string) => {
-      const skipIds = new Set([excludeColId, ...getChildColumnIds(excludeColId)]);
+      const skipIds = new Set([
+        excludeColId,
+        ...getChildColumnIds(excludeColId),
+      ]);
       let filtered = rows;
       for (const filter of columnFilters) {
         if (skipIds.has(filter.id)) continue;
         if (!filter.value) continue;
-        const vals = Array.isArray(filter.value) ? filter.value : [filter.value];
+        const vals = Array.isArray(filter.value)
+          ? filter.value
+          : [filter.value];
         if (vals.length === 0) continue;
 
         if (filter.id === 'jobPositionId') {
           filtered = filtered.filter((a: any) => {
             const raw = a?.jobPositionId;
-            const id = typeof raw === 'string' ? raw : (raw?._id ?? raw?.id ?? '');
+            const id =
+              typeof raw === 'string' ? raw : (raw?._id ?? raw?.id ?? '');
             return vals.includes(id);
           });
         } else if (filter.id === 'companyId') {
@@ -1984,12 +2055,21 @@ const jobOptions = useMemo(() => {
     };
 
     const maps: Record<string, Map<string, number>> = {};
-    const trackedCols = ['status', 'jobPositionId', 'companyId', 'gender', 'rejectionReasons'];
+    const trackedCols = [
+      'status',
+      'jobPositionId',
+      'companyId',
+      'gender',
+      'rejectionReasons',
+    ];
 
     const statusFilterIncludesTrashed = columnFilters.some(
-      (f: any) => f.id === 'status' && Array.isArray(f.value) && f.value.some(
-        (v: string) => String(v).toLowerCase().trim() === 'trashed'
-      )
+      (f: any) =>
+        f.id === 'status' &&
+        Array.isArray(f.value) &&
+        f.value.some(
+          (v: string) => String(v).toLowerCase().trim() === 'trashed'
+        )
     );
 
     for (const colId of trackedCols) {
@@ -2026,7 +2106,9 @@ const jobOptions = useMemo(() => {
         } else if (colId === 'rejectionReasons' && includeRow) {
           const reasons = extractRejectionReasons(a);
           if (Array.isArray(reasons)) {
-            reasons.forEach((r: string) => { if (r) add(r); });
+            reasons.forEach((r: string) => {
+              if (r) add(r);
+            });
           }
         }
       });
@@ -2035,10 +2117,18 @@ const jobOptions = useMemo(() => {
     }
 
     return maps;
-  }, [applicants, isSuperAdmin, jobPositionMap, columnFilters, selectedCompanyFilterValue]);
+  }, [
+    applicants,
+    isSuperAdmin,
+    jobPositionMap,
+    columnFilters,
+    selectedCompanyFilterValue,
+  ]);
 
-  const [isDarkMode, setIsDarkMode] = useState(() =>
-    typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
+  const [isDarkMode, setIsDarkMode] = useState(
+    () =>
+      typeof document !== 'undefined' &&
+      document.documentElement.classList.contains('dark')
   );
 
   useEffect(() => {
@@ -2057,7 +2147,12 @@ const jobOptions = useMemo(() => {
 
   const makeExcludableColumnProps = (
     colId: string,
-    options: { label: string; value: string; companyId?: string; subtitle?: string }[],
+    options: {
+      label: string;
+      value: string;
+      companyId?: string;
+      subtitle?: string;
+    }[],
     isArrayColumn = false,
     label?: string,
     dependentColumnId?: string
@@ -2077,9 +2172,7 @@ const jobOptions = useMemo(() => {
       }
 
       const val: string = row.getValue(columnId);
-      return isExclude
-        ? !filterValue.includes(val)
-        : filterValue.includes(val);
+      return isExclude ? !filterValue.includes(val) : filterValue.includes(val);
     }) as MRT_ColumnDef<any>['filterFn'],
     Header: ({ header, table }: { header: any; column: any; table: any }) => (
       <FilterHeaderCell
@@ -2105,7 +2198,9 @@ const jobOptions = useMemo(() => {
     () => [
       {
         accessorKey: 'applicantNo',
-        header: isLaptopViewport ? t('id', 'applicants') : t('applicantNo', 'applicants'),
+        header: isLaptopViewport
+          ? t('id', 'applicants')
+          : t('applicantNo', 'applicants'),
         size: columnSizeConfig.applicantNo,
         enableColumnFilter: false,
         enableSorting: !duplicatesOnlyEnabled,
@@ -2328,7 +2423,12 @@ const jobOptions = useMemo(() => {
         enableSorting: true,
         ...makeExcludableColumnProps(
           'gender',
-          genderOptions.map((o) => ({ label: ['Male', 'Female'].includes(o.title) ? t(o.title.toLowerCase(), 'personalInfo') : o.title, value: o.id })),
+          genderOptions.map((o) => ({
+            label: ['Male', 'Female'].includes(o.title)
+              ? t(o.title.toLowerCase(), 'personalInfo')
+              : o.title,
+            value: o.id,
+          })),
           false,
           t('gender', 'applicants')
         ),
@@ -2336,8 +2436,15 @@ const jobOptions = useMemo(() => {
           if (!filterValue) return true;
           const vals = Array.isArray(filterValue) ? filterValue : [filterValue];
           if (!vals.length) return true;
-          const cell = String(row.getValue(columnId) ?? '').toLowerCase().trim();
-          const matches = vals.some((v) => String(v ?? '').toLowerCase().trim() === cell);
+          const cell = String(row.getValue(columnId) ?? '')
+            .toLowerCase()
+            .trim();
+          const matches = vals.some(
+            (v) =>
+              String(v ?? '')
+                .toLowerCase()
+                .trim() === cell
+          );
           const isExclude = (layout.excludeColumns ?? []).includes('gender');
           return isExclude ? !matches : matches;
         },
@@ -2387,7 +2494,9 @@ const jobOptions = useMemo(() => {
                 if (!vals.length) return true;
                 const cell = String(row.getValue(columnId) ?? '');
                 const matches = vals.includes(cell);
-                const isExclude = (layout.excludeColumns ?? []).includes('companyId');
+                const isExclude = (layout.excludeColumns ?? []).includes(
+                  'companyId'
+                );
                 return isExclude ? !matches : matches;
               },
               Cell: ({ row }: { row: { original: any } }) => {
@@ -2401,7 +2510,9 @@ const jobOptions = useMemo(() => {
                     onClick={(e) => handleApplicantLinkClick(e, row)}
                     onAuxClick={handleApplicantLinkAuxClick}
                   >
-                    {toPlainString(company?.name, locale) || company?.title || t('nA', 'applicants')}
+                    {toPlainString(company?.name, locale) ||
+                      company?.title ||
+                      t('nA', 'applicants')}
                   </a>
                 );
               },
@@ -2410,7 +2521,9 @@ const jobOptions = useMemo(() => {
         : []),
       {
         id: 'jobPositionId',
-        header: isLaptopViewport ? t('job', 'applicants') : t('jobPosition', 'applicants'),
+        header: isLaptopViewport
+          ? t('job', 'applicants')
+          : t('jobPosition', 'applicants'),
         enableSorting: true,
         accessorFn: (row: any) => {
           const raw = row?.jobPositionId;
@@ -2422,7 +2535,9 @@ const jobOptions = useMemo(() => {
           'jobPositionId',
           jobPositionFilterOptions,
           false,
-          isLaptopViewport ? t('job', 'applicants') : t('jobPosition', 'applicants'),
+          isLaptopViewport
+            ? t('job', 'applicants')
+            : t('jobPosition', 'applicants'),
           'companyId'
         ),
         filterFn: (row: any, columnId: string, filterValue: any) => {
@@ -2431,7 +2546,9 @@ const jobOptions = useMemo(() => {
           if (!vals.length) return true;
           const cell = String(row.getValue(columnId) ?? '');
           const matches = vals.includes(cell);
-          const isExclude = (layout.excludeColumns ?? []).includes('jobPositionId');
+          const isExclude = (layout.excludeColumns ?? []).includes(
+            'jobPositionId'
+          );
           return isExclude ? !matches : matches;
         },
         size: columnSizeConfig.jobPositionId,
@@ -2446,16 +2563,21 @@ const jobOptions = useMemo(() => {
           const jobId = getId(raw);
           const snapshot = row.original.jobPositionNameSnapshot;
           const job = jobPositionMap[jobId];
-          const title =
-            snapshot
-              ? locale === 'ar'
-                ? (snapshot.ar || snapshot.en || t('nA', 'applicants'))
-                : (snapshot.en || snapshot.ar || t('nA', 'applicants'))
-              : typeof job?.title === 'string'
+          const title = snapshot
+            ? locale === 'ar'
+              ? snapshot.ar || snapshot.en || t('nA', 'applicants')
+              : snapshot.en || snapshot.ar || t('nA', 'applicants')
+            : typeof job?.title === 'string'
               ? job.title
               : locale === 'ar'
-                ? (job?.title?.ar || job?.title?.en || jobOptions.find((o) => o.id === jobId)?.title || t('nA', 'applicants'))
-                : (job?.title?.en || job?.title?.ar || jobOptions.find((o) => o.id === jobId)?.title || t('nA', 'applicants'));
+                ? job?.title?.ar ||
+                  job?.title?.en ||
+                  jobOptions.find((o) => o.id === jobId)?.title ||
+                  t('nA', 'applicants')
+                : job?.title?.en ||
+                  job?.title?.ar ||
+                  jobOptions.find((o) => o.id === jobId)?.title ||
+                  t('nA', 'applicants');
           return (
             <a
               href={getApplicantHref(row)}
@@ -2533,6 +2655,37 @@ const jobOptions = useMemo(() => {
         },
       },
       {
+        id: 'aiMatchScore',
+        header: t('aiMatchScore', 'applicants'),
+        size: columnSizeConfig.aiMatchScore,
+        enableColumnFilter: false,
+        enableSorting: true,
+        accessorFn: (row: any) => row?.matchScore?.score ?? null,
+        sortingFn: (rowA: any, rowB: any, columnId: string) => {
+          const a = Number(rowA.getValue(columnId));
+          const b = Number(rowB.getValue(columnId));
+          const scoreA = Number.isFinite(a) ? a : -1;
+          const scoreB = Number.isFinite(b) ? b : -1;
+          if (scoreA === scoreB) return 0;
+          return scoreA > scoreB ? 1 : -1;
+        },
+        Cell: ({ row }: { row: { original: any } }) => {
+          if (isTableLoading) return renderCellSkeleton('text');
+          const score = row.original?.matchScore?.score;
+          return (
+            <a
+              href={getApplicantHref(row)}
+              className="text-inherit no-underline hover:no-underline"
+              onClick={(e) => handleApplicantLinkClick(e, row)}
+              onAuxClick={handleApplicantLinkAuxClick}
+              title={row.original?.matchScore?.reasoning || ''}
+            >
+              {typeof score === 'number' ? `${score}%` : '-'}
+            </a>
+          );
+        },
+      },
+      {
         accessorKey: 'status',
         header: t('status', 'applicants'),
         enableSorting: true,
@@ -2542,12 +2695,23 @@ const jobOptions = useMemo(() => {
           false,
           'Status'
         ),
-        Header: ({ header, table }: { header: any; column: any; table: any }) => {
+        Header: ({
+          header,
+          table,
+        }: {
+          header: any;
+          column: any;
+          table: any;
+        }) => {
           if (
             effectiveOnlyStatus !== undefined &&
             effectiveOnlyStatus !== null
           ) {
-            return <span className="text-sm font-medium">{t('status', 'applicants')}</span>;
+            return (
+              <span className="text-sm font-medium">
+                {t('status', 'applicants')}
+              </span>
+            );
           }
           return (
             <FilterHeaderCell
@@ -2555,7 +2719,10 @@ const jobOptions = useMemo(() => {
               table={table}
               label={t('status', 'applicants')}
               colId="status"
-              options={statusFilterOptions.map((o) => ({ label: o.title, value: o.id }))}
+              options={statusFilterOptions.map((o) => ({
+                label: o.title,
+                value: o.id,
+              }))}
               countsMap={unfilteredCounts['status']}
               filterValue={header.column.getFilterValue()}
               excludeColumns={layout.excludeColumns ?? []}
@@ -2634,7 +2801,9 @@ const jobOptions = useMemo(() => {
                   .includes(applicantReason.toLowerCase())
             )
           );
-          const isExclude = (layout.excludeColumns ?? []).includes('rejectionReasons');
+          const isExclude = (layout.excludeColumns ?? []).includes(
+            'rejectionReasons'
+          );
           return isExclude ? !matches : matches;
         },
         Cell: ({ row }: { row: { original: any } }) => {
@@ -2668,13 +2837,15 @@ const jobOptions = useMemo(() => {
         enableSorting: false,
         accessorFn: (row: any) => {
           const comments = row?.comments ?? [];
-          const last = comments.length > 0 ? comments[comments.length - 1] : null;
+          const last =
+            comments.length > 0 ? comments[comments.length - 1] : null;
           return last?.comment ?? '';
         },
         Cell: ({ row }: any) => {
           if (isTableLoading) return renderCellSkeleton('text');
           const comments = row.original?.comments ?? [];
-          const last = comments.length > 0 ? comments[comments.length - 1] : null;
+          const last =
+            comments.length > 0 ? comments[comments.length - 1] : null;
           const commentText = last?.comment ?? '';
           const commentedByName =
             typeof last?.commentedBy === 'object' && last?.commentedBy
@@ -2714,7 +2885,9 @@ const jobOptions = useMemo(() => {
               onClick={toggle}
               className="flex flex-1 items-center justify-between gap-1 text-sm font-medium min-w-0"
               type="button"
-              title={desc ? t('newest', 'applicants') : t('oldest', 'applicants')}
+              title={
+                desc ? t('newest', 'applicants') : t('oldest', 'applicants')
+              }
             >
               <span>{t('submitted', 'applicants')}</span>
               <span className="text-xs">{desc ? '▼' : '▲'}</span>
@@ -2776,11 +2949,15 @@ const jobOptions = useMemo(() => {
           const hasCv = Boolean(resolveCvPath(orig));
           const isTrashedApplicant = isTrashed(orig);
           const previousStatus = getPreviousStatus(orig);
-          const handleRestore = async (e: React.MouseEvent<HTMLButtonElement>) => {
+          const handleRestore = async (
+            e: React.MouseEvent<HTMLButtonElement>
+          ) => {
             e.stopPropagation();
             const result = await Swal.fire({
               title: t('restoreTitle', 'applicants'),
-              text: t('restoreText', 'applicants', { status: previousStatus || '' }),
+              text: t('restoreText', 'applicants', {
+                status: previousStatus || '',
+              }),
               icon: 'question',
               showCancelButton: true,
               confirmButtonColor: '#22c55e',
@@ -2790,7 +2967,10 @@ const jobOptions = useMemo(() => {
             });
             if (!result.isConfirmed) return;
             try {
-              await updateStatus.mutateAsync({ id: orig._id, data: { status: previousStatus } });
+              await updateStatus.mutateAsync({
+                id: orig._id,
+                data: { status: previousStatus },
+              });
               setRowSelection((prev: any) => {
                 const next = { ...prev };
                 delete next[orig._id];
@@ -2816,7 +2996,9 @@ const jobOptions = useMemo(() => {
                   }}
                   className="inline-flex items-center justify-center rounded bg-brand-500 p-1 text-white hover:bg-brand-600"
                 >
-                  <span className="sr-only">{t('downloadCv', 'applicants')}</span>
+                  <span className="sr-only">
+                    {t('downloadCv', 'applicants')}
+                  </span>
                   <svg
                     className="w-4 h-4"
                     viewBox="0 0 24 24"
@@ -2836,7 +3018,9 @@ const jobOptions = useMemo(() => {
                 <button
                   type="button"
                   aria-label={t('restoreApplicant', 'applicants')}
-                  title={t('restoreTo', 'applicants', { status: previousStatus || '' })}
+                  title={t('restoreTo', 'applicants', {
+                    status: previousStatus || '',
+                  })}
                   onClick={handleRestore}
                   disabled={updateStatus.isPending}
                   className="inline-flex items-center justify-center rounded bg-green-500 p-1 text-white hover:bg-green-600 disabled:opacity-50"
@@ -2946,7 +3130,10 @@ const jobOptions = useMemo(() => {
     jumpToPage: t('jumpToPage', 'applicants'),
     toggleSelectAll: t('toggleSelectAll', 'applicants'),
     toggleSelectRow: t('toggleSelectRow', 'applicants'),
-    selectedCountOfRowCountRowsSelected: t('selectedCountOfRowCountRowsSelected', 'applicants'),
+    selectedCountOfRowCountRowsSelected: t(
+      'selectedCountOfRowCountRowsSelected',
+      'applicants'
+    ),
     filterByColumn: t('filterByColumn', 'applicants'),
     globalSearch: t('globalSearch', 'applicants'),
     columnSearch: t('columnSearch', 'applicants'),
@@ -2994,7 +3181,9 @@ const jobOptions = useMemo(() => {
             minWidth: `${selectColumnWidth}px`,
             maxWidth: `${selectColumnWidth}px`,
             backgroundColor: isDarkMode
-              ? (row.index % 2 === 0 ? '#374151' : '#1f2937')
+              ? row.index % 2 === 0
+                ? '#374151'
+                : '#1f2937'
               : undefined,
           },
         }),
@@ -3042,9 +3231,7 @@ const jobOptions = useMemo(() => {
     },
     state: {
       sorting,
-      pagination: isTableLoading
-        ? { ...pagination, pageIndex: 0 }
-        : pagination,
+      pagination: isTableLoading ? { ...pagination, pageIndex: 0 } : pagination,
       columnFilters: isTableLoading ? [] : columnFilters,
       rowSelection,
       columnVisibility: mergedVisibility,
@@ -3057,7 +3244,8 @@ const jobOptions = useMemo(() => {
     onSortingChange: setSorting,
     onPaginationChange: setPagination,
     onColumnFiltersChange: (updater) => {
-      const next = typeof updater === 'function' ? updater(columnFilters) : updater;
+      const next =
+        typeof updater === 'function' ? updater(columnFilters) : updater;
       setColumnFilters(next);
     },
     onRowSelectionChange: setRowSelection,
@@ -3085,7 +3273,12 @@ const jobOptions = useMemo(() => {
               stroke="currentColor"
               viewBox="0 0 24 24"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
             </svg>
             <input
               type="text"
@@ -3100,8 +3293,18 @@ const jobOptions = useMemo(() => {
                 onClick={() => setGlobalFilter('')}
                 className="absolute right-1.5 flex h-5 w-5 items-center justify-center rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
               >
-                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  className="h-3.5 w-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             )}
@@ -3143,7 +3346,9 @@ const jobOptions = useMemo(() => {
                 d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"
               />
             </svg>
-            {duplicatesOnlyEnabled ? t('duplicatesOnly', 'applicants') : t('showDuplicates', 'applicants')}
+            {duplicatesOnlyEnabled
+              ? t('duplicatesOnly', 'applicants')
+              : t('showDuplicates', 'applicants')}
           </button>
           {duplicatesOnlyEnabled && (
             <span className="text-xs text-amber-600 dark:text-amber-400">
@@ -3159,7 +3364,9 @@ const jobOptions = useMemo(() => {
                 const duplicateCount = Array.from(
                   duplicateLookup.values()
                 ).filter((d) => d.isDuplicate === true).length;
-                return t('duplicateCount', 'applicants', { count: duplicateCount });
+                return t('duplicateCount', 'applicants', {
+                  count: duplicateCount,
+                });
               })()}
             </span>
           )}
@@ -3313,12 +3520,12 @@ const jobOptions = useMemo(() => {
     muiTableBodyRowProps: ({ row, table }) => ({
       sx: {
         backgroundColor: isDarkMode
-          ? (table.getRowModel().rows.indexOf(row) % 2 === 0
-              ? '#374151'
-              : '#1f2937')
-          : (table.getRowModel().rows.indexOf(row) % 2 === 0
-              ? 'rgba(240, 240, 240, 1)'
-              : 'white'),
+          ? table.getRowModel().rows.indexOf(row) % 2 === 0
+            ? '#374151'
+            : '#1f2937'
+          : table.getRowModel().rows.indexOf(row) % 2 === 0
+            ? 'rgba(240, 240, 240, 1)'
+            : 'white',
         '& .MuiTableRow-root': {
           overflow: 'hidden',
           width: '100%',
@@ -3334,8 +3541,11 @@ const jobOptions = useMemo(() => {
 
   return (
     <ThemeProvider theme={muiTheme} key={isDarkMode ? 'dark' : 'light'}>
-        <div className="w-full min-w-0">
-        <PageMeta title={t('pageTitle', 'applicants')} description={t('pageDescription', 'applicants')} />
+      <div className="w-full min-w-0">
+        <PageMeta
+          title={t('pageTitle', 'applicants')}
+          description={t('pageDescription', 'applicants')}
+        />
         <PageBreadcrumb
           pageTitle={t('pageTitle', 'applicants')}
           actions={
@@ -3344,7 +3554,8 @@ const jobOptions = useMemo(() => {
                 type="button"
                 onClick={async () => {
                   const promises: Promise<any>[] = [];
-                  if (isJobPositionsFetched) promises.push(refetchJobPositions());
+                  if (isJobPositionsFetched)
+                    promises.push(refetchJobPositions());
                   if (isApplicantsFetched) promises.push(refetchApplicants());
                   if (isCompaniesFetched) promises.push(refetchCompanies());
                   if (promises.length === 0) return;
@@ -3365,14 +3576,20 @@ const jobOptions = useMemo(() => {
                   : t('updateData', 'applicants')}
               </button>
               <div className="text-sm text-gray-500">
-                {elapsed ? t('lastUpdate', 'applicants', { time: elapsed }) : t('notUpdatedYet', 'applicants')}
+                {elapsed
+                  ? t('lastUpdate', 'applicants', { time: elapsed })
+                  : t('notUpdatedYet', 'applicants')}
               </div>
             </div>
           }
         />
-<div className="w-full min-w-0">
-  <div className="grid gap-6 min-w-0">
-            <ComponentCard title={t('componentTitle', 'applicants')} desc={t('componentDesc', 'applicants')}  className="overflow-hidden">
+        <div className="w-full min-w-0">
+          <div className="grid gap-6 min-w-0">
+            <ComponentCard
+              title={t('componentTitle', 'applicants')}
+              desc={t('componentDesc', 'applicants')}
+              className="overflow-hidden"
+            >
               <>
                 {error && (
                   <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg">
@@ -3383,40 +3600,48 @@ const jobOptions = useMemo(() => {
                 {selectedApplicantCount > 0 && (
                   <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-lg bg-brand-50 px-4 py-3 dark:bg-brand-900/20">
                     <span className="text-sm font-medium text-brand-700 dark:text-brand-300">
-                      {t('selectedCount', 'applicants', { count: selectedApplicantCount })}
+                      {t('selectedCount', 'applicants', {
+                        count: selectedApplicantCount,
+                      })}
                     </span>
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
                       <button
-                    onClick={() => {
-                      setOfferModalOpen(true);
-                    }}
-                    disabled={selectedApplicantCount === 0}
-                    className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
-                  >
-                    <FileText className="h-4 w-4" />
-                    {`${t('sendOffer', 'applicants')} (${selectedApplicantCount})`}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setContractModalOpen(true);
-                    }}
-                    disabled={selectedApplicantCount === 0}
-                    className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-50"
-                  >
-                    <FileSignature className="h-4 w-4" />
-                    {`${t('sendContract', 'applicants')} (${selectedApplicantCount})`}
-                  </button>
-                  <button
+                        onClick={() => {
+                          setOfferModalOpen(true);
+                        }}
+                        disabled={selectedApplicantCount === 0}
+                        className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
+                      >
+                        <FileText className="h-4 w-4" />
+                        {`${t('sendOffer', 'applicants')} (${selectedApplicantCount})`}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setContractModalOpen(true);
+                        }}
+                        disabled={selectedApplicantCount === 0}
+                        className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-50"
+                      >
+                        <FileSignature className="h-4 w-4" />
+                        {`${t('sendContract', 'applicants')} (${selectedApplicantCount})`}
+                      </button>
+                      <button
                         type="button"
                         onClick={() => {
-                          setBulkStatusForm({ status: '', reasons: [], notes: '' });
+                          setBulkStatusForm({
+                            status: '',
+                            reasons: [],
+                            notes: '',
+                          });
                           setBulkStatusError('');
                           setShowBulkStatusModal(true);
                         }}
                         disabled={isProcessing || selectedApplicantCount === 0}
                         className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:opacity-50"
                       >
-                        {isProcessing ? t('changing', 'applicants') : t('changeStatus', 'applicants')}
+                        {isProcessing
+                          ? t('changing', 'applicants')
+                          : t('changeStatus', 'applicants')}
                       </button>
                       <button
                         onClick={handleExportToExcel}
@@ -3443,7 +3668,8 @@ const jobOptions = useMemo(() => {
                       <button
                         onClick={() => setShowBulkModal(true)}
                         disabled={
-                          isProcessing || selectedApplicantRecipients.length === 0
+                          isProcessing ||
+                          selectedApplicantRecipients.length === 0
                         }
                         className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
                       >
@@ -3466,10 +3692,21 @@ const jobOptions = useMemo(() => {
                           onClick={handleBulkRestore}
                           className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700"
                         >
-                          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          <svg
+                            className="h-4 w-4"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                            />
                           </svg>
-                          {t('restore', 'applicants')} ({selectedTrashedApplicants.length})
+                          {t('restore', 'applicants')} (
+                          {selectedTrashedApplicants.length})
                         </button>
                       )}
                       <button
@@ -3478,40 +3715,42 @@ const jobOptions = useMemo(() => {
                         className="inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-600 disabled:opacity-50"
                       >
                         <TrashBinIcon className="h-4 w-4" />
-                        {isDeleting ? t('deleting', 'applicants') : t('delete', 'applicants')}
+                        {isDeleting
+                          ? t('deleting', 'applicants')
+                          : t('delete', 'applicants')}
                       </button>
                     </div>
                   </div>
                 )}
 
-            {!isLayoutLoaded ? (
-              <div className="flex items-center justify-center py-20">
-                <div className="animate-spin rounded-full h-12 w-12 border-4 border-brand-500 border-t-transparent" />
-              </div>
-            ) : (
-              <div
-                ref={tableContainerRef}
-                className="w-full overflow-x-auto custom-scrollbar"
-              >
-                <MaterialReactTable table={table} />
-              </div>
-            )}
+                {!isLayoutLoaded ? (
+                  <div className="flex items-center justify-center py-20">
+                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-brand-500 border-t-transparent" />
+                  </div>
+                ) : (
+                  <div
+                    ref={tableContainerRef}
+                    className="w-full overflow-x-auto custom-scrollbar"
+                  >
+                    <MaterialReactTable table={table} />
+                  </div>
+                )}
 
-            <JobContractModal
-              isOpen={contractModalOpen}
-              onClose={() => setContractModalOpen(false)}
-              mode="contract"
-              applicantObjects={selectedApplicants}
-              companyId={selectedApplicantCompanyId!}
-            />
+                <JobContractModal
+                  isOpen={contractModalOpen}
+                  onClose={() => setContractModalOpen(false)}
+                  mode="contract"
+                  applicantObjects={selectedApplicants}
+                  companyId={selectedApplicantCompanyId!}
+                />
 
-            <JobOfferModal
-              isOpen={offerModalOpen}
-              onClose={() => setOfferModalOpen(false)}
-              mode="offer"
-              applicantObjects={selectedApplicants}
-              companyId={selectedApplicantCompanyId!}
-            />
+                <JobOfferModal
+                  isOpen={offerModalOpen}
+                  onClose={() => setOfferModalOpen(false)}
+                  mode="offer"
+                  applicantObjects={selectedApplicants}
+                  companyId={selectedApplicantCompanyId!}
+                />
                 <BulkMessageModal
                   isOpen={showBulkModal}
                   onClose={() => setShowBulkModal(false)}
@@ -3607,7 +3846,9 @@ const jobOptions = useMemo(() => {
                 >
                   <div className="space-y-4">
                     <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                      {t('interviewEmailPreview', 'applicants', { count: bulkInterviewPreviewItems.length })}
+                      {t('interviewEmailPreview', 'applicants', {
+                        count: bulkInterviewPreviewItems.length,
+                      })}
                     </h2>
                     <div className="max-h-[70vh] space-y-4 overflow-auto pr-1">
                       {bulkInterviewPreviewItems.map((item, index) => (
@@ -3616,13 +3857,20 @@ const jobOptions = useMemo(() => {
                           className="rounded-lg border border-gray-200 p-3 dark:border-gray-700"
                         >
                           <div className="mb-2 text-sm font-semibold text-gray-800 dark:text-white/90">
-                            {t('applicantItem', 'applicants', { no: item.applicantNo, name: item.applicantName })}
+                            {t('applicantItem', 'applicants', {
+                              no: item.applicantNo,
+                              name: item.applicantName,
+                            })}
                           </div>
                           <div className="mb-3 text-xs text-gray-600 dark:text-gray-300">
                             <span className="mr-4">
-                              {t('to', 'applicants')} {item.to || t('noEmail', 'applicants')}
+                              {t('to', 'applicants')}{' '}
+                              {item.to || t('noEmail', 'applicants')}
                             </span>
-                            <span>{t('scheduled', 'applicants')} {item.scheduledLabel}</span>
+                            <span>
+                              {t('scheduled', 'applicants')}{' '}
+                              {item.scheduledLabel}
+                            </span>
                           </div>
                           <iframe
                             srcDoc={item.html}

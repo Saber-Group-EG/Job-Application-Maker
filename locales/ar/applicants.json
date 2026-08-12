@@ -203,10 +203,14 @@
   "aiCandidateSummary": "ملخص المرشح بالذكاء الاصطناعي",
   "generateSummary": "إنشاء ملخص",
   "regenerate": "إعادة الإنشاء",
+  "aiMatchScore": "درجة الذكاء الاصطناعي",
   "generating": "جاري الإنشاء...",
   "generatingSummaryText": "جاري تحليل بيانات المرشح — قد يستغرق ذلك بضع ثوانٍ.",
   "noSummaryYet": "لم يتم إنشاء ملخص بعد.",
   "strengths": "نقاط القوة",
   "weaknesses": "نقاط الضعف",
-  "summaryMayBeStale": "قد يكون الملخص قديمًا. أعد الإنشاء للحصول على أحدث الرؤى."
+  "summaryMayBeStale": "قد يكون الملخص قديمًا. أعد الإنشاء للحصول على أحدث الرؤى.",
+  "hideBreakdown": "إخفاء التفاصيل",
+  "showBreakdown": "إظهار التفاصيل",
+  "aiInsights": "رؤى الذكاء الاصطناعي"
 }

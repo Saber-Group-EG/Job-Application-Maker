@@ -61,7 +61,7 @@ import { buildActivities } from './utils/activityUtils';
 import { buildJobSpecItems } from './utils/jobSpecUtils';
 import { getPreviousStatus } from './utils/statusUtils';
 import type { JobSpecItem } from '../../../types/applicants';
-import CandidateSummaryCard from './components/ApplicantData/CandidateSummaryCard';
+import CandidateSummaryCard from './components/ApplicantData/AiInsightsCard';
 
 const resolveId = (value: unknown): string | undefined => {
   if (!value) return undefined;
@@ -1354,6 +1354,7 @@ const ApplicantDetails: React.FC = () => {
                   applicantId={id || ''}
                   companyId={applicantCompanyId}
                   aiSummary={applicant?.aiSummary}
+                  matchScore={applicant?.matchScore}
                 />{' '}
               </div>
 

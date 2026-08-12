@@ -203,10 +203,14 @@
   "aiCandidateSummary": "AI Candidate Summary",
   "generateSummary": "Generate Summary",
   "regenerate": "Regenerate",
+  "aiMatchScore": "AI Score",
   "generating": "Generating...",
   "generatingSummaryText": "Analyzing candidate data — this may take a few seconds.",
   "noSummaryYet": "No summary generated yet.",
   "strengths": "Strengths",
   "weaknesses": "Weaknesses",
-  "summaryMayBeStale": "The summary may be stale. Regenerate to get the latest insights."
+  "summaryMayBeStale": "The summary may be stale. Regenerate to get the latest insights.",
+  "hideBreakdown": "Hide breakdown",
+  "showBreakdown": "Show breakdown",
+  "aiInsights": "AI Insights"
 }
