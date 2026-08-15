@@ -364,5 +364,6 @@
   "cardPrimaryChanged": "Primary card updated.",
   "cardPrimaryChangeFailed": "Failed to update primary card.",
   "aiGenerateFailed": "AI Generation Failed",
-  "aiSummaryFailed": "Failed to generate AI summary"
+  "aiSummaryFailed": "Failed to generate AI summary",
+  "emailDraftFailed": "Failed to generate email draft"
 }

@@ -1,7 +1,11 @@
 import Swal from '../../utils/swal';
 import { Modal } from '../ui/modal';
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { useSendMessage, useSendEmail } from '../../hooks/queries';
+import {
+  useSendMessage,
+  useSendEmail,
+  useDraftEmailTemplateWithAi,
+} from '../../hooks/queries';
 import { getErrorMessage } from '../../utils/errorHandler';
 import Label from '../form/Label';
 import Select from '../form/Select';
@@ -12,12 +16,20 @@ import { useLocale } from '../../context/LocaleContext';
 
 import 'quill/dist/quill.snow.css';
 
-function QuillEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function QuillEditor({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const quillRef = useRef<any>(null);
   const onChangeRef = useRef<(v: string) => void>(onChange);
 
-  useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
 
   useEffect(() => {
     let mounted = true;
@@ -36,8 +48,9 @@ function QuillEditor({ value, onChange }: { value: string; onChange: (v: string)
           ],
         },
       });
-      quillRef.current.root.innerHTML = value || '';
-      const handleChange = () => onChangeRef.current(quillRef.current.root.innerHTML);
+      quillRef.current.clipboard.dangerouslyPasteHTML(value || '');
+      const handleChange = () =>
+        onChangeRef.current(quillRef.current.root.innerHTML);
       quillRef.current.on('text-change', handleChange);
     })();
 
@@ -55,12 +68,22 @@ function QuillEditor({ value, onChange }: { value: string; onChange: (v: string)
   }, []);
 
   useEffect(() => {
-    if (quillRef.current && quillRef.current.root && quillRef.current.root.innerHTML !== value) {
-      quillRef.current.root.innerHTML = value || '';
+    if (
+      quillRef.current &&
+      quillRef.current.root &&
+      quillRef.current.root.innerHTML !== value
+    ) {
+      quillRef.current.clipboard.dangerouslyPasteHTML(value || '');
     }
   }, [value]);
 
-  return <div className="border rounded bg-white dark:bg-gray-800" style={{ minHeight: 120 }} ref={containerRef} />;
+  return (
+    <div
+      className="border rounded bg-white dark:bg-gray-800"
+      style={{ minHeight: 120 }}
+      ref={containerRef}
+    />
+  );
 }
 
 const MessageModal = ({
@@ -90,17 +113,32 @@ const MessageModal = ({
   const [showEmailPreview, setShowEmailPreview] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+  const [aiPromptOpen, setAiPromptOpen] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
   const { t } = useLocale();
+  const draftEmailMutation = useDraftEmailTemplateWithAi();
 
   // Sender selection states
-  const [senderOption, setSenderOption] = useState<'company' | 'available' | 'custom'>('company');
+  const [senderOption, setSenderOption] = useState<
+    'company' | 'available' | 'custom'
+  >('company');
   const [customSender, setCustomSender] = useState('');
   const [newLocalEmail, setNewLocalEmail] = useState('');
-  const [senderOptions, setSenderOptions] = useState<Array<{ value: string; label: string }>>([]);
+  const [senderOptions, setSenderOptions] = useState<
+    Array<{ value: string; label: string }>
+  >([]);
 
-  const companyIdForQuery = (applicant && (typeof applicant.companyId === 'string' ? applicant.companyId : applicant.company?._id)) || '';
+  const companyIdForQuery =
+    (applicant &&
+      (typeof applicant.companyId === 'string'
+        ? applicant.companyId
+        : applicant.company?._id)) ||
+    '';
 
-  const company = propCompany || (applicant && (applicant.company || applicant.companyObj)) || null;
+  const company =
+    propCompany ||
+    (applicant && (applicant.company || applicant.companyObj)) ||
+    null;
 
   // Get email templates directly from the company object
   const emailTemplates: EmailTemplate[] = useMemo(() => {
@@ -117,9 +155,12 @@ const MessageModal = ({
 
   const getCompanyDomain = () => {
     if (!company) return '';
-    if (company?.settings?.mailSettings?.companyDomain) return company.settings.mailSettings.companyDomain;
-    if (company?.company?.settings?.mailSettings?.companyDomain) return company.company.settings.mailSettings.companyDomain;
-    if (company?.mailSettings?.companyDomain) return company.mailSettings.companyDomain;
+    if (company?.settings?.mailSettings?.companyDomain)
+      return company.settings.mailSettings.companyDomain;
+    if (company?.company?.settings?.mailSettings?.companyDomain)
+      return company.company.settings.mailSettings.companyDomain;
+    if (company?.mailSettings?.companyDomain)
+      return company.mailSettings.companyDomain;
 
     const defaultMail =
       company?.settings?.mailSettings?.defaultMail ||
@@ -129,14 +170,16 @@ const MessageModal = ({
       company?.contactEmail ||
       company?.email ||
       '';
-    if (defaultMail && defaultMail.includes('@')) return defaultMail.split('@')[1];
+    if (defaultMail && defaultMail.includes('@'))
+      return defaultMail.split('@')[1];
 
     const firstAvailableMail =
       company?.settings?.mailSettings?.availableMails?.[0] ||
       company?.company?.settings?.mailSettings?.availableMails?.[0] ||
       company?.mailSettings?.availableMails?.[0] ||
       '';
-    if (firstAvailableMail && firstAvailableMail.includes('@')) return firstAvailableMail.split('@')[1];
+    if (firstAvailableMail && firstAvailableMail.includes('@'))
+      return firstAvailableMail.split('@')[1];
 
     return '';
   };
@@ -158,38 +201,45 @@ const MessageModal = ({
     companyDomain ||
     extractDomain(company?.mailSettings?.defaultMail) ||
     extractDomain(customSender) ||
-    (senderOptions && senderOptions.length > 0 ? extractDomain(senderOptions[0].value) : '');
+    (senderOptions && senderOptions.length > 0
+      ? extractDomain(senderOptions[0].value)
+      : '');
 
   // Handle template selection - this populates subject and body
- // Replace your handleTemplateSelect function with this optimized version
-const handleTemplateSelect = (templateId: string) => {
-  if (!templateId) {
-    setSelectedTemplateId('');
-    return;
-  }
-  
-  const selectedTemplate = emailTemplates.find((t: EmailTemplate) => t._id === templateId);
-  if (selectedTemplate) {
-    // Decode HTML entities if needed
-    let decodedHtml = selectedTemplate.html;
-    try {
-      decodedHtml = decodedHtml.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
-    } catch (e) {
-      decodedHtml = selectedTemplate.html;
+  // Replace your handleTemplateSelect function with this optimized version
+  const handleTemplateSelect = (templateId: string) => {
+    if (!templateId) {
+      setSelectedTemplateId('');
+      return;
     }
-    
-    // Update both fields at once to prevent multiple re-renders
-    setMessageForm(prev => ({
-      ...prev,
-      subject: selectedTemplate.subject,
-      body: decodedHtml,
-    }));
-    setSelectedTemplateId(templateId);
-    
-    // Remove the Swal notification to avoid extra re-renders
-    // Just show a subtle indication instead
-  }
-};
+
+    const selectedTemplate = emailTemplates.find(
+      (t: EmailTemplate) => t._id === templateId
+    );
+    if (selectedTemplate) {
+      // Decode HTML entities if needed
+      let decodedHtml = selectedTemplate.html;
+      try {
+        decodedHtml = decodedHtml
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&amp;/g, '&');
+      } catch (e) {
+        decodedHtml = selectedTemplate.html;
+      }
+
+      // Update both fields at once to prevent multiple re-renders
+      setMessageForm((prev) => ({
+        ...prev,
+        subject: selectedTemplate.subject,
+        body: decodedHtml,
+      }));
+      setSelectedTemplateId(templateId);
+
+      // Remove the Swal notification to avoid extra re-renders
+      // Just show a subtle indication instead
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -201,27 +251,71 @@ const handleTemplateSelect = (templateId: string) => {
     (async () => {
       try {
         const raw = company ?? null;
-        const normalized = raw && raw.company && typeof raw.company === 'object' ? raw.company : raw;
+        const normalized =
+          raw && raw.company && typeof raw.company === 'object'
+            ? raw.company
+            : raw;
 
         const availableCandidates: any[] = [];
         try {
-          if (Array.isArray(normalized?.mailSettings?.availableMails)) { availableCandidates.push(...normalized.mailSettings.availableMails); }
-          if (normalized && typeof normalized === 'object' && normalized.mailSettings && Array.isArray((normalized.mailSettings as any)?.available_senders)) {
-            availableCandidates.push(...(normalized.mailSettings as any).available_senders);
+          if (Array.isArray(normalized?.mailSettings?.availableMails)) {
+            availableCandidates.push(...normalized.mailSettings.availableMails);
           }
-          if (normalized?.mailSettings && typeof normalized.mailSettings === 'object' && Array.isArray((normalized.mailSettings as any).availableSenders)) {
-            availableCandidates.push(...(normalized.mailSettings as any).availableSenders);
+          if (
+            normalized &&
+            typeof normalized === 'object' &&
+            normalized.mailSettings &&
+            Array.isArray((normalized.mailSettings as any)?.available_senders)
+          ) {
+            availableCandidates.push(
+              ...(normalized.mailSettings as any).available_senders
+            );
           }
-          if (normalized && typeof normalized === 'object' && 'settings' in normalized && normalized.settings && typeof normalized.settings === 'object' && 'mailSettings' in normalized.settings && normalized.settings.mailSettings && typeof normalized.settings.mailSettings === 'object' && Array.isArray((normalized.settings.mailSettings as any)?.availableMails)) {
-            availableCandidates.push(...(normalized.settings.mailSettings as any).availableMails);
+          if (
+            normalized?.mailSettings &&
+            typeof normalized.mailSettings === 'object' &&
+            Array.isArray((normalized.mailSettings as any).availableSenders)
+          ) {
+            availableCandidates.push(
+              ...(normalized.mailSettings as any).availableSenders
+            );
           }
-          if (normalized && typeof normalized === 'object' && 'availableMails' in normalized && Array.isArray((normalized as any).availableMails)) {
+          if (
+            normalized &&
+            typeof normalized === 'object' &&
+            'settings' in normalized &&
+            normalized.settings &&
+            typeof normalized.settings === 'object' &&
+            'mailSettings' in normalized.settings &&
+            normalized.settings.mailSettings &&
+            typeof normalized.settings.mailSettings === 'object' &&
+            Array.isArray(
+              (normalized.settings.mailSettings as any)?.availableMails
+            )
+          ) {
+            availableCandidates.push(
+              ...(normalized.settings.mailSettings as any).availableMails
+            );
+          }
+          if (
+            normalized &&
+            typeof normalized === 'object' &&
+            'availableMails' in normalized &&
+            Array.isArray((normalized as any).availableMails)
+          ) {
             availableCandidates.push(...(normalized as any).availableMails);
           }
-          if (normalized && typeof normalized === 'object' && 'available_senders' in normalized && Array.isArray((normalized as any).available_senders)) {
+          if (
+            normalized &&
+            typeof normalized === 'object' &&
+            'available_senders' in normalized &&
+            Array.isArray((normalized as any).available_senders)
+          ) {
             availableCandidates.push(...(normalized as any).available_senders);
           }
-        } catch (e) { /* ignore */ }
+        } catch (e) {
+          /* ignore */
+        }
 
         const deduped: Array<{ value: string; label: string }> = [];
         const seen = new Set<string>();
@@ -230,7 +324,14 @@ const handleTemplateSelect = (templateId: string) => {
           if (!mitem) return;
           if (typeof mitem === 'string') email = String(mitem).trim();
           else if (typeof mitem === 'object') {
-            email = String(mitem.email || mitem.address || mitem.value || mitem.addressEmail || mitem.contact || '').trim();
+            email = String(
+              mitem.email ||
+                mitem.address ||
+                mitem.value ||
+                mitem.addressEmail ||
+                mitem.contact ||
+                ''
+            ).trim();
           }
           if (!email) return;
           if (seen.has(email)) return;
@@ -241,20 +342,57 @@ const handleTemplateSelect = (templateId: string) => {
         try {
           const c = raw && (raw.company || raw);
           if (c && typeof c === 'object') {
-            if ('settings' in c && c.settings && typeof c.settings === 'object' && 'mailSettings' in c.settings && c.settings.mailSettings && typeof c.settings.mailSettings === 'object' && Array.isArray((c.settings.mailSettings as any)?.availableMails)) {
-              ((c.settings.mailSettings as any)?.availableMails ?? []).forEach((em: any) => { if (!seen.has(em)) { seen.add(em); deduped.push({ value: em, label: em }); } });
+            if (
+              'settings' in c &&
+              c.settings &&
+              typeof c.settings === 'object' &&
+              'mailSettings' in c.settings &&
+              c.settings.mailSettings &&
+              typeof c.settings.mailSettings === 'object' &&
+              Array.isArray((c.settings.mailSettings as any)?.availableMails)
+            ) {
+              ((c.settings.mailSettings as any)?.availableMails ?? []).forEach(
+                (em: any) => {
+                  if (!seen.has(em)) {
+                    seen.add(em);
+                    deduped.push({ value: em, label: em });
+                  }
+                }
+              );
             }
-            if ('mailSettings' in c && c.mailSettings && typeof c.mailSettings === 'object' && Array.isArray(c.mailSettings.availableMails)) {
-              c.mailSettings.availableMails.forEach((em: any) => { if (!seen.has(em)) { seen.add(em); deduped.push({ value: em, label: em }); } });
+            if (
+              'mailSettings' in c &&
+              c.mailSettings &&
+              typeof c.mailSettings === 'object' &&
+              Array.isArray(c.mailSettings.availableMails)
+            ) {
+              c.mailSettings.availableMails.forEach((em: any) => {
+                if (!seen.has(em)) {
+                  seen.add(em);
+                  deduped.push({ value: em, label: em });
+                }
+              });
             }
             if ('availableMails' in c && Array.isArray(c.availableMails)) {
-              c.availableMails.forEach((em: any) => { if (!seen.has(em)) { seen.add(em); deduped.push({ value: em, label: em }); } });
+              c.availableMails.forEach((em: any) => {
+                if (!seen.has(em)) {
+                  seen.add(em);
+                  deduped.push({ value: em, label: em });
+                }
+              });
             }
           }
-        } catch (e) { /* ignore */ }
+        } catch (e) {
+          /* ignore */
+        }
 
-        const fallbackEmail = normalized?.mailSettings?.defaultMail || normalized?.defaultMail || normalized?.contactEmail || normalized?.email || '';
-        
+        const fallbackEmail =
+          normalized?.mailSettings?.defaultMail ||
+          normalized?.defaultMail ||
+          normalized?.contactEmail ||
+          normalized?.email ||
+          '';
+
         if (fallbackEmail && !seen.has(fallbackEmail)) {
           deduped.push({ value: fallbackEmail, label: fallbackEmail });
           seen.add(fallbackEmail);
@@ -271,10 +409,16 @@ const handleTemplateSelect = (templateId: string) => {
           if (domainFromSettings) {
             setResolvedCompanyDomain(domainFromSettings);
           }
-        } catch (e) { /* ignore */ }
+        } catch (e) {
+          /* ignore */
+        }
 
         setSenderOptions(deduped);
-        const defaultMail = normalized?.mailSettings?.defaultMail || normalized?.settings?.mailSettings?.defaultMail || normalized?.defaultMail || '';
+        const defaultMail =
+          normalized?.mailSettings?.defaultMail ||
+          normalized?.settings?.mailSettings?.defaultMail ||
+          normalized?.defaultMail ||
+          '';
         setCustomSender(defaultMail || (deduped[0] && deduped[0].value) || '');
         if (deduped.length > 0) setSenderOption('available');
         else setSenderOption('company');
@@ -284,10 +428,13 @@ const handleTemplateSelect = (templateId: string) => {
         setCustomSender('');
       }
     })();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, [isOpen, company]);
 
-  const showRegisterEmailWarning = !defaultFrom && !!company && senderOptions.length === 0;
+  const showRegisterEmailWarning =
+    !defaultFrom && !!company && senderOptions.length === 0;
 
   useEffect(() => {
     if (defaultFrom) {
@@ -337,10 +484,21 @@ const handleTemplateSelect = (templateId: string) => {
       return trimmed || fallback;
     }
     if (value && typeof value === 'object') {
-      const localized = value as { en?: unknown; ar?: unknown; name?: unknown; title?: unknown };
-      const candidates = [localized.en, localized.ar, localized.name, localized.title];
+      const localized = value as {
+        en?: unknown;
+        ar?: unknown;
+        name?: unknown;
+        title?: unknown;
+      };
+      const candidates = [
+        localized.en,
+        localized.ar,
+        localized.name,
+        localized.title,
+      ];
       for (const candidate of candidates) {
-        if (typeof candidate === 'string' && candidate.trim()) return candidate.trim();
+        if (typeof candidate === 'string' && candidate.trim())
+          return candidate.trim();
       }
     }
     return fallback;
@@ -352,7 +510,11 @@ const handleTemplateSelect = (templateId: string) => {
       (applicant.fullName && String(applicant.fullName).trim()) ||
       (applicant.applicantName && String(applicant.applicantName).trim()) ||
       (applicant.name && String(applicant.name).trim()) ||
-      ((String(applicant.firstName || '') + ' ' + String(applicant.lastName || '')).trim()) ||
+      (
+        String(applicant.firstName || '') +
+        ' ' +
+        String(applicant.lastName || '')
+      ).trim() ||
       (applicant.email && String(applicant.email).split('@')[0]) ||
       t('candidate', 'modals');
     return String(rawName).trim() || t('candidate', 'modals');
@@ -361,7 +523,8 @@ const handleTemplateSelect = (templateId: string) => {
   const getJobTitleFromApplicant = (): string => {
     if (!applicant) return '';
     try {
-      const jp = (applicant as any)?.jobPositionId || (applicant as any)?.jobPosition;
+      const jp =
+        (applicant as any)?.jobPositionId || (applicant as any)?.jobPosition;
       if (jp) {
         if (typeof jp === 'object') {
           const title = toDisplayText(jp?.title || jp?.name, '');
@@ -372,18 +535,29 @@ const handleTemplateSelect = (templateId: string) => {
       /* ignore */
     }
 
-    const titleFromJobPositionId = toDisplayText((applicant as any)?.jobPositionId?.title || (applicant as any)?.jobPositionId?.name, '');
+    const titleFromJobPositionId = toDisplayText(
+      (applicant as any)?.jobPositionId?.title ||
+        (applicant as any)?.jobPositionId?.name,
+      ''
+    );
     if (titleFromJobPositionId) return titleFromJobPositionId;
-    const titleFromJobPosition = toDisplayText((applicant as any)?.jobPosition?.title || (applicant as any)?.jobPosition?.name, '');
+    const titleFromJobPosition = toDisplayText(
+      (applicant as any)?.jobPosition?.title ||
+        (applicant as any)?.jobPosition?.name,
+      ''
+    );
     if (titleFromJobPosition) return titleFromJobPosition;
     return '';
   };
 
-  const escapeRegex = (s: string) => String(s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const escapeRegex = (s: string) =>
+    String(s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
   const buildInterleavedRegex = (token: string) => {
     const chars = String(token || '').split('');
-    const part = chars.map((ch) => escapeRegex(ch) + '(?:<[^>]+>|\\s|&nbsp;|&#160;)*').join('');
+    const part = chars
+      .map((ch) => escapeRegex(ch) + '(?:<[^>]+>|\\s|&nbsp;|&#160;)*')
+      .join('');
     return new RegExp('\\{\\{\\s*' + part + '\\s*\\}\\}', 'gi');
   };
 
@@ -402,17 +576,21 @@ const handleTemplateSelect = (templateId: string) => {
     if (!plain) return '';
     return String(plain)
       .replace(/\{\{\s*candidateName\s*\}\}/gi, getCandidateName())
-      .replace(/\{\{\s*(?:position|jobTitle)\s*\}\}/gi, getJobTitleFromApplicant());
+      .replace(
+        /\{\{\s*(?:position|jobTitle)\s*\}\}/gi,
+        getJobTitleFromApplicant()
+      );
   };
 
   const handlePreviewEmail = () => {
     if (messageForm.type !== 'email') return;
-      if (!messageForm.body?.trim()) {
+    if (!messageForm.body?.trim()) {
       setMessageError(t('bodyRequired', 'modals'));
       return;
     }
 
-    const subjectForPreview = messageForm.subject?.trim() || t('messageSubjectPlaceholder', 'modals');
+    const subjectForPreview =
+      messageForm.subject?.trim() || t('messageSubjectPlaceholder', 'modals');
     const substitutedSubject = applyTemplateToPlain(subjectForPreview);
     const substitutedBody = applyTemplateToHtml(messageForm.body || '');
     const html = buildEmailHtml(substitutedSubject, substitutedBody);
@@ -427,6 +605,29 @@ const handleTemplateSelect = (templateId: string) => {
     setPreviewHtml('');
     setSelectedTemplateId('');
     setMessageForm({ subject: '', body: '', type: 'email' });
+  };
+
+  const handleDraftWithAi = async () => {
+    if (!aiPrompt.trim()) return;
+    const companyToSend =
+      (company && (company._id || (company as any).id)) || companyIdForQuery;
+    try {
+      const data = await draftEmailMutation.mutateAsync({
+        companyId: companyToSend,
+        prompt: aiPrompt.trim(),
+        templateType: 'standard',
+      });
+      setMessageForm((prev) => ({
+        ...prev,
+        subject: data.subject,
+        body: data.body,
+      }));
+      setSelectedTemplateId('');
+      setAiPromptOpen(false);
+      setAiPrompt('');
+    } catch (err) {
+      // error toast already shown by the hook's onError
+    }
   };
 
   const handleMessageSubmit = async (e: React.FormEvent) => {
@@ -458,18 +659,23 @@ const handleTemplateSelect = (templateId: string) => {
         substitutedSubject = substitutedSubject
           .replace(/\{\{\s*candidateName\s*\}\}/gi, candidateName)
           .replace(/\{\{\s*(?:position|jobTitle)\s*\}\}/gi, jobTitle);
-        
+
         let substitutedBody = messageForm.body || '';
         substitutedBody = substitutedBody
           .replace(/\{\{\s*candidateName\s*\}\}/gi, candidateName)
           .replace(/\{\{\s*(?:position|jobTitle)\s*\}\}/gi, jobTitle);
-        
+
         const emailHtml = buildEmailHtml(substitutedSubject, substitutedBody);
-        
-        const mailDefault = company?.mailSettings?.defaultMail || company?.email || '';
+
+        const mailDefault =
+          company?.mailSettings?.defaultMail || company?.email || '';
         let fromAddr = '';
 
-        if (senderOption === 'custom' && newLocalEmail && newLocalEmail.trim()) {
+        if (
+          senderOption === 'custom' &&
+          newLocalEmail &&
+          newLocalEmail.trim()
+        ) {
           const local = newLocalEmail.trim();
           const domainToUse = resolvedCompanyDomain || companyDomain;
           if (!domainToUse) {
@@ -483,16 +689,25 @@ const handleTemplateSelect = (templateId: string) => {
         } else {
           fromAddr = mailDefault || '';
         }
-        
-        const companyConfig = (typeof fromAddr === 'string' && fromAddr.includes('<')) 
-          ? fromAddr.replace(/.*<\s*([^>]+)\s*>.*/, '$1') 
-          : String(fromAddr).replace(/[<>]/g, '');
 
-        const companyToSend = (company && (company._id || (company as any).id)) || companyIdForQuery || undefined;
-        let jobPositionId = applicant?.jobPositionId || (applicant?.jobPosition && typeof applicant.jobPosition === 'object' ? applicant.jobPosition._id : applicant?.jobPosition);
-        
+        const companyConfig =
+          typeof fromAddr === 'string' && fromAddr.includes('<')
+            ? fromAddr.replace(/.*<\s*([^>]+)\s*>.*/, '$1')
+            : String(fromAddr).replace(/[<>]/g, '');
+
+        const companyToSend =
+          (company && (company._id || (company as any).id)) ||
+          companyIdForQuery ||
+          undefined;
+        let jobPositionId =
+          applicant?.jobPositionId ||
+          (applicant?.jobPosition && typeof applicant.jobPosition === 'object'
+            ? applicant.jobPosition._id
+            : applicant?.jobPosition);
+
         if (jobPositionId && typeof jobPositionId === 'object') {
-          jobPositionId = jobPositionId._id || jobPositionId.id || String(jobPositionId);
+          jobPositionId =
+            jobPositionId._id || jobPositionId.id || String(jobPositionId);
         }
 
         await sendEmailMutation.mutateAsync({
@@ -502,9 +717,10 @@ const handleTemplateSelect = (templateId: string) => {
           from: companyConfig,
           subject: substitutedSubject,
           html: emailHtml,
-          jobPosition: typeof jobPositionId === 'string' ? jobPositionId : undefined,
+          jobPosition:
+            typeof jobPositionId === 'string' ? jobPositionId : undefined,
         } as any);
-        
+
         if (!isInquiry) {
           await sendMessageMutation.mutateAsync({
             id,
@@ -573,9 +789,15 @@ const handleTemplateSelect = (templateId: string) => {
             <Label htmlFor="message-type">{t('messageType', 'modals')}</Label>
             <Select
               options={[
-                { value: 'email', label: `📧 ${t('emailSentSaved', 'modals')}` },
+                {
+                  value: 'email',
+                  label: `📧 ${t('emailSentSaved', 'modals')}`,
+                },
                 { value: 'sms', label: `💬 ${t('smsSoon', 'modals')}` },
-                { value: 'whatsapp', label: `📱 ${t('whatsappSoon', 'modals')}` },
+                {
+                  value: 'whatsapp',
+                  label: `📱 ${t('whatsappSoon', 'modals')}`,
+                },
               ]}
               value={messageForm.type}
               placeholder={t('messageType', 'modals')}
@@ -594,17 +816,58 @@ const handleTemplateSelect = (templateId: string) => {
             )}
           </div>
 
+          {messageForm.type === 'email' && (
+            <div>
+              <button
+                type="button"
+                onClick={() => setAiPromptOpen((v) => !v)}
+                className="text-sm text-brand-600 hover:underline"
+              >
+                ✨ {t('draftWithAi', 'modals')}
+              </button>
+              {aiPromptOpen && (
+                <div className="mt-2">
+                  <TextArea
+                    value={aiPrompt}
+                    onChange={(value: any) => setAiPrompt(value)}
+                    placeholder={t('draftWithAiPlaceholder', 'modals')}
+                    rows={3}
+                  />
+                  <div className="mt-2 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={handleDraftWithAi}
+                      disabled={
+                        draftEmailMutation.isPending || !aiPrompt.trim()
+                      }
+                      className="rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {draftEmailMutation.isPending
+                        ? t('generating', 'modals')
+                        : t('generate', 'modals')}
+                    </button>
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">
+                    {t('aiTemplateNote', 'modals')}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Template Selector - Only for email */}
           {messageForm.type === 'email' && emailTemplates.length > 0 && (
             <div>
-              <Label htmlFor="template-select">{t('loadTemplate', 'modals')}</Label>
+              <Label htmlFor="template-select">
+                {t('loadTemplate', 'modals')}
+              </Label>
               <Select
                 options={[
                   { value: '', label: t('selectTemplate', 'modals') },
-                  ...emailTemplates.map((tmpl: EmailTemplate) => ({ 
-                    value: tmpl._id || '', 
-                    label: tmpl.name 
-                  }))
+                  ...emailTemplates.map((tmpl: EmailTemplate) => ({
+                    value: tmpl._id || '',
+                    label: tmpl.name,
+                  })),
                 ]}
                 value={selectedTemplateId}
                 onChange={(value) => handleTemplateSelect(value as string)}
@@ -619,7 +882,9 @@ const handleTemplateSelect = (templateId: string) => {
           {/* Subject field - only for email */}
           {messageForm.type === 'email' && (
             <div>
-              <Label htmlFor="message-subject">{t('messageSubject', 'modals')} *</Label>
+              <Label htmlFor="message-subject">
+                {t('messageSubject', 'modals')} *
+              </Label>
               <Input
                 id="message-subject"
                 type="text"
@@ -631,7 +896,8 @@ const handleTemplateSelect = (templateId: string) => {
                 required
               />
               <p className="mt-1 text-xs text-gray-500">
-                {t('availableVariables', 'modals')}: {'{{candidateName}}'}, {'{{position}}'} or {'{{jobTitle}}'}
+                {t('availableVariables', 'modals')}: {'{{candidateName}}'},{' '}
+                {'{{position}}'} or {'{{jobTitle}}'}
               </p>
             </div>
           )}
@@ -655,12 +921,19 @@ const handleTemplateSelect = (templateId: string) => {
               <Label>{t('sender', 'modals')}</Label>
               <div className="space-y-2">
                 {defaultFrom ? (
-                  <Input value={defaultFrom} readOnly className="bg-gray-50 dark:bg-gray-800" />
+                  <Input
+                    value={defaultFrom}
+                    readOnly
+                    className="bg-gray-50 dark:bg-gray-800"
+                  />
                 ) : (
                   <>
                     <Select
                       options={[
-                        { value: 'available', label: t('companyMails', 'modals') },
+                        {
+                          value: 'available',
+                          label: t('companyMails', 'modals'),
+                        },
                         { value: 'custom', label: t('newMail', 'modals') },
                       ]}
                       value={senderOption}
@@ -670,8 +943,21 @@ const handleTemplateSelect = (templateId: string) => {
 
                     {senderOption === 'available' && (
                       <Select
-                        options={senderOptions.length > 0 ? senderOptions : [{ value: '', label: t('noAvailableSenders', 'modals') }]}
-                        value={customSender || (senderOptions[0] && senderOptions[0].value) || ''}
+                        options={
+                          senderOptions.length > 0
+                            ? senderOptions
+                            : [
+                                {
+                                  value: '',
+                                  label: t('noAvailableSenders', 'modals'),
+                                },
+                              ]
+                        }
+                        value={
+                          customSender ||
+                          (senderOptions[0] && senderOptions[0].value) ||
+                          ''
+                        }
                         onChange={(v: any) => {
                           setCustomSender(v);
                         }}
@@ -681,8 +967,14 @@ const handleTemplateSelect = (templateId: string) => {
 
                     {senderOption === 'custom' && (
                       <div className="flex items-center gap-2">
-                        <Input value={newLocalEmail} onChange={(e) => setNewLocalEmail(e.target.value)} placeholder="your-name" />
-                        <div className="text-sm text-gray-600">@{displayDomain}</div>
+                        <Input
+                          value={newLocalEmail}
+                          onChange={(e) => setNewLocalEmail(e.target.value)}
+                          placeholder="your-name"
+                        />
+                        <div className="text-sm text-gray-600">
+                          @{displayDomain}
+                        </div>
                       </div>
                     )}
                   </>
@@ -697,18 +989,24 @@ const handleTemplateSelect = (templateId: string) => {
               <Input
                 value={
                   senderOption === 'custom' && newLocalEmail
-                    ? `${newLocalEmail}@${(resolvedCompanyDomain || companyDomain) || displayDomain}`
+                    ? `${newLocalEmail}@${resolvedCompanyDomain || companyDomain || displayDomain}`
                     : customSender || ''
                 }
                 readOnly
                 placeholder={t('noSenderSelected', 'modals')}
-                className={!resolvedCompanyDomain && !companyDomain ? 'border-amber-300' : ''}
+                className={
+                  !resolvedCompanyDomain && !companyDomain
+                    ? 'border-amber-300'
+                    : ''
+                }
               />
-              {!resolvedCompanyDomain && !companyDomain && senderOption === 'custom' && (
-                <p className="text-xs text-amber-600 mt-1">
-                  {t('noDomainConfigured', 'modals')}
-                </p>
-              )}
+              {!resolvedCompanyDomain &&
+                !companyDomain &&
+                senderOption === 'custom' && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    {t('noDomainConfigured', 'modals')}
+                  </p>
+                )}
             </div>
           )}
 
@@ -718,30 +1016,47 @@ const handleTemplateSelect = (templateId: string) => {
               <>
                 <QuillEditor
                   value={messageForm.body}
-                  onChange={(content) => setMessageForm({ ...messageForm, body: content })}
+                  onChange={(content) =>
+                    setMessageForm({ ...messageForm, body: content })
+                  }
                 />
                 <p className="mt-2 text-xs text-gray-500">
                   {t('availableVariables', 'modals')}
                 </p>
                 <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded text-xs">
                   <strong>{t('quickInsert', 'modals')}</strong>{' '}
-                  <button 
+                  <button
                     type="button"
-                    onClick={() => setMessageForm({ ...messageForm, body: messageForm.body + '{{candidateName}}' })}
+                    onClick={() =>
+                      setMessageForm({
+                        ...messageForm,
+                        body: messageForm.body + '{{candidateName}}',
+                      })
+                    }
                     className="text-blue-600 hover:underline mx-1"
                   >
                     {'{{candidateName}}'}
                   </button>
-                  <button 
+                  <button
                     type="button"
-                    onClick={() => setMessageForm({ ...messageForm, body: messageForm.body + '{{position}}' })}
+                    onClick={() =>
+                      setMessageForm({
+                        ...messageForm,
+                        body: messageForm.body + '{{position}}',
+                      })
+                    }
                     className="text-blue-600 hover:underline mx-1"
                   >
                     {'{{position}}'}
                   </button>
-                  <button 
+                  <button
                     type="button"
-                    onClick={() => setMessageForm({ ...messageForm, body: messageForm.body + '{{jobTitle}}' })}
+                    onClick={() =>
+                      setMessageForm({
+                        ...messageForm,
+                        body: messageForm.body + '{{jobTitle}}',
+                      })
+                    }
                     className="text-blue-600 hover:underline mx-1"
                   >
                     {'{{jobTitle}}'}
@@ -828,8 +1143,13 @@ const handleTemplateSelect = (templateId: string) => {
         className="max-w-3xl p-6"
       >
         <div className="space-y-4">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t('emailPreview', 'modals')}</h2>
-          <div className="border rounded p-2 bg-white dark:bg-gray-800" style={{ maxHeight: '70vh', overflow: 'auto' }}>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+            {t('emailPreview', 'modals')}
+          </h2>
+          <div
+            className="border rounded p-2 bg-white dark:bg-gray-800"
+            style={{ maxHeight: '70vh', overflow: 'auto' }}
+          >
             <iframe
               srcDoc={previewHtml}
               title={t('emailPreview', 'modals')}

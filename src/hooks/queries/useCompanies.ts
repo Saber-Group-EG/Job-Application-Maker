@@ -835,6 +835,25 @@ export function useDeleteMailTemplate() {
   });
 }
 
+export function useDraftEmailTemplateWithAi() {
+  const { t } = useLocale();
+
+  return useMutation({
+    mutationFn: ({
+      companyId,
+      prompt,
+      templateType,
+    }: {
+      companyId: string;
+      prompt: string;
+      templateType: 'standard' | 'interview';
+    }) => companiesService.draftEmailTemplate(companyId, prompt, templateType),
+    onError: (error: ApiError) => {
+      showErrorToast(error.message, t('emailDraftFailed', 'common'), t);
+    },
+  });
+}
+
 export function useDuplicateMailTemplate() {
   const queryClient = useQueryClient();
   const { t } = useLocale();
