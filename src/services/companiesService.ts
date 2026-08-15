@@ -17,6 +17,7 @@ import type {
   SubscriptionCard,
   TransactionRecord,
 } from '../types/companies';
+import { EmailDraftResult } from '../types';
 
 // Re-export types
 export type {
@@ -435,6 +436,17 @@ class CompaniesService {
   }
   async startAddCard(companyId: string): Promise<{ checkoutUrl: string }> {
     return this.request('post', `/billing/${companyId}/subscription/cards/add`);
+  }
+  async draftEmailTemplate(
+    companyId: string,
+    prompt: string,
+    templateType: 'standard' | 'interview'
+  ): Promise<EmailDraftResult> {
+    return this.request<EmailDraftResult>(
+      'post',
+      `/companies/${companyId}/email-draft`,
+      { companyId, prompt, templateType }
+    );
   }
 }
 

@@ -367,5 +367,10 @@
   "has": "Has",
   "no": "No",
   "revert": "Revert",
-  "saveFilters": "Save Filters"
+  "saveFilters": "Save Filters",
+  "draftWithAi": "Draft with AI",
+  "draftWithAiPlaceholder": "e.g. Reject them, mention they can reapply in 6 months",
+  "generate": "Generate",
+  "generating": "Generating…",
+  "aiTemplateNote": "AI will use placeholders like {{candidateName}} so this works for every recipient."
 }

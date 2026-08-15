@@ -1,7 +1,10 @@
 import Swal from '../../utils/swal';
 import { Modal } from '../ui/modal';
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { useSendBatchEmail } from '../../hooks/queries';
+import {
+  useDraftEmailTemplateWithAi,
+  useSendBatchEmail,
+} from '../../hooks/queries';
 import { useJobPositions, useSendMessage } from '../../hooks/queries';
 import { getErrorMessage } from '../../utils/errorHandler';
 import Label from '../form/Label';
@@ -10,13 +13,22 @@ import Input from '../form/input/InputField';
 import { useLocale } from '../../context/LocaleContext';
 
 import 'quill/dist/quill.snow.css';
+import TextArea from '../form/input/TextArea';
 
-function QuillEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function QuillEditor({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const quillRef = useRef<any>(null);
   const onChangeRef = useRef<(v: string) => void>(onChange);
 
-  useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
 
   useEffect(() => {
     let mounted = true;
@@ -27,29 +39,47 @@ function QuillEditor({ value, onChange }: { value: string; onChange: (v: string)
       if (!mounted || !containerRef.current) return;
       quillRef.current = new Quill(containerRef.current, {
         theme: 'snow',
-        modules: { toolbar: [['bold', 'italic', 'underline'], [{ list: 'ordered' }, { list: 'bullet' }], ['link']] },
+        modules: {
+          toolbar: [
+            ['bold', 'italic', 'underline'],
+            [{ list: 'ordered' }, { list: 'bullet' }],
+            ['link'],
+          ],
+        },
       });
-      quillRef.current.root.innerHTML = value || '';
-      const handleChange = () => onChangeRef.current(quillRef.current.root.innerHTML);
+quillRef.current.clipboard.dangerouslyPasteHTML(value || '');      const handleChange = () =>
+        onChangeRef.current(quillRef.current.root.innerHTML);
       quillRef.current.on('text-change', handleChange);
     })();
 
     return () => {
       mounted = false;
       if (quillRef.current) {
-        try { quillRef.current.off && quillRef.current.off('text-change'); } catch (e) {}
+        try {
+          quillRef.current.off && quillRef.current.off('text-change');
+        } catch (e) {}
         quillRef.current = null;
       }
     };
   }, []);
 
   useEffect(() => {
-    if (quillRef.current && quillRef.current.root && quillRef.current.root.innerHTML !== value) {
-      quillRef.current.root.innerHTML = value || '';
+    if (
+      quillRef.current &&
+      quillRef.current.root &&
+      quillRef.current.root.innerHTML !== value
+    ) {
+      quillRef.current.clipboard.dangerouslyPasteHTML(value || '');
     }
   }, [value]);
 
-  return <div className="border rounded bg-white dark:bg-gray-800" style={{ minHeight: 120 }} ref={containerRef} />;
+  return (
+    <div
+      className="border rounded bg-white dark:bg-gray-800"
+      style={{ minHeight: 120 }}
+      ref={containerRef}
+    />
+  );
 }
 
 const BulkMessageModal = ({
@@ -62,22 +92,67 @@ const BulkMessageModal = ({
 }: {
   isOpen: boolean;
   onClose: () => void;
-  recipients: Array<string | { email?: string; applicant?: string; _id?: string; id?: string; jobPositionId?: string; jobPosition?: any; applicantName?: string; name?: string; fullName?: string }>;
+  recipients: Array<
+    | string
+    | {
+        email?: string;
+        applicant?: string;
+        _id?: string;
+        id?: string;
+        jobPositionId?: string;
+        jobPosition?: any;
+        applicantName?: string;
+        name?: string;
+        fullName?: string;
+      }
+  >;
   companyId?: string | null;
   company?: any;
   onSuccess?: () => void;
 }) => {
-  const [form, setForm] = useState({ subject: '', body: '', type: 'email' as 'email' });
+  const [form, setForm] = useState({
+    subject: '',
+    body: '',
+    type: 'email' as 'email',
+  });
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [emailOption, setEmailOption] = useState<'company' | 'new' | 'available'>('company');
+  const [emailOption, setEmailOption] = useState<
+    'company' | 'new' | 'available'
+  >('company');
   const [customEmail, setCustomEmail] = useState('');
   const [newLocalEmail, setNewLocalEmail] = useState('');
-  const [senderOptions, setSenderOptions] = useState<Array<{value:string;label:string}>>([]);
+  const [senderOptions, setSenderOptions] = useState<
+    Array<{ value: string; label: string }>
+  >([]);
   const [showPreview, setShowPreview] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+  const draftTemplateMutation = useDraftEmailTemplateWithAi();
+  const [aiPromptOpen, setAiPromptOpen] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
 
+  const handleDraftWithAi = async () => {
+    if (!aiPrompt.trim()) return;
+    const companyToSend = companyId || company?._id;
+    if (!companyToSend) {
+      setError('Company is required to draft with AI');
+      return;
+    }
+    try {
+      const data = await draftTemplateMutation.mutateAsync({
+        companyId: String(companyToSend),
+        prompt: aiPrompt.trim(),
+        templateType: 'standard',
+      });
+      setForm((prev) => ({ ...prev, subject: data.subject, body: data.body }));
+      setSelectedTemplateId('');
+      setAiPromptOpen(false);
+      setAiPrompt('');
+    } catch (err) {
+      /* error toast already shown by the hook */
+    }
+  };
   const { t, locale } = useLocale();
 
   const sendBatch = useSendBatchEmail();
@@ -101,17 +176,22 @@ const BulkMessageModal = ({
       setSelectedTemplateId('');
       return;
     }
-    
-    const selectedTemplate = emailTemplates.find((t: any) => t._id === templateId);
+
+    const selectedTemplate = emailTemplates.find(
+      (t: any) => t._id === templateId
+    );
     if (selectedTemplate) {
       let decodedHtml = selectedTemplate.html;
       try {
-        decodedHtml = decodedHtml.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+        decodedHtml = decodedHtml
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&amp;/g, '&');
       } catch (e) {
         decodedHtml = selectedTemplate.html;
       }
-      
-      setForm(prev => ({
+
+      setForm((prev) => ({
         ...prev,
         subject: selectedTemplate.subject,
         body: decodedHtml,
@@ -123,12 +203,12 @@ const BulkMessageModal = ({
   const buildEmailHtml = (subject: string, body: string, recipient?: any) => {
     let processedSubject = subject;
     let processedBody = body;
-    
+
     if (recipient) {
       processedSubject = applyTemplateToPlainForRecipient(subject, recipient);
       processedBody = applyTemplateToHtmlForRecipient(body, recipient);
     }
-    
+
     return `
     <!DOCTYPE html>
     <html>
@@ -162,11 +242,14 @@ const BulkMessageModal = ({
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
 
-  const escapeRegex = (s: string) => String(s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const escapeRegex = (s: string) =>
+    String(s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
   const buildInterleavedRegex = (token: string) => {
     const chars = String(token || '').split('');
-    const part = chars.map((ch) => escapeRegex(ch) + '(?:<[^>]+>|\\s|&nbsp;|&#160;)*').join('');
+    const part = chars
+      .map((ch) => escapeRegex(ch) + '(?:<[^>]+>|\\s|&nbsp;|&#160;)*')
+      .join('');
     return new RegExp('\\{\\{\\s*' + part + '\\s*\\}\\}', 'gi');
   };
 
@@ -176,10 +259,21 @@ const BulkMessageModal = ({
       return trimmed || fallback;
     }
     if (value && typeof value === 'object') {
-      const localized = value as { en?: unknown; ar?: unknown; name?: unknown; title?: unknown };
-      const candidates = [localized.en, localized.ar, localized.name, localized.title];
+      const localized = value as {
+        en?: unknown;
+        ar?: unknown;
+        name?: unknown;
+        title?: unknown;
+      };
+      const candidates = [
+        localized.en,
+        localized.ar,
+        localized.name,
+        localized.title,
+      ];
       for (const candidate of candidates) {
-        if (typeof candidate === 'string' && candidate.trim()) return candidate.trim();
+        if (typeof candidate === 'string' && candidate.trim())
+          return candidate.trim();
       }
     }
     return fallback;
@@ -194,12 +288,16 @@ const BulkMessageModal = ({
       return local || 'Candidate';
     }
     return (
-      String(item.applicantName || item.fullName || item.name || item.email || '').trim() ||
-      'Candidate'
+      String(
+        item.applicantName || item.fullName || item.name || item.email || ''
+      ).trim() || 'Candidate'
     );
   };
 
-  const { data: jobPositions = [] } = useJobPositions(companyId ? [companyId] : undefined as any, false);
+  const { data: jobPositions = [] } = useJobPositions(
+    companyId ? [companyId] : (undefined as any),
+    false
+  );
   const jobTitleById = useMemo(() => {
     const map = new Map<string, string>();
     (jobPositions || []).forEach((j: any) => {
@@ -231,9 +329,15 @@ const BulkMessageModal = ({
       /* ignore */
     }
 
-    const titleFromJobPositionId = toDisplayText((item as any)?.jobPositionId?.title || (item as any)?.jobPositionId?.name, '');
+    const titleFromJobPositionId = toDisplayText(
+      (item as any)?.jobPositionId?.title || (item as any)?.jobPositionId?.name,
+      ''
+    );
     if (titleFromJobPositionId) return titleFromJobPositionId;
-    const titleFromJobPosition = toDisplayText((item as any)?.jobPosition?.title || (item as any)?.jobPosition?.name, '');
+    const titleFromJobPosition = toDisplayText(
+      (item as any)?.jobPosition?.title || (item as any)?.jobPosition?.name,
+      ''
+    );
     if (titleFromJobPosition) return titleFromJobPosition;
     return '';
   };
@@ -252,8 +356,14 @@ const BulkMessageModal = ({
   const applyTemplateToPlainForRecipient = (plain: string, item: any) => {
     if (!plain) return '';
     return String(plain)
-      .replace(/\{\{\s*candidateName\s*\}\}/gi, getCandidateNameForRecipient(item))
-      .replace(/\{\{\s*(?:position|jobTitle)\s*\}\}/gi, getJobTitleForRecipient(item));
+      .replace(
+        /\{\{\s*candidateName\s*\}\}/gi,
+        getCandidateNameForRecipient(item)
+      )
+      .replace(
+        /\{\{\s*(?:position|jobTitle)\s*\}\}/gi,
+        getJobTitleForRecipient(item)
+      );
   };
 
   const buildEmailSection = (subject: string, body: string) => `
@@ -269,29 +379,31 @@ const BulkMessageModal = ({
       </div>
     </div>`;
 
-  const companyDomain = company?.settings?.mailSettings?.companyDomain || 
-    company?.mailSettings?.companyDomain || 
-    (company?.settings?.mailSettings?.defaultMail?.split('@')[1]) || 
+  const companyDomain =
+    company?.settings?.mailSettings?.companyDomain ||
+    company?.mailSettings?.companyDomain ||
+    company?.settings?.mailSettings?.defaultMail?.split('@')[1] ||
     '';
 
   // Get sender options from company object directly (from /auth/me data)
   useEffect(() => {
     if (!isOpen) return;
-    
+
     if (!company && !companyId) {
       setSenderOptions([]);
       setCustomEmail('');
       return;
     }
-    
+
     const companyData = company || null;
-    
+
     const availableCandidates: any[] = [];
     let defaultMail = '';
-    
+
     try {
       // Get available mails from company settings
-      const companyMailSettings = companyData?.settings?.mailSettings || companyData?.mailSettings;
+      const companyMailSettings =
+        companyData?.settings?.mailSettings || companyData?.mailSettings;
       if (companyMailSettings) {
         if (Array.isArray(companyMailSettings.availableMails)) {
           availableCandidates.push(...companyMailSettings.availableMails);
@@ -304,7 +416,7 @@ const BulkMessageModal = ({
         }
         defaultMail = companyMailSettings.defaultMail || '';
       }
-      
+
       // Also check root level
       if (Array.isArray(companyData?.availableMails)) {
         availableCandidates.push(...companyData.availableMails);
@@ -312,7 +424,7 @@ const BulkMessageModal = ({
       if (Array.isArray(companyData?.available_senders)) {
         availableCandidates.push(...companyData.available_senders);
       }
-      
+
       // Fallback default mail
       if (!defaultMail) {
         defaultMail = companyData?.contactEmail || companyData?.email || '';
@@ -323,14 +435,16 @@ const BulkMessageModal = ({
 
     const deduped: Array<{ value: string; label: string }> = [];
     const seen = new Set<string>();
-    
+
     availableCandidates.forEach((mitem: any) => {
       let email = '';
       if (!mitem) return;
       if (typeof mitem === 'string') {
         email = String(mitem).trim();
       } else if (typeof mitem === 'object') {
-        email = String(mitem.email || mitem.address || mitem.value || '').trim();
+        email = String(
+          mitem.email || mitem.address || mitem.value || ''
+        ).trim();
       }
       if (!email) return;
       if (seen.has(email)) return;
@@ -361,16 +475,27 @@ const BulkMessageModal = ({
     const normalizedRecipients = recipients
       .map((item) => {
         if (typeof item === 'string') {
-          return { to: item, applicant: undefined, jobPositionId: undefined, raw: { email: item } };
+          return {
+            to: item,
+            applicant: undefined,
+            jobPositionId: undefined,
+            raw: { email: item },
+          };
         }
-        let jobPositionId = item.jobPositionId || (item.jobPosition && typeof item.jobPosition === 'object' ? item.jobPosition._id : item.jobPosition);
+        let jobPositionId =
+          item.jobPositionId ||
+          (item.jobPosition && typeof item.jobPosition === 'object'
+            ? item.jobPosition._id
+            : item.jobPosition);
         if (jobPositionId && typeof jobPositionId === 'object') {
-          jobPositionId = jobPositionId._id || jobPositionId.id || String(jobPositionId);
+          jobPositionId =
+            jobPositionId._id || jobPositionId.id || String(jobPositionId);
         }
         return {
           to: String(item?.email || '').trim(),
           applicant: item?.applicant || item?._id || item?.id,
-          jobPositionId: typeof jobPositionId === 'string' ? jobPositionId : undefined,
+          jobPositionId:
+            typeof jobPositionId === 'string' ? jobPositionId : undefined,
           applicantName: item?.applicantName || item?.name || item?.fullName,
           raw: {
             email: String(item?.email || '').trim(),
@@ -379,7 +504,7 @@ const BulkMessageModal = ({
             name: item?.name || item?.applicantName || item?.fullName,
             jobPositionId: jobPositionId,
             jobPosition: item?.jobPosition,
-            ...item
+            ...item,
           },
         };
       })
@@ -392,7 +517,10 @@ const BulkMessageModal = ({
 
     if (normalizedRecipients.length === 1) {
       const r = normalizedRecipients[0].raw;
-      const substitutedSubject = applyTemplateToPlainForRecipient(form.subject, r);
+      const substitutedSubject = applyTemplateToPlainForRecipient(
+        form.subject,
+        r
+      );
       const substitutedBody = applyTemplateToHtmlForRecipient(form.body, r);
       const html = buildEmailHtml(substitutedSubject, substitutedBody);
       setPreviewHtml(html);
@@ -429,24 +557,30 @@ const BulkMessageModal = ({
 
     setIsSubmitting(true);
     try {
-      let fromAddress = emailOption === 'new' && newLocalEmail
-        ? `${newLocalEmail}@${companyDomain || 'company.com'}`
-        : customEmail || company?.settings?.mailSettings?.defaultMail || '';
+      let fromAddress =
+        emailOption === 'new' && newLocalEmail
+          ? `${newLocalEmail}@${companyDomain || 'company.com'}`
+          : customEmail || company?.settings?.mailSettings?.defaultMail || '';
 
       // Normalize recipients
       const normalizedRecipients = recipients
         .map((item) => {
           if (typeof item === 'string') {
-            return { 
-              to: item.trim(), 
-              applicant: undefined, 
+            return {
+              to: item.trim(),
+              applicant: undefined,
               jobPositionId: undefined,
-              raw: { email: item.trim() }
+              raw: { email: item.trim() },
             };
           }
-          let jobPositionId = item.jobPositionId || (item.jobPosition && typeof item.jobPosition === 'object' ? item.jobPosition._id : item.jobPosition);
+          let jobPositionId =
+            item.jobPositionId ||
+            (item.jobPosition && typeof item.jobPosition === 'object'
+              ? item.jobPosition._id
+              : item.jobPosition);
           if (jobPositionId && typeof jobPositionId === 'object') {
-            jobPositionId = jobPositionId._id || jobPositionId.id || String(jobPositionId);
+            jobPositionId =
+              jobPositionId._id || jobPositionId.id || String(jobPositionId);
           }
           const rawForSubstitution = {
             email: String(item?.email || '').trim(),
@@ -455,30 +589,36 @@ const BulkMessageModal = ({
             name: item?.name || item?.applicantName || item?.fullName,
             jobPositionId: jobPositionId,
             jobPosition: item?.jobPosition,
-            ...item
+            ...item,
           };
           return {
             to: String(item?.email || '').trim(),
             applicant: item?.applicant || item?._id || item?.id,
-            jobPositionId: typeof jobPositionId === 'string' ? jobPositionId : undefined,
+            jobPositionId:
+              typeof jobPositionId === 'string' ? jobPositionId : undefined,
             raw: rawForSubstitution,
           };
         })
         .filter((item) => item.to);
 
-      const batch = normalizedRecipients.map(({ to, applicant, jobPositionId, raw }) => {
-        const subSubject = applyTemplateToPlainForRecipient(form.subject, raw);
-        const subBody = applyTemplateToHtmlForRecipient(form.body, raw);
-        
-        return {
-          to,
-          from: fromAddress,
-          subject: subSubject,
-          html: buildEmailHtml(subSubject, subBody, raw),
-          applicant,
-          jobPosition: jobPositionId,
-        };
-      });
+      const batch = normalizedRecipients.map(
+        ({ to, applicant, jobPositionId, raw }) => {
+          const subSubject = applyTemplateToPlainForRecipient(
+            form.subject,
+            raw
+          );
+          const subBody = applyTemplateToHtmlForRecipient(form.body, raw);
+
+          return {
+            to,
+            from: fromAddress,
+            subject: subSubject,
+            html: buildEmailHtml(subSubject, subBody, raw),
+            applicant,
+            jobPosition: jobPositionId,
+          };
+        }
+      );
 
       const companyToSend = companyId || company?._id;
 
@@ -494,7 +634,7 @@ const BulkMessageModal = ({
         if (email.applicant) {
           try {
             const contentWithSubject = `<h2 style="color:#333; margin-bottom:10px;">Subject: ${escapeHtml(email.subject)}</h2><hr style="margin:10px 0;"/>${email.html}`;
-            
+
             await sendMessageMutation.mutateAsync({
               id: email.applicant,
               data: {
@@ -503,19 +643,22 @@ const BulkMessageModal = ({
               },
             });
           } catch (err) {
-            console.error(`Failed to save message for applicant ${email.applicant}:`, err);
+            console.error(
+              `Failed to save message for applicant ${email.applicant}:`,
+              err
+            );
           }
         }
       });
 
       await Promise.allSettled(messagePromises);
 
-      await Swal.fire({ 
-        title: t('success', 'modals'), 
-        text: t('successEmailSent', 'modals', { count: recipients.length }), 
-        icon: 'success', 
-        timer: 2000, 
-        showConfirmButton: false 
+      await Swal.fire({
+        title: t('success', 'modals'),
+        text: t('successEmailSent', 'modals', { count: recipients.length }),
+        icon: 'success',
+        timer: 2000,
+        showConfirmButton: false,
       });
       onClose();
       if (onSuccess) onSuccess();
@@ -530,10 +673,10 @@ const BulkMessageModal = ({
   const templateOptions = useMemo(() => {
     return [
       { value: '', label: t('selectTemplate', 'modals') },
-      ...emailTemplates.map((tmpl: any) => ({ 
-        value: tmpl._id || '', 
-        label: tmpl.name 
-      }))
+      ...emailTemplates.map((tmpl: any) => ({
+        value: tmpl._id || '',
+        label: tmpl.name,
+      })),
     ];
   }, [emailTemplates]);
 
@@ -541,30 +684,87 @@ const BulkMessageModal = ({
   const getCompanyName = () => {
     if (company?.name) {
       if (typeof company.name === 'string') return company.name;
-      return locale === 'ar' ? (company.name.ar || company.name.en || 'Company') : (company.name.en || company.name.ar || 'Company');
+      return locale === 'ar'
+        ? company.name.ar || company.name.en || 'Company'
+        : company.name.en || company.name.ar || 'Company';
     }
     return 'Company';
   };
 
   return (
     <>
-      <Modal isOpen={isOpen} onClose={() => { onClose(); setError(''); }} className="max-w-2xl p-6" closeOnBackdrop={false}>
+      <Modal
+        isOpen={isOpen}
+        onClose={() => {
+          onClose();
+          setError('');
+        }}
+        className="max-w-2xl p-6"
+        closeOnBackdrop={false}
+      >
         <form onSubmit={handleSubmit} className="space-y-6">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t('bulkMessageTitle', 'modals', { count: recipients.length })}</h2>
-        
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+            {t('bulkMessageTitle', 'modals', { count: recipients.length })}
+          </h2>
+
           {error && (
             <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
               <div className="flex items-start justify-between">
-                <p className="text-sm text-red-600 dark:text-red-400"><strong>{t('error', 'modals')}</strong> {error}</p>
-                <button type="button" onClick={() => setError('')} className="ml-3 text-red-400 hover:text-red-600 dark:hover:text-red-300">✕</button>
+                <p className="text-sm text-red-600 dark:text-red-400">
+                  <strong>{t('error', 'modals')}</strong> {error}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setError('')}
+                  className="ml-3 text-red-400 hover:text-red-600 dark:hover:text-red-300"
+                >
+                  ✕
+                </button>
               </div>
             </div>
           )}
-
+          <div>
+            <button
+              type="button"
+              onClick={() => setAiPromptOpen((v) => !v)}
+              className="text-sm text-brand-600 hover:underline"
+            >
+              ✨ {t('draftWithAi', 'modals')}
+            </button>
+            {aiPromptOpen && (
+              <div className="mt-2">
+                <TextArea
+                  value={aiPrompt}
+                  onChange={(value: any) => setAiPrompt(value)}
+                  placeholder={t('draftWithAiPlaceholder', 'modals')}
+                  rows={3}
+                />
+                <div className="mt-2 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={handleDraftWithAi}
+                    disabled={
+                      draftTemplateMutation.isPending || !aiPrompt.trim()
+                    }
+                    className="rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {draftTemplateMutation.isPending
+                      ? t('generating', 'modals')
+                      : t('generate', 'modals')}
+                  </button>
+                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  {t('aiTemplateNote', 'modals')}
+                </p>
+              </div>
+            )}
+          </div>
           {/* Template Selector */}
           {emailTemplates.length > 0 && (
             <div>
-              <Label htmlFor="template-select">{t('loadTemplate', 'modals')}</Label>
+              <Label htmlFor="template-select">
+                {t('loadTemplate', 'modals')}
+              </Label>
               <Select
                 options={templateOptions}
                 value={selectedTemplateId}
@@ -582,16 +782,30 @@ const BulkMessageModal = ({
             <p className="mt-1 text-xs text-gray-500 mb-2">
               {t('availableVariables', 'modals')}
             </p>
-            <Input value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} placeholder={t('subject', 'modals')} />
+            <Input
+              value={form.subject}
+              onChange={(e) => setForm({ ...form, subject: e.target.value })}
+              placeholder={t('subject', 'modals')}
+            />
           </div>
 
           <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4 dark:border-gray-700 dark:bg-gray-800/30">
-            <h3 className="mb-2 text-base font-medium text-gray-800 dark:text-white/90">{t('sender', 'modals')}</h3>
+            <h3 className="mb-2 text-base font-medium text-gray-800 dark:text-white/90">
+              {t('sender', 'modals')}
+            </h3>
             <div className="space-y-3">
               <div>
                 <Label htmlFor="email-option">{t('emailFrom', 'modals')}</Label>
                 <Select
-                  options={[{ value: 'company', label: t('companyEmail', 'modals', { company: getCompanyName() }) }, { value: 'new', label: t('newEmail', 'modals') }]}
+                  options={[
+                    {
+                      value: 'company',
+                      label: t('companyEmail', 'modals', {
+                        company: getCompanyName(),
+                      }),
+                    },
+                    { value: 'new', label: t('newEmail', 'modals') },
+                  ]}
                   value={emailOption}
                   onChange={(v: any) => {
                     setEmailOption(v);
@@ -603,8 +817,14 @@ const BulkMessageModal = ({
 
               {emailOption === 'new' && (
                 <div className="flex items-center gap-2">
-                  <Input value={newLocalEmail} onChange={(e: any) => setNewLocalEmail(e.target.value)} placeholder="your-name" />
-                  <div className="text-sm text-gray-600">@{companyDomain || 'company.com'}</div>
+                  <Input
+                    value={newLocalEmail}
+                    onChange={(e: any) => setNewLocalEmail(e.target.value)}
+                    placeholder="your-name"
+                  />
+                  <div className="text-sm text-gray-600">
+                    @{companyDomain || 'company.com'}
+                  </div>
                 </div>
               )}
 
@@ -612,9 +832,21 @@ const BulkMessageModal = ({
                 <div>
                   <Label>{t('availableSenderAddresses', 'modals')}</Label>
                   <Select
-                    options={senderOptions.length > 0 ? senderOptions : [{ value: '', label: t('noAvailableSenders', 'modals') }]}
+                    options={
+                      senderOptions.length > 0
+                        ? senderOptions
+                        : [
+                            {
+                              value: '',
+                              label: t('noAvailableSenders', 'modals'),
+                            },
+                          ]
+                    }
                     value={customEmail || ''}
-                    onChange={(v: any) => { setCustomEmail(v); setEmailOption('available'); }}
+                    onChange={(v: any) => {
+                      setCustomEmail(v);
+                      setEmailOption('available');
+                    }}
                     placeholder={t('selectSenderOption', 'modals')}
                   />
                 </div>
@@ -622,11 +854,16 @@ const BulkMessageModal = ({
 
               <div>
                 <Label>{t('selectedSender', 'modals')}</Label>
-                <Input value={
-                  emailOption === 'new' && newLocalEmail
-                    ? `${newLocalEmail}@${companyDomain || 'company.com'}`
-                    : customEmail || company?.settings?.mailSettings?.defaultMail || ''
-                } readOnly />
+                <Input
+                  value={
+                    emailOption === 'new' && newLocalEmail
+                      ? `${newLocalEmail}@${companyDomain || 'company.com'}`
+                      : customEmail ||
+                        company?.settings?.mailSettings?.defaultMail ||
+                        ''
+                  }
+                  readOnly
+                />
               </div>
             </div>
           </div>
@@ -636,26 +873,35 @@ const BulkMessageModal = ({
             <p className="mt-1 text-xs text-gray-500 mb-2">
               {t('availableVariables', 'modals')}
             </p>
-            <QuillEditor value={form.body} onChange={(v) => setForm({ ...form, body: v })} />
+            <QuillEditor
+              value={form.body}
+              onChange={(v) => setForm({ ...form, body: v })}
+            />
             <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded text-xs">
               <strong>{t('quickInsert', 'modals')}</strong>{' '}
-              <button 
+              <button
                 type="button"
-                onClick={() => setForm({ ...form, body: form.body + '{{candidateName}}' })}
+                onClick={() =>
+                  setForm({ ...form, body: form.body + '{{candidateName}}' })
+                }
                 className="text-blue-600 hover:underline mx-1"
               >
                 {'{{candidateName}}'}
               </button>
-              <button 
+              <button
                 type="button"
-                onClick={() => setForm({ ...form, body: form.body + '{{position}}' })}
+                onClick={() =>
+                  setForm({ ...form, body: form.body + '{{position}}' })
+                }
                 className="text-blue-600 hover:underline mx-1"
               >
                 {'{{position}}'}
               </button>
-              <button 
+              <button
                 type="button"
-                onClick={() => setForm({ ...form, body: form.body + '{{jobTitle}}' })}
+                onClick={() =>
+                  setForm({ ...form, body: form.body + '{{jobTitle}}' })
+                }
                 className="text-blue-600 hover:underline mx-1"
               >
                 {'{{jobTitle}}'}
@@ -664,18 +910,33 @@ const BulkMessageModal = ({
           </div>
 
           <div className="flex justify-end gap-3">
-            <button type="button" onClick={() => onClose()} className="rounded-lg border border-stroke px-6 py-2" disabled={isSubmitting}>{t('cancel', 'modals')}</button>
-
             <button
-                type="button"
-                onClick={handlePreview}
-                className="rounded-lg border border-stroke px-6 py-2 hover:bg-gray-100 dark:border-strokedark dark:hover:bg-gray-800"
-                disabled={isSubmitting}
-              >
-                {t('previewEmail', 'modals')}
+              type="button"
+              onClick={() => onClose()}
+              className="rounded-lg border border-stroke px-6 py-2"
+              disabled={isSubmitting}
+            >
+              {t('cancel', 'modals')}
             </button>
 
-            <button type="submit" className="rounded-lg bg-purple-600 px-6 py-2 text-white" disabled={isSubmitting}>{isSubmitting ? t('sending', 'modals') : t('sendTo', 'modals', { count: recipients.length })}</button>
+            <button
+              type="button"
+              onClick={handlePreview}
+              className="rounded-lg border border-stroke px-6 py-2 hover:bg-gray-100 dark:border-strokedark dark:hover:bg-gray-800"
+              disabled={isSubmitting}
+            >
+              {t('previewEmail', 'modals')}
+            </button>
+
+            <button
+              type="submit"
+              className="rounded-lg bg-purple-600 px-6 py-2 text-white"
+              disabled={isSubmitting}
+            >
+              {isSubmitting
+                ? t('sending', 'modals')
+                : t('sendTo', 'modals', { count: recipients.length })}
+            </button>
           </div>
         </form>
       </Modal>
@@ -686,8 +947,13 @@ const BulkMessageModal = ({
         className="max-w-3xl p-6"
       >
         <div className="space-y-4">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t('emailPreview', 'modals')}</h2>
-          <div className="border rounded p-2 bg-white dark:bg-gray-800" style={{ maxHeight: '70vh', overflow: 'auto' }}>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+            {t('emailPreview', 'modals')}
+          </h2>
+          <div
+            className="border rounded p-2 bg-white dark:bg-gray-800"
+            style={{ maxHeight: '70vh', overflow: 'auto' }}
+          >
             <iframe
               srcDoc={previewHtml}
               title="Message Email Preview"

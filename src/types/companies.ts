@@ -267,3 +267,7 @@ export interface TransactionRecord {
   createdAt: string;
   updatedAt: string;
 }
+export interface EmailDraftResult {
+  subject: string;
+  body: string;
+}

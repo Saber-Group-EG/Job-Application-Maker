@@ -364,5 +364,6 @@
   "cardPrimaryChanged": "تم تحديث البطاقة الأساسية.",
   "cardPrimaryChangeFailed": "فشل تحديث البطاقة الأساسية.",
   "aiGenerateFailed": "فشل الإنشاء بالذكاء الاصطناعي",
-  "aiSummaryFailed": "فشل إنشاء الملخص بالذكاء الاصطناعي"
+  "aiSummaryFailed": "فشل إنشاء الملخص بالذكاء الاصطناعي",
+  "emailDraftFailed": "فشل إنشاء مسودة البريد الإلكتروني"
 }
