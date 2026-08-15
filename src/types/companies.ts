@@ -92,11 +92,18 @@ export interface MailSettings {
   emailTemplates?: EmailTemplate[];
 }
 
+export type MailTemplateCategory =
+  | 'general'
+  | 'applicants'
+  | 'interviews'
+  | 'support';
+
 export interface EmailTemplate {
   _id?: string;
   name: string;
   subject: string;
   html: string;
+  category?: MailTemplateCategory;
   createdAt?: string;
   updatedAt?: string;
 }

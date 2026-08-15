@@ -210,6 +210,13 @@
   "mailTemplates.errorSettingsId": "Settings ID not found",
   "mailTemplates.errorFillFields": "Please fill in all fields",
   "mailTemplates.errorSaveFailed": "Failed to save template",
+  "mailTemplates.labelCategory": "Category *",
+  "mailTemplates.categoryHelp": "General templates appear in all send-mail modals. Others appear only where their category matches.",
+  "mailTemplates.category.all": "All",
+  "mailTemplates.category.general": "General",
+  "mailTemplates.category.applicants": "Applicants",
+  "mailTemplates.category.interviews": "Interviews",
+  "mailTemplates.category.support": "Support",
 
   "rejectionTab.noCompany": "No company selected",
   "rejectionTab.unnamedCompany": "Unnamed Company",

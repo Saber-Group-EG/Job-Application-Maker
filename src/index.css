@@ -927,3 +927,36 @@ span.flatpickr-weekday,
   gap: 0 !important;
 }
 
+
+/* Rich text editor (react-quill) */
+.rich-text-editor .ql-toolbar {
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  border-radius: 0;
+}
+.rich-text-editor .ql-editor {
+  min-height: var(--rte-min-height, 200px);
+}
+.dark .rich-text-editor .ql-toolbar,
+.dark .rich-text-editor .ql-container {
+  background-color: #1f2937;
+  border-color: #374151;
+}
+.dark .rich-text-editor .ql-toolbar .ql-stroke {
+  stroke: #9ca3af;
+}
+.dark .rich-text-editor .ql-toolbar .ql-fill {
+  fill: #9ca3af;
+}
+.dark .rich-text-editor .ql-toolbar .ql-picker,
+.dark .rich-text-editor .ql-toolbar .ql-picker-label,
+.dark .rich-text-editor .ql-toolbar .ql-picker-item {
+  color: #9ca3af;
+}
+.dark .rich-text-editor .ql-editor {
+  color: #e5e7eb;
+}
+.dark .rich-text-editor .ql-editor.ql-blank::before {
+  color: #6b7280;
+}

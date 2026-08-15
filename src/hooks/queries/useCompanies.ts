@@ -753,6 +753,7 @@ export function useCreateMailTemplate() {
       queryClient.invalidateQueries({
         queryKey: emailTemplatesKeys.list(settingsId),
       });
+      queryClient.invalidateQueries({ queryKey: companiesKeys.lists() });
       showSuccessToast(t('emailTemplateCreated', 'common'), t);
     },
     onError: (error: ApiError) =>
@@ -790,6 +791,7 @@ export function useUpdateMailTemplate() {
       queryClient.invalidateQueries({
         queryKey: emailTemplatesKeys.list(settingsId),
       });
+      queryClient.invalidateQueries({ queryKey: companiesKeys.lists() });
       showSuccessToast(t('emailTemplateUpdated', 'common'), t);
     },
     onError: (error: ApiError) =>
@@ -824,6 +826,7 @@ export function useDeleteMailTemplate() {
       queryClient.invalidateQueries({
         queryKey: emailTemplatesKeys.list(settingsId),
       });
+      queryClient.invalidateQueries({ queryKey: companiesKeys.lists() });
       showSuccessToast(t('emailTemplateDeleted', 'common'), t);
     },
     onError: (error: ApiError) =>
@@ -856,6 +859,7 @@ export function useDuplicateMailTemplate() {
           name: `${template.name} (Copy)`,
           subject: template.subject,
           html: template.html,
+          category: template.category,
         },
         existingTemplates,
       });
@@ -864,6 +868,7 @@ export function useDuplicateMailTemplate() {
       queryClient.invalidateQueries({
         queryKey: emailTemplatesKeys.list(settingsId),
       });
+      queryClient.invalidateQueries({ queryKey: companiesKeys.lists() });
       showSuccessToast(t('emailTemplateDuplicated', 'common'), t);
     },
     onError: (error: ApiError) =>
@@ -1006,7 +1011,6 @@ export function previewEmailTemplate(
         body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
         .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .subject { color: #666; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
-        .variables { font-size: 12px; color: #999; margin-top: 20px; padding: 10px; background: #f5f5f5; border-radius: 5px; }
         code { background: #e8e8e8; padding: 2px 4px; border-radius: 3px; font-family: monospace; }
       </style>
     </head>
@@ -1014,11 +1018,6 @@ export function previewEmailTemplate(
       <div class="container">
         <div class="subject"><strong>Subject:</strong> ${escape(template.subject)}</div>
         ${html}
-        <div class="variables">
-          <strong>Available Variables:</strong><br>
-          <code>{{candidateName}}</code> - Candidate's full name<br>
-          <code>{{jobTitle}}</code> or <code>{{position}}</code> - Job position title
-        </div>
       </div>
     </body>
     </html>

@@ -210,6 +210,13 @@
   "mailTemplates.errorSettingsId": "لم يتم العثور على معرف الإعدادات",
   "mailTemplates.errorFillFields": "يرجى ملء جميع الحقول",
   "mailTemplates.errorSaveFailed": "فشل حفظ القالب",
+  "mailTemplates.labelCategory": "الفئة *",
+  "mailTemplates.categoryHelp": "تظهر القوالب العامة في جميع نوافذ إرسال البريد. وتظهر القوالب الأخرى فقط حيث تطابق فئتها.",
+  "mailTemplates.category.all": "الكل",
+  "mailTemplates.category.general": "عام",
+  "mailTemplates.category.applicants": "المتقدمون",
+  "mailTemplates.category.interviews": "المقابلات",
+  "mailTemplates.category.support": "الدعم",
 
   "rejectionTab.noCompany": "لم يتم تحديد شركة",
   "rejectionTab.unnamedCompany": "شركة بدون اسم",
