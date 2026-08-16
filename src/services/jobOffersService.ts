@@ -47,6 +47,26 @@ export interface OfferSection {
   displayOrder: number;
 }
 
+// jobOffersService.ts (or wherever JobOffer types live)
+export type DraftOfferResult = {
+  position: { en: string; ar: string };
+  workType: WorkType;
+  workHours: { en: string; ar: string };
+  salary: { basic: number | null; currency: string }; // always { null, 'EGP' } from backend — never applied to form
+  commissions: {
+    label: { en: string; ar: string };
+    value: number;
+    type: CommissionType;
+    condition: { en: string; ar: string };
+  }[];
+  sections: {
+    title: { en: string; ar: string };
+    items: { en: string; ar: string }[];
+    displayOrder: number;
+  }[];
+  notes: { en: string; ar: string };
+};
+
 export interface JobOffer {
   _id: string;
   companyId: { _id: string; name: { en: string; ar: string }; logoPath?: string };
@@ -201,6 +221,15 @@ class JobOffersService {
     payload: BulkCreateJobOfferPayload
   ): Promise<JobOffer[]> {
     return this.request<JobOffer[]>('post', '/job-offers/bulk', payload);
+  }
+  async draftOffer(payload: {
+    companyId: string;
+    jobPositionId?: string;
+    jobTitle?: string;
+    jobDescription?: string;
+    prompt?: string;
+  }): Promise<DraftOfferResult> {
+    return this.request<DraftOfferResult>('post', '/job-offers/draft', payload);
   }
 }
 

@@ -362,6 +362,8 @@
   "changePlanFailed": "فشل تغيير الخطة.",
   "planChangeCancelled": "تم إلغاء تغيير الخطة.",
   "planChangeCancelFailed": "فشل إلغاء تغيير الخطة.",
+  "contractDraftFailed": "فشل إنشاء العقد بالذكاء الاصطناعي",
+  "offerDraftFailed": "فشل إنشاء العرض بالذكاء الاصطناعي",
   "cardDeleted": "تم حذف البطاقة.",
   "interviewQuestionsDraftFailed": "فشل إنشاء أسئلة المقابلة",
   "cardDeleteFailed": "فشل حذف البطاقة.",

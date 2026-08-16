@@ -19,6 +19,22 @@ export interface BilingualField {
   ar: string | null;
 }
 
+export type DraftContractResult = {
+  contractType: ContractType;
+  position: { en: string; ar: string };
+  salary: { basic: number | null; currency: string }; // always null — never applied to form
+  benefits: {
+    label: { en: string; ar: string };
+    value: { en: string; ar: string };
+  }[];
+  sections: {
+    title: { en: string; ar: string };
+    items: { en: string; ar: string }[];
+    displayOrder: number;
+  }[];
+  notes: { en: string; ar: string };
+};
+
 export interface Benefit {
   _id?: string;
   label: BilingualField;
@@ -175,6 +191,21 @@ class JobContractsService {
         error.response?.data?.details
       );
     }
+  }
+
+  async draftContract(payload: {
+    companyId: string;
+    offerId?: string;
+    jobPositionId?: string;
+    jobTitle?: string;
+    jobDescription?: string;
+    prompt?: string;
+  }): Promise<DraftContractResult> {
+    return this.request<DraftContractResult>(
+      'post',
+      '/job-contracts/draft',
+      payload
+    );
   }
 
   async getContract(id: string): Promise<JobContract> {
