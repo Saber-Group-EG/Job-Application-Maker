@@ -27,6 +27,28 @@ export type SectionTemplate = {
   displayOrder?: number;
 };
 
+export type AiFeature =
+  | 'jobFieldGenerator'
+  | 'matchScore'
+  | 'candidateSummary'
+  | 'emailDrafting'
+  | 'nlFilters'
+  | 'interviewQuestionGen'
+  | 'interviewScoring'
+  | 'cvParse';
+
+export interface AiFeatureToggle {
+  feature: AiFeature;
+  enabled: boolean;
+}
+
+export interface AiSettings {
+  featureToggles?: Partial<Record<AiFeature, boolean>>;
+  model?: string;
+  enabled?: boolean;
+  monthlyCreditLimit?: number;
+}
+
 export type CompanySet = {
   leadModal: {
     visibleFields: { field: Applicant; defaultValue: any }[];
@@ -39,6 +61,7 @@ export type CompanySet = {
   _id?: string;
   company: string;
   mailSettings?: MailSettings;
+  aiSettings?: AiSettings;
 };
 
 export interface Company {

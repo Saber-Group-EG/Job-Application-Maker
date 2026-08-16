@@ -16,6 +16,7 @@ import type {
   ChangePlanResponse,
   SubscriptionCard,
   TransactionRecord,
+  AiFeatureToggle,
 } from '../types/companies';
 import { EmailDraftResult, InterviewGroup } from '../types';
 
@@ -32,6 +33,7 @@ export type {
   InterviewGroup,
   InterviewQuestion,
   ChoiceItem,
+  AiFeatureToggle,
 } from '../types/companies';
 export { normalizeChoices, normalizeChoicesToServer } from '../types/companies';
 
@@ -296,6 +298,18 @@ class CompaniesService {
       { contractSectionTemplates: templates }
     );
   }
+  // ===== AI Features =====
+  async updateCompanyAiFeatures(
+    settingsId: string,
+    featureToggles: AiFeatureToggle[]
+  ): Promise<unknown> {
+    return this.request<unknown>(
+      'put',
+      `/companies/${settingsId}/settings/ai-feature-toggle`,
+      { featureToggles }
+    );
+  }
+
   async getSubscription(companyId: string): Promise<SubscriptionDetails> {
     return this.request<SubscriptionDetails>(
       'get',

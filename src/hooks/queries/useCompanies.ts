@@ -20,6 +20,7 @@ import type {
   EmailTemplate,
   CompanyStatus,
   SectionTemplate,
+  AiFeatureToggle,
 } from '../../types/companies';
 import type { Applicant } from '../../types/applicants';
 import { useAuth } from '../../context/AuthContext';
@@ -52,6 +53,8 @@ export const companiesKeys = {
     [...companiesKeys.all, 'offerSections', settingsId] as const,
   contractSectionTemplates: (settingsId: string) =>
     [...companiesKeys.all, 'contractSections', settingsId] as const,
+  aiFeatures: (companyId: string) =>
+    [...companiesKeys.settings(companyId), 'aiFeatures'] as const,
 };
 
 export const emailTemplatesKeys = {
@@ -664,6 +667,68 @@ export function useUpdateCompanyRejectionReasons() {
       showErrorToast(
         error.message,
         t('rejectionReasonsUpdateFailed', 'common'),
+        t
+      );
+    },
+  });
+}
+
+export function useUpdateCompanyAiFeatures() {
+  const queryClient = useQueryClient();
+  const { t } = useLocale();
+
+  return useMutation({
+    mutationFn: ({
+      companyId,
+      settingsId,
+      featureToggles,
+    }: {
+      companyId?: string;
+      settingsId?: string;
+      featureToggles: AiFeatureToggle[];
+    }) => {
+      const idToUse = settingsId || companyId;
+      if (!idToUse) {
+        throw new Error('Either companyId or settingsId is required');
+      }
+      return companiesService.updateCompanyAiFeatures(idToUse, featureToggles);
+    },
+    onSuccess: (_result, { companyId, settingsId, featureToggles }) => {
+      const idUsed = settingsId || companyId;
+      if (!idUsed) return;
+
+      const featureMap = Object.fromEntries(
+        featureToggles.map((f) => [f.feature, f.enabled])
+      );
+
+      queryClient.setQueryData(companiesKeys.list(), (old: any) => {
+        if (!old) return old;
+        if (Array.isArray(old)) {
+          return old.map((c: any) => {
+            if (!c) return c;
+            if (c._id === idUsed || c.settings?._id === idUsed) {
+              return {
+                ...c,
+                settings: {
+                  ...(c.settings ?? {}),
+                  aiSettings: {
+                    ...(c.settings?.aiSettings ?? {}),
+                    featureToggles: featureMap,
+                  },
+                },
+              };
+            }
+            return c;
+          });
+        }
+        return old;
+      });
+      showSuccessToast(t('aiFeaturesUpdated', 'common'), t);
+    },
+    onError: (error: ApiError) => {
+      showErrorToast(
+        error.message,
+        t('aiFeaturesUpdateFailed', 'common'),
         t
       );
     },

@@ -13,10 +13,10 @@ import {
   Mail,
   Layout,
   FileText,
+  Sparkles,
   ChevronDown,
   ChevronRight,
   GripVertical,
-  Sparkles,
 } from 'lucide-react';
 import {
   DndContext,
@@ -69,6 +69,7 @@ import ApplicantPagesSettings from './ApplicantsPagesTab';
 import JobOffersTab from './JobOffersTab';
 import ContractsTab from './ContractsTab';
 import { useJobPositions } from '../../../hooks/queries';
+import AiFeaturesTab from './AiFeaturesTab';
 
 type QuestionItem = InterviewQuestion & { _id: string };
 
@@ -863,6 +864,7 @@ export default function InterviewCompanySettingsPage() {
     | 'applicant-pages'
     | 'job-offers'
     | 'contracts'
+    | 'ai-features'
   >('interview-groups');
 
   const isInterviewGroupsTab = activeTab === 'interview-groups';
@@ -872,6 +874,8 @@ export default function InterviewCompanySettingsPage() {
   const isApplicantPagesTab = activeTab === 'applicant-pages';
   const isOffersTab = activeTab === 'job-offers';
   const isContractsTab = activeTab === 'contracts';
+  const isAiFeaturesTab = activeTab === 'ai-features';
+
   const updateInterviewMutation = useUpdateCompanyInterviewSettings();
   const queryClient = useQueryClient();
 
@@ -1416,6 +1420,17 @@ export default function InterviewCompanySettingsPage() {
               <FileText className="size-4" />{' '}
               {t('interviewCompany.tabContractTemplates', 'settings')}
             </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('ai-features')}
+              className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition ${
+                isAiFeaturesTab
+                  ? 'bg-brand-500 text-white'
+                  : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800'
+              }`}
+            >
+              <Sparkles className="size-4" /> {t('interviewCompany.tabAiFeatures', 'settings')}
+            </button>
           </div>
 
           {isInterviewGroupsTab && (
@@ -1737,6 +1752,8 @@ export default function InterviewCompanySettingsPage() {
                   hideCompanySelector={true}
                   embedded
                 />
+              ) : isAiFeaturesTab ? (
+                <AiFeaturesTab embedded />
               ) : null}
             </div>
           </div>

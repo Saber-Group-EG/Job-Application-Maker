@@ -356,7 +356,7 @@ export default function CheckoutPage() {
           </div>
         </div>
       ) : (
-        <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
+        <div className="grid gap-6 xl:grid-cols-[1fr_400px]">
           {/* Order summary */}
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <div className="flex items-center gap-3 border-b border-slate-200 px-6 py-5 dark:border-slate-800">

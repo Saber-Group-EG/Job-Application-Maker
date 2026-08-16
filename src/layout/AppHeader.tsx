@@ -8,7 +8,7 @@ import { ThemeToggleButton } from '../components/common/ThemeToggleButton';
 import UserDropdown from '../components/header/UserDropdown';
 import { useLocale } from '../context/LocaleContext';
 import { useCompanyFilter } from '../context/CompanyFilterContext';
-import { Search, Loader2, X } from 'lucide-react';
+import { Search, Loader2, X, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { applicantsService } from '../services/applicantsService';
 import { paths } from '../router/Paths';
@@ -126,6 +126,9 @@ const AppHeader: React.FC = () => {
   const selectedCompany = selectedCompanyId
     ? companyMap[selectedCompanyId]
     : null;
+  const nlFiltersEnabled = !!(
+    selectedCompany?.settings?.aiSettings?.featureToggles?.nlFilters
+  );
   const selectedName = selectedCompany
     ? locale === 'ar' && selectedCompany?.name?.ar
       ? selectedCompany.name.ar
@@ -204,6 +207,28 @@ const AppHeader: React.FC = () => {
                 placeholder="Search applicants..."
                 className="w-44 bg-transparent outline-none text-slate-700 placeholder-slate-400 dark:text-slate-200 dark:placeholder-slate-500"
               />
+
+              {nlFiltersEnabled ? (
+                <span
+                  title={t('deepSearch.nlEnabledHint', 'common')}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-full bg-violet-500/10 px-2 py-0.5 text-[10px] font-semibold text-violet-600 dark:bg-violet-500/20 dark:text-violet-300"
+                >
+                  <Sparkles className="size-3" />
+                  <span className="hidden xl:inline">
+                    {t('deepSearch.nlEnabled', 'common')}
+                  </span>
+                </span>
+              ) : (
+                <span
+                  title={t('deepSearch.nlDisabledHint', 'common')}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500 dark:bg-slate-700 dark:text-slate-300"
+                >
+                  <Search className="size-3" />
+                  <span className="hidden xl:inline">
+                    {t('deepSearch.nlDisabled', 'common')}
+                  </span>
+                </span>
+              )}
 
               <button
                 type="button"
