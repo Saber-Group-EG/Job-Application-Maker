@@ -1,24 +1,30 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from 'react';
 // @ts-expect-error - JS module without declarations
-import i18n from "../pages/Landing/i18n/index";
+import i18n from '../pages/Landing/i18n/index';
 
-import { useSidebar } from "../context/SidebarContext";
-import { ThemeToggleButton } from "../components/common/ThemeToggleButton";
+import { useSidebar } from '../context/SidebarContext';
+import { ThemeToggleButton } from '../components/common/ThemeToggleButton';
 // import NotificationDropdown from "../components/header/NotificationDropdown";
-import UserDropdown from "../components/header/UserDropdown";
-import { useLocale } from "../context/LocaleContext";
-import { useCompanyFilter } from "../context/CompanyFilterContext";
-import { Search, Loader2, X } from "lucide-react";
+import UserDropdown from '../components/header/UserDropdown';
+import { useLocale } from '../context/LocaleContext';
+import { useCompanyFilter } from '../context/CompanyFilterContext';
+import { Search, Loader2, X } from 'lucide-react';
 import { useNavigate } from 'react-router';
-import { applicantsService } from "../services/applicantsService";
-import { paths } from "../router/Paths";
-import type { Applicant } from "../types/applicants";
+import { applicantsService } from '../services/applicantsService';
+import { paths } from '../router/Paths';
+import type { Applicant } from '../types/applicants';
 
 const AppHeader: React.FC = () => {
   const [isApplicationMenuOpen, setApplicationMenuOpen] = useState(false);
   const [isCompanyDropdownOpen, setIsCompanyDropdownOpen] = useState(false);
   const { locale, setLocale, t, dir } = useLocale();
-  const { selectedCompanyId, setSelectedCompanyId, resetFilter, companyOptions, companyMap } = useCompanyFilter();
+  const {
+    selectedCompanyId,
+    setSelectedCompanyId,
+    resetFilter,
+    companyOptions,
+    companyMap,
+  } = useCompanyFilter();
 
   const { isMobileOpen, toggleSidebar, toggleMobileSidebar } = useSidebar();
   const navigate = useNavigate();
@@ -45,22 +51,25 @@ const AppHeader: React.FC = () => {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key === "k") {
+      if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
         event.preventDefault();
         inputRef.current?.focus();
       }
     };
 
-    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (companyDropdownRef.current && !companyDropdownRef.current.contains(e.target as Node)) {
+      if (
+        companyDropdownRef.current &&
+        !companyDropdownRef.current.contains(e.target as Node)
+      ) {
         setIsCompanyDropdownOpen(false);
       }
     };
@@ -70,7 +79,10 @@ const AppHeader: React.FC = () => {
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+      if (
+        searchContainerRef.current &&
+        !searchContainerRef.current.contains(e.target as Node)
+      ) {
         setShowSearchResults(false);
       }
     };
@@ -78,35 +90,32 @@ const AppHeader: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  useEffect(() => {
-    if (!searchQuery.trim()) {
+  const runSearch = async () => {
+    const query = searchQuery.trim();
+    if (!query) {
       setSearchResults([]);
       setShowSearchResults(false);
       return;
     }
 
-    const companyId = selectedCompanyId ?? companyOptions.map(c => c.id);
+    const companyId = selectedCompanyId ?? companyOptions.map((c) => c.id);
 
-    const timer = setTimeout(async () => {
-      setIsSearching(true);
-      try {
-        const res = await applicantsService.searchApplicants({
-          q: searchQuery.trim(),
-          companyId: companyId.length > 0 ? companyId : undefined,
-          page: 1,
-          limit: 20,
-        });
-        setSearchResults(res ?? []);
-        setShowSearchResults(true);
-      } catch {
-        // ignore
-      } finally {
-        setIsSearching(false);
-      }
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [searchQuery, selectedCompanyId, companyOptions]);
+    setIsSearching(true);
+    try {
+      const res = await applicantsService.searchApplicants({
+        q: query,
+        companyId: companyId.length > 0 ? companyId : undefined,
+        page: 1,
+        limit: 20,
+      });
+      setSearchResults(res ?? []);
+      setShowSearchResults(true);
+    } catch {
+      // ignore
+    } finally {
+      setIsSearching(false);
+    }
+  };
 
   const handleSelectResult = (applicant: Applicant) => {
     setShowSearchResults(false);
@@ -114,9 +123,15 @@ const AppHeader: React.FC = () => {
     navigate(paths.applicants.details(applicant._id));
   };
 
-  const selectedCompany = selectedCompanyId ? companyMap[selectedCompanyId] : null;
+  const selectedCompany = selectedCompanyId
+    ? companyMap[selectedCompanyId]
+    : null;
   const selectedName = selectedCompany
-    ? (locale === 'ar' && selectedCompany?.name?.ar ? selectedCompany.name.ar : (typeof selectedCompany?.name === 'string' ? selectedCompany.name : selectedCompany?.name?.en || ''))
+    ? locale === 'ar' && selectedCompany?.name?.ar
+      ? selectedCompany.name.ar
+      : typeof selectedCompany?.name === 'string'
+        ? selectedCompany.name
+        : selectedCompany?.name?.en || ''
     : t('allCompanies', 'common');
   const selectedLogo = selectedCompany?.logoPath;
 
@@ -177,15 +192,19 @@ const AppHeader: React.FC = () => {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && searchQuery.trim()) {
-                    setShowSearchResults(false);
-                    navigate(`/applicants?search=${encodeURIComponent(searchQuery.trim())}`);
+                    runSearch();
+                    navigate(
+                      `/applicants?search=${encodeURIComponent(searchQuery.trim())}`
+                    );
                   }
                 }}
-                onFocus={() => { if (searchResults.length > 0) setShowSearchResults(true); }}
+                onFocus={() => {
+                  if (searchResults.length > 0) setShowSearchResults(true);
+                }}
                 placeholder="Search applicants..."
                 className="w-44 bg-transparent outline-none text-slate-700 placeholder-slate-400 dark:text-slate-200 dark:placeholder-slate-500"
               />
-    
+
               <button
                 type="button"
                 onClick={() => {
@@ -215,11 +234,15 @@ const AppHeader: React.FC = () => {
                       className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm transition hover:bg-slate-100 dark:hover:bg-slate-700/50"
                     >
                       <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-bold text-slate-600 dark:bg-slate-600 dark:text-slate-300">
-                        {(applicant.fullName || applicant.firstName || '?').charAt(0).toUpperCase()}
+                        {(applicant.fullName || applicant.firstName || '?')
+                          .charAt(0)
+                          .toUpperCase()}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="truncate font-medium text-slate-800 dark:text-slate-100">
-                          {applicant.fullName || `${applicant.firstName || ''} ${applicant.lastName || ''}`.trim() || 'Unknown'}
+                          {applicant.fullName ||
+                            `${applicant.firstName || ''} ${applicant.lastName || ''}`.trim() ||
+                            'Unknown'}
                         </div>
                         {applicant.email && (
                           <div className="truncate text-xs text-slate-500 dark:text-slate-400">
@@ -246,14 +269,27 @@ const AppHeader: React.FC = () => {
               xmlns="http://www.w3.org/2000/svg"
               aria-hidden="true"
             >
-              <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.5" fill="none" />
-              <path d="M3 20c2.5-4 6.5-5 9-5s6.5 1 9 5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+              <circle
+                cx="12"
+                cy="8"
+                r="4"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                fill="none"
+              />
+              <path
+                d="M3 20c2.5-4 6.5-5 9-5s6.5 1 9 5"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                fill="none"
+                strokeLinecap="round"
+              />
             </svg>
           </button>
         </div>
         <div
           className={`${
-            isApplicationMenuOpen ? "flex" : "hidden"
+            isApplicationMenuOpen ? 'flex' : 'hidden'
           } items-center justify-end w-full gap-2 px-3 py-3 lg:flex shadow-theme-md lg:shadow-none`}
         >
           <button
@@ -271,86 +307,105 @@ const AppHeader: React.FC = () => {
             </span>
           </button>
           <div className="flex items-center gap-1" ref={companyDropdownRef}>
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setIsCompanyDropdownOpen(!isCompanyDropdownOpen)}
-                  className="flex w-56 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-gray-200"
-                >
-                  {selectedLogo && !isCompanyDropdownOpen ? (
-                    <img
-                      src={selectedLogo.replace('/upload/', '/upload/q_10,w_32/')}
-                      alt=""
-                      className="size-5 shrink-0 rounded object-cover"
-                    />
-                  ) : (
-                    <div className="flex size-5 shrink-0 items-center justify-center rounded bg-slate-200 text-[11px] font-bold leading-none text-slate-600 dark:bg-slate-600 dark:text-slate-300">
-                      {isCompanyDropdownOpen ? '▼' : (selectedName || '?').charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                  <span className="flex-1 truncate text-left">{selectedName}</span>
-                </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsCompanyDropdownOpen(!isCompanyDropdownOpen)}
+                className="flex w-56 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-gray-200"
+              >
+                {selectedLogo && !isCompanyDropdownOpen ? (
+                  <img
+                    src={selectedLogo.replace('/upload/', '/upload/q_10,w_32/')}
+                    alt=""
+                    className="size-5 shrink-0 rounded object-cover"
+                  />
+                ) : (
+                  <div className="flex size-5 shrink-0 items-center justify-center rounded bg-slate-200 text-[11px] font-bold leading-none text-slate-600 dark:bg-slate-600 dark:text-slate-300">
+                    {isCompanyDropdownOpen
+                      ? '▼'
+                      : (selectedName || '?').charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <span className="flex-1 truncate text-left">
+                  {selectedName}
+                </span>
+              </button>
 
-                  {isCompanyDropdownOpen && (
-                  <div className="absolute right-0 z-30 mt-1 w-64 overflow-auto rounded-lg border border-slate-200 bg-white p-1 shadow-lg dark:border-slate-700 dark:bg-slate-800">
-                    {companyOptions.length > 1 && (
+              {isCompanyDropdownOpen && (
+                <div className="absolute right-0 z-30 mt-1 w-64 overflow-auto rounded-lg border border-slate-200 bg-white p-1 shadow-lg dark:border-slate-700 dark:bg-slate-800">
+                  {companyOptions.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedCompanyId(null);
+                        setIsCompanyDropdownOpen(false);
+                      }}
+                      className={`flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm transition ${
+                        !selectedCompanyId
+                          ? 'bg-slate-200 text-slate-800 dark:bg-slate-600 dark:text-slate-100'
+                          : 'text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700/50'
+                      }`}
+                    >
+                      {t('allCompanies', 'common')}
+                    </button>
+                  )}
+                  {companyOptions.map((c) => {
+                    const name =
+                      locale === 'ar' && c.titleAr ? c.titleAr : c.title;
+                    return (
                       <button
+                        key={c.id}
                         type="button"
-                        onClick={() => { setSelectedCompanyId(null); setIsCompanyDropdownOpen(false); }}
+                        onClick={() => {
+                          setSelectedCompanyId(c.id);
+                          setIsCompanyDropdownOpen(false);
+                        }}
                         className={`flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm transition ${
-                          !selectedCompanyId
+                          selectedCompanyId === c.id
                             ? 'bg-slate-200 text-slate-800 dark:bg-slate-600 dark:text-slate-100'
                             : 'text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700/50'
                         }`}
                       >
-                        {t('allCompanies', 'common')}
-                      </button>
-                    )}
-                    {companyOptions.map((c) => {
-                      const name = locale === 'ar' && c.titleAr ? c.titleAr : c.title;
-                      return (
-                        <button
-                          key={c.id}
-                          type="button"
-                          onClick={() => { setSelectedCompanyId(c.id); setIsCompanyDropdownOpen(false); }}
-                          className={`flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm transition ${
-                            selectedCompanyId === c.id
-                              ? 'bg-slate-200 text-slate-800 dark:bg-slate-600 dark:text-slate-100'
-                              : 'text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700/50'
-                          }`}
-                        >
-                          {c.logoPath ? (
-                            <img
-                              src={c.logoPath.replace('/upload/', '/upload/q_10,w_32/')}
-                              alt=""
-                              className="size-6 shrink-0 rounded object-cover"
-                            />
-                          ) : (
-                            <div className={`flex size-6 shrink-0 items-center justify-center rounded text-[10px] font-bold uppercase ${
+                        {c.logoPath ? (
+                          <img
+                            src={c.logoPath.replace(
+                              '/upload/',
+                              '/upload/q_10,w_32/'
+                            )}
+                            alt=""
+                            className="size-6 shrink-0 rounded object-cover"
+                          />
+                        ) : (
+                          <div
+                            className={`flex size-6 shrink-0 items-center justify-center rounded text-[10px] font-bold uppercase ${
                               selectedCompanyId === c.id
                                 ? 'bg-slate-300 text-slate-800 dark:bg-slate-500 dark:text-white'
                                 : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
-                            }`}>
-                              {name.charAt(0)}
-                            </div>
-                          )}
-                          <span className="flex-1 truncate">{name}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-              {selectedCompanyId && companyOptions.length > 1 && (
-                <button
-                  onClick={() => { resetFilter(); setIsCompanyDropdownOpen(false); }}
-                  className="flex items-center justify-center rounded-lg border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800"
-                  title={t('clear', 'common')}
-                >
-                  <X className="size-3.5" />
-                </button>
+                            }`}
+                          >
+                            {name.charAt(0)}
+                          </div>
+                        )}
+                        <span className="flex-1 truncate">{name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               )}
             </div>
+            {selectedCompanyId && companyOptions.length > 1 && (
+              <button
+                onClick={() => {
+                  resetFilter();
+                  setIsCompanyDropdownOpen(false);
+                }}
+                className="flex items-center justify-center rounded-lg border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800"
+                title={t('clear', 'common')}
+              >
+                <X className="size-3.5" />
+              </button>
+            )}
+          </div>
           <ThemeToggleButton />
           <UserDropdown />
         </div>
