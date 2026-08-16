@@ -149,6 +149,22 @@ export function useCloneJobOffer() {
   });
 }
 
+export function useDraftOfferWithAi() {
+  const { t } = useLocale();
+
+  return useMutation({
+    mutationFn: (payload: {
+      companyId: string;
+      jobPositionId?: string;
+      jobTitle?: string;
+      jobDescription?: string;
+      prompt?: string;
+    }) => jobOffersService.draftOffer(payload),
+    onError: (err: ApiError) =>
+      showError(err.message, t('offerDraftFailed', 'common'), t),
+  });
+}
+
 export function useDeleteJobOffer() {
   const queryClient = useQueryClient();
   const { t } = useLocale();

@@ -178,6 +178,22 @@ export function useBulkCreateJobContracts() {
   });
 }
 
+export function useDraftContractWithAi() {
+  const { t } = useLocale();
+  return useMutation({
+    mutationFn: (payload: {
+      companyId: string;
+      offerId?: string;
+      jobPositionId?: string;
+      jobTitle?: string;
+      jobDescription?: string;
+      prompt?: string;
+    }) => jobContractsService.draftContract(payload),
+    onError: (err: ApiError) =>
+      showError(err.message, t('contractDraftFailed', 'common'), t),
+  });
+}
+
 // ===== Toast helpers =====
 function showSuccess(message: string, t: (key: string, ns?: string) => string) {
   Swal.fire({

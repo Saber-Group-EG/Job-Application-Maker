@@ -15,6 +15,7 @@ import {
   Layers,
   GripVertical,
   Languages,
+  Sparkles,
 } from 'lucide-react';
 import {
   DndContext,
@@ -37,6 +38,7 @@ import {
 import { createPortal } from 'react-dom';
 import {
   CommissionType,
+  DraftOfferResult,
   JobOffer,
   OfferStatus,
   WorkType,
@@ -45,6 +47,7 @@ import {
   useBulkCreateJobOffers,
   useCreateJobOffer,
   useUpdateJobOffer,
+  useDraftOfferWithAi,
 } from '../../../hooks/queries/useJobOffers';
 import Swal from '../../../utils/swal';
 import { ApplicantSelect } from '../../form/ApplicantSelection';
@@ -260,7 +263,9 @@ export default function JobOfferModal({
   const [form, setForm] = useState<FormState>(emptyForm);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [showSalaryReview, setShowSalaryReview] = useState(false);
-  const [activeCommissionId, setActiveCommissionId] = useState<string | null>(null);
+  const [activeCommissionId, setActiveCommissionId] = useState<string | null>(
+    null
+  );
   const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
   const [translatingAll, setTranslatingAll] = useState(false);
 
@@ -318,7 +323,10 @@ export default function JobOfferModal({
         const oldIndex = prev.commissions.findIndex((c) => c._id === active.id);
         const newIndex = prev.commissions.findIndex((c) => c._id === over.id);
         if (oldIndex !== -1 && newIndex !== -1) {
-          return { ...prev, commissions: arrayMove(prev.commissions, oldIndex, newIndex) };
+          return {
+            ...prev,
+            commissions: arrayMove(prev.commissions, oldIndex, newIndex),
+          };
         }
         return prev;
       });
@@ -341,7 +349,10 @@ export default function JobOfferModal({
         const oldIndex = prev.sections.findIndex((s) => s._id === active.id);
         const newIndex = prev.sections.findIndex((s) => s._id === over.id);
         if (oldIndex !== -1 && newIndex !== -1) {
-          return { ...prev, sections: arrayMove(prev.sections, oldIndex, newIndex) };
+          return {
+            ...prev,
+            sections: arrayMove(prev.sections, oldIndex, newIndex),
+          };
         }
         return prev;
       });
@@ -351,6 +362,64 @@ export default function JobOfferModal({
   const handleSectionDragCancel = useCallback(() => {
     setActiveSectionId(null);
   }, []);
+
+  const [aiPanelOpen, setAiPanelOpen] = useState(false);
+  const [aiJobTitle, setAiJobTitle] = useState('');
+  const [aiJobDescription, setAiJobDescription] = useState('');
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiTitleError, setAiTitleError] = useState(false);
+
+  const draftOfferMutation = useDraftOfferWithAi();
+
+  const resolvedCompanyIdForAi = Array.isArray(companyId)
+    ? companyId[0]
+    : companyId;
+
+  const applyAiDraft = (draft: DraftOfferResult) => {
+    setForm((prev) => ({
+      ...prev,
+      position: draft.position,
+      workType: draft.workType,
+      workHours: draft.workHours,
+      commissions: draft.commissions.map((c) => ({ _id: uid(), ...c })),
+      sections: draft.sections.map((s) => ({
+        _id: uid(),
+        title: s.title,
+        items: s.items.map((i) => ({ _id: uid(), ...i })),
+        displayOrder: s.displayOrder,
+      })),
+      notes: draft.notes,
+      // salaryBasic/salaryCurrency deliberately untouched
+    }));
+    setAiPanelOpen(false);
+    setAiJobTitle('');
+    setAiJobDescription('');
+    setAiPrompt('');
+  };
+
+  const handleGenerateWithAi = () => {
+    setAiPanelOpen(true);
+  };
+
+  const handleAiPanelSubmit = async () => {
+    if (!jobPositionId && !aiJobTitle.trim()) {
+      setAiTitleError(true);
+      return;
+    }
+    setAiTitleError(false);
+
+    const result = await draftOfferMutation.mutateAsync({
+      companyId: resolvedCompanyIdForAi!,
+      ...(jobPositionId
+        ? { jobPositionId }
+        : {
+            jobTitle: aiJobTitle.trim(),
+            jobDescription: aiJobDescription.trim() || undefined,
+          }),
+      prompt: aiPrompt.trim() || undefined,
+    });
+    applyAiDraft(result);
+  };
 
   // ── Template apply ─────────────────────────────────────────────────────────
   const applyTemplate = (template: JobOffer) => {
@@ -511,9 +580,15 @@ export default function JobOfferModal({
     try {
       const smartTranslate = (en: string, ar: string) =>
         en.trim()
-          ? translateText(en, 'en', 'ar').then((t) => ({ target: 'ar' as const, text: t }))
+          ? translateText(en, 'en', 'ar').then((t) => ({
+              target: 'ar' as const,
+              text: t,
+            }))
           : ar.trim()
-            ? translateText(ar, 'ar', 'en').then((t) => ({ target: 'en' as const, text: t }))
+            ? translateText(ar, 'ar', 'en').then((t) => ({
+                target: 'en' as const,
+                text: t,
+              }))
             : Promise.resolve(null);
 
       const pos = await smartTranslate(form.position.en, form.position.ar);
@@ -526,36 +601,71 @@ export default function JobOfferModal({
           const items = await Promise.all(
             s.items.map(async (item) => {
               const r = await smartTranslate(item.en, item.ar);
-              return r ? { _id: item._id, target: r.target, text: r.text } : null;
+              return r
+                ? { _id: item._id, target: r.target, text: r.text }
+                : null;
             })
           );
-          return { _id: s._id, title, items: items.filter(Boolean) as { _id: string; target: 'en' | 'ar'; text: string }[] };
+          return {
+            _id: s._id,
+            title,
+            items: items.filter(Boolean) as {
+              _id: string;
+              target: 'en' | 'ar';
+              text: string;
+            }[],
+          };
         })
       );
 
       const commissionResults = await Promise.all(
         form.commissions.map(async (c) => {
           const label = await smartTranslate(c.label.en, c.label.ar);
-          const condition = await smartTranslate(c.condition.en, c.condition.ar);
+          const condition = await smartTranslate(
+            c.condition.en,
+            c.condition.ar
+          );
           return { _id: c._id, label, condition };
         })
       );
 
       setForm((prev) => ({
         ...prev,
-        position: pos && pos.target === 'ar' ? { ...prev.position, ar: pos.text } : pos && pos.target === 'en' ? { ...prev.position, en: pos.text } : prev.position,
-        workHours: wh && wh.target === 'ar' ? { ...prev.workHours, ar: wh.text } : wh && wh.target === 'en' ? { ...prev.workHours, en: wh.text } : prev.workHours,
-        notes: nt && nt.target === 'ar' ? { ...prev.notes, ar: nt.text } : nt && nt.target === 'en' ? { ...prev.notes, en: nt.text } : prev.notes,
+        position:
+          pos && pos.target === 'ar'
+            ? { ...prev.position, ar: pos.text }
+            : pos && pos.target === 'en'
+              ? { ...prev.position, en: pos.text }
+              : prev.position,
+        workHours:
+          wh && wh.target === 'ar'
+            ? { ...prev.workHours, ar: wh.text }
+            : wh && wh.target === 'en'
+              ? { ...prev.workHours, en: wh.text }
+              : prev.workHours,
+        notes:
+          nt && nt.target === 'ar'
+            ? { ...prev.notes, ar: nt.text }
+            : nt && nt.target === 'en'
+              ? { ...prev.notes, en: nt.text }
+              : prev.notes,
         sections: prev.sections.map((s) => {
           const r = sectionResults.find((x) => x._id === s._id);
           if (!r) return s;
           return {
             ...s,
-            title: r.title?.target === 'ar' ? { ...s.title, ar: r.title.text } : r.title?.target === 'en' ? { ...s.title, en: r.title.text } : s.title,
+            title:
+              r.title?.target === 'ar'
+                ? { ...s.title, ar: r.title.text }
+                : r.title?.target === 'en'
+                  ? { ...s.title, en: r.title.text }
+                  : s.title,
             items: s.items.map((item) => {
               const ri = r.items.find((x) => x._id === item._id);
               if (!ri) return item;
-              return ri.target === 'ar' ? { ...item, ar: ri.text } : { ...item, en: ri.text };
+              return ri.target === 'ar'
+                ? { ...item, ar: ri.text }
+                : { ...item, en: ri.text };
             }),
           };
         }),
@@ -564,8 +674,18 @@ export default function JobOfferModal({
           if (!r) return c;
           return {
             ...c,
-            label: r.label?.target === 'ar' ? { ...c.label, ar: r.label.text } : r.label?.target === 'en' ? { ...c.label, en: r.label.text } : c.label,
-            condition: r.condition?.target === 'ar' ? { ...c.condition, ar: r.condition.text } : r.condition?.target === 'en' ? { ...c.condition, en: r.condition.text } : c.condition,
+            label:
+              r.label?.target === 'ar'
+                ? { ...c.label, ar: r.label.text }
+                : r.label?.target === 'en'
+                  ? { ...c.label, en: r.label.text }
+                  : c.label,
+            condition:
+              r.condition?.target === 'ar'
+                ? { ...c.condition, ar: r.condition.text }
+                : r.condition?.target === 'en'
+                  ? { ...c.condition, en: r.condition.text }
+                  : c.condition,
           };
         }),
       }));
@@ -578,7 +698,11 @@ export default function JobOfferModal({
 
   const handleSubmit = async () => {
     if (!form.isBulk && !form.position.en.trim() && !form.position.ar.trim()) {
-      Swal.fire(t('validation', 'modals'), t('validationPositionRequired', 'modals'), 'warning');
+      Swal.fire(
+        t('validation', 'modals'),
+        t('validationPositionRequired', 'modals'),
+        'warning'
+      );
       return;
     }
     const willSendEmail = form.sendAsEmail && mode === 'offer';
@@ -808,14 +932,116 @@ export default function JobOfferModal({
           {/* ── Scrollable body ── */}
           <div className="flex-1 space-y-6 overflow-y-auto px-6 py-6">
             {mode === 'offer' && <TemplateSelector onSelect={applyTemplate} />}
+            {mode === 'offer' && (
+              <div>
+                <button
+                  type="button"
+                  onClick={handleGenerateWithAi}
+                  disabled={draftOfferMutation.isPending}
+                  className="inline-flex items-center gap-2 rounded-lg border border-dashed border-indigo-300 px-3 py-2 text-sm font-semibold text-indigo-500 transition hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-600 disabled:opacity-50 dark:border-indigo-500/40 dark:text-indigo-400 dark:hover:border-indigo-400 dark:hover:bg-indigo-500/10"
+                >
+                  {draftOfferMutation.isPending ? (
+                    <div className="size-3.5 animate-spin rounded-full border-2 border-indigo-400/30 border-t-indigo-400" />
+                  ) : (
+                    <Sparkles className="size-3.5" />
+                  )}
+                  {t('generateOfferWithAi', 'modals')}
+                </button>
 
+                {aiPanelOpen && (
+                  <div className="mt-3 space-y-3 rounded-lg border border-indigo-200 bg-indigo-50/50 p-4 dark:border-indigo-500/30 dark:bg-indigo-500/5">
+                    {jobPositionId ? (
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        {t('aiOfferUsingJobPosition', 'modals')}
+                      </p>
+                    ) : (
+                      <>
+                        <div>
+                          <ModalLabel required>
+                            {t('positionTitleEn', 'modals')}
+                          </ModalLabel>
+                          <input
+                            className={inputCls}
+                            value={aiJobTitle}
+                            onChange={(e) => {
+                              setAiJobTitle(e.target.value);
+                              if (aiTitleError) setAiTitleError(false);
+                            }}
+                            placeholder={t(
+                              'aiOfferJobTitlePlaceholder',
+                              'modals'
+                            )}
+                          />
+                          {aiTitleError && (
+                            <p className="mt-1 text-xs text-red-500">
+                              {t('aiOfferValidationTitleRequired', 'modals')}
+                            </p>
+                          )}
+                        </div>
+                        <div>
+                          <ModalLabel>
+                            {t('jobDescription', 'modals')}
+                          </ModalLabel>
+                          <textarea
+                            className={`${inputCls} resize-none`}
+                            rows={3}
+                            value={aiJobDescription}
+                            onChange={(e) =>
+                              setAiJobDescription(e.target.value)
+                            }
+                            placeholder={t(
+                              'aiOfferJobDescriptionPlaceholder',
+                              'modals'
+                            )}
+                          />
+                        </div>
+                      </>
+                    )}
+                    <div>
+                      <ModalLabel>
+                        {t('additionalInstructions', 'modals')}
+                      </ModalLabel>
+                      <textarea
+                        className={`${inputCls} resize-none`}
+                        rows={2}
+                        value={aiPrompt}
+                        onChange={(e) => setAiPrompt(e.target.value)}
+                        placeholder={t('aiOfferPromptPlaceholder', 'modals')}
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setAiPanelOpen(false)}
+                        className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                      >
+                        {t('cancel', 'modals')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleAiPanelSubmit}
+                        disabled={draftOfferMutation.isPending}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-600 disabled:opacity-50"
+                      >
+                        {draftOfferMutation.isPending && (
+                          <div className="size-3 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                        )}
+                        {t('generate', 'modals')}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             {/* Applicant selector */}
             {mode === 'offer' && !applicantId && !editing && (
               <div>
                 <ModalLabel>
                   {t('applicant', 'modals')}
                   {form.isBulk
-                    ? t('applicantsSelected', 'modals', { count: form.applicantIds?.length ?? 0 })
+                    ? t('applicantsSelected', 'modals', {
+                        count: form.applicantIds?.length ?? 0,
+                      })
                     : ''}
                 </ModalLabel>
                 {form.isBulk ? (
@@ -823,7 +1049,9 @@ export default function JobOfferModal({
                     {/* Header */}
                     <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2 dark:border-slate-700">
                       <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                        {t('applicantCount', 'modals', { count: form.applicantIds?.length ?? 0 })}
+                        {t('applicantCount', 'modals', {
+                          count: form.applicantIds?.length ?? 0,
+                        })}
                       </p>
                       <button
                         type="button"
@@ -913,7 +1141,9 @@ export default function JobOfferModal({
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <ModalLabel required>{t('positionTitleEn', 'modals')}</ModalLabel>
+                <ModalLabel required>
+                  {t('positionTitleEn', 'modals')}
+                </ModalLabel>
 
                 <input
                   ref={firstInputRef}
@@ -931,21 +1161,37 @@ export default function JobOfferModal({
 
               <div>
                 <div className="flex items-center justify-between">
-                  <ModalLabel required>{t('positionTitleAr', 'modals')}</ModalLabel>
+                  <ModalLabel required>
+                    {t('positionTitleAr', 'modals')}
+                  </ModalLabel>
                   <button
                     type="button"
                     onClick={async () => {
                       if (form.position.en.trim()) {
-                        const t = await translateText(form.position.en, 'en', 'ar');
+                        const t = await translateText(
+                          form.position.en,
+                          'en',
+                          'ar'
+                        );
                         if (t) set('position', { ...form.position, ar: t });
                       } else if (form.position.ar.trim()) {
-                        const t = await translateText(form.position.ar, 'ar', 'en');
+                        const t = await translateText(
+                          form.position.ar,
+                          'ar',
+                          'en'
+                        );
                         if (t) set('position', { ...form.position, en: t });
                       }
                     }}
-                    disabled={!form.position.en.trim() && !form.position.ar.trim()}
+                    disabled={
+                      !form.position.en.trim() && !form.position.ar.trim()
+                    }
                     className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
-                    title={form.position.en.trim() ? t('translateEnToAr', 'modals') : t('translateArToEn', 'modals')}
+                    title={
+                      form.position.en.trim()
+                        ? t('translateEnToAr', 'modals')
+                        : t('translateArToEn', 'modals')
+                    }
                   >
                     <Languages className="size-3" />
                   </button>
@@ -982,7 +1228,7 @@ export default function JobOfferModal({
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-<ModalLabel>{t('workHours', 'modals')}</ModalLabel>
+                <ModalLabel>{t('workHours', 'modals')}</ModalLabel>
                 <div className="relative">
                   <Clock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
                   <input
@@ -1005,16 +1251,30 @@ export default function JobOfferModal({
                     type="button"
                     onClick={async () => {
                       if (form.workHours.en.trim()) {
-                        const t = await translateText(form.workHours.en, 'en', 'ar');
+                        const t = await translateText(
+                          form.workHours.en,
+                          'en',
+                          'ar'
+                        );
                         if (t) set('workHours', { ...form.workHours, ar: t });
                       } else if (form.workHours.ar.trim()) {
-                        const t = await translateText(form.workHours.ar, 'ar', 'en');
+                        const t = await translateText(
+                          form.workHours.ar,
+                          'ar',
+                          'en'
+                        );
                         if (t) set('workHours', { ...form.workHours, en: t });
                       }
                     }}
-                    disabled={!form.workHours.en.trim() && !form.workHours.ar.trim()}
+                    disabled={
+                      !form.workHours.en.trim() && !form.workHours.ar.trim()
+                    }
                     className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
-                    title={form.workHours.en.trim() ? t('translateEnToAr', 'modals') : t('translateArToEn', 'modals')}
+                    title={
+                      form.workHours.en.trim()
+                        ? t('translateEnToAr', 'modals')
+                        : t('translateArToEn', 'modals')
+                    }
                   >
                     <Languages className="size-3" />
                   </button>
@@ -1114,25 +1374,35 @@ export default function JobOfferModal({
                 </SortableContext>
                 {createPortal(
                   <DragOverlay dropAnimation={dropAnimation}>
-                    {activeCommissionId ? (
-                      (() => {
-                        const c = form.commissions.find((x) => x._id === activeCommissionId);
-                        if (!c) return null;
-                        return (
-                          <div className="rounded-xl border border-brand-400 bg-white p-4 shadow-xl dark:bg-slate-800">
-                            <div className="flex items-center gap-2">
-                              <GripVertical className="size-4 text-brand-500" />
-                              <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                                {t('tier', 'modals', { index: form.commissions.indexOf(c) + 1 })}
-                              </span>
+                    {activeCommissionId
+                      ? (() => {
+                          const c = form.commissions.find(
+                            (x) => x._id === activeCommissionId
+                          );
+                          if (!c) return null;
+                          return (
+                            <div className="rounded-xl border border-brand-400 bg-white p-4 shadow-xl dark:bg-slate-800">
+                              <div className="flex items-center gap-2">
+                                <GripVertical className="size-4 text-brand-500" />
+                                <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                                  {t('tier', 'modals', {
+                                    index: form.commissions.indexOf(c) + 1,
+                                  })}
+                                </span>
+                              </div>
+                              <div className="mt-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+                                {locale === 'ar'
+                                  ? c.label.ar ||
+                                    c.label.en ||
+                                    t('untitledOffer', 'modals')
+                                  : c.label.en ||
+                                    c.label.ar ||
+                                    t('untitledOffer', 'modals')}
+                              </div>
                             </div>
-                            <div className="mt-2 text-sm font-medium text-slate-700 dark:text-slate-200">
-                              {locale === 'ar' ? (c.label.ar || c.label.en || t('untitledOffer', 'modals')) : (c.label.en || c.label.ar || t('untitledOffer', 'modals'))}
-                            </div>
-                          </div>
-                        );
-                      })()
-                    ) : null}
+                          );
+                        })()
+                      : null}
                   </DragOverlay>,
                   document.body
                 )}
@@ -1179,22 +1449,30 @@ export default function JobOfferModal({
                 </SortableContext>
                 {createPortal(
                   <DragOverlay dropAnimation={dropAnimation}>
-                    {activeSectionId ? (
-                      (() => {
-                        const s = form.sections.find((x) => x._id === activeSectionId);
-                        if (!s) return null;
-                        return (
-                          <div className="rounded-xl border border-brand-400 bg-white p-4 shadow-xl dark:bg-slate-800">
-                            <div className="flex items-center gap-2">
-                              <GripVertical className="size-4 text-brand-500" />
-                              <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                                {locale === 'ar' ? (s.title.ar || s.title.en || `Section ${form.sections.indexOf(s) + 1}`) : (s.title.en || s.title.ar || `Section ${form.sections.indexOf(s) + 1}`)}
-                              </span>
+                    {activeSectionId
+                      ? (() => {
+                          const s = form.sections.find(
+                            (x) => x._id === activeSectionId
+                          );
+                          if (!s) return null;
+                          return (
+                            <div className="rounded-xl border border-brand-400 bg-white p-4 shadow-xl dark:bg-slate-800">
+                              <div className="flex items-center gap-2">
+                                <GripVertical className="size-4 text-brand-500" />
+                                <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                                  {locale === 'ar'
+                                    ? s.title.ar ||
+                                      s.title.en ||
+                                      `Section ${form.sections.indexOf(s) + 1}`
+                                    : s.title.en ||
+                                      s.title.ar ||
+                                      `Section ${form.sections.indexOf(s) + 1}`}
+                                </span>
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })()
-                    ) : null}
+                          );
+                        })()
+                      : null}
                   </DragOverlay>,
                   document.body
                 )}
@@ -1259,16 +1537,28 @@ export default function JobOfferModal({
                     type="button"
                     onClick={async () => {
                       if (form.notes.en.trim()) {
-                        const t = await translateText(form.notes.en, 'en', 'ar');
+                        const t = await translateText(
+                          form.notes.en,
+                          'en',
+                          'ar'
+                        );
                         if (t) set('notes', { ...form.notes, ar: t });
                       } else if (form.notes.ar.trim()) {
-                        const t = await translateText(form.notes.ar, 'ar', 'en');
+                        const t = await translateText(
+                          form.notes.ar,
+                          'ar',
+                          'en'
+                        );
                         if (t) set('notes', { ...form.notes, en: t });
                       }
                     }}
                     disabled={!form.notes.en.trim() && !form.notes.ar.trim()}
                     className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
-                    title={form.notes.en.trim() ? t('translateEnToAr', 'modals') : t('translateArToEn', 'modals')}
+                    title={
+                      form.notes.en.trim()
+                        ? t('translateEnToAr', 'modals')
+                        : t('translateArToEn', 'modals')
+                    }
                   >
                     <Languages className="size-3" />
                   </button>
@@ -1328,14 +1618,13 @@ export default function JobOfferModal({
                 {editing && editing.lastEmailSentAt && (
                   <span className="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
                     {t('lastSent', 'modals', {
-                      date: new Date(editing.lastEmailSentAt).toLocaleDateString(
-                        undefined,
-                        {
-                          day: 'numeric',
-                          month: 'short',
-                          year: 'numeric',
-                        }
-                      ),
+                      date: new Date(
+                        editing.lastEmailSentAt
+                      ).toLocaleDateString(undefined, {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                      }),
                     })}
                   </span>
                 )}
