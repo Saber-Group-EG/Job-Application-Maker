@@ -45,6 +45,9 @@ const CompanySettingsPage = lazy(
 const Subscription = lazy(
   () => import('../pages/Recruiting/Settings/subscription')
 );
+const Plans = lazy(() => import('../pages/Recruiting/Settings/plans'));
+const Checkout = lazy(() => import('../pages/Recruiting/Settings/checkout'));
+const AddCard = lazy(() => import('../pages/Recruiting/Settings/AddCard'));
 const InterviewCompanySettingsPage = lazy(
   () => import('../pages/Recruiting/Settings/interviewCompany')
 );
@@ -223,6 +226,9 @@ export default function App() {
                   path={paths.recruiting.subscription}
                   element={<Subscription />}
                 />
+                <Route path={paths.recruiting.plans} element={<Plans />} />
+                <Route path={paths.recruiting.checkout} element={<Checkout />} />
+                <Route path={paths.recruiting.addCard} element={<AddCard />} />
               </Route>
               {/* Companies */}
               <Route path={paths.companies.root} element={<Companies />} />

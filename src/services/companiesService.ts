@@ -328,7 +328,12 @@ class CompaniesService {
   async startTopUp(
     companyId: string,
     packId: string
-  ): Promise<{ checkoutUrl: string; topUpId: string }> {
+  ): Promise<{
+    checkoutUrl: string;
+    topUpId: string;
+    clientSecret?: string;
+    publicKey?: string;
+  }> {
     return this.request('put', `/billing/${companyId}/subscription/top-up`, {
       packId,
     });

@@ -26,6 +26,14 @@ export default function SignInForm() {
   const [validationError, setValidationError] = useState<string | null>(null);
   const verify2FALoginMutation = useVerify2FALoginMutation();
 
+  useEffect(() => {
+    const notice = sessionStorage.getItem('authNotice');
+    if (notice) {
+      setSessionNotice(notice);
+      sessionStorage.removeItem('authNotice');
+    }
+  }, []);
+
   if (!twoFATempToken && !isLoading && isAuthenticated && !isLoggingIn) {
     return <Navigate to="/home" replace />;
   }
@@ -74,8 +82,9 @@ export default function SignInForm() {
         code: twoFACode,
       });
       window.location.href = '/home';
-    } catch (err: any) {
-      if (err?.statusCode === 429) {
+    } catch (err) {
+      const statusCode = (err as { statusCode?: number } | null)?.statusCode;
+      if (statusCode === 429) {
         setTwoFAError(t('tooManyAttempts', 'common'));
         setTwoFATempToken(null);
         setTwoFACode('');
@@ -84,14 +93,6 @@ export default function SignInForm() {
       }
     }
   }
-
-  useEffect(() => {
-    const notice = sessionStorage.getItem('authNotice');
-    if (notice) {
-      setSessionNotice(notice);
-      sessionStorage.removeItem('authNotice');
-    }
-  }, []);
 
   const displayError = sessionNotice || validationError || authError;
   if (twoFATempToken) {

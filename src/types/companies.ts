@@ -243,7 +243,7 @@ export interface CompanySubscriptionInfo {
 export type ChangePlanResponse =
   | { queued: true; effectiveAt: string | null }
   | { success: true; charged: true }
-  | { checkoutUrl: string };
+  | { checkoutUrl: string; clientSecret?: string; publicKey?: string };
 
 export interface SubscriptionCard {
   id: number; // pass this to delete/change-primary — never the `token`

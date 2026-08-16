@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router';
 import {
   CreditCard,
   XCircle,
@@ -12,36 +13,33 @@ import {
   Receipt,
   ChevronLeft,
   ChevronRight,
+  Gauge,
+  Zap,
+  Rocket,
+  Crown,
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useLocale } from '../../../context/LocaleContext';
+import PageBreadCrumb from '../../../components/common/PageBreadCrumb';
 import {
   useSubscription,
   useCancelSubscription,
   useResumeSubscription,
-  useStartTopUp,
   useCompanies,
   useTopUpPacks,
-  usePlans,
-  useChangePlan,
   useTransactions,
   useCancelPlanChange,
 } from '../../../hooks/queries/useCompanies';
 import Swal from '../../../utils/swal';
 import { useCompanyFilter } from '../../../context/CompanyFilterContext';
 import { requestsToCredits } from '../../../utils/credits';
-import type {
-  Plan,
-  SubscriptionCard,
-  TransactionRecord,
-} from '../../../types/companies';
+import type { SubscriptionCard, TransactionRecord } from '../../../types/companies';
 import { CreditCard as CardIcon, Trash2, Star } from 'lucide-react';
-import {
-  useCards,
-  useDeleteCard,
-  useChangePrimaryCard,
-  useStartAddCard,
-} from '../../../hooks/queries/useCompanies';
+import { useCards, useDeleteCard, useChangePrimaryCard, useStartAddCard, cardsKeys } from '../../../hooks/queries/useCompanies';
+import { paths } from '../../../router/Paths';
+import { useQueryClient } from '@tanstack/react-query';
+import PaymobCardForm from '../../../components/payments/PaymobCardForm';
+import { parsePaymobCheckoutUrl } from '../../../lib/paymobApi';
 
 type CompanyShape = {
   _id: string;
@@ -103,34 +101,38 @@ const TRANSACTION_TYPE_ICONS: Record<
   topup: Package,
 };
 
+const TOP_UP_ICONS: Record<string, typeof Zap> = {
+  small: Zap,
+  medium: Rocket,
+  large: Crown,
+};
+
 export default function SubscriptionPage() {
-  const { t, locale } = useLocale();
+  const { t, locale, dir } = useLocale();
   const { hasPermission } = useAuth();
   const canEdit = hasPermission('Billing Management', 'write');
+  const navigate = useNavigate();
   const { data: companies = [] } = useCompanies();
   const { selectedCompanyId } = useCompanyFilter();
   const companyId = selectedCompanyId ?? (companies as CompanyShape[])[0]?._id;
 
   const { data, isLoading, isError } = useSubscription(companyId ?? '');
   const { data: topUpPacks = [] } = useTopUpPacks();
-  const { data: plans = [] } = usePlans();
 
   const cancelMutation = useCancelSubscription();
   const resumeMutation = useResumeSubscription();
-  const startTopUpMutation = useStartTopUp();
-  const changePlanMutation = useChangePlan();
   const cancelPlanChangeMutation = useCancelPlanChange();
-
-  const [topUpPending, setTopUpPending] = useState<string | null>(null);
-  const [isPickerOpen, setIsPickerOpen] = useState(false);
-  const [pendingSelectionId, setPendingSelectionId] = useState<string | null>(
-    null
-  );
   const { data: cards = [], isLoading: cardsLoading } = useCards(companyId);
   const deleteCardMutation = useDeleteCard();
   const changePrimaryMutation = useChangePrimaryCard();
   const startAddCardMutation = useStartAddCard(); // NEW
   const [isCardsOpen, setIsCardsOpen] = useState(false);
+  const [addCardSession, setAddCardSession] = useState<{
+    clientSecret: string;
+    publicKey: string;
+    checkoutUrl: string;
+  } | null>(null);
+  const queryClient = useQueryClient();
 
   const [transactionPage, setTransactionPage] = useState(1);
   const [transactionType, setTransactionType] = useState<
@@ -181,7 +183,6 @@ export default function SubscriptionPage() {
     subscription.lastPaymentAt,
     plan.frequency
   );
-  const hasPendingChange = !!pendingPlan || !!upgradeInProgressPlan;
 
   const handleCancel = async () => {
     const result = await Swal.fire({
@@ -210,109 +211,11 @@ export default function SubscriptionPage() {
     if (result.isConfirmed) cancelPlanChangeMutation.mutate(companyId);
   };
 
-  const handleBuyTopUp = async (packId: string) => {
-    const pack = topUpPacks.find((p) => p.id === packId);
-    if (!pack) return;
-
-    const result = await Swal.fire({
-      title: t('subscription.confirmTopUpTitle', 'settings'),
-      html: `${t('subscription.confirmTopUpText', 'settings')}<br/><strong>+${requestsToCredits(
-        pack.amount
-      )} ${t('subscription.credits', 'settings')} — ${formatMoney(
-        pack.priceCents,
-        plan.currency
-      )}</strong>`,
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonText: t('subscription.confirmPurchase', 'settings'),
-      cancelButtonText: t('back', 'common'),
-    });
-    if (!result.isConfirmed) return;
-
-    setTopUpPending(packId);
-    startTopUpMutation.mutate(
-      { companyId, packId },
-      {
-        onSuccess: (res) => {
-          if (res.checkoutUrl) {
-            window.location.href = res.checkoutUrl;
-            return;
-          }
-          // Silent charge succeeded — saved card was used, nothing to redirect to.
-          Swal.fire({
-            icon: 'success',
-            title: t('subscription.topUpSuccessTitle', 'settings'),
-            text: t('subscription.topUpSuccessText', 'settings'),
-          });
-        },
-        onSettled: () => setTopUpPending(null),
-      }
-    );
+  const handleBuyTopUp = (packId: string) => {
+    navigate(`${paths.recruiting.checkout}?type=topup&packId=${packId}`);
   };
 
-  const openPicker = () => {
-    if (hasPendingChange) return; // resolve the existing pending change first
-    setIsPickerOpen(true);
-  };
-
-  const handleSelectPlan = async (targetPlan: Plan) => {
-    const isDowngrade = targetPlan.priceCents < plan.priceCents;
-
-    const confirmResult = await Swal.fire({
-      title: isDowngrade
-        ? t('subscription.confirmDowngradeTitle', 'settings')
-        : t('subscription.confirmUpgradeTitle', 'settings'),
-      html: isDowngrade
-        ? `${t('subscription.confirmDowngradeText', 'settings')} <strong>${targetPlan.name}</strong> (${formatMoney(
-            targetPlan.priceCents,
-            targetPlan.currency
-          )}) ${t('subscription.effectiveOn', 'settings')} ${formatDate(
-            periodEndDate.toISOString(),
-            locale
-          )}. ${t('subscription.noProrationNote', 'settings')}`
-        : `${t('subscription.confirmUpgradeText', 'settings')} <strong>${targetPlan.name}</strong> — ${formatMoney(
-            targetPlan.priceCents,
-            targetPlan.currency
-          )} ${t('subscription.chargedNow', 'settings')}. ${t(
-            'subscription.forfeitTopUpWarning',
-            'settings'
-          )}`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: t('subscription.confirmChangePlan', 'settings'),
-      cancelButtonText: t('back', 'common'),
-      confirmButtonColor: isDowngrade ? undefined : '#f59e0b',
-    });
-    if (!confirmResult.isConfirmed) return;
-
-    setPendingSelectionId(targetPlan._id);
-    changePlanMutation.mutate(
-      { companyId, planId: targetPlan._id },
-      {
-        onSuccess: (res) => {
-          if ('checkoutUrl' in res) {
-            window.location.href = res.checkoutUrl;
-            return;
-          }
-          setIsPickerOpen(false);
-          if ('queued' in res) {
-            Swal.fire({
-              icon: 'success',
-              title: t('subscription.downgradeQueuedTitle', 'settings'),
-              text: `${t('subscription.downgradeQueuedText', 'settings')} ${formatDate(res.effectiveAt!, locale)}.`,
-            });
-          } else {
-            Swal.fire({
-              icon: 'success',
-              title: t('subscription.upgradeSuccessTitle', 'settings'),
-              text: t('subscription.upgradeSuccessText', 'settings'),
-            });
-          }
-        },
-        onSettled: () => setPendingSelectionId(null),
-      }
-    );
-  };
+  const openPicker = () => navigate(paths.recruiting.plans);
 
   const handleDeleteCard = async (card: SubscriptionCard) => {
     const result = await Swal.fire({
@@ -340,13 +243,125 @@ export default function SubscriptionPage() {
   const handleAddCard = () => {
     startAddCardMutation.mutate(companyId, {
       onSuccess: (res) => {
+        const session = parsePaymobCheckoutUrl(res.checkoutUrl);
+        if (session) {
+          setAddCardSession(session);
+          return;
+        }
         window.location.href = res.checkoutUrl;
       },
     });
   };
 
+  const handleAddCardComplete = () => {
+    queryClient.invalidateQueries({ queryKey: cardsKeys.detail(companyId) });
+    setAddCardSession(null);
+  };
+
+  const handleAddCardPending = (redirectUrl: string) => {
+    window.location.href = redirectUrl;
+  };
+
   return (
     <div className="space-y-6 p-6">
+      <PageBreadCrumb pageTitle={t('subscription.pageBreadcrumb', 'settings')} />
+
+      {/* ── Usage this cycle ──────────────────────────────────────────── */}
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex flex-col gap-4 border-b border-slate-200 px-6 py-6 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex size-11 items-center justify-center rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400">
+              <Gauge className="size-6" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+                {t('subscription.usageThisCycle', 'settings')}
+              </h2>
+              <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
+                {t('subscription.used', 'settings')}{' '}
+                {requestsToCredits(data.usage.used)}{' '}
+                {t('subscription.of', 'settings')}{' '}
+                {requestsToCredits(data.usage.effectiveLimit)}{' '}
+                {t('subscription.credits', 'settings')}
+              </p>
+            </div>
+          </div>
+
+          <div
+            className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${
+              data.usage.used >= data.usage.effectiveLimit
+                ? 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400'
+                : data.usage.nearLimit
+                  ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400'
+                  : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400'
+            }`}
+          >
+            {data.usage.used >= data.usage.effectiveLimit ? (
+              <XCircle className="size-3.5" />
+            ) : data.usage.nearLimit ? (
+              <AlertTriangle className="size-3.5" />
+            ) : (
+              <Check className="size-3.5" />
+            )}
+            {data.usage.used >= data.usage.effectiveLimit
+              ? t('subscription.limitReached', 'settings')
+              : data.usage.nearLimit
+                ? t('subscription.nearLimitWarning', 'settings')
+                : t('subscription.usageOk', 'settings')}
+          </div>
+        </div>
+
+        <div className="px-6 pb-6">
+          <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+            <div
+              className={`h-full rounded-full transition-all duration-500 ${
+                data.usage.used >= data.usage.effectiveLimit
+                  ? 'bg-red-500'
+                  : data.usage.nearLimit
+                    ? 'bg-amber-500'
+                    : 'bg-emerald-500'
+              }`}
+              style={{
+                width: `${Math.min(100, Math.round(data.usage.percentUsed))}%`,
+              }}
+            />
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                {t('subscription.used', 'settings')}
+              </p>
+              <p className="mt-1 text-xl font-bold text-slate-900 dark:text-slate-100">
+                {requestsToCredits(data.usage.used)}{' '}
+                <span className="text-sm font-medium text-slate-400">
+                  {t('subscription.credits', 'settings')}
+                </span>
+              </p>
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                {t('subscription.remaining', 'settings')}
+              </p>
+              <p className="mt-1 text-xl font-bold text-slate-900 dark:text-slate-100">
+                {requestsToCredits(data.usage.remaining)}{' '}
+                <span className="text-sm font-medium text-slate-400">
+                  {t('subscription.credits', 'settings')}
+                </span>
+              </p>
+            </div>
+            <div className="hidden sm:block">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                {t('subscription.billingCycle', 'settings')}
+              </p>
+              <p className="mt-1 text-xl font-bold text-slate-900 dark:text-slate-100">
+                {Math.round(data.usage.percentUsed)}%
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* ── Current Plan card ─────────────────────────────────────────── */}
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="flex flex-col gap-4 border-b border-slate-200 px-6 py-6 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
@@ -371,7 +386,11 @@ export default function SubscriptionPage() {
           </span>
         </div>
 
-        <div className="grid grid-cols-2 divide-x divide-slate-200 dark:divide-slate-800 sm:grid-cols-3">
+        <div
+          className={`grid grid-cols-2 divide-x sm:grid-cols-3 ${
+            dir === 'rtl' ? 'divide-x-reverse' : ''
+          } divide-slate-200 dark:divide-slate-800`}
+        >
           <div className="px-6 py-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
               {t('subscription.price', 'settings')}
@@ -463,13 +482,7 @@ export default function SubscriptionPage() {
             <button
               type="button"
               onClick={openPicker}
-              disabled={hasPendingChange}
-              title={
-                hasPendingChange
-                  ? t('subscription.resolvePendingFirst', 'settings')
-                  : undefined
-              }
-              className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-600"
             >
               {t('subscription.changePlan', 'settings')}
             </button>
@@ -514,26 +527,34 @@ export default function SubscriptionPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-4 p-6 sm:grid-cols-3">
-            {topUpPacks.map((pack) => (
-              <button
-                key={pack.id}
-                type="button"
-                onClick={() => handleBuyTopUp(pack.id)}
-                disabled={topUpPending === pack.id}
-                className="flex flex-col items-center gap-1 rounded-xl border border-slate-200 px-4 py-5 text-center transition hover:border-brand-300 hover:bg-brand-50 disabled:opacity-50 dark:border-slate-700 dark:hover:border-brand-500/40 dark:hover:bg-brand-500/10"
-              >
-                <span className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                  +{requestsToCredits(pack.amount)}{' '}
-                  {t('subscription.credits', 'settings')}
-                </span>
-                <span className="text-xs text-slate-500 dark:text-slate-400">
-                  {t(`subscription.topUp_${pack.id}_desc`, 'settings')}
-                </span>
-                <span className="mt-2 text-sm font-semibold text-brand-600 dark:text-brand-400">
-                  {formatMoney(pack.priceCents, plan.currency)}
-                </span>
-              </button>
-            ))}
+            {topUpPacks.map((pack) => {
+              const PackIcon = TOP_UP_ICONS[pack.id] ?? Package;
+              return (
+                <button
+                  key={pack.id}
+                  type="button"
+                  onClick={() => handleBuyTopUp(pack.id)}
+                  className="group flex flex-col items-center gap-1 rounded-xl border border-slate-200 px-4 py-5 text-center transition hover:border-brand-300 hover:bg-brand-50 dark:border-slate-700 dark:hover:border-brand-500/40 dark:hover:bg-brand-500/10"
+                >
+                  <span className="flex size-10 items-center justify-center rounded-full bg-brand-500/10 text-brand-600 transition group-hover:scale-110 dark:text-brand-400">
+                    <PackIcon className="size-5" />
+                  </span>
+                  <span className="mt-1 text-sm font-bold uppercase tracking-wide text-slate-900 dark:text-slate-100">
+                    {t(`subscription.topUp_${pack.id}`, 'settings')}
+                  </span>
+                  <span className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                    +{requestsToCredits(pack.amount)}{' '}
+                    {t('subscription.credits', 'settings')}
+                  </span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                    {t(`subscription.topUp_${pack.id}_desc`, 'settings')}
+                  </span>
+                  <span className="mt-2 rounded-full bg-brand-500/10 px-3 py-1 text-sm font-semibold text-brand-600 dark:text-brand-400">
+                    {formatMoney(pack.priceCents, plan.currency)}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
@@ -594,15 +615,20 @@ export default function SubscriptionPage() {
         )}
 
         {!transactionsLoading && transactions.length === 0 && (
-          <p className="p-6 text-sm text-slate-500 dark:text-slate-400">
-            {t('subscription.noTransactions', 'settings')}
-          </p>
+          <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
+            <span className="flex size-12 items-center justify-center rounded-full bg-slate-100 text-slate-400 dark:bg-slate-800">
+              <Receipt className="size-6" />
+            </span>
+            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+              {t('subscription.noTransactions', 'settings')}
+            </p>
+          </div>
         )}
 
         {!transactionsLoading && transactions.length > 0 && (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
+              <table className="w-full text-start text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:border-slate-800">
                     <th className="px-6 py-3">
@@ -667,9 +693,14 @@ export default function SubscriptionPage() {
                   type="button"
                   onClick={() => setTransactionPage((p) => Math.max(1, p - 1))}
                   disabled={transactionPage <= 1}
+                  aria-label={t('subscription.previousPage', 'settings')}
                   className="rounded-lg border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:hover:bg-slate-800"
                 >
-                  <ChevronLeft className="size-4" />
+                  {dir === 'rtl' ? (
+                    <ChevronRight className="size-4" />
+                  ) : (
+                    <ChevronLeft className="size-4" />
+                  )}
                 </button>
                 <button
                   type="button"
@@ -677,9 +708,14 @@ export default function SubscriptionPage() {
                     setTransactionPage((p) => Math.min(totalPages, p + 1))
                   }
                   disabled={transactionPage >= totalPages}
+                  aria-label={t('subscription.nextPage', 'settings')}
                   className="rounded-lg border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:hover:bg-slate-800"
                 >
-                  <ChevronRight className="size-4" />
+                  {dir === 'rtl' ? (
+                    <ChevronLeft className="size-4" />
+                  ) : (
+                    <ChevronRight className="size-4" />
+                  )}
                 </button>
               </div>
             </div>
@@ -687,78 +723,14 @@ export default function SubscriptionPage() {
         )}
       </div>
 
-      {/* ── Plan picker modal ────────────────────────────────────────── */}
-      {isPickerOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl dark:bg-slate-900">
-            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-800">
-              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                {t('subscription.choosePlan', 'settings')}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setIsPickerOpen(false)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-              >
-                <X className="size-5" />
-              </button>
-            </div>
-
-            <div className="max-h-[60vh] space-y-3 overflow-y-auto p-6">
-              {plans
-                .filter((p) => p.isActive)
-                .map((p) => {
-                  const isCurrent = p._id === plan._id;
-                  const isDowngrade = p.priceCents < plan.priceCents;
-                  const isSelecting = pendingSelectionId === p._id;
-                  return (
-                    <button
-                      key={p._id}
-                      type="button"
-                      disabled={isCurrent || isSelecting}
-                      onClick={() => handleSelectPlan(p)}
-                      className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition ${
-                        isCurrent
-                          ? 'cursor-default border-brand-300 bg-brand-50 dark:border-brand-500/40 dark:bg-brand-500/10'
-                          : 'border-slate-200 hover:border-brand-300 hover:bg-brand-50 disabled:opacity-50 dark:border-slate-700 dark:hover:border-brand-500/40 dark:hover:bg-brand-500/10'
-                      }`}
-                    >
-                      <div>
-                        <p className="flex items-center gap-2 font-semibold text-slate-900 dark:text-slate-100">
-                          {p.name}
-                          {isCurrent && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-brand-500/10 px-2 py-0.5 text-[10px] font-semibold text-brand-600 dark:text-brand-400">
-                              <Check className="size-3" />
-                              {t('subscription.current', 'settings')}
-                            </span>
-                          )}
-                        </p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">
-                          {requestsToCredits(p.requestQuota)}{' '}
-                          {t('subscription.credits', 'settings')} /{' '}
-                          {p.frequency} {t('subscription.days', 'settings')}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {!isCurrent &&
-                          (isDowngrade ? (
-                            <ArrowDownCircle className="size-4 text-slate-400" />
-                          ) : (
-                            <ArrowUpCircle className="size-4 text-amber-500" />
-                          ))}
-                        <span className="font-semibold text-slate-900 dark:text-slate-100">
-                          {formatMoney(p.priceCents, p.currency)}
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ── Cards modal ──────────────────────────────────────────────── */}
       {isCardsOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setIsCardsOpen(false);
+          }}
+        >
           <div className="w-full max-w-md rounded-2xl bg-white shadow-xl dark:bg-slate-900">
             <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-800">
               <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
@@ -767,86 +739,106 @@ export default function SubscriptionPage() {
               <button
                 type="button"
                 onClick={() => setIsCardsOpen(false)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                className="rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200"
               >
                 <X className="size-5" />
               </button>
             </div>
 
             <div className="space-y-3 p-6">
-              {cardsLoading && (
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                  {t('subscription.loadingCards', 'settings')}
-                </p>
-              )}
-
-              {!cardsLoading && cards.length === 0 && (
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                  {t('subscription.noCards', 'settings')}
-                </p>
-              )}
-
-              {cards.map((card) => (
-                <div
-                  key={card.id}
-                  className={`flex items-center justify-between rounded-xl border px-4 py-3 ${
-                    card.isPrimary
-                      ? 'border-brand-300 bg-brand-50 dark:border-brand-500/40 dark:bg-brand-500/10'
-                      : 'border-slate-200 dark:border-slate-700'
-                  }`}
-                >
-                  <div>
-                    <p className="flex items-center gap-2 font-semibold text-slate-900 dark:text-slate-100">
-                      {card.maskedPan}
-                      {card.isPrimary && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-brand-500/10 px-2 py-0.5 text-[10px] font-semibold text-brand-600 dark:text-brand-400">
-                          <Star className="size-3" />
-                          {t('subscription.primaryCard', 'settings')}
-                        </span>
-                      )}
+              {addCardSession ? (
+                <>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                    {t('subscription.addCardDetails', 'settings')}
+                  </p>
+                  <PaymobCardForm
+                    publicKey={addCardSession.publicKey}
+                    clientSecret={addCardSession.clientSecret}
+                    checkoutUrl={addCardSession.checkoutUrl}
+                    payButtonLabel={t('subscription.saveCard', 'settings')}
+                    saveCard
+                    onSuccess={handleAddCardComplete}
+                    onPending={handleAddCardPending}
+                    onRetry={handleAddCard}
+                    onCancel={() => setAddCardSession(null)}
+                  />
+                </>
+              ) : (
+                <>
+                  {cardsLoading && (
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                      {t('subscription.loadingCards', 'settings')}
                     </p>
-                    {card.failedAttempts > 0 && (
-                      <p className="text-xs text-amber-600 dark:text-amber-400">
-                        {card.failedAttempts}{' '}
-                        {t('subscription.failedAttempts', 'settings')}
-                      </p>
-                    )}
-                  </div>
-                  {!card.isPrimary && (
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleMakePrimary(card)}
-                        disabled={changePrimaryMutation.isPending}
-                        title={t('subscription.makePrimary', 'settings')}
-                        className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-brand-600 dark:hover:bg-slate-800"
-                      >
-                        <Star className="size-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteCard(card)}
-                        disabled={deleteCardMutation.isPending}
-                        title={t('subscription.deleteCard', 'settings')}
-                        className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10"
-                      >
-                        <Trash2 className="size-4" />
-                      </button>
-                    </div>
                   )}
-                </div>
-              ))}
-              <button
-                type="button"
-                onClick={handleAddCard}
-                disabled={startAddCardMutation.isPending}
-                className="w-full rounded-xl border border-dashed border-slate-300 px-4 py-3 text-sm font-semibold text-slate-500 transition hover:border-brand-300 hover:bg-brand-50 hover:text-brand-600 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-400 dark:hover:border-brand-500/40 dark:hover:bg-brand-500/10"
-              >
-                {startAddCardMutation.isPending
-                  ? t('addingCard', 'common')
-                  : t('addCard', 'common')}
-              </button>
 
+                  {!cardsLoading && cards.length === 0 && (
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                      {t('subscription.noCards', 'settings')}
+                    </p>
+                  )}
+
+                  {cards.map((card) => (
+                    <div
+                      key={card.id}
+                      className={`flex items-center justify-between rounded-xl border px-4 py-3 ${
+                        card.isPrimary
+                          ? 'border-brand-300 bg-brand-50 dark:border-brand-500/40 dark:bg-brand-500/10'
+                          : 'border-slate-200 dark:border-slate-700'
+                      }`}
+                    >
+                      <div>
+                        <p className="flex items-center gap-2 font-semibold text-slate-900 dark:text-slate-100">
+                          {card.maskedPan}
+                          {card.isPrimary && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-brand-500/10 px-2 py-0.5 text-[10px] font-semibold text-brand-600 dark:text-brand-400">
+                              <Star className="size-3" />
+                              {t('subscription.primaryCard', 'settings')}
+                            </span>
+                          )}
+                        </p>
+                        {card.failedAttempts > 0 && (
+                          <p className="text-xs text-amber-600 dark:text-amber-400">
+                            {card.failedAttempts}{' '}
+                            {t('subscription.failedAttempts', 'settings')}
+                          </p>
+                        )}
+                      </div>
+                      {!card.isPrimary && (
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleMakePrimary(card)}
+                            disabled={changePrimaryMutation.isPending}
+                            title={t('subscription.makePrimary', 'settings')}
+                            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-brand-600 dark:hover:bg-slate-800"
+                          >
+                            <Star className="size-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteCard(card)}
+                            disabled={deleteCardMutation.isPending}
+                            title={t('subscription.deleteCard', 'settings')}
+                            className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10"
+                          >
+                            <Trash2 className="size-4" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={handleAddCard}
+                    disabled={startAddCardMutation.isPending}
+                    className="w-full rounded-xl border border-dashed border-slate-300 px-4 py-3 text-sm font-semibold text-slate-500 transition hover:border-brand-300 hover:bg-brand-50 hover:text-brand-600 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-400 dark:hover:border-brand-500/40 dark:hover:bg-brand-500/10"
+                  >
+                    {startAddCardMutation.isPending
+                      ? t('addingCard', 'common')
+                      : t('addCard', 'common')}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
