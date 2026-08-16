@@ -17,7 +17,7 @@ import type {
   SubscriptionCard,
   TransactionRecord,
 } from '../types/companies';
-import { EmailDraftResult } from '../types';
+import { EmailDraftResult, InterviewGroup } from '../types';
 
 // Re-export types
 export type {
@@ -451,6 +451,21 @@ class CompaniesService {
       'post',
       `/companies/${companyId}/email-draft`,
       { companyId, prompt, templateType }
+    );
+  }
+  async draftInterviewQuestions(
+    companyId: string,
+    params: {
+      jobPositionId?: string;
+      jobTitle?: string;
+      jobDescription?: string;
+      prompt?: string;
+    }
+  ): Promise<InterviewGroup> {
+    return this.request<InterviewGroup>(
+      'post',
+      `/companies/${companyId}/interview-questions-draft`,
+      { companyId, ...params }
     );
   }
 }

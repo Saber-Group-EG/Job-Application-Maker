@@ -894,6 +894,40 @@ export function useDuplicateMailTemplate() {
   });
 }
 
+export function useDraftInterviewQuestionsWithAi() {
+  const { t } = useLocale();
+
+  return useMutation({
+    mutationFn: ({
+      companyId,
+      jobPositionId,
+      jobTitle,
+      jobDescription,
+      prompt,
+    }: {
+      companyId: string;
+      jobPositionId?: string;
+      jobTitle?: string;
+      jobDescription?: string;
+      prompt?: string;
+    }) =>
+      companiesService.draftInterviewQuestions(companyId, {
+        jobPositionId,
+        jobTitle,
+        jobDescription,
+        prompt,
+      }),
+    onError: (error: ApiError) => {
+      showErrorToast(
+        error.message,
+        t('interviewQuestionsDraftFailed', 'common'),
+        t
+      );
+    },
+  });
+}
+
+
 export function useUpdateOfferSectionTemplates() {
   const queryClient = useQueryClient();
   const { t } = useLocale();

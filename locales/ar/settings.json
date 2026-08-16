@@ -400,6 +400,13 @@
   "subscription.type_signup": "الاشتراك",
   "subscription.type_renewal": "التجديد",
   "subscription.type_upgrade": "الترقية",
+  "interviewCompany.generateWithAi": "إنشاء بالذكاء الاصطناعي",
+  "interviewCompany.aiJobTitlePlaceholder": "المسمى الوظيفي (مثال: صانع محتوى)",
+  "interviewCompany.aiJobDescriptionPlaceholder": "وصف الوظيفة (اختياري)",
+  "interviewCompany.aiPromptPlaceholder": "هل هناك تركيز معين لهذه الأسئلة؟ (اختياري)",
+  "interviewCompany.aiValidationTitleRequired": "يرجى إدخال المسمى الوظيفي لإنشاء الأسئلة.",
+  "interviewCompany.generate": "إنشاء",
+  "interviewCompany.cancel": "إلغاء",
   "subscription.type_downgrade": "التخفيض",
   "subscription.type_topup": "الشحن",
   "subscription.date": "التاريخ",
@@ -412,5 +419,5 @@
   "subscription.noTransactions": "لا توجد معاملات بعد.",
   "subscription.previousPage": "الصفحة السابقة",
   "subscription.nextPage": "الصفحة التالية",
-  "subscription.page": "صفحة"
+  "interviewCompany.aiJobSearchLoading": "جارٍ تحميل الوظائف…"
 }

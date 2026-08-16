@@ -16,6 +16,7 @@ import {
   ChevronDown,
   ChevronRight,
   GripVertical,
+  Sparkles,
 } from 'lucide-react';
 import {
   DndContext,
@@ -49,6 +50,7 @@ import {
   useCompanyInterviewSettings,
   useUpdateCompanyInterviewSettings,
   companiesKeys,
+  useDraftInterviewQuestionsWithAi,
 } from '../../../hooks/queries/useCompanies';
 import RejectionTab from './Rejectiontab';
 import StatusSettings from './StatusSettings';
@@ -59,10 +61,14 @@ import type {
   InterviewQuestion,
   ChoiceItem,
 } from '../../../services/companiesService';
-import { normalizeChoices, normalizeChoicesToServer } from '../../../services/companiesService';
+import {
+  normalizeChoices,
+  normalizeChoicesToServer,
+} from '../../../services/companiesService';
 import ApplicantPagesSettings from './ApplicantsPagesTab';
 import JobOffersTab from './JobOffersTab';
 import ContractsTab from './ContractsTab';
+import { useJobPositions } from '../../../hooks/queries';
 
 type QuestionItem = InterviewQuestion & { _id: string };
 
@@ -119,7 +125,9 @@ const normalizeQuestion = (
     answerType,
     choices: normalizeChoices((question as any)?.choices),
     tags: Array.isArray((question as any)?.tags)
-      ? ((question as any).tags as any[]).map((tag) => String(tag ?? '')).filter(Boolean)
+      ? ((question as any).tags as any[])
+          .map((tag) => String(tag ?? ''))
+          .filter(Boolean)
       : [],
   };
 };
@@ -137,11 +145,15 @@ const normalizeGroups = (
   }));
 };
 
-const getCompanyName = (company: CompanyShape | undefined, locale?: string): string => {
+const getCompanyName = (
+  company: CompanyShape | undefined,
+  locale?: string
+): string => {
   if (!company) return '';
   const companyData = (company as any)?.companyId || company;
   if (typeof companyData.name === 'string') return companyData.name;
-  if (locale === 'ar') return companyData.name?.ar || companyData.name?.en || '';
+  if (locale === 'ar')
+    return companyData.name?.ar || companyData.name?.en || '';
   return companyData.name?.en || companyData.name?.ar || '';
 };
 
@@ -183,22 +195,24 @@ function SortableQuestionItem({
     const existing = Array.isArray(question.choices) ? question.choices : [];
     const pct = addChoiceScore === '' ? 0 : Number(addChoiceScore);
     const score = Math.round((pct / 100) * (Number(question.score) || 0));
-    onUpdate({ choices: [...existing, { label, score: Number.isFinite(score) ? score : 0 }] });
+    onUpdate({
+      choices: [
+        ...existing,
+        { label, score: Number.isFinite(score) ? score : 0 },
+      ],
+    });
     setAddChoiceLabel('');
     setAddChoiceScore('');
   };
 
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    isDragging,
-  } = useSortable({ id: question._id });
+  const { attributes, listeners, setNodeRef, transform, isDragging } =
+    useSortable({ id: question._id });
 
   const style = {
     transform: CSS.Translate.toString(transform),
-    transition: isDragging ? 'none' : 'transform 200ms cubic-bezier(0.2, 0, 0, 1)',
+    transition: isDragging
+      ? 'none'
+      : 'transform 200ms cubic-bezier(0.2, 0, 0, 1)',
     opacity: isDragging ? 0.4 : 1,
   };
 
@@ -221,7 +235,6 @@ function SortableQuestionItem({
       </div>
 
       <div>
-
         <input
           value={question.question}
           onChange={(e) => onUpdate({ question: e.target.value })}
@@ -232,21 +245,23 @@ function SortableQuestionItem({
       </div>
 
       <div>
-
         <select
           value={question.answerType}
-          onChange={(e) => onUpdate({ answerType: e.target.value as InterviewAnswerType })}
+          onChange={(e) =>
+            onUpdate({ answerType: e.target.value as InterviewAnswerType })
+          }
           disabled={!canEdit}
           className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900"
         >
           {ANSWER_TYPES.map((type) => (
-            <option key={type} value={type}>{type}</option>
+            <option key={type} value={type}>
+              {type}
+            </option>
           ))}
         </select>
       </div>
 
       <div>
-  
         <input
           type="text"
           inputMode="numeric"
@@ -285,58 +300,103 @@ function SortableQuestionItem({
         </button>
       </div>
 
-      {(question.answerType === 'radio' || question.answerType === 'dropdown' || question.answerType === 'checkbox') && (
+      {(question.answerType === 'radio' ||
+        question.answerType === 'dropdown' ||
+        question.answerType === 'checkbox') && (
         <div className="lg:col-span-5">
           <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
             {t('interviewCompany.labelChoices', 'settings')}
           </label>
           <div className="space-y-2">
-            {(Array.isArray(question.choices) ? question.choices : []).map((c: ChoiceItem, i: number) => (
-              <div key={i} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white p-2 dark:border-slate-700 dark:bg-slate-900">
-                <input
-                  type="text"
-                  value={c.label}
-                  onChange={(e) => {
-                    const updated = [...(Array.isArray(question.choices) ? question.choices : [])];
-                    updated[i] = { ...updated[i], label: e.target.value };
-                    onUpdate({ choices: updated });
-                  }}
-                  disabled={!canEdit}
-                  className="min-w-0 flex-1 truncate rounded-lg border border-transparent bg-transparent px-1 py-0.5 text-sm text-slate-800 outline-none transition-colors hover:border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:text-slate-200 dark:hover:border-slate-600"
-                />
-                <span className="w-10 text-center text-xs font-semibold text-slate-600 dark:text-slate-300">
-                  {choicePct(Number(c.score) || 0, Number(question.score) || 0)}%
-                </span>
-                <input
-                  type="range"
-                  min={0}
-                  max={100}
-                  value={choicePct(Number(c.score) || 0, Number(question.score) || 0)}
-                  onChange={(e) => {
-                    const pct = Number(e.target.value);
-                    const updated = [...(Array.isArray(question.choices) ? question.choices : [])];
-                    updated[i] = { ...updated[i], score: Math.round((pct / 100) * (Number(question.score) || 0)) };
-                    onUpdate({ choices: updated });
-                  }}
-                  disabled={!canEdit}
-                  className="w-24 accent-brand-500 disabled:cursor-not-allowed disabled:opacity-50"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    const existing = Array.isArray(question.choices) ? question.choices : [];
-                    onUpdate({ choices: existing.filter((_: ChoiceItem, idx: number) => idx !== i) });
-                  }}
-                  disabled={!canEdit}
-                  className="cursor-pointer p-1 text-gray-400 hover:text-red-500 disabled:opacity-50"
-                  aria-label={t('interviewCompany.removeChoice', 'settings', { value: c.label })}
+            {(Array.isArray(question.choices) ? question.choices : []).map(
+              (c: ChoiceItem, i: number) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white p-2 dark:border-slate-700 dark:bg-slate-900"
                 >
-                  <svg className="fill-current" width="14" height="14" viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg">
-                    <path fillRule="evenodd" clipRule="evenodd" d="M3.40717 4.46881C3.11428 4.17591 3.11428 3.70104 3.40717 3.40815C3.70006 3.11525 4.17494 3.11525 4.46783 3.40815L6.99943 5.93975L9.53095 3.40822C9.82385 3.11533 10.2987 3.11533 10.5916 3.40822C10.8845 3.70112 10.8845 4.17599 10.5916 4.46888L8.06009 7.00041L10.5916 9.53193C10.8845 9.82482 10.8845 10.2997 10.5916 10.5926C10.2987 10.8855 9.82385 10.8855 9.53095 10.5926L6.99943 8.06107L4.46783 10.5927C4.17494 10.8856 3.70006 10.8856 3.40717 10.5927C3.11428 10.2998 3.11428 9.8249 3.40717 9.53201L5.93877 7.00041L3.40717 4.46881Z" />
-                  </svg>
-                </button>
-              </div>
-            ))}
+                  <input
+                    type="text"
+                    value={c.label}
+                    onChange={(e) => {
+                      const updated = [
+                        ...(Array.isArray(question.choices)
+                          ? question.choices
+                          : []),
+                      ];
+                      updated[i] = { ...updated[i], label: e.target.value };
+                      onUpdate({ choices: updated });
+                    }}
+                    disabled={!canEdit}
+                    className="min-w-0 flex-1 truncate rounded-lg border border-transparent bg-transparent px-1 py-0.5 text-sm text-slate-800 outline-none transition-colors hover:border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:text-slate-200 dark:hover:border-slate-600"
+                  />
+                  <span className="w-10 text-center text-xs font-semibold text-slate-600 dark:text-slate-300">
+                    {choicePct(
+                      Number(c.score) || 0,
+                      Number(question.score) || 0
+                    )}
+                    %
+                  </span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={choicePct(
+                      Number(c.score) || 0,
+                      Number(question.score) || 0
+                    )}
+                    onChange={(e) => {
+                      const pct = Number(e.target.value);
+                      const updated = [
+                        ...(Array.isArray(question.choices)
+                          ? question.choices
+                          : []),
+                      ];
+                      updated[i] = {
+                        ...updated[i],
+                        score: Math.round(
+                          (pct / 100) * (Number(question.score) || 0)
+                        ),
+                      };
+                      onUpdate({ choices: updated });
+                    }}
+                    disabled={!canEdit}
+                    className="w-24 accent-brand-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const existing = Array.isArray(question.choices)
+                        ? question.choices
+                        : [];
+                      onUpdate({
+                        choices: existing.filter(
+                          (_: ChoiceItem, idx: number) => idx !== i
+                        ),
+                      });
+                    }}
+                    disabled={!canEdit}
+                    className="cursor-pointer p-1 text-gray-400 hover:text-red-500 disabled:opacity-50"
+                    aria-label={t('interviewCompany.removeChoice', 'settings', {
+                      value: c.label,
+                    })}
+                  >
+                    <svg
+                      className="fill-current"
+                      width="14"
+                      height="14"
+                      viewBox="0 0 14 14"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        clipRule="evenodd"
+                        d="M3.40717 4.46881C3.11428 4.17591 3.11428 3.70104 3.40717 3.40815C3.70006 3.11525 4.17494 3.11525 4.46783 3.40815L6.99943 5.93975L9.53095 3.40822C9.82385 3.11533 10.2987 3.11533 10.5916 3.40822C10.8845 3.70112 10.8845 4.17599 10.5916 4.46888L8.06009 7.00041L10.5916 9.53193C10.8845 9.82482 10.8845 10.2997 10.5916 10.5926C10.2987 10.8855 9.82385 10.8855 9.53095 10.5926L6.99943 8.06107L4.46783 10.5927C4.17494 10.8856 3.70006 10.8856 3.40717 10.5927C3.11428 10.2998 3.11428 9.8249 3.40717 9.53201L5.93877 7.00041L3.40717 4.46881Z"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              )
+            )}
           </div>
           <div className="mt-2 flex items-center gap-2">
             <input
@@ -374,28 +434,48 @@ function SortableQuestionItem({
           {t('interviewCompany.labelTags', 'settings')}
         </label>
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white p-2 dark:border-slate-700 dark:bg-slate-900">
-          {(Array.isArray(question.tags) ? question.tags : []).map((tag: string, i: number) => (
-            <span
-              key={`${tag}_${i}`}
-              className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-700 dark:bg-brand-500/10 dark:text-brand-300"
-            >
-              {tag}
-              <button
-                type="button"
-                onClick={() => {
-                  const existing = Array.isArray(question.tags) ? question.tags : [];
-                  onUpdate({ tags: existing.filter((_: string, idx: number) => idx !== i) });
-                }}
-                disabled={!canEdit}
-                className="cursor-pointer text-brand-500 hover:text-red-500 disabled:opacity-50"
-                aria-label={t('interviewCompany.removeTag', 'settings', { value: tag })}
+          {(Array.isArray(question.tags) ? question.tags : []).map(
+            (tag: string, i: number) => (
+              <span
+                key={`${tag}_${i}`}
+                className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-700 dark:bg-brand-500/10 dark:text-brand-300"
               >
-                <svg className="fill-current" width="12" height="12" viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg">
-                  <path fillRule="evenodd" clipRule="evenodd" d="M3.40717 4.46881C3.11428 4.17591 3.11428 3.70104 3.40717 3.40815C3.70006 3.11525 4.17494 3.11525 4.46783 3.40815L6.99943 5.93975L9.53095 3.40822C9.82385 3.11533 10.2987 3.11533 10.5916 3.40822C10.8845 3.70112 10.8845 4.17599 10.5916 4.46888L8.06009 7.00041L10.5916 9.53193C10.8845 9.82482 10.8845 10.2997 10.5916 10.5926C10.2987 10.8855 9.82385 10.8855 9.53095 10.5926L6.99943 8.06107L4.46783 10.5927C4.17494 10.8856 3.70006 10.8856 3.40717 10.5927C3.11428 10.2998 3.11428 9.8249 3.40717 9.53201L5.93877 7.00041L3.40717 4.46881Z" />
-                </svg>
-              </button>
-            </span>
-          ))}
+                {tag}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const existing = Array.isArray(question.tags)
+                      ? question.tags
+                      : [];
+                    onUpdate({
+                      tags: existing.filter(
+                        (_: string, idx: number) => idx !== i
+                      ),
+                    });
+                  }}
+                  disabled={!canEdit}
+                  className="cursor-pointer text-brand-500 hover:text-red-500 disabled:opacity-50"
+                  aria-label={t('interviewCompany.removeTag', 'settings', {
+                    value: tag,
+                  })}
+                >
+                  <svg
+                    className="fill-current"
+                    width="12"
+                    height="12"
+                    viewBox="0 0 14 14"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      clipRule="evenodd"
+                      d="M3.40717 4.46881C3.11428 4.17591 3.11428 3.70104 3.40717 3.40815C3.70006 3.11525 4.17494 3.11525 4.46783 3.40815L6.99943 5.93975L9.53095 3.40822C9.82385 3.11533 10.2987 3.11533 10.5916 3.40822C10.8845 3.70112 10.8845 4.17599 10.5916 4.46888L8.06009 7.00041L10.5916 9.53193C10.8845 9.82482 10.8845 10.2997 10.5916 10.5926C10.2987 10.8855 9.82385 10.8855 9.53095 10.5926L6.99943 8.06107L4.46783 10.5927C4.17494 10.8856 3.70006 10.8856 3.40717 10.5927C3.11428 10.2998 3.11428 9.8249 3.40717 9.53201L5.93877 7.00041L3.40717 4.46881Z"
+                    />
+                  </svg>
+                </button>
+              </span>
+            )
+          )}
           <input
             type="text"
             value={tagInput}
@@ -446,7 +526,10 @@ function SortableGroupItem({
   onUpdateGroupName: (name: string) => void;
   onRemoveGroup: () => void;
   onAddQuestion: () => void;
-  onUpdateQuestion: (questionIndex: number, patch: Partial<InterviewQuestion>) => void;
+  onUpdateQuestion: (
+    questionIndex: number,
+    patch: Partial<InterviewQuestion>
+  ) => void;
   onRemoveQuestion: (questionIndex: number) => void;
   activeQuestionId: string | null;
   onQuestionDragStart: (event: DragStartEvent) => void;
@@ -458,17 +541,14 @@ function SortableGroupItem({
   isFlashing: boolean;
   onFlashDismiss: () => void;
 }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    isDragging,
-  } = useSortable({ id: group._id });
+  const { attributes, listeners, setNodeRef, transform, isDragging } =
+    useSortable({ id: group._id });
 
   const style = {
     transform: CSS.Translate.toString(transform),
-    transition: isDragging ? 'none' : 'transform 200ms cubic-bezier(0.2, 0, 0, 1)',
+    transition: isDragging
+      ? 'none'
+      : 'transform 200ms cubic-bezier(0.2, 0, 0, 1)',
     opacity: isDragging ? 0.4 : 1,
   };
 
@@ -520,18 +600,22 @@ function SortableGroupItem({
             <ChevronDown className="size-4 shrink-0 text-slate-400" />
           )}
           <div className="min-w-0 flex-1">
-
             <input
               value={group.name}
               onChange={(e) => onUpdateGroupName(e.target.value)}
               disabled={!canEdit}
-              placeholder={t('interviewCompany.groupNamePlaceholder', 'settings')}
+              placeholder={t(
+                'interviewCompany.groupNamePlaceholder',
+                'settings'
+              )}
               onClick={(e) => e.stopPropagation()}
               className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-800"
             />
           </div>
           <span className="shrink-0 text-xs text-slate-400">
-            {t('interviewCompany.questionCount', 'settings', { count: group.questions.length })}
+            {t('interviewCompany.questionCount', 'settings', {
+              count: group.questions.length,
+            })}
           </span>
         </button>
         <button
@@ -540,7 +624,8 @@ function SortableGroupItem({
           disabled={!canEdit}
           className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300"
         >
-          <Trash2 className="size-4" /> {t('interviewCompany.remove', 'settings')}
+          <Trash2 className="size-4" />{' '}
+          {t('interviewCompany.remove', 'settings')}
         </button>
       </div>
 
@@ -549,10 +634,14 @@ function SortableGroupItem({
           maxHeight: isCollapsed ? 0 : contentHeight,
           opacity: isCollapsed ? 0 : 1,
           overflow: isCollapsed ? 'hidden' : 'visible',
-          transition: 'max-height 0.3s cubic-bezier(0.2, 0, 0, 1), opacity 0.25s cubic-bezier(0.2, 0, 0, 1)',
+          transition:
+            'max-height 0.3s cubic-bezier(0.2, 0, 0, 1), opacity 0.25s cubic-bezier(0.2, 0, 0, 1)',
         }}
       >
-        <div ref={contentRef} className="space-y-3 border-t border-slate-200 p-4 dark:border-slate-700">
+        <div
+          ref={contentRef}
+          className="space-y-3 border-t border-slate-200 p-4 dark:border-slate-700"
+        >
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
@@ -589,19 +678,29 @@ function SortableGroupItem({
                         <GripVertical className="size-4 text-brand-500" />
                       </div>
                       <div>
-                        <div className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{t('interviewCompany.dragOverlayQuestion', 'settings')}</div>
+                        <div className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          {t(
+                            'interviewCompany.dragOverlayQuestion',
+                            'settings'
+                          )}
+                        </div>
                         <div className="w-full rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm text-slate-700 dark:border-brand-700 dark:bg-slate-900 dark:text-slate-300">
-                          {found.question || t('interviewCompany.emptyQuestion', 'settings')}
+                          {found.question ||
+                            t('interviewCompany.emptyQuestion', 'settings')}
                         </div>
                       </div>
                       <div>
-                        <div className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{t('interviewCompany.dragOverlayType', 'settings')}</div>
+                        <div className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          {t('interviewCompany.dragOverlayType', 'settings')}
+                        </div>
                         <div className="w-full rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm text-slate-700 dark:border-brand-700 dark:bg-slate-900 dark:text-slate-300">
                           {found.answerType}
                         </div>
                       </div>
                       <div>
-                        <div className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{t('interviewCompany.dragOverlayScore', 'settings')}</div>
+                        <div className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          {t('interviewCompany.dragOverlayScore', 'settings')}
+                        </div>
                         <div className="w-full rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm text-slate-700 dark:border-brand-700 dark:bg-slate-900 dark:text-slate-300">
                           {found.score}
                         </div>
@@ -624,7 +723,8 @@ function SortableGroupItem({
             disabled={!canEdit}
             className="inline-flex items-center gap-2 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-sm font-medium text-brand-700 transition hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-brand-500/30 dark:bg-brand-500/10 dark:text-brand-300"
           >
-            <PlusCircle className="size-4" /> {t('interviewCompany.addQuestion', 'settings')}
+            <PlusCircle className="size-4" />{' '}
+            {t('interviewCompany.addQuestion', 'settings')}
           </button>
         </div>
       </div>
@@ -652,10 +752,82 @@ export default function InterviewCompanySettingsPage() {
     hasPermission('Settings Management', 'create');
 
   const { selectedCompanyId } = useCompanyFilter();
-  const [groups, setGroups] = useState<(InterviewGroup & { _id: string })[]>([]);
+  const [groups, setGroups] = useState<(InterviewGroup & { _id: string })[]>(
+    []
+  );
+  const effectiveCompanyId =
+    selectedCompanyId ?? (companies as CompanyShape[])[0]?._id;
+  const selectedCompany = useMemo(
+    () =>
+      (companies as CompanyShape[]).find(
+        (company) => company._id === effectiveCompanyId
+      ),
+    [companies, effectiveCompanyId]
+  );
+
   const [activeQuestionId, setActiveQuestionId] = useState<string | null>(null);
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
   const [flashGroupIds, setFlashGroupIds] = useState<Set<string>>(new Set());
+  const { data: jobPositions = [], isFetching: jobsFetching } = useJobPositions(
+    effectiveCompanyId ? [effectiveCompanyId] : undefined,
+    false,
+    undefined,
+    { enabled: !!effectiveCompanyId }
+  ) as unknown as { data: any[]; isFetching: boolean };
+
+  const [showAiPanel, setShowAiPanel] = useState(false);
+  const [aiJobTitle, setAiJobTitle] = useState('');
+  const [aiJobDescription, setAiJobDescription] = useState('');
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiDropdownOpen, setAiDropdownOpen] = useState(false);
+  const draftInterviewQuestionsMutation = useDraftInterviewQuestionsWithAi();
+
+  const getJobTitle = (jp: any) =>
+    jp.title?.en || jp.title?.ar || jp.title || '';
+  const getJobDescription = (jp: any) =>
+    jp.description?.en || jp.description?.ar || jp.description || '';
+
+  const filteredJobPositions = useMemo(() => {
+    const q = aiJobTitle.trim().toLowerCase();
+    if (!q) return jobPositions.slice(0, 8);
+    return jobPositions
+      .filter((jp) => getJobTitle(jp).toLowerCase().includes(q))
+      .slice(0, 8);
+  }, [jobPositions, aiJobTitle]);
+
+  const handleGenerateWithAi = async () => {
+    if (!effectiveCompanyId) return;
+    if (!aiJobTitle.trim()) {
+      Swal.fire(
+        t('commonValidation', 'settings'),
+        t('interviewCompany.aiValidationTitleRequired', 'settings'),
+        'warning'
+      );
+      return;
+    }
+
+    try {
+      const result = await draftInterviewQuestionsMutation.mutateAsync({
+        companyId: effectiveCompanyId,
+        jobTitle: aiJobTitle.trim(),
+        jobDescription: aiJobDescription.trim() || undefined,
+        prompt: aiPrompt.trim() || undefined,
+      });
+
+      const [normalized] = normalizeGroups([result]);
+      const newGroup = { ...normalized, _id: uid() };
+
+      setGroups((prev) => [newGroup, ...prev]);
+      setFlashGroupIds((prev) => new Set(prev).add(newGroup._id));
+      // deliberately NOT added to collapsedGroupIds — starts open for review
+      setShowAiPanel(false);
+      setAiJobTitle('');
+      setAiJobDescription('');
+      setAiPrompt('');
+    } catch {
+      // onError toast already handled by the mutation hook
+    }
+  };
 
   // Safety net: stop flashing a newly added group after a while even if the
   // user never hovers it.
@@ -680,7 +852,9 @@ export default function InterviewCompanySettingsPage() {
     easing: 'cubic-bezier(0.2, 0, 0, 1)',
   };
   const [isSaving, setIsSaving] = useState(false);
-  const [collapsedGroupIds, setCollapsedGroupIds] = useState<Set<string>>(new Set());
+  const [collapsedGroupIds, setCollapsedGroupIds] = useState<Set<string>>(
+    new Set()
+  );
   const [activeTab, setActiveTab] = useState<
     | 'interview-groups'
     | 'rejection-reasons'
@@ -698,16 +872,6 @@ export default function InterviewCompanySettingsPage() {
   const isApplicantPagesTab = activeTab === 'applicant-pages';
   const isOffersTab = activeTab === 'job-offers';
   const isContractsTab = activeTab === 'contracts';
-
-  const effectiveCompanyId = selectedCompanyId ?? (companies as CompanyShape[])[0]?._id;
-  const selectedCompany = useMemo(
-    () =>
-      (companies as CompanyShape[]).find(
-        (company) => company._id === effectiveCompanyId
-      ),
-    [companies, effectiveCompanyId]
-  );
-
   const updateInterviewMutation = useUpdateCompanyInterviewSettings();
   const queryClient = useQueryClient();
 
@@ -737,7 +901,9 @@ export default function InterviewCompanySettingsPage() {
       !!derivedInterviewSettings &&
       'groups' in (derivedInterviewSettings as any);
     if (!hasGroupsField) return;
-    const normalized = normalizeGroups((derivedInterviewSettings as any)?.groups);
+    const normalized = normalizeGroups(
+      (derivedInterviewSettings as any)?.groups
+    );
     setGroups((prev) =>
       normalized.map((g, i) => ({
         ...g,
@@ -763,7 +929,9 @@ export default function InterviewCompanySettingsPage() {
     setGroups((prev) => [
       {
         _id: newId,
-        name: t('interviewCompany.defaultGroupName', 'settings', { number: prev.length + 1 }),
+        name: t('interviewCompany.defaultGroupName', 'settings', {
+          number: prev.length + 1,
+        }),
         questions: [{ ...EMPTY_QUESTION }],
       },
       ...prev,
@@ -826,9 +994,6 @@ export default function InterviewCompanySettingsPage() {
       })
     );
   };
-
-
-
   const handleQuestionDragStart = useCallback((event: DragStartEvent) => {
     setActiveQuestionId(event.active.id as string);
   }, []);
@@ -889,7 +1054,9 @@ export default function InterviewCompanySettingsPage() {
       if (!group.name.trim()) {
         Swal.fire(
           t('commonValidation', 'settings'),
-          t('interviewCompany.validationGroupMustHaveName', 'settings', { number: groupIndex + 1 }),
+          t('interviewCompany.validationGroupMustHaveName', 'settings', {
+            number: groupIndex + 1,
+          }),
           'warning'
         );
         return null;
@@ -905,7 +1072,10 @@ export default function InterviewCompanySettingsPage() {
         if (!question.question.trim()) {
           Swal.fire(
             t('commonValidation', 'settings'),
-            t('interviewCompany.validationQuestionNotEmpty', 'settings', { qNumber: questionIndex + 1, gNumber: groupIndex + 1 }),
+            t('interviewCompany.validationQuestionNotEmpty', 'settings', {
+              qNumber: questionIndex + 1,
+              gNumber: groupIndex + 1,
+            }),
             'warning'
           );
           return null;
@@ -914,7 +1084,10 @@ export default function InterviewCompanySettingsPage() {
         if (!Number.isFinite(question.score)) {
           Swal.fire(
             t('commonValidation', 'settings'),
-            t('interviewCompany.validationQuestionNeedsScore', 'settings', { qNumber: questionIndex + 1, gNumber: groupIndex + 1 }),
+            t('interviewCompany.validationQuestionNeedsScore', 'settings', {
+              qNumber: questionIndex + 1,
+              gNumber: groupIndex + 1,
+            }),
             'warning'
           );
           return null;
@@ -928,30 +1101,56 @@ export default function InterviewCompanySettingsPage() {
         ) {
           Swal.fire(
             t('commonValidation', 'settings'),
-            t('interviewCompany.validationChoiceRequired', 'settings', { qNumber: questionIndex + 1, gNumber: groupIndex + 1 }),
+            t('interviewCompany.validationChoiceRequired', 'settings', {
+              qNumber: questionIndex + 1,
+              gNumber: groupIndex + 1,
+            }),
             'warning'
           );
           return null;
         }
 
-        if (question.answerType === 'checkbox' && Array.isArray(question.choices)) {
-          const sum = (question.choices as ChoiceItem[]).reduce((s, c) => s + (Number(c.score) || 0), 0);
+        if (
+          question.answerType === 'checkbox' &&
+          Array.isArray(question.choices)
+        ) {
+          const sum = (question.choices as ChoiceItem[]).reduce(
+            (s, c) => s + (Number(c.score) || 0),
+            0
+          );
           if (sum > Number(question.score)) {
             Swal.fire(
               t('commonValidation', 'settings'),
-              t('interviewCompany.validationCheckboxScoreExceeded', 'settings', { qNumber: questionIndex + 1, gNumber: groupIndex + 1 }),
+              t(
+                'interviewCompany.validationCheckboxScoreExceeded',
+                'settings',
+                { qNumber: questionIndex + 1, gNumber: groupIndex + 1 }
+              ),
               'warning'
             );
             return null;
           }
         }
 
-        if (question.answerType === 'dropdown' && Array.isArray(question.choices)) {
-          const exceeded = (question.choices as ChoiceItem[]).find((c) => (Number(c.score) || 0) > Number(question.score));
+        if (
+          question.answerType === 'dropdown' &&
+          Array.isArray(question.choices)
+        ) {
+          const exceeded = (question.choices as ChoiceItem[]).find(
+            (c) => (Number(c.score) || 0) > Number(question.score)
+          );
           if (exceeded) {
             Swal.fire(
               t('commonValidation', 'settings'),
-              t('interviewCompany.validationDropdownScoreExceeded', 'settings', { qNumber: questionIndex + 1, gNumber: groupIndex + 1, choice: exceeded.label }),
+              t(
+                'interviewCompany.validationDropdownScoreExceeded',
+                'settings',
+                {
+                  qNumber: questionIndex + 1,
+                  gNumber: groupIndex + 1,
+                  choice: exceeded.label,
+                }
+              ),
               'warning'
             );
             return null;
@@ -974,7 +1173,11 @@ export default function InterviewCompanySettingsPage() {
 
   const handleSaveAll = async () => {
     if (!effectiveCompanyId) {
-      Swal.fire(t('commonValidation', 'settings'), t('interviewCompany.validationSelectCompany', 'settings'), 'warning');
+      Swal.fire(
+        t('commonValidation', 'settings'),
+        t('interviewCompany.validationSelectCompany', 'settings'),
+        'warning'
+      );
       return;
     }
 
@@ -1009,16 +1212,22 @@ export default function InterviewCompanySettingsPage() {
             return {
               ...c,
               interviewSettings: { groups: optimisticGroups },
-              settings: { ...(c.settings ?? {}), interviewSettings: { groups: optimisticGroups } },
+              settings: {
+                ...(c.settings ?? {}),
+                interviewSettings: { groups: optimisticGroups },
+              },
             };
           });
         }
         return old;
       });
     } else {
-      queryClient.setQueryData(companiesKeys.interviewSettings(effectiveCompanyId), {
-        groups: optimisticGroups,
-      });
+      queryClient.setQueryData(
+        companiesKeys.interviewSettings(effectiveCompanyId),
+        {
+          groups: optimisticGroups,
+        }
+      );
     }
 
     try {
@@ -1026,7 +1235,9 @@ export default function InterviewCompanySettingsPage() {
         ...g,
         questions: g.questions.map((q) => ({
           ...q,
-          choices: Array.isArray(q.choices) ? normalizeChoicesToServer(q.choices) : [],
+          choices: Array.isArray(q.choices)
+            ? normalizeChoicesToServer(q.choices)
+            : [],
         })),
       }));
       await updateInterviewMutation.mutateAsync({
@@ -1078,7 +1289,9 @@ export default function InterviewCompanySettingsPage() {
       />
 
       <div className="mx-auto max-w-7xl space-y-6">
-        <PageBreadCrumb pageTitle={t('interviewCompany.pageBreadcrumb', 'settings')} />
+        <PageBreadCrumb
+          pageTitle={t('interviewCompany.pageBreadcrumb', 'settings')}
+        />
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <div className="flex flex-col gap-5 border-b border-slate-200 px-6 py-6 dark:border-slate-800 md:flex-row md:items-center md:justify-between">
             <div className="flex items-start gap-4">
@@ -1124,7 +1337,8 @@ export default function InterviewCompanySettingsPage() {
                   : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800'
               }`}
             >
-              <ClipboardList className="size-4" /> {t('interviewCompany.tabInterviewGroups', 'settings')}
+              <ClipboardList className="size-4" />{' '}
+              {t('interviewCompany.tabInterviewGroups', 'settings')}
             </button>
 
             <button
@@ -1136,7 +1350,8 @@ export default function InterviewCompanySettingsPage() {
                   : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800'
               }`}
             >
-              <Ban className="size-4" /> {t('interviewCompany.tabRejectionReasons', 'settings')}
+              <Ban className="size-4" />{' '}
+              {t('interviewCompany.tabRejectionReasons', 'settings')}
             </button>
 
             <button
@@ -1148,7 +1363,8 @@ export default function InterviewCompanySettingsPage() {
                   : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800'
               }`}
             >
-              <Settings className="size-4" /> {t('interviewCompany.tabStatuses', 'settings')}
+              <Settings className="size-4" />{' '}
+              {t('interviewCompany.tabStatuses', 'settings')}
             </button>
 
             {/* New Email Templates Tab */}
@@ -1161,7 +1377,8 @@ export default function InterviewCompanySettingsPage() {
                   : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800'
               }`}
             >
-              <Mail className="size-4" /> {t('interviewCompany.tabEmailTemplates', 'settings')}
+              <Mail className="size-4" />{' '}
+              {t('interviewCompany.tabEmailTemplates', 'settings')}
             </button>
             <button
               type="button"
@@ -1172,7 +1389,8 @@ export default function InterviewCompanySettingsPage() {
                   : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800'
               }`}
             >
-              <Layout className="size-4" /> {t('interviewCompany.tabApplicantPages', 'settings')}
+              <Layout className="size-4" />{' '}
+              {t('interviewCompany.tabApplicantPages', 'settings')}
             </button>
             <button
               type="button"
@@ -1183,7 +1401,8 @@ export default function InterviewCompanySettingsPage() {
                   : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800'
               }`}
             >
-              <FileText className="size-4" /> {t('interviewCompany.tabOfferTemplates', 'settings')}
+              <FileText className="size-4" />{' '}
+              {t('interviewCompany.tabOfferTemplates', 'settings')}
             </button>
             <button
               type="button"
@@ -1194,7 +1413,8 @@ export default function InterviewCompanySettingsPage() {
                   : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800'
               }`}
             >
-              <FileText className="size-4" /> {t('interviewCompany.tabContractTemplates', 'settings')}
+              <FileText className="size-4" />{' '}
+              {t('interviewCompany.tabContractTemplates', 'settings')}
             </button>
           </div>
 
@@ -1205,7 +1425,8 @@ export default function InterviewCompanySettingsPage() {
                   {t('interviewCompany.statCompany', 'settings')}
                 </p>
                 <p className="mt-1 truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
-                  {getCompanyName(selectedCompany, locale) || t('interviewCompany.statNoCompany', 'settings')}
+                  {getCompanyName(selectedCompany, locale) ||
+                    t('interviewCompany.statNoCompany', 'settings')}
                 </p>
               </div>
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/60">
@@ -1229,7 +1450,8 @@ export default function InterviewCompanySettingsPage() {
                   {t('interviewCompany.statSaveStatus', 'settings')}
                 </p>
                 <p className="mt-1 inline-flex items-center gap-2 text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-                  <CircleCheckBig className="size-4" /> {t('interviewCompany.statReady', 'settings')}
+                  <CircleCheckBig className="size-4" />{' '}
+                  {t('interviewCompany.statReady', 'settings')}
                 </p>
               </div>
             </div>
@@ -1237,152 +1459,285 @@ export default function InterviewCompanySettingsPage() {
         </div>
 
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
-
           <div className="xl:col-span-12">
             <div key={activeTab} className="animate-fade-slide-in">
-            {isInterviewGroupsTab ? (
-              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                <div className="flex flex-col gap-3 border-b border-slate-200 p-6 dark:border-slate-800 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex size-11 items-center justify-center rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400">
-                      <ClipboardList className="size-6" />
+              {isInterviewGroupsTab ? (
+                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                  <div className="flex flex-col gap-3 border-b border-slate-200 p-6 dark:border-slate-800 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="flex size-11 items-center justify-center rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400">
+                        <ClipboardList className="size-6" />
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-semibold tracking-tight">
+                          {t(
+                            'interviewCompany.interviewGroupsTitle',
+                            'settings'
+                          )}
+                        </h2>
+                        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                          {t(
+                            'interviewCompany.interviewGroupsDesc',
+                            'settings'
+                          )}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h2 className="text-xl font-semibold tracking-tight">
-                        {t('interviewCompany.interviewGroupsTitle', 'settings')}
-                      </h2>
-                      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                        {t('interviewCompany.interviewGroupsDesc', 'settings')}
-                      </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={addGroup}
+                        disabled={!canEdit}
+                        className="inline-flex items-center gap-2 self-start rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <PlusCircle className="size-4" />{' '}
+                        {t('interviewCompany.addGroup', 'settings')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowAiPanel((v) => !v)}
+                        disabled={!canEdit}
+                        className="inline-flex items-center gap-2 self-start rounded-xl border border-brand-200 bg-brand-50 px-4 py-2 text-sm font-semibold text-brand-700 transition hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-brand-500/30 dark:bg-brand-500/10 dark:text-brand-300"
+                      >
+                        <Sparkles className="size-4" />{' '}
+                        {t('interviewCompany.generateWithAi', 'settings')}
+                      </button>
                     </div>
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={addGroup}
-                    disabled={!canEdit}
-                    className="inline-flex items-center gap-2 self-start rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    <PlusCircle className="size-4" /> {t('interviewCompany.addGroup', 'settings')}
-                  </button>
-                </div>
-
-                <div className="space-y-5 p-6">
-                  {isLoading && (
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
-                      {t('interviewCompany.loading', 'settings')}
-                    </div>
-                  )}
-
-                  {!isLoading && groups.length === 0 && (
-                    <div className="rounded-xl border border-dashed border-slate-300 px-6 py-10 text-center dark:border-slate-700">
-                      <ClipboardList className="mx-auto mb-3 size-10 text-slate-300 dark:text-slate-600" />
-                      <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                        {t('interviewCompany.emptyState', 'settings')}
-                      </p>
-                    </div>
-                  )}
-
-                  {groups.length > 0 && (
-                    <DndContext
-                      sensors={sensors}
-                      collisionDetection={closestCenter}
-                      onDragStart={handleGroupDragStart}
-                      onDragEnd={handleGroupDragEnd}
-                      onDragCancel={handleGroupDragCancel}
-                    >
-                      <SortableContext
-                        items={groups.map((g) => g._id)}
-                        strategy={verticalListSortingStrategy}
-                      >
-                        {groups.map((group, groupIndex) => (
-                          <SortableGroupItem
-                            key={group._id}
-                            group={group}
-                            groupIndex={groupIndex}
-                            canEdit={canEdit}
-                            collapsedGroupIds={collapsedGroupIds}
-                            onToggleCollapse={() => {
-                              setCollapsedGroupIds((prev) => {
-                                const next = new Set(prev);
-                                if (next.has(group._id)) {
-                                  next.delete(group._id);
-                                } else {
-                                  next.add(group._id);
-                                }
-                                return next;
-                              });
-                            }}
-                            onUpdateGroupName={(name) => updateGroupName(groupIndex, name)}
-                            onRemoveGroup={() => removeGroup(groupIndex)}
-                            onAddQuestion={() => addQuestion(groupIndex)}
-                            onUpdateQuestion={(questionIndex, patch) =>
-                              updateQuestion(groupIndex, questionIndex, patch)
-                            }
-                            onRemoveQuestion={(questionIndex) =>
-                              removeQuestion(groupIndex, questionIndex)
-                            }
-                            activeQuestionId={activeQuestionId}
-                            onQuestionDragStart={handleQuestionDragStart}
-                            onQuestionDragEnd={handleQuestionDragEnd}
-                            onQuestionDragCancel={handleQuestionDragCancel}
-                            sensors={sensors}
-                            dropAnimation={dropAnimation}
-                            t={t}
-                            isFlashing={flashGroupIds.has(group._id)}
-                            onFlashDismiss={() => {
-                              setFlashGroupIds((prev) => {
-                                const next = new Set(prev);
-                                next.delete(group._id);
-                                return next;
-                              });
-                            }}
-                          />
-                        ))}
-                      </SortableContext>
-                      {activeGroupId &&
-                        createPortal(
-                          <DragOverlay dropAnimation={dropAnimation}>
-                            <div className="flex items-center gap-3 rounded-xl border border-brand-400 bg-white px-4 py-3 shadow-xl dark:bg-slate-800">
-                              <GripVertical className="size-4 shrink-0 text-brand-500" />
-                              <div className="min-w-0 flex-1">
-                                <p className="text-sm font-medium">
-                                  {groups.find((g) => g._id === activeGroupId)?.name || ''}
-                                </p>
+                  {showAiPanel && (
+                    <div className="mx-6 mb-2 space-y-3 rounded-xl border border-brand-200 bg-brand-50/50 p-4 dark:border-brand-500/30 dark:bg-brand-500/5">
+                      <div className="relative">
+                        <input
+                          value={aiJobTitle}
+                          onChange={(e) => {
+                            setAiJobTitle(e.target.value);
+                            setAiDropdownOpen(true);
+                          }}
+                          onFocus={() => setAiDropdownOpen(true)}
+                          onBlur={() => {
+                            // slight delay so a click on a dropdown item registers before it unmounts
+                            setTimeout(() => setAiDropdownOpen(false), 150);
+                          }}
+                          placeholder={t(
+                            'interviewCompany.aiJobTitlePlaceholder',
+                            'settings'
+                          )}
+                          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-900"
+                        />
+                        {aiDropdownOpen && aiJobTitle.trim() && (
+                          <div className="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900">
+                            {jobsFetching ? (
+                              <div className="px-3 py-2 text-sm text-slate-400">
+                                {t(
+                                  'interviewCompany.aiJobSearchLoading',
+                                  'settings'
+                                )}
                               </div>
-                              <span className="shrink-0 text-xs text-slate-400">
-                                {(() => {
-                                  const g = groups.find((g) => g._id === activeGroupId);
-                                  return g
-                                    ? t('interviewCompany.questionCount', 'settings', { count: g.questions.length })
-                                    : '';
-                                })()}
-                              </span>
-                            </div>
-                          </DragOverlay>,
-                          document.body
+                            ) : filteredJobPositions.length === 0 ? (
+                              <div className="px-3 py-2 text-sm text-slate-400">
+                                {t(
+                                  'interviewCompany.aiJobSearchNoResults',
+                                  'settings'
+                                )}
+                              </div>
+                            ) : (
+                              filteredJobPositions.map((jp) => (
+                                <button
+                                  key={jp._id}
+                                  type="button"
+                                  onMouseDown={(e) => e.preventDefault()} // keep input focus so onBlur doesn't fire first
+                                  onClick={() => {
+                                    setAiJobTitle(getJobTitle(jp));
+                                    setAiJobDescription(getJobDescription(jp));
+                                    setAiDropdownOpen(false);
+                                  }}
+                                  className="block w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-brand-50 dark:text-slate-200 dark:hover:bg-brand-500/10"
+                                >
+                                  {getJobTitle(jp)}
+                                </button>
+                              ))
+                            )}
+                          </div>
                         )}
-                    </DndContext>
+                      </div>
+                      <textarea
+                        value={aiJobDescription}
+                        onChange={(e) => setAiJobDescription(e.target.value)}
+                        placeholder={t(
+                          'interviewCompany.aiJobDescriptionPlaceholder',
+                          'settings'
+                        )}
+                        rows={2}
+                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-900"
+                      />
+                      <textarea
+                        value={aiPrompt}
+                        onChange={(e) => setAiPrompt(e.target.value)}
+                        placeholder={t(
+                          'interviewCompany.aiPromptPlaceholder',
+                          'settings'
+                        )}
+                        rows={2}
+                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-900"
+                      />
+                      <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setShowAiPanel(false)}
+                          className="rounded-lg px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+                        >
+                          {t('interviewCompany.cancel', 'settings')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleGenerateWithAi}
+                          disabled={draftInterviewQuestionsMutation.isPending}
+                          className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {draftInterviewQuestionsMutation.isPending ? (
+                            <div className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                          ) : (
+                            <Sparkles className="size-4" />
+                          )}
+                          {t('interviewCompany.generate', 'settings')}
+                        </button>
+                      </div>
+                    </div>
                   )}
+
+                  <div className="space-y-5 p-6">
+                    {isLoading && (
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
+                        {t('interviewCompany.loading', 'settings')}
+                      </div>
+                    )}
+
+                    {!isLoading && groups.length === 0 && (
+                      <div className="rounded-xl border border-dashed border-slate-300 px-6 py-10 text-center dark:border-slate-700">
+                        <ClipboardList className="mx-auto mb-3 size-10 text-slate-300 dark:text-slate-600" />
+                        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                          {t('interviewCompany.emptyState', 'settings')}
+                        </p>
+                      </div>
+                    )}
+
+                    {groups.length > 0 && (
+                      <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragStart={handleGroupDragStart}
+                        onDragEnd={handleGroupDragEnd}
+                        onDragCancel={handleGroupDragCancel}
+                      >
+                        <SortableContext
+                          items={groups.map((g) => g._id)}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          {groups.map((group, groupIndex) => (
+                            <SortableGroupItem
+                              key={group._id}
+                              group={group}
+                              groupIndex={groupIndex}
+                              canEdit={canEdit}
+                              collapsedGroupIds={collapsedGroupIds}
+                              onToggleCollapse={() => {
+                                setCollapsedGroupIds((prev) => {
+                                  const next = new Set(prev);
+                                  if (next.has(group._id)) {
+                                    next.delete(group._id);
+                                  } else {
+                                    next.add(group._id);
+                                  }
+                                  return next;
+                                });
+                              }}
+                              onUpdateGroupName={(name) =>
+                                updateGroupName(groupIndex, name)
+                              }
+                              onRemoveGroup={() => removeGroup(groupIndex)}
+                              onAddQuestion={() => addQuestion(groupIndex)}
+                              onUpdateQuestion={(questionIndex, patch) =>
+                                updateQuestion(groupIndex, questionIndex, patch)
+                              }
+                              onRemoveQuestion={(questionIndex) =>
+                                removeQuestion(groupIndex, questionIndex)
+                              }
+                              activeQuestionId={activeQuestionId}
+                              onQuestionDragStart={handleQuestionDragStart}
+                              onQuestionDragEnd={handleQuestionDragEnd}
+                              onQuestionDragCancel={handleQuestionDragCancel}
+                              sensors={sensors}
+                              dropAnimation={dropAnimation}
+                              t={t}
+                              isFlashing={flashGroupIds.has(group._id)}
+                              onFlashDismiss={() => {
+                                setFlashGroupIds((prev) => {
+                                  const next = new Set(prev);
+                                  next.delete(group._id);
+                                  return next;
+                                });
+                              }}
+                            />
+                          ))}
+                        </SortableContext>
+                        {activeGroupId &&
+                          createPortal(
+                            <DragOverlay dropAnimation={dropAnimation}>
+                              <div className="flex items-center gap-3 rounded-xl border border-brand-400 bg-white px-4 py-3 shadow-xl dark:bg-slate-800">
+                                <GripVertical className="size-4 shrink-0 text-brand-500" />
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-sm font-medium">
+                                    {groups.find((g) => g._id === activeGroupId)
+                                      ?.name || ''}
+                                  </p>
+                                </div>
+                                <span className="shrink-0 text-xs text-slate-400">
+                                  {(() => {
+                                    const g = groups.find(
+                                      (g) => g._id === activeGroupId
+                                    );
+                                    return g
+                                      ? t(
+                                          'interviewCompany.questionCount',
+                                          'settings',
+                                          { count: g.questions.length }
+                                        )
+                                      : '';
+                                  })()}
+                                </span>
+                              </div>
+                            </DragOverlay>,
+                            document.body
+                          )}
+                      </DndContext>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ) : isRejectionTab ? (
-              <RejectionTab embedded />
-            ) : isApplicantStatusTab ? (
-              <StatusSettings embedded />
-            ) : isEmailTemplatesTab ? (
-              <EmailTemplates embedded />
-            ) : isApplicantPagesTab ? (
-              <ApplicantPagesSettings
-                companyId={effectiveCompanyId}
-                hideCompanySelector={true}
-                embedded
-              />
-            ) : isContractsTab ? (
-              <ContractsTab companyId={effectiveCompanyId!} hideCompanySelector={true} embedded />
-            ) : isOffersTab ? (
-              <JobOffersTab companyId={effectiveCompanyId!} hideCompanySelector={true} embedded />
-            ) : null}
+              ) : isRejectionTab ? (
+                <RejectionTab embedded />
+              ) : isApplicantStatusTab ? (
+                <StatusSettings embedded />
+              ) : isEmailTemplatesTab ? (
+                <EmailTemplates embedded />
+              ) : isApplicantPagesTab ? (
+                <ApplicantPagesSettings
+                  companyId={effectiveCompanyId}
+                  hideCompanySelector={true}
+                  embedded
+                />
+              ) : isContractsTab ? (
+                <ContractsTab
+                  companyId={effectiveCompanyId!}
+                  hideCompanySelector={true}
+                  embedded
+                />
+              ) : isOffersTab ? (
+                <JobOffersTab
+                  companyId={effectiveCompanyId!}
+                  hideCompanySelector={true}
+                  embedded
+                />
+              ) : null}
             </div>
           </div>
         </div>

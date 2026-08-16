@@ -368,5 +368,6 @@
   "cardPrimaryChangeFailed": "Failed to update primary card.",
   "aiGenerateFailed": "AI Generation Failed",
   "aiSummaryFailed": "Failed to generate AI summary",
-  "emailDraftFailed": "Failed to generate email draft"
+  "emailDraftFailed": "Failed to generate email draft",
+  "interviewQuestionsDraftFailed": "Failed to generate interview questions"
 }

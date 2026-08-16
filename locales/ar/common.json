@@ -363,6 +363,7 @@
   "planChangeCancelled": "تم إلغاء تغيير الخطة.",
   "planChangeCancelFailed": "فشل إلغاء تغيير الخطة.",
   "cardDeleted": "تم حذف البطاقة.",
+  "interviewQuestionsDraftFailed": "فشل إنشاء أسئلة المقابلة",
   "cardDeleteFailed": "فشل حذف البطاقة.",
   "cardPrimaryChanged": "تم تحديث البطاقة الأساسية.",
   "cardPrimaryChangeFailed": "فشل تحديث البطاقة الأساسية.",
