@@ -136,12 +136,18 @@ export default function PaymobCardForm({
           break;
         case 'paymentResponse': {
           setPaying(false);
-          const response = (msg.response ?? {}) as PaymentResponse;
-          const data = response.data ?? {};
+          const msgResponse = (msg.response ?? {}) as {
+            res?: PaymentResponse;
+            requiresOTP?: unknown;
+          };
+          const response = (msgResponse.res ?? msgResponse) as PaymentResponse;
+          const data = (response.data ?? {}) as Record<string, unknown>;
+          const requiresOTP = isTrue(msgResponse.requiresOTP);
           if (
             response.status === 200 &&
             isTrue(data.success) &&
-            !isTrue(data.is_3d_secure)
+            !isTrue(data.is_3d_secure) &&
+            !requiresOTP
           ) {
             onSuccess();
             return;
@@ -158,6 +164,7 @@ export default function PaymobCardForm({
             onPending(url);
             return;
           }
+          if (requiresOTP) return;
           setPayError(extractError(data, t('subscription.payFailed', 'settings')));
           break;
         }

@@ -33,7 +33,7 @@ export const paths = {
     savedFieldsPreview: (fieldId: string) =>
       `/recruiting/saved-fields/preview/${fieldId}`,
     savedQuestions: '/recruiting/saved-questions',
-    subscriptionComplete: '/recruiting/subscription/complete',
+    subscriptionComplete: '/recruiting/subscription/cards/complete',
   },
 
   companies: {
