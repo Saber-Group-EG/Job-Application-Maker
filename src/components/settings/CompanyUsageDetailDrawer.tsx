@@ -1,4 +1,3 @@
-// components/CompanyUsageDetailDrawer.tsx
 import { useState } from 'react';
 import {
   Drawer,
@@ -10,7 +9,8 @@ import {
   Stack,
   LinearProgress,
 } from '@mui/material';
-import Switch from '../../components/form/switch/Switch'; // adjust path to wherever this lives
+import Switch from '../../components/form/switch/Switch';
+import { useLocale } from '../../context/LocaleContext';
 import {
   useCompanyUsageDetail,
   useCompRequestQuota,
@@ -19,18 +19,6 @@ import {
   useToggleAiEnabled,
 } from '../../hooks/queries/useSystemSettings';
 
-const FEATURE_LABELS: Record<string, string> = {
-  jobFieldGenerator: 'Job Field Generator',
-  matchScore: 'Match Score',
-  candidateSummary: 'Candidate Summary',
-  emailDrafting: 'Email Drafting',
-  nlFilters: 'NL Filters',
-  interviewQuestionGen: 'Interview Question Gen',
-  offerGenerator: 'Offer Generator',
-  contractGenerator: 'Contract Generator',
-  cvParse: 'CV Parser',
-};
-
 export default function CompanyUsageDetailDrawer({
   companyId,
   onClose,
@@ -38,6 +26,7 @@ export default function CompanyUsageDetailDrawer({
   companyId: string | null;
   onClose: () => void;
 }) {
+  const { t, dir } = useLocale();
   const { data, isLoading } = useCompanyUsageDetail(companyId);
   const compQuota = useCompRequestQuota();
   const compCredits = useCompAiCredits();
@@ -47,9 +36,29 @@ export default function CompanyUsageDetailDrawer({
   const [quotaAmount, setQuotaAmount] = useState('');
   const [creditsAmount, setCreditsAmount] = useState('');
 
+  const FEATURE_LABELS: Record<string, string> = {
+    jobFieldGenerator: t('featureJobFieldGenerator', 'systemSettings'),
+    matchScore: t('featureMatchScore', 'systemSettings'),
+    candidateSummary: t('featureCandidateSummary', 'systemSettings'),
+    emailDrafting: t('featureEmailDrafting', 'systemSettings'),
+    nlFilters: t('featureNlFilters', 'systemSettings'),
+    interviewQuestionGen: t('featureInterviewQuestionGen', 'systemSettings'),
+    offerGenerator: t('featureOfferGenerator', 'systemSettings'),
+    contractGenerator: t('featureContractGenerator', 'systemSettings'),
+    cvParse: t('featureCvParse', 'systemSettings'),
+  };
+
   return (
-    <Drawer anchor="right" open={!!companyId} onClose={onClose}>
-      <Box sx={{ width: 420, p: 3 }}>
+    <Drawer
+      anchor={dir === 'rtl' ? 'left' : 'right'}
+      open={!!companyId}
+      onClose={onClose}
+    >
+      <Box
+        sx={{ width: 420, p: 3 }}
+        role="dialog"
+        aria-label={t('drawerAriaLabel', 'systemSettings')}
+      >
         {isLoading || !data ? (
           <LinearProgress />
         ) : (
@@ -59,14 +68,18 @@ export default function CompanyUsageDetailDrawer({
             </Typography>
 
             <Box>
-              <Typography variant="subtitle2">Request Quota</Typography>
+              <Typography variant="subtitle2">
+                {t('drawerRequestQuota', 'systemSettings')}
+              </Typography>
               <Typography variant="body2">
-                {data.requestUsage?.count ?? 0} used this cycle
+                {t('drawerUsedThisCycle', 'systemSettings', {
+                  count: data.requestUsage?.count ?? 0,
+                })}
               </Typography>
               <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
                 <TextField
                   size="small"
-                  label="Comp amount"
+                  label={t('drawerCompAmount', 'systemSettings')}
                   type="number"
                   value={quotaAmount}
                   onChange={(e) => setQuotaAmount(e.target.value)}
@@ -82,7 +95,7 @@ export default function CompanyUsageDetailDrawer({
                     )
                   }
                 >
-                  Comp
+                  {t('drawerCompButton', 'systemSettings')}
                 </Button>
               </Stack>
             </Box>
@@ -90,17 +103,23 @@ export default function CompanyUsageDetailDrawer({
             <Divider />
 
             <Box>
-              <Typography variant="subtitle2">AI Credits ($)</Typography>
+              <Typography variant="subtitle2">
+                {t('drawerAiCredits', 'systemSettings')}
+              </Typography>
               <Typography variant="body2">
-                ${data.aiUsage?.currentUsage?.toFixed(2) ?? '0.00'} used
+                {t('drawerUsedAmount', 'systemSettings', {
+                  amount: data.aiUsage?.currentUsage?.toFixed(2) ?? '0.00',
+                })}
                 {data.aiUsage?.compedCredits
-                  ? ` (${data.aiUsage.compedCredits} comped)`
+                  ? ` ${t('drawerComped', 'systemSettings', {
+                      count: data.aiUsage.compedCredits,
+                    })}`
                   : ''}
               </Typography>
               <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
                 <TextField
                   size="small"
-                  label="Comp amount"
+                  label={t('drawerCompAmount', 'systemSettings')}
                   type="number"
                   value={creditsAmount}
                   onChange={(e) => setCreditsAmount(e.target.value)}
@@ -116,7 +135,7 @@ export default function CompanyUsageDetailDrawer({
                     )
                   }
                 >
-                  Comp
+                  {t('drawerCompButton', 'systemSettings')}
                 </Button>
               </Stack>
             </Box>
@@ -129,9 +148,11 @@ export default function CompanyUsageDetailDrawer({
                 justifyContent="space-between"
                 alignItems="center"
               >
-                <Typography variant="subtitle1">AI Enabled</Typography>
+                <Typography variant="subtitle1">
+                  {t('drawerAiEnabled', 'systemSettings')}
+                </Typography>
                 <Switch
-                  label=""
+                  label={t('drawerAiEnabled', 'systemSettings')}
                   checked={!!data.aiSettings?.enabled}
                   disabled={toggleAiEnabled.isPending}
                   onChange={(checked) =>
@@ -141,14 +162,13 @@ export default function CompanyUsageDetailDrawer({
                 />
               </Stack>
               <Typography variant="caption" color="text.secondary">
-                Master switch — disabling this blocks every AI feature for the
-                company regardless of individual toggles below.
+                {t('drawerAiEnabledHelp', 'systemSettings')}
               </Typography>
             </Box>
 
             <Box>
               <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                AI Features
+                {t('drawerAiFeatures', 'systemSettings')}
               </Typography>
               <Stack spacing={0.5}>
                 {Object.entries(data.aiSettings?.featureToggles ?? {}).map(
@@ -163,7 +183,7 @@ export default function CompanyUsageDetailDrawer({
                         {FEATURE_LABELS[key] ?? key}
                       </Typography>
                       <Switch
-                        label=""
+                        label={FEATURE_LABELS[key] ?? key}
                         checked={!!enabled}
                         disabled={toggleFeature.isPending}
                         onChange={(checked) =>
