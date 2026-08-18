@@ -1,13 +1,15 @@
 // services/systemSettingsService.ts
-import axios from "../config/axios";
-import { getErrorMessage } from "../utils/errorHandler";
+import axios from '../config/axios';
+import { getErrorMessage } from '../utils/errorHandler';
 import type {
   RecommendedField,
   CreateRecommendedFieldRequest,
   UpdateRecommendedFieldRequest,
+  UsageOverviewResponse,
+  CompanyUsageDetail,
 } from '../types/SystemSettings';
 import { TableLayout } from '../types/auth';
-import { ApiError } from "./companiesService";
+import { ApiError } from './companiesService';
 
 // Re-export types
 export type {
@@ -27,14 +29,14 @@ class SystemSettingsService {
     try {
       const config = { params };
       let response;
-      
+
       if (method === 'get' || method === 'delete') {
         response = await axios[method](url, config);
       } else {
         response = await axios[method](url, data, config);
       }
-      
-      return response.data?.data ?? response.data;
+
+      return response.data;
     } catch (error: any) {
       throw new ApiError(
         getErrorMessage(error),
@@ -45,45 +47,152 @@ class SystemSettingsService {
   }
 
   // ===== Recommended Fields =====
+
   async getAllRecommendedFields(): Promise<RecommendedField[]> {
-    const response = await this.request<RecommendedField[]>('get', '/system-settings/recommended-fields');
+    const response = await this.request<RecommendedField[]>(
+      'get',
+      '/system-settings/recommended-fields'
+    );
+
     return Array.isArray(response) ? response : [];
   }
 
   async getRecommendedFieldById(fieldId: string): Promise<RecommendedField> {
     const encodedId = encodeURIComponent(fieldId);
-    return this.request<RecommendedField>('get', `/system-settings/recommended-fields/${encodedId}`);
+
+    return this.request<RecommendedField>(
+      'get',
+      `/system-settings/recommended-fields/${encodedId}`
+    );
   }
 
-  async createRecommendedField(fieldData: CreateRecommendedFieldRequest): Promise<RecommendedField> {
-    return this.request<RecommendedField>('post', '/system-settings/recommended-fields', fieldData);
+  async createRecommendedField(
+    fieldData: CreateRecommendedFieldRequest
+  ): Promise<RecommendedField> {
+    return this.request<RecommendedField>(
+      'post',
+      '/system-settings/recommended-fields',
+      fieldData
+    );
   }
 
-  async updateRecommendedField(fieldId: string, fieldData: UpdateRecommendedFieldRequest): Promise<RecommendedField> {
+  async updateRecommendedField(
+    fieldId: string,
+    fieldData: UpdateRecommendedFieldRequest
+  ): Promise<RecommendedField> {
     const encodedId = encodeURIComponent(fieldId);
-    return this.request<RecommendedField>('put', `/system-settings/recommended-fields/${encodedId}`, fieldData);
+
+    return this.request<RecommendedField>(
+      'put',
+      `/system-settings/recommended-fields/${encodedId}`,
+      fieldData
+    );
   }
 
   async deleteRecommendedField(fieldId: string): Promise<void> {
     const encodedId = encodeURIComponent(fieldId);
-    await this.request<void>('delete', `/system-settings/recommended-fields/${encodedId}`);
+
+    await this.request<void>(
+      'delete',
+      `/system-settings/recommended-fields/${encodedId}`
+    );
   }
 
   // ===== Table Layout Preferences =====
+
   async getTableLayout(tableKey: string): Promise<TableLayout> {
     try {
-      const response = await this.request<any>('get', `/users/preferences/${tableKey}`);
-      return response ?? { columnVisibility: {}, columnSizing: {}, columnOrder: [] };
+      const response = await this.request<any>(
+        'get',
+        `/users/preferences/${tableKey}`
+      );
+
+      return (
+        response ?? {
+          columnVisibility: {},
+          columnSizing: {},
+          columnOrder: [],
+        }
+      );
     } catch (error: any) {
       if (error.statusCode === 404) {
-        return { columnVisibility: {}, columnSizing: {}, columnOrder: [] };
+        return {
+          columnVisibility: {},
+          columnSizing: {},
+          columnOrder: [],
+        };
       }
+
       throw error;
     }
   }
 
   async saveTableLayout(tableKey: string, layout: TableLayout): Promise<void> {
     await this.request<void>('patch', `/users/preferences/${tableKey}`, layout);
+  }
+
+  // ===== Company Usage Overview =====
+
+  async getCompaniesUsageOverview(params: {
+    page: number;
+    limit: number;
+    search?: string;
+    status?: string;
+  }): Promise<UsageOverviewResponse> {
+    return this.request<UsageOverviewResponse>(
+      'get',
+      '/admin-usage',
+      undefined,
+      params
+    );
+  }
+
+  // ===== Company Usage Detail =====
+
+  async getCompanyUsageDetail(companyId: string): Promise<CompanyUsageDetail> {
+    return this.request<CompanyUsageDetail>(
+      'get',
+      `/admin-usage/${encodeURIComponent(companyId)}`
+    );
+  }
+  // ===== Compensate Request Quota =====
+
+  async compRequestQuota(companyId: string, amount: number) {
+    return this.request(
+      'patch',
+      `/admin-usage/${encodeURIComponent(companyId)}/quota-comp`,
+      { amount }
+    );
+  }
+
+  // ===== Compensate AI Credits =====
+
+  async compAiCredits(companyId: string, amount: number) {
+    return this.request(
+      'patch',
+      `/admin-usage/${encodeURIComponent(companyId)}/ai-credits-comp`,
+      { amount }
+    );
+  }
+
+  // ===== Toggle AI Feature =====
+
+  async toggleAiFeature(companyId: string, feature: string, enabled: boolean) {
+    return this.request(
+      'patch',
+      `/admin-usage/${encodeURIComponent(companyId)}/ai-feature-toggle`,
+      {
+        feature,
+        enabled,
+      }
+    );
+  }
+  async toggleAiEnabled(companyId: string, enabled: boolean) {
+    return this.request(
+      'patch',
+      `/admin-usage/${encodeURIComponent(companyId)}/ai-enabled-toggle`,
+      { enabled }
+    );
   }
 }
 

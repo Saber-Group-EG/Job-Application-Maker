@@ -13,7 +13,13 @@ type NavItem = {
   tKey?: string;
   icon: React.ReactNode;
   path?: string;
-  subItems?: { name: string; tKey?: string; path: string; pro?: boolean; new?: boolean }[];
+  subItems?: {
+    name: string;
+    tKey?: string;
+    path: string;
+    pro?: boolean;
+    new?: boolean;
+  }[];
 };
 
 const adminItems: NavItem[] = [
@@ -23,8 +29,18 @@ const adminItems: NavItem[] = [
     tKey: 'userManagement',
     subItems: [
       { name: 'Users', tKey: 'users', path: '/users', pro: false },
-      { name: 'Permissions & Roles', tKey: 'permissionsRoles', path: '/permissions', pro: false },
-      { name: 'Recommended Fields', tKey: 'recommendedFields', path: '/recommended-fields', pro: false },
+      {
+        name: 'Permissions & Roles',
+        tKey: 'permissionsRoles',
+        path: '/permissions',
+        pro: false,
+      },
+      {
+        name: 'Recommended Fields',
+        tKey: 'recommendedFields',
+        path: '/recommended-fields',
+        pro: false,
+      },
     ],
   },
 ];
@@ -35,6 +51,11 @@ const AppSidebar: React.FC = () => {
   const { t, dir } = useLocale();
   const location = useLocation();
   const { data: companies = [] } = useCompanies();
+
+  const hasAdminUsageAccess = useMemo(() => {
+    const roleName = user?.roleId?.name?.toLowerCase?.();
+    return String(roleName) === 'super admin' || String(roleName) === 'admin';
+  }, [user]);
 
   // Get applicant pages from companies data (from /auth/me)
   const applicantPageSubItems = useMemo(() => {
@@ -59,7 +80,7 @@ const AppSidebar: React.FC = () => {
       .map((p: any) => ({
         name: p.name,
         tKey: undefined as string | undefined,
-        path: `/applicants/page/${encodeURIComponent(p.name)}?statuses=${(p.statuses || []).map(encodeURIComponent).join(',')}${(p.jobPositions?.length ? `&jobPositions=${p.jobPositions.map(encodeURIComponent).join(',')}` : '')}`,
+        path: `/applicants/page/${encodeURIComponent(p.name)}?statuses=${(p.statuses || []).map(encodeURIComponent).join(',')}${p.jobPositions?.length ? `&jobPositions=${p.jobPositions.map(encodeURIComponent).join(',')}` : ''}`,
         pro: false,
       }));
   }, [companies]);
@@ -126,7 +147,12 @@ const AppSidebar: React.FC = () => {
       name: 'Applicants',
       tKey: 'applicants',
       subItems: [
-        { name: 'All Applicants', tKey: 'allApplicants', path: '/applicants', pro: false },
+        {
+          name: 'All Applicants',
+          tKey: 'allApplicants',
+          path: '/applicants',
+          pro: false,
+        },
         {
           name: 'Blue Caller Applicants',
           tKey: 'blueCallerApplicants',
@@ -177,9 +203,24 @@ const AppSidebar: React.FC = () => {
       name: 'Company Settings',
       tKey: 'companySettings',
       subItems: [
-        { name: 'Create Company', tKey: 'createCompany', path: '/recruiting', pro: false },
-        { name: 'Companies', tKey: 'companies', path: '/companies', pro: false },
-        { name: 'Subscription', tKey: 'subscription', path: '/recruiting/subscription', pro: false },
+        {
+          name: 'Create Company',
+          tKey: 'createCompany',
+          path: '/recruiting',
+          pro: false,
+        },
+        {
+          name: 'Companies',
+          tKey: 'companies',
+          path: '/companies',
+          pro: false,
+        },
+        {
+          name: 'Subscription',
+          tKey: 'subscription',
+          path: '/recruiting/subscription',
+          pro: false,
+        },
         {
           name: 'Mail Settings',
           tKey: 'mailSettings',
@@ -199,7 +240,12 @@ const AppSidebar: React.FC = () => {
       name: 'Jobs Management',
       tKey: 'jobsManagement',
       subItems: [
-        { name: 'Create Job', tKey: 'createJob', path: '/create-job', pro: false },
+        {
+          name: 'Create Job',
+          tKey: 'createJob',
+          path: '/create-job',
+          pro: false,
+        },
         { name: 'Jobs', tKey: 'jobs', path: '/jobs', pro: false },
       ],
     },
@@ -208,7 +254,12 @@ const AppSidebar: React.FC = () => {
       name: 'User Settings',
       tKey: 'userSettings',
       subItems: [
-        { name: 'Saved Fields', tKey: 'savedFields', path: '/recruiting/saved-fields', pro: false },
+        {
+          name: 'Saved Fields',
+          tKey: 'savedFields',
+          path: '/recruiting/saved-fields',
+          pro: false,
+        },
         {
           name: 'Saved Questions',
           tKey: 'savedQuestions',
@@ -217,6 +268,16 @@ const AppSidebar: React.FC = () => {
         },
       ],
     },
+        ...(hasAdminUsageAccess
+      ? [
+          {
+            icon: <TaskIcon />,
+            name: 'Company Usage',
+            tKey: 'companyUsage',
+            path: '/admin-settings',
+          },
+        ]
+      : []),
   ];
 
   useEffect(() => {
@@ -270,7 +331,13 @@ const AppSidebar: React.FC = () => {
 
   const renderMenuItems = (items: NavItem[], menuType: 'main' | 'admin') => {
     const filterSubItems = (
-      subItems: { name: string; tKey?: string; path: string; pro?: boolean; new?: boolean }[]
+      subItems: {
+        name: string;
+        tKey?: string;
+        path: string;
+        pro?: boolean;
+        new?: boolean;
+      }[]
     ) => {
       return subItems.filter((subItem) => {
         if (subItem.path === '/applicants')
@@ -353,7 +420,9 @@ const AppSidebar: React.FC = () => {
                       {nav.icon}
                     </span>
                     {(isExpanded || isHovered || isMobileOpen) && (
-                      <span className="menu-item-text">{t(nav.tKey ?? nav.name)}</span>
+                      <span className="menu-item-text">
+                        {t(nav.tKey ?? nav.name)}
+                      </span>
                     )}
                     {(isExpanded || isHovered || isMobileOpen) && (
                       <ChevronDownIcon
@@ -380,7 +449,9 @@ const AppSidebar: React.FC = () => {
                             : '0px',
                       }}
                     >
-                      <ul className={`mt-2 space-y-1 ${dir === 'ltr' ? 'ml-9' : 'mr-9'}`}>
+                      <ul
+                        className={`mt-2 space-y-1 ${dir === 'ltr' ? 'ml-9' : 'mr-9'}`}
+                      >
                         {visibleSubItems.map((subItem) => (
                           <li key={subItem.path}>
                             <Link
@@ -395,7 +466,9 @@ const AppSidebar: React.FC = () => {
                               subItem.path === '/companies'
                                 ? t('companyData')
                                 : t(subItem.tKey ?? subItem.name)}
-                              <span className={`flex items-center gap-1 ${dir === 'ltr' ? 'ml-auto' : 'mr-auto'}`}>
+                              <span
+                                className={`flex items-center gap-1 ${dir === 'ltr' ? 'ml-auto' : 'mr-auto'}`}
+                              >
                                 {subItem.new && (
                                   <span
                                     className={`${dir === 'ltr' ? 'ml-auto' : 'mr-auto'} ${
@@ -446,7 +519,9 @@ const AppSidebar: React.FC = () => {
                       {nav.icon}
                     </span>
                     {(isExpanded || isHovered || isMobileOpen) && (
-                      <span className="menu-item-text">{t(nav.tKey ?? nav.name)}</span>
+                      <span className="menu-item-text">
+                        {t(nav.tKey ?? nav.name)}
+                      </span>
                     )}
                   </Link>
                 )

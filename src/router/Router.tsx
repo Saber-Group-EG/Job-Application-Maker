@@ -115,7 +115,9 @@ const PreviewRole = lazy(() => import('../pages/Recruiting/roles/PreviewRole'));
 const RecommendedFields = lazy(
   () => import('../pages/Recruiting/systemSettings/RecommendedFields')
 );
-
+const AdminSettings = lazy(
+  () => import('../pages/Recruiting/systemSettings/adminSettings')
+)
 // Inquiries
 const InquiriesList = lazy(() => import('../pages/Inquiries/InquiriesList'));
 const InquiryPreview = lazy(() => import('../pages/Inquiries/InquiryPreview'));
@@ -315,6 +317,7 @@ export default function App() {
                   path={paths.admin.recommendedFields}
                   element={<RecommendedFields />}
                 />
+                <Route path={paths.admin.adminSettings} element={<AdminSettings />} />
               </Route>
 
               {/* Inquiries */}

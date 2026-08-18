@@ -70,3 +70,45 @@ export type UpdateRecommendedFieldRequest = {
   defaultValue?: string;
   order?: number;
 };
+
+export interface CompanyUsageRow {
+  companyId: string;
+  companyName: { en: string; ar: string };
+  companyLogo: string | null;
+  planName: string;
+  subscriptionStatus: string;
+  requestQuota: { used: number; limit: number };
+  aiCredits: { used: number; limit: number };
+  aiEnabled: boolean;
+  featureToggles: Record<string, boolean>;
+}
+
+export interface UsageOverviewResponse {
+  data: CompanyUsageRow[];
+  page: number;
+  limit: number;
+}
+
+// types/SystemSettings.ts
+export interface CompanyUsageDetail {
+  subscription?: {
+    companyId?: {
+      name: { en: string; ar: string };
+    };
+    planName?: string;
+    status?: string;
+  };
+  requestUsage?: {
+    count: number;
+    limit?: number;
+  };
+  aiUsage?: {
+    currentUsage: number;
+    compedCredits?: number;
+    limit?: number;
+  };
+  aiSettings?: {
+    featureToggles?: Record<string, boolean>;
+    enabled?: boolean;
+  };
+}
