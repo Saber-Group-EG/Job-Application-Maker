@@ -44,7 +44,7 @@ import { useApplicantFilters } from './hooks/useApplicantFilters';
 import { useAnimatedColumnDrag } from '../../../../hooks/useAnimatedColumnDrag';
 
 // Utils
-import { exportToExcel } from './utils/exportHelpers';
+import { exportToExcel, extractRejectionReasons } from './utils/exportHelpers';
 import { normalizeGender, getApplicantCompanyId } from './utils/filterHelpers';
 import { getPreviousStatus, isTrashed } from '../../../../pages/Recruiting/ApplicantPage/utils/statusUtils';
 
@@ -57,7 +57,6 @@ import {
 } from 'material-react-table';
 import { ThemeProvider, createTheme } from '@mui/material';
 import { Skeleton } from '@mui/material';
-import type { Applicant } from '../../../../types/applicants';
 import { FileSignature, FileText } from 'lucide-react';
 import JobOfferModal from '../../../../components/modals/JobOffersModal/JobOffersModal';
 import JobContractModal from '../../../../components/modals/ContractModal/ContractModal';
@@ -1858,41 +1857,6 @@ const jobOptions = useMemo(() => {
     );
   };
 
-  const extractRejectionReasons = useCallback(
-    (applicant: Applicant): string[] => {
-      try {
-        const history = applicant?.statusHistory;
-        if (Array.isArray(history)) {
-          const rejected = history.filter(
-            (h: any) =>
-              String(h?.status || '').toLowerCase() === applicant.status
-          );
-          if (rejected.length) {
-            rejected.sort((x: any, y: any) => {
-              const tx = x?.changedAt ? new Date(x.changedAt).getTime() : 0;
-              const ty = y?.changedAt ? new Date(y.changedAt).getTime() : 0;
-              return ty - tx;
-            });
-            const latest = rejected[0] || {};
-            const reasons = latest.reasons ?? [];
-            if (Array.isArray(reasons)) {
-              return reasons
-                .map((r: any) => String(r ?? '').trim())
-                .filter(Boolean);
-            }
-            if (typeof reasons === 'string' && reasons) {
-              return [reasons];
-            }
-          }
-        }
-        return [];
-      } catch (e) {
-        return [];
-      }
-    },
-    []
-  );
-
   const rejectionReasonsOptions = useMemo(() => {
     const reasonsSet = new Set<string>();
     (filteredApplicants || []).forEach((applicant: any) => {
@@ -1904,7 +1868,7 @@ const jobOptions = useMemo(() => {
     return Array.from(reasonsSet)
       .sort()
       .map((reason) => ({ id: reason, title: reason }));
-  }, [filteredApplicants, extractRejectionReasons]);
+  }, [filteredApplicants]);
 
   const unfilteredCounts = useMemo(() => {
     const allRows = Array.isArray(applicants) ? applicants : [];

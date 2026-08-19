@@ -3,6 +3,7 @@ import { useMemo, useCallback } from 'react';
 import { sortApplicantsByDuplicatePriority, buildApplicantDuplicateLookup } from '../../../../../utils/applicantDuplicateSort';
 import { applyCustomFilters, getApplicantCompanyId } from '../utils/filterHelpers';
 import { normalizeGender } from '../utils/filterHelpers';
+import { extractRejectionReasons } from '../utils/exportHelpers';
 
 interface UseApplicantFiltersProps {
   applicants: any[];
@@ -176,6 +177,29 @@ export function useApplicantFilters({
       });
     }
     
+    // Apply rejection reasons filter with exclude mode support
+    const reasonsFilter = columnFilters.find((f: any) => f.id === 'rejectionReasons');
+    const reasonsFilterValue = reasonsFilter?.value;
+    const reasonsExcludeMode = excludeColumns.includes('rejectionReasons');
+
+    if (reasonsFilterValue && (Array.isArray(reasonsFilterValue) ? reasonsFilterValue.length > 0 : true)) {
+      const selectedReasons = Array.isArray(reasonsFilterValue) ? reasonsFilterValue : [reasonsFilterValue];
+      filtered = filtered.filter((applicant: any) => {
+        const applicantReasons = extractRejectionReasons(applicant);
+        if (!Array.isArray(applicantReasons) || applicantReasons.length === 0) {
+          return reasonsExcludeMode;
+        }
+        const matches = selectedReasons.some((selectedReason: string) =>
+          applicantReasons.some(
+            (applicantReason: string) =>
+              applicantReason.toLowerCase().includes(selectedReason.toLowerCase()) ||
+              selectedReason.toLowerCase().includes(applicantReason.toLowerCase())
+          )
+        );
+        return reasonsExcludeMode ? !matches : matches;
+      });
+    }
+    
     // Apply status filter (from props or URL params)
     const hasEffectiveStatus = effectiveOnlyStatus !== undefined && effectiveOnlyStatus !== null && effectiveOnlyStatus !== '';
     if (hasEffectiveStatus) {
@@ -261,7 +285,7 @@ export function useApplicantFilters({
     }
 
     return filtered;
-  }, [columnFilters, isSuperAdmin, effectiveOnlyStatus, selectedCompanyFilterValue, jobPositionMap, normalizeStatus, isTrashed, globalFilter, allCompaniesRaw]);
+  }, [columnFilters, isSuperAdmin, effectiveOnlyStatus, selectedCompanyFilterValue, jobPositionMap, normalizeStatus, isTrashed, globalFilter, allCompaniesRaw, excludeColumns, extractRejectionReasons]);
 
   // Get filtered data based on column filters
   const columnFilteredApplicants = useMemo(() => {
