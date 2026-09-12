@@ -313,5 +313,6 @@
   "previewErrorFallback": "حدث خطأ غير متوقع",
 
   "jobsCreatedAt": "تم الإنشاء {date}",
+  "jobsOpenForm": "فتح نموذج التقديم",
   "previewDetailsFor": "تفاصيل {title}"
 }

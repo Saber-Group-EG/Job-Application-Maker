@@ -16,6 +16,7 @@ import {
   Trash2Icon,
   PencilIcon,
   RefreshCwIcon,
+  ExternalLinkIcon,
 } from 'lucide-react';
 import Swal from '../../../utils/swal';
 import {
@@ -27,7 +28,7 @@ import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import { useAuth } from '../../../context/AuthContext';
 import { useLocale } from '../../../context/LocaleContext';
 import { useCompanyFilter } from '../../../context/CompanyFilterContext';
-import { toPlainString } from '../../../utils/strings';
+import { toPlainString, toSlug } from '../../../utils/strings';
 import { normalizeFieldConfig } from '../../../utils/jobUtils';
 import Switch from '../../../components/form/switch/Switch';
 import { jobPositionsService } from '../../../services/jobPositionsService';
@@ -234,6 +235,16 @@ function SortableJobCard({
           className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100"
           onClick={(e) => e.preventDefault()}
         >
+          <a
+            href={`https://form.sabergroup-eg.com/${toSlug(job.companyId?.name, 'en')}/${toSlug(job.title, 'en')}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="p-1.5 text-slate-400 hover:text-brand-600 transition-colors bg-white/80 rounded-lg dark:bg-slate-800"
+            title={t('jobsOpenForm', 'jobs')}
+          >
+            <ExternalLinkIcon className="size-4" />
+          </a>
           {canManageJobs && (
             <button
               onClick={(e) => {

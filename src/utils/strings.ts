@@ -96,3 +96,14 @@ export const toPlainString = (val: any, locale?: string): string => {
   }
   return String(val);
 };
+
+export const toSlug = (value: any, locale?: string): string => {
+  const plain = toPlainString(value, locale);
+  return plain
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/[\s_]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+};
