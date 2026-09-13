@@ -107,7 +107,7 @@ class CompaniesService {
         'get',
         '/companies',
         undefined,
-        { deleted: 'false' }
+        { deleted: 'false', PageCount: 'all' }
       );
       return Array.isArray(response) ? response : [];
     }
