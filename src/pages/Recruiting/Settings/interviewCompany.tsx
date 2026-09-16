@@ -45,17 +45,13 @@ import PageBreadCrumb from '../../../components/common/PageBreadCrumb';
 import { useAuth } from '../../../context/AuthContext';
 import { useLocale } from '../../../context/LocaleContext';
 import {
-  useCompanies,
-  useCompanyInterviewSettings,
-  useUpdateCompanyInterviewSettings,
-import {
   companiesKeys,
   useCompanies,
   useCompanyInterviewSettings,
   useDraftInterviewQuestionsWithAi,
   useUpdateCompanyInterviewSettings,
 } from '../../../hooks/queries/useCompanies';
-} from '../../../hooks/queries/useCompanies';
+import { queryClient } from '../../../lib/queryClient';
 import RejectionTab from './Rejectiontab';
 import StatusSettings from './StatusSettings';
 import EmailTemplates from './MailTemplate';
@@ -1309,6 +1305,16 @@ export default function InterviewCompanySettingsPage() {
     }).finally(() => {
       setIsSaving(false);
     });
+  } catch (error: any) {
+      setGroups(prev => prev === optimisticGroups ? normalizeGroups(derivedInterviewSettings?.groups).map((g, i) => ({ ...g, _id: prev[i]?._id ?? uid() })) as (InterviewGroup & { _id: string })[] : prev);
+      Swal.fire(
+        t('interviewCompany.swalSaveFailed', 'settings'),
+        error?.message || t('interviewCompany.swalSaveFailedMsg', 'settings'),
+        'error'
+      );
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (!canRead) {

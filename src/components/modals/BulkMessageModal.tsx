@@ -1,6 +1,6 @@
 import Swal from '../../utils/swal';
 import { Modal } from '../ui/modal';
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   useDraftEmailTemplateWithAi,
   useSendBatchEmail,
@@ -13,6 +13,7 @@ import Input from '../form/input/InputField';
 import { useLocale } from '../../context/LocaleContext';
 import { filterTemplatesByCategory } from '../../utils/mailTemplateCategories';
 import RichTextEditor from '../form/RichTextEditor';
+import TextArea from '../form/input/TextArea';
 
 const BulkMessageModal = ({
   isOpen,

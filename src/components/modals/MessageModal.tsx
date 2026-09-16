@@ -1,7 +1,11 @@
 import Swal from '../../utils/swal';
 import { Modal } from '../ui/modal';
 import { useState, useEffect, useMemo } from 'react';
-import { useSendMessage, useSendEmail } from '../../hooks/queries';
+import {
+  useSendMessage,
+  useSendEmail,
+  useDraftEmailTemplateWithAi,
+} from '../../hooks/queries';
 import { getErrorMessage } from '../../utils/errorHandler';
 import Label from '../form/Label';
 import Select from '../form/Select';
@@ -71,7 +75,10 @@ const MessageModal = ({
     // Extract templates from company.settings.mailSettings.emailTemplates
     const templates = company?.settings?.mailSettings?.emailTemplates || [];
     // Inquiries use "support" templates, otherwise "applicants" templates
-    return filterTemplatesByCategory(templates, isInquiry ? 'support' : 'applicants');
+    return filterTemplatesByCategory(
+      templates,
+      isInquiry ? 'support' : 'applicants'
+    );
   }, [company, isInquiry]);
 
   const extractDomain = (email?: string | null) => {
@@ -943,8 +950,12 @@ const MessageModal = ({
               <>
                 <RichTextEditor
                   value={messageForm.body}
-<RichTextEditor value={messageForm.body} onChange={(content) => setMessageForm({ ...messageForm, body: content })} minHeight={120} />
+                  onChange={(content) =>
+                    setMessageForm({ ...messageForm, body: content })
+                  }
+                  minHeight={120}
                 />
+
                 <p className="mt-2 text-xs text-gray-500">
                   {t('availableVariables', 'modals')}
                 </p>

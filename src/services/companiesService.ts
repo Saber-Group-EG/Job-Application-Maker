@@ -515,7 +515,6 @@ interface CompanyInterviewsResponse {
     total: number;
   };
 }
-}
 
 // ===== Email Templates Service =====
 class EmailTemplatesService {

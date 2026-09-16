@@ -9,10 +9,6 @@ import type {
   ScheduleInterviewRequest,
   UpdateInterviewStatusRequest,
   AddCommentRequest,
-  SendMessageRequest,
-  Applicant,
-import {
-  AddCommentRequest,
   Activity,
   Applicant,
   InterviewAnswer,
@@ -685,7 +681,10 @@ export function useMarkApplicantSeen() {
 
 // Update applicant status
 type UpdateStatusVariables = { id: string; data: UpdateStatusRequest; silent?: boolean };
-type UpdateStatusContext = { previousLists: Record<string, Applicant[] | undefined>; previousDetailData: Record<string, any> };
+type UpdateStatusContext = {
+  previousLists: Record<string, Applicant[] | undefined>;
+  previousDetail: Applicant | undefined;
+};
 
 export function useUpdateApplicantStatus() {
   const queryClient = useQueryClient();
@@ -694,33 +693,27 @@ export function useUpdateApplicantStatus() {
   return useMutation<Applicant, ApiError, UpdateStatusVariables, UpdateStatusContext>({
     mutationFn: ({ id, data }: UpdateStatusVariables) =>
       applicantsService.updateApplicantStatus(id, data),
+
     onMutate: async ({ id, data, silent }) => {
       await queryClient.cancelQueries({ queryKey: applicantsKeys.all });
 
-const previousDetail = queryClient.getQueryData<Applicant>(
+      // Snapshot the detail query
+      const previousDetail = queryClient.getQueryData<Applicant>(
         applicantsKeys.detail(id)
       );
+
+      // Snapshot all active list queries
       const previousLists: Record<string, Applicant[] | undefined> = {};
-      const queryCache = queryClient.getQueryCache();
-      const listQueries = queryCache.findAll({
-        queryKey: applicantsKeys.all
-      });
-      listQueries.forEach((query) => {
-        const key = query.queryKey as string[];
-        if (key.length > 0) {
-          previousLists[JSON.stringify(key)] = query.state.data as Applicant[] | undefined;
-        }
-      });
-      const previousLists: Record<string, Applicant[] | undefined> = {};
-      const queryCache = queryClient.getQueryCache();
-      const listQueries = queryCache.findAll({
+      const listQueries = queryClient.getQueryCache().findAll({
         queryKey: applicantsKeys.lists(),
         type: 'active',
       });
+
       listQueries.forEach((query) => {
         previousLists[JSON.stringify(query.queryKey)] = query.state.data as
           | Applicant[]
           | undefined;
+
         queryClient.setQueryData(
           query.queryKey,
           (old: Applicant[] | undefined) => {
@@ -732,17 +725,18 @@ const previousDetail = queryClient.getQueryData<Applicant>(
         );
       });
 
-      const previousDetailData: Record<string, any> = {};
-      queryClient.setQueriesData({ queryKey: applicantsKeys.detail(id) }, (old: any) => {
-        if (!old) return old;
-        previousDetailData[JSON.stringify(queryClient.getQueryCache().find({ queryKey: applicantsKeys.detail(id) })?.queryKey)] = old;
-        return { ...old, status: data.status };
-      });
+      // Optimistically update the detail query
+      queryClient.setQueryData(
+        applicantsKeys.detail(id),
+        (old: Applicant | undefined) =>
+          old ? { ...old, status: data.status } : old
+      );
 
       if (!silent) showSuccessToast(t('statusUpdated', 'common'), t);
 
-      return { previousLists, previousDetailData };
+      return { previousLists, previousDetail };
     },
+
     onSuccess: (updatedApplicant, { id }) => {
       const looksLikeApplicant =
         updatedApplicant &&
@@ -755,20 +749,18 @@ const previousDetail = queryClient.getQueryData<Applicant>(
           (updatedApplicant as Partial<Applicant>).status !== undefined);
 
       if (looksLikeApplicant) {
-        queryClient.setQueriesData({ queryKey: applicantsKeys.detail(id) }, updatedApplicant);
+        queryClient.setQueryData(applicantsKeys.detail(id), updatedApplicant);
       }
     },
+
     onError: (error: ApiError, { id }, context) => {
-      if (context?.previousDetail) {
-        queryClient.setQueryData(applicantsKeys.detail(id), context.previousDetail);
+      if (context?.previousDetail !== undefined) {
+        queryClient.setQueryData(
+          applicantsKeys.detail(id),
+          context.previousDetail
+        );
       }
-      if (context?.previousDetailData) {
-        Object.entries(context.previousDetailData).forEach(([key, data]) => {
-          if (data !== undefined) {
-            queryClient.setQueryData(JSON.parse(key), data);
-          }
-        });
-      }
+
       if (context?.previousLists) {
         Object.entries(context.previousLists).forEach(([key, data]) => {
           if (data !== undefined) {
@@ -776,20 +768,11 @@ const previousDetail = queryClient.getQueryData<Applicant>(
           }
         });
       }
-    },
-      }
-      if (context?.previousLists) {
-        Object.entries(context.previousLists).forEach(([key, data]) => {
-          if (data !== undefined) {
-            queryClient.setQueryData(JSON.parse(key), data);
-          }
-        });
-      }
+
       showErrorToast(error.message, t('statusUpdateFailed', 'common'), t);
     },
   });
 }
-
 // Delete applicant
 export function useDeleteApplicant() {
   const queryClient = useQueryClient();
@@ -905,7 +888,7 @@ export function useUpdateInterviewStatus() {
   const queryClient = useQueryClient();
   const { t } = useLocale();
 
-return useMutation<
+  return useMutation<
     Awaited<ReturnType<typeof applicantsService.updateInterviewStatus>>,
     ApiError,
     UpdateInterviewStatusVars,
@@ -922,25 +905,31 @@ return useMutation<
         payload as UpdateInterviewStatusRequest
       );
     },
+
     onMutate: async ({ applicantId, interviewId, data }) => {
       await queryClient.cancelQueries({
         queryKey: applicantsKeys.detail(applicantId),
       });
+
       const previousApplicant = queryClient.getQueryData<Applicant | undefined>(
         applicantsKeys.detail(applicantId)
       );
+
       if (previousApplicant && Array.isArray(previousApplicant.interviews)) {
         const nextInterviews = previousApplicant.interviews.map((iv) => {
           if ((iv?._id || iv?.id) !== interviewId) return iv;
           return { ...iv, ...data };
         });
+
         queryClient.setQueryData(applicantsKeys.detail(applicantId), {
           ...previousApplicant,
           interviews: nextInterviews,
         });
       }
+
       return { previousApplicant };
     },
+
     onSuccess: async (_response, { applicantId, skipBackgroundRefetch }) => {
       // Structural authority = the optimistically-patched cache. Do NOT
       // graft the mutation response into the cache: the backend can echo a
@@ -949,22 +938,21 @@ return useMutation<
       // Convergence happens exclusively via reconciled background refetches
       // (applyInterviewIntent filters them in queryFn).
       if (!skipBackgroundRefetch && applicantId) {
-        await queryClient.invalidateQueries({ queryKey: applicantsKeys.detail(applicantId) });
+        await queryClient.invalidateQueries({
+          queryKey: applicantsKeys.detail(applicantId),
+        });
       }
     },
-    onError: (error: ApiError, _variables, context) => {
-    onError: (error: ApiError, _variables, context) => {
-      if (context?.previousApplicant) {
-        const previous = context.previousApplicant as Applicant | undefined;
-        const { applicantId } = _variables;
-        if (previous) {
-          queryClient.setQueryData(applicantsKeys.detail(applicantId), previous);
-        }
+
+    onError: (error: ApiError, variables, context) => {
+      const previous = context?.previousApplicant as Applicant | undefined;
+      if (previous && variables?.applicantId) {
+        queryClient.setQueryData(
+          applicantsKeys.detail(variables.applicantId),
+          previous
+        );
       }
-    },
-        const { applicantId } = _variables;
-        queryClient.setQueryData(applicantsKeys.detail(applicantId), previous);
-      }
+
       showErrorToast(error.message, t('interviewUpdateFailed', 'common'), t);
     },
   });
@@ -983,7 +971,7 @@ export function useDeleteInterview() {
       applicantId: string;
       interviewId: string;
     }) => applicantsService.deleteInterview(applicantId, interviewId),
-    onSuccess: (updatedApplicant, { applicantId }) => {
+
     onSuccess: (updatedApplicant, { applicantId }) => {
       const res = updatedApplicant as Partial<Applicant> | undefined;
       const looksLikeFullApplicant =
@@ -994,14 +982,21 @@ export function useDeleteInterview() {
           res.email !== undefined ||
           res.phone !== undefined) &&
         Array.isArray(res.interviews);
+
       if (looksLikeFullApplicant) {
-        queryClient.setQueryData(applicantsKeys.detail(applicantId), updatedApplicant);
+        queryClient.setQueryData(
+          applicantsKeys.detail(applicantId),
+          updatedApplicant
+        );
       }
-      queryClient.invalidateQueries({ queryKey: applicantsKeys.detail(applicantId) });
+
+      queryClient.invalidateQueries({
+        queryKey: applicantsKeys.detail(applicantId),
+      });
+
       showSuccessToast(t('interviewDeleted', 'common'), t);
     },
-      showSuccessToast(t('interviewDeleted', 'common'), t);
-    },
+
     onError: (error: ApiError) => {
       showErrorToast(error.message, t('interviewDeleteFailed', 'common'), t);
     },
