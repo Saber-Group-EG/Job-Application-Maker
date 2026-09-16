@@ -1,11 +1,7 @@
 import Swal from '../../utils/swal';
 import { Modal } from '../ui/modal';
-import { useState, useRef, useEffect, useMemo } from 'react';
-import {
-  useSendMessage,
-  useSendEmail,
-  useDraftEmailTemplateWithAi,
-} from '../../hooks/queries';
+import { useState, useEffect, useMemo } from 'react';
+import { useSendMessage, useSendEmail } from '../../hooks/queries';
 import { getErrorMessage } from '../../utils/errorHandler';
 import Label from '../form/Label';
 import Select from '../form/Select';
@@ -13,78 +9,8 @@ import Input from '../form/input/InputField';
 import TextArea from '../form/input/TextArea';
 import { EmailTemplate } from '../../services/companiesService';
 import { useLocale } from '../../context/LocaleContext';
-
-import 'quill/dist/quill.snow.css';
-
-function QuillEditor({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const quillRef = useRef<any>(null);
-  const onChangeRef = useRef<(v: string) => void>(onChange);
-
-  useEffect(() => {
-    onChangeRef.current = onChange;
-  }, [onChange]);
-
-  useEffect(() => {
-    let mounted = true;
-    if (!containerRef.current) return;
-    (async () => {
-      const QuillModule = await import('quill');
-      const Quill = (QuillModule as any).default ?? QuillModule;
-      if (!mounted || !containerRef.current) return;
-      quillRef.current = new Quill(containerRef.current, {
-        theme: 'snow',
-        modules: {
-          toolbar: [
-            ['bold', 'italic', 'underline'],
-            [{ list: 'ordered' }, { list: 'bullet' }],
-            ['link'],
-          ],
-        },
-      });
-      quillRef.current.clipboard.dangerouslyPasteHTML(value || '');
-      const handleChange = () =>
-        onChangeRef.current(quillRef.current.root.innerHTML);
-      quillRef.current.on('text-change', handleChange);
-    })();
-
-    return () => {
-      mounted = false;
-      if (quillRef.current) {
-        try {
-          quillRef.current.off && quillRef.current.off('text-change');
-        } catch (e) {
-          /* ignore */
-        }
-        quillRef.current = null;
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (
-      quillRef.current &&
-      quillRef.current.root &&
-      quillRef.current.root.innerHTML !== value
-    ) {
-      quillRef.current.clipboard.dangerouslyPasteHTML(value || '');
-    }
-  }, [value]);
-
-  return (
-    <div
-      className="border rounded bg-white dark:bg-gray-800"
-      style={{ minHeight: 120 }}
-      ref={containerRef}
-    />
-  );
-}
+import { filterTemplatesByCategory } from '../../utils/mailTemplateCategories';
+import RichTextEditor from '../form/RichTextEditor';
 
 const MessageModal = ({
   isOpen,
@@ -144,8 +70,9 @@ const MessageModal = ({
   const emailTemplates: EmailTemplate[] = useMemo(() => {
     // Extract templates from company.settings.mailSettings.emailTemplates
     const templates = company?.settings?.mailSettings?.emailTemplates || [];
-    return templates;
-  }, [company]);
+    // Inquiries use "support" templates, otherwise "applicants" templates
+    return filterTemplatesByCategory(templates, isInquiry ? 'support' : 'applicants');
+  }, [company, isInquiry]);
 
   const extractDomain = (email?: string | null) => {
     if (!email) return '';
@@ -1014,11 +941,9 @@ const MessageModal = ({
             <Label htmlFor="message-body">{t('messageBody', 'modals')}</Label>
             {messageForm.type === 'email' ? (
               <>
-                <QuillEditor
+                <RichTextEditor
                   value={messageForm.body}
-                  onChange={(content) =>
-                    setMessageForm({ ...messageForm, body: content })
-                  }
+<RichTextEditor value={messageForm.body} onChange={(content) => setMessageForm({ ...messageForm, body: content })} minHeight={120} />
                 />
                 <p className="mt-2 text-xs text-gray-500">
                   {t('availableVariables', 'modals')}

@@ -229,6 +229,7 @@ class UsersService extends BaseService {
   async getMyInterviews(params?: {
     direction?: 'future' | 'past';
     status?: string;
+    company?: string;
     page?: number;
     limit?: number;
   }): Promise<any> {

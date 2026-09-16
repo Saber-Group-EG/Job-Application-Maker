@@ -1,7 +1,12 @@
 // components/dashboard/InterviewScheduleWidget.tsx
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { myInterviewsKeys, useMyInterviews } from '../../hooks/queries';
+import {
+  companyInterviewsKeys,
+  myInterviewsKeys,
+  useCompanyInterviews,
+  useMyInterviews,
+} from '../../hooks/queries';
 import {
   ChatIcon,
   CheckCircleIcon,
@@ -9,57 +14,104 @@ import {
 } from '../../icons';
 import { useQueryClient } from '@tanstack/react-query';
 import { usersService } from '../../services/usersService';
+import { companiesService } from '../../services/companiesService';
 import { paths } from '../../router/Paths';
 import { useLocale } from '../../context/LocaleContext';
+import { useCompanyFilter } from '../../context/CompanyFilterContext';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
-const getStatusLabel = (status: string, t: (key: string, ns?: string) => string) => {
+interface InterviewLike {
+  interviewId?: string;
+  scheduledAt?: string;
+  status?: string;
+  type?: string;
+  location?: string;
+  videoLink?: string;
+  companyId?: string;
+  company?: string | { _id?: string; id?: string };
+  scheduledBy?: string | { _id?: string; id?: string; fullName?: string; name?: string };
+  conductedBy?: string | { _id?: string; id?: string; fullName?: string; name?: string };
+  applicant?: {
+    _id?: string;
+    id?: string;
+    fullName?: string;
+    applicantNo?: string | number;
+    companyId?: string;
+    company?: string | { _id?: string; id?: string };
+  };
+  jobPosition?: {
+    _id?: string;
+    id?: string;
+    name?: string;
+    companyId?: string;
+    company?: string | { _id?: string; id?: string };
+  };
+}
+
+const toUserLabel = (value?: InterviewLike['scheduledBy']): string => {
+  if (!value) return '—';
+  if (typeof value === 'string') return value;
+  return value.fullName ?? value.name ?? (value._id ?? value.id ?? '—');
+};
+
+const getStatusLabel = (status: string | undefined, t: (key: string, ns?: string) => string) => {
   const map: Record<string, string> = {
     scheduled: t('scheduled', 'interview'),
     in_progress: t('inProgress', 'interview'),
     completed: t('completed', 'interview'),
     cancelled: t('cancelled', 'interview'),
   };
-  return map[status] ?? status;
+  return status ? (map[status] ?? status) : '—';
 };
 
-const getStatusStyle = (s: string, t: (key: string, ns?: string) => string) => {
+const getStatusStyle = (s: string | undefined, t: (key: string, ns?: string) => string) => {
   const base: Record<string, { dot: string; badge: string }> = {
     scheduled:   { dot: 'bg-blue-500',   badge: 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' },
     in_progress: { dot: 'bg-amber-500',  badge: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' },
     completed:   { dot: 'bg-green-500',  badge: 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300' },
     cancelled:   { dot: 'bg-red-400',    badge: 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-300' },
   };
-  const style = base[s] ?? { dot: 'bg-gray-400', badge: 'bg-gray-100 text-gray-600' };
+  const style = (s && base[s]) ?? { dot: 'bg-gray-400', badge: 'bg-gray-100 text-gray-600' };
   return { ...style, label: getStatusLabel(s, t) };
 };
 
-function formatDate(dateStr: string, locale: string) {
-  const d = new Date(dateStr);
+function formatDate(dateStr: string | undefined, locale: string) {
+  const d = dateStr ? new Date(dateStr) : null;
+  if (!d || isNaN(d.getTime())) {
+    return {
+      dayName: '—',
+      day: '—',
+      month: '—',
+      time: '—',
+      full: '—',
+    };
+  }
   return {
     dayName:  d.toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', { weekday: 'short' }),
     day:      d.getDate(),
     month:    d.toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', { month: 'short' }),
-    time:     d.toLocaleTimeString(locale === 'ar' ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' }),
+    time:     d.toLocaleTimeString(locale === 'ar' ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }),
     full:     d.toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
   };
 }
 
-function isToday(dateStr: string) {
+function isToday(dateStr?: string) {
+  if (!dateStr) return false;
   const d = new Date(dateStr);
   const today = new Date();
   return d.toDateString() === today.toDateString();
 }
 
-function isTomorrow(dateStr: string) {
+function isTomorrow(dateStr?: string) {
+  if (!dateStr) return false;
   const d = new Date(dateStr);
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   return d.toDateString() === tomorrow.toDateString();
 }
 
-function getRelativeDay(dateStr: string, t: (key: string, ns?: string) => string) {
+function getRelativeDay(dateStr: string | undefined, t: (key: string, ns?: string) => string) {
   if (isToday(dateStr)) return t('today', 'interview');
   if (isTomorrow(dateStr)) return t('tomorrow', 'interview');
   return null;
@@ -67,7 +119,7 @@ function getRelativeDay(dateStr: string, t: (key: string, ns?: string) => string
 
 // ─── Timeline card (future) ──────────────────────────────────────────────────
 
-function TimelineCard({ interview, t, locale }: { interview: any; t: (key: string, ns?: string) => string; locale: string }) {
+function TimelineCard({ interview, t, locale }: { interview: InterviewLike; t: (key: string, ns?: string) => string; locale: string }) {
   const navigate = useNavigate();
   const d = formatDate(interview.scheduledAt, locale);
   const style = getStatusStyle(interview.status, t);
@@ -75,7 +127,7 @@ function TimelineCard({ interview, t, locale }: { interview: any; t: (key: strin
 
   return (
     <div
-      onClick={() => navigate(paths.applicants.details(String(interview.applicant._id || '')))}
+      onClick={() => navigate(paths.applicants.details(String(interview.applicant?._id ?? '')))}
       className="group flex gap-4 cursor-pointer"
     >
       {/* Date column */}
@@ -111,10 +163,10 @@ function TimelineCard({ interview, t, locale }: { interview: any; t: (key: strin
           <div className="flex items-start justify-between gap-2 flex-wrap">
             <div>
               <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">
-                {interview.applicant.fullName}
+                {interview.applicant?.fullName ?? '—'}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                #{interview.applicant.applicantNo}
+                {interview.applicant?.applicantNo != null && `#${interview.applicant.applicantNo}`}
                 {interview.jobPosition?.name && (
                   <> · {interview.jobPosition.name}</>
                 )}
@@ -159,26 +211,36 @@ function TimelineCard({ interview, t, locale }: { interview: any; t: (key: strin
 
 // ─── Past interviews table row ───────────────────────────────────────────────
 
-function PastRow({ interview, t, locale }: { interview: any; t: (key: string, ns?: string) => string; locale: string }) {
+function PastRow({ interview, t, locale, showPeople }: { interview: InterviewLike; t: (key: string, ns?: string) => string; locale: string; showPeople?: boolean }) {
   const navigate = useNavigate();
   const d = formatDate(interview.scheduledAt, locale);
   const style = getStatusStyle(interview.status, t);
 
   return (
     <tr
-      onClick={() => navigate(paths.applicants.details(String(interview.applicant._id || '')))}
+      onClick={() => navigate(paths.applicants.details(String(interview.applicant?._id ?? '')))}
       className="group cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors"
     >
       <td className="py-3 px-4 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
         {d.full}
       </td>
       <td className="py-3 px-4">
-        <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{interview.applicant.fullName}</p>
-        <p className="text-xs text-gray-400">#{interview.applicant.applicantNo}</p>
+        <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{interview.applicant?.fullName ?? '—'}</p>
+        <p className="text-xs text-gray-400">{interview.applicant?.applicantNo != null && `#${interview.applicant.applicantNo}`}</p>
       </td>
       <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">
         {interview.jobPosition?.name ?? '—'}
       </td>
+      {showPeople && (
+        <>
+          <td className="py-3 px-4 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
+            {toUserLabel(interview.scheduledBy)}
+          </td>
+          <td className="py-3 px-4 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
+            {toUserLabel(interview.conductedBy)}
+          </td>
+        </>
+      )}
       <td className="py-3 px-4 text-sm text-gray-500 dark:text-gray-400">
         {t(interview.type === 'in-person' ? 'inPerson' : interview.type || '', 'modals')}
       </td>
@@ -193,15 +255,35 @@ function PastRow({ interview, t, locale }: { interview: any; t: (key: string, ns
 
 // ─── Main widget ─────────────────────────────────────────────────────────────
 
-export default function InterviewScheduleWidget() {
+export default function InterviewScheduleWidget({ companyId }: { companyId?: string | null }) {
   const { t, dir, locale } = useLocale();
+  const { selectedCompanyId } = useCompanyFilter();
+  const [tab, setTab] = useState<'mine' | 'company'>('mine');
   const [direction, setDirection] = useState<'future' | 'past'>('future');
   const [page, setPage] = useState(1);
   const queryClient = useQueryClient();
 
-  const { data, isLoading, isFetching } = useMyInterviews({ direction, page });
+  const effectiveCompanyId = companyId ?? selectedCompanyId ?? null;
 
-  const interviews = data?.interviews ?? [];
+  const myInterviewsQuery = useMyInterviews({
+    direction,
+    page,
+    enabled: tab === 'mine',
+  });
+  const companyInterviewsQuery = useCompanyInterviews(effectiveCompanyId, {
+    direction,
+    page,
+    enabled: tab === 'company',
+  });
+
+  const { data, isLoading, isFetching } = tab === 'company'
+    ? companyInterviewsQuery
+    : myInterviewsQuery;
+
+  const interviews = useMemo(
+    () => (data?.interviews ?? []) as InterviewLike[],
+    [data]
+  );
   const counts = data?.counts ?? {};
   const pagination = data?.pagination;
 
@@ -211,21 +293,38 @@ export default function InterviewScheduleWidget() {
     if (pagination && page >= pagination.totalPages) return; // no next page exists
 
     const nextPage = page + 1;
-    queryClient.prefetchQuery({
-      queryKey: myInterviewsKeys.list({
-        direction: 'past',
-        page: nextPage,
-        limit: 20,
-      }),
-      queryFn: () =>
-        usersService.getMyInterviews({
+    if (tab === 'company' && effectiveCompanyId) {
+      queryClient.prefetchQuery({
+        queryKey: companyInterviewsKeys.list(effectiveCompanyId, {
           direction: 'past',
           page: nextPage,
           limit: 20,
         }),
-      staleTime: 2 * 60 * 1000, // same staleTime as the hook so it won't re-fetch unnecessarily
-    });
-  }, [direction, page, pagination, queryClient]);
+        queryFn: () =>
+          companiesService.getCompanyInterviews(effectiveCompanyId, {
+            direction: 'past',
+            page: nextPage,
+            limit: 20,
+          }),
+        staleTime: 2 * 60 * 1000, // same staleTime as the hook so it won't re-fetch unnecessarily
+      });
+    } else {
+      queryClient.prefetchQuery({
+        queryKey: myInterviewsKeys.list({
+          direction: 'past',
+          page: nextPage,
+          limit: 20,
+        }),
+        queryFn: () =>
+          usersService.getMyInterviews({
+            direction: 'past',
+            page: nextPage,
+            limit: 20,
+          }),
+        staleTime: 2 * 60 * 1000, // same staleTime as the hook so it won't re-fetch unnecessarily
+      });
+    }
+  }, [direction, page, pagination, queryClient, effectiveCompanyId, tab]);
 
   // When switching to past, page 1 loads normally and this prefetches page 2 immediately
   // When on page 1 → prefetches page 2
@@ -241,16 +340,35 @@ export default function InterviewScheduleWidget() {
   return (
     <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-800">
-        <div>
-          <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
-            {t('title', 'interview')}
-          </h2>
-          <p className="text-xs text-gray-400 mt-0.5">
-            {direction === 'future'
-              ? t('upcomingCount' + (counts.total !== 1 ? '_plural' : ''), 'interview', { count: counts.total ?? 0 })
-              : t('pastCount' + (counts.total !== 1 ? '_plural' : ''), 'interview', { count: counts.total ?? 0 })}
-          </p>
+      <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-800 flex-wrap gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          <div>
+            <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+              {t('title', 'interview')}
+            </h2>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {direction === 'future'
+                ? t('upcomingCount' + (counts.total !== 1 ? '_plural' : ''), 'interview', { count: counts.total ?? 0 })
+                : t('pastCount' + (counts.total !== 1 ? '_plural' : ''), 'interview', { count: counts.total ?? 0 })}
+            </p>
+          </div>
+
+          {/* Tabs */}
+          <div className="flex items-center gap-1 rounded-lg bg-gray-100 dark:bg-gray-800 p-1">
+            {(['mine', 'company'] as const).map((tb) => (
+              <button
+                key={tb}
+                onClick={() => { setTab(tb); setPage(1); }}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+                  tab === tb
+                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                }`}
+              >
+                {tb === 'mine' ? t('myInterviews', 'interview') : t('companyInterviews', 'interview')}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Toggle */}
@@ -305,17 +423,25 @@ export default function InterviewScheduleWidget() {
             <div className="size-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-3">
               <CheckCircleIcon className="size-6 text-gray-400" />
             </div>
-            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-              {direction === 'future' ? t('noUpcoming', 'interview') : t('noPast', 'interview')}
-            </p>
-            <p className="text-xs text-gray-400 mt-1">
-              {direction === 'future' ? t('allClear', 'interview') : t('nothingToShow', 'interview')}
-            </p>
+            {tab === 'company' && !effectiveCompanyId ? (
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                {t('noCompanySelected', 'interview')}
+              </p>
+            ) : (
+              <>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                  {direction === 'future' ? t('noUpcoming', 'interview') : t('noPast', 'interview')}
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {direction === 'future' ? t('allClear', 'interview') : t('nothingToShow', 'interview')}
+                </p>
+              </>
+            )}
           </div>
         ) : direction === 'future' ? (
           // Timeline
           <div className="p-5">
-            {interviews.map((interview: any) => (
+            {interviews.map((interview: InterviewLike) => (
               <TimelineCard key={interview.interviewId} interview={interview} t={t} locale={locale} />
             ))}
           </div>
@@ -326,16 +452,19 @@ export default function InterviewScheduleWidget() {
               <table className="w-full text-start" dir={dir}>
                 <thead>
                   <tr className="border-b border-gray-100 dark:border-gray-800">
-                    {['date', 'applicant', 'position', 'type', 'status'].map((h) => (
-                      <th key={h} className="py-2.5 px-4 text-start text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                        {t(h, 'interview')}
-                      </th>
-                    ))}
+                    {['date', 'applicant', 'position']
+                      .concat(tab === 'company' ? ['scheduledBy', 'conductedBy'] : [])
+                      .concat(['type', 'status'])
+                      .map((h) => (
+                        <th key={h} className="py-2.5 px-4 text-start text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                          {t(h, 'interview')}
+                        </th>
+                      ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                  {interviews.map((interview: any) => (
-                    <PastRow key={interview.interviewId} interview={interview} t={t} locale={locale} />
+                  {interviews.map((interview: InterviewLike) => (
+                    <PastRow key={interview.interviewId} interview={interview} t={t} locale={locale} showPeople={tab === 'company'} />
                   ))}
                 </tbody>
               </table>

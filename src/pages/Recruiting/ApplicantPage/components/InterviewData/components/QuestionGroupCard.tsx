@@ -1,9 +1,10 @@
 import { useMemo } from 'react';
-import { Building2, ChevronDown, ChevronUp, Library, Save, Trash2 } from 'lucide-react';
+import { Building2, ChevronDown, ChevronUp, Library, Trash2 } from 'lucide-react';
 import { QuestionRow } from './QuestionRow';
 import type { InterviewAnswer } from '../../../../../../types/applicants';
 import { computeTotalScore, getQuestionId } from '../utils/interviewUtils';
 import { useLocale } from '../../../../../../context/LocaleContext';
+import type { FieldSaveStatus } from '../hooks/useInterviewActions';
 
 export type QuestionGroupCardProps = {
   groupKey: string;
@@ -16,6 +17,7 @@ export type QuestionGroupCardProps = {
   percentages: Record<string, number>;
   answers: Record<string, unknown>;
   selectedTags?: Record<string, string[]>;
+  saveStatusByQuestion?: Record<string, FieldSaveStatus>;
   onToggle: () => void;
   onQuestionChange: (
     questionId: string,
@@ -23,8 +25,6 @@ export type QuestionGroupCardProps = {
   ) => void;
   onRemove?: () => void;
   onDeleteQuestion?: (questionId: string) => void;
-  onSaveProgress?: () => void;
-  isMutating?: boolean;
 };
 
 export const QuestionGroupCard = ({
@@ -38,12 +38,11 @@ export const QuestionGroupCard = ({
   percentages,
   answers,
   selectedTags,
+  saveStatusByQuestion = {},
   onToggle,
   onQuestionChange,
   onRemove,
   onDeleteQuestion,
-  onSaveProgress,
-  isMutating,
 }: QuestionGroupCardProps) => {
   const { t } = useLocale();
   const SourceIcon = source === 'company' ? Building2 : Library;
@@ -84,21 +83,6 @@ export const QuestionGroupCard = ({
             </p>
           </div>
         </button>
- {isInteractive && onSaveProgress && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onSaveProgress();
-              }}
-              disabled={isMutating}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors disabled:opacity-50"
-              title={t('saveAnswers', 'interview')}
-            >
-              <Save className="h-3.5 w-3.5" />
-              {t('saveAnswers', 'interview')}
-            </button>
-          )}
         <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
           <div className="flex items-center gap-1.5 w-20 xl:w-24">
             <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
@@ -147,6 +131,7 @@ export const QuestionGroupCard = ({
                     percentage={Number((qId && percentages[qId]) || 0)}
                     answer={qId ? answers[qId] : undefined}
                     selectedTags={qId ? selectedTags?.[qId] : undefined}
+                    saveStatus={qId ? saveStatusByQuestion[qId] : undefined}
                     onChange={(patch) => onQuestionChange(qId, patch)}
                     onDelete={onDeleteQuestion}
                   />

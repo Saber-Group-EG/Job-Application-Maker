@@ -1,11 +1,5 @@
-import React, {
-  useState,
-  useMemo,
-  useEffect,
-  useCallback,
-  useRef,
-} from 'react';
-import { useParams, useNavigate } from 'react-router';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import axiosInstance from '../../../config/axios';
 import DOMPurify from 'dompurify';
@@ -34,6 +28,7 @@ import {
   useSendMessage,
 } from '../../../hooks/queries';
 import { resolveCompanyAddress } from '../../../utils/companyAddress';
+import PageMeta from '../../../components/common/PageMeta';
 import type {
   Applicant,
   ResponseSection,
@@ -145,16 +140,18 @@ const formatTime12Hour = (value: string): string => {
 const ApplicantDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const navApplicant = (location.state as { applicant?: { fullName?: string } } | null)?.applicant;
   const { t, dir } = useLocale();
   const { user } = useAuth();
-  const {
-    data: applicant,
-    isLoading: isApplicantLoading,
-    isFetching: isApplicantFetching,
-    isError,
-    error,
-    refetch,
-  } = useApplicant(id || '');
+  const { data: applicantName } = useApplicant(id || '', { fields: 'fullName' });
+  const { data: applicant, isLoading: isApplicantLoading, isFetching: isApplicantFetching, isError, error, refetch } = useApplicant(id || '');
+
+  // Set title immediately from nav state, update when API data arrives
+  const titleName = navApplicant?.fullName || applicantName?.fullName || applicant?.fullName;
+  if (titleName && document.title !== titleName) {
+    document.title = titleName;
+  }
   const updateApplicant = useUpdateApplicant();
   const updateStatus = useUpdateApplicantStatus();
   const addComment = useAddComment();
@@ -469,27 +466,18 @@ const ApplicantDetails: React.FC = () => {
           processedBody = processedBody.replace(regex, value);
         });
       });
-      const urlRegex = /(https?:\/\/[^\s<]+|www\.[^\s<]+)/gi;
-      processedBody = processedBody.replace(urlRegex, (url) => {
-        const href = url.toLowerCase().startsWith('http')
-          ? url
-          : `https://${url}`;
-        return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" style="color:#3b82f6;text-decoration:underline;">${escapeHtml(url)}</a>`;
-      });
-      const hasHtml = processedBody.indexOf('<') !== -1;
-      const bodyHtml = hasHtml
-        ? processedBody
-        : processedBody
-            .split(/\r?\n/)
-            .map((p) => p.trim())
-            .filter((p) => p.length > 0)
-            .map(
-              (p) =>
-                `<p style="margin:0 0 12px;color:#444;">${escapeHtml(p)}</p>`
-              
-            )
-            .join('');
-      return `<!DOCTYPE html>
+    const urlRegex = /(https?:\/\/[^\s<]+|www\.[^\s<]+)/gi;
+    processedBody = processedBody.replace(urlRegex, (url) => {
+      const href = url.toLowerCase().startsWith('http') ? url : `https://${url}`;
+      return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" style="color:#3b82f6;text-decoration:underline;">${escapeHtml(url)}</a>`;
+    });
+    const hasHtml = processedBody.indexOf('<') !== -1;
+    if (!hasHtml) {
+      processedBody = processedBody.split(/\r?\n/).map((p) => p.trim()).filter((p) => p.length > 0).map((p) => `<p style="margin:0 0 12px;color:#444;">${escapeHtml(p)}</p>`).join('');
+    }
+    const bodyHtml = hasHtml
+      ? processedBody
+      : processedBody.split(/\r?\n/).map((p) => p.trim()).filter((p) => p.length > 0).map((p) => `<p style="margin:0 0 12px;color:#444;">${escapeHtml(p)}</p>`).join('');
 <html><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>${escapeHtml(processedSubject)}</title></head>
 <body style="font-family: Arial, sans-serif; padding: 20px; margin: 0; background-color: #f5f5f5;">
   <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden;">
@@ -684,15 +672,10 @@ const ApplicantDetails: React.FC = () => {
         const bTime = new Date(b.createdAt || b.scheduledAt || 0).getTime();
         return bTime - aTime;
       })[0];
-      setInterviewForm({
-        date: '',
-        time: '',
-        description: '',
-        comment: '',
-        location: '',
-        link: '',
-        type: 'phone',
-      });
+      if (applicant && (applicant as any).status !== 'interview') {
+        updateStatus.mutate({ id, data: { status: 'interview' }, silent: true });
+      }
+      setInterviewForm({ date: '', time: '', description: '', comment: '', location: '', link: '', type: 'phone' });
       setNotificationChannels({ email: false, sms: false, whatsapp: false });
       setEmailOption('company');
       setCustomEmail('');
@@ -767,7 +750,7 @@ const ApplicantDetails: React.FC = () => {
     }
   };
 
-  const handleStatusSubmit = async (e: React.FormEvent) => {
+  const handleStatusSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!id || !statusForm.status) {
       setStatusError(t('selectStatus', 'applicants'));
@@ -1202,9 +1185,10 @@ const ApplicantDetails: React.FC = () => {
 
   return (
     <div className="bg-gray-50">
+      <PageMeta title={navApplicant?.fullName || applicant?.fullName || 'Applicant Details'} description="Applicant details page" />
       <div className="max-w-8xl mx-auto p-6">
         <StickyTopBar>
-          <div className="flex items-center justify-between py-3">
+          <div className="flex flex-wrap items-center justify-between py-3 gap-2">
             <div className="flex items-center gap-2 text-sm text-gray-500">
               <span
                 onClick={() => navigate(paths.applicants.root)}

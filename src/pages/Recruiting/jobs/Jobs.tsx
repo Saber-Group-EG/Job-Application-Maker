@@ -16,18 +16,19 @@ import {
   Trash2Icon,
   PencilIcon,
   RefreshCwIcon,
+  ExternalLinkIcon,
 } from 'lucide-react';
 import Swal from '../../../utils/swal';
 import {
   useJobPositions,
   useDeleteJobPosition,
-  useUpdateJobPosition,
+  jobPositionsKeys,
 } from '../../../hooks/queries';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import { useAuth } from '../../../context/AuthContext';
 import { useLocale } from '../../../context/LocaleContext';
 import { useCompanyFilter } from '../../../context/CompanyFilterContext';
-import { toPlainString } from '../../../utils/strings';
+import { toPlainString, toSlug } from '../../../utils/strings';
 import { normalizeFieldConfig } from '../../../utils/jobUtils';
 import Switch from '../../../components/form/switch/Switch';
 import { jobPositionsService } from '../../../services/jobPositionsService';
@@ -51,6 +52,7 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { queryClient } from '../../../lib/queryClient';
 
 const getTranslation = (value: any, defaultValue = '', locale?: string): string => {
   const plain = toPlainString(value, locale);
@@ -68,6 +70,14 @@ const toLocalized = (value: any, fallback = ''): { en: string; ar: string } => {
     return { en: enValue, ar: arValue };
   }
   return { en: fallback, ar: fallback };
+};
+
+const isJobExpired = (job: any): boolean => {
+  if (!job?.registrationEnd) return false;
+  const end = new Date(job.registrationEnd);
+  if (Number.isNaN(end.getTime())) return false;
+  const endOfDay = end.getTime() + 24 * 60 * 60 * 1000 - 1;
+  return endOfDay < Date.now();
 };
 
 const getJobOrderValue = (job: any): number => {
@@ -150,11 +160,10 @@ function SortableJobCard({
     <Link
       ref={setNodeRef}
       style={style}
-      to={`/job/${job._id}`}
+      to={`/create-job?id=${job._id}`}
       state={{ job }}
       onClick={handleCardClick}
-      {...listeners}
-      className={`group relative block cursor-grab space-y-4 rounded-3xl border border-white/20 bg-white/60 p-6 backdrop-blur-xl transition-[transform,opacity,box-shadow] duration-200 hover:scale-[1.02] hover:shadow-2xl hover:shadow-brand-500/10 active:cursor-grabbing dark:border-slate-800/50 dark:bg-slate-900/60 ${
+      className={`group relative block cursor-pointer space-y-4 rounded-3xl border border-white/20 bg-white/60 p-6 backdrop-blur-xl transition-[transform,opacity,box-shadow] duration-200 hover:scale-[1.02] hover:shadow-2xl hover:shadow-brand-500/10 dark:border-slate-800/50 dark:bg-slate-900/60 ${
         isDragging ? 'opacity-60 ring-2 ring-brand-400 z-50' : ''
       }`}
     >
@@ -163,19 +172,26 @@ function SortableJobCard({
           <div className="flex items-center gap-2">
             <span
               {...attributes}
-              className="inline-flex items-center text-slate-400"
+              {...listeners}
+              className="inline-flex items-center text-slate-400 cursor-grab active:cursor-grabbing"
               title={t('jobsDragReorder', 'jobs')}
             >
               <GripVerticalIcon className="size-4" />
             </span>
             <span
               className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                job.isActive !== false
-                  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400'
-                  : 'bg-slate-100 text-slate-700 dark:bg-slate-500/10 dark:text-slate-400'
+                isJobExpired(job)
+                  ? 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400'
+                  : job.isActive !== false
+                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400'
+                    : 'bg-slate-100 text-slate-700 dark:bg-slate-500/10 dark:text-slate-400'
               }`}
             >
-              {job.isActive !== false ? t('jobsActiveBadge', 'jobs') : t('jobsDeprioritizedBadge', 'jobs')}
+              {isJobExpired(job)
+                ? t('jobsExpiredBadge', 'jobs')
+                : job.isActive !== false
+                  ? t('jobsActiveBadge', 'jobs')
+                  : t('jobsDeprioritizedBadge', 'jobs')}
             </span>
           </div>
           <h3 className="text-lg font-bold text-slate-900 transition-colors group-hover:text-brand-600 dark:text-white dark:group-hover:text-brand-400">
@@ -219,6 +235,16 @@ function SortableJobCard({
           className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100"
           onClick={(e) => e.preventDefault()}
         >
+          <a
+            href={`https://form.sabergroup-eg.com/${toSlug(job.companyId?.name, 'en')}/${toSlug(job.title, 'en')}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="p-1.5 text-slate-400 hover:text-brand-600 transition-colors bg-white/80 rounded-lg dark:bg-slate-800"
+            title={t('jobsOpenForm', 'jobs')}
+          >
+            <ExternalLinkIcon className="size-4" />
+          </a>
           {canManageJobs && (
             <button
               onClick={(e) => {
@@ -280,9 +306,8 @@ function SortableJobRow({
     <tr
       ref={setNodeRef}
       style={style}
-      {...listeners}
       onClick={handleRowClick}
-      className={`group cursor-grab transition-colors hover:bg-slate-50/50 active:cursor-grabbing dark:hover:bg-slate-800/30 ${
+      className={`group cursor-pointer transition-colors hover:bg-slate-50/50 dark:hover:bg-slate-800/30 ${
         isDragging ? 'opacity-60 ring-2 ring-brand-400 z-50' : ''
       }`}
     >
@@ -290,7 +315,8 @@ function SortableJobRow({
         <div className="flex items-center gap-3">
           <span
             {...attributes}
-            className="inline-flex items-center text-slate-400"
+            {...listeners}
+            className="inline-flex items-center text-slate-400 cursor-grab active:cursor-grabbing"
             title={t('jobsDragReorder', 'jobs')}
           >
             <GripVerticalIcon className="size-4" />
@@ -300,7 +326,7 @@ function SortableJobRow({
           </div>
           <div>
             <Link
-              to={`/job/${job._id}`}
+              to={`/create-job?id=${job._id}`}
               state={{ job }}
               className="font-bold text-slate-900 hover:text-brand-600 transition-colors dark:text-white"
               onClick={(e) => {
@@ -339,12 +365,18 @@ function SortableJobRow({
       <td className="px-6 py-4">
         <span
           className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${
-            job.isActive !== false
-              ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400'
-              : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400'
+            isJobExpired(job)
+              ? 'border-red-200 bg-red-50 text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400'
+              : job.isActive !== false
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400'
+                : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400'
           }`}
         >
-          {job.isActive !== false ? t('jobsActiveStatus', 'jobs') : t('jobsInactiveStatus', 'jobs')}
+          {isJobExpired(job)
+            ? t('jobsExpiredStatus', 'jobs')
+            : job.isActive !== false
+              ? t('jobsActiveStatus', 'jobs')
+              : t('jobsInactiveStatus', 'jobs')}
         </span>
       </td>
       <td className="px-6 py-4 text-right">
@@ -417,7 +449,6 @@ export default function Jobs() {
   );
 
   const deleteJobMutation = useDeleteJobPosition();
-  const updateJobMutation = useUpdateJobPosition();
 
   useEffect(() => {
     setOrderedJobIds((prevIds) => {
@@ -588,7 +619,7 @@ export default function Jobs() {
 
   const handleJobClick = (job: any) => {
     if (suppressNavigateRef.current) return;
-    navigate(`/job/${job._id}`, { state: { job } });
+    navigate(`/create-job?id=${job._id}`, { state: { job } });
   };
 
   const handleGridDragStart = (event: DragStartEvent) => {
@@ -768,38 +799,52 @@ export default function Jobs() {
       .filter((g) => g.jobs.length > 0);
   }, [orderedJobs, filteredJobs]);
 
-  const handleToggleActive = async (job: any) => {
-    try {
-      const newStatus = !job.isActive;
-      const payload: any = {
-        isActive: newStatus,
-        title: toLocalized(job.title, t('jobsUntitledRole', 'jobs')),
-        description: toLocalized(job.description, ''),
-        employmentType: job.employmentType || 'full-time',
-        workArrangement: job.workArrangement || 'on-site',
-      };
-      if (typeof job.salary === 'number') payload.salary = job.salary;
-      if (typeof job.salaryVisible === 'boolean')
-        payload.salaryVisible = job.salaryVisible;
-      payload.fieldConfig = normalizeFieldConfig(job?.fieldConfig, job?.salaryFieldVisible);
-      if (typeof job.bilingual === 'boolean') payload.bilingual = job.bilingual;
+  const handleToggleActive = (job: any) => {
+  const jobId = job._id;
+  const newStatus = !job.isActive;
 
-      await updateJobMutation.mutateAsync({ id: job._id, data: payload });
-      await refetchJobs();
-      Swal.fire({
-        title: t('jobsStatusUpdated', 'jobs'),
-        text: t('jobsStatusUpdatedText', 'jobs', { status: newStatus ? t('jobsActive', 'jobs') : t('jobsInactive', 'jobs') }),
-        icon: 'success',
-        timer: 1500,
-        showConfirmButton: false,
-      });
-    } catch (err: any) {
-      const details = err?.response?.data?.details;
-      const detailMessage =
-        Array.isArray(details) && details.length > 0 ? details[0]?.message : '';
-      Swal.fire(t('jobsError', 'jobs'), detailMessage || t('jobsUpdateFailed', 'jobs'), 'error');
-    }
+  const listKey = jobPositionsKeys.list(
+    jobQueryCompanyParam as any,
+    jobQueryDepartmentParam as any
+  );
+  const detailKey = jobPositionsKeys.detail(jobId);
+
+  // snapshot for rollback
+  const previousList = queryClient.getQueryData<any[]>(listKey);
+  const previousDetail = queryClient.getQueryData<any>(detailKey);
+
+  // flip instantly, no waiting on the network
+  queryClient.setQueryData<any[]>(listKey, (old) =>
+    old ? old.map((j) => (j._id === jobId ? { ...j, isActive: newStatus } : j)) : old
+  );
+  queryClient.setQueryData(detailKey, (old: any) =>
+    old ? { ...old, isActive: newStatus } : old
+  );
+
+  const payload: any = {
+    isActive: newStatus,
+    title: toLocalized(job.title, t('jobsUntitledRole', 'jobs')),
+    description: toLocalized(job.description, ''),
+    employmentType: job.employmentType || 'full-time',
+    workArrangement: job.workArrangement || 'on-site',
   };
+  if (typeof job.salary === 'number') payload.salary = job.salary;
+  if (typeof job.salaryVisible === 'boolean') payload.salaryVisible = job.salaryVisible;
+  payload.fieldConfig = normalizeFieldConfig(job?.fieldConfig, job?.salaryFieldVisible);
+  if (typeof job.bilingual === 'boolean') payload.bilingual = job.bilingual;
+
+  // fire and forget — UI already reflects the new state
+  jobPositionsService.updateJobPosition(jobId, payload).catch((err: any) => {
+    // roll back on failure
+    queryClient.setQueryData(listKey, previousList);
+    queryClient.setQueryData(detailKey, previousDetail);
+
+    const details = err?.response?.data?.details;
+    const detailMessage =
+      Array.isArray(details) && details.length > 0 ? details[0]?.message : '';
+    Swal.fire(t('jobsError', 'jobs'), detailMessage || t('jobsUpdateFailed', 'jobs'), 'error');
+  });
+};
 
   const handleDelete = async (e: React.MouseEvent, jobId: string) => {
     e.stopPropagation();

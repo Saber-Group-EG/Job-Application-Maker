@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Trash2, Check, X } from 'lucide-react';
+import { AlertCircle, Check, CheckCircle2, Trash2, X } from 'lucide-react';
 import type { InterviewAnswer } from '../../../../../../types/applicants';
 import { getQuestionId } from '../utils/interviewUtils';
 import { useLocale } from '../../../../../../context/LocaleContext';
+import type { FieldSaveStatus } from '../hooks/useInterviewActions';
 import QuestionEvaluation from './QuestionEvaluation';
 
 export type QuestionRowProps = {
@@ -11,6 +12,7 @@ export type QuestionRowProps = {
   percentage: number;
   answer: unknown;
   selectedTags?: string[];
+  saveStatus?: FieldSaveStatus;
   onChange: (patch: { percentage?: number; answer?: unknown; selectedTags?: string[] }) => void;
   onDelete?: (questionId: string) => void;
 };
@@ -21,6 +23,7 @@ export const QuestionRow = ({
   percentage,
   answer,
   selectedTags,
+  saveStatus,
   onChange,
   onDelete,
 }: QuestionRowProps) => {
@@ -157,6 +160,24 @@ export const QuestionRow = ({
         <div className="text-right">
           <p className="text-sm font-bold text-blue-600">{currentAchieved.toFixed(1)}</p>
           <p className="text-[10px] text-gray-400">{t('achieved', 'interview')}</p>
+          {saveStatus === 'saving' && (
+            <div className="inline-flex items-center gap-1 mt-1 rounded-full bg-amber-50 text-amber-600 px-2 py-0.5 text-[10px] font-medium">
+              <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" />
+              {t('saving', 'interview')}
+            </div>
+          )}
+          {saveStatus === 'saved' && (
+            <div className="inline-flex items-center gap-1 mt-1 rounded-full bg-emerald-50 text-emerald-600 px-2 py-0.5 text-[10px] font-medium">
+              <CheckCircle2 className="size-3" />
+              {t('saved', 'interview')}
+            </div>
+          )}
+          {saveStatus === 'error' && (
+            <div className="inline-flex items-center gap-1 mt-1 rounded-full bg-red-50 text-red-600 px-2 py-0.5 text-[10px] font-medium">
+              <AlertCircle className="size-3" />
+              {t('saveFailed', 'interview')}
+            </div>
+          )}
         </div>
       </div>
 

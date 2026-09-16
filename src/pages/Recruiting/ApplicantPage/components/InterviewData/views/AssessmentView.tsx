@@ -32,6 +32,7 @@ export type AssessmentViewProps = {
   percentages: Record<string, number>;
   answers: Record<string, unknown>;
   selectedTags?: Record<string, string[]>;
+  saveStatusByQuestion?: Record<string, FieldSaveStatus>;
   totals: {
     totalScore: number;
     achieved: number;
@@ -229,6 +230,7 @@ export const AssessmentView = ({
   percentages,
   answers,
   selectedTags,
+  saveStatusByQuestion = {},
   elapsedMs,
   isStarted,
   isEnded,
@@ -378,12 +380,11 @@ export const AssessmentView = ({
               percentages={percentages}
               answers={answers}
               selectedTags={selectedTags}
+              saveStatusByQuestion={saveStatusByQuestion}
               onToggle={() => onToggleGroup(g.key)}
               onQuestionChange={onQuestionChange}
               onDeleteQuestion={onDeleteQuestion}
               onRemove={() => onRemoveGroup(g.key)}
-              onSaveProgress={onSaveProgress}
-              isMutating={isMutating}
             />
           ))}
           {standaloneQuestions.map((q) => {
@@ -396,6 +397,7 @@ export const AssessmentView = ({
                 percentage={Number((qId && percentages[qId]) || 0)}
                 answer={qId ? answers[qId] : undefined}
                 selectedTags={qId ? selectedTags?.[qId] : undefined}
+                saveStatus={qId ? saveStatusByQuestion[qId] : undefined}
                 onChange={(patch) => onQuestionChange(qId, patch)}
                 onDelete={onDeleteQuestion}
               />

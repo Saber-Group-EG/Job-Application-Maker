@@ -252,7 +252,7 @@ export default function Home() {
                   try {
                     await refetch();
                     setLastRefetch(new Date());
-                  } catch (e) {
+                  } catch {
                     // ignore
                   }
                 }}

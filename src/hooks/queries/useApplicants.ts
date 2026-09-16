@@ -11,6 +11,12 @@ import type {
   AddCommentRequest,
   SendMessageRequest,
   Applicant,
+import {
+  AddCommentRequest,
+  Activity,
+  Applicant,
+  InterviewAnswer,
+  SendMessageRequest,
 } from '../../types/applicants';
 import { ApiError } from '../../services/companiesService';
 import Swal from '../../utils/swal';
@@ -35,6 +41,207 @@ export const applicantsKeys = {
   byPhone: (phone: string) =>
     [...applicantsKeys.all, 'by-phone', phone] as const,
 };
+
+// ===== Interview intent registry (optimistic structural truth) ============
+//
+// The backend read path can lag its own writes (replica lag), so a GET that
+// lands right after a save may still return the PRE-save question list —
+// resurrecting just-deleted groups/questions or dropping just-added ones.
+// Filtering inside the QUERY FUNCTION means stale structure is corrected
+// BEFORE it ever enters the cache: background refetches stay fully
+// invisible and the optimistic UI state is never visually reverted.
+
+const INTERVIEW_INTENT_GRACE_MS = 90_000;
+
+type InterviewIntentEntry = {
+  /** questionId -> timestamp the client deleted it. */
+  removedIds: Map<string, number>;
+  /** questionId -> the full question the client added. */
+  addedQuestions: Map<string, InterviewAnswer>;
+};
+
+const interviewIntents = new Map<string, InterviewIntentEntry>();
+
+const interviewIntentKey = (applicantId: string, interviewId: string) =>
+  `${String(applicantId)}::${String(interviewId)}`;
+
+const getInterviewIntent = (
+  applicantId: string,
+  interviewId: string,
+): InterviewIntentEntry => {
+  const key = interviewIntentKey(applicantId, interviewId);
+  let entry = interviewIntents.get(key);
+  if (!entry) {
+    entry = { removedIds: new Map(), addedQuestions: new Map() };
+    interviewIntents.set(key, entry);
+  }
+  return entry;
+};
+
+/** Mark questions as recently deleted — refetches will prune them. */
+export function recordQuestionRemovals(
+  applicantId: string,
+  interviewId: string,
+  questionIds: string[],
+) {
+  if (!applicantId || !interviewId || questionIds.length === 0) return;
+  const entry = getInterviewIntent(applicantId, interviewId);
+  const now = Date.now();
+  questionIds.forEach((id) => {
+    const clean = String(id || '');
+    if (!clean) return;
+    entry.removedIds.set(clean, now);
+    entry.addedQuestions.delete(clean);
+  });
+}
+
+/** Register recently added questions — refetches will re-append them. */
+export function recordQuestionAdditions(
+  applicantId: string,
+  interviewId: string,
+  questions: InterviewAnswer[],
+) {
+  if (!applicantId || !interviewId || questions.length === 0) return;
+  const entry = getInterviewIntent(applicantId, interviewId);
+  questions.forEach((q) => {
+    const id = String((q as { id?: string; _id?: string })?.id || (q as { _id?: string })?._id || '');
+    if (!id) return;
+    entry.addedQuestions.set(id, q);
+    entry.removedIds.delete(id);
+  });
+}
+
+export function clearInterviewIntent(applicantId: string, interviewId: string) {
+  interviewIntents.delete(interviewIntentKey(applicantId, interviewId));
+}
+
+/** Content signature used to recognise a question across id-space swaps. */
+const questionSignature = (q: unknown): string => {
+  const c = q as { question?: string; score?: number; answerType?: string };
+  return `${String(c?.question ?? '').trim().toLowerCase()}|${Number(c?.score ?? 0)}|${String(c?.answerType ?? '')}`;
+};
+
+/**
+ * Optimistic ghosts appended by the intent layer carry this flag; the
+ * mutation layer strips them so a lagging-read phantom can NEVER be
+ * persisted back (which would turn it into a permanent duplicate).
+ */
+const GHOST_FLAG = '_optimisticGhost';
+
+export function stripOptimisticGhosts<T>(questions: unknown): T[] | unknown {
+  if (!Array.isArray(questions)) return questions;
+  return (questions as Array<Record<string, unknown>>).filter(
+    (q) => q?.[GHOST_FLAG] !== true,
+  );
+}
+
+/**
+ * Reconcile a freshly fetched applicant against recent client intents so a
+ * lagging read can never overwrite optimistic structural changes. Runs on
+ * every fetch of the detail query, whatever triggered it.
+ */
+function applyInterviewIntent<T extends Applicant | undefined>(
+  applicantId: string,
+  data: T,
+): T {
+  if (!data || !Array.isArray(data.interviews)) return data;
+  const now = Date.now();
+  let touched = false;
+  const interviews = ((data as Applicant).interviews ?? []).map((iv) => {
+    const ivId = String(iv?._id || iv?.id || '');
+    if (!ivId) return iv;
+
+    // Unconditional heal: dedupe the fetched list by id AND content
+    // signature. Earlier phantom appends may already be persisted; identical
+    // copies are noise and get collapsed on every fetch.
+    const incoming = Array.isArray(iv.questions) ? iv.questions : [];
+    const seenIds = new Set<string>();
+    const seenSigs = new Set<string>();
+    const deduped: unknown[] = [];
+    incoming.forEach((q) => {
+      const id = String(q?.id || q?._id || '');
+      const sig = questionSignature(q);
+      if (id && seenIds.has(id)) return;
+      if (seenSigs.has(sig)) return;
+      if (id) seenIds.add(id);
+      seenSigs.add(sig);
+      deduped.push(q);
+    });
+
+    const entry = interviewIntents.get(interviewIntentKey(applicantId, ivId));
+
+    // Expire stale tombstones first.
+    if (entry) {
+      entry.removedIds.forEach((ts, id) => {
+        if (now - ts > INTERVIEW_INTENT_GRACE_MS) entry.removedIds.delete(id);
+      });
+
+      const incomingById = new Map<string, unknown>();
+      deduped.forEach((q) => {
+        const id = String((q as Record<string, unknown>)?.id || (q as Record<string, unknown>)?._id || '');
+        if (id) incomingById.set(id, q);
+      });
+
+      // Tombstone confirmations: if the server no longer returns a deleted
+      // question, the deletion is committed — stop pruning for it (also
+      // unblocks legitimately re-adding the same question later).
+      entry.removedIds.forEach((_ts, id) => {
+        if (!incomingById.has(id)) entry.removedIds.delete(id);
+      });
+    }
+
+    let questions: unknown[] = deduped;
+    let changed = deduped.length !== incoming.length;
+
+    if (entry) {
+      // 1. Prune anything the client just deleted (server read lagged).
+      if (entry.removedIds.size > 0 && questions.length > 0) {
+        const filtered = questions.filter((q) => {
+          const qid = String((q as Record<string, unknown>)?.id || (q as Record<string, unknown>)?._id || '');
+          return !entry!.removedIds.has(qid);
+        });
+        if (filtered.length !== questions.length) {
+          questions = filtered;
+          changed = true;
+        }
+      }
+
+      // 2. Re-append anything the client just added that the lagging read is
+      //    missing. Match by id OR content signature so a swapped id-space
+      //    recognises the server twin instead of appending a phantom
+      //    duplicate. Appended stand-ins are flagged and stripped from any
+      //    outgoing save payload.
+      if (entry.addedQuestions.size > 0) {
+        const byId = new Set<string>();
+        const bySig = new Set<string>();
+        questions.forEach((q) => {
+          const id = String((q as { id?: string; _id?: string })?.id || (q as { _id?: string })?._id || '');
+          if (id) byId.add(id);
+          bySig.add(questionSignature(q));
+        });
+        entry.addedQuestions.forEach((added, id) => {
+          const sig = questionSignature(added);
+          if (byId.has(id) || bySig.has(sig)) {
+            // Server twin present — registration fulfilled.
+            entry.addedQuestions.delete(id);
+            return;
+          }
+          questions = [...questions, { ...(added as object), [GHOST_FLAG]: true }];
+          changed = true;
+          byId.add(String((added as { id?: string; _id?: string })?.id || (added as { _id?: string })?._id || ''));
+          bySig.add(sig);
+        });
+      }
+    }
+
+    if (changed) {
+      touched = true;
+      return { ...iv, questions };
+    }
+    return iv;
+  });
+  return touched ? ({ ...(data as Applicant), interviews } as T) : data;
+}
 
 // Helper to get user's company IDs from AuthContext
 function getUserCompanyIds(user: any): string[] | undefined {
@@ -254,15 +461,28 @@ export function useApplicant(
     initialData?: Applicant;
     enabled?: boolean;
     staleTime?: number;
+    fields?: string;
   }
 ) {
   const queryClient = useQueryClient();
 
   return useQuery({
-    queryKey: applicantsKeys.detail(id),
-    queryFn: () => applicantsService.getApplicantById(id),
+    queryKey: [...applicantsKeys.detail(id), { fields: options?.fields }],
+    queryFn: async () => {
+      const data = await applicantsService.getApplicantById(id, options?.fields);
+      // Reconcile BEFORE the response enters the cache: a lagging backend
+      // read must never resurrect deleted questions/groups or drop added
+      // ones. This keeps background refetches completely invisible.
+      return applyInterviewIntent(id, data);
+    },
     enabled: !!id && (options?.enabled ?? true),
-    staleTime: options?.staleTime ?? 0,
+    // Fresh (non-zero) staleTime is critical: optimistic updates from
+    // interview mutations write directly into this cache entry. A zero
+    // staleTime marks the data instantly stale, so any refocus/remount
+    // refetch races ahead of the server commit and overwrites the
+    // optimistic state (startedAt / questions / removed groups) with the
+    // PRE-mutation server payload.
+    staleTime: options?.staleTime ?? 30_000,
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
     refetchOnMount: true,
@@ -464,20 +684,33 @@ export function useMarkApplicantSeen() {
 }
 
 // Update applicant status
+type UpdateStatusVariables = { id: string; data: UpdateStatusRequest; silent?: boolean };
+type UpdateStatusContext = { previousLists: Record<string, Applicant[] | undefined>; previousDetailData: Record<string, any> };
+
 export function useUpdateApplicantStatus() {
   const queryClient = useQueryClient();
   const { t } = useLocale();
 
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateStatusRequest }) =>
+  return useMutation<Applicant, ApiError, UpdateStatusVariables, UpdateStatusContext>({
+    mutationFn: ({ id, data }: UpdateStatusVariables) =>
       applicantsService.updateApplicantStatus(id, data),
-    onMutate: async ({ id, data }) => {
+    onMutate: async ({ id, data, silent }) => {
       await queryClient.cancelQueries({ queryKey: applicantsKeys.all });
 
-      const previousDetail = queryClient.getQueryData<Applicant>(
+const previousDetail = queryClient.getQueryData<Applicant>(
         applicantsKeys.detail(id)
       );
-
+      const previousLists: Record<string, Applicant[] | undefined> = {};
+      const queryCache = queryClient.getQueryCache();
+      const listQueries = queryCache.findAll({
+        queryKey: applicantsKeys.all
+      });
+      listQueries.forEach((query) => {
+        const key = query.queryKey as string[];
+        if (key.length > 0) {
+          previousLists[JSON.stringify(key)] = query.state.data as Applicant[] | undefined;
+        }
+      });
       const previousLists: Record<string, Applicant[] | undefined> = {};
       const queryCache = queryClient.getQueryCache();
       const listQueries = queryCache.findAll({
@@ -499,14 +732,16 @@ export function useUpdateApplicantStatus() {
         );
       });
 
-      if (previousDetail) {
-        queryClient.setQueryData(applicantsKeys.detail(id), {
-          ...previousDetail,
-          status: data.status,
-        });
-      }
+      const previousDetailData: Record<string, any> = {};
+      queryClient.setQueriesData({ queryKey: applicantsKeys.detail(id) }, (old: any) => {
+        if (!old) return old;
+        previousDetailData[JSON.stringify(queryClient.getQueryCache().find({ queryKey: applicantsKeys.detail(id) })?.queryKey)] = old;
+        return { ...old, status: data.status };
+      });
 
-      return { previousDetail, previousLists };
+      if (!silent) showSuccessToast(t('statusUpdated', 'common'), t);
+
+      return { previousLists, previousDetailData };
     },
     onSuccess: (updatedApplicant, { id }) => {
       const looksLikeApplicant =
@@ -520,17 +755,28 @@ export function useUpdateApplicantStatus() {
           (updatedApplicant as Partial<Applicant>).status !== undefined);
 
       if (looksLikeApplicant) {
-        queryClient.setQueryData(applicantsKeys.detail(id), updatedApplicant);
+        queryClient.setQueriesData({ queryKey: applicantsKeys.detail(id) }, updatedApplicant);
       }
-
-      showSuccessToast(t('statusUpdated', 'common'), t);
     },
     onError: (error: ApiError, { id }, context) => {
       if (context?.previousDetail) {
-        queryClient.setQueryData(
-          applicantsKeys.detail(id),
-          context.previousDetail
-        );
+        queryClient.setQueryData(applicantsKeys.detail(id), context.previousDetail);
+      }
+      if (context?.previousDetailData) {
+        Object.entries(context.previousDetailData).forEach(([key, data]) => {
+          if (data !== undefined) {
+            queryClient.setQueryData(JSON.parse(key), data);
+          }
+        });
+      }
+      if (context?.previousLists) {
+        Object.entries(context.previousLists).forEach(([key, data]) => {
+          if (data !== undefined) {
+            queryClient.setQueryData(JSON.parse(key), data);
+          }
+        });
+      }
+    },
       }
       if (context?.previousLists) {
         Object.entries(context.previousLists).forEach(([key, data]) => {
@@ -646,21 +892,36 @@ export function useScheduleBulkInterviews() {
 }
 
 // Update interview status
+type UpdateInterviewStatusVars = {
+  applicantId: string;
+  interviewId: string;
+  data: UpdateInterviewStatusRequest;
+  /** Field-level autosaves pass true to avoid refetch churn while typing. */
+  skipBackgroundRefetch?: boolean;
+};
+type UpdateInterviewStatusContext = { previousApplicant?: Applicant };
+
 export function useUpdateInterviewStatus() {
   const queryClient = useQueryClient();
   const { t } = useLocale();
 
-  return useMutation({
-    mutationFn: ({
-      applicantId,
-      interviewId,
-      data,
-    }: {
-      applicantId: string;
-      interviewId: string;
-      data: UpdateInterviewStatusRequest;
-    }) =>
-      applicantsService.updateInterviewStatus(applicantId, interviewId, data),
+return useMutation<
+    Awaited<ReturnType<typeof applicantsService.updateInterviewStatus>>,
+    ApiError,
+    UpdateInterviewStatusVars,
+    UpdateInterviewStatusContext
+  >({
+    mutationFn: ({ applicantId, interviewId, data }: UpdateInterviewStatusVars) => {
+      const payload: Record<string, unknown> = { ...(data as Record<string, unknown>) };
+      if (Array.isArray(payload.questions)) {
+        payload.questions = stripOptimisticGhosts(payload.questions);
+      }
+      return applicantsService.updateInterviewStatus(
+        applicantId,
+        interviewId,
+        payload as UpdateInterviewStatusRequest
+      );
+    },
     onMutate: async ({ applicantId, interviewId, data }) => {
       await queryClient.cancelQueries({
         queryKey: applicantsKeys.detail(applicantId),
@@ -680,20 +941,27 @@ export function useUpdateInterviewStatus() {
       }
       return { previousApplicant };
     },
-    onSuccess: (_updatedApplicant, _variables) => {
-      // The optimistic update from onMutate is the source of truth.
-      // Do NOT overwrite the cache with the server response — it strips
-      // questions/groupKey/groupName/groupSource on round-trips, which
-      // would wipe out the user's in-progress answers and re-trigger the
-      // question picker view.
+    onSuccess: async (_response, { applicantId, skipBackgroundRefetch }) => {
+      // Structural authority = the optimistically-patched cache. Do NOT
+      // graft the mutation response into the cache: the backend can echo a
+      // pre-save question list in the response body, which would visibly
+      // wipe just-added groups/questions for a moment until the next GET.
+      // Convergence happens exclusively via reconciled background refetches
+      // (applyInterviewIntent filters them in queryFn).
+      if (!skipBackgroundRefetch && applicantId) {
+        await queryClient.invalidateQueries({ queryKey: applicantsKeys.detail(applicantId) });
+      }
     },
     onError: (error: ApiError, _variables, context) => {
-      if (
-        (context as { previousApplicant?: unknown } | undefined)
-          ?.previousApplicant
-      ) {
-        const previous = (context as { previousApplicant: unknown })
-          .previousApplicant;
+    onError: (error: ApiError, _variables, context) => {
+      if (context?.previousApplicant) {
+        const previous = context.previousApplicant as Applicant | undefined;
+        const { applicantId } = _variables;
+        if (previous) {
+          queryClient.setQueryData(applicantsKeys.detail(applicantId), previous);
+        }
+      }
+    },
         const { applicantId } = _variables;
         queryClient.setQueryData(applicantsKeys.detail(applicantId), previous);
       }
@@ -716,13 +984,22 @@ export function useDeleteInterview() {
       interviewId: string;
     }) => applicantsService.deleteInterview(applicantId, interviewId),
     onSuccess: (updatedApplicant, { applicantId }) => {
-      queryClient.setQueryData(
-        applicantsKeys.detail(applicantId),
-        updatedApplicant
-      );
-      queryClient.invalidateQueries({
-        queryKey: applicantsKeys.detail(applicantId),
-      });
+    onSuccess: (updatedApplicant, { applicantId }) => {
+      const res = updatedApplicant as Partial<Applicant> | undefined;
+      const looksLikeFullApplicant =
+        res &&
+        typeof res === 'object' &&
+        (res.fullName !== undefined ||
+          res.firstName !== undefined ||
+          res.email !== undefined ||
+          res.phone !== undefined) &&
+        Array.isArray(res.interviews);
+      if (looksLikeFullApplicant) {
+        queryClient.setQueryData(applicantsKeys.detail(applicantId), updatedApplicant);
+      }
+      queryClient.invalidateQueries({ queryKey: applicantsKeys.detail(applicantId) });
+      showSuccessToast(t('interviewDeleted', 'common'), t);
+    },
       showSuccessToast(t('interviewDeleted', 'common'), t);
     },
     onError: (error: ApiError) => {
@@ -739,13 +1016,34 @@ export function useAddComment() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: AddCommentRequest }) =>
       applicantsService.addComment(id, data),
+    onMutate: async ({ id, data }) => {
+      await queryClient.cancelQueries({ queryKey: applicantsKeys.detail(id) });
+      const previousApplicant = queryClient.getQueryData<Applicant | undefined>(
+        applicantsKeys.detail(id),
+      );
+      if (previousApplicant) {
+        const tempComment = {
+          _id: `temp_comment_${Date.now()}`,
+          text: data.text || '',
+          createdAt: new Date().toISOString(),
+        };
+        queryClient.setQueryData(applicantsKeys.detail(id), {
+          ...previousApplicant,
+          comments: [...(previousApplicant.comments || []), tempComment],
+        });
+      }
+      return { previousApplicant };
+    },
     onSuccess: (response, { id }) => {
       mergeApplicantResponseIntoCache(queryClient, id, response, {
         appendKey: 'comments',
       });
       showSuccessToast(t('commentAdded', 'common'), t);
     },
-    onError: (error: ApiError) => {
+    onError: (error: ApiError, { id }, context) => {
+      if (context?.previousApplicant) {
+        queryClient.setQueryData(applicantsKeys.detail(id), context.previousApplicant);
+      }
       showErrorToast(error.message, t('commentAddFailed', 'common'), t);
     },
   });
@@ -759,11 +1057,34 @@ export function useSendMessage() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: SendMessageRequest }) =>
       applicantsService.sendMessage(id, data),
+    onMutate: async ({ id, data }) => {
+      await queryClient.cancelQueries({ queryKey: applicantsKeys.detail(id) });
+      const previousApplicant = queryClient.getQueryData<Applicant | undefined>(
+        applicantsKeys.detail(id),
+      );
+      if (previousApplicant) {
+        const tempActivity = {
+          id: `temp_msg_${Date.now()}`,
+          type: (data.type || 'email') as Activity['type'],
+          title: data.subject || data.content || data.comment || '',
+          description: data.content || data.comment || '',
+          timestamp: new Date().toISOString(),
+        };
+        queryClient.setQueryData(applicantsKeys.detail(id), {
+          ...previousApplicant,
+          activities: [...((previousApplicant as any).activities || []), tempActivity],
+        });
+      }
+      return { previousApplicant };
+    },
     onSuccess: (response, { id }) => {
       mergeApplicantResponseIntoCache(queryClient, id, response);
       showSuccessToast(t('messageSent', 'common'), t);
     },
-    onError: (error: ApiError) => {
+    onError: (error: ApiError, { id }, context) => {
+      if (context?.previousApplicant) {
+        queryClient.setQueryData(applicantsKeys.detail(id), context.previousApplicant);
+      }
       showErrorToast(error.message, t('messageSendFailed', 'common'), t);
     },
   });

@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import 'quill/dist/quill.snow.css';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Modal } from '../ui/modal';
 import DatePicker from '../form/date-picker';
 import Label from '../form/Label';
@@ -16,6 +15,8 @@ import {
 } from '../../hooks/queries';
 import { resolveCompanyAddress } from '../../utils/companyAddress';
 import { useLocale } from '../../context/LocaleContext';
+import { filterTemplatesByCategory } from '../../utils/mailTemplateCategories';
+import RichTextEditor from '../form/RichTextEditor';
 
 // Simple HTML escape utility
 function escapeHtml(str: string) {
@@ -32,99 +33,6 @@ function escapeHtml(str: string) {
 }
 
 // Lightweight Quill editor wrapper
-function QuillEditor({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const quillRef = useRef<any>(null);
-  const onChangeRef = useRef<(v: string) => void>(onChange);
-
-  useEffect(() => {
-    onChangeRef.current = onChange;
-  }, [onChange]);
-
-  useEffect(() => {
-    let mounted = true;
-    if (!containerRef.current) return;
-    (async () => {
-      const QuillModule = await import('quill');
-      const Quill = (QuillModule as any).default ?? QuillModule;
-      if (!mounted || !containerRef.current) return;
-      if (quillRef.current) {
-        try {
-          if (
-            quillRef.current.root &&
-            quillRef.current.root.innerHTML !== value
-          ) {
-            quillRef.current.clipboard.dangerouslyPasteHTML(value || '');
-          }
-        } catch (e) {
-          /* ignore */
-        }
-        return;
-      }
-
-      try {
-        containerRef.current.innerHTML = '';
-      } catch (e) {
-        /* ignore */
-      }
-      quillRef.current = new Quill(containerRef.current, {
-        theme: 'snow',
-        modules: {
-          toolbar: [
-            ['bold', 'italic', 'underline'],
-            [{ list: 'ordered' }, { list: 'bullet' }],
-            ['link'],
-          ],
-        },
-      });
-      quillRef.current.clipboard.dangerouslyPasteHTML(value || '');
-      const handleChange = () =>
-        onChangeRef.current(quillRef.current.root.innerHTML);
-      quillRef.current.on('text-change', handleChange);
-    })();
-
-    return () => {
-      mounted = false;
-      if (quillRef.current) {
-        try {
-          quillRef.current.off && quillRef.current.off('text-change');
-        } catch (e) {
-          /* ignore */
-        }
-        quillRef.current = null;
-      }
-      try {
-        if (containerRef.current) containerRef.current.innerHTML = '';
-      } catch (e) {
-        /* ignore */
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (
-      quillRef.current &&
-      quillRef.current.root &&
-      quillRef.current.root.innerHTML !== value
-    ) {
-      quillRef.current.clipboard.dangerouslyPasteHTML(value || '');
-    }
-  }, [value]);
-
-  return (
-    <div
-      className="border rounded bg-white dark:bg-gray-800"
-      style={{ minHeight: 120 }}
-      ref={containerRef}
-    />
-  );
-}
 
 type Props = any;
 
@@ -198,7 +106,8 @@ export default function InterviewScheduleModal(props: Props) {
     const company =
       companyData || (applicant && (applicant.company || applicant.companyObj));
     const templates = company?.settings?.mailSettings?.emailTemplates || [];
-    return templates;
+    // Interview invitations only show "interviews" templates
+    return filterTemplatesByCategory(templates, 'interviews');
   }, [companyData, applicant]);
 
   // Get company ID for fetching users
@@ -1089,6 +998,7 @@ export default function InterviewScheduleModal(props: Props) {
   }
 
   const [newLocalEmail, setNewLocalEmail] = useState('');
+  void setNewLocalEmail; // to avoid unused variable warning
 
   const getCompanyDomain = () => {
     const domainFromResponse =
@@ -1866,12 +1776,7 @@ export default function InterviewScheduleModal(props: Props) {
                       </p>
                     </div>
                     <div className="mt-3">
-                      <QuillEditor
-                        value={messageTemplate}
-                        onChange={(content: string) =>
-                          setMessageTemplate(content)
-                        }
-                      />
+<RichTextEditor value={messageTemplate} onChange={(content: string) => setMessageTemplate(content)} minHeight={120} />
                       <p className="mt-1 text-xs text-gray-500">
                         {t('availableVariables', 'modals')}:{' '}
                         {'{{candidateName}}'}, {'{{jobTitle}}'},{' '}
@@ -1956,12 +1861,7 @@ export default function InterviewScheduleModal(props: Props) {
                   </>
                 ) : (
                   <>
-                    <QuillEditor
-                      value={messageTemplate}
-                      onChange={(content: string) =>
-                        setMessageTemplate(content)
-                      }
-                    />
+                    <RichTextEditor value={messageTemplate} onChange={(content: string) => setMessageTemplate(content)} minHeight={120} />
                     <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded text-xs">
                       <strong>{t('quickInsert', 'modals')}:</strong>{' '}
                       <button

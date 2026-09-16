@@ -110,7 +110,7 @@ class CompaniesService {
         'get',
         '/companies',
         undefined,
-        { deleted: 'false' }
+        { deleted: 'false', PageCount: 'all' }
       );
       return Array.isArray(response) ? response : [];
     }
@@ -163,7 +163,11 @@ class CompaniesService {
       `/companies/${companyId}`,
       companyData
     );
-    return extractCompany(response);
+    try {
+      return extractCompany(response);
+    } catch {
+      return { _id: companyId, ...companyData } as Company;
+    }
   }
 
   async deleteCompany(companyId: string): Promise<void> {
@@ -482,6 +486,35 @@ class CompaniesService {
       { companyId, ...params }
     );
   }
+
+  async getCompanyInterviews(companyId: string, params?: {
+    direction?: 'future' | 'past';
+    scheduledBy?: string;
+    conductedBy?: string;
+    status?: string;
+    from?: string;
+    to?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<CompanyInterviewsResponse> {
+    return this.request<CompanyInterviewsResponse>(
+      'get',
+      `/companies/${companyId}/interviews`,
+      undefined,
+      params
+    );
+  }
+}
+
+interface CompanyInterviewsResponse {
+  interviews?: Array<Record<string, unknown>>;
+  counts?: Record<string, number>;
+  pagination?: {
+    page: number;
+    totalPages: number;
+    total: number;
+  };
+}
 }
 
 // ===== Email Templates Service =====

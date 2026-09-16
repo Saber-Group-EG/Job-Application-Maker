@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import {
   Ban,
   ClipboardList,
@@ -49,8 +48,13 @@ import {
   useCompanies,
   useCompanyInterviewSettings,
   useUpdateCompanyInterviewSettings,
+import {
   companiesKeys,
+  useCompanies,
+  useCompanyInterviewSettings,
   useDraftInterviewQuestionsWithAi,
+  useUpdateCompanyInterviewSettings,
+} from '../../../hooks/queries/useCompanies';
 } from '../../../hooks/queries/useCompanies';
 import RejectionTab from './Rejectiontab';
 import StatusSettings from './StatusSettings';
@@ -109,6 +113,44 @@ const EMPTY_QUESTION: QuestionItem = {
 
 const choicePct = (choiceScore: number, questionScore: number) =>
   questionScore > 0 ? Math.round((choiceScore / questionScore) * 100) : 0;
+
+const autoFixChoiceScores = (question: any): ChoiceItem[] => {
+  const choices = Array.isArray(question?.choices)
+    ? (question.choices as ChoiceItem[])
+    : [];
+  const questionScore = Number(question?.score) || 0;
+
+  if (question?.answerType === 'checkbox' && questionScore > 0) {
+    const sum = choices.reduce((s, c) => s + (Number(c.score) || 0), 0);
+    if (sum > questionScore) {
+      const scale = questionScore / sum;
+      const fixed = choices.map((c) => ({
+        ...c,
+        score: Math.round((Number(c.score) || 0) * scale),
+      }));
+      const fixedSum = fixed.reduce((s, c) => s + (Number(c.score) || 0), 0);
+      const diff = questionScore - fixedSum;
+      if (fixed.length > 0) {
+        const last = fixed[fixed.length - 1];
+        fixed[fixed.length - 1] = {
+          ...last,
+          score: Math.max(0, (Number(last.score) || 0) + diff),
+        };
+      }
+      return fixed;
+    }
+    return choices;
+  }
+
+  if (question?.answerType === 'dropdown' && questionScore > 0) {
+    return choices.map((c) => {
+      const score = Number(c.score) || 0;
+      return score > questionScore ? { ...c, score: questionScore } : c;
+    });
+  }
+
+  return choices;
+};
 
 const normalizeQuestion = (
   question: Partial<InterviewQuestion & { _id?: string }> | undefined
@@ -877,7 +919,6 @@ export default function InterviewCompanySettingsPage() {
   const isAiFeaturesTab = activeTab === 'ai-features';
 
   const updateInterviewMutation = useUpdateCompanyInterviewSettings();
-  const queryClient = useQueryClient();
 
   const {
     data: interviewSettingsFromQuery,
@@ -1113,7 +1154,6 @@ export default function InterviewCompanySettingsPage() {
           );
           return null;
         }
-
         if (
           question.answerType === 'checkbox' &&
           Array.isArray(question.choices)
@@ -1169,7 +1209,7 @@ export default function InterviewCompanySettingsPage() {
         question: question.question.trim(),
         score: Number(question.score),
         answerType: question.answerType,
-        choices: Array.isArray(question.choices) ? question.choices : [],
+        choices: autoFixChoiceScores(question),
         tags: Array.isArray(question.tags) ? question.tags : [],
       })),
     }));
@@ -1188,7 +1228,6 @@ export default function InterviewCompanySettingsPage() {
     const payloadGroups = validateGroups();
     if (!payloadGroups) return;
 
-    // Get the settings ID from the selected company
     const settingsId = selectedCompany?.settings?._id;
 
     if (!settingsId) {
@@ -1201,7 +1240,6 @@ export default function InterviewCompanySettingsPage() {
     }
 
     setIsSaving(true);
-    // Optimistic: apply the saved groups immediately so the UI never clears
     const optimisticGroups = payloadGroups.map((g, i) => ({
       ...g,
       _id: groups[i]?._id ?? uid(),
@@ -1250,21 +1288,27 @@ export default function InterviewCompanySettingsPage() {
         data: { interviewSettings: { groups: serverGroups } } as any,
       });
 
+    updateInterviewMutation.mutateAsync({
+      settingsId,
+      companyId: effectiveCompanyId,
+      data: { interviewSettings: { groups: serverGroups } } as any,
+    }).then(() => {
       Swal.fire({
         title: t('commonSaved', 'settings'),
         icon: 'success',
         timer: 1200,
         showConfirmButton: false,
       });
-    } catch (error: any) {
+    }).catch((error: any) => {
+      setGroups(prev => prev === optimisticGroups ? normalizeGroups(derivedInterviewSettings?.groups).map((g, i) => ({ ...g, _id: prev[i]?._id ?? uid() })) as (InterviewGroup & { _id: string })[] : prev);
       Swal.fire(
         t('interviewCompany.swalSaveFailed', 'settings'),
         error?.message || t('interviewCompany.swalSaveFailedMsg', 'settings'),
         'error'
       );
-    } finally {
+    }).finally(() => {
       setIsSaving(false);
-    }
+    });
   };
 
   if (!canRead) {

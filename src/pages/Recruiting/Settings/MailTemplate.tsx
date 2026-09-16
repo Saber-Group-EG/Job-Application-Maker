@@ -1,5 +1,5 @@
 // pages/Settings/EmailTemplates.tsx
-import React, { useState, useEffect} from "react";
+import React, { useState } from "react";
 import DOMPurify from 'dompurify';
 import {
   PlusCircle, Save, Trash2, Edit, Copy, Mail, Eye, X
@@ -17,52 +17,23 @@ import {
 } from "../../../hooks/queries/useCompanies";
 import Label from "../../../components/form/Label";
 import Input from "../../../components/form/input/InputField";
+import Select from "../../../components/form/Select";
+import RichTextEditor from "../../../components/form/RichTextEditor";
 import { useCompanyFilter } from '../../../context/CompanyFilterContext';
+import {
+  MAIL_TEMPLATE_CATEGORIES,
+  getTemplateCategory,
+} from '../../../utils/mailTemplateCategories';
+import { MailTemplateCategory } from '../../../types/companies';
+import { decodeHtmlEntities } from '../../../utils/html';
 
-function QuillEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const containerRef = React.useRef<HTMLDivElement | null>(null);
-  const quillRef = React.useRef<any>(null);
-  const onChangeRef = React.useRef(onChange);
-
-  React.useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
-
-  React.useEffect(() => {
-    let mounted = true;
-    if (!containerRef.current) return;
-    (async () => {
-      const QuillModule = await import('quill');
-      const Quill = (QuillModule as any).default ?? QuillModule;
-      if (!mounted || !containerRef.current) return;
-      quillRef.current = new Quill(containerRef.current, {
-        theme: 'snow',
-        modules: {
-          toolbar: [
-            ['bold', 'italic', 'underline', 'strike'],
-            [{ list: 'ordered' }, { list: 'bullet' }],
-            ['link', 'clean'],
-          ],
-        },
-      });
-      quillRef.current.root.innerHTML = DOMPurify.sanitize(value || '');
-      const handleChange = () => onChangeRef.current(quillRef.current.root.innerHTML);
-      quillRef.current.on('text-change', handleChange);
-    })();
-    return () => {
-      mounted = false;
-      if (quillRef.current) {
-        try { quillRef.current.off && quillRef.current.off('text-change'); } catch (e) {}
-        quillRef.current = null;
-      }
-    };
-  }, []);
-
-  React.useEffect(() => {
-    if (quillRef.current && quillRef.current.root && quillRef.current.root.innerHTML !== value) {
-      quillRef.current.root.innerHTML = DOMPurify.sanitize(value || '');
-    }
-  }, [value]);
-
-  return <div className="border rounded bg-white dark:bg-gray-800" style={{ minHeight: 200 }} ref={containerRef} />;
+function stripHtml(html: string): string {
+  return decodeHtmlEntities(html)
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function TemplateFormModal({
@@ -74,25 +45,18 @@ function TemplateFormModal({
   settingsId: string;
   existingTemplates: any[];
 }) {
-  const [formData, setFormData] = useState({ name: "", subject: "", html: "" });
+  const [formData, setFormData] = useState({
+    name: template?.name ?? "",
+    subject: template?.subject ?? "",
+    html: template?.html ?? `<p>Hello {{candidateName}},</p>\n<p>We're excited to invite you for an interview for the position of {{jobTitle}}.</p>\n<p>Best regards,<br>HR Team</p>`,
+    category: (template?.category as MailTemplateCategory) || "general",
+  });
   const [showPreview, setShowPreview] = useState(false);
   const [previewContent, setPreviewContent] = useState('');
   const { t } = useLocale();
   const createMutation = useCreateMailTemplate();
   const updateMutation = useUpdateMailTemplate();
   // ✅ No more usePreviewMailTemplate - using direct function import
-
-  useEffect(() => {
-    if (template) {
-      setFormData({ name: template.name, subject: template.subject, html: template.html });
-    } else {
-      setFormData({
-        name: "",
-        subject: "",
-        html: `<p>Hello {{candidateName}},</p>\n<p>We're excited to invite you for an interview for the position of {{jobTitle}}.</p>\n<p>Best regards,<br>HR Team</p>`,
-      });
-    }
-  }, [template]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -178,8 +142,26 @@ function TemplateFormModal({
           </div>
           
           <div>
+            <Label htmlFor="category">{t('mailTemplates.labelCategory', 'settings')}</Label>
+            <Select
+              options={MAIL_TEMPLATE_CATEGORIES.map((cat) => ({
+                value: cat,
+                label: t(`mailTemplates.category.${cat}`, 'settings'),
+              }))}
+              value={formData.category}
+              onChange={(value) =>
+                setFormData({ ...formData, category: value as MailTemplateCategory })
+              }
+              placeholder={t('mailTemplates.labelCategory', 'settings')}
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              {t('mailTemplates.categoryHelp', 'settings')}
+            </p>
+          </div>
+
+          <div>
             <Label htmlFor="html">Email Body *</Label>
-            <QuillEditor value={formData.html} onChange={(content) => setFormData({ ...formData, html: content })} />
+            <RichTextEditor value={formData.html} onChange={(content) => setFormData({ ...formData, html: content })} />
             <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
               <p className="text-xs font-semibold text-blue-800 dark:text-blue-300 mb-2">{t('mailTemplates.variablesHelpText', 'settings')}</p>
               <div className="flex flex-wrap gap-3 text-xs">
@@ -263,6 +245,20 @@ export default function EmailTemplates({
   const { selectedCompanyId } = useCompanyFilter();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<any | null>(null);
+  const [modalOpenKey, setModalOpenKey] = useState(0);
+  const [categoryFilter, setCategoryFilter] = useState<MailTemplateCategory | 'all'>('all');
+
+  const openCreateModal = () => {
+    setEditingTemplate(null);
+    setModalOpenKey((k) => k + 1);
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (template: any) => {
+    setEditingTemplate(template);
+    setModalOpenKey((k) => k + 1);
+    setIsModalOpen(true);
+  };
 
   const userCompanyIds = (user?.companies ?? [])
     .map((c: any) => typeof c.companyId === "string" ? c.companyId : c.companyId?._id)
@@ -287,6 +283,10 @@ export default function EmailTemplates({
 
   const deleteMutation = useDeleteMailTemplate();
   const duplicateMutation = useDuplicateMailTemplate();
+
+  const filteredTemplates = categoryFilter === 'all'
+    ? templates
+    : templates.filter((t) => getTemplateCategory(t) === categoryFilter);
 
   const handleDeleteTemplate = async (template: any) => {
     if (!settingsId) {
@@ -339,7 +339,7 @@ export default function EmailTemplates({
             </div>
           </div>
           <button
-            onClick={() => { setEditingTemplate(null); setIsModalOpen(true); }}
+            onClick={openCreateModal}
             disabled={!canEdit || !selectedCompanyId || !settingsId}
             className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
           >
@@ -350,14 +350,41 @@ export default function EmailTemplates({
 
         <div className="p-6">
 
+          <div className="mb-6 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setCategoryFilter('all')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium border transition ${
+                categoryFilter === 'all'
+                  ? 'bg-brand-500 text-white border-brand-500'
+                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-700'
+              }`}
+            >
+              {t('mailTemplates.category.all', 'settings')}
+            </button>
+            {MAIL_TEMPLATE_CATEGORIES.map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setCategoryFilter(cat)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium border transition ${
+                  categoryFilter === cat
+                    ? 'bg-brand-500 text-white border-brand-500'
+                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-700'
+                }`}
+              >
+                {t(`mailTemplates.category.${cat}`, 'settings')}
+              </button>
+            ))}
+          </div>
 
-          {templates.length === 0 ? (
+          {filteredTemplates.length === 0 ? (
             <div className="text-center py-12">
               <Mail className="size-12 text-slate-300 mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">{t('mailTemplates.emptyStateTitle', 'settings')}</h3>
               <p className="text-slate-500 mb-4">{t('mailTemplates.emptyStateDesc', 'settings')}</p>
               <button
-                onClick={() => { setEditingTemplate(null); setIsModalOpen(true); }}
+                onClick={openCreateModal}
                 disabled={!canEdit || !settingsId}
                 className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
               >
@@ -367,7 +394,7 @@ export default function EmailTemplates({
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {templates.map((template) => (
+              {filteredTemplates.map((template) => (
                 <div 
                   key={template._id} 
                   className="border border-slate-200 dark:border-slate-700 rounded-xl p-4 hover:shadow-lg transition-shadow bg-white dark:bg-slate-900"
@@ -376,7 +403,7 @@ export default function EmailTemplates({
                     <h3 className="font-semibold text-lg dark:text-white">{template.name}</h3>
                     <div className="flex gap-1">
                       <button 
-                        onClick={() => { setEditingTemplate(template); setIsModalOpen(true); }} 
+                        onClick={() => openEditModal(template)} 
                         disabled={!canEdit || !settingsId} 
                         className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded"
                       >
@@ -398,8 +425,22 @@ export default function EmailTemplates({
                       </button>
                     </div>
                   </div>
+                  <span className={`inline-block mb-2 px-2 py-0.5 rounded-full text-xs font-medium ${
+                    getTemplateCategory(template) === 'general'
+                      ? 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                      : getTemplateCategory(template) === 'applicants'
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                        : getTemplateCategory(template) === 'interviews'
+                          ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
+                          : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+                  }`}>
+                    {t(`mailTemplates.category.${getTemplateCategory(template)}`, 'settings')}
+                  </span>
                   <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
                     <strong>{t('mailTemplates.cardSubject', 'settings')}</strong> {template.subject}
+                  </p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-3">
+                    {stripHtml(template.html)}
                   </p>
 
                 </div>
@@ -411,6 +452,7 @@ export default function EmailTemplates({
 
       {settingsId && (
         <TemplateFormModal
+          key={modalOpenKey}
           isOpen={isModalOpen}
           onClose={() => { setIsModalOpen(false); setEditingTemplate(null); }}
           template={editingTemplate}
