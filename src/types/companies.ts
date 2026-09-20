@@ -253,11 +253,21 @@ export interface SubscriptionUsage {
   nearLimit: boolean;
 }
 
+export type ActivePromo = {
+  code: string | null;
+  discountPercent: number | null;
+  discountAmountCents: number | null;
+  discountCyclesUsed: number;
+  discountCyclesTotal: number;
+  revertsAt: string; // ISO date
+};
+
 export interface SubscriptionDetails {
   subscription: CompanySubscriptionInfo;
   plan: Plan;
   pendingPlan: Plan | null;
   upgradeInProgressPlan: Plan | null;
+  activePromo: ActivePromo | null;
   usage: SubscriptionUsage;
 }
 

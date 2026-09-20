@@ -33,9 +33,18 @@ import {
 import Swal from '../../../utils/swal';
 import { useCompanyFilter } from '../../../context/CompanyFilterContext';
 import { requestsToCredits } from '../../../utils/credits';
-import type { SubscriptionCard, TransactionRecord } from '../../../types/companies';
+import type {
+  SubscriptionCard,
+  TransactionRecord,
+} from '../../../types/companies';
 import { CreditCard as CardIcon, Trash2, Star } from 'lucide-react';
-import { useCards, useDeleteCard, useChangePrimaryCard, useStartAddCard, cardsKeys } from '../../../hooks/queries/useCompanies';
+import {
+  useCards,
+  useDeleteCard,
+  useChangePrimaryCard,
+  useStartAddCard,
+  cardsKeys,
+} from '../../../hooks/queries/useCompanies';
 import { paths } from '../../../router/Paths';
 import { useQueryClient } from '@tanstack/react-query';
 import PaymobCardForm from '../../../components/payments/PaymobCardForm';
@@ -178,7 +187,13 @@ export default function SubscriptionPage() {
     );
   }
 
-  const { subscription, plan, pendingPlan, upgradeInProgressPlan } = data;
+  const {
+    subscription,
+    plan,
+    pendingPlan,
+    upgradeInProgressPlan,
+    activePromo,
+  } = data;
   const periodEndDate = getPeriodEndDate(
     subscription.lastPaymentAt,
     plan.frequency
@@ -264,7 +279,9 @@ export default function SubscriptionPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <PageBreadCrumb pageTitle={t('subscription.pageBreadcrumb', 'settings')} />
+      <PageBreadCrumb
+        pageTitle={t('subscription.pageBreadcrumb', 'settings')}
+      />
 
       {/* ── Usage this cycle ──────────────────────────────────────────── */}
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -395,9 +412,23 @@ export default function SubscriptionPage() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
               {t('subscription.price', 'settings')}
             </p>
-            <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100">
-              {formatMoney(plan.priceCents, plan.currency)}
-            </p>
+            {activePromo ? (
+              <div className="mt-1">
+                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                  {formatMoney(
+                    subscription.currentCycleAmountCents,
+                    plan.currency
+                  )}
+                </p>
+                <p className="text-xs text-slate-400 line-through">
+                  {formatMoney(plan.priceCents, plan.currency)}
+                </p>
+              </div>
+            ) : (
+              <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100">
+                {formatMoney(plan.priceCents, plan.currency)}
+              </p>
+            )}
           </div>
           <div className="px-6 py-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
@@ -477,6 +508,20 @@ export default function SubscriptionPage() {
           </div>
         )}
 
+        {activePromo && (
+          <div className="mx-6 mb-6 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300">
+            <Receipt className="size-4 shrink-0" />
+            <span>
+              {t('subscription.promoActive', 'settings')}{' '}
+              <strong>{activePromo.code}</strong> —{' '}
+              {activePromo.discountCyclesTotal - activePromo.discountCyclesUsed}{' '}
+              {t('subscription.cyclesRemaining', 'settings')},{' '}
+              {t('subscription.revertsOn', 'settings')}{' '}
+              {formatDate(activePromo.revertsAt, locale)}
+            </span>
+          </div>
+        )}
+        
         {canEdit && (
           <div className="flex flex-wrap gap-3 border-t border-slate-200 px-6 py-4 dark:border-slate-800">
             <button

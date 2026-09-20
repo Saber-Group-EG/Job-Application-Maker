@@ -25,6 +25,14 @@
   "recommendedFields": "الحقول الموصى بها",
   "inquiryPreview": "صندوق الدعم الوارد",
   "companyData": "بيانات الشركة",
+  "promoManagement": "الرموز والعمولات",
+  "promoCodes": "رموز الخصم",
+  "commissionsReport": "تقرير العمولات",
+  "commissionsLedger": "سجل العمولات",
+  "redemptions": "الاستخدامات",
+  "myPromos": "رموز الخصم الخاصة بي",
+  "myCommissions": "عمولاتي",
+  "myRedemptions": "استخدامات رموزي",
   "new": "جديد",
   "pro": "احترافي"
 }

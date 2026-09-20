@@ -3,6 +3,7 @@ import { Suspense, lazy } from 'react';
 import { ScrollToTop } from '../components/common/ScrollToTop';
 import ProtectedRoute from './ProtectedRoute';
 import PermissionProtectedRoute from './PermissionProtectedRoute';
+import RoleProtectedRoute from './RoleProtectedRoute';
 import { paths, patterns } from './Paths';
 
 // Landing pages
@@ -121,6 +122,28 @@ const AdminSettings = lazy(
 // Inquiries
 const InquiriesList = lazy(() => import('../pages/Inquiries/InquiriesList'));
 const InquiryPreview = lazy(() => import('../pages/Inquiries/InquiryPreview'));
+
+// Promos (Phase 1)
+const AdminPromoCodes = lazy(() => import('../pages/promos/AdminPromoCodes'));
+const AdminPromoCodeDetail = lazy(
+  () => import('../pages/promos/AdminPromoCodeDetail')
+);
+// Promos (Phase 2-3)
+const AdminCommissionsReport = lazy(
+  () => import('../pages/promos/AdminCommissionsReport')
+);
+const AdminCommissionsLedger = lazy(
+  () => import('../pages/promos/AdminCommissionsLedger')
+);
+const AdminPromoRedemptions = lazy(
+  () => import('../pages/promos/AdminPromoRedemptions')
+);
+// Promos (Phase 4-6 / HR self-service)
+const MyPromoCodes = lazy(() => import('../pages/promos/MyPromoCodes'));
+const MyCommissions = lazy(() => import('../pages/promos/MyCommissions'));
+const MyPromoRedemptions = lazy(
+  () => import('../pages/promos/MyPromoRedemptions')
+);
 
 // Misc
 const UserProfiles = lazy(() => import('../pages/UserProfiles'));
@@ -336,6 +359,36 @@ export default function App() {
                 <Route
                   path={patterns.inquiries.preview}
                   element={<InquiryPreview />}
+                />
+              </Route>
+
+              {/* Promos (admin) */}
+              <Route element={<RoleProtectedRoute roles={['admin', 'super admin']} />}>
+                <Route path={paths.promos.root} element={<AdminPromoCodes />} />
+                <Route
+                  path={patterns.promos.detail}
+                  element={<AdminPromoCodeDetail />}
+                />
+                <Route
+                  path={paths.promos.commissions}
+                  element={<AdminCommissionsReport />}
+                />
+                <Route
+                  path={paths.promos.redemptions}
+                  element={<AdminPromoRedemptions />}
+                />
+              </Route>
+
+              {/* Promos (HR self-service) */}
+              <Route element={<RoleProtectedRoute roles={['hr manager']} />}>
+                <Route path={paths.myPromos.root} element={<MyPromoCodes />} />
+                <Route
+                  path={paths.myPromos.commissions}
+                  element={<MyCommissions />}
+                />
+                <Route
+                  path={paths.myPromos.redemptions}
+                  element={<MyPromoRedemptions />}
                 />
               </Route>
               <Route

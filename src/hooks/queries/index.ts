@@ -9,4 +9,5 @@ export * from './useSystemSettings';
 // mail template hooks moved into `useCompanies`
 export * from './useSendEmail';
 export * from './useInquiries';
+export * from './usePromos';
 

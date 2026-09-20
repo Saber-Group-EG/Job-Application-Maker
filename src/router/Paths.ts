@@ -79,6 +79,19 @@ export const paths = {
     preview: (id: string) => `/inquiries/${id}`,
   },
 
+  promos: {
+    root: '/promos',
+    detail: (id: string) => `/promos/${id}`,
+    commissions: '/promos/commissions',
+    redemptions: '/promos/redemptions',
+  },
+
+  myPromos: {
+    root: '/my/promos',
+    commissions: '/my/commissions',
+    redemptions: '/my/redemptions',
+  },
+
   misc: {
     profile: '/profile',
     profileEdit: '/profile/edit',
@@ -122,6 +135,10 @@ export const patterns = {
 
   inquiries: {
     preview: 'inquiries/:id',
+  },
+
+  promos: {
+    detail: 'promos/:id',
   },
 
   admin: {

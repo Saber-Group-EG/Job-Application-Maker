@@ -57,6 +57,13 @@ const AppSidebar: React.FC = () => {
     return String(roleName) === 'super admin' || String(roleName) === 'admin';
   }, [user]);
 
+  // HR self-service promo sections are shown to HR Managers only (UX-only —
+  // the backend enforces the real promo role list).
+  const isHrManager = useMemo(() => {
+    const roleName = user?.roleId?.name?.toLowerCase?.();
+    return String(roleName) === 'hr manager';
+  }, [user]);
+
   // Get applicant pages from companies data (from /auth/me)
   const applicantPageSubItems = useMemo(() => {
     const seen = new Set<string>();
@@ -275,6 +282,64 @@ const AppSidebar: React.FC = () => {
             name: 'Company Usage',
             tKey: 'companyUsage',
             path: '/admin-settings',
+          },
+        ]
+      : []),
+    ...(hasAdminUsageAccess
+      ? [
+          {
+            icon: <TaskIcon />,
+            name: 'Promo & Commissions',
+            tKey: 'promoManagement',
+            subItems: [
+              {
+                name: 'Promo Codes',
+                tKey: 'promoCodes',
+                path: '/promos',
+                pro: false,
+              },
+              {
+                name: 'Commissions',
+                tKey: 'Commissions',
+                path: '/promos/commissions',
+                pro: false,
+              },
+              {
+                name: 'Redemptions',
+                tKey: 'redemptions',
+                path: '/promos/redemptions',
+                pro: false,
+              },
+            ],
+          },
+        ]
+      : []),
+    ...(isHrManager
+      ? [
+          {
+            icon: <TaskIcon />,
+            name: 'My Promo Codes',
+            tKey: 'myPromos',
+            subItems: [
+              {
+                name: 'My Promo Codes',
+                tKey: 'myPromos',
+                path: '/my/promos',
+                pro: false,
+              },
+              {
+                name: 'My Commissions',
+                tKey: 'myCommissions',
+                path: '/my/commissions',
+                pro: false,
+              },
+              {
+                name: 'My Redemptions',
+                tKey: 'myRedemptions',
+                path: '/my/redemptions',
+                pro: false,
+              },
+            ],
           },
         ]
       : []),

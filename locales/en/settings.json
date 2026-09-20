@@ -468,5 +468,8 @@
   "subscription.noTransactions": "No transactions yet.",
   "subscription.previousPage": "Previous page",
   "subscription.nextPage": "Next page",
-  "subscription.page": "Page"
+  "subscription.page": "Page",
+  "subscription.promoActive": "Promo code active:",
+  "subscription.cyclesRemaining": "cycles remaining",
+  "subscription.revertsOn": "reverts to standard price after"
 }

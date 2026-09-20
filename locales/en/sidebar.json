@@ -25,6 +25,14 @@
   "recommendedFields": "Recommended Fields",
   "inquiryPreview": "Support Inbox",
   "companyData": "Company Data",
+  "promoManagement": "Promo & Commissions",
+  "promoCodes": "Promo Codes",
+  "commissionsReport": "Commissions Report",
+  "commissionsLedger": "Commission Ledger",
+  "redemptions": "Redemptions",
+  "myPromos": "My Promo Codes",
+  "myCommissions": "My Commissions",
+  "myRedemptions": "My Redemptions",
   "new": "new",
   "pro": "pro"
 }
