@@ -130,10 +130,7 @@ const AdminPromoCodeDetail = lazy(
 );
 // Promos (Phase 2-3)
 const AdminCommissionsReport = lazy(
-  () => import('../pages/promos/AdminCommissionsReport')
-);
-const AdminCommissionsLedger = lazy(
-  () => import('../pages/promos/AdminCommissionsLedger')
+  () => import('../pages/promos/AdminCommissions')
 );
 const AdminPromoRedemptions = lazy(
   () => import('../pages/promos/AdminPromoRedemptions')

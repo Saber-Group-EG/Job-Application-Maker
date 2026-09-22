@@ -22,11 +22,18 @@ import {
   ChevronRight,
   FileBarChart,
   ListOrdered,
+  X,
 } from 'lucide-react';
 import type {
   PromoCommission,
   PromoCommissionReportRow,
 } from '../../types/promos';
+
+type LocaleT = (
+  key: string,
+  ns?: string,
+  vars?: Record<string, string | number>
+) => string;
 
 function hrLabel(commission: PromoCommission): string {
   const raw = commission.hrUserId;
@@ -41,14 +48,36 @@ function statusOf(commission: PromoCommission): string {
   return raw.toLowerCase();
 }
 
+/**
+ * Report rows are aggregated per-HR and may or may not carry the HR's id
+ * depending on what the API returns. We try the common field names so the
+ * "drill into Ledger" click still works; if none are present, drilling
+ * through just applies the month and leaves the HR filter on "all".
+ * If your PromoCommissionReportRow type exposes the id under a different
+ * key, add it to this list.
+ */
+function reportRowHrId(row: PromoCommissionReportRow): string | null {
+  const anyRow = row as unknown as Record<string, unknown>;
+  const candidate = anyRow.hrUserId ?? anyRow.hrId ?? anyRow._id ?? null;
+  return typeof candidate === 'string' ? candidate : null;
+}
+
 type Tab = 'ledger' | 'report';
 
 export default function AdminCommissions() {
   const { t, locale } = useLocale();
 
-  // Shared filter
+  // Shared across both tabs, so switching views (or drilling through from
+  // Report into Ledger) doesn't lose context.
   const [month, setMonth] = useState('');
+  const [hrFilter, setHrFilter] = useState('all');
   const [tab, setTab] = useState<Tab>('ledger');
+
+  const handleDrillThrough = (hrId: string | null, rowMonth: string) => {
+    if (rowMonth) setMonth(rowMonth);
+    if (hrId) setHrFilter(hrId);
+    setTab('ledger');
+  };
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0F172A] p-4 sm:p-8 text-slate-900 dark:text-slate-100">
@@ -71,8 +100,14 @@ export default function AdminCommissions() {
           </div>
 
           {/* Tab toggle */}
-          <div className="flex items-center gap-1 bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 p-1.5 rounded-2xl shadow-sm self-start lg:self-auto">
+          <div
+            role="tablist"
+            aria-label={t('commissionsTabsAriaLabel', 'promos')}
+            className="flex items-center gap-1 bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 p-1.5 rounded-2xl shadow-sm self-start lg:self-auto"
+          >
             <button
+              role="tab"
+              aria-selected={tab === 'report'}
               onClick={() => setTab('report')}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
                 tab === 'report'
@@ -84,6 +119,8 @@ export default function AdminCommissions() {
               {t('commissionsReportTab', 'promos')}
             </button>
             <button
+              role="tab"
+              aria-selected={tab === 'ledger'}
               onClick={() => setTab('ledger')}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
                 tab === 'ledger'
@@ -98,11 +135,18 @@ export default function AdminCommissions() {
         </div>
 
         {tab === 'report' ? (
-          <ReportView month={month} onMonthChange={setMonth} t={t} />
+          <ReportView
+            month={month}
+            onMonthChange={setMonth}
+            onDrillThrough={handleDrillThrough}
+            t={t}
+          />
         ) : (
           <LedgerView
             month={month}
             onMonthChange={setMonth}
+            hrFilter={hrFilter}
+            onHrFilterChange={setHrFilter}
             t={t}
             locale={locale}
           />
@@ -117,15 +161,13 @@ export default function AdminCommissions() {
 function ReportView({
   month,
   onMonthChange,
+  onDrillThrough,
   t,
 }: {
   month: string;
   onMonthChange: (v: string) => void;
-  t: (
-    key: string,
-    ns?: string,
-    vars?: Record<string, string | number>
-  ) => string;
+  onDrillThrough: (hrId: string | null, month: string) => void;
+  t: LocaleT;
 }) {
   const { data: report, isLoading } = useCommissionReport(month || undefined);
 
@@ -146,12 +188,25 @@ function ReportView({
             <CalendarClock className="size-3.5" />
             {t('commissionsMonthLabel', 'promos')}
           </label>
-          <input
-            type="month"
-            value={month}
-            onChange={(e) => onMonthChange(e.target.value)}
-            className="bg-white/60 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-2xl px-5 py-3 font-bold outline-none focus:ring-2 focus:ring-brand-500/20 transition-all cursor-pointer dark:text-white dark:[color-scheme:dark]"
-          />
+          <div className="flex items-center gap-2">
+            <input
+              type="month"
+              value={month}
+              onChange={(e) => onMonthChange(e.target.value)}
+              className="bg-white/60 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-2xl px-5 py-3 font-bold outline-none focus:ring-2 focus:ring-brand-500/20 transition-all cursor-pointer dark:text-white dark:[color-scheme:dark]"
+            />
+            {month && (
+              <button
+                type="button"
+                onClick={() => onMonthChange('')}
+                aria-label={t('commissionsClearMonth', 'promos')}
+                title={t('commissionsClearMonth', 'promos')}
+                className="size-10 rounded-xl bg-white/60 dark:bg-white/5 border border-white/20 dark:border-white/10 flex items-center justify-center text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-white transition-all"
+              >
+                <X className="size-4" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -190,31 +245,36 @@ function ReportView({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-white/5">
-              {rows.map((row, index) => (
-                <tr
-                  key={index}
-                  className="font-bold text-gray-800 dark:text-gray-100 hover:bg-brand-500/5 transition-colors"
-                >
-                  <td className="px-6 py-4">
-                    <span className="flex items-center gap-2">
-                      <Coins className="size-4 text-purple-500" />
-                      {rowHrLabel(row) || '—'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-gray-500 dark:text-gray-400 tabular-nums">
-                    {row.cycles != null ? row.cycles : '—'}
-                  </td>
-                  <td className="px-6 py-4 tabular-nums">
-                    {money(row.totalCents)}
-                  </td>
-                  <td className="px-6 py-4 text-emerald-600 dark:text-emerald-400 tabular-nums">
-                    {money(row.paidCents)}
-                  </td>
-                  <td className="px-6 py-4 text-amber-600 dark:text-amber-400 tabular-nums">
-                    {money(row.pendingCents)}
-                  </td>
-                </tr>
-              ))}
+              {rows.map((row, index) => {
+                const hrId = reportRowHrId(row);
+                return (
+                  <tr
+                    key={index}
+                    onClick={() => onDrillThrough(hrId, month)}
+                    title={t('commissionsDrillThroughHint', 'promos')}
+                    className="font-bold text-gray-800 dark:text-gray-100 hover:bg-brand-500/5 transition-colors cursor-pointer"
+                  >
+                    <td className="px-6 py-4">
+                      <span className="flex items-center gap-2">
+                        <Coins className="size-4 text-purple-500" />
+                        {rowHrLabel(row) || '—'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-gray-500 dark:text-gray-400 tabular-nums">
+                      {row.cycles != null ? row.cycles : '—'}
+                    </td>
+                    <td className="px-6 py-4 tabular-nums">
+                      {money(row.totalCents)}
+                    </td>
+                    <td className="px-6 py-4 text-emerald-600 dark:text-emerald-400 tabular-nums">
+                      {money(row.paidCents)}
+                    </td>
+                    <td className="px-6 py-4 text-amber-600 dark:text-amber-400 tabular-nums">
+                      {money(row.pendingCents)}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
             {totals && (
               <tfoot>
@@ -247,19 +307,18 @@ function ReportView({
 function LedgerView({
   month,
   onMonthChange,
+  hrFilter,
+  onHrFilterChange,
   t,
   locale,
 }: {
   month: string;
   onMonthChange: (v: string) => void;
-  t: (
-    key: string,
-    ns?: string,
-    vars?: Record<string, string | number>
-  ) => string;
+  hrFilter: string;
+  onHrFilterChange: (v: string) => void;
+  t: LocaleT;
   locale: string;
 }) {
-  const [hrFilter, setHrFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [page, setPage] = useState(1);
   const pageSize = 8;
@@ -308,6 +367,15 @@ function LedgerView({
   const [settleMonth, setSettleMonth] = useState('');
   const [settleHr, setSettleHr] = useState('all');
 
+  // Prefill the Settle modal with whatever the Ledger is currently filtered
+  // to, so the common case (settle exactly what I'm looking at) needs no
+  // re-typing. Still fully editable inside the modal.
+  const openSettleModal = () => {
+    setSettleMonth(month);
+    setSettleHr(hrFilter);
+    setIsSettleOpen(true);
+  };
+
   const handleSettle = async () => {
     // Close the modal before ANY Swal fires, so nothing ends up stacked behind it.
     setIsSettleOpen(false);
@@ -354,7 +422,7 @@ function LedgerView({
     <div className="space-y-8">
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
         <button
-          onClick={() => setIsSettleOpen(true)}
+          onClick={openSettleModal}
           className="flex items-center gap-2 px-6 py-3 bg-amber-500 text-white rounded-[1.25rem] font-bold shadow-xl shadow-amber-500/20 hover:scale-105 active:scale-95 transition-all self-start"
         >
           <BadgeDollarSign className="size-5" />
@@ -382,7 +450,7 @@ function LedgerView({
           <select
             value={hrFilter}
             onChange={(e) => {
-              setHrFilter(e.target.value);
+              onHrFilterChange(e.target.value);
               setPage(1);
             }}
             className="bg-white dark:bg-black/20 border border-white/20 dark:border-white/5 rounded-xl px-4 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-brand-500/20 transition-all cursor-pointer"
@@ -520,6 +588,7 @@ function LedgerView({
           <button
             disabled={page === 1}
             onClick={() => setPage((p) => Math.max(1, p - 1))}
+            aria-label={t('commissionsPrevPage', 'promos')}
             className="size-12 rounded-2xl bg-white/60 dark:bg-white/5 backdrop-blur-md border border-white/20 flex items-center justify-center disabled:opacity-30 hover:bg-brand-500 hover:text-white transition-all shadow-sm"
           >
             {locale === 'ar' ? (
@@ -535,6 +604,7 @@ function LedgerView({
           <button
             disabled={page === totalPages}
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            aria-label={t('commissionsNextPage', 'promos')}
             className="size-12 rounded-2xl bg-white/60 dark:bg-white/5 backdrop-blur-md border border-white/20 flex items-center justify-center disabled:opacity-30 hover:bg-brand-500 hover:text-white transition-all shadow-sm"
           >
             {locale === 'ar' ? (
