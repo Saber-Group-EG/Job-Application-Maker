@@ -412,18 +412,6 @@ export default function AdminPromoCodes() {
           >
             <table className="w-full min-w-[1000px] text-sm">
               <thead>
-<<<<<<< Updated upstream
-                <tr className="text-left text-[10px] font-black uppercase tracking-widest text-gray-400 border-b border-slate-100 dark:border-white/10">
-                  <th className="px-4 py-4 min-w-[120px]">{t("tableCode", "promos")}</th>
-                  <th className="px-4 py-4 min-w-[110px]">{t("tableOwner", "promos")}</th>
-                  <th className="px-4 py-4 min-w-[80px]">{t("tableDiscount", "promos")}</th>
-                  <th className="px-4 py-4 min-w-[80px]">{t("tableCommission", "promos")}</th>
-                  <th className="px-4 py-4 w-[70px]">{t("tableCycles", "promos")}</th>
-                  <th className="px-4 py-4 w-[90px]">{t("tableStats", "promos")}</th>
-                  <th className="px-4 py-4 min-w-[80px]">{t("tableStatus", "promos")}</th>
-                  <th className="px-4 py-4 min-w-[100px]">{t("tableExpires", "promos")}</th>
-                  <th className="px-4 py-4 text-right w-[90px]">{t("tableActions", "promos")}</th>
-=======
                 <tr
                   className={`text-start text-[10px] font-black uppercase ${tracking} text-gray-400 border-b border-slate-100 dark:border-white/10`}
                 >
@@ -454,7 +442,6 @@ export default function AdminPromoCodes() {
                   <th scope="col" className="px-6 py-4 text-end">
                     {t('tableActions', 'promos')}
                   </th>
->>>>>>> Stashed changes
                 </tr>
               </thead>
               <tbody
@@ -470,95 +457,6 @@ export default function AdminPromoCodes() {
                       className="animate-pulse motion-reduce:animate-none"
                       aria-hidden="true"
                     >
-<<<<<<< Updated upstream
-                      <td className="px-4 py-4">
-                        <span className="px-2 py-1 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-300 font-black font-mono tracking-wide text-xs">
-                          {toPlainString(code.code)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4">
-                        <span className="flex items-center gap-1.5 text-gray-600 dark:text-gray-300 text-xs">
-                          <Users className="size-3.5 text-gray-400 shrink-0" />
-                          <span className="truncate">{ownerName(code) || "—"}</span>
-                        </span>
-                      </td>
-                      <td className="px-4 py-4">
-                        <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 text-xs">
-                          {code.discountPercent != null ? (
-                            <Percent className="size-3.5 shrink-0" />
-                          ) : (
-                            <Coins className="size-3.5 shrink-0" />
-                          )}
-                          {discountLabel(code)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4">
-                        <span className="flex items-center gap-1.5 text-purple-600 dark:text-purple-400 text-xs">
-                          <Coins className="size-3.5 shrink-0" />
-                          {commissionLabel(code)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4 tabular-nums text-xs">
-                        {code.discountCycles ?? 1}
-                      </td>
-                      <td className="px-4 py-4 tabular-nums text-gray-500 dark:text-gray-400 text-xs">
-                        {code.stats?.redemptions ?? 0}
-                      </td>
-                      <td className="px-4 py-4">
-                        <span
-                          className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg whitespace-nowrap ${
-                            isActive
-                              ? "bg-green-500/10 text-green-600"
-                              : "bg-red-500/10 text-red-500"
-                          }`}
-                        >
-                          {isActive
-                            ? t("statusActive", "promos")
-                            : t("statusInactive", "promos")}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4 text-gray-500 dark:text-gray-400 text-xs whitespace-nowrap">
-                        {code.expiresAt ? (
-                          <span className="inline-flex items-center gap-1">
-                            <CalendarX2 className="size-3.5 shrink-0" />
-                            {expiresLabel}
-                          </span>
-                        ) : (
-                          expiresLabel
-                        )}
-                      </td>
-                      <td className="px-4 py-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingCode(code);
-                            }}
-                            className="size-8 rounded-lg bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white flex items-center justify-center transition-all"
-                            title={t("modalEditTitle", "promos")}
-                          >
-                            <Pencil className="size-3.5" />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleToggleActive(code);
-                            }}
-                            className={`size-8 rounded-lg flex items-center justify-center transition-all ${
-                              isActive
-                                ? "bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white"
-                                : "bg-green-500/10 text-green-600 hover:bg-green-500 hover:text-white"
-                            }`}
-                            title={t("activeToggleConfirmTitle", "promos")}
-                          >
-                            <Power className="size-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-=======
                       {Array.from({ length: COLUMN_COUNT }).map((__, j) => (
                         <td key={j} className="px-6 py-5">
                           <div
@@ -750,7 +648,6 @@ export default function AdminPromoCodes() {
                       </tr>
                     );
                   })}
->>>>>>> Stashed changes
               </tbody>
             </table>
 
