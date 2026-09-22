@@ -115,6 +115,7 @@ const PreviewRole = lazy(() => import('../pages/Recruiting/roles/PreviewRole'));
 const RecommendedFields = lazy(
   () => import('../pages/Recruiting/systemSettings/RecommendedFields')
 );
+const AdminPlansPage = lazy(() => import('../pages/Admin/Plans/AdminPlansPage'));
 const AdminSettings = lazy(
   () => import('../pages/Recruiting/systemSettings/adminSettings')
 )
@@ -318,6 +319,18 @@ export default function App() {
                   element={<RecommendedFields />}
                 />
                 <Route path={paths.admin.adminSettings} element={<AdminSettings />} />
+              </Route>
+
+              {/* Admin — Subscription plan feature configuration */}
+              <Route
+                element={
+                  <PermissionProtectedRoute
+                    requiredPermissions={['Subscription Plan Management']}
+                    accessLevel="read"
+                  />
+                }
+              >
+                <Route path={paths.admin.plans} element={<AdminPlansPage />} />
               </Route>
 
               {/* Inquiries */}

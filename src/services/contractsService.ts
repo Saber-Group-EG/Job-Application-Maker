@@ -139,7 +139,9 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public statusCode?: number,
-    public details?: unknown
+    public details?: unknown,
+    public code?: string,
+    public featurePath?: string
   ) {
     super(message);
     this.name = 'ApiError';
@@ -165,7 +167,9 @@ class JobContractsService {
       throw new ApiError(
         getErrorMessage(error),
         error.response?.status,
-        error.response?.data?.details
+        error.response?.data?.details,
+        error.response?.data?.code,
+        error.response?.data?.featurePath
       );
     }
   }
@@ -188,7 +192,9 @@ class JobContractsService {
       throw new ApiError(
         getErrorMessage(error),
         error.response?.status,
-        error.response?.data?.details
+        error.response?.data?.details,
+        error.response?.data?.code,
+        error.response?.data?.featurePath
       );
     }
   }

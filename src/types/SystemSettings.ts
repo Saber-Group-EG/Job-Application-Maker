@@ -111,4 +111,5 @@ export interface CompanyUsageDetail {
     featureToggles?: Record<string, boolean>;
     enabled?: boolean;
   };
+  bypassPlanLimits?: boolean;
 }

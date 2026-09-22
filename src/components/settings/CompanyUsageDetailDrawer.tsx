@@ -17,6 +17,7 @@ import {
   useCompAiCredits,
   useToggleAiFeature,
   useToggleAiEnabled,
+  useToggleBypassPlanLimits,
 } from '../../hooks/queries/useSystemSettings';
 
 export default function CompanyUsageDetailDrawer({
@@ -32,6 +33,7 @@ export default function CompanyUsageDetailDrawer({
   const compCredits = useCompAiCredits();
   const toggleFeature = useToggleAiFeature();
   const toggleAiEnabled = useToggleAiEnabled();
+  const toggleBypass = useToggleBypassPlanLimits();
 
   const [quotaAmount, setQuotaAmount] = useState('');
   const [creditsAmount, setCreditsAmount] = useState('');
@@ -66,6 +68,32 @@ export default function CompanyUsageDetailDrawer({
             <Typography variant="h6">
               {data.subscription?.companyId?.name.en}
             </Typography>
+
+            <Box>
+              <Stack
+                direction="row"
+                justifyContent="space-between"
+                alignItems="center"
+              >
+                <Typography variant="subtitle1">
+                  {t('drawerBypassPlanLimits', 'systemSettings')}
+                </Typography>
+                <Switch
+                  label={t('drawerBypassPlanLimits', 'systemSettings')}
+                  checked={!!data.bypassPlanLimits}
+                  disabled={toggleBypass.isPending}
+                  onChange={(checked) =>
+                    companyId &&
+                    toggleBypass.mutate({ companyId, enabled: checked })
+                  }
+                />
+              </Stack>
+              <Typography variant="caption" color="text.secondary">
+                {t('drawerBypassPlanLimitsHelp', 'systemSettings')}
+              </Typography>
+            </Box>
+
+            <Divider />
 
             <Box>
               <Typography variant="subtitle2">

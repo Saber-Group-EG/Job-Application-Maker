@@ -278,6 +278,16 @@ const AppSidebar: React.FC = () => {
           },
         ]
       : []),
+    ...(hasPermission('Subscription Plan Management', 'read')
+      ? [
+          {
+            icon: <TaskIcon />,
+            name: 'Plans',
+            tKey: 'adminPlans',
+            path: '/admin-plans',
+          },
+        ]
+      : []),
   ];
 
   useEffect(() => {

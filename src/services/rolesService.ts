@@ -39,7 +39,9 @@ class RolesService {
       throw new ApiError(
         getErrorMessage(error),
         error.response?.status,
-        error.response?.data
+        error.response?.data,
+        error.response?.data?.code,
+        error.response?.data?.featurePath
       );
     }
   }
