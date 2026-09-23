@@ -22,6 +22,8 @@ type NavItem = {
   }[];
 };
 
+const EMPTY_COMPANIES: never[] = [];
+
 const adminItems: NavItem[] = [
   {
     icon: <TaskIcon />,
@@ -50,7 +52,10 @@ const AppSidebar: React.FC = () => {
   const { hasPermission, user } = useAuth();
   const { t, dir } = useLocale();
   const location = useLocation();
-  const { data: companies = [] } = useCompanies();
+  const { data: companiesData } = useCompanies();
+  // A `= []` default would be a fresh array every render while data is
+  // undefined, re-running the submenu effect below on every render.
+  const companies = companiesData ?? EMPTY_COMPANIES;
 
   const hasAdminUsageAccess = useMemo(() => {
     const roleName = user?.roleId?.name?.toLowerCase?.();
@@ -356,27 +361,29 @@ const AppSidebar: React.FC = () => {
   ];
 
   useEffect(() => {
-    let submenuMatched = false;
+    let matched: { type: 'main' | 'admin'; index: number } | null = null;
     ['main', 'admin'].forEach((menuType) => {
       const items = menuType === 'main' ? navItems : adminItems;
       items.forEach((nav, index) => {
         if (nav.subItems) {
           nav.subItems.forEach((subItem) => {
             if (isActive(subItem.path)) {
-              setOpenSubmenu({
-                type: menuType as 'main' | 'admin',
-                index,
-              });
-              submenuMatched = true;
+              matched = { type: menuType as 'main' | 'admin', index };
             }
           });
         }
       });
     });
 
-    if (!submenuMatched) {
-      setOpenSubmenu(null);
-    }
+    // Keep the previous object when nothing changed so this doesn't trigger
+    // a re-render on every run.
+    setOpenSubmenu((prev) => {
+      const next = matched as { type: 'main' | 'admin'; index: number } | null;
+      if (prev === next) return prev;
+      if (prev && next && prev.type === next.type && prev.index === next.index)
+        return prev;
+      return next;
+    });
   }, [location.pathname, location.search, isActive, applicantPageSubItems]);
 
   useEffect(() => {
