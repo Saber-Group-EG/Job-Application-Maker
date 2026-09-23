@@ -428,15 +428,6 @@ export default function Jobs() {
     return usercompanyIds?.length ? usercompanyIds : ['__NO_COMPANY__'];
   }, [user, isAdmin]);
 
-  const jobQueryDepartmentParam = useMemo(() => {
-    if (!user?.companies || !Array.isArray(user.companies)) return undefined;
-    const allDepts = user.companies
-      .flatMap((c: any) => c.departments || [])
-      .map((d: any) => (typeof d === 'string' ? d : d._id))
-      .filter(Boolean);
-    return allDepts.length > 0 ? allDepts : undefined;
-  }, [user]);
-
   const {
     data: jobPositions = [],
     isLoading: isLoadingJobs,
@@ -445,7 +436,7 @@ export default function Jobs() {
   } = useJobPositions(
     jobQueryCompanyParam as any,
     false,
-    jobQueryDepartmentParam as any
+    undefined
   );
 
   const deleteJobMutation = useDeleteJobPosition();
@@ -805,7 +796,7 @@ export default function Jobs() {
 
   const listKey = jobPositionsKeys.list(
     jobQueryCompanyParam as any,
-    jobQueryDepartmentParam as any
+    undefined
   );
   const detailKey = jobPositionsKeys.detail(jobId);
 

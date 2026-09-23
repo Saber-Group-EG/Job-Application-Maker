@@ -638,16 +638,6 @@ export default function Applicants({
   const [offerModalOpen, setOfferModalOpen] = useState(false);
   const [contractModalOpen, setContractModalOpen] = useState(false);
 
-  // Extract department IDs from user companies
-  const departmentIds = useMemo(() => {
-    if (!user?.companies || !Array.isArray(user.companies)) return undefined;
-    const allDepts = user.companies
-      .flatMap((c: any) => c.departments || [])
-      .map((d: any) => (typeof d === 'string' ? d : d._id))
-      .filter(Boolean);
-    return allDepts.length > 0 ? allDepts : undefined;
-  }, [user]);
-
   const showCompanyColumn = useMemo(() => {
     if (!apiCompanyId) return true;
     if (Array.isArray(apiCompanyId) && apiCompanyId.length === 1) return false;
@@ -674,7 +664,7 @@ export default function Applicants({
     isFetching: isJobPositionsFetching,
     isFetched: isJobPositionsFetched,
     refetch: refetchJobPositions,
-  } = useJobPositions(apiCompanyId as any, false, departmentIds as any, {
+  } = useJobPositions(apiCompanyId as any, false, undefined, {
     enabled: true,
   });
 
@@ -695,7 +685,6 @@ export default function Applicants({
   } = useApplicants({
     companyId: finalCompanyId as any,
     jobPositionId: effectiveOnlyJobPositions,
-    departmentId: departmentIds as any,
     status: effectiveOnlyStatus,
     search: effectiveSearch,
     enabled: true,
@@ -705,7 +694,6 @@ export default function Applicants({
   const applicantsQueryKey = applicantsKeys.list({
     companyId: apiCompanyId as any,
     jobPositionId: effectiveOnlyJobPositions,
-    departmentId: departmentIds as any,
     status: effectiveOnlyStatus,
   });
   const applicantsQueryState = queryClient.getQueryState(
