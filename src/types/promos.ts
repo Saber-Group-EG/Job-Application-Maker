@@ -49,8 +49,10 @@ export interface PromoRedemption {
   hrUserId?: string | PromoOwner;
   companyId?: string | { _id: string; name?: CompanyName };
   subscriptionId?: string | Record<string, unknown>;
-  standardPlanId?: string | PromoPlanRef;
-  discountPlanId?: string | PromoPlanRef;
+  planId?: string | PromoPlanRef;
+  // Discount snapshot taken at redemption time — exactly one is set.
+  discountPercent?: number | null;
+  discountAmountCents?: number | null;
   discountCyclesTotal?: number;
   discountCyclesUsed?: number;
   commissionPercent?: number | null;

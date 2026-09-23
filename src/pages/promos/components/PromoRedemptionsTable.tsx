@@ -44,11 +44,23 @@ function redemptionStatus(status: string | undefined): {
   }
 }
 
-function planCents(
-  plan: PromoRedemption['standardPlanId']
-): number | undefined {
-  if (!plan || typeof plan === 'string') return undefined;
-  return plan.priceCents;
+// Per-cycle savings, mirroring the backend's computeDiscountedAmountCents
+// (services/promoService.js): percent wins over a fixed amount, and the
+// discounted bill never drops below 1 cent.
+function savedPerCycleCents(redemption: PromoRedemption): number | undefined {
+  const plan = redemption.planId;
+  if (!plan || typeof plan === 'string' || plan.priceCents == null)
+    return undefined;
+  const base = plan.priceCents;
+  let discounted: number;
+  if (redemption.discountPercent != null) {
+    discounted = Math.round((base * (100 - redemption.discountPercent)) / 100);
+  } else if (redemption.discountAmountCents != null) {
+    discounted = base - redemption.discountAmountCents;
+  } else {
+    return undefined;
+  }
+  return base - Math.max(discounted, 1);
 }
 
 export default function PromoRedemptionsTable({
@@ -151,14 +163,7 @@ export default function PromoRedemptionsTable({
                   ? '—'
                   : toPlainString(redemption.promoCodeId?.code || '—');
               const company = companyName(redemption.companyId, locale);
-              const standardCents = planCents(redemption.standardPlanId);
-              const discountCents = planCents(redemption.discountPlanId);
-              const savedPerCycle =
-                standardCents != null &&
-                discountCents != null &&
-                standardCents > discountCents
-                  ? standardCents - discountCents
-                  : undefined;
+              const savedPerCycle = savedPerCycleCents(redemption);
               const saved =
                 savedPerCycle != null && redemption.discountCyclesUsed != null
                   ? formatMoney(savedPerCycle * redemption.discountCyclesUsed)

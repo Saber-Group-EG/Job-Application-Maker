@@ -6,6 +6,7 @@ import PageBreadcrumb from '../../components/common/PageBreadCrumb';
 import PageMeta from '../../components/common/PageMeta';
 import {
   usePromoCodes,
+  usePromoRedemptions,
   useUsers,
   useUpdatePromoCode,
 } from '../../hooks/queries';
@@ -97,6 +98,9 @@ export default function AdminPromoCodes() {
     isError,
     refetch,
   } = usePromoCodes(params);
+  // Only totalCount is used — the list endpoint is paginated, so summing
+  // per-code stats from the current page would undercount.
+  const { data: redemptionsEnvelope } = usePromoRedemptions();
   const { data: rawUsers = [] } = useUsers();
   const updateMutation = useUpdatePromoCode();
 
@@ -376,7 +380,7 @@ export default function AdminPromoCodes() {
             </span>
             <div className="flex items-end justify-between">
               <span className="text-4xl font-black text-white tabular-nums">
-                {totalCount}
+                {redemptionsEnvelope?.totalCount ?? 0}
               </span>
               <Tag className="size-8 text-white/30" />
             </div>
