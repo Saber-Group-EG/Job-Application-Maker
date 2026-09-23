@@ -531,34 +531,53 @@ export default function CreateJob() {
     }
   }, [allCompanies, isAdmin, user?.companies]);
 
+  // Departments the user is confined to within the selected company, mirroring
+  // the backend's per-membership restriction (companies[].departments; empty
+  // means unrestricted, system roles are never restricted). null = no limit.
+  const allowedDepartmentIds = useMemo(() => {
+    if (isAdmin || (user as any)?.roleId?.isSystemRole) return null;
+    const membership = user?.companies?.find((c) => {
+      const cid =
+        typeof c.companyId === 'string' ? c.companyId : c.companyId?._id;
+      return cid === jobForm.companyId;
+    });
+    // /auth/me may return departments as ids or as populated objects.
+    const ids = (
+      (membership?.departments ?? []) as Array<string | { _id: string }>
+    ).map((d) => (typeof d === 'string' ? d : d._id));
+    return ids.length > 0 ? new Set<string>(ids) : null;
+  }, [isAdmin, user, jobForm.companyId]);
+
   // Transform departments based on user role
   const departments = useMemo(() => {
+    let visible = allDepartments;
     if (shouldFetchAllDepartments) {
       // Admin or multi-company users: filter departments by selected company
       if (!jobForm.companyId) {
         return []; // No company selected, show no departments
       }
 
-      return allDepartments
-        .filter((dept) => {
-          const deptCompanyId =
-            typeof dept.companyId === 'string'
-              ? dept.companyId
-              : (dept.companyId as any)?._id;
-          return deptCompanyId === jobForm.companyId;
-        })
-        .map((dept) => ({
-          value: dept._id,
-          label: toPlainString((dept as any).name),
-        }));
-    } else {
-      // Single-company non-admin: show departments for their company
-      return allDepartments.map((dept) => ({
-        value: dept._id,
-        label: toPlainString((dept as any).name),
-      }));
+      visible = allDepartments.filter((dept) => {
+        const deptCompanyId =
+          typeof dept.companyId === 'string'
+            ? dept.companyId
+            : (dept.companyId as any)?._id;
+        return deptCompanyId === jobForm.companyId;
+      });
     }
-  }, [allDepartments, shouldFetchAllDepartments, jobForm.companyId]);
+    if (allowedDepartmentIds) {
+      visible = visible.filter((dept) => allowedDepartmentIds.has(dept._id));
+    }
+    return visible.map((dept) => ({
+      value: dept._id,
+      label: toPlainString((dept as any).name),
+    }));
+  }, [
+    allDepartments,
+    shouldFetchAllDepartments,
+    jobForm.companyId,
+    allowedDepartmentIds,
+  ]);
 
   const isLoading = companiesLoading;
 
