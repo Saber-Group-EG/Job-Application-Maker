@@ -83,6 +83,8 @@
   "mrtNoResultsFound": "لا توجد نتائج",
   "mrtFilterByColumn": "تصفية حسب {column}",
   "drawerAriaLabel": "تفاصيل استخدام الشركة",
+  "drawerBypassPlanLimits": "تجاوز حدود الخطة",
+  "drawerBypassPlanLimitsHelp": "عند التفعيل، تتجاوز هذه الشركة حصة الطلبات وحد رصيد الذكاء الاصطناعي وكل فحوصات ميزات/حدود الخطة تماماً، بغض النظر عن خطتها. لا يؤثر على إعدادات الذكاء الاصطناعي الخاصة بها أدناه.",
   "drawerRequestQuota": "حصة الطلبات",
   "drawerUsedThisCycle": "{count} مستخدمة هذه الدورة",
   "drawerCompAmount": "مبلغ التعويض",

@@ -118,7 +118,9 @@ class ApplicantsService {
       throw new ApiError(
         getErrorMessage(error),
         error.response?.status,
-        error.response?.data?.details
+        error.response?.data?.details,
+        error.response?.data?.code,
+        error.response?.data?.featurePath
       );
     }
   }

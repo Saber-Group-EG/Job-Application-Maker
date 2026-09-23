@@ -77,10 +77,12 @@ axiosInstance.interceptors.response.use(
       const { data, status } = error.response as { data: any; status: number };
 
       // Quota exceeded (402) — flip the app-wide blocked state so the
-      // layout can render the "contact your admin" screen. Deliberately
-      // scoped to 402 only; 403 is also used by unrelated permission
-      // checks elsewhere and must not trigger this.
-      if (status === 402) {
+      // layout can render the "contact your admin" screen. Narrowed to the
+      // flat request-quota code specifically: per-feature plan limits
+      // (PLAN_FEATURE_LIMIT, AI_CREDIT_LIMIT) also use 402 but must NOT
+      // block the whole app — they're surfaced by the calling hook's own
+      // toast via the already-correct error.message set below instead.
+      if (status === 402 && data?.code === 'REQUEST_QUOTA_EXCEEDED') {
         emitQuotaEvent('quota-exceeded');
       }
       if (status === 401 && data?.code === 'SESSION_SUPERSEDED') {

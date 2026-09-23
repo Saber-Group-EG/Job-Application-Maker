@@ -364,6 +364,48 @@ export function useToggleAiEnabled() {
   });
 }
 
+export function useToggleBypassPlanLimits() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      companyId,
+      enabled,
+    }: {
+      companyId: string;
+      enabled: boolean;
+    }) => systemSettingsService.toggleBypassPlanLimits(companyId, enabled),
+
+    onMutate: async ({ companyId, enabled }) => {
+      const detailKey = systemSettingsKeys.companyUsageDetail(companyId);
+      await queryClient.cancelQueries({ queryKey: detailKey });
+
+      const previousDetail = queryClient.getQueryData<any>(detailKey);
+
+      queryClient.setQueryData<any>(detailKey, (old: any) =>
+        old ? { ...old, bypassPlanLimits: enabled } : old
+      );
+
+      return { previousDetail, detailKey };
+    },
+
+    onError: (_err, _vars, context) => {
+      if (context?.previousDetail) {
+        queryClient.setQueryData(context.detailKey, context.previousDetail);
+      }
+    },
+
+    onSettled: (_data, _err, { companyId }) => {
+      queryClient.invalidateQueries({
+        queryKey: systemSettingsKeys.adminUsage(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: systemSettingsKeys.companyUsageDetail(companyId),
+      });
+    },
+  });
+}
+
 export function useToggleAiFeature() {
   const queryClient = useQueryClient();
 

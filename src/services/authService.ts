@@ -72,7 +72,9 @@ class ApiClient {
         throw new ApiError(
           data?.message || "An error occurred",
           response.status,
-          data
+          data,
+          data?.code,
+          data?.featurePath
         );
       }
 

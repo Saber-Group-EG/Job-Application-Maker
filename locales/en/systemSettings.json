@@ -83,6 +83,8 @@
   "mrtNoResultsFound": "No results found",
   "mrtFilterByColumn": "Filter by {column}",
   "drawerAriaLabel": "Company usage details",
+  "drawerBypassPlanLimits": "Bypass Plan Limits",
+  "drawerBypassPlanLimitsHelp": "When enabled, this company skips the request quota, AI credit limit, and every plan feature/limit check entirely, regardless of their plan. Does not affect their own AI settings below.",
   "drawerRequestQuota": "Request Quota",
   "drawerUsedThisCycle": "{count} used this cycle",
   "drawerCompAmount": "Comp amount",

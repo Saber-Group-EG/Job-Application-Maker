@@ -72,6 +72,7 @@ export const paths = {
     rolePreview: (id: string) => `/role/${id}`,
     recommendedFields: '/recommended-fields',
     adminSettings: '/admin-settings',
+    plans: '/admin-plans',
   },
 
   inquiries: {

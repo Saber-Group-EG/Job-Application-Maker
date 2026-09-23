@@ -41,7 +41,9 @@ class SystemSettingsService {
       throw new ApiError(
         getErrorMessage(error),
         error.response?.status,
-        error.response?.data?.details
+        error.response?.data?.details,
+        error.response?.data?.code,
+        error.response?.data?.featurePath
       );
     }
   }
@@ -191,6 +193,16 @@ class SystemSettingsService {
     return this.request(
       'patch',
       `/admin-usage/${encodeURIComponent(companyId)}/ai-enabled-toggle`,
+      { enabled }
+    );
+  }
+
+  // ===== Toggle Bypass Plan Limits =====
+
+  async toggleBypassPlanLimits(companyId: string, enabled: boolean) {
+    return this.request(
+      'patch',
+      `/admin-usage/${encodeURIComponent(companyId)}/bypass-toggle`,
       { enabled }
     );
   }

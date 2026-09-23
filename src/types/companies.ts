@@ -233,6 +233,65 @@ export interface CompaniesResponse {
   data: Company[];
 }
 
+export interface PlanBooleanFeature {
+  allowed: boolean;
+}
+
+export interface PlanLimitFeature {
+  allowed: boolean;
+  limit: number | null; // null = unlimited
+}
+
+// Mirrors the backend's Plan.features shape (application-maker's
+// src/models/plan.model.js) key-for-key.
+export interface PlanFeatures {
+  applicants: {
+    total: PlanLimitFeature;
+    bulkInsert: PlanLimitFeature;
+    interviews: PlanLimitFeature;
+  };
+  companySettings: {
+    rejectionReasons: PlanLimitFeature;
+    interviewQuestionGroups: PlanLimitFeature;
+    applicantPages: PlanLimitFeature;
+    customStatusManagement: PlanBooleanFeature;
+    emailTemplates: PlanLimitFeature;
+    offerTemplates: PlanLimitFeature;
+    contractTemplates: PlanLimitFeature;
+  };
+  departments: PlanLimitFeature;
+  emails: {
+    // Schema-only for now — no custom-domain/Gmail-connector infrastructure
+    // exists yet, so these two are display-only in the admin UI.
+    emailType: 'personalGmail' | 'customDomain';
+    sendReceive: 'sendOnly' | 'sendReceive';
+    sendLimit: PlanLimitFeature;
+  };
+  inquiries: PlanBooleanFeature;
+  contracts: PlanBooleanFeature;
+  offers: PlanBooleanFeature;
+  jobs: {
+    postLimit: PlanLimitFeature;
+    useSavedFields: PlanBooleanFeature;
+  };
+  users: {
+    total: PlanLimitFeature;
+    // Entitlement flag only — no enforcement exists yet, display-only.
+    departmentLevelAccess: PlanBooleanFeature;
+  };
+  ai: {
+    jobFieldGenerator: PlanBooleanFeature;
+    matchScore: PlanBooleanFeature;
+    candidateSummary: PlanBooleanFeature;
+    emailDrafting: PlanBooleanFeature;
+    nlFilters: PlanBooleanFeature;
+    interviewQuestionGen: PlanBooleanFeature;
+    offerGenerator: PlanBooleanFeature;
+    contractGenerator: PlanBooleanFeature;
+    cvParse: PlanBooleanFeature;
+  };
+}
+
 export interface Plan {
   _id: string;
   name: string;
@@ -241,6 +300,9 @@ export interface Plan {
   requestQuota: number;
   frequency: number;
   isActive: boolean;
+  // Present on admin-fetched plans (GET /plans); may be absent on plans
+  // fetched before the backend's features field existed.
+  features?: PlanFeatures;
 }
 
 export interface SubscriptionUsage {
