@@ -47,5 +47,11 @@
   "eventOpened": "Opened.",
   "eventClicked": "Clicked.",
   "eventBounced": "Bounced.",
-  "eventComplaint": "Complaint."
+  "eventComplaint": "Complaint.",
+  "sidebarReceived": "Received",
+  "statusSent": "Sent",
+  "statusReceived": "Received",
+  "from": "From: {email}",
+  "conversation": "Conversation ({count} emails)",
+  "eventReceived": "Reply received from the applicant."
 }
