@@ -55,5 +55,9 @@
   "featureInterviewQuestionGen": "Interview Question Gen",
   "featureOfferGenerator": "Offer Generator",
   "featureContractGenerator": "Contract Generator",
-  "featureCvParse": "CV Parser"
+  "featureCvParse": "CV Parser",
+  "emailTypePersonalGmail": "Gmail only (free)",
+  "emailTypeCustomDomain": "Custom domain + Gmail",
+  "sendReceiveSendOnly": "Send only",
+  "sendReceiveSendReceive": "Send & receive replies"
 }
