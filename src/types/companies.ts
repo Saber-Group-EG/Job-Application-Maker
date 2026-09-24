@@ -114,6 +114,8 @@ export interface MailSettings {
   };
   emailTemplates?: EmailTemplate[];
   provider?: 'resend' | 'gmail';
+  // Custom-domain receiving subdomain (MX -> Resend Inbound), e.g. reply.company.com
+  receivingDomain?: string | null;
 }
 
 // Status of a company's connected Gmail account
