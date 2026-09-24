@@ -47,5 +47,11 @@
   "eventOpened": "تم الفتح.",
   "eventClicked": "تم النقر.",
   "eventBounced": "مرتد.",
-  "eventComplaint": "شكوى."
+  "eventComplaint": "شكوى.",
+  "sidebarReceived": "الوارد",
+  "statusSent": "مُرسل",
+  "statusReceived": "وارد",
+  "from": "من: {email}",
+  "conversation": "المحادثة ({count} رسائل)",
+  "eventReceived": "تم استلام رد من المتقدم."
 }

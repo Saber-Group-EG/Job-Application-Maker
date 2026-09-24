@@ -16,6 +16,8 @@ import {
     MousePointerClick,
     XCircle,
     ArrowLeft,
+    Reply,
+    Send,
 } from 'lucide-react';
 import PageMeta from '../../../components/common/PageMeta';
 import axiosInstance from '../../../config/axios';
@@ -26,9 +28,11 @@ import { useAuth } from '../../../context/AuthContext';
 import { useLocale } from '../../../context/LocaleContext';
 import { useCompanyFilter } from '../../../context/CompanyFilterContext';
 
-type MailStatus = 'queued' | 'delivery delayed' | 'sent' | 'delivered' | 'opened' | 'clicked' | 'bounced' | 'failed';
+type MailStatus = 'queued' | 'delivery delayed' | 'sent' | 'delivered' | 'opened' | 'clicked' | 'bounced' | 'failed' | 'received';
 
-type MailEventType = 'queued' | 'provider_accepted' | 'delivered' | 'open' | 'click' | 'bounce' | 'complaint' | 'custom';
+type MailDirection = 'outbound' | 'inbound';
+
+type MailEventType = 'queued' | 'provider_accepted' | 'delivered' | 'open' | 'click' | 'bounce' | 'complaint' | 'received' | 'custom';
 
 type MailEvent = {
     id: string;
@@ -49,6 +53,9 @@ type ApiMailRecord = {
     jobPosition?: unknown;
     resendEmailId: string;
     status: string;
+    // 'inbound' = an applicant's reply (connected Gmail or Resend Inbound).
+    direction?: MailDirection;
+    receivedAt?: string | null;
     deliveredAt: string | null;
     openedAt: string | null;
     clickedAt: string | null;
@@ -82,6 +89,7 @@ type UiMailRecord = {
     senderId: string;
     sender: string;
     resendEmailId: string;
+    direction: MailDirection;
     statusRaw: string;
     status: MailStatus;
      score: number;
@@ -110,6 +118,19 @@ const STATUS_OPTIONS: Array<{ key: MailStatus; label: string; icon: any }> = [
     { key: 'failed', label: 'statusFailed', icon: AlertCircle },
 ];
 
+// Labels for every status (the filter chips only list delivery statuses).
+const STATUS_LABEL_KEYS: Record<MailStatus, string> = {
+    queued: 'statusQueued',
+    'delivery delayed': 'statusDelayed',
+    sent: 'statusSent',
+    delivered: 'statusDelivered',
+    opened: 'statusOpened',
+    clicked: 'statusClicked',
+    bounced: 'statusBounced',
+    failed: 'statusFailed',
+    received: 'statusReceived',
+};
+
 const MAIL_POLL_INTERVAL_MS = 30 * 1000;
 const MAIL_LIST_PAGE_SIZE = 10;
 
@@ -135,7 +156,16 @@ const formatRelativeTime = (value: string, t?: (key: string, ns?: string, params
     return t ? t('daysAgo', 'mailPreview', { days: diffDays }) : `${diffDays}d ago`;
 };
 
-const stripHtml = (html: string) => html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+const HTML_ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'", nbsp: ' ' };
+
+// Plain-text preview: drop tags, then decode the common entities so a quoted
+// "<hr@company.com>" doesn't show as "&lt;hr@company.com&gt;".
+const stripHtml = (html: string) =>
+    html
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/&(amp|lt|gt|quot|#39|nbsp);/g, (_, e: string) => HTML_ENTITIES[e])
+        .replace(/\s+/g, ' ')
+        .trim();
 
 const isInvalidNameToken = (value: string) => /^(undefined|null|unknown|n\/a|na)$/i.test(value.trim());
 
@@ -156,12 +186,16 @@ const getFallbackNameFromEmail = (email: string, t?: (key: string, ns?: string) 
 };
 
 const resolveUiStatus = (mail: ApiMailRecord): MailStatus => {
+    if (mail.direction === 'inbound') return 'received';
     const backendStatus = String(mail.status || '').toLowerCase();
 
     switch (backendStatus) {
+        case 'received':
+            return 'received';
         case 'queued':
             return 'queued';
         case 'delivery delayed':
+        case 'delivery_delayed': // backend enum spelling
             return 'delivery delayed';
         case 'sent':
             return 'sent';
@@ -174,6 +208,7 @@ const resolveUiStatus = (mail: ApiMailRecord): MailStatus => {
         case 'bounced':
             return 'bounced';
         case 'failed':
+        case 'complained':
             return 'failed';
         default:
             if (mail.clickedAt) return 'clicked';
@@ -181,11 +216,16 @@ const resolveUiStatus = (mail: ApiMailRecord): MailStatus => {
             if (mail.deliveredAt) return 'delivered';
             if (mail.bouncedAt) return 'bounced';
             if (mail.complainedAt) return 'failed';
-            return 'delivery delayed';
+            // Unknown status with no delivery events: it was sent and nothing
+            // more is known, which isn't evidence of a delay.
+            return 'sent';
     }
 };
 
 const buildEvents = (mail: ApiMailRecord, t?: (key: string, ns?: string) => string): MailEvent[] => {
+    if (mail.direction === 'inbound') {
+        return [{ id: `${mail._id}-r`, type: 'received', at: mail.receivedAt || mail.createdAt, detail: t ? t('eventReceived', 'mailPreview') : 'Reply received.' }];
+    }
     const events: MailEvent[] = [
         { id: `${mail._id}-q`, type: 'queued', at: mail.createdAt, detail: t ? t('eventQueued', 'mailPreview') : 'Mail queued.' },
         { id: `${mail._id}-a`, type: 'provider_accepted', at: mail.updatedAt, detail: t ? t('eventProviderAccepted', 'mailPreview') : 'Provider accepted.' },
@@ -200,11 +240,15 @@ const buildEvents = (mail: ApiMailRecord, t?: (key: string, ns?: string) => stri
 
 const toUiRecord = (mail: ApiMailRecord, t?: (key: string, ns?: string) => string): UiMailRecord => {
     const status = resolveUiStatus(mail);
+    const direction: MailDirection = mail.direction === 'inbound' ? 'inbound' : 'outbound';
     return {
         id: mail._id,
         applicantId: extractId(mail.applicant),
-        applicantName: getApplicantNameFromHtml(mail.html, t),
-        applicantEmail: mail.to,
+        // A reply quotes our email, so its body can't be trusted for the name.
+        applicantName: direction === 'inbound' ? (t ? t('unknownApplicant', 'mailPreview') : 'Unknown Applicant') : getApplicantNameFromHtml(mail.html, t),
+        // The applicant is the recipient of sent mail and the sender of a reply.
+        applicantEmail: direction === 'inbound' ? mail.from : mail.to,
+        direction,
         applicantJobPositionId: extractId(mail.jobPosition),
         applicantAssignedJobId: null,
         applicantAssignedJobTitle: t ? t('unknownJob', 'mailPreview') : 'Unknown Job',
@@ -217,7 +261,7 @@ const toUiRecord = (mail: ApiMailRecord, t?: (key: string, ns?: string) => strin
         statusRaw: mail.status,
         status,
         score: status === 'opened' || status === 'clicked' ? 95 : status === 'delivered' ? 85 : 40,
-        createdAt: mail.createdAt,
+        createdAt: direction === 'inbound' ? mail.receivedAt || mail.createdAt : mail.createdAt,
         lastUpdateAt: mail.updatedAt,
         subject: mail.subject,
         preview: stripHtml(mail.html).slice(0, 100),
@@ -242,6 +286,7 @@ const statusChipClasses: Record<MailStatus, { bg: string; text: string; dot: str
     clicked: { bg: 'bg-purple-50', text: 'text-purple-600', dot: 'bg-purple-400' },
     bounced: { bg: 'bg-orange-50', text: 'text-orange-600', dot: 'bg-orange-400' },
     failed: { bg: 'bg-rose-50', text: 'text-rose-600', dot: 'bg-rose-400' },
+    received: { bg: 'bg-sky-50', text: 'text-sky-700', dot: 'bg-sky-500' },
 };
 
 const toDisplayText = (value: unknown, fallback: string) => {
@@ -350,6 +395,7 @@ export default function MailPreview() {
     const [selectedJobId, setSelectedJobId] = useState<string>('all');
     const [statusFilter, setStatusFilter] = useState<Set<MailStatus>>(new Set());
     const [markedFilter, setMarkedFilter] = useState(false);
+    const [directionFilter, setDirectionFilter] = useState<'all' | MailDirection>('all');
     const [searchTerm, setSearchTerm] = useState('');
     const [mailPage, setMailPage] = useState(1);
 
@@ -470,6 +516,7 @@ export default function MailPreview() {
     const knownNameByApplicantId = useMemo(() => {
         const map = new Map<string, string>();
         (apiResponse?.data || []).forEach((mail) => {
+            if (mail.direction === 'inbound') return;
             const applicantId = extractId((mail as any)?.applicant);
             const parsedName = getApplicantNameFromHtml((mail as any)?.html || '');
             if (applicantId && parsedName !== unknownApplicantLabel && !isInvalidNameToken(parsedName)) {
@@ -482,6 +529,7 @@ export default function MailPreview() {
     const knownNameByEmail = useMemo(() => {
         const map = new Map<string, string>();
         (apiResponse?.data || []).forEach((mail) => {
+            if (mail.direction === 'inbound') return;
             const email = String((mail as any)?.to || '').trim().toLowerCase();
             const parsedName = getApplicantNameFromHtml((mail as any)?.html || '');
             if (email && parsedName !== unknownApplicantLabel && !isInvalidNameToken(parsedName)) {
@@ -536,21 +584,22 @@ export default function MailPreview() {
 
     const filteredMails = useMemo(() => baseMails
         .filter((m) => {
+            const matchesDirection = directionFilter === 'all' || m.direction === directionFilter;
             const matchesStatus = statusFilter.size === 0 || statusFilter.has(m.status);
             const matchesMarked = !markedFilter || (m.score ?? 0) > 90;
             const matchesSearch = !searchTerm || [m.applicantName, m.applicantEmail, m.subject].some((f) => f.toLowerCase().includes(searchTerm.toLowerCase()));
-            return matchesStatus && matchesMarked && matchesSearch;
+            return matchesDirection && matchesStatus && matchesMarked && matchesSearch;
         })
         .sort((a, b) => {
             const createdDiff = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
             if (createdDiff !== 0) return createdDiff;
             return new Date(b.lastUpdateAt).getTime() - new Date(a.lastUpdateAt).getTime();
         }),
-        [baseMails, statusFilter, markedFilter, searchTerm]);
+        [baseMails, directionFilter, statusFilter, markedFilter, searchTerm]);
 
     useEffect(() => {
         setMailPage(1);
-    }, [selectedCompanyId, selectedJobId, statusFilter, markedFilter, searchTerm]);
+    }, [selectedCompanyId, selectedJobId, directionFilter, statusFilter, markedFilter, searchTerm]);
 
     const totalMailPages = useMemo(() => Math.max(1, Math.ceil(filteredMails.length / MAIL_LIST_PAGE_SIZE)), [filteredMails.length]);
 
@@ -569,6 +618,13 @@ export default function MailPreview() {
     }, [filteredMails, selectedMailId]);
 
 
+
+    const conversation = useMemo(() => {
+        if (!selectedMail?.applicantId) return [];
+        return uiRecords
+            .filter((m) => m.applicantId === selectedMail.applicantId)
+            .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    }, [uiRecords, selectedMail]);
 
     const getStatusCount = (status: MailStatus) => {
         return baseMails.filter(m => m.status === status).length;
@@ -604,7 +660,9 @@ export default function MailPreview() {
 
                             <div className="space-y-6" role="tablist" aria-label={t('sidebarTitle', 'mailPreview')}>
                                 <div>
-                                    <SidebarNavItem icon={Inbox} label={t('sidebarInbox', 'mailPreview')} count={baseMails.length} active={statusFilter.size === 0 && !markedFilter} onClick={() => { setStatusFilter(new Set()); setMarkedFilter(false); }} />
+                                    <SidebarNavItem icon={Inbox} label={t('sidebarInbox', 'mailPreview')} count={baseMails.length} active={statusFilter.size === 0 && !markedFilter && directionFilter === 'all'} onClick={() => { setStatusFilter(new Set()); setMarkedFilter(false); setDirectionFilter('all'); }} />
+                                    <SidebarNavItem icon={Reply} label={t('sidebarReceived', 'mailPreview')} count={baseMails.filter(m => m.direction === 'inbound').length} active={directionFilter === 'inbound'} onClick={() => { setDirectionFilter('inbound'); setStatusFilter(new Set()); setMarkedFilter(false); }} />
+                                    <SidebarNavItem icon={Send} label={t('sidebarSent', 'mailPreview')} count={baseMails.filter(m => m.direction === 'outbound').length} active={directionFilter === 'outbound'} onClick={() => { setDirectionFilter('outbound'); setMarkedFilter(false); }} />
                                     <SidebarNavItem icon={Star} label={t('sidebarMarked', 'mailPreview')} count={baseMails.filter(m => m.score > 90).length} active={markedFilter} onClick={() => { setMarkedFilter(prev => !prev); setStatusFilter(new Set()); }} />
                                 </div>
 
@@ -690,6 +748,9 @@ export default function MailPreview() {
                                             <div className="flex items-start justify-between gap-3">
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center gap-2">
+                                                        {mail.direction === 'inbound' && (
+                                                            <Reply className="h-3.5 w-3.5 shrink-0 text-sky-600" aria-hidden="true" />
+                                                        )}
                                                         <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">
                                                             {mail.applicantName}
                                                         </p>
@@ -707,7 +768,7 @@ export default function MailPreview() {
                                                         {formatRelativeTime(mail.createdAt, t)}
                                                     </span>
                                                     <span className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider ${statusChipClasses[mail.status].bg} ${statusChipClasses[mail.status].text}`}>
-                                                        {(STATUS_OPTIONS.find(o => o.key === mail.status) ? t(STATUS_OPTIONS.find(o => o.key === mail.status)!.label, 'mailPreview') : mail.status)}
+                                                        {t(STATUS_LABEL_KEYS[mail.status], 'mailPreview')}
                                                     </span>
                                                 </div>
                                             </div>
@@ -788,13 +849,17 @@ export default function MailPreview() {
                                     <p className="text-xs text-slate-500 dark:text-slate-400">{selectedMail.applicantEmail}</p>
                                 </div>
                                 <div className={`rounded-full px-3 py-1 text-xs font-medium ${statusChipClasses[selectedMail.status].bg} ${statusChipClasses[selectedMail.status].text}`}>
-                                    {(STATUS_OPTIONS.find(o => o.key === selectedMail.status) ? t(STATUS_OPTIONS.find(o => o.key === selectedMail.status)!.label, 'mailPreview') : selectedMail.status)}
+                                    {t(STATUS_LABEL_KEYS[selectedMail.status], 'mailPreview')}
                                 </div>
                             </div>
                             <div className="mt-3 flex items-center gap-4 text-xs text-slate-400">
                                 <span>{formatDateTime(selectedMail.createdAt, locale)}</span>
                                 <span>•</span>
-                                <span>{t('to', 'mailPreview', { email: selectedMail.applicantEmail })}</span>
+                                <span>
+                                    {selectedMail.direction === 'inbound'
+                                        ? t('from', 'mailPreview', { email: selectedMail.applicantEmail })
+                                        : t('to', 'mailPreview', { email: selectedMail.applicantEmail })}
+                                </span>
                             </div>
                         </div>
 
@@ -803,11 +868,41 @@ export default function MailPreview() {
                             <div className="prose prose-sm max-w-none dark:prose-invert">
                                 <iframe
                                     srcDoc={selectedMail.bodyHtml}
+                                    // Replies come from outside the company: no scripts (no
+                                    // allow-scripts). allow-same-origin is needed for the
+                                    // body to render; popups let links open in a new tab.
+                                    sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
                                     title="Mail Preview"
                                     className="h-auto min-h-[400px] w-full rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800"
                                 />
                             </div>
                         </div>
+
+                        {/* Conversation with this applicant: sent and received, oldest first */}
+                        {conversation.length > 1 && (
+                            <div className="border-t border-slate-200 p-6 dark:border-slate-800">
+                                <h3 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-300">
+                                    {t('conversation', 'mailPreview', { count: conversation.length })}
+                                </h3>
+                                <ol className="space-y-2">
+                                    {conversation.map((m) => (
+                                        <li key={m.id}>
+                                            <button
+                                                onClick={() => setSelectedMailId(m.id)}
+                                                aria-current={m.id === selectedMail.id ? 'true' : undefined}
+                                                className={`flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left transition ${m.id === selectedMail.id ? 'border-brand-300 bg-brand-50 dark:border-brand-500/40 dark:bg-brand-500/10' : 'border-slate-200 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800/60'}`}
+                                            >
+                                                {m.direction === 'inbound'
+                                                    ? <Reply className="h-4 w-4 shrink-0 text-sky-600" aria-label={t('statusReceived', 'mailPreview')} />
+                                                    : <Send className="h-4 w-4 shrink-0 text-slate-400" aria-label={t('statusSent', 'mailPreview')} />}
+                                                <span className="min-w-0 flex-1 truncate text-sm text-slate-800 dark:text-slate-200">{m.subject}</span>
+                                                <span className="shrink-0 text-xs text-slate-400">{formatDateTime(m.createdAt, locale)}</span>
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ol>
+                            </div>
+                        )}
 
                         {/* Activity Timeline */}
                         <div className="border-t border-slate-200 p-6 dark:border-slate-800">
