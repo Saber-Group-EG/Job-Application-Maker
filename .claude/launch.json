@@ -12,6 +12,12 @@
       "runtimeExecutable": "cmd",
       "runtimeArgs": ["/c", "set VITE_API_BASE_URL=https://application-maker.onrender.com/api&& npm run dev -- --port 5174 --strictPort"],
       "port": 5174
+    },
+    {
+      "name": "backend-local-no-jobs",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "cd /d D:\\application-maker && set DISABLE_CRON_JOBS=true&& node src/server.js"],
+      "port": 3000
     }
   ]
 }

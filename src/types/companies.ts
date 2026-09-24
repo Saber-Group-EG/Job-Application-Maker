@@ -113,6 +113,25 @@ export interface MailSettings {
     html?: string;
   };
   emailTemplates?: EmailTemplate[];
+  provider?: 'resend' | 'gmail';
+}
+
+// Status of a company's connected Gmail account
+// (GET /companies/:settingsId/settings/mail/gmail). Never includes the
+// App Password.
+export interface GmailStatus {
+  provider: 'resend' | 'gmail';
+  hasResendKey: boolean;
+  connected: boolean;
+  email: string | null;
+  senderName: string | null;
+  authType: 'appPassword' | 'oauth';
+  connectedAt: string | null;
+  receiveEnabled: boolean;
+  receiveAllowedByPlan: boolean;
+  lastSyncAt: string | null;
+  lastError: string | null;
+  lastErrorAt: string | null;
 }
 
 export type MailTemplateCategory =

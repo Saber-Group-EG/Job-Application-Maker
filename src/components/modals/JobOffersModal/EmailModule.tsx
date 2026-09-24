@@ -8,6 +8,7 @@ import {
 import { useCompanies } from '../../../hooks/queries';
 import { Company } from '../../../types';
 import { FormState } from './JobOffersModal';
+import { getConnectedGmail } from '../../../hooks/useConnectedGmailSender';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -34,6 +35,13 @@ export function resolveSendersByCompany(
     list
       .filter((c) => c?._id)
       .map((c) => {
+        // A connected Gmail is the only possible sender (the backend always
+        // sends as it), so it replaces the custom-domain sender list.
+        const gmail = getConnectedGmail(
+          c.settings?.mailSettings as Parameters<typeof getConnectedGmail>[0]
+        );
+        if (gmail) return [c._id, [gmail]];
+
         const mails = c.settings?.mailSettings?.availableMails ?? [];
         const defaultMail = c.settings?.mailSettings?.defaultMail;
         const contactEmail = c.contactEmail;

@@ -11,6 +11,7 @@ import {
   Bell,
   Star,
   ChevronDown,
+  Reply,
 } from 'lucide-react';
 
 import { Modal } from '../../../../components/ui/modal';
@@ -172,7 +173,8 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, mailRecords = [
   };
 
   const renderEmailContent = (activity: Activity): string => {
-    const mailHtml = findMailHtml(activity.timestamp);
+    // A reply carries its own HTML; never time-match it to a sent email.
+    const mailHtml = activity.inbound ? null : findMailHtml(activity.timestamp);
     const html = decodeHtmlEntities(mailHtml || activity.description || '');
     const interview = findMatchingInterview(activity.timestamp);
     const finalHtml = interview ? substituteInterviewVars(html, interview) : html;
@@ -232,7 +234,7 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, mailRecords = [
         <div className="w-7 h-7 rounded-full bg-white border-2 border-gray-300 shadow-sm flex items-center justify-center"
           style={activity.type === 'email' || activity.type === 'message' ? { cursor: 'pointer' } : undefined}
         >
-          {getIcon(activity.type)}
+          {activity.inbound ? <Reply className="h-4 w-4 text-brand-500" /> : getIcon(activity.type)}
         </div>
       </div>
       
@@ -292,14 +294,17 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, mailRecords = [
           {activity.type === 'status_change' && t('statusChangedAt', 'activity', { time: new Date(activity.timestamp).toLocaleTimeString(locale === 'ar' ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' }) })}
           {activity.type === 'interview' && activity.interviewStatus === 'completed' && t('interviewCompletedAt', 'activity', { time: new Date(activity.timestamp).toLocaleTimeString(locale === 'ar' ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' }) })}
           {activity.type === 'interview' && activity.interviewStatus !== 'completed' && t('interviewScheduledAt', 'activity', { time: new Date(activity.timestamp).toLocaleTimeString(locale === 'ar' ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' }) })}
-          {(activity.type === 'email' || activity.type === 'message') && t('sentAt', 'activity', { time: new Date(activity.timestamp).toLocaleTimeString(locale === 'ar' ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' }) })}
+          {(activity.type === 'email' || activity.type === 'message') && !activity.inbound && t('sentAt', 'activity', { time: new Date(activity.timestamp).toLocaleTimeString(locale === 'ar' ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' }) })}
+          {activity.inbound && t('receivedFrom', 'activity', { time: new Date(activity.timestamp).toLocaleTimeString(locale === 'ar' ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' }), from: activity.from || '' })}
           {activity.type === 'application' && t('submittedAt', 'activity', { time: new Date(activity.timestamp).toLocaleTimeString(locale === 'ar' ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' }) })}
           {activity.type === 'task' && t('taskAt', 'activity', { time: new Date(activity.timestamp).toLocaleTimeString(locale === 'ar' ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' }) })}
           {!['comment', 'status_change', 'interview', 'email', 'message', 'application', 'task'].includes(activity.type) && t('updatedAt', 'activity', { time: new Date(activity.timestamp).toLocaleTimeString(locale === 'ar' ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' }) })}
         </span>
-        <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
-          <User className="h-3.5 w-3.5 text-gray-500" />
-        </div>
+        {!activity.inbound && (
+          <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
+            <User className="h-3.5 w-3.5 text-gray-500" />
+          </div>
+        )}
         {activity.user?.name && (
           <span className="text-xs font-medium text-gray-600">
             {activity.user.name.split(' ')[0]}

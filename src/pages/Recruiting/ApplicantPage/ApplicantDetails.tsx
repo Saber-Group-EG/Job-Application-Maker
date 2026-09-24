@@ -873,9 +873,14 @@ const ApplicantDetails: React.FC = () => {
       });
       return res.data as {
         data: Array<{
+          _id: string;
           createdAt: string;
           html: string;
           applicant: string | { _id: string } | null;
+          direction?: 'outbound' | 'inbound';
+          subject?: string;
+          from?: string;
+          receivedAt?: string | null;
         }>;
       };
     },
@@ -883,24 +888,47 @@ const ApplicantDetails: React.FC = () => {
     staleTime: 5 * 60 * 1000,
   });
 
-  const applicantMailRecords = useMemo(() => {
+  const applicantMails = useMemo(() => {
     if (!mailApiResponse?.data || !applicant?._id) return [];
     const applicantId = applicant._id;
-    return mailApiResponse.data
-      .filter((mail) => {
-        const mailApplicantId =
-          typeof mail.applicant === 'string'
-            ? mail.applicant
-            : mail.applicant?._id;
-        return mailApplicantId === applicantId;
-      })
-      .map((mail) => ({ createdAt: mail.createdAt, html: mail.html }));
+    return mailApiResponse.data.filter((mail) => {
+      const mailApplicantId =
+        typeof mail.applicant === 'string'
+          ? mail.applicant
+          : mail.applicant?._id;
+      return mailApplicantId === applicantId;
+    });
   }, [mailApiResponse, applicant]);
 
-  const activities = useMemo<Activity[]>(
-    () => buildActivities(applicant, t),
-    [applicant, t]
+  // Outgoing mail only: the feed matches these to "message sent" activities
+  // by timestamp, and a reply must never be matched as a sent email.
+  const applicantMailRecords = useMemo(
+    () =>
+      applicantMails
+        .filter((mail) => mail.direction !== 'inbound')
+        .map((mail) => ({ createdAt: mail.createdAt, html: mail.html })),
+    [applicantMails]
   );
+
+  const activities = useMemo<Activity[]>(() => {
+    // Replies imported from the company's connected Gmail inbox.
+    const replies: Activity[] = applicantMails
+      .filter((mail) => mail.direction === 'inbound')
+      .map((mail) => ({
+        id: `reply-${mail._id}`,
+        type: 'message',
+        inbound: true,
+        from: mail.from,
+        title: t('replyFromApplicant', 'activity'),
+        subject: mail.subject,
+        description: mail.html,
+        timestamp: mail.receivedAt || mail.createdAt,
+      }));
+    if (replies.length === 0) return buildActivities(applicant, t);
+    return [...buildActivities(applicant, t), ...replies].sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+  }, [applicant, applicantMails, t]);
   const sections = useMemo<ResponseSection[]>(
     () =>
       isEditing

@@ -31,7 +31,13 @@ class PlansAdminService {
 
   updatePlanFeature(
     id: string,
-    payload: { path: string; allowed?: boolean; limit?: number | null }
+    // `value` is for string settings (emails.emailType / emails.sendReceive).
+    payload: {
+      path: string;
+      allowed?: boolean;
+      limit?: number | null;
+      value?: string;
+    }
   ): Promise<Plan> {
     return this.request<Plan>(
       'patch',

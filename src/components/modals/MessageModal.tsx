@@ -15,6 +15,7 @@ import { EmailTemplate } from '../../services/companiesService';
 import { useLocale } from '../../context/LocaleContext';
 import { filterTemplatesByCategory } from '../../utils/mailTemplateCategories';
 import RichTextEditor from '../form/RichTextEditor';
+import { useConnectedGmailSender } from '../../hooks/useConnectedGmailSender';
 
 const MessageModal = ({
   isOpen,
@@ -22,7 +23,7 @@ const MessageModal = ({
   applicant,
   id,
   company: propCompany,
-  defaultFrom,
+  defaultFrom: defaultFromProp,
   isInquiry,
 }: {
   isOpen: boolean;
@@ -69,6 +70,13 @@ const MessageModal = ({
     propCompany ||
     (applicant && (applicant.company || applicant.companyObj)) ||
     null;
+
+  // A connected Gmail is the only possible sender for this company (the
+  // backend always sends as it), so it becomes the fixed, read-only sender.
+  const connectedGmail = useConnectedGmailSender(
+    (company && (company._id || company.id)) || companyIdForQuery
+  );
+  const defaultFrom = defaultFromProp || connectedGmail || undefined;
 
   // Get email templates directly from the company object
   const emailTemplates: EmailTemplate[] = useMemo(() => {

@@ -10,7 +10,12 @@ type Row =
   | { kind: 'section'; label: string }
   | { kind: 'boolean'; label: string; path: string }
   | { kind: 'limit'; label: string; path: string }
-  | { kind: 'readonly'; label: string; getValue: (f: NonNullable<Plan['features']>) => string };
+  | {
+      kind: 'enum';
+      label: string;
+      path: string;
+      options: { value: string; label: string }[];
+    };
 
 function getNode(features: NonNullable<Plan['features']>, path: string): any {
   return path.split('.').reduce((node: any, key) => node?.[key], features);
@@ -102,6 +107,8 @@ export default function AdminPlansPage() {
     updateFeature.mutate({ planId, path, allowed });
   const setLimit = (planId: string, path: string, limit: number | null) =>
     updateFeature.mutate({ planId, path, limit });
+  const setValue = (planId: string, path: string, value: string) =>
+    updateFeature.mutate({ planId, path, value });
 
   const rows: Row[] = [
     { kind: 'section', label: t('sectionApplicants', 'adminPlans') },
@@ -157,14 +164,22 @@ export default function AdminPlansPage() {
     { kind: 'section', label: t('sectionEmails', 'adminPlans') },
     { kind: 'limit', label: t('emailsSendLimit', 'adminPlans'), path: 'emails.sendLimit' },
     {
-      kind: 'readonly',
+      kind: 'enum',
       label: t('emailsEmailType', 'adminPlans'),
-      getValue: (f) => f.emails.emailType,
+      path: 'emails.emailType',
+      options: [
+        { value: 'personalGmail', label: t('emailTypePersonalGmail', 'adminPlans') },
+        { value: 'customDomain', label: t('emailTypeCustomDomain', 'adminPlans') },
+      ],
     },
     {
-      kind: 'readonly',
+      kind: 'enum',
       label: t('emailsSendReceive', 'adminPlans'),
-      getValue: (f) => f.emails.sendReceive,
+      path: 'emails.sendReceive',
+      options: [
+        { value: 'sendOnly', label: t('sendReceiveSendOnly', 'adminPlans') },
+        { value: 'sendReceive', label: t('sendReceiveSendReceive', 'adminPlans') },
+      ],
     },
     { kind: 'section', label: t('sectionContracts', 'adminPlans') },
     { kind: 'boolean', label: t('contractsLabel', 'adminPlans'), path: 'contracts' },
@@ -180,12 +195,9 @@ export default function AdminPlansPage() {
     { kind: 'section', label: t('sectionUsers', 'adminPlans') },
     { kind: 'limit', label: t('usersTotal', 'adminPlans'), path: 'users.total' },
     {
-      kind: 'readonly',
+      kind: 'boolean',
       label: t('usersDepartmentLevelAccess', 'adminPlans'),
-      getValue: (f) =>
-        f.users.departmentLevelAccess.allowed
-          ? t('allowedLabel', 'adminPlans')
-          : t('activeNo', 'adminPlans'),
+      path: 'users.departmentLevelAccess',
     },
     { kind: 'section', label: t('sectionAi', 'adminPlans') },
     ...([
@@ -273,7 +285,7 @@ export default function AdminPlansPage() {
 
                   return (
                     <tr
-                      key={row.kind === 'readonly' ? row.label : row.path}
+                      key={row.path}
                       className="border-t border-slate-100 dark:border-slate-800/60"
                     >
                       <td className="sticky start-0 z-10 w-64 min-h-[64px] bg-white p-4 text-sm font-medium text-slate-600 dark:bg-slate-900 dark:text-slate-400">
@@ -283,11 +295,24 @@ export default function AdminPlansPage() {
                         if (!p.features)
                           return <td key={p._id} className="p-4 min-h-[64px]" />;
 
-                        if (row.kind === 'readonly') {
+                        if (row.kind === 'enum') {
+                          const current = getNode(p.features, row.path) as string | undefined;
                           return (
                             <td key={p._id} className="min-h-[64px] p-4">
-                              <div className="flex min-h-[36px] items-center justify-center text-xs text-slate-500 dark:text-slate-400">
-                                {row.getValue(p.features)}
+                              <div className="flex min-h-[36px] items-center justify-center">
+                                <select
+                                  value={current ?? row.options[0].value}
+                                  disabled={mutating}
+                                  onChange={(e) => setValue(p._id, row.path, e.target.value)}
+                                  aria-label={`${row.label} — ${p.name}`}
+                                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-800 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                                >
+                                  {row.options.map((o) => (
+                                    <option key={o.value} value={o.value}>
+                                      {o.label}
+                                    </option>
+                                  ))}
+                                </select>
                               </div>
                             </td>
                           );

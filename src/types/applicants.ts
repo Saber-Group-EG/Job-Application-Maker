@@ -242,6 +242,9 @@ export interface Activity {
   conductedBy?: string;
   interviewStatus?: string;
   reasons?: string[];
+  // An applicant's reply pulled from the company's connected Gmail inbox.
+  inbound?: boolean;
+  from?: string;
 }
 
 export interface ActivityItem {

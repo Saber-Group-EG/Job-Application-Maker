@@ -6,6 +6,7 @@ import { useLocale } from "../../../context/LocaleContext";
 import PageMeta from "../../../components/common/PageMeta";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import { useCompanies, useUpdateMailSettings } from "../../../hooks/queries/useCompanies";
+import GmailConnectionCard from "./components/GmailConnectionCard";
 import { 
   Mail, 
   Trash2, 
@@ -19,6 +20,8 @@ import {
   ArrowRight
 } from "lucide-react";
 
+const EMPTY_COMPANIES: never[] = [];
+
 type Props = {
   companyId?: string;
   onSaved?: (data: any) => void;
@@ -28,7 +31,10 @@ type Props = {
 export default function CompanySettingsPage({ companyId: _companyId, onSaved, onChange }: Props) {
   const { selectedCompanyId } = useCompanyFilter();
 
-  const { data: companies = [] } = useCompanies();
+  const { data: companiesData } = useCompanies();
+  // A `= []` default is a new array every render while data is loading,
+  // which re-ran the effect below (and its setState) on every render.
+  const companies = companiesData ?? EMPTY_COMPANIES;
   const { hasPermission } = useAuth();
   const { t, locale } = useLocale();
   const updateMailMutation = useUpdateMailSettings();
@@ -45,7 +51,7 @@ export default function CompanySettingsPage({ companyId: _companyId, onSaved, on
   // Get mail settings directly from the selected company (from /auth/me data)
   useEffect(() => {
     if (!selectedCompanyId) {
-      setAvailableMails([]);
+      setAvailableMails((prev) => (prev.length ? [] : prev));
       setDefaultMail("");
       setCompanyDomain("");
       return;
@@ -88,11 +94,12 @@ export default function CompanySettingsPage({ companyId: _companyId, onSaved, on
   };
 
   const handleSave = async () => {
-    if (!selectedCompanyId) return;
+    const settingsId = selectedCompany?.settings?._id;
+    if (!settingsId) return;
     setIsSaving(true);
     try {
       await updateMailMutation.mutateAsync({
-        companyId: selectedCompanyId,
+        settingsId,
         data: {
           availableMails,
           defaultMail,
@@ -180,6 +187,12 @@ export default function CompanySettingsPage({ companyId: _companyId, onSaved, on
             </div>
           </div>
         </div>
+
+        <GmailConnectionCard
+          settingsId={selectedCompany?.settings?._id}
+          canEdit={canEdit}
+          defaultSenderName={selectedCompanyName !== t('noCompanySelected', 'companies') ? selectedCompanyName : undefined}
+        />
 
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
           <div className="space-y-6 xl:col-span-4">

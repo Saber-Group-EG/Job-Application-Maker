@@ -55,5 +55,9 @@
   "featureInterviewQuestionGen": "توليد أسئلة المقابلة",
   "featureOfferGenerator": "مولّد العروض",
   "featureContractGenerator": "مولّد العقود",
-  "featureCvParse": "تحليل السيرة الذاتية"
+  "featureCvParse": "تحليل السيرة الذاتية",
+  "emailTypePersonalGmail": "Gmail فقط (مجاني)",
+  "emailTypeCustomDomain": "دومين خاص + Gmail",
+  "sendReceiveSendOnly": "إرسال فقط",
+  "sendReceiveSendReceive": "إرسال واستقبال الردود"
 }

@@ -19,7 +19,7 @@ export function useAdminPlans() {
 function setFeatureNode(
   plan: Plan,
   path: string,
-  patch: { allowed?: boolean; limit?: number | null }
+  patch: { allowed?: boolean; limit?: number | null; value?: string }
 ): Plan {
   if (!plan.features) return plan;
   const keys = path.split('.');
@@ -30,7 +30,11 @@ function setFeatureNode(
     if (!node[key]) node[key] = {};
     node = node[key];
   }
-  node[leafKey] = { ...node[leafKey], ...patch };
+  // String settings are plain leaves; everything else is { allowed, limit }.
+  node[leafKey] =
+    patch.value !== undefined
+      ? patch.value
+      : { ...node[leafKey], allowed: patch.allowed ?? node[leafKey]?.allowed, ...(patch.limit !== undefined && { limit: patch.limit }) };
   return { ...plan, features: cloned };
 }
 
@@ -46,11 +50,13 @@ export function useUpdatePlanFeature() {
       path: string;
       allowed?: boolean;
       limit?: number | null;
+      value?: string;
     }) =>
       plansAdminService.updatePlanFeature(payload.planId, {
         path: payload.path,
         allowed: payload.allowed,
         limit: payload.limit,
+        value: payload.value,
       }),
 
     onMutate: async (payload) => {

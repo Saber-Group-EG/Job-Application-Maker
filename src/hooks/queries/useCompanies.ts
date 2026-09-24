@@ -21,6 +21,7 @@ import type {
   CompanyStatus,
   SectionTemplate,
   AiFeatureToggle,
+  GmailStatus,
 } from '../../types/companies';
 import type { Applicant } from '../../types/applicants';
 import { useAuth } from '../../context/AuthContext';
@@ -41,6 +42,8 @@ export const companiesKeys = {
     [...companiesKeys.all, 'settings', companyId] as const,
   mailSettings: (companyId: string) =>
     [...companiesKeys.all, 'mailSettings', companyId] as const,
+  gmailStatus: (settingsId: string) =>
+    [...companiesKeys.all, 'gmailStatus', settingsId] as const,
   interviewSettings: (companyId: string) =>
     [...companiesKeys.settings(companyId), 'interview'] as const,
   statuses: (companyId: string) =>
@@ -530,24 +533,101 @@ export function useUpdateMailSettings() {
 
   return useMutation({
     mutationFn: ({
-      companyId,
+      settingsId,
       data,
     }: {
-      companyId: string;
+      settingsId: string;
       data: {
         availableMails?: string[];
         defaultMail?: string | null;
         companyDomain?: string | null;
       };
-    }) => companiesService.updateMailSettings(companyId, data),
-    onSuccess: (_, { companyId }) => {
-      queryClient.invalidateQueries({
-        queryKey: companiesKeys.mailSettings(companyId),
-      });
+    }) => companiesService.updateMailSettings(settingsId, data),
+    onSuccess: () => {
+      // Mail settings are read from the companies list (company.settings).
+      queryClient.invalidateQueries({ queryKey: companiesKeys.all });
       showSuccessToast(t('mailSettingsUpdated', 'common'), t);
     },
     onError: (error: ApiError) =>
       showErrorToast(error.message, t('mailSettingsUpdateFailed', 'common'), t),
+  });
+}
+
+// ===== Connected Gmail =====
+export function useGmailStatus(settingsId?: string) {
+  return useQuery({
+    queryKey: companiesKeys.gmailStatus(settingsId ?? ''),
+    queryFn: () => companiesService.getGmailStatus(settingsId!),
+    enabled: !!settingsId,
+    staleTime: 30 * 1000,
+  });
+}
+
+// Every Gmail mutation returns fresh status; write it straight into the
+// cache and refresh the companies list (company.settings.mailSettings).
+function useGmailStatusUpdater() {
+  const queryClient = useQueryClient();
+  return (settingsId: string, status?: GmailStatus) => {
+    if (status)
+      queryClient.setQueryData(companiesKeys.gmailStatus(settingsId), status);
+    queryClient.invalidateQueries({ queryKey: companiesKeys.lists() });
+  };
+}
+
+export function useConnectGmail() {
+  const update = useGmailStatusUpdater();
+  return useMutation({
+    mutationFn: ({
+      settingsId,
+      ...body
+    }: {
+      settingsId: string;
+      email: string;
+      appPassword: string;
+      senderName?: string;
+      receiveEnabled?: boolean;
+    }) => companiesService.connectGmail(settingsId, body),
+    onSuccess: (res, { settingsId }) => update(settingsId, res.data),
+  });
+}
+
+export function useUpdateGmailOptions() {
+  const update = useGmailStatusUpdater();
+  return useMutation({
+    mutationFn: ({
+      settingsId,
+      ...body
+    }: {
+      settingsId: string;
+      senderName?: string | null;
+      receiveEnabled?: boolean;
+    }) => companiesService.updateGmailOptions(settingsId, body),
+    onSuccess: (status, { settingsId }) => update(settingsId, status),
+  });
+}
+
+export function useDisconnectGmail() {
+  const update = useGmailStatusUpdater();
+  return useMutation({
+    mutationFn: (settingsId: string) =>
+      companiesService.disconnectGmail(settingsId),
+    onSuccess: (status, settingsId) => update(settingsId, status),
+  });
+}
+
+export function useSendGmailTest() {
+  return useMutation({
+    mutationFn: ({ settingsId, to }: { settingsId: string; to?: string }) =>
+      companiesService.sendGmailTest(settingsId, to),
+  });
+}
+
+export function useSyncGmailInbox() {
+  const update = useGmailStatusUpdater();
+  return useMutation({
+    mutationFn: (settingsId: string) =>
+      companiesService.syncGmailInbox(settingsId),
+    onSuccess: (res, settingsId) => update(settingsId, res.status),
   });
 }
 
