@@ -6,6 +6,7 @@ import type {
   CreateCompanyRequest,
   UpdateCompanyRequest,
   MailSettings,
+  GmailStatus,
   EmailTemplate,
   CompanySet,
   CompanyStatus,
@@ -73,10 +74,11 @@ function extractCompany(response: any): Company {
 // ===== Companies Service (clean, focused) =====
 class CompaniesService {
   private async request<T>(
-    method: 'get' | 'post' | 'put' | 'delete',
+    method: 'get' | 'post' | 'put' | 'patch' | 'delete',
     url: string,
     data?: any,
-    params?: any
+    params?: any,
+    { raw = false }: { raw?: boolean } = {}
   ): Promise<T> {
     try {
       const config = { params };
@@ -85,6 +87,8 @@ class CompaniesService {
           ? await axios[method](url, config)
           : await axios[method](url, data, config);
 
+      // raw: return the whole body (e.g. to read `message` / `warning`).
+      if (raw) return response.data as T;
       return extractData<T>(response.data);
     } catch (error: any) {
       throw new ApiError(
@@ -215,14 +219,85 @@ class CompaniesService {
     }
   }
 
+  // settingsId is the CompanySettings doc id (company.settings._id), like
+  // every other /companies/:id/settings/* route.
   async updateMailSettings(
-    companyId: string,
+    settingsId: string,
     mailSettings: Partial<MailSettings>
   ): Promise<MailSettings> {
     return this.request<MailSettings>(
       'put',
-      `/companies/${companyId}/settings/mail`,
-      mailSettings
+      `/companies/${settingsId}/settings/mail`,
+      { mailSettings }
+    );
+  }
+
+  // ===== Connected Gmail =====
+  async getGmailStatus(settingsId: string): Promise<GmailStatus> {
+    return this.request<GmailStatus>(
+      'get',
+      `/companies/${settingsId}/settings/mail/gmail`
+    );
+  }
+
+  async connectGmail(
+    settingsId: string,
+    body: {
+      email: string;
+      appPassword: string;
+      senderName?: string;
+      receiveEnabled?: boolean;
+    }
+  ): Promise<{ data: GmailStatus; message?: string; warning?: string | null }> {
+    return this.request(
+      'post',
+      `/companies/${settingsId}/settings/mail/gmail`,
+      body,
+      undefined,
+      { raw: true }
+    );
+  }
+
+  async updateGmailOptions(
+    settingsId: string,
+    body: { senderName?: string | null; receiveEnabled?: boolean }
+  ): Promise<GmailStatus> {
+    return this.request<GmailStatus>(
+      'patch',
+      `/companies/${settingsId}/settings/mail/gmail`,
+      body
+    );
+  }
+
+  async disconnectGmail(settingsId: string): Promise<GmailStatus> {
+    return this.request<GmailStatus>(
+      'delete',
+      `/companies/${settingsId}/settings/mail/gmail`
+    );
+  }
+
+  async sendGmailTest(
+    settingsId: string,
+    to?: string
+  ): Promise<{ message: string; data: { to: string; from: string } }> {
+    return this.request(
+      'post',
+      `/companies/${settingsId}/settings/mail/gmail/test`,
+      to ? { to } : {},
+      undefined,
+      { raw: true }
+    );
+  }
+
+  async syncGmailInbox(settingsId: string): Promise<{
+    stored?: number;
+    scanned?: number;
+    skipped?: string;
+    status: GmailStatus;
+  }> {
+    return this.request(
+      'post',
+      `/companies/${settingsId}/settings/mail/gmail/sync`
     );
   }
 

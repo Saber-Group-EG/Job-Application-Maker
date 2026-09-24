@@ -31,5 +31,7 @@
   "interviewWithStatus": "Interview {status}",
   "applicationSubmitted": "Application submitted",
   "applicant": "Applicant",
-  "system": "System"
+  "system": "System",
+  "replyFromApplicant": "Reply from applicant",
+  "receivedFrom": "Received at {time} from {from}"
 }

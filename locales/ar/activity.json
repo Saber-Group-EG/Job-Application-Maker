@@ -31,5 +31,7 @@
   "interviewWithStatus": "مقابلة {status}",
   "applicationSubmitted": "تم تقديم الطلب",
   "applicant": "متقدم",
-  "system": "النظام"
+  "system": "النظام",
+  "replyFromApplicant": "رد من المتقدم",
+  "receivedFrom": "تم الاستلام في {time} من {from}"
 }
