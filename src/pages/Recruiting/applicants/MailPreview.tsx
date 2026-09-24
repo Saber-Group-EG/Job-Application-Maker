@@ -156,7 +156,16 @@ const formatRelativeTime = (value: string, t?: (key: string, ns?: string, params
     return t ? t('daysAgo', 'mailPreview', { days: diffDays }) : `${diffDays}d ago`;
 };
 
-const stripHtml = (html: string) => html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+const HTML_ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'", nbsp: ' ' };
+
+// Plain-text preview: drop tags, then decode the common entities so a quoted
+// "<hr@company.com>" doesn't show as "&lt;hr@company.com&gt;".
+const stripHtml = (html: string) =>
+    html
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/&(amp|lt|gt|quot|#39|nbsp);/g, (_, e: string) => HTML_ENTITIES[e])
+        .replace(/\s+/g, ' ')
+        .trim();
 
 const isInvalidNameToken = (value: string) => /^(undefined|null|unknown|n\/a|na)$/i.test(value.trim());
 
@@ -859,7 +868,10 @@ export default function MailPreview() {
                             <div className="prose prose-sm max-w-none dark:prose-invert">
                                 <iframe
                                     srcDoc={selectedMail.bodyHtml}
-                                    sandbox=""
+                                    // Replies come from outside the company: no scripts (no
+                                    // allow-scripts). allow-same-origin is needed for the
+                                    // body to render; popups let links open in a new tab.
+                                    sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
                                     title="Mail Preview"
                                     className="h-auto min-h-[400px] w-full rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800"
                                 />
