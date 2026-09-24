@@ -14,6 +14,7 @@ import { useLocale } from '../../context/LocaleContext';
 import { filterTemplatesByCategory } from '../../utils/mailTemplateCategories';
 import RichTextEditor from '../form/RichTextEditor';
 import TextArea from '../form/input/TextArea';
+import { useConnectedGmailSender } from '../../hooks/useConnectedGmailSender';
 
 const BulkMessageModal = ({
   isOpen,
@@ -320,9 +321,22 @@ const BulkMessageModal = ({
     company?.settings?.mailSettings?.defaultMail?.split('@')[1] ||
     '';
 
+  // A connected Gmail is the only possible sender (the backend always sends
+  // as it), so it replaces the custom-domain sender list.
+  const connectedGmail = useConnectedGmailSender(
+    companyId || company?._id || company?.id
+  );
+
   // Get sender options from company object directly (from /auth/me data)
   useEffect(() => {
     if (!isOpen) return;
+
+    if (connectedGmail) {
+      setSenderOptions([{ value: connectedGmail, label: connectedGmail }]);
+      setCustomEmail(connectedGmail);
+      setEmailOption('available');
+      return;
+    }
 
     if (!company && !companyId) {
       setSenderOptions([]);
@@ -399,7 +413,7 @@ const BulkMessageModal = ({
     } else {
       setEmailOption('company');
     }
-  }, [isOpen, company, companyId]);
+  }, [isOpen, company, companyId, connectedGmail]);
 
   const handlePreview = () => {
     if (!form.body?.trim()) {

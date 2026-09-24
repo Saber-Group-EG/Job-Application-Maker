@@ -17,6 +17,7 @@ import { resolveCompanyAddress } from '../../utils/companyAddress';
 import { useLocale } from '../../context/LocaleContext';
 import { filterTemplatesByCategory } from '../../utils/mailTemplateCategories';
 import RichTextEditor from '../form/RichTextEditor';
+import { getConnectedGmail } from '../../hooks/useConnectedGmailSender';
 
 // Simple HTML escape utility
 function escapeHtml(str: string) {
@@ -138,6 +139,17 @@ export default function InterviewScheduleModal(props: Props) {
       (companiesList as any[]).find((c: any) => c?._id === companyId) ?? null
     );
   }, [companiesList, companyId]);
+
+  // A connected Gmail is the only possible sender (the backend always sends
+  // as it), so the custom-domain sender options are replaced by it.
+  const connectedGmail = getConnectedGmail(
+    (companyFromList as any)?.settings?.mailSettings
+  );
+  useEffect(() => {
+    if (!isOpen || !connectedGmail) return;
+    setCustomEmail(connectedGmail);
+    setEmailOption('company');
+  }, [isOpen, connectedGmail, setCustomEmail, setEmailOption]);
 
   // Effective company data: prefer the prop, but merge in the address-bearing list entry
   const effectiveCompanyData = useMemo(() => {
@@ -1554,7 +1566,21 @@ export default function InterviewScheduleModal(props: Props) {
               </div>
 
               <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {notificationChannels.email && (
+                {notificationChannels.email && connectedGmail && (
+                  <div className="space-y-2">
+                    <Label htmlFor="selected-sender">
+                      {t('sender', 'modals')}
+                    </Label>
+                    <Input
+                      id="selected-sender"
+                      type="text"
+                      value={connectedGmail}
+                      readOnly
+                      className="bg-gray-50 dark:bg-gray-800"
+                    />
+                  </div>
+                )}
+                {notificationChannels.email && !connectedGmail && (
                   <div className="space-y-2">
                     <Label htmlFor="email-option">
                       {t('sender', 'modals')}
