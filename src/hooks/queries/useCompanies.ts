@@ -541,6 +541,7 @@ export function useUpdateMailSettings() {
         availableMails?: string[];
         defaultMail?: string | null;
         companyDomain?: string | null;
+        receivingDomain?: string | null;
       };
     }) => companiesService.updateMailSettings(settingsId, data),
     onSuccess: () => {

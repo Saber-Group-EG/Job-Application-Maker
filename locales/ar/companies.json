@@ -181,5 +181,9 @@
   "gmailSyncFailed": "تعذّر فحص الوارد",
   "gmailDisconnect": "فصل",
   "gmailDisconnectConfirmTitle": "فصل Gmail؟",
-  "gmailDisconnectConfirmDesc": "سيتوقف الإرسال من حساب Gmail هذا ولن يتم استيراد الردود بعد الآن. الإيميلات السابقة ستبقى في النظام."
+  "gmailDisconnectConfirmDesc": "سيتوقف الإرسال من حساب Gmail هذا ولن يتم استيراد الردود بعد الآن. الإيميلات السابقة ستبقى في النظام.",
+  "replySubdomain": "نطاق فرعي للردود (للدومين الخاص فقط)",
+  "replySubdomainPlaceholder": "reply.yourcompany.com",
+  "replySubdomainDesc": "ردود المتقدمين على الإيميلات المرسلة من الدومين الخاص بك تصل هنا. في إعدادات DNS أضف سجل MX واحد لهذا النطاق الفرعي يشير إلى Resend Inbound، واشترك في حدث email.received في الـ webhook الخاص بـ Resend.",
+  "replySubdomainWarning": "استخدم نطاقاً فرعياً فقط (مثل reply.yourcompany.com). لا تضف سجل MX الخاص بـ Resend إلى الدومين الرئيسي أبداً — لأن ذلك سيحوّل كل إيميلات شركتك إلى هنا بدلاً من صندوق البريد المعتاد."
 }

@@ -42,6 +42,7 @@ export default function CompanySettingsPage({ companyId: _companyId, onSaved, on
   const [availableMails, setAvailableMails] = useState<string[]>([]);
   const [defaultMail, setDefaultMail] = useState<string>("");
   const [companyDomain, setCompanyDomain] = useState<string>("");
+  const [receivingDomain, setReceivingDomain] = useState<string>("");
   const [isSaving, setIsSaving] = useState(false);
   const [newMail, setNewMail] = useState("");
 
@@ -54,6 +55,7 @@ export default function CompanySettingsPage({ companyId: _companyId, onSaved, on
       setAvailableMails((prev) => (prev.length ? [] : prev));
       setDefaultMail("");
       setCompanyDomain("");
+      setReceivingDomain("");
       return;
     }
 
@@ -67,6 +69,7 @@ export default function CompanySettingsPage({ companyId: _companyId, onSaved, on
       setAvailableMails(Array.isArray(mails) ? mails : []);
       setDefaultMail(mailSettingsData?.defaultMail || company?.contactEmail || "");
       setCompanyDomain(mailSettingsData?.companyDomain || "");
+      setReceivingDomain(mailSettingsData?.receivingDomain || "");
     }
   }, [selectedCompanyId, companies]);
 
@@ -103,7 +106,8 @@ export default function CompanySettingsPage({ companyId: _companyId, onSaved, on
         data: {
           availableMails,
           defaultMail,
-          companyDomain
+          companyDomain,
+          receivingDomain: receivingDomain.trim() || null,
         }
       });
       Swal.fire({ title: t('configSynced', 'companies'), icon: "success", timer: 1500, showConfirmButton: false });
@@ -218,6 +222,28 @@ export default function CompanySettingsPage({ companyId: _companyId, onSaved, on
                 <p className="text-sm leading-relaxed text-slate-500 dark:text-slate-400">
                   {t('domainDesc', 'companies')}
                 </p>
+
+                <div className="border-t border-slate-200 pt-4 dark:border-slate-800">
+                  <label className="mb-1.5 block text-sm font-semibold">
+                    {t('replySubdomain', 'companies')}
+                  </label>
+                  <div className="relative group">
+                    <Globe className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-brand-500" />
+                    <input
+                      value={receivingDomain}
+                      onChange={(e) => setReceivingDomain(e.target.value)}
+                      placeholder={t('replySubdomainPlaceholder', 'companies')}
+                      disabled={!canEdit}
+                      className="w-full rounded-xl border border-slate-300 bg-white py-3 pl-11 pr-4 text-sm font-medium outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800"
+                    />
+                  </div>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
+                    {t('replySubdomainDesc', 'companies')}
+                  </p>
+                  <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
+                    {t('replySubdomainWarning', 'companies')}
+                  </p>
+                </div>
               </div>
             </div>
           </div>

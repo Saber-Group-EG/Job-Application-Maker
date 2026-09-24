@@ -181,5 +181,9 @@
   "gmailSyncFailed": "Couldn't check the inbox",
   "gmailDisconnect": "Disconnect",
   "gmailDisconnectConfirmTitle": "Disconnect Gmail?",
-  "gmailDisconnectConfirmDesc": "Emails will stop being sent from this Gmail account and replies will no longer be imported. Past emails stay in the system."
+  "gmailDisconnectConfirmDesc": "Emails will stop being sent from this Gmail account and replies will no longer be imported. Past emails stay in the system.",
+  "replySubdomain": "Reply subdomain (custom domain only)",
+  "replySubdomainPlaceholder": "reply.yourcompany.com",
+  "replySubdomainDesc": "Applicant replies to emails sent from your custom domain come back here. In your DNS, add one MX record for this subdomain pointing to Resend Inbound, and subscribe your Resend webhook to the email.received event.",
+  "replySubdomainWarning": "Use a subdomain only (e.g. reply.yourcompany.com). Never add Resend's MX record to your main domain — that would send all of your company's email here instead of your normal mailbox."
 }
