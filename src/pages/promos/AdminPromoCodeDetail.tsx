@@ -1,505 +1,249 @@
-import { useState, useMemo } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router';
+import { useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
+import { Link, useParams } from 'react-router';
 import { useLocale } from '../../context/LocaleContext';
 import PageMeta from '../../components/common/PageMeta';
-import LoadingSpinner from '../../components/common/LoadingSpinner';
-import {
-  usePromoCode,
-  usePromoRedemptions,
-  useUsers,
-  useUpdatePromoCode,
-} from '../../hooks/queries';
+import { usePromoCode, usePromoRedemptions, useUsers, useUpdatePromoCode } from '../../hooks/queries';
 import { formatMoney } from '../../utils/money';
 import { toPlainString } from '../../utils/strings';
 import Swal from '../../utils/swal';
 import PromoCodeFormModal from './components/PromoCodeFormModal';
 import PromoRedemptionsTable from './components/PromoRedemptionsTable';
 import {
-  ChevronLeft,
-  Pencil,
-  Percent,
-  Coins,
-  CalendarClock,
-  CalendarX2,
-  Infinity as InfinityIcon,
-  Receipt,
+  ArrowLeft,
+  ArrowRight,
   CircleCheck,
   CircleDollarSign,
-  CirclePlay,
-  User,
-  AlignLeft,
-  ChevronRight,
-  Copy,
-  Check,
+  Clock4,
+  Pencil,
   Power,
+  Receipt,
+  Ticket,
 } from 'lucide-react';
+import {
+  Badge,
+  Button,
+  Card,
+  CodeChip,
+  EmptyState,
+  PageShell,
+  Pagination,
+  SectionTitle,
+  StatCard,
+  focusRing,
+} from './components/PromoUI';
+import { codeState, commissionLabel, discountLabel, formatDate, isHrUser, personName } from './promoFormat';
 
-type TabKey = 'overview' | 'redemptions';
-
-function statCardClass(color: string) {
-  return `flex flex-col justify-between gap-4 p-6 rounded-[2rem] ${color} shadow-xl`;
-}
-
-function formatDate(dateStr: string | undefined, locale: string): string {
-  if (!dateStr) return '—';
-  const date = new Date(dateStr);
-  if (isNaN(date.getTime())) return '—';
-  return date.toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  });
+function Term({ label, children }: { label: ReactNode; children: ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-4 px-5 py-3">
+      <dt className="text-sm text-slate-500 dark:text-slate-400">{label}</dt>
+      <dd className="text-end text-sm font-medium text-slate-900 dark:text-white">{children}</dd>
+    </div>
+  );
 }
 
 export default function AdminPromoCodeDetail() {
   const { t, locale } = useLocale();
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-
-  // Tab lives in the URL so a link to "this code's redemptions" is
-  // shareable/bookmarkable and survives refresh/back-navigation.
-  const [searchParams, setSearchParams] = useSearchParams();
-  const tab: TabKey =
-    searchParams.get('tab') === 'redemptions' ? 'redemptions' : 'overview';
-  const setTab = (next: TabKey) => {
-    setSearchParams(
-      (prev) => {
-        const merged = new URLSearchParams(prev);
-        if (next === 'overview') merged.delete('tab');
-        else merged.set('tab', next);
-        return merged;
-      },
-      { replace: true }
-    );
-  };
+  const isRtl = locale === 'ar';
 
   const [redemptionsPage, setRedemptionsPage] = useState(1);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [justCopied, setJustCopied] = useState(false);
 
   const { data: code, isLoading } = usePromoCode(id ?? null);
-  const { data: hrUsers = [] } = useUsers();
+  const { data: users = [] } = useUsers();
   const hrUserOptions = useMemo(
-    () =>
-      hrUsers
-        .filter(
-          (u) =>
-            String(u?.roleId?.name || '')
-              .toLowerCase()
-              .trim() === 'hr manager'
-        )
-        .map((u) => ({
-          _id: u._id,
-          fullName: u.fullName,
-          name: u.name,
-          email: u.email,
-        })),
-    [hrUsers]
+    () => users.filter(isHrUser).map((u) => ({ _id: u._id, fullName: u.fullName, name: u.name, email: u.email })),
+    [users]
   );
 
-  const { data: redemptionsEnvelope, isLoading: redemptionsLoading } =
-    usePromoRedemptions({
-      promoCodeId: id ?? '',
-      page: redemptionsPage,
-    });
+  const {
+    data: redemptionsEnvelope,
+    isLoading: redemptionsLoading,
+    isFetching: redemptionsFetching,
+  } = usePromoRedemptions({ promoCodeId: id ?? '', page: redemptionsPage });
   const redemptions = redemptionsEnvelope?.data ?? [];
   const redemptionsTotalPages = redemptionsEnvelope?.totalPages ?? 1;
 
-  // NOTE: guessed hook name/signature to match the rest of this codebase's
-  // mutation hooks (e.g. useSettleCommissions). Adjust `useUpdatePromoCode`
-  // and the mutateAsync payload shape to whatever your actual update
-  // endpoint expects if it differs.
   const updateMutation = useUpdatePromoCode();
-
-  const handleCopyCode = async () => {
-    if (!code) return;
-    try {
-      await navigator.clipboard.writeText(toPlainString(code.code));
-      setJustCopied(true);
-      setTimeout(() => setJustCopied(false), 1500);
-    } catch {
-      Swal.fire(t('error', 'common'), t('detailCopyFailed', 'promos'), 'error');
-    }
-  };
 
   const handleToggleActive = async () => {
     if (!code) return;
-    const nextActive = !(code.isActive !== false);
-
+    const nextActive = code.isActive === false;
     const result = await Swal.fire({
-      title: nextActive
-        ? t('detailActivateConfirmTitle', 'promos')
-        : t('detailDeactivateConfirmTitle', 'promos'),
-      text: nextActive
-        ? t('detailActivateConfirmText', 'promos')
-        : t('detailDeactivateConfirmText', 'promos'),
+      title: nextActive ? t('detailActivateConfirmTitle', 'promos') : t('detailDeactivateConfirmTitle', 'promos'),
+      text: nextActive ? t('detailActivateConfirmText', 'promos') : t('detailDeactivateConfirmText', 'promos'),
       icon: 'warning',
       showCancelButton: true,
+      focusCancel: !nextActive,
       cancelButtonText: t('settleCancel', 'promos'),
-      confirmButtonColor: nextActive ? '#22c55e' : '#ef4444',
-      confirmButtonText: nextActive
-        ? t('detailActivateConfirmButton', 'promos')
-        : t('detailDeactivateConfirmButton', 'promos'),
+      confirmButtonColor: nextActive ? '#16a34a' : '#e11d48',
+      confirmButtonText: nextActive ? t('detailActivateConfirmButton', 'promos') : t('detailDeactivateConfirmButton', 'promos'),
     });
     if (!result.isConfirmed) return;
-
     try {
-      await updateMutation.mutateAsync({
-        id: code._id,
-        payload: { isActive: nextActive },
-      });
+      await updateMutation.mutateAsync({ id: code._id, payload: { isActive: nextActive } });
     } catch {
       // error toast handled by the mutation hook
     }
   };
 
-  if (isLoading) return <LoadingSpinner fullPage />;
+  const BackIcon = isRtl ? ArrowRight : ArrowLeft;
+  const back = (
+    <Link
+      to="/promos"
+      className={`inline-flex items-center gap-1.5 rounded-md text-sm font-medium text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white ${focusRing}`}
+    >
+      <BackIcon className="size-4" />
+      {t('detailBackButton', 'promos')}
+    </Link>
+  );
+
+  if (isLoading) {
+    return (
+      <PageShell back={back} title={<span className="inline-block h-7 w-40 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />}>
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {[0, 1, 2, 3].map((i) => (
+            <StatCard key={i} label={' '} value="" loading />
+          ))}
+        </div>
+      </PageShell>
+    );
+  }
 
   if (!code) {
     return (
-      <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0F172A] p-8 flex items-center justify-center">
-        <div className="text-center space-y-5 max-w-md">
-          <div className="size-20 bg-purple-500/10 rounded-full flex items-center justify-center mx-auto">
-            <Receipt className="size-10 text-purple-500" />
-          </div>
-          <h1 className="text-2xl font-black dark:text-white">
-            {t('detailNotFoundTitle', 'promos')}
-          </h1>
-          <p className="text-gray-500 font-medium">
-            {t('detailNotFoundText', 'promos')}
-          </p>
-          <button
-            onClick={() => navigate('/promos')}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-brand-500 text-white rounded-2xl font-bold shadow-xl shadow-brand-500/20 hover:scale-105 transition-all"
-          >
-            <ChevronLeft className="size-4" />
-            {t('detailNotFoundButton', 'promos')}
-          </button>
-        </div>
-      </div>
+      <PageShell back={back} title={t('detailTitle', 'promos')}>
+        <Card>
+          <EmptyState
+            icon={<Receipt className="size-6" />}
+            title={t('detailNotFoundTitle', 'promos')}
+            text={t('detailNotFoundText', 'promos')}
+          />
+        </Card>
+      </PageShell>
     );
   }
 
   const isActive = code.isActive !== false;
-  const owner = typeof code.ownerUserId === 'object' ? code.ownerUserId : null;
-  const ownerLabel = toPlainString(
-    owner?.fullName || owner?.name || owner?.email
-  );
+  const state = codeState(code);
   const stats = code.stats;
-  const discountValue =
-    code.discountPercent != null
-      ? `${code.discountPercent}%`
-      : code.discountAmountCents != null
-        ? formatMoney(code.discountAmountCents)
-        : '—';
-  const commissionParts: string[] = [];
-  if (code.commissionPercent != null)
-    commissionParts.push(`${code.commissionPercent}%`);
-  if (code.commissionAmountCents != null)
-    commissionParts.push(formatMoney(code.commissionAmountCents));
-  const commissionValue = commissionParts.length
-    ? commissionParts.join(' + ')
-    : '—';
-
-  const tabs: { key: TabKey; label: string }[] = [
-    { key: 'overview', label: t('detailSectionOverview', 'promos') },
-    { key: 'redemptions', label: t('redemptionsTitle', 'promos') },
-  ];
+  const owner = personName(code.ownerUserId);
+  const cycles = code.discountCycles ?? 1;
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0F172A] p-4 sm:p-8 text-slate-900 dark:text-slate-100">
-      <PageMeta
-        title={t('detailTitle', 'promos')}
-        description={t('pageSubtitle', 'promos')}
-      />
-
-      <div className="max-w-7xl mx-auto space-y-8">
-        {/* Top bar */}
-        <div className="flex items-center justify-between gap-4">
-          <button
-            onClick={() => navigate('/promos')}
-            className="inline-flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors font-medium"
+    <PageShell
+      back={back}
+      title={
+        <span className="flex flex-wrap items-center gap-3">
+          <CodeChip code={toPlainString(code.code)} copyable size="lg" />
+          <Badge tone={state.tone}>{t(state.labelKey, 'promos')}</Badge>
+        </span>
+      }
+      subtitle={owner ? t('detailOwnedBy', 'promos', { name: owner }) : undefined}
+      actions={
+        <>
+          <Button
+            variant={isActive ? 'danger' : 'success'}
+            icon={<Power className="size-4" />}
+            loading={updateMutation.isPending}
+            onClick={handleToggleActive}
           >
-            {locale === 'ar' ? (
-              <ChevronRight className="size-4" />
-            ) : (
-              <ChevronLeft className="size-4" />
-            )}
-            {t('detailBackButton', 'promos')}
-          </button>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleToggleActive}
-              disabled={updateMutation.isPending}
-              className={`flex items-center gap-2 px-5 py-3 rounded-2xl font-bold transition-all disabled:opacity-50 ${
-                isActive
-                  ? 'bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white'
-                  : 'bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white'
-              }`}
-            >
-              {updateMutation.isPending ? (
-                <div className="size-4 border-2 border-current/30 border-t-current rounded-full animate-spin" />
-              ) : (
-                <Power className="size-4" />
-              )}
-              {isActive
-                ? t('detailDeactivateButton', 'promos')
-                : t('detailActivateButton', 'promos')}
-            </button>
-            <button
-              onClick={() => setIsEditModalOpen(true)}
-              className="flex items-center gap-2 px-5 py-3 bg-blue-500/10 text-blue-500 rounded-2xl font-bold hover:bg-blue-500 hover:text-white transition-all"
-            >
-              <Pencil className="size-4" />
-              {t('modalEditTitle', 'promos')}
-            </button>
-          </div>
-        </div>
+            {isActive ? t('detailDeactivateButton', 'promos') : t('detailActivateButton', 'promos')}
+          </Button>
+          <Button variant="primary" icon={<Pencil className="size-4" />} onClick={() => setIsEditModalOpen(true)}>
+            {t('detailEditButton', 'promos')}
+          </Button>
+        </>
+      }
+    >
+      <PageMeta title={`${toPlainString(code.code)} · ${t('detailTitle', 'promos')}`} description={t('pageSubtitle', 'promos')} />
 
-        {/* Hero card */}
-        <div className="bg-gradient-to-br from-purple-600 to-purple-800 p-8 rounded-[2.5rem] shadow-2xl shadow-purple-500/20 text-white">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-            <div className="space-y-3">
-              <div className="flex items-center gap-3 flex-wrap">
-                <button
-                  type="button"
-                  onClick={handleCopyCode}
-                  aria-label={t('detailCopyCode', 'promos')}
-                  title={t('detailCopyCode', 'promos')}
-                  className="group flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 backdrop-blur font-mono font-black tracking-widest text-xl sm:text-2xl hover:bg-white/20 transition-all cursor-pointer"
-                >
-                  {toPlainString(code.code)}
-                  {justCopied ? (
-                    <Check className="size-5 text-green-300" />
-                  ) : (
-                    <Copy className="size-5 opacity-50 group-hover:opacity-100 transition-opacity" />
-                  )}
-                </button>
-                <span
-                  className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg ${
-                    isActive
-                      ? 'bg-green-400/20 text-green-300'
-                      : 'bg-red-400/20 text-red-300'
-                  }`}
-                >
-                  {isActive
-                    ? t('statusActive', 'promos')
-                    : t('statusInactive', 'promos')}
-                </span>
-              </div>
-              {code.notes && (
-                <p className="text-sm text-white/70 italic flex items-center gap-2">
-                  <AlignLeft className="size-4" />
-                  {toPlainString(code.notes)}
-                </p>
-              )}
-            </div>
-
-            {/* Stats */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="bg-white/10 backdrop-blur rounded-2xl p-4">
-                <CirclePlay className="size-5 text-white/50 mb-2" />
-                <div className="text-2xl font-black tabular-nums">
-                  {stats?.redemptions ?? 0}
-                </div>
-                <div className="text-[10px] font-bold text-white/60 uppercase tracking-widest mt-1">
-                  {t('statRedemptions', 'promos')}
-                </div>
-              </div>
-              <div className="bg-white/10 backdrop-blur rounded-2xl p-4">
-                <CircleCheck className="size-5 text-white/50 mb-2" />
-                <div className="text-2xl font-black tabular-nums">
-                  {stats?.activeRedemptions ?? 0}
-                </div>
-                <div className="text-[10px] font-bold text-white/60 uppercase tracking-widest mt-1">
-                  {t('statActiveRedemptions', 'promos')}
-                </div>
-              </div>
-              <div className="bg-white/10 backdrop-blur rounded-2xl p-4">
-                <CircleDollarSign className="size-5 text-white/50 mb-2" />
-                <div className="text-2xl font-black tabular-nums">
-                  {formatMoney(stats?.commissionPaidCents ?? 0)}
-                </div>
-                <div className="text-[10px] font-bold text-white/60 uppercase tracking-widest mt-1">
-                  {t('statCommissionPaid', 'promos')}
-                </div>
-              </div>
-              <div className="bg-white/10 backdrop-blur rounded-2xl p-4">
-                <CircleDollarSign className="size-5 text-white/50 mb-2" />
-                <div className="text-2xl font-black tabular-nums">
-                  {formatMoney(stats?.commissionPendingCents ?? 0)}
-                </div>
-                <div className="text-[10px] font-bold text-white/60 uppercase tracking-widest mt-1">
-                  {t('statCommissionPending', 'promos')}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div
-          role="tablist"
-          aria-label={t('detailTabsAriaLabel', 'promos')}
-          className="flex gap-2"
-        >
-          {tabs.map((item) => (
-            <button
-              key={item.key}
-              role="tab"
-              aria-selected={tab === item.key}
-              onClick={() => setTab(item.key)}
-              className={`px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${
-                tab === item.key
-                  ? 'bg-brand-500 text-white shadow-xl shadow-brand-500/20'
-                  : 'bg-white/40 dark:bg-white/5 border border-slate-100 dark:border-white/10 text-gray-500'
-              }`}
-            >
-              {item.label}
-              {item.key === 'redemptions' && ` (${stats?.redemptions ?? 0})`}
-            </button>
-          ))}
-        </div>
-
-        {tab === 'overview' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Left: discount & commission */}
-            <div className="space-y-6">
-              <div
-                className={`${statCardClass('bg-emerald-500/10 border border-emerald-500/20')} text-emerald-600 dark:text-emerald-400`}
-              >
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                  {t('detailDiscount', 'promos')}
-                </span>
-                <div className="flex items-center justify-between">
-                  <span className="text-4xl font-black">{discountValue}</span>
-                  {code.discountPercent != null ? (
-                    <Percent className="size-9 opacity-40" />
-                  ) : (
-                    <Coins className="size-9 opacity-40" />
-                  )}
-                </div>
-                <span className="text-xs font-bold text-gray-500 dark:text-gray-400">
-                  {t('detailCycles', 'promos')}: {code.discountCycles ?? 1}
-                </span>
-              </div>
-
-              <div
-                className={`${statCardClass('bg-purple-500/10 border border-purple-500/20')} text-purple-600 dark:text-purple-400`}
-              >
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                  {t('detailCommission', 'promos')}
-                </span>
-                <div className="flex items-center justify-between">
-                  <span className="text-4xl font-black">{commissionValue}</span>
-                  <Coins className="size-9 opacity-40" />
-                </div>
-              </div>
-            </div>
-
-            {/* Middle: limits */}
-            <div className="space-y-4">
-              <h2 className="text-xs font-black text-gray-400 uppercase tracking-widest">
-                {t('detailSectionOverview', 'promos')}
-              </h2>
-              <div className="rounded-[2rem] border border-slate-100 dark:border-white/10 bg-white/60 dark:bg-white/5 backdrop-blur-xl divide-y divide-slate-100 dark:divide-white/5">
-                <DetailRow
-                  icon={<InfinityIcon className="size-4" />}
-                  label={t('detailMaxUses', 'promos')}
-                >
-                  {code.maxUses != null
-                    ? code.maxUses
-                    : t('detailUnlimited', 'promos')}
-                </DetailRow>
-                <DetailRow
-                  icon={<CalendarClock className="size-4" />}
-                  label={t('detailExpires', 'promos')}
-                >
-                  {code.expiresAt
-                    ? formatDate(code.expiresAt, locale)
-                    : t('detailNever', 'promos')}
-                </DetailRow>
-                <DetailRow
-                  icon={<CalendarX2 className="size-4" />}
-                  label={t('detailCreatedAt', 'promos')}
-                >
-                  {formatDate(code.createdAt, locale)}
-                </DetailRow>
-                <DetailRow
-                  icon={<User className="size-4" />}
-                  label={t('detailOwner', 'promos')}
-                >
-                  {ownerLabel || '—'}
-                </DetailRow>
-              </div>
-            </div>
-
-            {/* Right: notes */}
-            <div className="space-y-4">
-              <h2 className="text-xs font-black text-gray-400 uppercase tracking-widest">
-                {t('detailNotes', 'promos')}
-              </h2>
-              <div className="rounded-[2rem] border border-slate-100 dark:border-white/10 bg-white/60 dark:bg-white/5 backdrop-blur-xl p-6 min-h-[12rem]">
-                {code.notes ? (
-                  <p className="text-sm text-gray-700 dark:text-gray-200 leading-relaxed font-medium whitespace-pre-wrap">
-                    {toPlainString(code.notes)}
-                  </p>
-                ) : (
-                  <p className="text-sm text-gray-400 italic">
-                    {t('detailNoNotes', 'promos')}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {tab === 'redemptions' && (
-          <div className="space-y-6">
-            <PromoRedemptionsTable
-              data={redemptions}
-              isLoading={redemptionsLoading}
-            />
-            {!redemptionsLoading && redemptionsTotalPages > 1 && (
-              <div className="flex items-center justify-center gap-4 pt-4">
-                <button
-                  disabled={redemptionsPage === 1}
-                  onClick={() => setRedemptionsPage((p) => Math.max(1, p - 1))}
-                  aria-label={t('detailPrevPage', 'promos')}
-                  className="size-12 rounded-2xl bg-white/60 dark:bg-white/5 backdrop-blur-md border border-white/20 flex items-center justify-center disabled:opacity-30 hover:bg-brand-500 hover:text-white transition-all shadow-sm"
-                >
-                  {locale === 'ar' ? (
-                    <ChevronRight className="size-5" />
-                  ) : (
-                    <ChevronLeft className="size-5" />
-                  )}
-                </button>
-                <div className="px-6 py-3 bg-white/60 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl font-black tracking-widest text-sm uppercase">
-                  {t('phaseLabel', 'promos', { page: redemptionsPage })}{' '}
-                  <span className="opacity-30 mx-2">/</span>{' '}
-                  {redemptionsTotalPages}
-                </div>
-                <button
-                  disabled={redemptionsPage === redemptionsTotalPages}
-                  onClick={() =>
-                    setRedemptionsPage((p) =>
-                      Math.min(redemptionsTotalPages, p + 1)
-                    )
-                  }
-                  aria-label={t('detailNextPage', 'promos')}
-                  className="size-12 rounded-2xl bg-white/60 dark:bg-white/5 backdrop-blur-md border border-white/20 flex items-center justify-center disabled:opacity-30 hover:bg-brand-500 hover:text-white transition-all shadow-sm"
-                >
-                  {locale === 'ar' ? (
-                    <ChevronLeft className="size-5" />
-                  ) : (
-                    <ChevronRight className="size-5" />
-                  )}
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard label={t('statRedemptions', 'promos')} value={stats?.redemptions ?? 0} icon={<Ticket className="size-4" />} />
+        <StatCard label={t('statActiveRedemptions', 'promos')} value={stats?.activeRedemptions ?? 0} icon={<CircleCheck className="size-4" />} />
+        <StatCard
+          label={t('statCommissionPaid', 'promos')}
+          value={formatMoney(stats?.commissionPaidCents ?? 0)}
+          icon={<CircleDollarSign className="size-4" />}
+        />
+        <StatCard
+          label={t('statCommissionPending', 'promos')}
+          value={formatMoney(stats?.commissionPendingCents ?? 0)}
+          icon={<Clock4 className="size-4" />}
+        />
       </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-800">
+            <SectionTitle>{t('detailTermsTitle', 'promos')}</SectionTitle>
+          </div>
+          <dl className="divide-y divide-slate-100 dark:divide-slate-800">
+            <Term label={t('detailDiscount', 'promos')}>
+              <bdi>{discountLabel(code)}</bdi>
+              <span className="ms-1 font-normal text-slate-500 dark:text-slate-400">
+                · {t(cycles === 1 ? 'cyclesOne' : 'cyclesMany', 'promos', { count: cycles })}
+              </span>
+            </Term>
+            <Term label={t('detailCommission', 'promos')}>
+              <bdi>{commissionLabel(code)}</bdi>
+              <span className="ms-1 font-normal text-slate-500 dark:text-slate-400">· {t('perPayment', 'promos')}</span>
+            </Term>
+            <Term label={t('detailMaxUses', 'promos')}>
+              {code.maxUses != null
+                ? t('usesOfMax', 'promos', { used: stats?.redemptions ?? 0, max: code.maxUses })
+                : t('detailUnlimited', 'promos')}
+            </Term>
+            <Term label={t('detailExpires', 'promos')}>
+              {code.expiresAt ? formatDate(code.expiresAt, locale) : t('detailNever', 'promos')}
+            </Term>
+            <Term label={t('detailOwner', 'promos')}>{owner || '—'}</Term>
+            <Term label={t('detailCreatedAt', 'promos')}>{formatDate(code.createdAt, locale)}</Term>
+          </dl>
+        </Card>
+
+        <Card>
+          <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-800">
+            <SectionTitle>{t('detailNotes', 'promos')}</SectionTitle>
+          </div>
+          <div className="px-5 py-4">
+            {code.notes ? (
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700 dark:text-slate-200">
+                {toPlainString(code.notes)}
+              </p>
+            ) : (
+              <p className="text-sm text-slate-400">{t('detailNoNotes', 'promos')}</p>
+            )}
+          </div>
+        </Card>
+      </div>
+
+      <Card>
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-800">
+          <SectionTitle>{t('redemptionsTitle', 'promos')}</SectionTitle>
+          <span className="text-sm text-slate-500 dark:text-slate-400">
+            {t('resultsFound', 'promos', { count: redemptionsEnvelope?.totalCount ?? stats?.redemptions ?? 0 })}
+          </span>
+        </div>
+        <PromoRedemptionsTable
+          data={redemptions}
+          isLoading={redemptionsLoading}
+          isFetching={redemptionsFetching}
+          showCode={false}
+          emptyTitle={t('detailNoRedemptions', 'promos')}
+          emptyText={t('detailNoRedemptionsText', 'promos')}
+        />
+        {!redemptionsLoading && redemptions.length > 0 && (
+          <Pagination
+            page={redemptionsPage}
+            totalPages={redemptionsTotalPages}
+            onChange={setRedemptionsPage}
+            busy={redemptionsFetching}
+          />
+        )}
+      </Card>
 
       <PromoCodeFormModal
         isOpen={isEditModalOpen}
@@ -508,28 +252,6 @@ export default function AdminPromoCodeDetail() {
         code={code}
         hrUsers={hrUserOptions}
       />
-    </div>
-  );
-}
-
-function DetailRow({
-  icon,
-  label,
-  children,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-4 px-6 py-4">
-      <span className="flex items-center gap-3 text-xs font-black uppercase tracking-widest text-gray-400">
-        <span className="text-brand-500">{icon}</span>
-        {label}
-      </span>
-      <span className="text-sm font-bold text-gray-800 dark:text-gray-100 text-right">
-        {children}
-      </span>
-    </div>
+    </PageShell>
   );
 }

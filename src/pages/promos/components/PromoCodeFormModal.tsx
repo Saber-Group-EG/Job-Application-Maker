@@ -1,24 +1,27 @@
 import { useState, useEffect, useId, useRef } from 'react';
-import type { FormEvent } from 'react';
+import type { FormEvent, ReactNode } from 'react';
 import { Modal } from '../../../components/ui/modal';
 import { useLocale } from '../../../context/LocaleContext';
 import { ValidationErrorAlert } from '../../../components/common/ValidationErrorAlert';
-import { parseMoneyToCents } from '../../../utils/money';
+import { formatMoney, parseMoneyToCents } from '../../../utils/money';
 import {
   useCreatePromoCode,
   useUpdatePromoCode,
   useCreateMyPromoCode,
 } from '../../../hooks/queries/usePromos';
 import type { PromoCode, PromoCodePayload } from '../../../types/promos';
+import { Check, Coins, Lock, Percent, Plus, Shuffle, Sparkles } from 'lucide-react';
 import {
-  Tag,
-  Percent,
-  Coins,
-  CalendarClock,
-  Infinity as InfinityIcon,
-  Plus,
-  Check,
-} from 'lucide-react';
+  AdornedInput,
+  Button,
+  Field,
+  Segmented,
+  Switch,
+  focusRing,
+  inputClass,
+  invalidClass,
+  selectClass,
+} from './PromoUI';
 
 type HrUser = {
   _id: string;
@@ -38,15 +41,14 @@ interface PromoCodeFormModalProps {
 type DiscountType = 'percent' | 'fixed';
 
 type FieldName =
+  | 'code'
   | 'owner'
   | 'discountPercent'
   | 'discountAmount'
   | 'discountCycles'
+  | 'commission'
   | 'commissionPercent'
   | 'commissionAmount';
-
-const focusRing =
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40';
 
 function toDatetimeLocal(iso?: string | null): string {
   if (!iso) return '';
@@ -61,32 +63,63 @@ const toNum = (value: string): number | null => {
   return Number.isFinite(n) ? n : null;
 };
 
+// Unambiguous characters only (no 0/O, 1/I).
+const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const randomCode = (length = 8) => {
+  const bytes = new Uint32Array(length);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => CODE_ALPHABET[b % CODE_ALPHABET.length]).join('');
+};
+
 /**
- * The form only mounts while the modal is open (and is keyed by the code being edited),
- * so every open starts from fresh, correctly pre-filled state. Previously the state
- * lived in a component that stayed mounted, so editing a code showed stale/blank values.
+ * The form only mounts while the modal is open (and is keyed by the code being
+ * edited), so every open starts from fresh, correctly pre-filled state.
  */
 export default function PromoCodeFormModal(props: PromoCodeFormModalProps) {
   const { isOpen, onClose, code } = props;
   return (
-    <Modal isOpen={isOpen} onClose={onClose} className="max-w-2xl">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      className="mx-4 my-6 max-h-[calc(100vh-3rem)] max-w-2xl overflow-hidden !rounded-2xl !bg-white dark:!bg-slate-900"
+    >
       {isOpen && <PromoCodeForm key={code?._id ?? 'new'} {...props} />}
     </Modal>
   );
 }
 
-function PromoCodeForm({
-  onClose,
-  mode,
-  code,
-  hrUsers = [],
-}: PromoCodeFormModalProps) {
-  const { t, locale } = useLocale();
-  const isEdit = !!code;
+function Section({
+  title,
+  description,
+  icon,
+  children,
+}: {
+  title: ReactNode;
+  description?: ReactNode;
+  icon: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section className="space-y-4">
+      <div className="flex items-start gap-3">
+        <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+          {icon}
+        </span>
+        <div>
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-white">{title}</h3>
+          {description && (
+            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{description}</p>
+          )}
+        </div>
+      </div>
+      <div className="space-y-4 sm:ps-11">{children}</div>
+    </section>
+  );
+}
 
-  const isRtl = locale === 'ar';
-  // Letter-spacing breaks Arabic letter joining, so only track Latin text.
-  const tracking = isRtl ? '' : 'tracking-widest';
+function PromoCodeForm({ onClose, mode, code, hrUsers = [] }: PromoCodeFormModalProps) {
+  const { t } = useLocale();
+  const isEdit = !!code;
 
   const uid = useId();
   const fid = (name: string) => `${uid}-${name}`;
@@ -94,9 +127,7 @@ function PromoCodeForm({
   const createAdmin = useCreatePromoCode();
   const updateAdmin = useUpdatePromoCode();
   const createMy = useCreateMyPromoCode();
-
-  const saving =
-    createAdmin.isPending || updateAdmin.isPending || createMy.isPending;
+  const saving = createAdmin.isPending || updateAdmin.isPending || createMy.isPending;
 
   const [formError, setFormError] = useState('');
   const [errorField, setErrorField] = useState<FieldName | null>(null);
@@ -105,9 +136,7 @@ function PromoCodeForm({
 
   const [formCode, setFormCode] = useState(code?.code ?? '');
   const [ownerUserId, setOwnerUserId] = useState(
-    typeof code?.ownerUserId === 'string'
-      ? code.ownerUserId
-      : (code?.ownerUserId?._id ?? '')
+    typeof code?.ownerUserId === 'string' ? code.ownerUserId : (code?.ownerUserId?._id ?? '')
   );
   const [discountType, setDiscountType] = useState<DiscountType>(
     code?.discountPercent != null ? 'percent' : code ? 'fixed' : 'percent'
@@ -116,47 +145,37 @@ function PromoCodeForm({
     code?.discountPercent != null ? String(code.discountPercent) : ''
   );
   const [discountAmount, setDiscountAmount] = useState(
-    code?.discountAmountCents != null
-      ? String(code.discountAmountCents / 100)
-      : ''
+    code?.discountAmountCents != null ? String(code.discountAmountCents / 100) : ''
   );
   const [discountCycles, setDiscountCycles] = useState(
     code?.discountCycles != null ? String(code.discountCycles) : ''
   );
-  // New codes start with a percent commission switched on so the section isn't an empty box.
+  // New codes start with a percent commission switched on.
   const [commissionPercentOn, setCommissionPercentOn] = useState(
     code ? !!code.commissionPercent : true
   );
   const [commissionPercent, setCommissionPercent] = useState(
     code?.commissionPercent != null ? String(code.commissionPercent) : ''
   );
-  const [commissionFixedOn, setCommissionFixedOn] = useState(
-    !!code?.commissionAmountCents
-  );
+  const [commissionFixedOn, setCommissionFixedOn] = useState(!!code?.commissionAmountCents);
   const [commissionAmount, setCommissionAmount] = useState(
-    code?.commissionAmountCents != null
-      ? String(code.commissionAmountCents / 100)
-      : ''
+    code?.commissionAmountCents != null ? String(code.commissionAmountCents / 100) : ''
   );
-  const [maxUses, setMaxUses] = useState(
-    code?.maxUses != null ? String(code.maxUses) : ''
-  );
+  const [maxUses, setMaxUses] = useState(code?.maxUses != null ? String(code.maxUses) : '');
   const [expiresAt, setExpiresAt] = useState(toDatetimeLocal(code?.expiresAt));
   const [isActive, setIsActive] = useState(code?.isActive ?? true);
   const [notes, setNotes] = useState(code?.notes ?? '');
 
-  // Bring the error banner into view (the form can be taller than the screen on mobile).
+  // Bring the error banner into view (the body scrolls).
   useEffect(() => {
-    if (errorTick > 0) errorRef.current?.scrollIntoView({ block: 'nearest' });
+    if (errorTick > 0) errorRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }, [errorTick]);
 
   const fail = (message: string, field: FieldName | null = null) => {
     setFormError(message);
     setErrorField(field);
     setErrorTick((n) => n + 1);
-    // Focus the offending field without scrolling away from the banner.
-    if (field)
-      document.getElementById(fid(field))?.focus({ preventScroll: true });
+    if (field) document.getElementById(fid(field))?.focus({ preventScroll: true });
   };
 
   const clearError = () => {
@@ -164,14 +183,7 @@ function PromoCodeForm({
     setErrorField(null);
   };
 
-  const selectDiscountType = (type: DiscountType) => {
-    setDiscountType(type);
-    if (type === 'percent') {
-      setDiscountAmount('');
-    } else {
-      setDiscountPercent('');
-    }
-  };
+  const invalid = (name: FieldName) => (errorField === name ? invalidClass : '');
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -180,70 +192,54 @@ function PromoCodeForm({
     const payload: PromoCodePayload = {};
 
     // `code` is immutable after creation (backend update allow-list ignores it).
-    if (formCode.trim() && !isEdit) payload.code = formCode.trim();
+    if (formCode.trim() && !isEdit) {
+      if (formCode.trim().length < 3) return fail(t('formCodeLengthError', 'promos'), 'code');
+      payload.code = formCode.trim().toUpperCase();
+    }
 
     if (mode === 'admin' && !isEdit) {
-      if (!ownerUserId) {
-        fail(t('formNoOwnerError', 'promos'), 'owner');
-        return;
-      }
+      if (!ownerUserId) return fail(t('formNoOwnerError', 'promos'), 'owner');
       payload.ownerUserId = ownerUserId;
     }
 
-    // Discount — exactly one of percent / fixed.
+    // Discount: exactly one of percent / fixed.
     const discountPercentNum = toNum(discountPercent);
     const discountAmountNum = parseMoneyToCents(discountAmount);
     if (discountType === 'percent') {
-      if (
-        !discountPercentNum ||
-        discountPercentNum <= 0 ||
-        discountPercentNum > 100
-      ) {
-        fail(t('formDiscountError', 'promos'), 'discountPercent');
-        return;
-      }
+      // Whole percent, 1–99 (backend: promo.validation.js).
+      if (!discountPercentNum || !Number.isInteger(discountPercentNum) || discountPercentNum < 1 || discountPercentNum > 99)
+        return fail(t('formDiscountPercentError', 'promos'), 'discountPercent');
       payload.discountPercent = discountPercentNum;
     } else {
-      if (discountAmountNum <= 0) {
-        fail(t('formDiscountError', 'promos'), 'discountAmount');
-        return;
-      }
+      if (discountAmountNum <= 0) return fail(t('formDiscountAmountError', 'promos'), 'discountAmount');
       payload.discountAmountCents = discountAmountNum;
     }
 
     if (discountCycles !== '') {
       const cycles = toNum(discountCycles);
-      if (!cycles || cycles <= 0) {
-        fail(t('formDiscountError', 'promos'), 'discountCycles');
-        return;
-      }
+      if (!cycles || cycles <= 0 || !Number.isInteger(cycles))
+        return fail(t('formCyclesError', 'promos'), 'discountCycles');
       payload.discountCycles = cycles;
     }
 
-    // Commission — at least one of percent / fixed (both allowed).
+    // Commission: at least one of percent / fixed (both allowed).
     const commissionPercentNum = toNum(commissionPercent);
     const commissionAmountNum = parseMoneyToCents(commissionAmount);
-    if (!commissionPercentOn && !commissionFixedOn) {
-      fail(t('formCommissionError', 'promos'));
-      return;
-    }
+    if (!commissionPercentOn && !commissionFixedOn)
+      return fail(t('formCommissionError', 'promos'), 'commission');
     if (commissionPercentOn) {
-      if (
-        !commissionPercentNum ||
-        commissionPercentNum <= 0 ||
-        commissionPercentNum > 100
-      ) {
-        fail(t('formCommissionError', 'promos'), 'commissionPercent');
-        return;
-      }
+      if (!commissionPercentNum || !Number.isInteger(commissionPercentNum) || commissionPercentNum < 1 || commissionPercentNum > 100)
+        return fail(t('formCommissionPercentError', 'promos'), 'commissionPercent');
       payload.commissionPercent = commissionPercentNum;
+    } else if (isEdit) {
+      payload.commissionPercent = null;
     }
     if (commissionFixedOn) {
-      if (commissionAmountNum <= 0) {
-        fail(t('formCommissionError', 'promos'), 'commissionAmount');
-        return;
-      }
+      if (commissionAmountNum <= 0)
+        return fail(t('formCommissionAmountError', 'promos'), 'commissionAmount');
       payload.commissionAmountCents = commissionAmountNum;
+    } else if (isEdit) {
+      payload.commissionAmountCents = null;
     }
 
     payload.maxUses = maxUses === '' ? null : toNum(maxUses);
@@ -253,11 +249,8 @@ function PromoCodeForm({
 
     try {
       if (mode === 'admin') {
-        if (isEdit) {
-          await updateAdmin.mutateAsync({ id: code!._id, payload });
-        } else {
-          await createAdmin.mutateAsync(payload);
-        }
+        if (isEdit) await updateAdmin.mutateAsync({ id: code!._id, payload });
+        else await createAdmin.mutateAsync(payload);
       } else {
         await createMy.mutateAsync(payload);
       }
@@ -267,419 +260,383 @@ function PromoCodeForm({
     }
   };
 
-  const inputClass =
-    'w-full px-6 py-4 bg-white/40 dark:bg-black/20 border-2 border-slate-100 dark:border-white/5 rounded-2xl focus:border-brand-500/50 focus:ring-4 focus:ring-brand-500/5 outline-none transition-all font-bold dark:text-white';
-  const labelClass = `text-[10px] font-black text-gray-400 uppercase ${tracking} ms-1 flex items-center gap-2`;
-
-  const fieldClass = (name: FieldName, extra = '') =>
-    `${inputClass} ${extra} ${
-      errorField === name
-        ? '!border-red-500/60 focus:!border-red-500 focus:!ring-red-500/10'
-        : ''
-    }`;
-
-  const tileClass = (active: boolean) =>
-    `flex-1 px-4 py-3 rounded-xl border-2 font-black text-xs uppercase ${tracking} transition-all cursor-pointer ${focusRing} ${
-      active
-        ? 'bg-purple-500/10 border-purple-500 text-purple-600 dark:text-purple-400'
-        : 'bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-white/5 text-gray-400'
-    }`;
-
   const ownerDisplay =
     typeof code?.ownerUserId === 'object' && code?.ownerUserId
-      ? code.ownerUserId.fullName ||
-        code.ownerUserId.name ||
-        code.ownerUserId.email ||
-        ''
+      ? code.ownerUserId.fullName || code.ownerUserId.name || code.ownerUserId.email || ''
       : '';
 
+  // ─── Live summary ──────────────────────────────────────────────────────────
+  const discountText = (() => {
+    if (discountType === 'percent') {
+      const n = toNum(discountPercent);
+      return n && n > 0 ? `${n}%` : null;
+    }
+    const cents = parseMoneyToCents(discountAmount);
+    return cents > 0 ? formatMoney(cents) : null;
+  })();
+  const cyclesNum = toNum(discountCycles) || 1;
+  const commissionText = [
+    commissionPercentOn && toNum(commissionPercent) ? `${toNum(commissionPercent)}%` : null,
+    commissionFixedOn && parseMoneyToCents(commissionAmount) > 0
+      ? formatMoney(parseMoneyToCents(commissionAmount))
+      : null,
+  ]
+    .filter(Boolean)
+    .join(' + ');
+  const expiresText = expiresAt
+    ? new Date(expiresAt).toLocaleDateString(undefined, { dateStyle: 'medium' })
+    : null;
+
   return (
-    <div className="p-6 sm:p-8">
-      <div className="mb-8">
-        <h2
-          className={`text-2xl font-black text-gray-900 dark:text-white ${
-            isRtl ? '' : 'tracking-tight'
-          }`}
-        >
-          {isEdit
-            ? t('modalEditTitle', 'promos')
-            : t('modalCreateTitle', 'promos')}
+    <form onSubmit={handleSubmit} className="flex max-h-[calc(100vh-3rem)] flex-col" noValidate>
+      {/* Header (the modal's close button sits in the top corner) */}
+      <div className="border-b border-slate-200 px-6 py-5 pe-16 dark:border-slate-800">
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+          {isEdit ? t('modalEditTitle', 'promos') : t('modalCreateTitle', 'promos')}
         </h2>
-        <p
-          className={`mt-1 text-sm text-gray-500 dark:text-gray-400 font-medium ${
-            isRtl ? '' : 'italic'
-          }`}
-        >
-          {isEdit
-            ? t('modalEditSubtitle', 'promos')
-            : t('modalCreateSubtitle', 'promos')}
+        <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
+          {isEdit ? t('modalEditSubtitle', 'promos') : t('modalCreateSubtitle', 'promos')}
         </p>
       </div>
 
-      {formError && (
-        <div ref={errorRef} role="alert" className="mb-6">
-          <ValidationErrorAlert error={formError} onDismiss={clearError} />
-        </div>
-      )}
+      {/* Body */}
+      <div className="flex-1 space-y-7 overflow-y-auto px-6 py-6">
+        {formError && (
+          <div ref={errorRef} role="alert">
+            <ValidationErrorAlert error={formError} onDismiss={clearError} />
+          </div>
+        )}
 
-      <form onSubmit={handleSubmit} className="space-y-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-2">
-            <label htmlFor={fid('code')} className={labelClass}>
-              <Tag className="size-3.5" />
-              {t('formCode', 'promos')}
-            </label>
-            <input
-              id={fid('code')}
-              type="text"
-              dir="ltr"
-              autoFocus={!isEdit}
-              autoComplete="off"
-              autoCapitalize="characters"
-              spellCheck={false}
-              value={formCode}
-              onChange={(e) => setFormCode(e.target.value)}
-              placeholder={t('formCodePlaceholder', 'promos')}
-              disabled={isEdit}
-              aria-describedby={isEdit ? fid('code-hint') : undefined}
-              className={`${inputClass} font-mono ${isEdit ? 'opacity-60 cursor-not-allowed' : ''}`}
-            />
-            {isEdit && (
-              <p
-                id={fid('code-hint')}
-                className={`text-[10px] font-bold text-gray-400 ${isRtl ? '' : 'italic'}`}
-              >
-                {t('formCodeLockedHint', 'promos')}
-              </p>
+        <Section icon={<Sparkles className="size-4" />} title={t('formSectionCode', 'promos')}>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field
+              label={t('formCode', 'promos')}
+              htmlFor={fid('code')}
+              optional={!isEdit}
+              hint={isEdit ? t('formCodeLockedHint', 'promos') : t('formCodePlaceholder', 'promos')}
+            >
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <input
+                    id={fid('code')}
+                    type="text"
+                    dir="ltr"
+                    autoFocus={!isEdit}
+                    autoComplete="off"
+                    spellCheck={false}
+                    maxLength={40}
+                    aria-invalid={errorField === 'code'}
+                    value={formCode}
+                    onChange={(e) => setFormCode(e.target.value.toUpperCase().replace(/\s+/g, ''))}
+                    placeholder="SUMMER25"
+                    disabled={isEdit}
+                    className={`${inputClass} font-mono tracking-wide ${isEdit ? 'pe-9' : ''} ${invalid('code')}`}
+                  />
+                  {isEdit && (
+                    <Lock className="pointer-events-none absolute end-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                  )}
+                </div>
+                {!isEdit && (
+                  <Button
+                    onClick={() => setFormCode(randomCode())}
+                    icon={<Shuffle className="size-4" />}
+                    title={t('formGenerate', 'promos')}
+                  >
+                    <span className="hidden sm:inline">{t('formGenerate', 'promos')}</span>
+                  </Button>
+                )}
+              </div>
+            </Field>
+
+            {mode === 'admin' && !isEdit && (
+              <Field label={t('formOwner', 'promos')} htmlFor={fid('owner')}>
+                <select
+                  id={fid('owner')}
+                  value={ownerUserId}
+                  onChange={(e) => setOwnerUserId(e.target.value)}
+                  aria-invalid={errorField === 'owner'}
+                  className={`${selectClass} ${invalid('owner')}`}
+                >
+                  <option value="">{t('formOwnerPlaceholder', 'promos')}</option>
+                  {hrUsers.map((u) => (
+                    <option key={u._id} value={u._id}>
+                      {u.fullName || u.name || u.email}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            )}
+
+            {mode === 'admin' && isEdit && ownerDisplay && (
+              <Field label={t('formOwner', 'promos')} htmlFor={fid('owner-readonly')}>
+                <input id={fid('owner-readonly')} value={ownerDisplay} readOnly disabled className={inputClass} />
+              </Field>
             )}
           </div>
+        </Section>
 
-          {mode === 'admin' && !isEdit && (
-            <div className="space-y-2">
-              <label htmlFor={fid('owner')} className={labelClass}>
-                {t('formOwner', 'promos')}
-              </label>
-              <select
-                id={fid('owner')}
-                value={ownerUserId}
-                onChange={(e) => setOwnerUserId(e.target.value)}
-                aria-invalid={errorField === 'owner'}
-                className={fieldClass(
-                  'owner',
-                  'appearance-none cursor-pointer'
-                )}
-              >
-                <option value="">{t('formOwnerPlaceholder', 'promos')}</option>
-                {hrUsers.map((u) => (
-                  <option key={u._id} value={u._id}>
-                    {u.fullName || u.name || u.email}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {mode === 'admin' && isEdit && code?.ownerUserId && (
-            <div className="space-y-2">
-              <label htmlFor={fid('owner-readonly')} className={labelClass}>
-                {t('formOwner', 'promos')}
-              </label>
-              <input
-                id={fid('owner-readonly')}
-                type="text"
-                value={ownerDisplay}
-                readOnly
-                className={`${inputClass} opacity-70`}
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Discount */}
-        <div className="space-y-4 p-6 bg-slate-50/50 dark:bg-white/5 rounded-[2rem] border border-slate-100 dark:border-white/5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <span
-              className={`${labelClass} !text-gray-500 dark:!text-gray-400`}
-            >
-              <Percent className="size-3.5" />
-              {t('formDiscount', 'promos')}
-            </span>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                aria-pressed={discountType === 'percent'}
-                onClick={() => selectDiscountType('percent')}
-                className={tileClass(discountType === 'percent')}
-              >
-                {t('formDiscountPercent', 'promos')}
-              </button>
-              <button
-                type="button"
-                aria-pressed={discountType === 'fixed'}
-                onClick={() => selectDiscountType('fixed')}
-                className={tileClass(discountType === 'fixed')}
-              >
-                {t('formDiscountFixed', 'promos')}
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Section
+          icon={<Percent className="size-4" />}
+          title={t('formSectionDiscount', 'promos')}
+          description={t('formSectionDiscountHint', 'promos')}
+        >
+          <Segmented<DiscountType>
+            ariaLabel={t('formDiscount', 'promos')}
+            value={discountType}
+            onChange={(type) => {
+              setDiscountType(type);
+              if (type === 'percent') setDiscountAmount('');
+              else setDiscountPercent('');
+            }}
+            options={[
+              { value: 'percent', label: t('formDiscountTypePercent', 'promos') },
+              { value: 'fixed', label: t('formDiscountTypeFixed', 'promos') },
+            ]}
+          />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {discountType === 'percent' ? (
-              <div className="space-y-2">
-                <label htmlFor={fid('discountPercent')} className={labelClass}>
-                  {t('formDiscountPercent', 'promos')}
-                </label>
-                <input
+              <Field label={t('formDiscountValue', 'promos')} htmlFor={fid('discountPercent')}>
+                <AdornedInput
                   id={fid('discountPercent')}
+                  unit="%"
                   type="number"
-                  inputMode="decimal"
-                  min="0"
-                  max="100"
-                  step="0.01"
+                  inputMode="numeric"
+                  min="1"
+                  max="99"
+                  step="1"
                   value={discountPercent}
                   onChange={(e) => setDiscountPercent(e.target.value)}
-                  placeholder={t('formDiscountPercentPlaceholder', 'promos')}
+                  placeholder="10"
                   aria-invalid={errorField === 'discountPercent'}
-                  className={fieldClass('discountPercent')}
+                  className={invalid('discountPercent')}
                 />
-              </div>
+              </Field>
             ) : (
-              <div className="space-y-2">
-                <label htmlFor={fid('discountAmount')} className={labelClass}>
-                  {t('formDiscountFixed', 'promos')}
-                </label>
-                <input
+              <Field label={t('formDiscountValue', 'promos')} htmlFor={fid('discountAmount')}>
+                <AdornedInput
                   id={fid('discountAmount')}
+                  unit={t('unitCurrency', 'promos')}
                   type="number"
                   inputMode="decimal"
                   min="0"
                   step="0.01"
                   value={discountAmount}
                   onChange={(e) => setDiscountAmount(e.target.value)}
-                  placeholder={t('formDiscountFixedPlaceholder', 'promos')}
+                  placeholder="50"
                   aria-invalid={errorField === 'discountAmount'}
-                  className={fieldClass('discountAmount')}
+                  className={invalid('discountAmount')}
                 />
-              </div>
+              </Field>
             )}
-            <div className="space-y-2">
-              <label htmlFor={fid('discountCycles')} className={labelClass}>
-                <CalendarClock className="size-3.5" />
-                {t('formDiscountCycles', 'promos')}
-              </label>
-              <input
+            <Field
+              label={t('formDiscountCycles', 'promos')}
+              htmlFor={fid('discountCycles')}
+              optional
+              hint={t('formDiscountCyclesHint', 'promos')}
+            >
+              <AdornedInput
                 id={fid('discountCycles')}
+                unit={t('unitCycles', 'promos')}
                 type="number"
                 inputMode="numeric"
                 min="1"
                 step="1"
                 value={discountCycles}
                 onChange={(e) => setDiscountCycles(e.target.value)}
-                placeholder={t('formDiscountCyclesPlaceholder', 'promos')}
+                placeholder="1"
                 aria-invalid={errorField === 'discountCycles'}
-                className={fieldClass('discountCycles')}
+                className={invalid('discountCycles')}
               />
-            </div>
-            <div className="space-y-2 flex items-end">
-              <p
-                className={`text-[10px] font-bold text-gray-400 pb-2 ${isRtl ? '' : 'italic'}`}
-              >
-                {t('formXorHint', 'promos')}
-              </p>
-            </div>
+            </Field>
           </div>
-        </div>
+        </Section>
 
-        {/* Commission */}
-        <div className="space-y-4 p-6 bg-purple-500/5 dark:bg-purple-500/10 rounded-[2rem] border border-purple-500/10">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <span
-              className={`${labelClass} !text-gray-500 dark:!text-gray-400`}
+        <Section
+          icon={<Coins className="size-4" />}
+          title={t('formSectionCommission', 'promos')}
+          description={t('formCommissionHint', 'promos')}
+        >
+          <div
+            id={fid('commission')}
+            tabIndex={-1}
+            className={`divide-y divide-slate-200 rounded-xl border dark:divide-slate-800 ${
+              errorField === 'commission' ? 'border-rose-400' : 'border-slate-200 dark:border-slate-800'
+            }`}
+          >
+            <CommissionOption
+              checked={commissionPercentOn}
+              onToggle={setCommissionPercentOn}
+              label={t('formCommissionPercentLabel', 'promos')}
+              description={t('formCommissionPercentDesc', 'promos')}
             >
-              <Coins className="size-3.5" />
-              {t('formCommission', 'promos')}
-            </span>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                aria-pressed={commissionPercentOn}
-                onClick={() => setCommissionPercentOn((v) => !v)}
-                className={tileClass(commissionPercentOn)}
-              >
-                {t('formCommissionPercent', 'promos')}
-              </button>
-              <button
-                type="button"
-                aria-pressed={commissionFixedOn}
-                onClick={() => setCommissionFixedOn((v) => !v)}
-                className={tileClass(commissionFixedOn)}
-              >
-                {t('formCommissionFixed', 'promos')}
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {commissionPercentOn && (
-              <div className="space-y-2">
-                <label
-                  htmlFor={fid('commissionPercent')}
-                  className={labelClass}
-                >
-                  {t('formCommissionPercent', 'promos')}
-                </label>
-                <input
-                  id={fid('commissionPercent')}
-                  type="number"
-                  inputMode="decimal"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  value={commissionPercent}
-                  onChange={(e) => setCommissionPercent(e.target.value)}
-                  placeholder={t('formCommissionPercentPlaceholder', 'promos')}
-                  aria-invalid={errorField === 'commissionPercent'}
-                  className={fieldClass('commissionPercent')}
-                />
-              </div>
-            )}
-            {commissionFixedOn && (
-              <div className="space-y-2">
-                <label htmlFor={fid('commissionAmount')} className={labelClass}>
-                  {t('formCommissionFixed', 'promos')}
-                </label>
-                <input
-                  id={fid('commissionAmount')}
-                  type="number"
-                  inputMode="decimal"
-                  min="0"
-                  step="0.01"
-                  value={commissionAmount}
-                  onChange={(e) => setCommissionAmount(e.target.value)}
-                  placeholder={t('formCommissionFixedPlaceholder', 'promos')}
-                  aria-invalid={errorField === 'commissionAmount'}
-                  className={fieldClass('commissionAmount')}
-                />
-              </div>
-            )}
-          </div>
-          <p
-            className={`text-[10px] font-bold text-gray-400 ${isRtl ? '' : 'italic'}`}
-          >
-            {t('formCommissionHint', 'promos')}
-          </p>
-        </div>
-
-        {/* Limitations */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="space-y-2">
-            <label htmlFor={fid('maxUses')} className={labelClass}>
-              <InfinityIcon className="size-3.5" />
-              {t('formMaxUses', 'promos')}
-            </label>
-            <input
-              id={fid('maxUses')}
-              type="number"
-              inputMode="numeric"
-              min="1"
-              step="1"
-              value={maxUses}
-              onChange={(e) => setMaxUses(e.target.value)}
-              placeholder={t('formMaxUsesPlaceholder', 'promos')}
-              className={inputClass}
-            />
-          </div>
-          <div className="space-y-2">
-            <label htmlFor={fid('expiresAt')} className={labelClass}>
-              <CalendarClock className="size-3.5" />
-              {t('formExpiresAt', 'promos')}
-            </label>
-            <input
-              id={fid('expiresAt')}
-              type="datetime-local"
-              value={expiresAt}
-              onChange={(e) => setExpiresAt(e.target.value)}
-              className={`${inputClass} cursor-pointer`}
-            />
-          </div>
-          <div className="space-y-2">
-            <label htmlFor={fid('isActive')} className={labelClass}>
-              {t('formIsActive', 'promos')}
-            </label>
-            <div className="pt-2 flex items-center gap-3">
-              <button
-                id={fid('isActive')}
-                type="button"
-                role="switch"
-                aria-checked={isActive}
-                onClick={() => setIsActive((v) => !v)}
-                className={`relative shrink-0 w-16 h-8 rounded-full transition-all duration-300 motion-reduce:transition-none ${focusRing} ${
-                  isActive
-                    ? 'bg-green-500 shadow-lg shadow-green-500/20'
-                    : 'bg-slate-200 dark:bg-slate-700'
-                }`}
-              >
-                {/* start-* is direction-aware, so the knob slides the right way in RTL too */}
-                <span
-                  className={`absolute top-1 size-6 bg-white rounded-full shadow-md transition-all duration-300 motion-reduce:transition-none ${
-                    isActive ? 'start-9' : 'start-1'
-                  }`}
-                />
-              </button>
-              <span className="text-sm font-bold text-gray-600 dark:text-gray-300">
-                {isActive
-                  ? t('statusActive', 'promos')
-                  : t('statusInactive', 'promos')}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Notes */}
-        <div className="space-y-2">
-          <label htmlFor={fid('notes')} className={labelClass}>
-            {t('formNotes', 'promos')}
-          </label>
-          <textarea
-            id={fid('notes')}
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder={t('formNotesPlaceholder', 'promos')}
-            rows={3}
-            className={`${inputClass} resize-none`}
-          />
-        </div>
-
-        <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-3 sm:gap-4 pt-4 border-t border-slate-100 dark:border-white/10">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={saving}
-            className={`w-full sm:w-auto px-8 py-4 bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-gray-400 rounded-3xl font-black text-xs uppercase ${tracking} hover:bg-slate-200 dark:hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-all ${focusRing}`}
-          >
-            {t('formCancel', 'promos')}
-          </button>
-          <button
-            type="submit"
-            disabled={saving}
-            aria-busy={saving}
-            className={`w-full sm:w-auto flex items-center justify-center gap-3 px-10 py-4 bg-brand-500 text-white rounded-[2rem] font-black uppercase ${tracking} text-xs shadow-xl shadow-brand-500/30 hover:scale-105 active:scale-95 motion-reduce:transform-none disabled:opacity-50 disabled:cursor-wait disabled:hover:scale-100 transition-all ${focusRing}`}
-          >
-            {saving ? (
-              <span
-                className="size-4 border-2 border-white/30 border-t-white rounded-full animate-spin motion-reduce:animate-none"
-                aria-hidden="true"
+              <AdornedInput
+                id={fid('commissionPercent')}
+                aria-label={t('formCommissionPercentLabel', 'promos')}
+                unit="%"
+                type="number"
+                inputMode="numeric"
+                min="1"
+                max="100"
+                step="1"
+                value={commissionPercent}
+                onChange={(e) => setCommissionPercent(e.target.value)}
+                placeholder="5"
+                disabled={!commissionPercentOn}
+                aria-invalid={errorField === 'commissionPercent'}
+                className={invalid('commissionPercent')}
               />
-            ) : isEdit ? (
-              <Check className="size-4" />
-            ) : (
-              <Plus className="size-4" />
-            )}
-            {t('formSave', 'promos')}
-          </button>
+            </CommissionOption>
+            <CommissionOption
+              checked={commissionFixedOn}
+              onToggle={setCommissionFixedOn}
+              label={t('formCommissionFixedLabel', 'promos')}
+              description={t('formCommissionFixedDesc', 'promos')}
+            >
+              <AdornedInput
+                id={fid('commissionAmount')}
+                aria-label={t('formCommissionFixedLabel', 'promos')}
+                unit={t('unitCurrency', 'promos')}
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.01"
+                value={commissionAmount}
+                onChange={(e) => setCommissionAmount(e.target.value)}
+                placeholder="20"
+                disabled={!commissionFixedOn}
+                aria-invalid={errorField === 'commissionAmount'}
+                className={invalid('commissionAmount')}
+              />
+            </CommissionOption>
+          </div>
+        </Section>
+
+        <Section icon={<Lock className="size-4" />} title={t('formSectionLimits', 'promos')}>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label={t('formMaxUses', 'promos')} htmlFor={fid('maxUses')} optional hint={t('formMaxUsesPlaceholder', 'promos')}>
+              <AdornedInput
+                id={fid('maxUses')}
+                unit={t('unitUses', 'promos')}
+                type="number"
+                inputMode="numeric"
+                min="1"
+                step="1"
+                value={maxUses}
+                onChange={(e) => setMaxUses(e.target.value)}
+                placeholder="∞"
+              />
+            </Field>
+            <Field label={t('formExpiresAt', 'promos')} htmlFor={fid('expiresAt')} optional hint={t('formExpiresAtPlaceholder', 'promos')}>
+              <input
+                id={fid('expiresAt')}
+                type="datetime-local"
+                value={expiresAt}
+                onChange={(e) => setExpiresAt(e.target.value)}
+                className={`${inputClass} cursor-pointer`}
+              />
+            </Field>
+          </div>
+          <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-800">
+            <div>
+              <label htmlFor={fid('isActive')} className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                {t('formIsActive', 'promos')}
+              </label>
+              <p className="text-xs text-slate-500 dark:text-slate-400">{t('formIsActiveHint', 'promos')}</p>
+            </div>
+            <Switch id={fid('isActive')} checked={isActive} onChange={setIsActive} label={t('formIsActive', 'promos')} />
+          </div>
+          <Field label={t('formNotes', 'promos')} htmlFor={fid('notes')} optional>
+            <textarea
+              id={fid('notes')}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder={t('formNotesPlaceholder', 'promos')}
+              rows={3}
+              className={`${inputClass} resize-y`}
+            />
+          </Field>
+        </Section>
+
+        {/* What this code will do, in words */}
+        <div className="rounded-xl border border-brand-200 bg-brand-50/60 p-4 text-sm dark:border-brand-500/30 dark:bg-brand-500/10">
+          <p className="font-medium text-slate-900 dark:text-white">{t('formSummaryTitle', 'promos')}</p>
+          <ul className="mt-2 space-y-1 text-slate-600 dark:text-slate-300">
+            <li>
+              {discountText
+                ? t(cyclesNum === 1 ? 'formSummaryDiscountOne' : 'formSummaryDiscount', 'promos', {
+                    value: discountText,
+                    cycles: cyclesNum,
+                  })
+                : t('formSummaryNoDiscount', 'promos')}
+            </li>
+            <li>
+              {commissionText
+                ? t('formSummaryCommission', 'promos', { value: commissionText })
+                : t('formSummaryNoCommission', 'promos')}
+            </li>
+            <li>
+              {[
+                maxUses ? t('formSummaryMaxUses', 'promos', { count: maxUses }) : t('formSummaryUnlimited', 'promos'),
+                expiresText ? t('formSummaryExpires', 'promos', { date: expiresText }) : t('formSummaryNeverExpires', 'promos'),
+                isActive ? null : t('formSummaryInactive', 'promos'),
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </li>
+          </ul>
         </div>
-      </form>
+      </div>
+
+      {/* Footer */}
+      <div className="flex flex-col-reverse gap-2 border-t border-slate-200 bg-slate-50 px-6 py-4 dark:border-slate-800 dark:bg-slate-900/80 sm:flex-row sm:justify-end">
+        <Button onClick={onClose} disabled={saving}>
+          {t('formCancel', 'promos')}
+        </Button>
+        <Button
+          type="submit"
+          variant="primary"
+          loading={saving}
+          icon={isEdit ? <Check className="size-4" /> : <Plus className="size-4" />}
+        >
+          {saving
+            ? t('formSaving', 'promos')
+            : isEdit
+              ? t('formSaveChanges', 'promos')
+              : t('formCreate', 'promos')}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function CommissionOption({
+  checked,
+  onToggle,
+  label,
+  description,
+  children,
+}: {
+  checked: boolean;
+  onToggle: (next: boolean) => void;
+  label: string;
+  description: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
+      <label className="flex flex-1 cursor-pointer items-start gap-3">
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={(e) => onToggle(e.target.checked)}
+          className={`mt-0.5 size-4 rounded border-slate-300 text-brand-500 accent-brand-500 ${focusRing}`}
+        />
+        <span>
+          <span className="block text-sm font-medium text-slate-700 dark:text-slate-300">{label}</span>
+          <span className="block text-xs text-slate-500 dark:text-slate-400">{description}</span>
+        </span>
+      </label>
+      <div className={`w-full sm:w-40 ${checked ? '' : 'opacity-50'}`}>{children}</div>
     </div>
   );
 }

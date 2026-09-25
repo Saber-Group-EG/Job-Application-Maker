@@ -1,63 +1,51 @@
-import { useState, useMemo, useEffect, useRef, type MouseEvent } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '../../context/AuthContext';
 import { useLocale } from '../../context/LocaleContext';
-import PageBreadcrumb from '../../components/common/PageBreadCrumb';
 import PageMeta from '../../components/common/PageMeta';
-import {
-  usePromoCodes,
-  usePromoRedemptions,
-  useUsers,
-  useUpdatePromoCode,
-} from '../../hooks/queries';
-import { formatMoney } from '../../utils/money';
+import { usePromoCodes, usePromoRedemptions, useUsers, useUpdatePromoCode } from '../../hooks/queries';
 import { toPlainString } from '../../utils/strings';
 import Swal from '../../utils/swal';
-import {
-  Search,
-  Plus,
-  Pencil,
-  Power,
-  ChevronLeft,
-  ChevronRight,
-  Filter,
-  Tag,
-  Users,
-  Percent,
-  Coins,
-  CalendarX2,
-  Copy,
-  Check,
-  X,
-  AlertTriangle,
-  RotateCcw,
-} from 'lucide-react';
+import { Search, Plus, Pencil, Power, Tag, X, Ticket } from 'lucide-react';
 import PromoCodeFormModal from './components/PromoCodeFormModal';
+import {
+  Badge,
+  Button,
+  Card,
+  CardToolbar,
+  CodeChip,
+  EmptyState,
+  ErrorState,
+  IconButton,
+  Pagination,
+  SkeletonRows,
+  StatCard,
+  Table,
+  Td,
+  Th,
+  PageShell,
+  inputClass,
+  rowClass,
+  selectClass,
+} from './components/PromoUI';
+import {
+  codeState,
+  commissionLabel,
+  discountLabel,
+  formatDate,
+  isExpired,
+  isHrUser,
+  personName,
+} from './promoFormat';
 import type { PromoCode } from '../../types/promos';
 
-type HrUser = {
-  _id: string;
-  fullName?: string;
-  name?: string;
-  email?: string;
-};
-
-const PAGE_SIZE = 8;
-const COLUMN_COUNT = 9;
+const PAGE_SIZE = 10;
 const SEARCH_DEBOUNCE_MS = 350;
-const COPIED_FEEDBACK_MS = 1500;
-
-const focusRing =
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40';
 
 export default function AdminPromoCodes() {
   const { t, locale } = useLocale();
   const navigate = useNavigate();
   const { user } = useAuth();
-
-  const isRtl = locale === 'ar';
-  // Letter-spacing breaks Arabic letter joining, so only track Latin text.
-  const tracking = isRtl ? '' : 'tracking-widest';
 
   // `searchInput` follows the keyboard; `searchTerm` is the debounced value sent to the API.
   const [searchInput, setSearchInput] = useState('');
@@ -68,20 +56,15 @@ export default function AdminPromoCodes() {
 
   useEffect(() => {
     const id = setTimeout(() => {
+      if (searchInput.trim() === searchTerm) return;
       setSearchTerm(searchInput.trim());
       setPage(1);
     }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(id);
-  }, [searchInput]);
+  }, [searchInput, searchTerm]);
 
   const params = useMemo(() => {
-    const p: {
-      search?: string;
-      ownerUserId?: string;
-      isActive?: boolean;
-      page: number;
-      limit: number;
-    } = {
+    const p: { search?: string; ownerUserId?: string; isActive?: boolean; page: number; limit: number } = {
       page,
       limit: PAGE_SIZE,
     };
@@ -91,34 +74,17 @@ export default function AdminPromoCodes() {
     return p;
   }, [searchTerm, ownerFilter, statusFilter, page]);
 
-  const {
-    data: envelope,
-    isLoading,
-    isFetching,
-    isError,
-    refetch,
-  } = usePromoCodes(params);
-  // Only totalCount is used — the list endpoint is paginated, so summing
-  // per-code stats from the current page would undercount.
-  const { data: redemptionsEnvelope } = usePromoRedemptions();
+  const { data: envelope, isLoading, isFetching, isError, refetch } = usePromoCodes(params);
+  // Only totalCount is used — per-code stats on one page would undercount.
+  const { data: redemptionsEnvelope, isLoading: redemptionsLoading } = usePromoRedemptions();
   const { data: rawUsers = [] } = useUsers();
   const updateMutation = useUpdatePromoCode();
 
-  const hrUsers = useMemo<HrUser[]>(() => {
-    return rawUsers
-      .filter(
-        (u) =>
-          String(u?.roleId?.name || '')
-            .toLowerCase()
-            .trim() === 'hr manager'
-      )
-      .map((u) => ({
-        _id: u._id,
-        fullName: u.fullName,
-        name: u.name,
-        email: u.email,
-      }));
-  }, [rawUsers]);
+  const hrUsers = useMemo(
+    () =>
+      rawUsers.filter(isHrUser).map((u) => ({ _id: u._id, fullName: u.fullName, name: u.name, email: u.email })),
+    [rawUsers]
+  );
 
   const codes = envelope?.data ?? [];
   const totalPages = envelope?.totalPages ?? 1;
@@ -127,33 +93,9 @@ export default function AdminPromoCodes() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingCode, setEditingCode] = useState<PromoCode | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-  const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    return () => {
-      if (copyTimer.current) clearTimeout(copyTimer.current);
-    };
-  }, []);
-
-  const isHr =
-    String(user?.roleId?.name || '')
-      .toLowerCase()
-      .trim() === 'hr manager';
-  const hasActiveFilters =
-    searchInput.trim() !== '' ||
-    ownerFilter !== 'all' ||
-    statusFilter !== 'all';
-
-  const dateFormatter = useMemo(
-    () =>
-      new Intl.DateTimeFormat(isRtl ? 'ar-EG' : 'en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-      }),
-    [isRtl]
-  );
+  const isHr = isHrUser(user);
+  const hasActiveFilters = searchInput.trim() !== '' || ownerFilter !== 'all' || statusFilter !== 'all';
 
   const clearFilters = () => {
     setSearchInput('');
@@ -163,75 +105,24 @@ export default function AdminPromoCodes() {
     setPage(1);
   };
 
-  const ownerName = (code: PromoCode): string => {
-    const owner =
-      typeof code.ownerUserId === 'object' ? code.ownerUserId : null;
-    return toPlainString(owner?.fullName || owner?.name || owner?.email || '');
-  };
-
-  const discountLabel = (code: PromoCode): string => {
-    if (code.discountPercent != null) return `${code.discountPercent}%`;
-    if (code.discountAmountCents != null)
-      return formatMoney(code.discountAmountCents);
-    return '—';
-  };
-
-  const commissionLabel = (code: PromoCode): string => {
-    const parts: string[] = [];
-    if (code.commissionPercent != null)
-      parts.push(`${code.commissionPercent}%`);
-    if (code.commissionAmountCents != null)
-      parts.push(formatMoney(code.commissionAmountCents));
-    return parts.length ? parts.join(' + ') : '—';
-  };
-
-  const handleCopy = async (e: MouseEvent, code: PromoCode) => {
-    e.stopPropagation();
-    try {
-      await navigator.clipboard.writeText(toPlainString(code.code));
-      setCopiedId(code._id);
-      if (copyTimer.current) clearTimeout(copyTimer.current);
-      copyTimer.current = setTimeout(
-        () => setCopiedId(null),
-        COPIED_FEEDBACK_MS
-      );
-    } catch {
-      // Clipboard can be blocked (permissions / insecure context) — fail quietly.
-    }
-  };
-
   const handleToggleActive = async (code: PromoCode) => {
     if (togglingId) return;
     const next = !code.isActive;
     const result = await Swal.fire({
-      title: t('activeToggleConfirmTitle', 'promos'),
-      text: next
-        ? t('activeToggleOnText', 'promos')
-        : t('activeToggleOffText', 'promos'),
+      title: next ? t('detailActivateConfirmTitle', 'promos') : t('detailDeactivateConfirmTitle', 'promos'),
+      text: next ? t('activeToggleOnText', 'promos') : t('activeToggleOffText', 'promos'),
       icon: next ? 'question' : 'warning',
       showCancelButton: true,
-      // Deactivating is the risky direction, so default focus to "cancel".
-      focusCancel: !next,
+      focusCancel: !next, // deactivating is the risky direction
       cancelButtonText: t('cancel', 'common'),
-      confirmButtonColor: next ? '#22c55e' : '#ef4444',
-      confirmButtonText: t('toggleConfirmButton', 'promos'),
+      confirmButtonColor: next ? '#16a34a' : '#e11d48',
+      confirmButtonText: next ? t('detailActivateConfirmButton', 'promos') : t('detailDeactivateConfirmButton', 'promos'),
     });
     if (!result.isConfirmed) return;
 
     setTogglingId(code._id);
     try {
-      await updateMutation.mutateAsync({
-        id: code._id,
-        payload: { isActive: next },
-      });
-      Swal.fire({
-        title: next
-          ? t('codeActivated', 'promos')
-          : t('codeDeactivated', 'promos'),
-        icon: 'success',
-        timer: 1200,
-        showConfirmButton: false,
-      });
+      await updateMutation.mutateAsync({ id: code._id, payload: { isActive: next } });
     } catch {
       Swal.fire(t('error', 'common'), t('codeToggleFailed', 'promos'), 'error');
     } finally {
@@ -239,84 +130,51 @@ export default function AdminPromoCodes() {
     }
   };
 
-  const showEmptyState = !isLoading && !isError && codes.length === 0;
+  const openDetail = (code: PromoCode) => navigate(`/promos/${code._id}`);
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0F172A] p-4 sm:p-8 text-slate-900 dark:text-slate-100">
-      <PageMeta
-        title={t('metaTitle', 'promos')}
-        description={t('metaDescription', 'promos')}
-      />
+    <PageShell
+      title={t('pageTitle', 'promos')}
+      subtitle={t('pageSubtitle', 'promos')}
+      actions={
+        !isHr && (
+          <Button variant="primary" icon={<Plus className="size-4" />} onClick={() => setIsCreateModalOpen(true)}>
+            {t('createButton', 'promos')}
+          </Button>
+        )
+      }
+    >
+      <PageMeta title={t('metaTitle', 'promos')} description={t('metaDescription', 'promos')} />
 
-      <div className="max-w-7xl mx-auto space-y-8">
-        <PageBreadcrumb
-          pageTitle={t('pageTitle', 'promos')}
-          actions={
-            !isHr && (
-              <button
-                type="button"
-                onClick={() => setIsCreateModalOpen(true)}
-                className={`flex items-center gap-2 px-6 py-3 bg-brand-500 text-white rounded-[1.25rem] font-bold shadow-xl shadow-brand-500/20 hover:scale-105 active:scale-95 motion-reduce:transform-none transition-all ${focusRing}`}
-              >
-                <Plus className="size-5" />
-                {t('createButton', 'promos')}
-              </button>
-            )
-          }
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <StatCard
+          label={hasActiveFilters ? t('statMatchingCodes', 'promos') : t('statTotalCodes', 'promos')}
+          value={totalCount}
+          icon={<Tag className="size-4" />}
+          loading={isLoading}
         />
+        <StatCard
+          label={t('statRedemptions', 'promos')}
+          value={redemptionsEnvelope?.totalCount ?? 0}
+          icon={<Ticket className="size-4" />}
+          loading={redemptionsLoading}
+        />
+      </div>
 
-        {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div>
-            <h1
-              className={`text-3xl font-black bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400 bg-clip-text text-transparent ${
-                isRtl ? '' : 'tracking-tight'
-              }`}
-            >
-              {t('pageTitle', 'promos')}
-            </h1>
-            <p
-              className={`mt-1 text-gray-500 dark:text-gray-400 font-medium ${
-                isRtl ? '' : 'italic'
-              }`}
-            >
-              {t('pageSubtitle', 'promos')}
-            </p>
-          </div>
-
-          <div className="relative w-full lg:flex-1 lg:min-w-[300px] lg:max-w-xl">
-            <Search className="absolute start-4 top-1/2 -translate-y-1/2 size-4 text-gray-400 pointer-events-none" />
+      <Card>
+        <CardToolbar>
+          <div className="relative w-full lg:max-w-sm">
+            <Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
             <input
-              type="text"
+              type="search"
               placeholder={t('searchPlaceholder', 'promos')}
               aria-label={t('searchPlaceholder', 'promos')}
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              className="w-full ps-11 pe-11 py-3 bg-white/60 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-[1.25rem] focus:ring-2 focus:ring-brand-500/20 outline-none transition-all dark:text-white placeholder:text-gray-400 font-medium"
+              className={`${inputClass} ps-9`}
             />
-            {searchInput && (
-              <button
-                type="button"
-                onClick={() => setSearchInput('')}
-                aria-label={t('clearFilters', 'promos')}
-                className={`absolute end-3 top-1/2 -translate-y-1/2 size-7 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 flex items-center justify-center transition-all ${focusRing}`}
-              >
-                <X className="size-4" />
-              </button>
-            )}
           </div>
-        </div>
-
-        {/* Filters & Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="md:col-span-3 flex flex-wrap gap-4 items-center bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 p-4 rounded-[2rem] shadow-sm">
-            <div className="flex items-center gap-2 px-3 text-gray-400">
-              <Filter className="size-4" />
-              <span className={`text-xs font-black uppercase ${tracking}`}>
-                {t('filtersLabel', 'promos')}
-              </span>
-            </div>
-
+          <div className="flex flex-wrap items-center gap-2">
             <select
               value={ownerFilter}
               aria-label={t('tableOwner', 'promos')}
@@ -324,7 +182,7 @@ export default function AdminPromoCodes() {
                 setOwnerFilter(e.target.value);
                 setPage(1);
               }}
-              className="bg-white dark:bg-black/20 border border-white/20 dark:border-white/5 rounded-xl px-4 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-brand-500/20 transition-all cursor-pointer max-w-[220px]"
+              className={`${selectClass} w-auto min-w-[10rem]`}
             >
               <option value="all">{t('filterAllOwners', 'promos')}</option>
               {hrUsers.map((u) => (
@@ -333,7 +191,6 @@ export default function AdminPromoCodes() {
                 </option>
               ))}
             </select>
-
             <select
               value={statusFilter}
               aria-label={t('tableStatus', 'promos')}
@@ -341,407 +198,154 @@ export default function AdminPromoCodes() {
                 setStatusFilter(e.target.value);
                 setPage(1);
               }}
-              className="bg-white dark:bg-black/20 border border-white/20 dark:border-white/5 rounded-xl px-4 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-brand-500/20 transition-all cursor-pointer"
+              className={`${selectClass} w-auto min-w-[9rem]`}
             >
               <option value="all">{t('filterAllStatuses', 'promos')}</option>
               <option value="active">{t('filterActive', 'promos')}</option>
               <option value="inactive">{t('filterInactive', 'promos')}</option>
             </select>
-
-            <div className="ms-auto flex flex-wrap items-center gap-3">
-              {hasActiveFilters && (
-                <button
-                  type="button"
-                  onClick={clearFilters}
-                  className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-bold text-gray-500 dark:text-gray-400 hover:text-red-500 hover:bg-red-500/10 transition-all ${focusRing}`}
-                >
-                  <X className="size-4" />
-                  {t('clearFilters', 'promos')}
-                </button>
-              )}
-              <div
-                role="status"
-                aria-live="polite"
-                className="flex items-center gap-2 px-4 py-2 bg-brand-500/10 text-brand-500 rounded-xl border border-brand-500/20"
-              >
-                <Tag className="size-4" />
-                <span className="text-sm font-black tabular-nums">
-                  {t('resultsFound', 'promos', { count: totalCount })}
-                </span>
-              </div>
-            </div>
+            {hasActiveFilters && (
+              <Button variant="ghost" icon={<X className="size-4" />} onClick={clearFilters}>
+                {t('clearFilters', 'promos')}
+              </Button>
+            )}
           </div>
+        </CardToolbar>
 
-          <div className="bg-gradient-to-br from-purple-500 to-purple-700 p-6 rounded-[2rem] shadow-xl shadow-purple-500/20 flex flex-col justify-between">
-            <span
-              className={`text-[10px] font-black text-white/70 uppercase ${tracking}`}
-            >
-              {t('tableStats', 'promos')}
-            </span>
-            <div className="flex items-end justify-between">
-              <span className="text-4xl font-black text-white tabular-nums">
-                {redemptionsEnvelope?.totalCount ?? 0}
-              </span>
-              <Tag className="size-8 text-white/30" />
-            </div>
-          </div>
-        </div>
-
-        {/* Error */}
         {isError && !isLoading ? (
-          <div className="py-20 text-center rounded-[2rem] border border-red-500/20 bg-red-500/5">
-            <div className="size-16 rounded-full bg-red-500/10 mx-auto mb-5 flex items-center justify-center">
-              <AlertTriangle className="size-8 text-red-500" />
-            </div>
-            <h3 className="text-xl font-black text-gray-900 dark:text-white">
-              {t('loadFailedTitle', 'promos')}
-            </h3>
-            <p className="text-gray-500 dark:text-gray-400 font-medium max-w-sm mx-auto mt-2">
-              {t('loadFailedText', 'promos')}
-            </p>
-            <button
-              type="button"
-              onClick={() => refetch()}
-              className={`mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-500 text-white font-bold hover:bg-brand-600 transition-all ${focusRing}`}
-            >
-              <RotateCcw className="size-4" />
-              {t('retry', 'promos')}
-            </button>
-          </div>
+          <ErrorState title={t('loadFailedTitle', 'promos')} text={t('loadFailedText', 'promos')} onRetry={() => refetch()} />
+        ) : !isLoading && codes.length === 0 ? (
+          hasActiveFilters ? (
+            <EmptyState
+              icon={<Search className="size-6" />}
+              title={t('noCodesMatchTitle', 'promos')}
+              text={t('noCodesMatchText', 'promos')}
+              action={<Button icon={<X className="size-4" />} onClick={clearFilters}>{t('clearFilters', 'promos')}</Button>}
+            />
+          ) : (
+            <EmptyState
+              icon={<Tag className="size-6" />}
+              title={t('noCodesFound', 'promos')}
+              text={t('noCodesFoundHint', 'promos')}
+              action={
+                !isHr && (
+                  <Button variant="primary" icon={<Plus className="size-4" />} onClick={() => setIsCreateModalOpen(true)}>
+                    {t('createButton', 'promos')}
+                  </Button>
+                )
+              }
+            />
+          )
         ) : (
-          /* Table */
-          <div
-            aria-busy={isLoading || isFetching}
-            className="overflow-x-auto rounded-[2rem] border border-slate-100 dark:border-white/10 bg-white/60 dark:bg-white/5 backdrop-blur-xl"
-          >
-            <table className="w-full min-w-[1000px] text-sm">
+          <>
+            <Table minWidth={960} busy={isLoading || isFetching}>
               <thead>
-                <tr
-                  className={`text-start text-[10px] font-black uppercase ${tracking} text-gray-400 border-b border-slate-100 dark:border-white/10`}
-                >
-                  <th scope="col" className="px-6 py-4 text-start">
-                    {t('tableCode', 'promos')}
-                  </th>
-                  <th scope="col" className="px-6 py-4 text-start">
-                    {t('tableOwner', 'promos')}
-                  </th>
-                  <th scope="col" className="px-6 py-4 text-start">
-                    {t('tableDiscount', 'promos')}
-                  </th>
-                  <th scope="col" className="px-6 py-4 text-start">
-                    {t('tableCommission', 'promos')}
-                  </th>
-                  <th scope="col" className="px-6 py-4 text-start">
-                    {t('tableCycles', 'promos')}
-                  </th>
-                  <th scope="col" className="px-6 py-4 text-start">
-                    {t('tableStats', 'promos')}
-                  </th>
-                  <th scope="col" className="px-6 py-4 text-start">
-                    {t('tableStatus', 'promos')}
-                  </th>
-                  <th scope="col" className="px-6 py-4 text-start">
-                    {t('tableExpires', 'promos')}
-                  </th>
-                  <th scope="col" className="px-6 py-4 text-end">
-                    {t('tableActions', 'promos')}
-                  </th>
+                <tr>
+                  <Th>{t('tableCode', 'promos')}</Th>
+                  <Th>{t('tableOwner', 'promos')}</Th>
+                  <Th>{t('tableDiscount', 'promos')}</Th>
+                  <Th>{t('tableCommission', 'promos')}</Th>
+                  <Th>{t('tableUses', 'promos')}</Th>
+                  <Th>{t('tableStatus', 'promos')}</Th>
+                  <Th>{t('tableExpires', 'promos')}</Th>
+                  <Th align="end">
+                    <span className="sr-only">{t('tableActions', 'promos')}</span>
+                  </Th>
                 </tr>
               </thead>
-              <tbody
-                className={`divide-y divide-slate-100 dark:divide-white/5 transition-opacity ${
-                  isFetching && !isLoading ? 'opacity-60' : 'opacity-100'
-                }`}
-              >
-                {/* Skeleton rows keep the layout stable while loading */}
-                {isLoading &&
-                  Array.from({ length: PAGE_SIZE }).map((_, i) => (
-                    <tr
-                      key={`skeleton-${i}`}
-                      className="animate-pulse motion-reduce:animate-none"
-                      aria-hidden="true"
-                    >
-                      {Array.from({ length: COLUMN_COUNT }).map((__, j) => (
-                        <td key={j} className="px-6 py-5">
-                          <div
-                            className={`h-4 rounded-md bg-slate-200/70 dark:bg-white/10 ${
-                              j === COLUMN_COUNT - 1
-                                ? 'ms-auto w-20'
-                                : j === 0
-                                  ? 'w-28'
-                                  : 'w-20'
-                            }`}
-                          />
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-
+              <tbody className={isFetching && !isLoading ? 'opacity-60 transition-opacity' : 'transition-opacity'}>
+                {isLoading && <SkeletonRows rows={PAGE_SIZE} cols={8} />}
                 {!isLoading &&
                   codes.map((code) => {
-                    const isActive = code.isActive !== false;
-                    const isExpired =
-                      !!code.expiresAt &&
-                      new Date(code.expiresAt).getTime() < Date.now();
-                    const owner = ownerName(code);
-                    const isCopied = copiedId === code._id;
+                    const state = codeState(code);
                     const isToggling = togglingId === code._id;
-
-                    const statusLabel = !isActive
-                      ? t('statusInactive', 'promos')
-                      : isExpired
-                        ? t('statusExpired', 'promos')
-                        : t('statusActive', 'promos');
-                    const statusStyle = !isActive
-                      ? 'bg-red-500/10 text-red-500'
-                      : isExpired
-                        ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                        : 'bg-green-500/10 text-green-600';
-
-                    const expiresLabel = code.expiresAt
-                      ? dateFormatter.format(new Date(code.expiresAt))
-                      : t('detailNever', 'promos');
-
+                    const cycles = code.discountCycles ?? 1;
                     return (
                       <tr
                         key={code._id}
                         tabIndex={0}
-                        onClick={() => navigate(`/promos/${code._id}`)}
+                        onClick={() => openDetail(code)}
                         onKeyDown={(e) => {
                           if (e.target !== e.currentTarget) return;
                           if (e.key === 'Enter' || e.key === ' ') {
                             e.preventDefault();
-                            navigate(`/promos/${code._id}`);
+                            openDetail(code);
                           }
                         }}
-                        className="font-bold text-gray-800 dark:text-gray-100 hover:bg-brand-500/5 focus-visible:bg-brand-500/10 focus-visible:outline focus-visible:-outline-offset-2 focus-visible:outline-brand-500/50 transition-colors cursor-pointer"
+                        className={`${rowClass} cursor-pointer focus-visible:bg-slate-50 focus-visible:outline-none dark:focus-visible:bg-slate-800/40`}
                       >
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center gap-2">
-                            <span
-                              dir="ltr"
-                              className="px-3 py-1.5 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-300 font-black font-mono tracking-wide"
-                            >
-                              {toPlainString(code.code)}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={(e) => handleCopy(e, code)}
-                              aria-label={
-                                isCopied
-                                  ? t('codeCopied', 'promos')
-                                  : t('copyCode', 'promos')
-                              }
-                              title={
-                                isCopied
-                                  ? t('codeCopied', 'promos')
-                                  : t('copyCode', 'promos')
-                              }
-                              className={`size-8 rounded-lg flex items-center justify-center transition-all ${
-                                isCopied
-                                  ? 'text-green-500 bg-green-500/10'
-                                  : 'text-gray-400 hover:text-purple-600 hover:bg-purple-500/10'
-                              } ${focusRing}`}
-                            >
-                              {isCopied ? (
-                                <Check className="size-4" />
-                              ) : (
-                                <Copy className="size-4" />
-                              )}
-                            </button>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="flex items-center gap-2 max-w-[220px] text-gray-600 dark:text-gray-300">
-                            <Users className="size-3.5 shrink-0 text-gray-400" />
-                            <span
-                              className="truncate"
-                              title={owner || undefined}
-                            >
-                              {owner || '—'}
-                            </span>
+                        <Td>
+                          <CodeChip code={toPlainString(code.code)} copyable />
+                        </Td>
+                        <Td>
+                          <span className="block max-w-[12rem] truncate" title={personName(code.ownerUserId) || undefined}>
+                            {personName(code.ownerUserId) || '—'}
                           </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
-                            {code.discountPercent != null ? (
-                              <Percent className="size-3.5" />
-                            ) : (
-                              <Coins className="size-3.5" />
-                            )}
+                        </Td>
+                        <Td>
+                          <span className="font-medium text-slate-900 dark:text-white">
                             <bdi>{discountLabel(code)}</bdi>
                           </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="flex items-center gap-2 text-purple-600 dark:text-purple-400">
-                            <Coins className="size-3.5" />
-                            <bdi>{commissionLabel(code)}</bdi>
+                          <span className="block text-xs text-slate-500 dark:text-slate-400">
+                            {t(cycles === 1 ? 'cyclesOne' : 'cyclesMany', 'promos', { count: cycles })}
                           </span>
-                        </td>
-                        <td className="px-6 py-4 tabular-nums">
-                          {code.discountCycles ?? 1}
-                        </td>
-                        <td className="px-6 py-4 tabular-nums text-gray-500 dark:text-gray-400">
+                        </Td>
+                        <Td className="whitespace-nowrap">
+                          <bdi>{commissionLabel(code)}</bdi>
+                        </Td>
+                        <Td className="whitespace-nowrap tabular-nums">
                           {code.stats?.redemptions ?? 0}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span
-                            className={`inline-flex items-center gap-1.5 text-[9px] font-black uppercase ${tracking} px-2.5 py-1.5 rounded-lg ${statusStyle}`}
-                          >
-                            <span
-                              className="size-1.5 rounded-full bg-current"
-                              aria-hidden="true"
-                            />
-                            {statusLabel}
+                          <span className="text-slate-400">
+                            {code.maxUses != null ? ` / ${code.maxUses}` : ''}
                           </span>
-                        </td>
-                        <td
-                          className={`px-6 py-4 whitespace-nowrap ${
-                            isExpired
-                              ? 'text-red-500'
-                              : 'text-gray-500 dark:text-gray-400'
-                          }`}
-                        >
-                          {code.expiresAt ? (
-                            <span className="inline-flex items-center gap-1.5">
-                              <CalendarX2 className="size-3.5" />
-                              {expiresLabel}
-                            </span>
-                          ) : (
-                            expiresLabel
-                          )}
-                        </td>
-                        <td className="px-6 py-4 text-end">
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              type="button"
+                        </Td>
+                        <Td>
+                          <Badge tone={state.tone}>{t(state.labelKey, 'promos')}</Badge>
+                        </Td>
+                        <Td className={`whitespace-nowrap ${isExpired(code) ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                          {code.expiresAt ? formatDate(code.expiresAt, locale) : t('detailNever', 'promos')}
+                        </Td>
+                        <Td align="end">
+                          <div className="flex items-center justify-end gap-1">
+                            <IconButton
+                              label={t('modalEditTitle', 'promos')}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setEditingCode(code);
                               }}
-                              aria-label={t('modalEditTitle', 'promos')}
-                              title={t('modalEditTitle', 'promos')}
-                              className={`size-9 rounded-xl bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white flex items-center justify-center transition-all ${focusRing}`}
                             >
                               <Pencil className="size-4" />
-                            </button>
-                            <button
-                              type="button"
+                            </IconButton>
+                            <IconButton
+                              label={code.isActive ? t('detailDeactivateButton', 'promos') : t('detailActivateButton', 'promos')}
+                              tone={code.isActive ? 'danger' : 'success'}
                               disabled={isToggling}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleToggleActive(code);
                               }}
-                              aria-label={t(
-                                'activeToggleConfirmTitle',
-                                'promos'
-                              )}
-                              title={t('activeToggleConfirmTitle', 'promos')}
-                              className={`size-9 rounded-xl flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-wait ${
-                                isActive
-                                  ? 'bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white'
-                                  : 'bg-green-500/10 text-green-600 hover:bg-green-500 hover:text-white'
-                              } ${focusRing}`}
                             >
-                              <Power
-                                className={`size-4 ${isToggling ? 'animate-pulse' : ''}`}
-                              />
-                            </button>
+                              <Power className={`size-4 ${isToggling ? 'animate-pulse' : ''}`} />
+                            </IconButton>
                           </div>
-                        </td>
+                        </Td>
                       </tr>
                     );
                   })}
               </tbody>
-            </table>
-
-            {showEmptyState && (
-              <div className="py-24 text-center">
-                <div className="size-16 rounded-full bg-slate-100 dark:bg-white/5 mx-auto mb-5 flex items-center justify-center">
-                  {hasActiveFilters ? (
-                    <Search className="size-8 text-slate-300 dark:text-slate-700" />
-                  ) : (
-                    <Tag className="size-8 text-slate-300 dark:text-slate-700" />
-                  )}
-                </div>
-                <h3 className="text-xl font-black text-gray-900 dark:text-white">
-                  {hasActiveFilters
-                    ? t('noCodesMatchTitle', 'promos')
-                    : t('noCodesFound', 'promos')}
-                </h3>
-                <p className="text-gray-500 dark:text-gray-400 font-medium max-w-xs mx-auto mt-2">
-                  {hasActiveFilters
-                    ? t('noCodesMatchText', 'promos')
-                    : t('noCodesFoundText', 'promos')}
-                </p>
-                {hasActiveFilters ? (
-                  <button
-                    type="button"
-                    onClick={clearFilters}
-                    className={`mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-500/10 text-brand-500 font-bold hover:bg-brand-500 hover:text-white transition-all ${focusRing}`}
-                  >
-                    <X className="size-4" />
-                    {t('clearFilters', 'promos')}
-                  </button>
-                ) : (
-                  !isHr && (
-                    <button
-                      type="button"
-                      onClick={() => setIsCreateModalOpen(true)}
-                      className={`mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-500 text-white font-bold hover:bg-brand-600 transition-all ${focusRing}`}
-                    >
-                      <Plus className="size-4" />
-                      {t('createButton', 'promos')}
-                    </button>
-                  )
-                )}
-              </div>
+            </Table>
+            {!isLoading && (
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                totalCount={totalCount}
+                onChange={setPage}
+                busy={isFetching}
+              />
             )}
-          </div>
+          </>
         )}
-
-        {/* Pagination */}
-        {!isLoading && !isError && totalPages > 1 && (
-          <nav
-            className="flex items-center justify-center gap-4 pt-10"
-            aria-label={t('pageTitle', 'promos')}
-          >
-            <button
-              type="button"
-              disabled={page === 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              aria-label={t('prevPage', 'promos')}
-              className={`size-12 rounded-2xl bg-white/60 dark:bg-white/5 backdrop-blur-md border border-white/20 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed hover:bg-brand-500 hover:text-white transition-all shadow-sm ${focusRing}`}
-            >
-              {isRtl ? (
-                <ChevronRight className="size-5" />
-              ) : (
-                <ChevronLeft className="size-5" />
-              )}
-            </button>
-            <div
-              aria-live="polite"
-              className={`px-6 py-3 bg-white/60 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl font-black text-sm uppercase ${tracking}`}
-            >
-              {t('phaseLabel', 'promos', { page })}{' '}
-              <span className="opacity-30 mx-2">/</span> {totalPages}
-            </div>
-            <button
-              type="button"
-              disabled={page === totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              aria-label={t('nextPage', 'promos')}
-              className={`size-12 rounded-2xl bg-white/60 dark:bg-white/5 backdrop-blur-md border border-white/20 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed hover:bg-brand-500 hover:text-white transition-all shadow-sm ${focusRing}`}
-            >
-              {isRtl ? (
-                <ChevronLeft className="size-5" />
-              ) : (
-                <ChevronRight className="size-5" />
-              )}
-            </button>
-          </nav>
-        )}
-      </div>
+      </Card>
 
       <PromoCodeFormModal
         isOpen={isCreateModalOpen}
@@ -756,6 +360,6 @@ export default function AdminPromoCodes() {
         code={editingCode}
         hrUsers={hrUsers}
       />
-    </div>
+    </PageShell>
   );
 }
