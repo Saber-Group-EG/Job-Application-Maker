@@ -84,5 +84,6 @@
   "attachmentNotKept": "too large",
   "attachmentError": "Couldn't open the attachment.",
   "loading": "Loading",
-  "mailBody": "Email content"
+  "mailBody": "Email content",
+  "perPage": "Per page"
 }

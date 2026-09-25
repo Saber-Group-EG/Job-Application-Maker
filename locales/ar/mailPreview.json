@@ -84,5 +84,6 @@
   "attachmentNotKept": "كبير جدًا",
   "attachmentError": "تعذر فتح المرفق.",
   "loading": "جارٍ التحميل",
-  "mailBody": "محتوى الرسالة"
+  "mailBody": "محتوى الرسالة",
+  "perPage": "لكل صفحة"
 }
