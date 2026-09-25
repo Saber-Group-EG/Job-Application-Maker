@@ -2081,7 +2081,7 @@ export default function CreateJob() {
           const createdBy =
             (user as any)?._id ?? (user as any)?.id ?? undefined;
           if (createdBy) payload.createdBy = createdBy;
-        } catch (e) {}
+        } catch { /* ignore */ }
 
         await createJobMutation.mutateAsync(payload);
         setJobStatus(t('createCreatedSuccess', 'jobs'));

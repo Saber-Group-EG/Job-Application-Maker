@@ -175,7 +175,7 @@ export const getCanonicalType = (f: any) => {
         if (lbl.includes(nv) || nv.includes(lbl) || String(f.fieldId || '').toLowerCase().includes(nv)) return k;
       }
     }
-  } catch (e) {
+  } catch {
     // ignore
   }
   return undefined;
@@ -221,7 +221,7 @@ export const getCustomResponseValue = (a: any, f: any) => {
       try {
         const nk = normalizeLabelSimple(k);
         if (allowed.includes(nk) || allowed.some((al) => nk.includes(al) || al.includes(nk))) return v;
-      } catch (e) {
+      } catch {
         // ignore
       }
     }
@@ -233,11 +233,11 @@ export const getCustomResponseValue = (a: any, f: any) => {
         const nk = normalizeLabelSimple(k);
         if (!nk) continue;
         if (targetSet.has(nk) || targetSet.has(nk.replace(/_/g, ' ')) || targetSet.has(nk.replace(/\s+/g, '_'))) return v;
-      } catch (e) {
+      } catch {
         // ignore
       }
     }
-  } catch (e) {
+  } catch {
     // ignore
   }
   return '';
@@ -282,7 +282,7 @@ export const expandForms = (s: string) => {
 
 try {
   (window as any).__customFilterHelpers = { getCustomResponseValue, extractResponseItems, expandForms, getCanonicalType, canonicalMap };
-} catch (e) {
+} catch {
   // ignore
 }
 
@@ -315,7 +315,7 @@ export const buildFieldToJobIds = (jobPositions: any[]) => {
             map[nk].add(String(jid));
           });
         }
-      } catch (e) {
+      } catch {
         // ignore
       }
     });
@@ -332,7 +332,7 @@ export const isExcludedLabel = (rawLabel: any) => {
       if (!ex) continue;
       if (n.includes(ex) || ex.includes(n)) return true;
     }
-  } catch (e) {
+  } catch {
     // ignore
   }
   return false;
@@ -406,7 +406,7 @@ const CustomFilterModal: React.FC<Props> = ({
     try {
       const jf = Array.isArray(columnFilters) ? columnFilters.find((c: any) => c.id === 'jobPositionId') : undefined;
       if (jf && Array.isArray(jf.value)) setModalSelectedJobIds(jf.value.map(String));
-    } catch (e) {
+    } catch {
       // ignore
     }
   }, [open, columnFilters]);
@@ -434,7 +434,7 @@ const CustomFilterModal: React.FC<Props> = ({
 
       s = convDigits(s);
       // Try to find all numeric substrings (handles ranges like "6000:9000", "6,000 - 9,000", "6000 to 9000")
-      const matches = s.match(/-?\d[\d,\.]*|\d+/g);
+      const matches = s.match(/-?\d[\d,.]*|\d+/g);
       if (matches && matches.length > 0) {
         const nums: number[] = [];
         for (const m of matches) {
@@ -446,7 +446,7 @@ const CustomFilterModal: React.FC<Props> = ({
       }
 
       // Fallback: strip non-numeric and parse
-      const cleanedAll = s.replace(/[^0-9.\-]/g, '');
+      const cleanedAll = s.replace(/[^0-9.-]/g, '');
       const p = Number(cleanedAll);
       return Number.isFinite(p) ? [p] : [];
     };
@@ -466,21 +466,16 @@ const CustomFilterModal: React.FC<Props> = ({
           const found = extractNumbers(tv);
           for (const tn of found) if (Number.isFinite(tn)) numsWithId.push({ n: tn, id: aid });
         }
-      } catch (e) { /* ignore */ }
+      } catch { /* ignore */ }
     });
 
     // Exclude zero values from observed salaries (ignore 0 entries) and keep ids
     const validEntries = numsWithId.filter((entry) => Number.isFinite(entry.n) && entry.n > 0).sort((a,b)=>a.n-b.n);
     // Ensure observed range is non-negative (salaries shouldn't be negative)
-    let observedMin = validEntries.length ? validEntries[0].n : 0;
+    const observedMin = validEntries.length ? validEntries[0].n : 0;
     let observedMax = validEntries.length ? Math.max(observedMin, validEntries[validEntries.length - 1].n) : observedMin + 1000;
     // Cap max at 100000 as requested
     observedMax = Math.min(observedMax, 100000);
-    // Log lowest value and its applicant id for debugging
-    if (validEntries.length) {
-      try {
-      } catch (e) { /* ignore */ }
-    }
     if (observedMax <= observedMin) observedMax = observedMin + Math.max(100, Math.abs(observedMin || 1000));
     observedMax = Math.min(observedMax, 100000);
 
@@ -622,8 +617,8 @@ const CustomFilterModal: React.FC<Props> = ({
       parsed.columnFilters = columnFilters || parsed.columnFilters || [];
       const str = JSON.stringify(parsed);
       sessionStorage.setItem('applicants_table_state', str);
-      try { localStorage.setItem('applicants_table_state', str); } catch (e) { /* ignore */ }
-    } catch (e) {
+      try { localStorage.setItem('applicants_table_state', str); } catch { /* ignore */ }
+    } catch {
       // ignore
     }
   }, [customFilters, columnFilters]);
@@ -647,8 +642,8 @@ const CustomFilterModal: React.FC<Props> = ({
         parsed.customFilters = [];
         const str = JSON.stringify(parsed);
         sessionStorage.setItem('applicants_table_state', str);
-        try { localStorage.setItem('applicants_table_state', str); } catch (e) { /* ignore */ }
-      } catch (e) {
+        try { localStorage.setItem('applicants_table_state', str); } catch { /* ignore */ }
+      } catch {
         // ignore
       }
       return next as any;
@@ -697,7 +692,7 @@ const CustomFilterModal: React.FC<Props> = ({
           const canon = getCanonicalType(f) || getCanonicalType({ label: f.label, fieldId: f.fieldId });
           if (canon === 'salary') return;
           presenceIds.add(String(saveFieldId));
-        } catch (e) {
+        } catch {
           // ignore
         }
       });
@@ -705,7 +700,7 @@ const CustomFilterModal: React.FC<Props> = ({
       prevArr.forEach((p: any) => {
         try {
           if (p && typeof p.type === 'string' && p.type.toLowerCase().startsWith('has')) presenceIds.add(String(p.fieldId));
-        } catch (e) { /* ignore */ }
+        } catch { /* ignore */ }
       });
 
       const birthFieldIds = new Set<string>();
@@ -715,7 +710,7 @@ const CustomFilterModal: React.FC<Props> = ({
           const fieldKeyNormalized = normalizeLabelSimple(rawLabel) || String(f.fieldId || '');
           const isBirthdate = /birthdate|date of birth|تarih|تاريخ الميلاد/.test(normalizeForCompare(rawLabel));
           if (isBirthdate) birthFieldIds.add(String(f.fieldId ?? fieldKeyNormalized));
-        } catch (e) { /* ignore */ }
+        } catch { /* ignore */ }
       });
 
       const next = prevArr.map((p: any) => {
@@ -733,7 +728,7 @@ const CustomFilterModal: React.FC<Props> = ({
             const newVal = p.value === true ? false : (p.value === false ? true : true);
             return { ...p, value: newVal };
           }
-        } catch (e) { /* ignore */ }
+        } catch { /* ignore */ }
         return p;
       }).filter(Boolean);
 
@@ -743,8 +738,8 @@ const CustomFilterModal: React.FC<Props> = ({
         parsed.customFilters = next;
         const str = JSON.stringify(parsed);
         sessionStorage.setItem('applicants_table_state', str);
-        try { localStorage.setItem('applicants_table_state', str); } catch (e) { /* ignore */ }
-      } catch (e) { /* ignore */ }
+        try { localStorage.setItem('applicants_table_state', str); } catch { /* ignore */ }
+      } catch { /* ignore */ }
 
       return next;
     });
@@ -769,8 +764,8 @@ const CustomFilterModal: React.FC<Props> = ({
         parsed.customFilters = customFilters || [];
         const str = JSON.stringify(parsed);
         sessionStorage.setItem('applicants_table_state', str);
-        try { localStorage.setItem('applicants_table_state', str); } catch (e) { /* ignore */ }
-      } catch (e) {
+        try { localStorage.setItem('applicants_table_state', str); } catch { /* ignore */ }
+      } catch {
         // ignore
       }
       return next as any;
@@ -1333,7 +1328,7 @@ const CustomFilterModal: React.FC<Props> = ({
                                 if (cf.fieldId && String(cf.fieldId) === String(f.fieldId)) return true;
                                 const cfLabelNorm = normalizeLabelSimple(cf.labelEn || cf.label || cf.labelAr || '');
                                 if (cfLabelNorm && cfLabelNorm === fieldKeyNormalized) return true;
-                              } catch (e) {
+                              } catch {
                                 // ignore
                               }
                               return false;
@@ -1421,7 +1416,7 @@ const CustomFilterModal: React.FC<Props> = ({
                                 )}
                               </Paper>
                             );
-                          } catch (e) {
+                          } catch {
                             return null;
                           }
                         })}

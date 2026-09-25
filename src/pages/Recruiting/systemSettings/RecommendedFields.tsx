@@ -218,7 +218,7 @@ const RecommendedFields = () => {
     try {
       await deleteFieldMutation.mutateAsync(fieldId);
       Swal.fire({ title: t('deletedSuccess', 'systemSettings'), icon: "success", timer: 1000, showConfirmButton: false });
-    } catch (err: any) {
+    } catch {
       Swal.fire({ title: t('deleteError', 'systemSettings'), text: t('deleteErrorText', 'systemSettings'), icon: "error" });
     } finally {
       setIsDeletingField(null);

@@ -66,28 +66,6 @@ interface UseApplicantSelectionReturn {
   }[];
 }
 
-const extractId = (value: unknown): string | null => {
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      const resolved = extractId(item);
-      if (resolved) return resolved;
-    }
-    return null;
-  }
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    return trimmed || null;
-  }
-  if (value && typeof value === 'object') {
-    const maybeId = value as { _id?: unknown; id?: unknown };
-    if (typeof maybeId._id === 'string' && maybeId._id.trim())
-      return maybeId._id.trim();
-    if (typeof maybeId.id === 'string' && maybeId.id.trim())
-      return maybeId.id.trim();
-  }
-  return null;
-};
-
 export function useApplicantSelection({
   rowSelection,
   applicants,
@@ -153,7 +131,7 @@ export function useApplicantSelection({
           };
         })
         .filter((item: any) => Boolean(item.email));
-    } catch (e) {
+    } catch {
       return [];
     }
   }, [selectedApplicantIds, applicants]);
@@ -230,7 +208,7 @@ export function useApplicantSelection({
       });
 
       return mapped;
-    } catch (e) {
+    } catch {
       return [];
     }
   }, [selectedApplicantIds, applicants]);
@@ -260,7 +238,7 @@ export function useApplicantSelection({
 
       const unique = Array.from(new Set(companies));
       return unique.length === 1 ? unique[0] : null;
-    } catch (e) {
+    } catch {
       return null;
     }
   }, [selectedApplicantIds, applicants]);
@@ -276,7 +254,7 @@ export function useApplicantSelection({
             c.id === selectedApplicantCompanyId)
       );
       return found || null;
-    } catch (e) {
+    } catch {
       return null;
     }
   }, [selectedApplicantCompanyId, allCompaniesRaw]);

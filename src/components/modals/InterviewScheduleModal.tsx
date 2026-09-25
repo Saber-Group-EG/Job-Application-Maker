@@ -99,7 +99,7 @@ export default function InterviewScheduleModal(props: Props) {
       setSelectedTemplateId('');
       setAiPromptOpen(false);
       setAiPrompt('');
-    } catch (err) {
+    } catch {
       /* handled by hook */
     }
   };
@@ -291,7 +291,7 @@ export default function InterviewScheduleModal(props: Props) {
       }
 
       return out;
-    } catch (e) {
+    } catch {
       return [];
     }
   };
@@ -360,7 +360,7 @@ export default function InterviewScheduleModal(props: Props) {
           .replace(/&lt;/g, '<')
           .replace(/&gt;/g, '>')
           .replace(/&amp;/g, '&');
-      } catch (e) {
+      } catch {
         decodedHtml = selectedTemplate.html;
       }
 
@@ -706,7 +706,7 @@ export default function InterviewScheduleModal(props: Props) {
 
           let processedSubject =
             interviewEmailSubject || t('scheduleInterview', 'modals');
-          let processedBody = messageTemplate || '';
+          const processedBody = messageTemplate || '';
 
           const clickableLocation = createClickableLocation(
             locationUrl,
@@ -847,7 +847,7 @@ export default function InterviewScheduleModal(props: Props) {
 
       let processedSubject =
         interviewEmailSubject || t('scheduleInterview', 'modals');
-      let processedBody = messageTemplate || '';
+      const processedBody = messageTemplate || '';
 
       const clickableLocation = createClickableLocation(
         locationUrl,

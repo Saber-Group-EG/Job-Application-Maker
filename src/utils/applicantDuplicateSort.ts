@@ -50,7 +50,7 @@ const normalizeCompanyId = (
   try {
     const resolved = options?.getCompanyId?.(applicant);
     if (resolved) return String(resolved);
-  } catch (e) {
+  } catch {
     // ignore
   }
 

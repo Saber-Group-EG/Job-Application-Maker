@@ -332,7 +332,7 @@ class ApplicantsService {
       ) {
         jobPositionsService.normalizeJobPosition(applicant);
       }
-    } catch (e) {
+    } catch {
       // Ignore normalization errors
     }
 

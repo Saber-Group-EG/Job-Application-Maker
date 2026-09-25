@@ -47,7 +47,7 @@ const BulkMessageModal = ({
   const [form, setForm] = useState({
     subject: '',
     body: '',
-    type: 'email' as 'email',
+    type: 'email' as const,
   });
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -83,7 +83,7 @@ const BulkMessageModal = ({
       setSelectedTemplateId('');
       setAiPromptOpen(false);
       setAiPrompt('');
-    } catch (err) {
+    } catch {
       /* error toast already shown by the hook */
     }
   };
@@ -123,7 +123,7 @@ const BulkMessageModal = ({
           .replace(/&lt;/g, '<')
           .replace(/&gt;/g, '>')
           .replace(/&amp;/g, '&');
-      } catch (e) {
+      } catch {
         decodedHtml = selectedTemplate.html;
       }
 
@@ -261,7 +261,7 @@ const BulkMessageModal = ({
           }
         }
       }
-    } catch (e) {
+    } catch {
       /* ignore */
     }
 
@@ -378,7 +378,7 @@ const BulkMessageModal = ({
       if (!defaultMail) {
         defaultMail = companyData?.contactEmail || companyData?.email || '';
       }
-    } catch (e) {
+    } catch {
       /* ignore */
     }
 
@@ -506,7 +506,7 @@ const BulkMessageModal = ({
 
     setIsSubmitting(true);
     try {
-      let fromAddress =
+      const fromAddress =
         emailOption === 'new' && newLocalEmail
           ? `${newLocalEmail}@${companyDomain || 'company.com'}`
           : customEmail || company?.settings?.mailSettings?.defaultMail || '';
@@ -801,19 +801,6 @@ const BulkMessageModal = ({
                 </div>
               )}
 
-              <div>
-                <Label>{t('selectedSender', 'modals')}</Label>
-                <Input
-                  value={
-                    emailOption === 'new' && newLocalEmail
-                      ? `${newLocalEmail}@${companyDomain || 'company.com'}`
-                      : customEmail ||
-                        company?.settings?.mailSettings?.defaultMail ||
-                        ''
-                  }
-                  readOnly
-                />
-              </div>
             </div>
           </div>
 

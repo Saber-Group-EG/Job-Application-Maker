@@ -568,7 +568,7 @@ const CompletedInterviewDetails: React.FC = () => {
         showConfirmButton: false,
       });
       navigate(paths.applicants.details(applicantId));
-    } catch (error) {
+    } catch {
       await Swal.fire({
         title: t('error', 'common'),
         text: t('interviewUpdateFailed', 'common'),

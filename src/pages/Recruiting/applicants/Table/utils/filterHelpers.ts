@@ -261,7 +261,7 @@ export function hasCV(applicant: ExtendedApplicant | null | undefined): boolean 
         return true;
       }
     }
-  } catch (e) {
+  } catch {
     // ignore
   }
   
@@ -319,15 +319,15 @@ export function extractYear(dateValue: any): number | null {
   s = normalizeDigits(s);
   
   // Try ISO format YYYY-MM-DD or YYYY/MM/DD
-  let m = s.match(/^(19|20)\d{2}[-\/](\d{1,2})[-\/](\d{1,2})/);
+  let m = s.match(/^(19|20)\d{2}[-/](\d{1,2})[-/](\d{1,2})/);
   if (m) return Number(m[0].slice(0, 4));
   
   // Try DD/MM/YYYY or DD-MM-YYYY
-  m = s.match(/^(\d{1,2})[-\/](\d{1,2})[-\/]((19|20)\d{2})/);
+  m = s.match(/^(\d{1,2})[-/](\d{1,2})[-/]((19|20)\d{2})/);
   if (m) return Number(m[3]);
   
   // Try MM/DD/YYYY or MM-DD-YYYY
-  m = s.match(/^(\d{1,2})[-\/](\d{1,2})[-\/]((19|20)\d{2})/);
+  m = s.match(/^(\d{1,2})[-/](\d{1,2})[-/]((19|20)\d{2})/);
   if (m && Number(m[1]) > 12) {
     // If first part > 12, it's likely DD/MM/YYYY
     return Number(m[3]);
@@ -571,7 +571,7 @@ export function applyCustomFilters(
         }
       }
       return true;
-    } catch (e) {
+    } catch {
       return false;
     }
   }) as Applicant[];

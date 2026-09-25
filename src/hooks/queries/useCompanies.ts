@@ -1226,7 +1226,7 @@ export function previewEmailTemplate(
   candidateName = 'John Doe',
   jobTitle = 'Software Engineer'
 ): string {
-  let html = template.html
+  const html = template.html
     .replace(/\{\{\s*candidateName\s*\}\}/gi, candidateName)
     .replace(/\{\{\s*(?:position|jobTitle)\s*\}\}/gi, jobTitle);
 

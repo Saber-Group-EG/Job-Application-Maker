@@ -172,7 +172,7 @@ export default function PreviewJob() {
       if (promises.length === 0) return;
       await Promise.all(promises);
       setLastRefetch(new Date());
-    } catch (e) {
+    } catch {
       // ignore
     }
   };

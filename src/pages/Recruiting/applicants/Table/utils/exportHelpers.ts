@@ -97,7 +97,7 @@ export function formatCustomResponseValue(value: any): string {
         })
         .join(', ');
       return `{ ${formatted} }`;
-    } catch (e) {
+    } catch {
       return JSON.stringify(value);
     }
   }
@@ -198,7 +198,7 @@ export function extractRejectionReasons(applicant: any): string[] {
     }
     
     return [];
-  } catch (e) {
+  } catch {
     return [];
   }
 }

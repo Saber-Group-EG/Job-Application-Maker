@@ -80,7 +80,7 @@ const readPersistedMobileFilters = () => {
       submittedDesc:
         typeof parsed?.submittedDesc === 'boolean' ? parsed.submittedDesc : true,
     };
-  } catch (e) {
+  } catch {
     return {
       query: '',
       companyFilters: [] as string[],
@@ -169,7 +169,7 @@ export default function ApplicantsMobilePage(): JSX.Element {
       const raw = sessionStorage.getItem('applicants_table_state');
       const parsed = raw ? JSON.parse(raw) : null;
       return parsed && Array.isArray(parsed.customFilters) ? parsed.customFilters : [];
-    } catch (e) {
+    } catch {
       return [];
     }
   });
@@ -236,7 +236,7 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
       const raw = sessionStorage.getItem('applicants_table_state');
       const parsed = raw ? JSON.parse(raw) : {};
       return parsed.columnFilters || [];
-    } catch (e) { return []; }
+    } catch { return []; }
   });
 
   const setColumnFilters = (updater: any) => {
@@ -249,7 +249,7 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
       } else {
         setJobFilters([]);
       }
-    } catch (e) {}
+    } catch { /* ignore */ }
     return next;
   };
 
@@ -352,7 +352,7 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
       };
       const mobileStr = JSON.stringify(mobileState);
       sessionStorage.setItem(MOBILE_FILTERS_STORAGE_KEY, mobileStr);
-      try { localStorage.setItem(MOBILE_FILTERS_STORAGE_KEY, mobileStr); } catch (e) { }
+      try { localStorage.setItem(MOBILE_FILTERS_STORAGE_KEY, mobileStr); } catch { /* ignore */ }
 
       const raw = sessionStorage.getItem('applicants_table_state');
       const parsed = raw ? JSON.parse(raw) : {};
@@ -360,8 +360,8 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
       parsed.columnFilters = columnFilters || parsed.columnFilters || [];
       const str = JSON.stringify(parsed);
       sessionStorage.setItem('applicants_table_state', str);
-      try { localStorage.setItem('applicants_table_state', str); } catch (e) { }
-    } catch (e) {}
+      try { localStorage.setItem('applicants_table_state', str); } catch { /* ignore */ }
+    } catch { /* ignore */ }
   }, [
     query,
     jobFilters,
@@ -420,7 +420,7 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
         if (targetSet.has(kn)) return responses[k];
         const kn2 = kn.replace(/_/g, ' ');
         if (targetSet.has(kn2)) return responses[k];
-      } catch (e) { }
+      } catch { /* ignore */ }
     }
     for (const k of Object.keys(top || {})) {
       try {
@@ -428,7 +428,7 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
         if (targetSet.has(kn)) return top[k];
         const kn2 = kn.replace(/_/g, ' ');
         if (targetSet.has(kn2)) return top[k];
-      } catch (e) { }
+      } catch { /* ignore */ }
     }
     return '';
   };
@@ -443,7 +443,7 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
         const transformations = `f_auto/fl_attachment:${fileName}`;
         const downloadUrl = `${urlParts[0]}/upload/${transformations}/${urlParts[1]}`;
         return downloadUrl;
-      } catch (e) {
+      } catch {
         return null;
       }
     };
@@ -462,7 +462,7 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
         a.remove();
         setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
         return true;
-      } catch (err) {
+      } catch {
         return false;
       }
     };
@@ -493,7 +493,7 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
           if (typeof v === 'string' && /https?:\/\/.+\.(pdf|docx?|rtf|txt|zip)$/i.test(v)) return v as string;
         }
         return null;
-      } catch (e) {
+      } catch {
         return null;
       }
     };
@@ -566,7 +566,7 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
           } else if (f.operator === 'contains') {
             if (!String(val || '').toLowerCase().includes(String(f.value || '').toLowerCase())) return false;
           }
-        } catch (e) { return false; }
+        } catch { return false; }
       }
     }
     return true;
@@ -653,7 +653,7 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
           },
         }
       );
-    } catch (e) {
+    } catch {
       return filtered || [];
     }
   }, [filtered, submittedDesc, currentUserId, jobPositionMap]);
@@ -724,7 +724,7 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
           }
         })
         .filter((item: any) => Boolean(item.email));
-    } catch (e) { return []; }
+    } catch { return []; }
   }, [selectedApplicantIds, applicants]);
 
   const selectedApplicantCompanyId = useMemo(() => {
@@ -738,14 +738,14 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
       }).filter(Boolean) as string[];
       const uniq = Array.from(new Set(companiesFor));
       return uniq.length === 1 ? uniq[0] : null;
-    } catch (e) { return null; }
+    } catch { return null; }
   }, [selectedApplicantIds, applicants]);
 
   const selectedApplicantCompany = useMemo(() => {
     try {
       if (!selectedApplicantCompanyId) return null;
       return (companies || []).find((c: any) => (c._id || c.id) === selectedApplicantCompanyId) || null;
-    } catch (e) { return null; }
+    } catch { return null; }
   }, [selectedApplicantCompanyId, companies]);
 
   const normalizeIdGlobal = (v: any) => {
@@ -967,7 +967,7 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
                           ));
                           Swal.fire(t('success', 'applicants'), t('statusUpdateSuccess', 'applicants', { count: selectedApplicantIds.length }), 'success');
                           clearSelection();
-                        } catch (e) {
+                        } catch {
                           Swal.fire(t('error', 'applicants'), t('statusUpdateFailed', 'applicants'), 'error');
                         }
                       }}
@@ -994,7 +994,7 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
                           ));
                           Swal.fire(t('delete', 'applicants'), t('deletedSuccess', 'applicants', { count: selectedApplicantIds.length }), 'success');
                           clearSelection();
-                        } catch (e) {
+                        } catch {
                           Swal.fire(t('error', 'applicants'), t('deleteFailed', 'applicants'), 'error');
                         }
                       }}
@@ -1159,7 +1159,7 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
                             const url = `${window.location.origin}${paths.applicants.details(navId)}`;
                             try {
                               window.open(url, '_blank', 'noopener,noreferrer');
-                            } catch (err) {
+                            } catch {
                               // ignore
                             }
                           }}
