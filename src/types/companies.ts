@@ -105,9 +105,9 @@ export interface MailSettings {
   availableMails?: string[];
   defaultMail?: string | null;
   companyDomain?: string | null;
-  resendApiKey?: string | null;
+  // The Resend API key and webhook secret are never sent to the browser;
+  // GmailStatus.hasResendKey says whether a key is configured.
   sendApplicantDataMail?: boolean;
-  webhookSecret?: string | null;
   applicantEmailTemplate?: {
     subject?: string;
     html?: string;

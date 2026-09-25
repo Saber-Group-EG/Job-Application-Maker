@@ -4,7 +4,6 @@ import { useLocation, useParams } from 'react-router-dom';
 import { useNavigate } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { applicantsKeys } from '../../../../hooks/queries/useApplicants';
-import axiosInstance from '../../../../config/axios';
 import Swal from '../../../../utils/swal';
 import { useAuth } from '../../../../context/AuthContext';
 import { useLocale } from '../../../../context/LocaleContext';
@@ -21,7 +20,6 @@ import { toPlainString } from '../../../../utils/strings';
 import { thumbnailCache } from '../../../../utils/persistentThumbnailCache';
 import { paths } from '../../../../router/Paths';
 import { buildFieldToJobIds } from '../../../../components/modals/CustomFilterModal';
-import { useQuery } from '@tanstack/react-query';
 
 // Components
 import PageBreadcrumb from '../../../../components/common/PageBreadCrumb';
@@ -63,14 +61,8 @@ import { Skeleton } from '@mui/material';
 import { FileSignature, FileText } from 'lucide-react';
 import JobOfferModal from '../../../../components/modals/JobOffersModal/JobOffersModal';
 import JobContractModal from '../../../../components/modals/ContractModal/ContractModal';
+import { useApplicantMailCounts } from '../../../../hooks/queries/useMail';
 
-type ApiMailResponse = {
-  message: string;
-  page: string;
-  PageCount: number | null;
-  TotalCount: number;
-  data: Array<{ _id: string; applicant: string | null; [key: string]: any }>;
-};
 
 const APPLICANTS_DEFAULT_COLUMN_ORDER = [
   'mrt-row-select',
@@ -644,19 +636,6 @@ export default function Applicants({
     return true;
   }, [apiCompanyId]);
 
-  const assignedCompanyIds = useMemo(() => {
-    if (isSuperAdmin) return [];
-    const fromCompanies = Array.isArray(user?.companies)
-      ? user.companies.map((c: any) => extractId(c?.companyId))
-      : [];
-    const fromAssigned = Array.isArray(user?.assignedcompanyId)
-      ? user.assignedcompanyId
-      : [];
-    return Array.from(new Set([...fromCompanies, ...fromAssigned])).filter(
-      Boolean
-    ) as string[];
-  }, [user, isSuperAdmin]);
-
   const [globalFilter, setGlobalFilter] = useState('');
 
   const {
@@ -709,59 +688,13 @@ export default function Applicants({
     isFetched: isCompaniesFetched,
   } = useCompanies(apiCompanyId as any);
 
-  const queryCompanyIds = useMemo(() => {
-    if (!isSuperAdmin && assignedCompanyIds.length > 0)
-      return assignedCompanyIds;
-    return [] as string[];
-  }, [isSuperAdmin, assignedCompanyIds]);
-
-  const { data: mailApiResponse } = useQuery<ApiMailResponse>({
-    queryKey: ['mail-logs', queryCompanyIds.join(',')],
-    queryFn: async () => {
-      const baseParams: Record<string, string> = { PageCount: 'all' };
-      if (queryCompanyIds.length <= 1) {
-        if (queryCompanyIds.length === 1)
-          baseParams.company = queryCompanyIds[0];
-        const res = await axiosInstance.get<ApiMailResponse>('/mail', {
-          params: baseParams,
-        });
-        return res.data;
-      }
-      const responses = await Promise.all(
-        queryCompanyIds.map((companyId: string) =>
-          axiosInstance.get<ApiMailResponse>('/mail', {
-            params: { ...baseParams, company: companyId },
-          })
-        )
-      );
-      const mergedMap = new Map<string, any>();
-      responses.forEach((r) =>
-        (r.data?.data || []).forEach((m: any) => mergedMap.set(m._id, m))
-      );
-      const data = Array.from(mergedMap.values());
-      return {
-        message: 'success',
-        page: 'all',
-        PageCount: null,
-        TotalCount: data.length,
-        data,
-      };
-    },
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const mailCountByApplicantId = useMemo(() => {
-    const map = new Map<string, number>();
-    (mailApiResponse?.data || []).forEach((mail: any) => {
-      const applicantId =
-        typeof mail.applicant === 'string'
-          ? mail.applicant.trim()
-          : (mail.applicant as any)?._id?.trim() || '';
-      if (!applicantId) return;
-      map.set(applicantId, (map.get(applicantId) || 0) + 1);
-    });
-    return map;
-  }, [mailApiResponse]);
+  // Emails per applicant, counted on the server (scoped to the user's
+  // companies and departments).
+  const { data: mailCounts } = useApplicantMailCounts();
+  const mailCountByApplicantId = useMemo(
+    () => new Map(Object.entries(mailCounts || {})),
+    [mailCounts]
+  );
 
   const {
     rowSelection,

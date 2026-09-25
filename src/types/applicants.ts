@@ -1,3 +1,4 @@
+import type { MailAttachment } from './mail';
 // ─── Applicant Types (from types/applicants.ts) ───────────────────────────────
 // NOTE: In the actual project these types already live in types/applicants.ts
 // and are not redeclared here. This file shows what was added there.
@@ -242,9 +243,11 @@ export interface Activity {
   conductedBy?: string;
   interviewStatus?: string;
   reasons?: string[];
-  // An applicant's reply pulled from the company's connected Gmail inbox.
+  // An applicant's reply (connected Gmail or Resend Inbound).
   inbound?: boolean;
   from?: string;
+  mailId?: string;
+  attachments?: MailAttachment[];
 }
 
 export interface ActivityItem {

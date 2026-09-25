@@ -6,12 +6,11 @@ import React, {
   useRef,
 } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router';
-import { useQuery } from '@tanstack/react-query';
-import axiosInstance from '../../../config/axios';
 import DOMPurify from 'dompurify';
 import PersonalInfo from './components/ApplicantData/PersonalInfo';
 import { StickyTopBar, Stickysidebar } from './components/common/StickyLayout';
 import ActivityFeed from './components/ActivityFeed';
+import { useApplicantMails } from '../../../hooks/queries/useMail';
 import CustomResponses from './components/ApplicantData/CustomResponses';
 import JobSpec from './components/ApplicantData/JobSpec';
 import InterviewQuestions from './components/InterviewData/InterviewQuestions';
@@ -863,42 +862,8 @@ const ApplicantDetails: React.FC = () => {
     }
   }, [applicant, jobCustomFields, fetchedJobPosition]);
 
-  const companyIdForMail = jobPosCompanyId || applicantCompanyId;
-  const { data: mailApiResponse } = useQuery({
-    queryKey: ['mail-logs', companyIdForMail || 'none'],
-    queryFn: async () => {
-      if (!companyIdForMail) return { data: [] };
-      const res = await axiosInstance.get('/mail', {
-        params: { PageCount: 'all', company: companyIdForMail },
-      });
-      return res.data as {
-        data: Array<{
-          _id: string;
-          createdAt: string;
-          html: string;
-          applicant: string | { _id: string } | null;
-          direction?: 'outbound' | 'inbound';
-          subject?: string;
-          from?: string;
-          receivedAt?: string | null;
-        }>;
-      };
-    },
-    enabled: !!companyIdForMail,
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const applicantMails = useMemo(() => {
-    if (!mailApiResponse?.data || !applicant?._id) return [];
-    const applicantId = applicant._id;
-    return mailApiResponse.data.filter((mail) => {
-      const mailApplicantId =
-        typeof mail.applicant === 'string'
-          ? mail.applicant
-          : mail.applicant?._id;
-      return mailApplicantId === applicantId;
-    });
-  }, [mailApiResponse, applicant]);
+  // This applicant's conversation only (sent mail and replies).
+  const { data: applicantMails = [] } = useApplicantMails(applicant?._id);
 
   // Outgoing mail only: the feed matches these to "message sent" activities
   // by timestamp, and a reply must never be matched as a sent email.
@@ -923,6 +888,8 @@ const ApplicantDetails: React.FC = () => {
         subject: mail.subject,
         description: mail.html,
         timestamp: mail.receivedAt || mail.createdAt,
+        mailId: mail._id,
+        attachments: mail.attachments,
       }));
     if (replies.length === 0) return buildActivities(applicant, t);
     return [...buildActivities(applicant, t), ...replies].sort(
