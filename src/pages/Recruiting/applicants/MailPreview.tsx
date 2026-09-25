@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
     ChevronLeft,
     ChevronRight,
@@ -36,7 +37,9 @@ import {
     useMailCounts,
     useMailDetail,
     useMailList,
+    mailKeys,
 } from '../../../hooks/queries/useMail';
+import { mailService } from '../../../services/mailService';
 import type { MailDirection, MailListParams, MailRecord, MailStatusKey } from '../../../types/mail';
 
 type TFn = (key: string, ns?: string, params?: Record<string, string | number>) => string;
@@ -218,7 +221,7 @@ const toUiRecord = (mail: MailRecord, t: TFn): UiMailRecord => {
     };
 };
 
-const SidebarNavItem = ({ icon: Icon, label, count, active, onClick }: { icon: LucideIcon; label: string; count?: number; active?: boolean; onClick?: () => void }) => (
+const SidebarNavItem = ({ icon: Icon, label, count, loading, active, onClick }: { icon: LucideIcon; label: string; count?: number; loading?: boolean; active?: boolean; onClick?: () => void }) => (
     <button
         onClick={onClick}
         className={`flex w-full cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-sm transition-all ${active ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-400' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'}`}
@@ -230,12 +233,32 @@ const SidebarNavItem = ({ icon: Icon, label, count, active, onClick }: { icon: L
             <Icon className="h-4 w-4" />
             <span className="font-medium">{label}</span>
         </div>
-        {count !== undefined && count > 0 && (
+        {loading && <span className="h-4 w-7 animate-pulse rounded-full bg-slate-200 dark:bg-slate-700" aria-hidden="true" />}
+        {!loading && count !== undefined && count > 0 && (
             <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${active ? 'bg-brand-200 text-brand-800 dark:bg-brand-500/20 dark:text-brand-300' : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'}`}>
                 {count}
             </span>
         )}
     </button>
+);
+
+// Placeholder rows shaped like the real list, shown while a page loads.
+const MailListSkeleton = ({ rows = MAIL_LIST_PAGE_SIZE }: { rows?: number }) => (
+    <>
+        {Array.from({ length: rows }, (_, i) => (
+            <div key={i} className="flex items-start justify-between gap-3 px-6 py-4" aria-hidden="true">
+                <div className="min-w-0 flex-1 space-y-2">
+                    <div className="h-3.5 w-40 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
+                    <div className="h-3 w-3/5 animate-pulse rounded bg-slate-100 dark:bg-slate-800" />
+                    <div className="h-2.5 w-4/5 animate-pulse rounded bg-slate-100 dark:bg-slate-800" />
+                </div>
+                <div className="flex flex-col items-end gap-2">
+                    <div className="h-2.5 w-12 animate-pulse rounded bg-slate-100 dark:bg-slate-800" />
+                    <div className="h-4 w-16 animate-pulse rounded-full bg-slate-100 dark:bg-slate-800" />
+                </div>
+            </div>
+        ))}
+    </>
 );
 
 const FOLDER_PARAMS: Record<Folder, Partial<MailListParams>> = {
@@ -265,14 +288,23 @@ export default function MailPreview() {
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [mailPage, setMailPage] = useState(1);
 
+    // Filters reset to page 1 in the same update that changes them, so the
+    // old page number is never requested for the new filter.
     useEffect(() => {
-        const id = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 300);
+        const next = searchTerm.trim();
+        if (next === debouncedSearch) return;
+        const id = setTimeout(() => {
+            setDebouncedSearch(next);
+            setMailPage(1);
+        }, 300);
         return () => clearTimeout(id);
-    }, [searchTerm]);
+    }, [searchTerm, debouncedSearch]);
 
-    useEffect(() => {
+    const [pagedCompanyId, setPagedCompanyId] = useState(companyId);
+    if (pagedCompanyId !== companyId) {
+        setPagedCompanyId(companyId);
         setMailPage(1);
-    }, [companyId, folder, statusFilter, debouncedSearch]);
+    }
 
     const listParams = useMemo<MailListParams>(() => ({
         page: mailPage,
@@ -283,19 +315,29 @@ export default function MailPreview() {
         q: debouncedSearch || undefined,
     }), [mailPage, companyId, folder, statusFilter, debouncedSearch]);
 
-    const { data: listResponse, isLoading, isFetching } = useMailList(listParams);
-    const { data: counts } = useMailCounts({ companyId });
+    const { data: listResponse, isLoading, isFetching, isPlaceholderData } = useMailList(listParams);
+    const { data: counts, isLoading: isCountsLoading } = useMailCounts({ companyId });
+    // Showing the previous page/folder while the requested one loads.
+    const isSwitching = isFetching && isPlaceholderData;
+    const queryClient = useQueryClient();
     const deleteMail = useDeleteMail();
 
     const mails = useMemo(() => (listResponse?.data || []).map((m) => toUiRecord(m, t)), [listResponse, t]);
     const totalMailPages = listResponse?.totalPages ?? 1;
 
     useEffect(() => {
-        if (mailPage > totalMailPages) setMailPage(totalMailPages);
-    }, [mailPage, totalMailPages]);
+        if (!isPlaceholderData && mailPage > totalMailPages) setMailPage(totalMailPages);
+    }, [mailPage, totalMailPages, isPlaceholderData]);
+
+    // Load the next page in the background so paging forward is instant.
+    useEffect(() => {
+        if (isPlaceholderData || mailPage >= totalMailPages) return;
+        const nextParams = { ...listParams, page: mailPage + 1 };
+        queryClient.prefetchQuery({ queryKey: mailKeys.list(nextParams), queryFn: () => mailService.list(nextParams) });
+    }, [queryClient, listParams, mailPage, totalMailPages, isPlaceholderData]);
 
     const selectedApplicantId = selected ? refId(selected.applicant) : null;
-    const { data: conversationData = [] } = useApplicantMails(view === 'detail' ? selectedApplicantId ?? undefined : undefined);
+    const { data: conversationData = [], isLoading: isConversationLoading } = useApplicantMails(view === 'detail' ? selectedApplicantId ?? undefined : undefined);
     const { data: rawDetail, isFetching: isRawLoading } = useMailDetail(selected?._id, showRaw);
 
     const selectedMail = useMemo(() => {
@@ -332,6 +374,7 @@ export default function MailPreview() {
     const selectFolder = (next: Folder) => {
         setFolder(next);
         setStatusFilter(new Set());
+        setMailPage(1);
     };
 
     const handleDelete = async () => {
@@ -366,11 +409,11 @@ export default function MailPreview() {
                                 <span className="text-lg font-bold text-slate-800 dark:text-white">{t('sidebarTitle', 'mailPreview')}</span>
                             </div>
                             <div className="space-y-1" role="tablist" aria-label={t('sidebarTitle', 'mailPreview')}>
-                                <SidebarNavItem icon={Inbox} label={t('sidebarInbox', 'mailPreview')} count={counts?.all} active={folder === 'all'} onClick={() => selectFolder('all')} />
-                                <SidebarNavItem icon={Reply} label={t('sidebarReceived', 'mailPreview')} count={counts?.inbound} active={folder === 'inbound'} onClick={() => selectFolder('inbound')} />
-                                <SidebarNavItem icon={UserX} label={t('sidebarUnassigned', 'mailPreview')} count={counts?.unassigned} active={folder === 'unassigned'} onClick={() => selectFolder('unassigned')} />
-                                <SidebarNavItem icon={Send} label={t('sidebarSent', 'mailPreview')} count={counts?.outbound} active={folder === 'outbound'} onClick={() => selectFolder('outbound')} />
-                                <SidebarNavItem icon={Star} label={t('sidebarMarked', 'mailPreview')} count={counts?.marked} active={folder === 'marked'} onClick={() => selectFolder('marked')} />
+                                <SidebarNavItem icon={Inbox} label={t('sidebarInbox', 'mailPreview')} count={counts?.all} loading={isCountsLoading} active={folder === 'all'} onClick={() => selectFolder('all')} />
+                                <SidebarNavItem icon={Reply} label={t('sidebarReceived', 'mailPreview')} count={counts?.inbound} loading={isCountsLoading} active={folder === 'inbound'} onClick={() => selectFolder('inbound')} />
+                                <SidebarNavItem icon={UserX} label={t('sidebarUnassigned', 'mailPreview')} count={counts?.unassigned} loading={isCountsLoading} active={folder === 'unassigned'} onClick={() => selectFolder('unassigned')} />
+                                <SidebarNavItem icon={Send} label={t('sidebarSent', 'mailPreview')} count={counts?.outbound} loading={isCountsLoading} active={folder === 'outbound'} onClick={() => selectFolder('outbound')} />
+                                <SidebarNavItem icon={Star} label={t('sidebarMarked', 'mailPreview')} count={counts?.marked} loading={isCountsLoading} active={folder === 'marked'} onClick={() => selectFolder('marked')} />
                             </div>
                         </div>
                     </aside>
@@ -408,12 +451,12 @@ export default function MailPreview() {
                                                 <button
                                                     key={opt.key}
                                                     aria-pressed={isOn}
-                                                    onClick={() => setStatusFilter((prev) => {
+                                                    onClick={() => { setMailPage(1); setStatusFilter((prev) => {
                                                         const next = new Set(prev);
                                                         if (next.has(opt.key)) next.delete(opt.key);
                                                         else next.add(opt.key);
                                                         return next;
-                                                    })}
+                                                    }); }}
                                                     className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all ${isOn
                                                         ? 'bg-brand-600 text-white shadow-sm'
                                                         : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'}`}
@@ -445,12 +488,17 @@ export default function MailPreview() {
                         </div>
 
                         {/* Email List */}
-                        <div className="flex-1 overflow-y-auto bg-white dark:bg-slate-900">
+                        <div className="relative flex-1 overflow-y-auto bg-white dark:bg-slate-900" aria-busy={isLoading || isSwitching}>
+                            {/* Thin bar while a background refresh runs */}
+                            {isFetching && !isLoading && !isSwitching && (
+                                <div className="sticky top-0 z-10 h-0.5 w-full animate-pulse bg-brand-500" role="progressbar" aria-label={t('loading', 'mailPreview')} />
+                            )}
                             <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                                {isLoading ? (
-                                    <div className="flex items-center justify-center py-20 text-slate-400">
-                                        <Loader2 className="h-6 w-6 animate-spin" aria-label={t('loading', 'mailPreview')} />
-                                    </div>
+                                {isLoading || isSwitching ? (
+                                    <>
+                                        <span className="sr-only" role="status">{t('loading', 'mailPreview')}</span>
+                                        <MailListSkeleton />
+                                    </>
                                 ) : mails.length === 0 ? (
                                     <div className="flex h-full flex-col items-center justify-center py-20 text-center">
                                         <div className="rounded-full bg-slate-100 p-4 dark:bg-slate-800">
@@ -500,18 +548,19 @@ export default function MailPreview() {
                             {totalMailPages > 1 && (
                                 <div className="flex items-center justify-between border-t border-slate-200 px-6 py-3 dark:border-slate-800">
                                     <button
-                                        disabled={mailPage === 1}
+                                        disabled={mailPage === 1 || isSwitching}
                                         onClick={() => setMailPage((p) => Math.max(1, p - 1))}
                                         className="flex items-center gap-1 rounded-md px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-100 disabled:opacity-40 dark:text-slate-400 dark:hover:bg-slate-800"
                                     >
                                         <ChevronLeft className="h-4 w-4" />
                                         {t('previous', 'mailPreview')}
                                     </button>
-                                    <span className="text-sm text-slate-500 dark:text-slate-400">
+                                    <span className="inline-flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+                                        {isSwitching && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />}
                                         {t('paginationInfo', 'mailPreview', { page: mailPage, totalPages: totalMailPages })}
                                     </span>
                                     <button
-                                        disabled={mailPage === totalMailPages}
+                                        disabled={mailPage === totalMailPages || isSwitching}
                                         onClick={() => setMailPage((p) => Math.min(totalMailPages, p + 1))}
                                         className="flex items-center gap-1 rounded-md px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-100 disabled:opacity-40 dark:text-slate-400 dark:hover:bg-slate-800"
                                     >
@@ -658,6 +707,14 @@ export default function MailPreview() {
                     </div>
 
                     {/* Conversation with this applicant: sent and received, oldest first */}
+                    {selectedMail.applicantId && isConversationLoading && (
+                        <div className="border-t border-slate-200 p-6 dark:border-slate-800" aria-busy="true">
+                            <div className="mb-3 h-3.5 w-32 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
+                            <div className="space-y-2">
+                                {[0, 1, 2].map((i) => <div key={i} className="h-10 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800" />)}
+                            </div>
+                        </div>
+                    )}
                     {conversation.length > 1 && (
                         <div className="border-t border-slate-200 p-6 dark:border-slate-800">
                             <h3 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-300">
