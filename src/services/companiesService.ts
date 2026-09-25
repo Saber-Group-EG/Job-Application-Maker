@@ -258,6 +258,20 @@ class CompaniesService {
     );
   }
 
+  // Google's consent URL for "Sign in with Google"; Google sends the
+  // browser back to returnTo with ?gmail=connected or ?gmail_error=...
+  async getGmailOAuthUrl(
+    settingsId: string,
+    params: { returnTo: string; email?: string; senderName?: string; receiveEnabled?: boolean }
+  ): Promise<{ url: string }> {
+    return this.request<{ url: string }>(
+      'get',
+      `/companies/${settingsId}/settings/mail/gmail/oauth-url`,
+      undefined,
+      params
+    );
+  }
+
   async updateGmailOptions(
     settingsId: string,
     body: { senderName?: string | null; receiveEnabled?: boolean }

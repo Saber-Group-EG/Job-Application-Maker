@@ -185,5 +185,12 @@
   "replySubdomain": "نطاق فرعي للردود (للدومين الخاص فقط)",
   "replySubdomainPlaceholder": "reply.yourcompany.com",
   "replySubdomainDesc": "ردود المتقدمين على الإيميلات المرسلة من الدومين الخاص بك تصل هنا. في إعدادات DNS أضف سجل MX واحد لهذا النطاق الفرعي يشير إلى Resend Inbound، واشترك في حدث email.received في الـ webhook الخاص بـ Resend.",
-  "replySubdomainWarning": "استخدم نطاقاً فرعياً فقط (مثل reply.yourcompany.com). لا تضف سجل MX الخاص بـ Resend إلى الدومين الرئيسي أبداً — لأن ذلك سيحوّل كل إيميلات شركتك إلى هنا بدلاً من صندوق البريد المعتاد."
+  "replySubdomainWarning": "استخدم نطاقاً فرعياً فقط (مثل reply.yourcompany.com). لا تضف سجل MX الخاص بـ Resend إلى الدومين الرئيسي أبداً — لأن ذلك سيحوّل كل إيميلات شركتك إلى هنا بدلاً من صندوق البريد المعتاد.",
+  "gmailGoogleTitle": "تسجيل الدخول باستخدام Google",
+  "gmailGoogleDesc": "الطريقة الأسرع: وافق على الوصول في صفحة Google وسيتم الربط. لا حاجة إلى كلمة مرور التطبيق.",
+  "gmailGoogleButton": "تسجيل الدخول باستخدام Google",
+  "gmailOrAppPassword": "أو اربط باستخدام كلمة مرور التطبيق",
+  "gmailGoogleConnectedDesc": "تم ربط Gmail الخاص بك. سيتم إرسال الرسائل إلى المتقدمين منه من الآن.",
+  "gmailViaGoogle": "مربوط عبر تسجيل الدخول باستخدام Google",
+  "gmailViaAppPassword": "مربوط عبر كلمة مرور التطبيق"
 }

@@ -185,5 +185,12 @@
   "replySubdomain": "Reply subdomain (custom domain only)",
   "replySubdomainPlaceholder": "reply.yourcompany.com",
   "replySubdomainDesc": "Applicant replies to emails sent from your custom domain come back here. In your DNS, add one MX record for this subdomain pointing to Resend Inbound, and subscribe your Resend webhook to the email.received event.",
-  "replySubdomainWarning": "Use a subdomain only (e.g. reply.yourcompany.com). Never add Resend's MX record to your main domain — that would send all of your company's email here instead of your normal mailbox."
+  "replySubdomainWarning": "Use a subdomain only (e.g. reply.yourcompany.com). Never add Resend's MX record to your main domain — that would send all of your company's email here instead of your normal mailbox.",
+  "gmailGoogleTitle": "Sign in with Google",
+  "gmailGoogleDesc": "The quickest way: approve access on Google's page and you're connected. No App Password needed.",
+  "gmailGoogleButton": "Sign in with Google",
+  "gmailOrAppPassword": "Or connect with an App Password",
+  "gmailGoogleConnectedDesc": "Your Gmail is connected. Emails to applicants will now be sent from it.",
+  "gmailViaGoogle": "connected with Google sign-in",
+  "gmailViaAppPassword": "connected with an App Password"
 }
