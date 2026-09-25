@@ -26,7 +26,7 @@ import {
   PageShell,
   inputClass,
   rowClass,
-  selectClass,
+  filterSelectClass,
 } from './components/PromoUI';
 import {
   codeState,
@@ -146,7 +146,7 @@ export default function AdminPromoCodes() {
     >
       <PageMeta title={t('metaTitle', 'promos')} description={t('metaDescription', 'promos')} />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-4">
         <StatCard
           label={hasActiveFilters ? t('statMatchingCodes', 'promos') : t('statTotalCodes', 'promos')}
           value={totalCount}
@@ -182,7 +182,7 @@ export default function AdminPromoCodes() {
                 setOwnerFilter(e.target.value);
                 setPage(1);
               }}
-              className={`${selectClass} w-auto min-w-[10rem]`}
+              className={`${filterSelectClass} min-w-[10rem]`}
             >
               <option value="all">{t('filterAllOwners', 'promos')}</option>
               {hrUsers.map((u) => (
@@ -198,7 +198,7 @@ export default function AdminPromoCodes() {
                 setStatusFilter(e.target.value);
                 setPage(1);
               }}
-              className={`${selectClass} w-auto min-w-[9rem]`}
+              className={`${filterSelectClass} min-w-[9rem]`}
             >
               <option value="all">{t('filterAllStatuses', 'promos')}</option>
               <option value="active">{t('filterActive', 'promos')}</option>

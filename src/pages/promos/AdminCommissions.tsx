@@ -39,6 +39,7 @@ import {
   Th,
   inputClass,
   rowClass,
+  filterSelectClass,
   selectClass,
 } from './components/PromoUI';
 import { commissionState, companyLabel, formatPeriod, isHrUser, personName } from './promoFormat';
@@ -164,7 +165,7 @@ function ReportView({ month, onDrillThrough }: { month: string; onDrillThrough: 
         ) : !isLoading && rows.length === 0 ? (
           <EmptyState icon={<FileBarChart className="size-6" />} title={t('commissionsNoRows', 'promos')} text={t('commissionsNoRowsText', 'promos')} />
         ) : (
-          <Table minWidth={680} busy={isLoading}>
+          <Table minWidth={760} busy={isLoading}>
             <thead>
               <tr>
                 <Th>{t('commissionsTableHR', 'promos')}</Th>
@@ -172,13 +173,14 @@ function ReportView({ month, onDrillThrough }: { month: string; onDrillThrough: 
                 <Th align="end">{t('commissionsTotal', 'promos')}</Th>
                 <Th align="end">{t('commissionsPaid', 'promos')}</Th>
                 <Th align="end">{t('commissionsPending', 'promos')}</Th>
+                <Th align="end">{t('ledgerStatusVoid', 'promos')}</Th>
                 <Th>
                   <span className="sr-only">{t('commissionsDrillThroughHint', 'promos')}</span>
                 </Th>
               </tr>
             </thead>
             <tbody>
-              {isLoading && <SkeletonRows rows={4} cols={6} />}
+              {isLoading && <SkeletonRows rows={4} cols={7} />}
               {!isLoading &&
                 rows.map((row, index) => (
                   <tr
@@ -202,6 +204,10 @@ function ReportView({ month, onDrillThrough }: { month: string; onDrillThrough: 
                     <Td align="end" className="whitespace-nowrap font-medium tabular-nums text-slate-900 dark:text-white"><bdi>{money(row.totalCents)}</bdi></Td>
                     <Td align="end" className="whitespace-nowrap tabular-nums text-emerald-700 dark:text-emerald-400"><bdi>{money(row.paidCents)}</bdi></Td>
                     <Td align="end" className="whitespace-nowrap tabular-nums text-amber-700 dark:text-amber-400"><bdi>{money(row.pendingCents)}</bdi></Td>
+                    {/* Total includes voided commissions; show them so the row adds up. */}
+                    <Td align="end" className="whitespace-nowrap tabular-nums text-slate-400">
+                      <bdi>{money(Math.max(0, (row.totalCents ?? 0) - (row.paidCents ?? 0) - (row.pendingCents ?? 0)))}</bdi>
+                    </Td>
                     <Td align="end">
                       <ChevronRight className="ms-auto size-4 text-slate-400 rtl:rotate-180" />
                     </Td>
@@ -267,7 +273,7 @@ function LedgerView({
             value={hrFilter}
             aria-label={t('commissionsTableHR', 'promos')}
             onChange={(e) => onHrFilterChange(e.target.value)}
-            className={`${selectClass} w-auto min-w-[10rem]`}
+            className={`${filterSelectClass} min-w-[10rem]`}
           >
             <option value="all">{t('ledgerFilterAllHR', 'promos')}</option>
             {hrOptions.map((u) => (
@@ -283,7 +289,7 @@ function LedgerView({
               setStatusFilter(e.target.value);
               setPage(1);
             }}
-            className={`${selectClass} w-auto min-w-[9rem]`}
+            className={`${filterSelectClass} min-w-[9rem]`}
           >
             <option value="all">{t('ledgerFilterAllStatuses', 'promos')}</option>
             <option value="pending">{t('ledgerStatusPending', 'promos')}</option>
@@ -427,7 +433,7 @@ function SettleForm({
   };
 
   return (
-    <div className="flex flex-col">
+    <div className="-m-4 flex flex-col">
       <div className="border-b border-slate-200 px-6 py-5 pe-16 dark:border-slate-800">
         <h2 className="text-lg font-semibold text-slate-900 dark:text-white">{t('settleTitle', 'promos')}</h2>
         <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{t('settleSubtitle', 'promos')}</p>

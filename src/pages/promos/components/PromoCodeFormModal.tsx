@@ -10,7 +10,7 @@ import {
   useCreateMyPromoCode,
 } from '../../../hooks/queries/usePromos';
 import type { PromoCode, PromoCodePayload } from '../../../types/promos';
-import { Check, Coins, Lock, Percent, Plus, Shuffle, Sparkles } from 'lucide-react';
+import { Check, Coins, Info, Lock, Percent, Plus, Shuffle, Sparkles } from 'lucide-react';
 import {
   AdornedInput,
   Button,
@@ -81,7 +81,7 @@ export default function PromoCodeFormModal(props: PromoCodeFormModalProps) {
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      className="mx-4 my-6 max-h-[calc(100vh-3rem)] max-w-2xl overflow-hidden !rounded-2xl !bg-white dark:!bg-slate-900"
+      className="mx-4 max-w-2xl overflow-hidden !rounded-2xl !bg-white dark:!bg-slate-900"
     >
       {isOpen && <PromoCodeForm key={code?._id ?? 'new'} {...props} />}
     </Modal>
@@ -288,7 +288,10 @@ function PromoCodeForm({ onClose, mode, code, hrUsers = [] }: PromoCodeFormModal
     : null;
 
   return (
-    <form onSubmit={handleSubmit} className="flex max-h-[calc(100vh-3rem)] flex-col" noValidate>
+    // The shared Modal wraps content in a padded, 85vh scroll box; -m-4 cancels
+    // its padding and max-h matches it, so only the body scrolls and the
+    // header/footer stay in view.
+    <form onSubmit={handleSubmit} className="-m-4 flex max-h-[85vh] flex-col" noValidate>
       {/* Header (the modal's close button sits in the top corner) */}
       <div className="border-b border-slate-200 px-6 py-5 pe-16 dark:border-slate-800">
         <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
@@ -300,7 +303,7 @@ function PromoCodeForm({ onClose, mode, code, hrUsers = [] }: PromoCodeFormModal
       </div>
 
       {/* Body */}
-      <div className="flex-1 space-y-7 overflow-y-auto px-6 py-6">
+      <div className="min-h-0 flex-1 space-y-7 overflow-y-auto px-6 py-6">
         {formError && (
           <div ref={errorRef} role="alert">
             <ValidationErrorAlert error={formError} onDismiss={clearError} />
@@ -558,8 +561,12 @@ function PromoCodeForm({ onClose, mode, code, hrUsers = [] }: PromoCodeFormModal
         </Section>
 
         {/* What this code will do, in words */}
-        <div className="rounded-xl border border-brand-200 bg-brand-50/60 p-4 text-sm dark:border-brand-500/30 dark:bg-brand-500/10">
-          <p className="font-medium text-slate-900 dark:text-white">{t('formSummaryTitle', 'promos')}</p>
+        {/* Neutral on purpose: the brand colour is red and would read as an error. */}
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm dark:border-slate-700 dark:bg-slate-800/60">
+          <p className="flex items-center gap-2 font-medium text-slate-900 dark:text-white">
+            <Info className="size-4 text-sky-600 dark:text-sky-400" aria-hidden="true" />
+            {t('formSummaryTitle', 'promos')}
+          </p>
           <ul className="mt-2 space-y-1 text-slate-600 dark:text-slate-300">
             <li>
               {discountText

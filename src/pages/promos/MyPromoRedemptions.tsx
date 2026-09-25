@@ -13,7 +13,7 @@ import {
   ErrorState,
   PageShell,
   Pagination,
-  selectClass,
+  filterSelectClass,
 } from './components/PromoUI';
 
 export default function MyPromoRedemptions() {
@@ -57,7 +57,7 @@ export default function MyPromoRedemptions() {
                 setStatusFilter(e.target.value);
                 setPage(1);
               }}
-              className={`${selectClass} w-auto min-w-[9rem]`}
+              className={`${filterSelectClass} min-w-[9rem]`}
             >
               <option value="all">{t('ledgerFilterAllStatuses', 'promos')}</option>
               {REDEMPTION_STATUS_OPTIONS.map((s) => (
