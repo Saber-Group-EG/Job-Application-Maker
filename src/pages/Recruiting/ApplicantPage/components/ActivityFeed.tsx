@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 
 import { Modal } from '../../../../components/ui/modal';
+import MailAttachments from '../../../../components/mail/MailAttachments';
 import { useLocale } from '../../../../context/LocaleContext';
 import type { Activity, ActivityFeedProps, Interview } from '../../../../types/applicants';
 import { useStatusSettings } from '../../../../hooks/useStatusSettings';
@@ -115,10 +116,10 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, mailRecords = [
       result = result.replace(/\{\{interviewTime\}\}/gi, timeStr);
     }
 
-    const address = (interview as any).address || '';
+    const address = (interview as Interview & { address?: string }).address || '';
     result = result.replace(/\{\{address\}\}/gi, address);
 
-    const location = interview.videoLink || (interview as any).location || '';
+    const location = interview.videoLink || (interview as Interview & { location?: string }).location || '';
     result = result.replace(/\{\{location\}\}/gi, location);
 
     return result;
@@ -360,6 +361,9 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, mailRecords = [
         <div>
           <p className="text-sm text-gray-600">{activity.description}</p>
         </div>
+      )}
+      {activity.inbound && activity.mailId && (
+        <MailAttachments mailId={activity.mailId} attachments={activity.attachments} />
       )}
       {index !== data.length - 1 && <div className="border-t-2 border-gray-200 mx-8 my-2" />}
     </div>

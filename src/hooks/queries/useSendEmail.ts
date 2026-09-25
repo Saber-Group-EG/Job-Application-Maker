@@ -1,40 +1,52 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import axiosInstance from '../../config/axios';
 import Swal from 'sweetalert2';
 import { useLocale } from '../../context/LocaleContext';
 
+type ApplicantRef = { _id?: string } | string;
+
+type EmailPayload = {
+  company?: string;
+  to: string | string[];
+  from?: string;
+  subject: string;
+  html: string;
+  text?: string;
+  attachments?: unknown[];
+  metadata?: unknown;
+  applicant?: ApplicantRef;
+  jobPosition?: string;
+};
+
+type MailError = {
+  message?: string;
+  code?: string;
+  response?: { status?: number; data?: { message?: string; error?: string } };
+};
+
+const applicantId = (applicant?: ApplicantRef) =>
+  applicant && typeof applicant === 'object' ? applicant._id : applicant;
+
+// Strips surrounding angle brackets ("<a@b.com>") and the unused text body.
+const normalizeEmail = (email: EmailPayload) => {
+  const payload = {
+    ...email,
+    from: typeof email.from === 'string' ? email.from.replace(/[<>]/g, '') : email.from,
+    applicant: applicantId(email.applicant),
+  };
+  delete payload.text;
+  return payload;
+};
+
 export function useSendEmail() {
   const { t } = useLocale();
+  const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (emailData: {
-      company?: string;
-      to: string;
-      from: string;
-      subject: string;
-      html: string;
-      attachments?: any[];
-      metadata?: any;
-      applicant?: { _id?: string } | string;
-      jobPosition?: string;
-    }) => {
-      const { text: _ignoredText, ...restEmailData } = emailData as any;
-
-      // Sanitize `from` by removing surrounding angle brackets, then send.
-      const payload = {
-        ...restEmailData,
-        from: typeof emailData.from === 'string' ? emailData.from.replace(/[<>]/g, '') : emailData.from,
-        applicant:
-          emailData?.applicant &&
-          typeof emailData.applicant === 'object' &&
-          '_id' in emailData.applicant
-            ? emailData.applicant._id
-            : emailData?.applicant,
-      } as any;
-
-      return axiosInstance.post('/mail', payload);
-    },
-    onError: (error: any) => {
+    // Refresh mail history (Mail Preview, applicant activity).
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['mail-logs'] }),
+    mutationFn: (emailData: EmailPayload) => axiosInstance.post('/mail', normalizeEmail(emailData)),
+    onError: (error: MailError) => {
       // Check for rate limit error (429 status code)
       if (error?.response?.status === 429) {
         const errorMessage = error?.response?.data?.message || 
@@ -68,43 +80,30 @@ export function useSendEmail() {
 
 export function useSendBatchEmail() {
   const { t } = useLocale();
+  const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (payload: { company?: string; batch?: any } | any) => {
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['mail-logs'] }),
+    mutationFn: (payload: { company?: string; batch: EmailPayload[] } | EmailPayload[] | EmailPayload) => {
       // Normalize payload to { company, batch: [...] }.
-      let body: any;
-      if (payload && typeof payload === 'object' && Array.isArray(payload.batch)) {
-        body = { company: payload.company, batch: payload.batch };
-      } else if (Array.isArray(payload)) {
-        body = { batch: payload };
-      } else {
-        body = { batch: [payload] };
-      }
+      const body: { company?: string; batch: EmailPayload[] } =
+        Array.isArray(payload)
+          ? { batch: payload }
+          : 'batch' in payload
+            ? { company: payload.company, batch: payload.batch }
+            : { batch: [payload] };
 
       if (!body.company) {
         throw new Error(t('companyRequired', 'common'));
       }
 
-      // Strip surrounding angle brackets from `from` addresses (e.g. "<a@b.com>")
-      body.batch = body.batch.map((item: any) => {
-        const { text: _ignoredText, ...rest } = item || {};
-        return {
-          ...rest,
-          from: typeof item.from === 'string' ? item.from.replace(/[<>]/g, '') : item.from,
-          applicant:
-            item?.applicant && typeof item.applicant === 'object' && '_id' in item.applicant
-              ? item.applicant._id
-              : item?.applicant,
-        };
-      });
-
-      return axiosInstance.post('/mail', body, {
+      return axiosInstance.post('/mail', { company: body.company, batch: body.batch.map(normalizeEmail) }, {
         headers: {
           'Content-Type': 'application/json',
         },
       });
     },
-    onError: (error: any) => {
+    onError: (error: MailError) => {
       // Check for rate limit error (429 status code)
       if (error?.response?.status === 429) {
         const errorMessage = error?.response?.data?.message ||
@@ -134,7 +133,7 @@ export function useSendBatchEmail() {
       }
 
       // Check for other client errors
-      if (error?.response?.status >= 400 && error?.response?.status < 500) {
+      if ((error?.response?.status ?? 0) >= 400 && (error?.response?.status ?? 0) < 500) {
         const errorMessage = error?.response?.data?.message ||
           error?.response?.data?.error ||
           t('emailInvalidMsg', 'common');
@@ -150,7 +149,7 @@ export function useSendBatchEmail() {
       }
 
       // Server errors
-      if (error?.response?.status >= 500) {
+      if ((error?.response?.status ?? 0) >= 500) {
         Swal.fire({
           title: t('serverError', 'common'),
           text: t('serverErrorMsg', 'common'),

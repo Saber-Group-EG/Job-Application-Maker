@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import {
     ChevronLeft,
     ChevronRight,
@@ -11,106 +10,64 @@ import {
     Filter,
     CheckCircle2,
     AlertCircle,
-    Clock,
     Eye,
     MousePointerClick,
     XCircle,
     ArrowLeft,
     Reply,
     Send,
+    UserX,
+    UserPlus,
+    Trash2,
+    Paperclip,
+    Loader2,
+    type LucideIcon,
 } from 'lucide-react';
+import Swal from 'sweetalert2';
 import PageMeta from '../../../components/common/PageMeta';
-import axiosInstance from '../../../config/axios';
-import { useCompanies } from '../../../hooks/queries/useCompanies';
-import { useJobPositions } from '../../../hooks/queries/useJobPositions';
-import { useApplicants } from '../../../hooks/queries/useApplicants';
-import { useAuth } from '../../../context/AuthContext';
+import MailAttachments from '../../../components/mail/MailAttachments';
+import MailReplyBox from '../../../components/mail/MailReplyBox';
+import AssignMailPanel from '../../../components/mail/AssignMailPanel';
 import { useLocale } from '../../../context/LocaleContext';
 import { useCompanyFilter } from '../../../context/CompanyFilterContext';
+import {
+    useApplicantMails,
+    useDeleteMail,
+    useMailCounts,
+    useMailDetail,
+    useMailList,
+} from '../../../hooks/queries/useMail';
+import type { MailDirection, MailListParams, MailRecord, MailStatusKey } from '../../../types/mail';
 
-type MailStatus = 'queued' | 'delivery delayed' | 'sent' | 'delivered' | 'opened' | 'clicked' | 'bounced' | 'failed' | 'received';
+type TFn = (key: string, ns?: string, params?: Record<string, string | number>) => string;
 
-type MailDirection = 'outbound' | 'inbound';
+type Folder = 'all' | 'inbound' | 'outbound' | 'unassigned' | 'marked';
 
-type MailEventType = 'queued' | 'provider_accepted' | 'delivered' | 'open' | 'click' | 'bounce' | 'complaint' | 'received' | 'custom';
+type MailEventType = 'queued' | 'provider_accepted' | 'delivered' | 'open' | 'click' | 'bounce' | 'complaint' | 'received';
 
-type MailEvent = {
-    id: string;
-    type: MailEventType;
-    at: string;
-    detail: string;
-};
-
-type ApiMailRecord = {
-    _id: string;
-    company: string;
-    sentBy: string;
-    to: string;
-    from: string;
-    subject: string;
-    html: string;
-    applicant: string | null;
-    jobPosition?: unknown;
-    resendEmailId: string;
-    status: string;
-    // 'inbound' = an applicant's reply (connected Gmail or Resend Inbound).
-    direction?: MailDirection;
-    receivedAt?: string | null;
-    deliveredAt: string | null;
-    openedAt: string | null;
-    clickedAt: string | null;
-    bouncedAt: string | null;
-    complainedAt: string | null;
-    webhookEvents: Array<{ type?: string; createdAt?: string; [key: string]: any }>;
-    createdAt: string;
-    updatedAt: string;
-    __v: number;
-};
-
-type ApiMailResponse = {
-    message: string;
-    page: string;
-    PageCount: number | null;
-    TotalCount: number;
-    data: ApiMailRecord[];
-};
+type MailEvent = { id: string; type: MailEventType; at: string; detail: string };
 
 type UiMailRecord = {
     id: string;
     applicantId: string | null;
     applicantName: string;
     applicantEmail: string;
-    applicantJobPositionId: string | null;
-    applicantAssignedJobId: string | null;
-    applicantAssignedJobTitle: string;
-    applicantAssignedCompanyId: string | null;
-    applicantAssignedCompanyName: string;
-    companyId: string;
-    senderId: string;
-    sender: string;
-    resendEmailId: string;
+    jobTitle: string | null;
     direction: MailDirection;
-    statusRaw: string;
-    status: MailStatus;
-     score: number;
+    unassigned: boolean;
+    status: MailStatusKey;
     createdAt: string;
-    lastUpdateAt: string;
     subject: string;
     preview: string;
     bodyHtml: string;
-    deliveredAt: string | null;
-    openedAt: string | null;
-    clickedAt: string | null;
-    bouncedAt: string | null;
-    complainedAt: string | null;
-    webhookEvents: ApiMailRecord['webhookEvents'];
+    attachments: MailRecord['attachments'];
     events: MailEvent[];
-    raw: ApiMailRecord;
+    raw: MailRecord;
 };
 
-const STATUS_OPTIONS: Array<{ key: MailStatus; label: string; icon: any }> = [
-    { key: 'queued', label: 'statusQueued', icon: Clock },
-    { key: 'delivery delayed', label: 'statusDelayed', icon: AlertCircle },
+// Filter chips (delivery outcomes of sent mail).
+const STATUS_OPTIONS: Array<{ key: MailStatusKey; label: string; icon: LucideIcon }> = [
+    { key: 'delivery_delayed', label: 'statusDelayed', icon: AlertCircle },
     { key: 'delivered', label: 'statusDelivered', icon: CheckCircle2 },
     { key: 'opened', label: 'statusOpened', icon: Eye },
     { key: 'clicked', label: 'statusClicked', icon: MousePointerClick },
@@ -118,11 +75,9 @@ const STATUS_OPTIONS: Array<{ key: MailStatus; label: string; icon: any }> = [
     { key: 'failed', label: 'statusFailed', icon: AlertCircle },
 ];
 
-// Labels for every status (the filter chips only list delivery statuses).
-const STATUS_LABEL_KEYS: Record<MailStatus, string> = {
-    queued: 'statusQueued',
-    'delivery delayed': 'statusDelayed',
+const STATUS_LABEL_KEYS: Record<MailStatusKey, string> = {
     sent: 'statusSent',
+    delivery_delayed: 'statusDelayed',
     delivered: 'statusDelivered',
     opened: 'statusOpened',
     clicked: 'statusClicked',
@@ -131,29 +86,31 @@ const STATUS_LABEL_KEYS: Record<MailStatus, string> = {
     received: 'statusReceived',
 };
 
-const MAIL_POLL_INTERVAL_MS = 30 * 1000;
+const statusChipClasses: Record<MailStatusKey, { bg: string; text: string; dot: string }> = {
+    sent: { bg: 'bg-blue-50', text: 'text-blue-600', dot: 'bg-blue-400' },
+    delivery_delayed: { bg: 'bg-amber-50', text: 'text-amber-600', dot: 'bg-amber-400' },
+    delivered: { bg: 'bg-emerald-50', text: 'text-emerald-600', dot: 'bg-emerald-400' },
+    opened: { bg: 'bg-indigo-50', text: 'text-indigo-600', dot: 'bg-indigo-400' },
+    clicked: { bg: 'bg-purple-50', text: 'text-purple-600', dot: 'bg-purple-400' },
+    bounced: { bg: 'bg-orange-50', text: 'text-orange-600', dot: 'bg-orange-400' },
+    failed: { bg: 'bg-rose-50', text: 'text-rose-600', dot: 'bg-rose-400' },
+    received: { bg: 'bg-sky-50', text: 'text-sky-700', dot: 'bg-sky-500' },
+};
+
 const MAIL_LIST_PAGE_SIZE = 10;
 
 const formatDateTime = (value: string, locale?: string) =>
-    new Date(value).toLocaleString(locale, {
-        month: 'short',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-    });
+    new Date(value).toLocaleString(locale, { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 
-const formatRelativeTime = (value: string, t?: (key: string, ns?: string, params?: Record<string, string | number>) => string) => {
-    const date = new Date(value);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
+const formatRelativeTime = (value: string, t: TFn) => {
+    const diffMs = Date.now() - new Date(value).getTime();
     const diffMins = Math.floor(diffMs / 60000);
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return t ? t('justNow', 'mailPreview') : 'Just now';
-    if (diffMins < 60) return t ? t('minsAgo', 'mailPreview', { mins: diffMins }) : `${diffMins}m ago`;
-    if (diffHours < 24) return t ? t('hoursAgo', 'mailPreview', { hours: diffHours }) : `${diffHours}h ago`;
-    return t ? t('daysAgo', 'mailPreview', { days: diffDays }) : `${diffDays}d ago`;
+    if (diffMins < 1) return t('justNow', 'mailPreview');
+    if (diffMins < 60) return t('minsAgo', 'mailPreview', { mins: diffMins });
+    if (diffHours < 24) return t('hoursAgo', 'mailPreview', { hours: diffHours });
+    return t('daysAgo', 'mailPreview', { days: diffDays });
 };
 
 const HTML_ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'", nbsp: ' ' };
@@ -169,36 +126,34 @@ const stripHtml = (html: string) =>
 
 const isInvalidNameToken = (value: string) => /^(undefined|null|unknown|n\/a|na)$/i.test(value.trim());
 
-const getApplicantNameFromHtml = (html: string, t?: (key: string, ns?: string) => string) => {
-    const match = html.match(/Dear\s+([^,<]+)[,:]?/i);
-    const parsedName = match?.[1]?.trim() || '';
-    if (!parsedName || isInvalidNameToken(parsedName)) return t ? t('unknownApplicant', 'mailPreview') : 'Unknown Applicant';
-    return parsedName;
+// Sent mail usually opens with "Dear <name>".
+const getNameFromHtml = (html: string) => {
+    const parsed = html.match(/Dear\s+([^,<]+)[,:]?/i)?.[1]?.trim() || '';
+    return parsed && !isInvalidNameToken(parsed) ? parsed : '';
 };
 
-const getFallbackNameFromEmail = (email: string, t?: (key: string, ns?: string) => string) => {
-    if (!email) return t ? t('unknownApplicant', 'mailPreview') : 'Unknown Applicant';
-    const localPart = email.split('@')[0]?.trim();
-    if (!localPart) return t ? t('unknownApplicant', 'mailPreview') : 'Unknown Applicant';
-    const normalized = localPart.replace(/[._-]+/g, ' ').trim();
-    if (!normalized || isInvalidNameToken(normalized)) return t ? t('unknownApplicant', 'mailPreview') : 'Unknown Applicant';
-    return normalized;
+const getNameFromEmail = (email: string) => {
+    const normalized = (email.split('@')[0] || '').replace(/[._-]+/g, ' ').trim();
+    return normalized && !isInvalidNameToken(normalized) ? normalized : '';
 };
 
-const resolveUiStatus = (mail: ApiMailRecord): MailStatus => {
+const localized = (value: unknown): string => {
+    if (typeof value === 'string') return value.trim();
+    if (value && typeof value === 'object') {
+        const v = value as { en?: string; ar?: string };
+        return (v.en || v.ar || '').trim();
+    }
+    return '';
+};
+
+const refId = (value: MailRecord['applicant'] | MailRecord['jobPosition']): string | null =>
+    typeof value === 'string' ? value : value?._id ?? null;
+
+const resolveStatus = (mail: MailRecord): MailStatusKey => {
     if (mail.direction === 'inbound') return 'received';
-    const backendStatus = String(mail.status || '').toLowerCase();
-
-    switch (backendStatus) {
-        case 'received':
-            return 'received';
-        case 'queued':
-            return 'queued';
-        case 'delivery delayed':
-        case 'delivery_delayed': // backend enum spelling
-            return 'delivery delayed';
-        case 'sent':
-            return 'sent';
+    switch (String(mail.status || '').toLowerCase()) {
+        case 'delivery_delayed':
+            return 'delivery_delayed';
         case 'delivered':
             return 'delivered';
         case 'opened':
@@ -211,155 +166,59 @@ const resolveUiStatus = (mail: ApiMailRecord): MailStatus => {
         case 'complained':
             return 'failed';
         default:
-            if (mail.clickedAt) return 'clicked';
-            if (mail.openedAt) return 'opened';
-            if (mail.deliveredAt) return 'delivered';
-            if (mail.bouncedAt) return 'bounced';
-            if (mail.complainedAt) return 'failed';
-            // Unknown status with no delivery events: it was sent and nothing
-            // more is known, which isn't evidence of a delay.
+            // Sent, and nothing more is known — not evidence of a delay.
             return 'sent';
     }
 };
 
-const buildEvents = (mail: ApiMailRecord, t?: (key: string, ns?: string) => string): MailEvent[] => {
+const buildEvents = (mail: MailRecord, t: TFn): MailEvent[] => {
     if (mail.direction === 'inbound') {
-        return [{ id: `${mail._id}-r`, type: 'received', at: mail.receivedAt || mail.createdAt, detail: t ? t('eventReceived', 'mailPreview') : 'Reply received.' }];
+        return [{ id: `${mail._id}-r`, type: 'received', at: mail.receivedAt || mail.createdAt, detail: t('eventReceived', 'mailPreview') }];
     }
     const events: MailEvent[] = [
-        { id: `${mail._id}-q`, type: 'queued', at: mail.createdAt, detail: t ? t('eventQueued', 'mailPreview') : 'Mail queued.' },
-        { id: `${mail._id}-a`, type: 'provider_accepted', at: mail.updatedAt, detail: t ? t('eventProviderAccepted', 'mailPreview') : 'Provider accepted.' },
+        { id: `${mail._id}-q`, type: 'queued', at: mail.createdAt, detail: t('eventQueued', 'mailPreview') },
+        { id: `${mail._id}-a`, type: 'provider_accepted', at: mail.updatedAt, detail: t('eventProviderAccepted', 'mailPreview') },
     ];
-    if (mail.deliveredAt) events.push({ id: `${mail._id}-d`, type: 'delivered', at: mail.deliveredAt, detail: t ? t('eventDelivered', 'mailPreview') : 'Delivered.' });
-    if (mail.openedAt) events.push({ id: `${mail._id}-o`, type: 'open', at: mail.openedAt, detail: t ? t('eventOpened', 'mailPreview') : 'Opened.' });
-    if (mail.clickedAt) events.push({ id: `${mail._id}-c`, type: 'click', at: mail.clickedAt, detail: t ? t('eventClicked', 'mailPreview') : 'Clicked.' });
-    if (mail.bouncedAt) events.push({ id: `${mail._id}-b`, type: 'bounce', at: mail.bouncedAt, detail: t ? t('eventBounced', 'mailPreview') : 'Bounced.' });
-    if (mail.complainedAt) events.push({ id: `${mail._id}-cp`, type: 'complaint', at: mail.complainedAt, detail: t ? t('eventComplaint', 'mailPreview') : 'Complaint.' });
+    if (mail.deliveredAt) events.push({ id: `${mail._id}-d`, type: 'delivered', at: mail.deliveredAt, detail: t('eventDelivered', 'mailPreview') });
+    if (mail.openedAt) events.push({ id: `${mail._id}-o`, type: 'open', at: mail.openedAt, detail: t('eventOpened', 'mailPreview') });
+    if (mail.clickedAt) events.push({ id: `${mail._id}-c`, type: 'click', at: mail.clickedAt, detail: t('eventClicked', 'mailPreview') });
+    if (mail.bouncedAt) events.push({ id: `${mail._id}-b`, type: 'bounce', at: mail.bouncedAt, detail: t('eventBounced', 'mailPreview') });
+    if (mail.complainedAt) events.push({ id: `${mail._id}-cp`, type: 'complaint', at: mail.complainedAt, detail: t('eventComplaint', 'mailPreview') });
     return events.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
 };
 
-const toUiRecord = (mail: ApiMailRecord, t?: (key: string, ns?: string) => string): UiMailRecord => {
-    const status = resolveUiStatus(mail);
+const toUiRecord = (mail: MailRecord, t: TFn): UiMailRecord => {
     const direction: MailDirection = mail.direction === 'inbound' ? 'inbound' : 'outbound';
+    // The applicant is the recipient of sent mail and the sender of a reply.
+    const applicantEmail = direction === 'inbound' ? mail.from : mail.to;
+    const applicant = typeof mail.applicant === 'object' ? mail.applicant : null;
+    // A reply quotes our email, so its body can't be trusted for the name.
+    const applicantName =
+        applicant?.fullName?.trim() ||
+        (direction === 'outbound' ? getNameFromHtml(mail.html) : '') ||
+        getNameFromEmail(applicantEmail) ||
+        t('unknownApplicant', 'mailPreview');
+    const job = typeof mail.jobPosition === 'object' ? mail.jobPosition : null;
     return {
         id: mail._id,
-        applicantId: extractId(mail.applicant),
-        // A reply quotes our email, so its body can't be trusted for the name.
-        applicantName: direction === 'inbound' ? (t ? t('unknownApplicant', 'mailPreview') : 'Unknown Applicant') : getApplicantNameFromHtml(mail.html, t),
-        // The applicant is the recipient of sent mail and the sender of a reply.
-        applicantEmail: direction === 'inbound' ? mail.from : mail.to,
+        applicantId: refId(mail.applicant),
+        applicantName,
+        applicantEmail,
+        jobTitle: localized(job?.title) || null,
         direction,
-        applicantJobPositionId: extractId(mail.jobPosition),
-        applicantAssignedJobId: null,
-        applicantAssignedJobTitle: t ? t('unknownJob', 'mailPreview') : 'Unknown Job',
-        applicantAssignedCompanyId: null,
-        applicantAssignedCompanyName: t ? t('unknownCompany', 'mailPreview') : 'Unknown',
-        companyId: extractId(mail.company) || String(mail.company || ''),
-        senderId: extractId(mail.sentBy) || String(mail.sentBy || ''),
-        sender: mail.from,
-        resendEmailId: mail.resendEmailId,
-        statusRaw: mail.status,
-        status,
-        score: status === 'opened' || status === 'clicked' ? 95 : status === 'delivered' ? 85 : 40,
+        unassigned: direction === 'inbound' && !mail.applicant,
+        status: resolveStatus(mail),
         createdAt: direction === 'inbound' ? mail.receivedAt || mail.createdAt : mail.createdAt,
-        lastUpdateAt: mail.updatedAt,
         subject: mail.subject,
         preview: stripHtml(mail.html).slice(0, 100),
         bodyHtml: mail.html,
-        deliveredAt: mail.deliveredAt,
-        openedAt: mail.openedAt,
-        clickedAt: mail.clickedAt,
-        bouncedAt: mail.bouncedAt,
-        complainedAt: mail.complainedAt,
-        webhookEvents: mail.webhookEvents,
+        attachments: mail.attachments,
         events: buildEvents(mail, t),
         raw: mail,
     };
 };
 
-const statusChipClasses: Record<MailStatus, { bg: string; text: string; dot: string }> = {
-    queued: { bg: 'bg-gray-100', text: 'text-gray-600', dot: 'bg-gray-400' },
-    'delivery delayed': { bg: 'bg-amber-50', text: 'text-amber-600', dot: 'bg-amber-400' },
-    sent: { bg: 'bg-blue-50', text: 'text-blue-600', dot: 'bg-blue-400' },
-    delivered: { bg: 'bg-emerald-50', text: 'text-emerald-600', dot: 'bg-emerald-400' },
-    opened: { bg: 'bg-indigo-50', text: 'text-indigo-600', dot: 'bg-indigo-400' },
-    clicked: { bg: 'bg-purple-50', text: 'text-purple-600', dot: 'bg-purple-400' },
-    bounced: { bg: 'bg-orange-50', text: 'text-orange-600', dot: 'bg-orange-400' },
-    failed: { bg: 'bg-rose-50', text: 'text-rose-600', dot: 'bg-rose-400' },
-    received: { bg: 'bg-sky-50', text: 'text-sky-700', dot: 'bg-sky-500' },
-};
-
-const toDisplayText = (value: unknown, fallback: string) => {
-    if (typeof value === 'string') {
-        const trimmed = value.trim();
-        return trimmed || fallback;
-    }
-
-    if (value && typeof value === 'object') {
-        const localized = value as { en?: unknown; ar?: unknown; name?: unknown; title?: unknown };
-        const candidates = [localized.en, localized.ar, localized.name, localized.title];
-        for (const candidate of candidates) {
-            if (typeof candidate === 'string' && candidate.trim()) {
-                return candidate.trim();
-            }
-        }
-    }
-
-    return fallback;
-};
-
-const extractId = (value: unknown): string | null => {
-    if (Array.isArray(value)) {
-        for (const item of value) {
-            const resolved = extractId(item);
-            if (resolved) return resolved;
-        }
-        return null;
-    }
-
-    if (typeof value === 'string') {
-        const trimmed = value.trim();
-        return trimmed || null;
-    }
-
-    if (value && typeof value === 'object') {
-        const maybeId = value as { _id?: unknown; id?: unknown };
-        if (typeof maybeId._id === 'string' && maybeId._id.trim()) return maybeId._id.trim();
-        if (typeof maybeId.id === 'string' && maybeId.id.trim()) return maybeId.id.trim();
-    }
-
-    return null;
-};
-
-const getApplicantCompanyId = (applicantRecord: any): string | null => {
-    if (!applicantRecord) return null;
-    return (
-        extractId(applicantRecord?.companyId) ||
-        extractId(applicantRecord?.company) ||
-        extractId(applicantRecord?.companyObj) ||
-        extractId(applicantRecord?.jobPositionId?.companyId) ||
-        extractId(applicantRecord?.jobPositionId?.company) ||
-        extractId(applicantRecord?.jobPosition?.companyId) ||
-        extractId(applicantRecord?.jobPosition?.company) ||
-        null
-    );
-};
-
-const getApplicantJobPositionId = (applicantRecord: any): string | null => {
-    if (!applicantRecord) return null;
-    return extractId(applicantRecord?.jobPositionId) || extractId(applicantRecord?.jobPosition) || null;
-};
-
-const getApplicantJobTitle = (applicantRecord: any): string | null => {
-    if (!applicantRecord) return null;
-    const titleFromJobPositionId = toDisplayText((applicantRecord as any)?.jobPositionId?.title || (applicantRecord as any)?.jobPositionId?.name, '');
-    if (titleFromJobPositionId) return titleFromJobPositionId;
-    const titleFromJobPosition = toDisplayText((applicantRecord as any)?.jobPosition?.title || (applicantRecord as any)?.jobPosition?.name, '');
-    if (titleFromJobPosition) return titleFromJobPosition;
-    return null;
-};
-
-const SidebarNavItem = ({ icon: Icon, label, count, active, onClick }: { icon: any; label: string; count?: number; active?: boolean; onClick?: () => void }) => (
+const SidebarNavItem = ({ icon: Icon, label, count, active, onClick }: { icon: LucideIcon; label: string; count?: number; active?: boolean; onClick?: () => void }) => (
     <button
         onClick={onClick}
         className={`flex w-full cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-sm transition-all ${active ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-400' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'}`}
@@ -379,271 +238,121 @@ const SidebarNavItem = ({ icon: Icon, label, count, active, onClick }: { icon: a
     </button>
 );
 
+const FOLDER_PARAMS: Record<Folder, Partial<MailListParams>> = {
+    all: {},
+    inbound: { direction: 'inbound' },
+    outbound: { direction: 'outbound' },
+    unassigned: { unassigned: true },
+    marked: { marked: true },
+};
+
 export default function MailPreview() {
     const { t, locale } = useLocale();
-    const { user } = useAuth();
-    const roleName = user?.roleId?.name?.toLowerCase();
-    const isSuperAdmin = roleName === 'super admin' || roleName === 'admin';
 
-    // Navigation state: 'list' or 'detail'
     const [view, setView] = useState<'list' | 'detail'>('list');
-    const [selectedMailId, setSelectedMailId] = useState<string | null>(null);
+    // The opened mail. Kept as a snapshot so it survives paging/refetches;
+    // refreshed from the latest list/conversation data when present.
+    const [selected, setSelected] = useState<MailRecord | null>(null);
+    const [panel, setPanel] = useState<'none' | 'reply' | 'assign'>('none');
+    const [notice, setNotice] = useState<string | null>(null);
+    const [showRaw, setShowRaw] = useState(false);
 
-    // Filters
-    const { selectedCompanyId: globalSelectedCompanyId } = useCompanyFilter();
-    const selectedCompanyId = globalSelectedCompanyId ?? 'all';
-    const [selectedJobId, setSelectedJobId] = useState<string>('all');
-    const [statusFilter, setStatusFilter] = useState<Set<MailStatus>>(new Set());
-    const [markedFilter, setMarkedFilter] = useState(false);
-    const [directionFilter, setDirectionFilter] = useState<'all' | MailDirection>('all');
+    const { selectedCompanyId } = useCompanyFilter();
+    const companyId = selectedCompanyId && selectedCompanyId !== 'all' ? selectedCompanyId : undefined;
+    const [folder, setFolder] = useState<Folder>('all');
+    const [statusFilter, setStatusFilter] = useState<Set<MailStatusKey>>(new Set());
     const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [mailPage, setMailPage] = useState(1);
 
-    const assignedCompanyIds = useMemo(() => {
-        if (isSuperAdmin) return [];
-        const fromCompanies = Array.isArray(user?.companies)
-            ? user.companies.map((c: any) => extractId(c?.companyId))
-            : [];
-        const fromAssigned = Array.isArray(user?.assignedcompanyId) ? user.assignedcompanyId : [];
-        return Array.from(new Set([...fromCompanies, ...fromAssigned])).filter(Boolean) as string[];
-    }, [user, isSuperAdmin]);
-
-    const { data: companies } = useCompanies(isSuperAdmin ? undefined : assignedCompanyIds);
-    const availableCompanyIds = useMemo(
-        () => (companies || []).map((company: any) => extractId(company?._id || company?.id)).filter(Boolean) as string[],
-        [companies],
-    );
-
-    const companyNameById = useMemo(() => {
-        const map = new Map<string, string>();
-        (companies || []).forEach((company: any) => {
-            map.set(company._id, toDisplayText(company?.name, t('unknownCompany', 'mailPreview')));
-        });
-        return map;
-    }, [companies, t]);
-
     useEffect(() => {
-        setSelectedJobId('all');
-    }, [selectedCompanyId]);
-
-    const jobPositionParams = useMemo(() => {
-        if (isSuperAdmin) {
-            return selectedCompanyId !== 'all' ? [selectedCompanyId] : undefined;
-        }
-        if (availableCompanyIds.length === 1) {
-            return [availableCompanyIds[0]];
-        }
-        return assignedCompanyIds;
-    }, [isSuperAdmin, selectedCompanyId, assignedCompanyIds, availableCompanyIds]);
-
-    const { data: jobPositions } = useJobPositions(jobPositionParams, false);
-
-
-    const jobTitleById = useMemo(() => {
-        const map = new Map<string, string>();
-        (jobPositions || []).forEach((job: any) => {
-            if (job?._id) map.set(job._id, toDisplayText((job as any)?.title || (job as any)?.name, t('untitledJob', 'mailPreview')));
-        });
-        return map;
-    }, [jobPositions, t]);
-
-    const applicantCompanyIds = useMemo(() => {
-        if (!isSuperAdmin && assignedCompanyIds.length > 0) return assignedCompanyIds;
-        return undefined;
-    }, [isSuperAdmin, assignedCompanyIds]);
-
-    const { data: applicants = [], isLoading: isApplicantsLoading, isFetching: isApplicantsFetching, isFetched: isApplicantsFetched } = useApplicants({
-        companyId: applicantCompanyIds,
-        jobPositionId: undefined,
-        departmentId: undefined,
-        enabled: true,
-    });
-
-    const applicantById = useMemo(() => {
-        const map = new Map<string, any>();
-        (applicants || []).forEach((applicant: any) => {
-            if (applicant?._id) map.set(applicant._id, applicant);
-        });
-        return map;
-    }, [applicants]);
-
-    const queryCompanyIds = useMemo(() => {
-        if (!isSuperAdmin && assignedCompanyIds.length > 0) return assignedCompanyIds;
-        return [] as string[];
-    }, [isSuperAdmin, assignedCompanyIds]);
-
-    const { data: apiResponse, isLoading } = useQuery<ApiMailResponse>({
-        queryKey: ['mail-logs', queryCompanyIds.join(',')],
-        queryFn: async () => {
-            const baseParams: Record<string, string> = { PageCount: 'all' };
-
-            if (queryCompanyIds.length <= 1) {
-                if (queryCompanyIds.length === 1) {
-                    const companyId = queryCompanyIds[0];
-                    baseParams.company = companyId;
-                }
-                const res = await axiosInstance.get<ApiMailResponse>('/mail', { params: baseParams });
-                return res.data;
-            }
-
-            const responses = await Promise.all(queryCompanyIds.map((companyId) =>
-                axiosInstance.get<ApiMailResponse>('/mail', { params: { ...baseParams, company: companyId } })
-            ));
-
-            const mergedMap = new Map<string, ApiMailRecord>();
-            responses.forEach((response) => {
-                (response.data?.data || []).forEach((mail) => mergedMap.set(mail._id, mail));
-            });
-
-            const data = Array.from(mergedMap.values()).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-            const firstResponse = responses[0]?.data;
-
-            return {
-                message: firstResponse?.message || 'success',
-                page: firstResponse?.page || 'all',
-                PageCount: firstResponse?.PageCount ?? null,
-                TotalCount: data.length,
-                data,
-            };
-        },
-        staleTime: 5 * 60 * 1000,
-        refetchInterval: MAIL_POLL_INTERVAL_MS,
-        refetchIntervalInBackground: true,
-    });
-
-    const unknownApplicantLabel = useMemo(() => t('unknownApplicant', 'mailPreview'), [t]);
-
-    const knownNameByApplicantId = useMemo(() => {
-        const map = new Map<string, string>();
-        (apiResponse?.data || []).forEach((mail) => {
-            if (mail.direction === 'inbound') return;
-            const applicantId = extractId((mail as any)?.applicant);
-            const parsedName = getApplicantNameFromHtml((mail as any)?.html || '');
-            if (applicantId && parsedName !== unknownApplicantLabel && !isInvalidNameToken(parsedName)) {
-                map.set(applicantId, parsedName);
-            }
-        });
-        return map;
-    }, [apiResponse, unknownApplicantLabel]);
-
-    const knownNameByEmail = useMemo(() => {
-        const map = new Map<string, string>();
-        (apiResponse?.data || []).forEach((mail) => {
-            if (mail.direction === 'inbound') return;
-            const email = String((mail as any)?.to || '').trim().toLowerCase();
-            const parsedName = getApplicantNameFromHtml((mail as any)?.html || '');
-            if (email && parsedName !== unknownApplicantLabel && !isInvalidNameToken(parsedName)) {
-                if (!map.has(email)) map.set(email, parsedName);
-            }
-        });
-        return map;
-    }, [apiResponse, unknownApplicantLabel]);
-
-    const uiRecords = useMemo(() => {
-        if (isLoading || !apiResponse) return [];
-        return (apiResponse.data || []).map((mail) => {
-            const base = toUiRecord(mail, t);
-            const matchedApplicant = base.applicantId ? applicantById.get(base.applicantId) : null;
-            const hasLinkedApplicant = !!base.applicantId;
-            const unknownJobLabel = t('unknownJob', 'mailPreview');
-            const unknownApplicantLabel = t('unknownApplicant', 'mailPreview');
-            const unknownCompanyLabel = t('unknownCompany', 'mailPreview');
-            const applicantJobPositionId = getApplicantJobPositionId(matchedApplicant) || base.applicantJobPositionId || null;
-            const applicantAssignedJobTitle = getApplicantJobTitle(matchedApplicant) ||
-                (applicantJobPositionId ? jobTitleById.get(applicantJobPositionId) || applicantJobPositionId : unknownJobLabel);
-            const userFullName = toDisplayText(matchedApplicant?.fullName || matchedApplicant?.name, '');
-            const parsedHtmlName = base.applicantName !== unknownApplicantLabel && !isInvalidNameToken(base.applicantName) ? base.applicantName : '';
-            const knownByApplicantId = base.applicantId ? knownNameByApplicantId.get(base.applicantId) || '' : '';
-            const knownByEmail = knownNameByEmail.get(String(base.applicantEmail || '').trim().toLowerCase()) || '';
-            const fallbackName = getFallbackNameFromEmail(base.applicantEmail, t);
-            const shouldWaitForApplicantLookup = hasLinkedApplicant && !matchedApplicant && (!isApplicantsFetched || isApplicantsLoading || isApplicantsFetching);
-            // A linked applicant can be missing from the list (e.g. deleted);
-            // the email address still names the person better than "Unknown".
-            const applicantName = userFullName || parsedHtmlName || knownByApplicantId || knownByEmail ||
-                (shouldWaitForApplicantLookup ? t('loadingRecipient', 'mailPreview') : fallbackName);
-            const assignedCompanyId = getApplicantCompanyId(matchedApplicant) || base.companyId || null;
-            const assignedCompanyName = assignedCompanyId ? companyNameById.get(assignedCompanyId) || assignedCompanyId : unknownCompanyLabel;
-
-            return {
-                ...base,
-                applicantName,
-                applicantJobPositionId,
-                applicantAssignedJobId: applicantJobPositionId,
-                applicantAssignedJobTitle,
-                applicantAssignedCompanyId: assignedCompanyId,
-                applicantAssignedCompanyName: assignedCompanyName,
-            };
-        });
-    }, [apiResponse, applicantById, companyNameById, jobTitleById, knownNameByApplicantId, knownNameByEmail, isApplicantsLoading, isApplicantsFetching, isApplicantsFetched, t]);
-
-    const baseMails = useMemo(() => uiRecords
-        .filter((m) => {
-            const matchesCompany = selectedCompanyId === 'all' || m.companyId === selectedCompanyId;
-            const matchesJob = selectedJobId === 'all' || m.applicantJobPositionId === selectedJobId;
-            return matchesCompany && matchesJob;
-        }),
-        [uiRecords, selectedCompanyId, selectedJobId]);
-
-    const filteredMails = useMemo(() => baseMails
-        .filter((m) => {
-            const matchesDirection = directionFilter === 'all' || m.direction === directionFilter;
-            const matchesStatus = statusFilter.size === 0 || statusFilter.has(m.status);
-            const matchesMarked = !markedFilter || (m.score ?? 0) > 90;
-            const matchesSearch = !searchTerm || [m.applicantName, m.applicantEmail, m.subject].some((f) => f.toLowerCase().includes(searchTerm.toLowerCase()));
-            return matchesDirection && matchesStatus && matchesMarked && matchesSearch;
-        })
-        .sort((a, b) => {
-            const createdDiff = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-            if (createdDiff !== 0) return createdDiff;
-            return new Date(b.lastUpdateAt).getTime() - new Date(a.lastUpdateAt).getTime();
-        }),
-        [baseMails, directionFilter, statusFilter, markedFilter, searchTerm]);
+        const id = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 300);
+        return () => clearTimeout(id);
+    }, [searchTerm]);
 
     useEffect(() => {
         setMailPage(1);
-    }, [selectedCompanyId, selectedJobId, directionFilter, statusFilter, markedFilter, searchTerm]);
+    }, [companyId, folder, statusFilter, debouncedSearch]);
 
-    const totalMailPages = useMemo(() => Math.max(1, Math.ceil(filteredMails.length / MAIL_LIST_PAGE_SIZE)), [filteredMails.length]);
+    const listParams = useMemo<MailListParams>(() => ({
+        page: mailPage,
+        limit: MAIL_LIST_PAGE_SIZE,
+        companyId,
+        ...FOLDER_PARAMS[folder],
+        status: [...statusFilter],
+        q: debouncedSearch || undefined,
+    }), [mailPage, companyId, folder, statusFilter, debouncedSearch]);
+
+    const { data: listResponse, isLoading, isFetching } = useMailList(listParams);
+    const { data: counts } = useMailCounts({ companyId });
+    const deleteMail = useDeleteMail();
+
+    const mails = useMemo(() => (listResponse?.data || []).map((m) => toUiRecord(m, t)), [listResponse, t]);
+    const totalMailPages = listResponse?.totalPages ?? 1;
 
     useEffect(() => {
-        setMailPage((prev) => Math.min(prev, totalMailPages));
-    }, [totalMailPages]);
+        if (mailPage > totalMailPages) setMailPage(totalMailPages);
+    }, [mailPage, totalMailPages]);
 
-    const paginatedMails = useMemo(() => {
-        const startIndex = (mailPage - 1) * MAIL_LIST_PAGE_SIZE;
-        return filteredMails.slice(startIndex, startIndex + MAIL_LIST_PAGE_SIZE);
-    }, [filteredMails, mailPage]);
+    const selectedApplicantId = selected ? refId(selected.applicant) : null;
+    const { data: conversationData = [] } = useApplicantMails(view === 'detail' ? selectedApplicantId ?? undefined : undefined);
+    const { data: rawDetail, isFetching: isRawLoading } = useMailDetail(selected?._id, showRaw);
 
     const selectedMail = useMemo(() => {
-        if (!selectedMailId) return null;
-        return filteredMails.find(m => m.id === selectedMailId) || null;
-    }, [filteredMails, selectedMailId]);
+        if (!selected) return null;
+        const fresh =
+            listResponse?.data.find((m) => m._id === selected._id) ||
+            conversationData.find((m) => m._id === selected._id) ||
+            selected;
+        return toUiRecord(fresh, t);
+    }, [selected, listResponse, conversationData, t]);
 
+    const conversation = useMemo(
+        () => conversationData
+            .map((m) => toUiRecord(m, t))
+            .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
+        [conversationData, t],
+    );
 
-
-    const conversation = useMemo(() => {
-        if (!selectedMail?.applicantId) return [];
-        return uiRecords
-            .filter((m) => m.applicantId === selectedMail.applicantId)
-            .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-    }, [uiRecords, selectedMail]);
-
-    const getStatusCount = (status: MailStatus) => {
-        return baseMails.filter(m => m.status === status).length;
-    };
-
-    const handleMailClick = (mailId: string) => {
-        setSelectedMailId(mailId);
+    const openMail = (mail: MailRecord) => {
+        setSelected(mail);
+        setPanel('none');
+        setNotice(null);
+        setShowRaw(false);
         setView('detail');
     };
 
     const handleBackToList = () => {
         setView('list');
-        setSelectedMailId(null);
+        setSelected(null);
+        setPanel('none');
+        setNotice(null);
     };
 
-    // Render Email List View
-    if (view === 'list') {
+    const selectFolder = (next: Folder) => {
+        setFolder(next);
+        setStatusFilter(new Set());
+    };
+
+    const handleDelete = async () => {
+        if (!selectedMail) return;
+        const result = await Swal.fire({
+            title: t('deleteConfirmTitle', 'mailPreview'),
+            text: t('deleteConfirmText', 'mailPreview'),
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#e11d48',
+            confirmButtonText: t('delete', 'mailPreview'),
+            cancelButtonText: t('cancel', 'mailPreview'),
+        });
+        if (!result.isConfirmed) return;
+        deleteMail.mutate(selectedMail.id, {
+            onSuccess: handleBackToList,
+            onError: (e) => setNotice(e instanceof Error ? e.message : t('deleteFailed', 'mailPreview')),
+        });
+    };
+
+    if (view === 'list' || !selectedMail) {
         return (
             <div className="mx-auto flex h-full max-h-screen flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
                 <PageMeta title={t('pageTitle', 'mailPreview')} description={t('pageDesc', 'mailPreview')} />
@@ -652,123 +361,131 @@ export default function MailPreview() {
                     {/* Sidebar */}
                     <aside className="hidden w-72 flex-shrink-0 overflow-y-auto border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 lg:block">
                         <div className="sticky top-0 p-4">
-                            <div className="mb-6 flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <Mail className="h-6 w-6 text-brand-600" />
-                                    <span className="text-lg font-bold text-slate-800 dark:text-white">{t('sidebarTitle', 'mailPreview')}</span>
-                                </div>
-                              
+                            <div className="mb-6 flex items-center gap-2">
+                                <Mail className="h-6 w-6 text-brand-600" />
+                                <span className="text-lg font-bold text-slate-800 dark:text-white">{t('sidebarTitle', 'mailPreview')}</span>
                             </div>
-
-                            <div className="space-y-6" role="tablist" aria-label={t('sidebarTitle', 'mailPreview')}>
-                                <div>
-                                    <SidebarNavItem icon={Inbox} label={t('sidebarInbox', 'mailPreview')} count={baseMails.length} active={statusFilter.size === 0 && !markedFilter && directionFilter === 'all'} onClick={() => { setStatusFilter(new Set()); setMarkedFilter(false); setDirectionFilter('all'); }} />
-                                    <SidebarNavItem icon={Reply} label={t('sidebarReceived', 'mailPreview')} count={baseMails.filter(m => m.direction === 'inbound').length} active={directionFilter === 'inbound'} onClick={() => { setDirectionFilter('inbound'); setStatusFilter(new Set()); setMarkedFilter(false); }} />
-                                    <SidebarNavItem icon={Send} label={t('sidebarSent', 'mailPreview')} count={baseMails.filter(m => m.direction === 'outbound').length} active={directionFilter === 'outbound'} onClick={() => { setDirectionFilter('outbound'); setMarkedFilter(false); }} />
-                                    <SidebarNavItem icon={Star} label={t('sidebarMarked', 'mailPreview')} count={baseMails.filter(m => m.score > 90).length} active={markedFilter} onClick={() => { setMarkedFilter(prev => !prev); setStatusFilter(new Set()); }} />
-                                </div>
-
-                             
+                            <div className="space-y-1" role="tablist" aria-label={t('sidebarTitle', 'mailPreview')}>
+                                <SidebarNavItem icon={Inbox} label={t('sidebarInbox', 'mailPreview')} count={counts?.all} active={folder === 'all'} onClick={() => selectFolder('all')} />
+                                <SidebarNavItem icon={Reply} label={t('sidebarReceived', 'mailPreview')} count={counts?.inbound} active={folder === 'inbound'} onClick={() => selectFolder('inbound')} />
+                                <SidebarNavItem icon={UserX} label={t('sidebarUnassigned', 'mailPreview')} count={counts?.unassigned} active={folder === 'unassigned'} onClick={() => selectFolder('unassigned')} />
+                                <SidebarNavItem icon={Send} label={t('sidebarSent', 'mailPreview')} count={counts?.outbound} active={folder === 'outbound'} onClick={() => selectFolder('outbound')} />
+                                <SidebarNavItem icon={Star} label={t('sidebarMarked', 'mailPreview')} count={counts?.marked} active={folder === 'marked'} onClick={() => selectFolder('marked')} />
                             </div>
                         </div>
                     </aside>
 
                     {/* Main Content - Email List */}
                     <div className="flex flex-1 flex-col overflow-hidden">
+                        {/* Folders on small screens */}
+                        <div className="flex gap-2 overflow-x-auto border-b border-slate-200 bg-white px-4 py-2 no-scrollbar dark:border-slate-800 dark:bg-slate-900 lg:hidden" role="tablist">
+                            {(['all', 'inbound', 'unassigned', 'outbound', 'marked'] as Folder[]).map((f) => (
+                                <button
+                                    key={f}
+                                    role="tab"
+                                    aria-selected={folder === f}
+                                    onClick={() => selectFolder(f)}
+                                    className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ${folder === f ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'}`}
+                                >
+                                    {t({ all: 'sidebarInbox', inbound: 'sidebarReceived', unassigned: 'sidebarUnassigned', outbound: 'sidebarSent', marked: 'sidebarMarked' }[f], 'mailPreview')}
+                                </button>
+                            ))}
+                        </div>
+
                         {/* Top Bar */}
                         <div className="flex flex-shrink-0 flex-col gap-2 border-b border-slate-200 bg-white px-4 py-2 dark:border-slate-800 dark:bg-slate-900 lg:flex-row lg:items-center lg:justify-between lg:px-6 lg:py-3">
                             <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-                                <div className="hidden shrink-0 rounded-md p-2 text-slate-500  lg:block">
+                                <div className="hidden shrink-0 rounded-md p-2 text-slate-500 lg:block">
                                     <Filter className="h-4 w-4" />
                                 </div>
                                 <div className="hidden h-6 w-px shrink-0 bg-slate-300 dark:bg-slate-700 lg:block" />
-                                <div className="flex items-center gap-2">
-                                    {STATUS_OPTIONS.map((opt) => {
-                                        const count = getStatusCount(opt.key);
-                                        const selected = statusFilter.has(opt.key);
-                                        return (
-                                            <button
-                                                key={opt.key}
-                                                onClick={() => {
-                                                    setStatusFilter(prev => {
+                                {folder !== 'inbound' && folder !== 'unassigned' && (
+                                    <div className="flex items-center gap-2">
+                                        {STATUS_OPTIONS.map((opt) => {
+                                            const count = counts?.status?.[opt.key] ?? 0;
+                                            const isOn = statusFilter.has(opt.key);
+                                            return (
+                                                <button
+                                                    key={opt.key}
+                                                    aria-pressed={isOn}
+                                                    onClick={() => setStatusFilter((prev) => {
                                                         const next = new Set(prev);
-                                                        if (next.has(opt.key)) {
-                                                            next.delete(opt.key);
-                                                        } else {
-                                                            next.add(opt.key);
-                                                        }
+                                                        if (next.has(opt.key)) next.delete(opt.key);
+                                                        else next.add(opt.key);
                                                         return next;
-                                                    });
-                                                }}
-                                                className={`inline-flex items-center gap-1.5 shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-all ${selected
+                                                    })}
+                                                    className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all ${isOn
                                                         ? 'bg-brand-600 text-white shadow-sm'
-                                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
-                                                    }`}
-                                            >
-                                                {t(opt.label, 'mailPreview')}
-                                                {count > 0 && (
-                                                    <span className="rounded-full bg-slate-300 px-1.5 py-0.5 text-[10px] text-slate-700 dark:bg-slate-600 dark:text-slate-200">
-                                                        {count}
-                                                    </span>
-                                                )}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
+                                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'}`}
+                                                >
+                                                    {t(opt.label, 'mailPreview')}
+                                                    {count > 0 && (
+                                                        <span className="rounded-full bg-slate-300 px-1.5 py-0.5 text-[10px] text-slate-700 dark:bg-slate-600 dark:text-slate-200">{count}</span>
+                                                    )}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                                {folder === 'unassigned' && (
+                                    <p className="text-xs text-slate-500 dark:text-slate-400">{t('unassignedHint', 'mailPreview')}</p>
+                                )}
                             </div>
                             <div className="relative w-full lg:w-auto">
                                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                                 <input
                                     value={searchTerm}
-                                    onChange={e => setSearchTerm(e.target.value)}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
                                     placeholder={t('searchPlaceholder', 'mailPreview')}
-                                    className="w-full rounded-full border border-slate-200 bg-slate-50 py-2 pl-10 pr-4 text-sm focus:border-brand-300 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-slate-700 dark:bg-slate-800/50 dark:text-white lg:w-80"
+                                    aria-label={t('searchPlaceholder', 'mailPreview')}
+                                    className="w-full rounded-full border border-slate-200 bg-slate-50 py-2 pl-10 pr-9 text-sm focus:border-brand-300 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-slate-700 dark:bg-slate-800/50 dark:text-white lg:w-80"
                                 />
+                                {isFetching && !isLoading && <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />}
                             </div>
                         </div>
 
                         {/* Email List */}
                         <div className="flex-1 overflow-y-auto bg-white dark:bg-slate-900">
                             <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                                {paginatedMails.length === 0 ? (
+                                {isLoading ? (
+                                    <div className="flex items-center justify-center py-20 text-slate-400">
+                                        <Loader2 className="h-6 w-6 animate-spin" aria-label={t('loading', 'mailPreview')} />
+                                    </div>
+                                ) : mails.length === 0 ? (
                                     <div className="flex h-full flex-col items-center justify-center py-20 text-center">
                                         <div className="rounded-full bg-slate-100 p-4 dark:bg-slate-800">
                                             <Mail className="h-8 w-8 text-slate-400" />
                                         </div>
                                         <h3 className="mt-4 text-lg font-medium text-slate-900 dark:text-white">{t('emptyTitle', 'mailPreview')}</h3>
                                         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                                            {searchTerm || statusFilter.size > 0 ? t('emptyDescFilter', 'mailPreview') : t('emptyDescEmpty', 'mailPreview')}
+                                            {debouncedSearch || statusFilter.size > 0 || folder !== 'all' ? t('emptyDescFilter', 'mailPreview') : t('emptyDescEmpty', 'mailPreview')}
                                         </p>
                                     </div>
                                 ) : (
-                                    paginatedMails.map((mail) => (
+                                    mails.map((mail) => (
                                         <button
                                             key={mail.id}
-                                            onClick={() => handleMailClick(mail.id)}
+                                            onClick={() => openMail(mail.raw)}
                                             className="w-full px-6 py-4 text-left transition-all hover:bg-slate-50 dark:hover:bg-slate-800/50"
                                         >
                                             <div className="flex items-start justify-between gap-3">
-                                                <div className="flex-1 min-w-0">
+                                                <div className="min-w-0 flex-1">
                                                     <div className="flex items-center gap-2">
-                                                        {mail.direction === 'inbound' && (
-                                                            <Reply className="h-3.5 w-3.5 shrink-0 text-sky-600" aria-hidden="true" />
+                                                        {mail.direction === 'inbound' && <Reply className="h-3.5 w-3.5 shrink-0 text-sky-600" aria-hidden="true" />}
+                                                        <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{mail.applicantName}</p>
+                                                        <div className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusChipClasses[mail.status].dot}`} />
+                                                        {mail.unassigned && (
+                                                            <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">
+                                                                {t('unassigned', 'mailPreview')}
+                                                            </span>
                                                         )}
-                                                        <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">
-                                                            {mail.applicantName}
-                                                        </p>
-                                                        <div className={`h-1.5 w-1.5 rounded-full ${statusChipClasses[mail.status].dot}`} />
+                                                        {!!mail.attachments?.length && <Paperclip className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-label={t('attachmentsCount', 'mailPreview', { count: mail.attachments.length })} />}
                                                     </div>
-                                                    <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
-                                                        {mail.subject}
-                                                    </p>
-                                                    <p className="mt-1 truncate text-[11px] text-slate-400 dark:text-slate-500">
-                                                        {mail.preview}
-                                                    </p>
+                                                    <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">{mail.subject}</p>
+                                                    <p className="mt-1 truncate text-[11px] text-slate-400 dark:text-slate-500">{mail.preview}</p>
                                                 </div>
                                                 <div className="flex flex-col items-end gap-1">
-                                                    <span className="whitespace-nowrap text-[10px] font-medium text-slate-400">
-                                                        {formatRelativeTime(mail.createdAt, t)}
-                                                    </span>
+                                                    <span className="whitespace-nowrap text-[10px] font-medium text-slate-400">{formatRelativeTime(mail.createdAt, t)}</span>
                                                     <span className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider ${statusChipClasses[mail.status].bg} ${statusChipClasses[mail.status].text}`}>
                                                         {t(STATUS_LABEL_KEYS[mail.status], 'mailPreview')}
                                                     </span>
@@ -780,11 +497,11 @@ export default function MailPreview() {
                             </div>
 
                             {/* Pagination */}
-                            {filteredMails.length > MAIL_LIST_PAGE_SIZE && (
+                            {totalMailPages > 1 && (
                                 <div className="flex items-center justify-between border-t border-slate-200 px-6 py-3 dark:border-slate-800">
                                     <button
                                         disabled={mailPage === 1}
-                                        onClick={() => setMailPage(p => Math.max(1, p - 1))}
+                                        onClick={() => setMailPage((p) => Math.max(1, p - 1))}
                                         className="flex items-center gap-1 rounded-md px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-100 disabled:opacity-40 dark:text-slate-400 dark:hover:bg-slate-800"
                                     >
                                         <ChevronLeft className="h-4 w-4" />
@@ -795,7 +512,7 @@ export default function MailPreview() {
                                     </span>
                                     <button
                                         disabled={mailPage === totalMailPages}
-                                        onClick={() => setMailPage(p => Math.min(totalMailPages, p + 1))}
+                                        onClick={() => setMailPage((p) => Math.min(totalMailPages, p + 1))}
                                         className="flex items-center gap-1 rounded-md px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-100 disabled:opacity-40 dark:text-slate-400 dark:hover:bg-slate-800"
                                     >
                                         {t('next', 'mailPreview')}
@@ -810,152 +527,201 @@ export default function MailPreview() {
         );
     }
 
-    // Render Email Detail View
-    if (view === 'detail' && selectedMail) {
-        return (
-            <div className="mx-auto flex h-full max-h-screen flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
-                <PageMeta title={t('detailPageTitle', 'mailPreview', { subject: selectedMail.subject })} description={t('detailPageDesc', 'mailPreview')} />
+    // Detail view
+    return (
+        <div className="mx-auto flex h-full max-h-screen flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
+            <PageMeta title={t('detailPageTitle', 'mailPreview', { subject: selectedMail.subject })} description={t('detailPageDesc', 'mailPreview')} />
 
-                <div className="flex h-full flex-1 overflow-hidden">
-                    {/* Sidebar (minimized in detail view) */}
-                    <aside className="hidden w-72 flex-shrink-0 overflow-y-auto border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 lg:block">
-                        <div className="sticky top-0 p-4">
-                            <div className="mb-6 flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <Mail className="h-6 w-6 text-brand-600" />
-                                    <span className="text-lg font-bold text-slate-800 dark:text-white">{t('sidebarTitle', 'mailPreview')}</span>
-                                </div>
-                            </div>
+            <div className="flex h-full flex-1 overflow-hidden">
+                <aside className="hidden w-72 flex-shrink-0 overflow-y-auto border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 lg:block">
+                    <div className="sticky top-0 p-4">
+                        <div className="mb-6 flex items-center gap-2">
+                            <Mail className="h-6 w-6 text-brand-600" />
+                            <span className="text-lg font-bold text-slate-800 dark:text-white">{t('sidebarTitle', 'mailPreview')}</span>
                         </div>
-                    </aside>
+                    </div>
+                </aside>
 
-                    {/* Email Detail Content */}
-                    <div className="flex-1 overflow-y-auto bg-white dark:bg-slate-900">
-                        {/* Back Button */}
-                        <div className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-6 py-4 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-900/95">
+                <div className="flex-1 overflow-y-auto bg-white dark:bg-slate-900">
+                    {/* Back + actions */}
+                    <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-slate-200 bg-white/95 px-6 py-3 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-900/95">
+                        <button
+                            onClick={handleBackToList}
+                            className="flex items-center gap-2 text-sm font-medium text-slate-600 transition hover:text-brand-600 dark:text-slate-400 dark:hover:text-brand-400"
+                        >
+                            <ArrowLeft className="h-4 w-4" />
+                            {t('backToInbox', 'mailPreview')}
+                        </button>
+                        <div className="flex items-center gap-2">
+                            {selectedMail.direction === 'inbound' && (
+                                <>
+                                    <button
+                                        onClick={() => { setPanel(panel === 'assign' ? 'none' : 'assign'); setNotice(null); }}
+                                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                                    >
+                                        <UserPlus className="h-4 w-4" />
+                                        {selectedMail.unassigned ? t('assignToApplicant', 'mailPreview') : t('reassign', 'mailPreview')}
+                                    </button>
+                                    <button
+                                        onClick={() => { setPanel(panel === 'reply' ? 'none' : 'reply'); setNotice(null); }}
+                                        className="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700"
+                                    >
+                                        <Reply className="h-4 w-4" />
+                                        {t('reply', 'mailPreview')}
+                                    </button>
+                                </>
+                            )}
                             <button
-                                onClick={handleBackToList}
-                                className="flex items-center gap-2 text-sm font-medium text-slate-600 transition hover:text-brand-600 dark:text-slate-400 dark:hover:text-brand-400"
+                                onClick={handleDelete}
+                                disabled={deleteMail.isPending}
+                                className="rounded-lg p-2 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50 dark:hover:bg-rose-500/10"
+                                aria-label={t('delete', 'mailPreview')}
+                                title={t('delete', 'mailPreview')}
                             >
-                                <ArrowLeft className="h-4 w-4" />
-                                {t('backToInbox', 'mailPreview')}
+                                <Trash2 className="h-4 w-4" />
                             </button>
                         </div>
-
-                        {/* Email Header */}
-                        <div className="border-b border-slate-200 p-6 dark:border-slate-800">
-                            <h2 className="text-xl font-semibold text-slate-900 dark:text-white">{selectedMail.subject}</h2>
-                            <div className="mt-4 flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-medium text-slate-900 dark:text-white">{selectedMail.applicantName}</p>
-                                    <p className="text-xs text-slate-500 dark:text-slate-400">{selectedMail.applicantEmail}</p>
-                                </div>
-                                <div className={`rounded-full px-3 py-1 text-xs font-medium ${statusChipClasses[selectedMail.status].bg} ${statusChipClasses[selectedMail.status].text}`}>
-                                    {t(STATUS_LABEL_KEYS[selectedMail.status], 'mailPreview')}
-                                </div>
-                            </div>
-                            <div className="mt-3 flex items-center gap-4 text-xs text-slate-400">
-                                <span>{formatDateTime(selectedMail.createdAt, locale)}</span>
-                                <span>•</span>
-                                <span>
-                                    {selectedMail.direction === 'inbound'
-                                        ? t('from', 'mailPreview', { email: selectedMail.applicantEmail })
-                                        : t('to', 'mailPreview', { email: selectedMail.applicantEmail })}
-                                </span>
-                            </div>
-                        </div>
-
-                        {/* Email Body */}
-                        <div className="p-6">
-                            <div className="prose prose-sm max-w-none dark:prose-invert">
-                                <iframe
-                                    srcDoc={selectedMail.bodyHtml}
-                                    // Replies come from outside the company: no scripts (no
-                                    // allow-scripts). allow-same-origin is needed for the
-                                    // body to render; popups let links open in a new tab.
-                                    sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-                                    title="Mail Preview"
-                                    className="h-auto min-h-[400px] w-full rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800"
-                                />
-                            </div>
-                        </div>
-
-                        {/* Conversation with this applicant: sent and received, oldest first */}
-                        {conversation.length > 1 && (
-                            <div className="border-t border-slate-200 p-6 dark:border-slate-800">
-                                <h3 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-300">
-                                    {t('conversation', 'mailPreview', { count: conversation.length })}
-                                </h3>
-                                <ol className="space-y-2">
-                                    {conversation.map((m) => (
-                                        <li key={m.id}>
-                                            <button
-                                                onClick={() => setSelectedMailId(m.id)}
-                                                aria-current={m.id === selectedMail.id ? 'true' : undefined}
-                                                className={`flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left transition ${m.id === selectedMail.id ? 'border-brand-300 bg-brand-50 dark:border-brand-500/40 dark:bg-brand-500/10' : 'border-slate-200 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800/60'}`}
-                                            >
-                                                {m.direction === 'inbound'
-                                                    ? <Reply className="h-4 w-4 shrink-0 text-sky-600" aria-label={t('statusReceived', 'mailPreview')} />
-                                                    : <Send className="h-4 w-4 shrink-0 text-slate-400" aria-label={t('statusSent', 'mailPreview')} />}
-                                                <span className="min-w-0 flex-1 truncate text-sm text-slate-800 dark:text-slate-200">{m.subject}</span>
-                                                <span className="shrink-0 text-xs text-slate-400">{formatDateTime(m.createdAt, locale)}</span>
-                                            </button>
-                                        </li>
-                                    ))}
-                                </ol>
-                            </div>
-                        )}
-
-                        {/* Activity Timeline */}
-                        <div className="border-t border-slate-200 p-6 dark:border-slate-800">
-                            <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
-                                <Clock3 className="h-4 w-4" />
-                                {t('activityTimeline', 'mailPreview')}
-                            </h3>
-                            <div className="space-y-4">
-                                {selectedMail.events.map((event, idx) => (
-                                    <div key={idx} className="flex gap-3">
-                                        <div className="relative flex flex-col items-center">
-                                            <div className="h-2 w-2 rounded-full bg-brand-500" />
-                                            {idx !== selectedMail.events.length - 1 && (
-                                                <div className="absolute top-2 h-full w-px bg-slate-200 dark:bg-slate-700" />
-                                            )}
-                                        </div>
-                                        <div className="pb-4">
-                                            <p className="text-xs font-medium text-slate-900 dark:text-white">
-                                                {event.type.replace(/_/g, ' ').toUpperCase()}
-                                            </p>
-                                            <p className="text-xs text-slate-500 dark:text-slate-400">{formatDateTime(event.at, locale)}</p>
-                                            <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{event.detail}</p>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Raw Metadata */}
-                        <details className="border-t border-slate-200 p-6 dark:border-slate-800">
-                            <summary className="cursor-pointer text-sm font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400">
-                                {t('viewRawMetadata', 'mailPreview')}
-                            </summary>
-                            <pre className="mt-4 max-h-96 overflow-auto rounded-lg bg-slate-100 p-4 text-xs dark:bg-slate-800">
-                                {JSON.stringify(selectedMail.raw, null, 2)}
-                            </pre>
-                        </details>
                     </div>
+
+                    {/* Header */}
+                    <div className="border-b border-slate-200 p-6 dark:border-slate-800">
+                        <h2 className="text-xl font-semibold text-slate-900 dark:text-white">{selectedMail.subject}</h2>
+                        <div className="mt-4 flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                                <p className="flex items-center gap-2 text-sm font-medium text-slate-900 dark:text-white">
+                                    {selectedMail.applicantName}
+                                    {selectedMail.unassigned && (
+                                        <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">
+                                            {t('unassigned', 'mailPreview')}
+                                        </span>
+                                    )}
+                                </p>
+                                <p className="text-xs text-slate-500 dark:text-slate-400">
+                                    {selectedMail.applicantEmail}
+                                    {selectedMail.jobTitle ? ` · ${selectedMail.jobTitle}` : ''}
+                                </p>
+                            </div>
+                            <div className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${statusChipClasses[selectedMail.status].bg} ${statusChipClasses[selectedMail.status].text}`}>
+                                {t(STATUS_LABEL_KEYS[selectedMail.status], 'mailPreview')}
+                            </div>
+                        </div>
+                        <div className="mt-3 flex items-center gap-4 text-xs text-slate-400">
+                            <span>{formatDateTime(selectedMail.createdAt, locale)}</span>
+                            <span>•</span>
+                            <span>
+                                {selectedMail.direction === 'inbound'
+                                    ? t('from', 'mailPreview', { email: selectedMail.applicantEmail })
+                                    : t('to', 'mailPreview', { email: selectedMail.applicantEmail })}
+                            </span>
+                        </div>
+                        <MailAttachments mailId={selectedMail.id} attachments={selectedMail.attachments} />
+                    </div>
+
+                    {/* Reply / assign */}
+                    {(panel !== 'none' || notice) && (
+                        <div className="border-b border-slate-200 p-6 dark:border-slate-800">
+                            {notice && (
+                                <p className="mb-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400" role="status">
+                                    {notice}
+                                </p>
+                            )}
+                            {panel === 'reply' && (
+                                <MailReplyBox
+                                    mailId={selectedMail.id}
+                                    to={selectedMail.applicantEmail}
+                                    subject={selectedMail.subject}
+                                    onClose={() => setPanel('none')}
+                                    onSent={() => { setPanel('none'); setNotice(t('replySent', 'mailPreview')); }}
+                                />
+                            )}
+                            {panel === 'assign' && (
+                                <AssignMailPanel
+                                    mailId={selectedMail.id}
+                                    onClose={() => setPanel('none')}
+                                    onAssigned={() => { setPanel('none'); setNotice(t('assigned', 'mailPreview')); }}
+                                />
+                            )}
+                        </div>
+                    )}
+
+                    {/* Body */}
+                    <div className="p-6">
+                        <iframe
+                            srcDoc={selectedMail.bodyHtml}
+                            // Replies come from outside the company: no scripts (no
+                            // allow-scripts). allow-same-origin is needed for the
+                            // body to render; popups let links open in a new tab.
+                            sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+                            title={t('mailBody', 'mailPreview')}
+                            className="h-auto min-h-[400px] w-full rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800"
+                        />
+                    </div>
+
+                    {/* Conversation with this applicant: sent and received, oldest first */}
+                    {conversation.length > 1 && (
+                        <div className="border-t border-slate-200 p-6 dark:border-slate-800">
+                            <h3 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-300">
+                                {t('conversation', 'mailPreview', { count: conversation.length })}
+                            </h3>
+                            <ol className="space-y-2">
+                                {conversation.map((m) => (
+                                    <li key={m.id}>
+                                        <button
+                                            onClick={() => openMail(m.raw)}
+                                            aria-current={m.id === selectedMail.id ? 'true' : undefined}
+                                            className={`flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left transition ${m.id === selectedMail.id ? 'border-brand-300 bg-brand-50 dark:border-brand-500/40 dark:bg-brand-500/10' : 'border-slate-200 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800/60'}`}
+                                        >
+                                            {m.direction === 'inbound'
+                                                ? <Reply className="h-4 w-4 shrink-0 text-sky-600" aria-label={t('statusReceived', 'mailPreview')} />
+                                                : <Send className="h-4 w-4 shrink-0 text-slate-400" aria-label={t('statusSent', 'mailPreview')} />}
+                                            <span className="min-w-0 flex-1 truncate text-sm text-slate-800 dark:text-slate-200">{m.subject}</span>
+                                            {!!m.attachments?.length && <Paperclip className="h-3.5 w-3.5 shrink-0 text-slate-400" />}
+                                            <span className="shrink-0 text-xs text-slate-400">{formatDateTime(m.createdAt, locale)}</span>
+                                        </button>
+                                    </li>
+                                ))}
+                            </ol>
+                        </div>
+                    )}
+
+                    {/* Activity timeline */}
+                    <div className="border-t border-slate-200 p-6 dark:border-slate-800">
+                        <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
+                            <Clock3 className="h-4 w-4" />
+                            {t('activityTimeline', 'mailPreview')}
+                        </h3>
+                        <div className="space-y-4">
+                            {selectedMail.events.map((event, idx) => (
+                                <div key={event.id} className="flex gap-3">
+                                    <div className="relative flex flex-col items-center">
+                                        <div className="h-2 w-2 rounded-full bg-brand-500" />
+                                        {idx !== selectedMail.events.length - 1 && <div className="absolute top-2 h-full w-px bg-slate-200 dark:bg-slate-700" />}
+                                    </div>
+                                    <div className="pb-4">
+                                        <p className="text-xs font-medium text-slate-900 dark:text-white">{event.type.replace(/_/g, ' ').toUpperCase()}</p>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400">{formatDateTime(event.at, locale)}</p>
+                                        <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{event.detail}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Raw metadata (full record incl. webhook events, loaded on open) */}
+                    <details className="border-t border-slate-200 p-6 dark:border-slate-800" onToggle={(e) => setShowRaw((e.target as HTMLDetailsElement).open)}>
+                        <summary className="cursor-pointer text-sm font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400">
+                            {t('viewRawMetadata', 'mailPreview')}
+                        </summary>
+                        {isRawLoading && !rawDetail ? (
+                            <Loader2 className="mt-4 h-4 w-4 animate-spin text-slate-400" />
+                        ) : (
+                            <pre className="mt-4 max-h-96 overflow-auto rounded-lg bg-slate-100 p-4 text-xs dark:bg-slate-800">
+                                {JSON.stringify(rawDetail ?? selectedMail.raw, null, 2)}
+                            </pre>
+                        )}
+                    </details>
                 </div>
             </div>
-        );
-    }
-
-    // Fallback: if selectedMail is null when in detail view, go back to list
-    if (view === 'detail' && !selectedMail) {
-        useEffect(() => {
-            setView('list');
-            setSelectedMailId(null);
-        }, []);
-        return null;
-    }
-
-    return null;
+        </div>
+    );
 }
