@@ -557,8 +557,10 @@ export default function MailPreview() {
             const knownByEmail = knownNameByEmail.get(String(base.applicantEmail || '').trim().toLowerCase()) || '';
             const fallbackName = getFallbackNameFromEmail(base.applicantEmail, t);
             const shouldWaitForApplicantLookup = hasLinkedApplicant && !matchedApplicant && (!isApplicantsFetched || isApplicantsLoading || isApplicantsFetching);
+            // A linked applicant can be missing from the list (e.g. deleted);
+            // the email address still names the person better than "Unknown".
             const applicantName = userFullName || parsedHtmlName || knownByApplicantId || knownByEmail ||
-                (shouldWaitForApplicantLookup ? t('loadingRecipient', 'mailPreview') : (hasLinkedApplicant ? unknownApplicantLabel : fallbackName));
+                (shouldWaitForApplicantLookup ? t('loadingRecipient', 'mailPreview') : fallbackName);
             const assignedCompanyId = getApplicantCompanyId(matchedApplicant) || base.companyId || null;
             const assignedCompanyName = assignedCompanyId ? companyNameById.get(assignedCompanyId) || assignedCompanyId : unknownCompanyLabel;
 
