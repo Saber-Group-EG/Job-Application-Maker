@@ -80,7 +80,7 @@ export function useTableState({
     try {
       localStorage.removeItem('applicants_table_state');
       sessionStorage.removeItem('applicants_table_state');
-    } catch (e) {}
+    } catch { /* ignore */ }
   }, []);
   
   const resetToDefault = useCallback(() => {
@@ -108,7 +108,7 @@ export function useTableState({
         };
         sessionStorage.setItem('applicants_table_state', JSON.stringify(toSave));
         localStorage.setItem('applicants_table_state', JSON.stringify(toSave));
-      } catch (e) {}
+      } catch { /* ignore */ }
     }, 500);
     
     return () => {

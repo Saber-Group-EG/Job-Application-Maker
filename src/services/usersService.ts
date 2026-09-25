@@ -171,7 +171,7 @@ class SavedQuestionGroupsService extends BaseService {
 // ==================== USERS SERVICE ====================
 class UsersService extends BaseService {
   async getAllUsers(params?: { companies?: string[] | string; PageCount?: string | number }): Promise<any[]> {
-  let queryParams: any = {};
+  const queryParams: any = {};
   
   if (params?.companies) {
     const companies = Array.isArray(params.companies) ? params.companies : [params.companies];

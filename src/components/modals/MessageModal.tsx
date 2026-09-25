@@ -166,7 +166,7 @@ const MessageModal = ({
           .replace(/&lt;/g, '<')
           .replace(/&gt;/g, '>')
           .replace(/&amp;/g, '&');
-      } catch (e) {
+      } catch {
         decodedHtml = selectedTemplate.html;
       }
 
@@ -255,7 +255,7 @@ const MessageModal = ({
           ) {
             availableCandidates.push(...(normalized as any).available_senders);
           }
-        } catch (e) {
+        } catch {
           /* ignore */
         }
 
@@ -324,7 +324,7 @@ const MessageModal = ({
               });
             }
           }
-        } catch (e) {
+        } catch {
           /* ignore */
         }
 
@@ -351,7 +351,7 @@ const MessageModal = ({
           if (domainFromSettings) {
             setResolvedCompanyDomain(domainFromSettings);
           }
-        } catch (e) {
+        } catch {
           /* ignore */
         }
 
@@ -364,7 +364,7 @@ const MessageModal = ({
         setCustomSender(defaultMail || (deduped[0] && deduped[0].value) || '');
         if (deduped.length > 0) setSenderOption('available');
         else setSenderOption('company');
-      } catch (e) {
+      } catch {
         if (!mounted) return;
         setSenderOptions([]);
         setCustomSender('');
@@ -473,7 +473,7 @@ const MessageModal = ({
           if (title) return title;
         }
       }
-    } catch (e) {
+    } catch {
       /* ignore */
     }
 
@@ -567,7 +567,7 @@ const MessageModal = ({
       setSelectedTemplateId('');
       setAiPromptOpen(false);
       setAiPrompt('');
-    } catch (err) {
+    } catch {
       // error toast already shown by the hook's onError
     }
   };
@@ -919,36 +919,16 @@ const MessageModal = ({
                         </div>
                       </div>
                     )}
+                    {senderOption === 'custom' &&
+                      !resolvedCompanyDomain &&
+                      !companyDomain && (
+                        <p className="text-xs text-amber-600">
+                          {t('noDomainConfigured', 'modals')}
+                        </p>
+                      )}
                   </>
                 )}
               </div>
-            </div>
-          )}
-
-          {messageForm.type === 'email' && (
-            <div>
-              <Label>{t('selectedSender', 'modals')}</Label>
-              <Input
-                value={
-                  senderOption === 'custom' && newLocalEmail
-                    ? `${newLocalEmail}@${resolvedCompanyDomain || companyDomain || displayDomain}`
-                    : customSender || ''
-                }
-                readOnly
-                placeholder={t('noSenderSelected', 'modals')}
-                className={
-                  !resolvedCompanyDomain && !companyDomain
-                    ? 'border-amber-300'
-                    : ''
-                }
-              />
-              {!resolvedCompanyDomain &&
-                !companyDomain &&
-                senderOption === 'custom' && (
-                  <p className="text-xs text-amber-600 mt-1">
-                    {t('noDomainConfigured', 'modals')}
-                  </p>
-                )}
             </div>
           )}
 

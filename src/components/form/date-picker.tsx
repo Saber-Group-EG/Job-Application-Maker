@@ -84,9 +84,9 @@ export default function DatePicker({
         cal.style.left = "50%";
         cal.style.transform = "translateX(-50%)";
         cal.style.zIndex = "50";
-        try { cal.style.minWidth = '360px'; } catch {}
+        try { cal.style.minWidth = '360px'; } catch { /* ignore */ }
       }
-    } catch {}
+    } catch { /* ignore */ }
 
     return () => {
       if (Array.isArray(fp)) {

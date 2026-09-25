@@ -152,7 +152,7 @@ class PersistentThumbnailCache {
       const tx = db.transaction(STORE_NAME, 'readwrite');
       const store = tx.objectStore(STORE_NAME);
       store.delete(key);
-    } catch {}
+    } catch { /* ignore */ }
   }
 
   async has(key: string): Promise<boolean> {

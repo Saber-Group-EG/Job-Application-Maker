@@ -91,29 +91,6 @@ const APPLICANTS_DEFAULT_LAYOUT = {
   columnOrder: APPLICANTS_DEFAULT_COLUMN_ORDER,
 };
 
-// Helper to extract ID from various formats
-const extractId = (value: unknown): string | null => {
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      const resolved = extractId(item);
-      if (resolved) return resolved;
-    }
-    return null;
-  }
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    return trimmed || null;
-  }
-  if (value && typeof value === 'object') {
-    const maybeId = value as { _id?: unknown; id?: unknown };
-    if (typeof maybeId._id === 'string' && maybeId._id.trim())
-      return maybeId._id.trim();
-    if (typeof maybeId.id === 'string' && maybeId.id.trim())
-      return maybeId.id.trim();
-  }
-  return null;
-};
-
 // Image loader pool to limit concurrent image loading
 class ImageLoaderPool {
   private queue: Array<() => Promise<void>> = [];
@@ -168,7 +145,7 @@ async function createCompressedDataUrl(
       const bitmap = await createImageBitmap(blob);
 
       const MAX_DIM = 48;
-      let { width, height } = bitmap;
+      const { width, height } = bitmap;
       const ratio = Math.max(width / MAX_DIM, height / MAX_DIM, 1);
       const canvas = new OffscreenCanvas(
         Math.max(24, Math.round(width / ratio)),
@@ -219,7 +196,7 @@ async function createCompressedDataUrl(
         if (!ctx) return finish(src);
 
         const MAX_DIM = 48;
-        let { width, height } = img;
+        const { width, height } = img;
         const ratio = Math.max(width / MAX_DIM, height / MAX_DIM, 1);
         canvas.width = Math.max(24, Math.round(width / ratio));
         canvas.height = Math.max(24, Math.round(height / ratio));
@@ -232,13 +209,13 @@ async function createCompressedDataUrl(
             const b64 = dataUrl.split(',')[1] || '';
             const bytes = Math.ceil((b64.length * 3) / 4);
             if (bytes <= maxBytes) return finish(dataUrl);
-          } catch (e) {
+          } catch {
             continue;
           }
         }
 
         finish(src);
-      } catch (e) {
+      } catch {
         finish(src);
       }
     };
@@ -246,7 +223,7 @@ async function createCompressedDataUrl(
     img.onerror = () => finish(src);
     try {
       img.src = src;
-    } catch (e) {
+    } catch {
       finish(src);
     }
     setTimeout(() => finish(src), 1000);
@@ -331,7 +308,7 @@ function ProgressiveImage({
           setIsLoading(false);
         }
       });
-    } catch (e) {
+    } catch {
       if (mountedRef.current) {
         setThumb(src as string);
         setIsLoading(false);
@@ -412,7 +389,7 @@ function getOptimizedPreviewUrl(src: string): string {
         return `${beforeUpload}w_400,h_400,c_limit,q_auto,f_auto/${afterUpload}`;
       }
     }
-  } catch (e) {}
+  } catch { /* ignore */ }
   return src;
 }
 
@@ -590,7 +567,7 @@ export default function Applicants({
       if (rawLocal) return JSON.parse(rawLocal);
       const raw = sessionStorage.getItem('applicants_table_state');
       return raw ? JSON.parse(raw) : null;
-    } catch (e) {
+    } catch {
       return null;
     }
   }, []);
@@ -1266,7 +1243,7 @@ export default function Applicants({
     try {
       const qStatus = new URLSearchParams(location.search).get('status');
       return Boolean(params.status || qStatus || onlyStatus);
-    } catch (e) {
+    } catch {
       return false;
     }
   }, []);
@@ -1740,7 +1717,7 @@ export default function Applicants({
         const fileName = `CV_${idHint || 'cv'}`;
         const transformations = `f_auto/fl_attachment:${fileName}`;
         return `${urlParts[0]}/upload/${transformations}/${urlParts[1]}`;
-      } catch (e) {
+      } catch {
         return null;
       }
     };

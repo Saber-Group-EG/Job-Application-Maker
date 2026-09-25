@@ -22,7 +22,7 @@ function extractSmartText(val: any): string {
       try {
         const parsed = JSON.parse(t);
         return extractSmartText(parsed);
-      } catch (e) {
+      } catch {
         // fallthrough
       }
     }
@@ -43,7 +43,7 @@ function extractSmartText(val: any): string {
     }
     try {
       return JSON.stringify(val);
-    } catch (e) {
+    } catch {
       return String(val);
     }
   }

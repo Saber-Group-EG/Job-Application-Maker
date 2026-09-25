@@ -11,9 +11,10 @@ type Props = {
 const renderValue = (val: any) => toPlainString(val) || '—';
 
 export default function ContractPreview({ isOpen, onClose, contract }: Props) {
+  // Hooks before the early return: React needs the same hooks every render.
+  const { t, locale } = useLocale();
   if (!isOpen) return null;
 
-  const { t, locale } = useLocale();
   const companyName = typeof contract?.companyId === 'string'
     ? contract?.companyId
     : toPlainString(contract?.companyId?.name);

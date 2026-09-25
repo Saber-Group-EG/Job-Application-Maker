@@ -21,7 +21,7 @@ async function createCompressedDataUrl(
       resolved = true;
       try {
         thumbnailCache.set(src, result);
-      } catch (e) {}
+      } catch { /* ignore */ }
       resolve(result);
     };
 
@@ -33,7 +33,7 @@ async function createCompressedDataUrl(
         
         // Scale down to a reasonable thumbnail size
         const MAX_DIM = 160;
-        let { width, height } = img;
+        const { width, height } = img;
         const ratio = Math.max(width / MAX_DIM, height / MAX_DIM, 1);
         canvas.width = Math.max(32, Math.round(width / ratio));
         canvas.height = Math.max(32, Math.round(height / ratio));
@@ -46,7 +46,7 @@ async function createCompressedDataUrl(
               const b64 = dataUrl.split(',')[1] || '';
               const bytes = Math.ceil((b64.length * 3) / 4);
               if (bytes <= maxBytes) return dataUrl;
-            } catch (e) {
+            } catch {
               // toDataURL may throw on cross-origin images
               return null;
             }
@@ -76,7 +76,7 @@ async function createCompressedDataUrl(
         
         // Fallback to original src
         finish(src);
-      } catch (e) {
+      } catch {
         finish(src);
       }
     };
@@ -86,7 +86,7 @@ async function createCompressedDataUrl(
     // Attempt load; if the image is data: or same-origin, this will work
     try {
       img.src = src;
-    } catch (e) {
+    } catch {
       finish(src);
     }
     
@@ -161,7 +161,7 @@ export function ImageThumbnail({
     if (!src) {
       setThumb(null);
       setIsLoading(false);
-      mounted && onLoad?.();
+      if (mounted) onLoad?.();
       return () => {
         mounted = false;
       };
@@ -171,7 +171,7 @@ export function ImageThumbnail({
     if (typeof src === 'string' && src.startsWith('data:')) {
       setThumb(src);
       setIsLoading(false);
-      mounted && onLoad?.();
+      if (mounted) onLoad?.();
       return () => {
         mounted = false;
       };

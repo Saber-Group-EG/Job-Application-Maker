@@ -126,7 +126,7 @@ const getContrastColor = (hex: string | undefined): string => {
     );
     const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
     return luminance > 0.6 ? '#111827' : '#FFFFFF';
-  } catch (e) {
+  } catch {
     return '#111827';
   }
 };

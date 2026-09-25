@@ -127,7 +127,7 @@ export default function PreviewCompany() {
       const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: formData });
       const result = await res.json();
       setCompanyForm(prev => ({ ...prev, logoPath: result.secure_url }));
-    } catch (err) {
+    } catch {
       Swal.fire(t('uploadFailed', 'companies'), "Could not process brand asset", "error");
     } finally {
       setIsSaving(false);

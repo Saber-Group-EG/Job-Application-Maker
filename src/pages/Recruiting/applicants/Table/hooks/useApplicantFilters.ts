@@ -305,7 +305,7 @@ export function useApplicantFilters({
   // Apply custom filters and duplicates logic
   const filteredApplicants = useMemo(() => {
     // First apply custom filters to column-filtered data
-    let processed = applyCustomFilters(columnFilteredApplicants, customFilters, {
+    const processed = applyCustomFilters(columnFilteredApplicants, customFilters, {
       jobPositionMap,
       fieldToJobIds: fieldToJobIds instanceof Map ? fieldToJobIds : new Map(),
       currentUserId,

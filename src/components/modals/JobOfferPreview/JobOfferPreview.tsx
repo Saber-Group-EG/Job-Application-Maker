@@ -9,9 +9,10 @@ type Props = {
 };
 
 export default function JobOfferPreview({ isOpen, onClose, offer }: Props) {
+  // Hooks before the early return: React needs the same hooks every render.
+  const { t, locale } = useLocale();
   if (!isOpen) return null;
 
-  const { t, locale } = useLocale();
   const workTypeMap: Record<string, string> = {
     'full-time': 'fullTime',
     'part-time': 'partTime',

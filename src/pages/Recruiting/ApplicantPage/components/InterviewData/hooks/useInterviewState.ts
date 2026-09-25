@@ -217,7 +217,6 @@ export const useInterviewState = (
     seededQIdsRef.current = '';
     questionTextRef.current = {};
     questionsSignatureRef.current = '';
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedInterviewId]);
   useLayoutEffect(() => {
     if (!selectedInterview) return;

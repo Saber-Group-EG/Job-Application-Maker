@@ -142,7 +142,6 @@ export function useAnimatedColumnDrag({
       if ((raf1 as any)._raf2) cancelAnimationFrame((raf1 as any)._raf2);
       if (cleanupTimeout) clearTimeout(cleanupTimeout);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [columnOrder]);
 
   useEffect(() => {

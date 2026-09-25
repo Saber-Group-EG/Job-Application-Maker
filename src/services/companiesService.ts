@@ -618,7 +618,7 @@ class EmailTemplatesService {
     templates: EmailTemplate[]
   ): Promise<EmailTemplate[]> {
     const cleanedTemplates = templates.map(
-      ({ createdAt, updatedAt, ...rest }) => rest
+      ({ createdAt: _createdAt, updatedAt: _updatedAt, ...rest }) => rest
     );
     const response = await axios.put<{
       mailSettings: { emailTemplates: EmailTemplate[] };

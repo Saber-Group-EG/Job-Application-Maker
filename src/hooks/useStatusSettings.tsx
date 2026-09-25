@@ -38,7 +38,7 @@ export function useStatusSettings(company?: Company | any) {
       const b = parseInt(h.length === 3 ? h[2] + h[2] : h.substring(h.length === 3 ? 2 : 4, h.length === 3 ? 3 : 6), 16);
       const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
       return luminance > 0.6 ? '#111827' : '#FFFFFF';
-    } catch (e) {
+    } catch {
       return '#111827';
     }
   };

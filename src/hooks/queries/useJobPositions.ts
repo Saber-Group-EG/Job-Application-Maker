@@ -46,23 +46,21 @@ export function useJobPositions(
   const userCompanyIds = getUserCompanyIds(user);
   const effectiveCompanyId = companyId?.length ? companyId : userCompanyIds;
 
-  // Special case: no companies assigned
-  if (effectiveCompanyId?.length === 1 && effectiveCompanyId[0] === '__NO_COMPANY__') {
-    return useQuery({
-      queryKey: jobPositionsKeys.list(effectiveCompanyId, departmentId),
-      queryFn: () => Promise.resolve([] as JobPosition[]),
-      enabled: false,
-    });
-  }
+  // Special case: no companies assigned — nothing to fetch.
+  const noCompany =
+    effectiveCompanyId?.length === 1 && effectiveCompanyId[0] === '__NO_COMPANY__';
 
   return useQuery({
     queryKey: jobPositionsKeys.list(effectiveCompanyId, departmentId),
-    queryFn: () => jobPositionsService.getAllJobPositions({
-      companyId: effectiveCompanyId,
-      deleted,
-      departmentId
-    }),
-    enabled: options?.enabled ?? true,
+    queryFn: () =>
+      noCompany
+        ? Promise.resolve([] as JobPosition[])
+        : jobPositionsService.getAllJobPositions({
+            companyId: effectiveCompanyId,
+            deleted,
+            departmentId,
+          }),
+    enabled: !noCompany && (options?.enabled ?? true),
     staleTime: 5 * 60 * 1000,
     refetchOnMount: false,
     refetchOnWindowFocus: false,

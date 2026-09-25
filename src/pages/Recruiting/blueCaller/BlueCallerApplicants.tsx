@@ -31,7 +31,7 @@ type Company = {
   };
 };
 
-function getTailwindColorClass(company?: Company | null): {
+function getTailwindColorClass(_company?: Company | null): {
   bgPrimary: string;
   borderPrimary: string;
   textPrimary: string;
@@ -65,13 +65,13 @@ export default function BlueCallerApplicants() {
   const { user } = useAuth();
   const { t } = useLocale();
 
-  const { selectedCompanyId: ctxCompanyId, setSelectedCompanyId, companies: contextCompanies } = useCompanyFilter();
+  const { selectedCompanyId: ctxCompanyId, setSelectedCompanyId } = useCompanyFilter();
   const selectedCompanyId = ctxCompanyId ?? '';
   const [activeTab, setActiveTab] = useState<TabKey>('manual');
   const [companies, setCompanies] = useState<Company[]>([]);
   const [jobPositions, setJobPositions] = useState<JobPosition[]>([]);
   const [existingApplicants, setExistingApplicants] = useState<Applicant[]>([]);
-  const [loadingCompanies, setLoadingCompanies] = useState(true);
+  const [, setLoadingCompanies] = useState(true);
   const [loadingJobs, setLoadingJobs] = useState(false);
 
   const userCompanyIds = useMemo<string[] | undefined>(() => {
