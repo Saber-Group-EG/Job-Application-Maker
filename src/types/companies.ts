@@ -131,6 +131,8 @@ export interface GmailStatus {
   connectedAt: string | null;
   receiveEnabled: boolean;
   receiveAllowedByPlan: boolean;
+  // Whether the server offers "Sign in with Google".
+  oauthAvailable?: boolean;
   lastSyncAt: string | null;
   lastError: string | null;
   lastErrorAt: string | null;
