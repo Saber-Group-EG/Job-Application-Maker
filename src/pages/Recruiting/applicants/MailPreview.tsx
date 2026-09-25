@@ -38,6 +38,7 @@ import {
     useMailDetail,
     useMailList,
     mailKeys,
+    MAIL_LIST_STALE_MS,
 } from '../../../hooks/queries/useMail';
 import { mailService } from '../../../services/mailService';
 import type { MailDirection, MailListParams, MailRecord, MailStatusKey } from '../../../types/mail';
@@ -100,7 +101,19 @@ const statusChipClasses: Record<MailStatusKey, { bg: string; text: string; dot: 
     received: { bg: 'bg-sky-50', text: 'text-sky-700', dot: 'bg-sky-500' },
 };
 
-const MAIL_LIST_PAGE_SIZE = 10;
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
+const DEFAULT_PAGE_SIZE = 10;
+const PAGE_SIZE_STORAGE_KEY = 'mailPreview.pageSize';
+
+// The viewer's page size, remembered per browser.
+const readStoredPageSize = () => {
+    try {
+        const n = Number(localStorage.getItem(PAGE_SIZE_STORAGE_KEY));
+        return (PAGE_SIZE_OPTIONS as readonly number[]).includes(n) ? n : DEFAULT_PAGE_SIZE;
+    } catch {
+        return DEFAULT_PAGE_SIZE;
+    }
+};
 
 const formatDateTime = (value: string, locale?: string) =>
     new Date(value).toLocaleString(locale, { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' });
@@ -243,7 +256,7 @@ const SidebarNavItem = ({ icon: Icon, label, count, loading, active, onClick }: 
 );
 
 // Placeholder rows shaped like the real list, shown while a page loads.
-const MailListSkeleton = ({ rows = MAIL_LIST_PAGE_SIZE }: { rows?: number }) => (
+const MailListSkeleton = ({ rows = DEFAULT_PAGE_SIZE }: { rows?: number }) => (
     <>
         {Array.from({ length: rows }, (_, i) => (
             <div key={i} className="flex items-start justify-between gap-3 px-6 py-4" aria-hidden="true">
@@ -287,6 +300,17 @@ export default function MailPreview() {
     const [searchTerm, setSearchTerm] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [mailPage, setMailPage] = useState(1);
+    const [pageSize, setPageSize] = useState(readStoredPageSize);
+
+    const changePageSize = (size: number) => {
+        setPageSize(size);
+        setMailPage(1);
+        try {
+            localStorage.setItem(PAGE_SIZE_STORAGE_KEY, String(size));
+        } catch {
+            /* storage unavailable: the choice lasts for this visit */
+        }
+    };
 
     // Filters reset to page 1 in the same update that changes them, so the
     // old page number is never requested for the new filter.
@@ -308,12 +332,12 @@ export default function MailPreview() {
 
     const listParams = useMemo<MailListParams>(() => ({
         page: mailPage,
-        limit: MAIL_LIST_PAGE_SIZE,
+        limit: pageSize,
         companyId,
         ...FOLDER_PARAMS[folder],
         status: [...statusFilter],
         q: debouncedSearch || undefined,
-    }), [mailPage, companyId, folder, statusFilter, debouncedSearch]);
+    }), [mailPage, pageSize, companyId, folder, statusFilter, debouncedSearch]);
 
     const { data: listResponse, isLoading, isFetching, isPlaceholderData } = useMailList(listParams);
     const { data: counts, isLoading: isCountsLoading } = useMailCounts({ companyId });
@@ -329,11 +353,17 @@ export default function MailPreview() {
         if (!isPlaceholderData && mailPage > totalMailPages) setMailPage(totalMailPages);
     }, [mailPage, totalMailPages, isPlaceholderData]);
 
-    // Load the next page in the background so paging forward is instant.
+    // Stay one page ahead: on page N, page N+1 loads in the background, so
+    // "Next" is instant and only N+2 is fetched when you get there. Pages
+    // already loaded aren't requested again while fresh (MAIL_LIST_STALE_MS).
     useEffect(() => {
         if (isPlaceholderData || mailPage >= totalMailPages) return;
         const nextParams = { ...listParams, page: mailPage + 1 };
-        queryClient.prefetchQuery({ queryKey: mailKeys.list(nextParams), queryFn: () => mailService.list(nextParams) });
+        queryClient.prefetchQuery({
+            queryKey: mailKeys.list(nextParams),
+            queryFn: () => mailService.list(nextParams),
+            staleTime: MAIL_LIST_STALE_MS,
+        });
     }, [queryClient, listParams, mailPage, totalMailPages, isPlaceholderData]);
 
     const selectedApplicantId = selected ? refId(selected.applicant) : null;
@@ -497,7 +527,7 @@ export default function MailPreview() {
                                 {isLoading || isSwitching ? (
                                     <>
                                         <span className="sr-only" role="status">{t('loading', 'mailPreview')}</span>
-                                        <MailListSkeleton />
+                                        <MailListSkeleton rows={Math.min(pageSize, 20)} />
                                     </>
                                 ) : mails.length === 0 ? (
                                     <div className="flex h-full flex-col items-center justify-center py-20 text-center">
@@ -545,8 +575,8 @@ export default function MailPreview() {
                             </div>
 
                             {/* Pagination */}
-                            {totalMailPages > 1 && (
-                                <div className="flex items-center justify-between border-t border-slate-200 px-6 py-3 dark:border-slate-800">
+                            {(listResponse?.totalCount ?? 0) > PAGE_SIZE_OPTIONS[0] && (
+                                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 px-6 py-3 dark:border-slate-800">
                                     <button
                                         disabled={mailPage === 1 || isSwitching}
                                         onClick={() => setMailPage((p) => Math.max(1, p - 1))}
@@ -555,10 +585,24 @@ export default function MailPreview() {
                                         <ChevronLeft className="h-4 w-4" />
                                         {t('previous', 'mailPreview')}
                                     </button>
-                                    <span className="inline-flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-                                        {isSwitching && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />}
-                                        {t('paginationInfo', 'mailPreview', { page: mailPage, totalPages: totalMailPages })}
-                                    </span>
+                                    <div className="flex flex-wrap items-center gap-4 text-sm text-slate-500 dark:text-slate-400">
+                                        <span className="inline-flex items-center gap-2">
+                                            {isSwitching && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />}
+                                            {t('paginationInfo', 'mailPreview', { page: mailPage, totalPages: totalMailPages })}
+                                        </span>
+                                        <label className="inline-flex items-center gap-2">
+                                            {t('perPage', 'mailPreview')}
+                                            <select
+                                                value={pageSize}
+                                                onChange={(e) => changePageSize(Number(e.target.value))}
+                                                className="rounded-md border border-slate-200 bg-white px-2 py-1 text-sm text-slate-700 focus:border-brand-300 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                                            >
+                                                {PAGE_SIZE_OPTIONS.map((n) => (
+                                                    <option key={n} value={n}>{n}</option>
+                                                ))}
+                                            </select>
+                                        </label>
+                                    </div>
                                     <button
                                         disabled={mailPage === totalMailPages || isSwitching}
                                         onClick={() => setMailPage((p) => Math.min(totalMailPages, p + 1))}

@@ -6,6 +6,10 @@ import { mailService } from '../../services/mailService';
 import type { MailListParams, MailReplyPayload } from '../../types/mail';
 
 const MAIL_POLL_INTERVAL_MS = 30 * 1000;
+// A loaded (or prefetched) page counts as fresh for this long, so opening a
+// page that was just prefetched doesn't request it again. The current page
+// is still refreshed by polling, and sending/assigning/deleting invalidates.
+export const MAIL_LIST_STALE_MS = 30 * 1000;
 
 export const mailKeys = {
   all: ['mail-logs'] as const,
@@ -21,6 +25,7 @@ export function useMailList(params: MailListParams, { poll = true }: { poll?: bo
     queryKey: mailKeys.list(params),
     queryFn: () => mailService.list(params),
     placeholderData: keepPreviousData,
+    staleTime: MAIL_LIST_STALE_MS,
     refetchInterval: poll ? MAIL_POLL_INTERVAL_MS : false,
   });
 }
