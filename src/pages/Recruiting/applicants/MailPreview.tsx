@@ -299,7 +299,11 @@ export default function MailPreview() {
 
     const { selectedCompanyId } = useCompanyFilter();
     const companyId = selectedCompanyId && selectedCompanyId !== 'all' ? selectedCompanyId : undefined;
-    const [folder, setFolder] = useState<Folder>('all');
+    // ?folder=unassigned (etc.) opens a folder directly, e.g. from the homepage.
+    const [folder, setFolder] = useState<Folder>(() => {
+        const q = new URLSearchParams(window.location.search).get('folder');
+        return (['all', 'inbound', 'outbound', 'unassigned', 'marked'] as const).includes(q as Folder) ? (q as Folder) : 'all';
+    });
     const [statusFilter, setStatusFilter] = useState<Set<MailStatusKey>>(new Set());
     const [searchTerm, setSearchTerm] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
