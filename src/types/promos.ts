@@ -125,6 +125,8 @@ export interface PromoCommissionReportRow {
   totalCents?: number;
   pendingCents?: number;
   paidCents?: number;
+  // Voided commission, reported beside the total (not included in it).
+  voidCents?: number;
   byStatus?: Array<{ status: string; totalCents: number }>;
 }
 
@@ -132,6 +134,7 @@ export interface PromoCommissionReportTotals {
   totalCents?: number;
   pendingCents?: number;
   paidCents?: number;
+  voidCents?: number;
 }
 
 export interface PromoCommissionReport {

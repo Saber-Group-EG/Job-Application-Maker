@@ -1,20 +1,16 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router";
-import { useApplicants } from "../../../../hooks/queries/useApplicants";
+import { useApplicantsTable } from "../../../../hooks/queries/useApplicantsTable";
+import type { ApplicantTableRow } from "../../../../services/applicantsTableService";
+import { useDebounce } from "../../../../hooks/useDebounce";
 import { useCompanies } from "../../../../hooks/queries/useCompanies";
 import { useJobPositions } from "../../../../hooks/queries/useJobPositions";
 import { useAuth } from "../../../../context/AuthContext";
 import { useLocale } from "../../../../context/LocaleContext";
 import { useCompanyFilter } from "../../../../context/CompanyFilterContext";
 import LoadingSpinner from "../../../../components/common/LoadingSpinner";
-import { useQueryClient } from '@tanstack/react-query';
-import { applicantsKeys } from '../../../../hooks/queries/useApplicants';
 import { toPlainString } from "../../../../utils/strings";
 import { paths } from "../../../../router/Paths";
-import {
-  buildApplicantDuplicateLookup,
-  sortApplicantsByDuplicatePriority,
-} from '../../../../utils/applicantDuplicateSort';
 import CustomFilterModal from "../../../../components/modals/CustomFilterModal";
 import Swal from '../../../../utils/swal';
 import BulkMessageModal from '../../../../components/modals/BulkMessageModal';
@@ -96,7 +92,6 @@ const readPersistedMobileFilters = () => {
 
 export default function ApplicantsMobilePage(): JSX.Element {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const [initialMobileFilters] = useState(() => readPersistedMobileFilters());
 
   // Lazy image loader with enhanced features
@@ -183,8 +178,6 @@ export default function ApplicantsMobilePage(): JSX.Element {
     initialMobileFilters.submittedDesc
   );
   const [refreshing, setRefreshing] = useState(false);
-  const hasSearchQuery = query.trim().length > 0;
-  const normalizedSearchQuery = query.trim().toLowerCase();
 
   const { data: companies = [], refetch: refetchCompanies, isFetching: isCompaniesFetching } = useCompanies();
   const { user } = useAuth();
@@ -195,11 +188,6 @@ export default function ApplicantsMobilePage(): JSX.Element {
     return typeof roleName === 'string' && roleName.toLowerCase() === 'super admin';
   }, [user?.roleId?.name]);
 
-  const currentUserId = useMemo(
-    () =>
-      String((user as any)?._id || (user as any)?.id || ''),
-    [user]
-  );
 
   const companyId = useMemo(() => {
     if (!user) return undefined;
@@ -220,17 +208,67 @@ export default function ApplicantsMobilePage(): JSX.Element {
   const jobPositionsFetchParam = needServerFetchForCompany
     ? [primarySelectedCompany as string]
     : companyId;
-  const applicantsFetchParam = needServerFetchForCompany
-    ? [primarySelectedCompany as string]
-    : companyId;
+  const applicantsFetchParam = useMemo(
+    () => (needServerFetchForCompany ? [primarySelectedCompany as string] : companyId),
+    [needServerFetchForCompany, primarySelectedCompany, companyId]
+  );
 
   const { data: jobPositions = [], refetch: refetchJobPositions, isFetching: isJobPositionsFetching } = useJobPositions(jobPositionsFetchParam as any, false);
-const { data: applicants = [], isLoading, error, refetch } = useApplicants({
-  companyId: applicantsFetchParam as any,
-  jobPositionId: undefined,
-  departmentId: undefined,
-  enabled: true,
-});
+  // Filtering, sorting and paging run on the server (POST /applicants/table),
+  // like the desktop table. A search ignores the other filters, as before.
+  const debouncedQuery = useDebounce(query.trim(), 300);
+  const searching = debouncedQuery.length > 0;
+  const tableRequest = useMemo(
+    () => ({
+      companyIds: (applicantsFetchParam as string[] | undefined) || undefined,
+      columnFilters: searching
+        ? []
+        : [
+            ...(jobFilters.length ? [{ id: 'jobPositionId', value: jobFilters }] : []),
+            ...(statusFilters.length ? [{ id: 'status', value: statusFilters }] : []),
+            ...(genderFilters.length ? [{ id: 'gender', value: genderFilters }] : []),
+          ],
+      excludeColumns: [],
+      customFilters: searching ? [] : customFilters,
+      globalFilter: debouncedQuery,
+      companyFilterValue: searching ? null : (companyFilters[0] ?? null),
+      sorting: [{ id: 'submittedAt', desc: submittedDesc }],
+      pageIndex,
+      pageSize,
+      locale,
+    }),
+    [applicantsFetchParam, searching, jobFilters, statusFilters, genderFilters, customFilters, debouncedQuery, companyFilters, submittedDesc, pageIndex, pageSize, locale]
+  );
+  const {
+    data: tableData,
+    isLoading,
+    error,
+    refetch,
+    isFetching: isTableFetching,
+  } = useApplicantsTable(tableRequest, { enabled: Boolean(user) });
+  const paginated: ApplicantTableRow[] = useMemo(() => tableData?.rows ?? [], [tableData]);
+  const totalRows = tableData?.total ?? 0;
+
+  // Back to the first page when the result set changes.
+  const filterSignature = JSON.stringify([searching, debouncedQuery, jobFilters, statusFilters, genderFilters, customFilters, companyFilters, submittedDesc]);
+  const prevFilterSignature = useRef(filterSignature);
+  useEffect(() => {
+    if (prevFilterSignature.current === filterSignature) return;
+    prevFilterSignature.current = filterSignature;
+    setPageIndex(0);
+  }, [filterSignature]);
+
+  // Rows seen on loaded pages, so selections survive paging.
+  const [knownRowsById, setKnownRowsById] = useState<Map<string, ApplicantTableRow>>(() => new Map());
+  useEffect(() => {
+    if (!paginated.length) return;
+    setKnownRowsById((prev) => {
+      const next = new Map(prev);
+      paginated.forEach((r) => next.set(r._id, r));
+      return next;
+    });
+  }, [paginated]);
+  const applicants = useMemo(() => Array.from(knownRowsById.values()), [knownRowsById]);
   const [columnFilters, _setColumnFilters] = useState<any[]>(() => {
     try {
       const raw = sessionStorage.getItem('applicants_table_state');
@@ -276,55 +314,6 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
       return id ? companyFilters.includes(String(id)) : false;
     });
   }, [jobPositions, companyFilters]);
-
-  const displayedApplicants = useMemo(() => {
-    const normalizeId = (v: any) => {
-      if (!v && v !== 0) return undefined;
-      if (typeof v === 'string') return v;
-      if (typeof v === 'number') return String(v);
-      if (typeof v === 'object') {
-        return v._id || v.id || (v.companyId && (v.companyId._id || v.companyId.id)) || undefined;
-      }
-      return undefined;
-    };
-
-    const getApplicantCompanyId = (a: any) => {
-      const tryFields = [a?.companyId, a?.company, a?.companyObj];
-      for (const f of tryFields) {
-        const n = normalizeId(f);
-        if (n) return n;
-      }
-      // fallback: derive from jobPositionId
-      const jobId = normalizeId(a?.jobPositionId);
-      if (jobId && jobPositionMap && jobPositionMap[jobId]) {
-        const job = jobPositionMap[jobId];
-        return normalizeId(job?.companyId || job?.company || job?.companyObj);
-      }
-      return undefined;
-    };
-
-    const getApplicantJobId = (a: any) => normalizeId(a?.jobPositionId || a?.job);
-
-    let list = Array.isArray(applicants) ? applicants.slice() : [];
-    if (!hasSearchQuery) {
-      if (companyFilters.length > 0) {
-        list = list.filter((a: any) => {
-          const cid = getApplicantCompanyId(a);
-          return cid ? companyFilters.includes(String(cid)) : false;
-        });
-      }
-      if (jobFilters.length > 0) {
-        list = list.filter((a: any) => {
-          const jid = getApplicantJobId(a);
-          return jid ? jobFilters.includes(String(jid)) : false;
-        });
-      }
-    }
-    return list;
-  }, [applicants, companyFilters, jobFilters, jobPositionMap, hasSearchQuery]);
-
-
-
 
   // Sync job filters with the column filter model used by custom modal.
   useEffect(() => {
@@ -374,64 +363,6 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
     columnFilters,
   ]);
 
-
-  const normalizeGender = (raw: any) => {
-    if (raw === null || raw === undefined) return '';
-    const s = String(raw).trim();
-    if (!s) return '';
-    const lower = s.toLowerCase();
-    const arabicMale = ['ذكر', 'ذكرً', 'ذَكر'];
-    const arabicFemale = ['انثى', 'أنثى', 'انثي', 'انسه', 'أنسه', 'انثا'];
-    if (arabicMale.includes(s) || arabicMale.includes(lower)) return 'Male';
-    if (arabicFemale.includes(s) || arabicFemale.includes(lower)) return 'Female';
-    if (lower === 'male' || lower === 'm') return 'Male';
-    if (lower === 'female' || lower === 'f') return 'Female';
-    return s.charAt(0).toUpperCase() + s.slice(1);
-  };
-
-  // helper to read custom response value (copied from Applicants.tsx)
-  const getCustomResponseValue = (a: any, f: any) => {
-    if (!a) return '';
-    const responses = a.customResponses || a.customFieldResponses || {};
-    const top = a || {};
-    const tryKey = (k: any) => {
-      if (k === undefined || k === null) return undefined;
-      if (typeof k !== 'string' && typeof k !== 'number') return undefined;
-      const key = String(k);
-      if (responses && Object.prototype.hasOwnProperty.call(responses, key)) return responses[key];
-      if (top && Object.prototype.hasOwnProperty.call(top, key)) return top[key];
-      return undefined;
-    };
-    const byId = tryKey(f.fieldId);
-    if (byId !== undefined) return byId;
-    const byEn = tryKey(f.labelEn);
-    if (byEn !== undefined) return byEn;
-    const byAr = tryKey(f.labelAr);
-    if (byAr !== undefined) return byAr;
-    const byLabel = tryKey(f.label);
-    if (byLabel !== undefined) return byLabel;
-    const norm = (s: any) => (s || '').toString().replace(/\u200E|\u200F/g, '').replace(/[^\w\u0600-\u06FF\s]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
-    const rawTargets = [f.labelEn, f.labelAr, f.fieldId].filter(Boolean);
-    const targetSet = new Set<string>();
-    rawTargets.map(norm).forEach((t) => { if (t) targetSet.add(t); });
-    for (const k of Object.keys(responses || {})) {
-      try {
-        const kn = norm(k);
-        if (targetSet.has(kn)) return responses[k];
-        const kn2 = kn.replace(/_/g, ' ');
-        if (targetSet.has(kn2)) return responses[k];
-      } catch { /* ignore */ }
-    }
-    for (const k of Object.keys(top || {})) {
-      try {
-        const kn = norm(k);
-        if (targetSet.has(kn)) return top[k];
-        const kn2 = kn.replace(/_/g, ' ');
-        if (targetSet.has(kn2)) return top[k];
-      } catch { /* ignore */ }
-    }
-    return '';
-  };
 
     // Helpers to resolve and download CVs for applicants (copied from Applicants.tsx)
     const buildCloudinaryDownloadUrl = (u: string, idHint?: string) => {
@@ -520,143 +451,6 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
       if (ok) return;
       window.open(url || String(path), '_blank');
     };
-
-  const allCustomFilters = Array.isArray(customFilters) ? customFilters : [];
-  const duplicatesOnlyEnabled = allCustomFilters.some(
-    (f: any) => f?.fieldId === '__duplicates_only' && f?.value === true
-  );
-  const effectiveCustomFilters = allCustomFilters.filter(
-    (f: any) => f?.fieldId !== '__duplicates_only'
-  );
-
-  const baseFiltered = (displayedApplicants || []).filter((a) => {
-
-    if (hasSearchQuery) {
-      return (
-        (a.fullName || "").toLowerCase().includes(normalizedSearchQuery) ||
-        (a.email || "").toLowerCase().includes(normalizedSearchQuery) ||
-        (a.phone || "").toLowerCase().includes(normalizedSearchQuery)
-      );
-    }
-
-    // status + trashed visibility
-    if (statusFilters.length === 0) {
-      // default 'All statuses' — hide trashed for everyone
-      if (a.status === 'trashed') return false;
-    } else {
-      const allowed = isSuperAdmin
-        ? statusFilters
-        : statusFilters.filter((s) => s !== 'trashed');
-      if (allowed.length === 0) return false;
-      if (!allowed.includes(String(a.status || ''))) return false;
-    }
-    // gender
-    if (genderFilters.length > 0) {
-      const raw = (a as any)?.gender || a?.customResponses?.gender || a?.customResponses?.['النوع'] || (a as any)['النوع'] || '';
-      const g = normalizeGender(raw);
-      if (!genderFilters.includes(g)) return false;
-    }
-    // custom filters
-    if (effectiveCustomFilters.length) {
-      for (const f of effectiveCustomFilters) {
-        try {
-          const val = getCustomResponseValue(a, f);
-          if (f.operator === 'equals' || f.operator === 'is') {
-            if (String(val) !== String(f.value)) return false;
-          } else if (f.operator === 'contains') {
-            if (!String(val || '').toLowerCase().includes(String(f.value || '').toLowerCase())) return false;
-          }
-        } catch { return false; }
-      }
-    }
-    return true;
-  });
-
-  const filtered = useMemo(() => {
-    if (hasSearchQuery || !duplicatesOnlyEnabled) return baseFiltered;
-    const duplicateLookup = buildApplicantDuplicateLookup(
-      baseFiltered as any[],
-      currentUserId,
-      {
-        getCompanyId: (applicant: any) => {
-          const rawCompany =
-            applicant?.companyId || applicant?.company || applicant?.companyObj;
-          if (rawCompany) {
-            if (typeof rawCompany === 'string' || typeof rawCompany === 'number') {
-              return String(rawCompany);
-            }
-            return String(rawCompany?._id || rawCompany?.id || '');
-          }
-
-          const rawJob = applicant?.jobPositionId;
-          const jobId =
-            typeof rawJob === 'string'
-              ? rawJob
-              : (rawJob?._id ?? rawJob?.id ?? '');
-          const job = jobPositionMap[jobId];
-          const jobCompany = job?.companyId || job?.company || job?.companyObj;
-          if (!jobCompany) return undefined;
-          if (typeof jobCompany === 'string' || typeof jobCompany === 'number') {
-            return String(jobCompany);
-          }
-          return String(jobCompany?._id || jobCompany?.id || '');
-        },
-      }
-    );
-    return baseFiltered.filter((a: any) => {
-      const aid = String((a as any)?._id || (a as any)?.id || '');
-      return duplicateLookup.get(aid)?.isDuplicate === true;
-    });
-  }, [baseFiltered, duplicatesOnlyEnabled, currentUserId, jobPositionMap, hasSearchQuery]);
-
-  // sort filtered by submittedAt (newest first by default)
-  const sortedFiltered = useMemo(() => {
-    try {
-      const getTime = (r: any): number => {
-        const v = r?.submittedAt || r?.submittedAt === 0 ? r.submittedAt : (r?.submittedAt ?? r?.submittedAt);
-        const t = v ? new Date(v).getTime() : 0;
-        return Number.isNaN(t) ? 0 : t;
-      };
-
-      return sortApplicantsByDuplicatePriority(
-        filtered || [],
-        currentUserId,
-        (a: any, b: any) => {
-        const ta = getTime(a);
-        const tb = getTime(b);
-        if (ta === tb) return 0;
-        return submittedDesc ? (tb - ta) : (ta - tb);
-        },
-        {
-          getCompanyId: (applicant: any) => {
-            const rawCompany =
-              applicant?.companyId || applicant?.company || applicant?.companyObj;
-            if (rawCompany) {
-              if (typeof rawCompany === 'string' || typeof rawCompany === 'number') {
-                return String(rawCompany);
-              }
-              return String(rawCompany?._id || rawCompany?.id || '');
-            }
-
-            const rawJob = applicant?.jobPositionId;
-            const jobId =
-              typeof rawJob === 'string'
-                ? rawJob
-                : (rawJob?._id ?? rawJob?.id ?? '');
-            const job = jobPositionMap[jobId];
-            const jobCompany = job?.companyId || job?.company || job?.companyObj;
-            if (!jobCompany) return undefined;
-            if (typeof jobCompany === 'string' || typeof jobCompany === 'number') {
-              return String(jobCompany);
-            }
-            return String(jobCompany?._id || jobCompany?.id || '');
-          },
-        }
-      );
-    } catch {
-      return filtered || [];
-    }
-  }, [filtered, submittedDesc, currentUserId, jobPositionMap]);
 
   const companyMap = useMemo(() => {
     const m: Record<string, string> = {};
@@ -756,34 +550,23 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
     return undefined;
   };
 
-  // build gender options
+  // build gender options (from the server: every applicant in scope)
   const genderOptions = useMemo(() => {
-    const s = new Set<string>();
-    const rows = Array.isArray(applicants) ? applicants : [];
-    rows.forEach((a: any) => {
-      // respect trashed visibility like desktop: non-super-admins should not see trashed
-      if (!isSuperAdmin && a?.status === 'trashed') return;
-      const raw = (a as any)?.gender || a?.customResponses?.gender || a?.customResponses?.['النوع'] || (a as any)['النوع'];
-      const g = normalizeGender(raw);
-      if (g) s.add(g);
-    });
-    const items = Array.from(s);
-    const ordered: string[] = [];
-    if (items.includes('Male')) ordered.push('Male');
-    if (items.includes('Female')) ordered.push('Female');
-    items.forEach((it) => { if (it !== 'Male' && it !== 'Female') ordered.push(it); });
-    return ordered.map((g) => ({ id: g, title: g }));
-  }, [applicants, isSuperAdmin]);
+    const items = tableData?.genderOptions ?? [];
+    return [
+      ...['Male', 'Female'].filter((g) => items.includes(g)),
+      ...items.filter((g) => g !== 'Male' && g !== 'Female'),
+    ].map((g) => ({ id: g, title: g }));
+  }, [tableData?.genderOptions]);
 
   // Update Data button
-  const updating = Boolean(isJobPositionsFetching || isCompaniesFetching || isLoading || refreshing);
+  const updating = Boolean(isJobPositionsFetching || isCompaniesFetching || isLoading || isTableFetching || refreshing);
 
   // Pagination logic (apply to sortedFiltered)
-  const totalPages = Math.max(1, Math.ceil(sortedFiltered.length / pageSize));
+  const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
   useEffect(() => {
-    if (pageIndex >= totalPages) setPageIndex(0);
-  }, [pageIndex, totalPages]);
-  const paginated = sortedFiltered.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize);
+    if (tableData && pageIndex >= totalPages) setPageIndex(0);
+  }, [tableData, pageIndex, totalPages]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -847,7 +630,7 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
                 {t('pageTitle', 'applicants')}
               </h1>
               <p className="text-xs text-gray-500 mt-0.5">
-                {sortedFiltered.length} / {applicants?.length || 0}
+                {totalRows}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -906,7 +689,7 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
               {t('tryAgain', 'applicants')}
             </button>
           </div>
-        ) : sortedFiltered.length === 0 ? (
+        ) : totalRows === 0 ? (
           <div className="flex flex-col items-center justify-center py-16">
             <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
               <Users size={32} className="text-gray-400" />
@@ -1033,7 +816,6 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
                     onClick={(e) => {
                       if (a && (a._id || (a as any).id)) {
                         const navId = normalizeIdGlobal(a._id) || normalizeIdGlobal((a as any).id);
-                        if (navId) queryClient.setQueryData(applicantsKeys.detail(navId), a as any);
                         if (e.ctrlKey || e.metaKey) {
                           const url = `${window.location.origin}${paths.applicants.details(navId)}`;
                           window.open(url, '_blank', 'noopener,noreferrer');
@@ -1074,11 +856,11 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
                               src={a.profilePhoto} 
                               alt={a.fullName} 
                               className="w-full h-full object-cover"
-                              fallback={(a.firstName || a.fullName || '').charAt(0).toUpperCase()}
+                              fallback={(a.fullName || '').charAt(0).toUpperCase()}
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-xl font-bold text-gray-500">
-                              {(a.firstName || a.fullName || '').charAt(0).toUpperCase()}
+                              {(a.fullName || '').charAt(0).toUpperCase()}
                             </div>
                           )}
                           
@@ -1204,7 +986,7 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
             <div className="mt-6 bg-white rounded-2xl border border-gray-200 p-4">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-sm text-gray-600">
-                  {t('showing', 'applicants', { start: sortedFiltered.length === 0 ? 0 : (pageIndex * pageSize) + 1, end: Math.min((pageIndex + 1) * pageSize, sortedFiltered.length), total: sortedFiltered.length })}
+                  {t('showing', 'applicants', { start: totalRows === 0 ? 0 : (pageIndex * pageSize) + 1, end: Math.min((pageIndex + 1) * pageSize, totalRows), total: totalRows })}
                 </span>
                 <select
                   value={pageSize}
@@ -1467,7 +1249,8 @@ const { data: applicants = [], isLoading, error, refetch } = useApplicants({
         open={customFilterOpen}
         onClose={() => setCustomFilterOpen(false)}
         jobPositions={jobPositions}
-        applicants={applicants}
+        applicants={[]}
+        salaryRange={tableData?.salaryRange}
         companies={companies}
         jobPositionMap={jobPositionMap}
         customFilters={customFilters}
