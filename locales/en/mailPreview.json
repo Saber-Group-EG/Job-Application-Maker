@@ -85,5 +85,10 @@
   "attachmentError": "Couldn't open the attachment.",
   "loading": "Loading",
   "mailBody": "Email content",
-  "perPage": "Per page"
+  "perPage": "Per page",
+  "showQuoted": "Show quoted message",
+  "hideQuoted": "Hide quoted message",
+  "bodyReplyLabel": "Their reply",
+  "bodySentLabel": "Message sent",
+  "expandMail": "Open large"
 }
