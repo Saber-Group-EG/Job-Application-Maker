@@ -21,21 +21,41 @@ type EmailPayload = {
 type MailError = {
   message?: string;
   code?: string;
-  response?: { status?: number; data?: { message?: string; error?: string } };
+  response?: {
+    status?: number;
+    data?: { message?: string; error?: string; details?: Array<{ message?: string }> };
+  };
 };
 
 const applicantId = (applicant?: ApplicantRef) =>
   applicant && typeof applicant === 'object' ? applicant._id : applicant;
 
-// Strips surrounding angle brackets ("<a@b.com>") and the unused text body.
+// Builds exactly what the backend's mail schema accepts (validation/
+// applicant.validation.js: singleEmailSchema / batchEmailSchema). Unknown
+// keys fail the whole request, so extras callers pass (e.g. `metadata`,
+// `text`) are dropped here. Also strips "<a@b.com>" brackets from `from`.
 const normalizeEmail = (email: EmailPayload) => {
-  const payload = {
-    ...email,
-    from: typeof email.from === 'string' ? email.from.replace(/[<>]/g, '') : email.from,
-    applicant: applicantId(email.applicant),
+  const payload: Record<string, unknown> = {
+    to: email.to,
+    subject: email.subject,
+    html: email.html,
   };
-  delete payload.text;
+  if (email.company) payload.company = email.company;
+  if (typeof email.from === 'string' && email.from.trim())
+    payload.from = email.from.replace(/[<>]/g, '');
+  if (email.attachments?.length) payload.attachments = email.attachments;
+  const applicant = applicantId(email.applicant);
+  if (applicant) payload.applicant = applicant;
+  if (email.jobPosition) payload.jobPosition = email.jobPosition;
   return payload;
+};
+
+// The backend's validation middleware returns a generic message plus the
+// specific reasons in `details`; show the reasons.
+const serverErrorText = (error: MailError): string | undefined => {
+  const data = error?.response?.data;
+  const details = data?.details?.map((d) => d.message).filter(Boolean);
+  return details?.length ? details.join(' ') : data?.message || data?.error;
 };
 
 export function useSendEmail() {
@@ -64,7 +84,7 @@ export function useSendEmail() {
       
       // Check for other errors
       if (error?.response?.status === 400) {
-        const errorMessage = error?.response?.data?.message || t('emailInvalidMsg', 'common');
+        const errorMessage = serverErrorText(error) || t('emailInvalidMsg', 'common');
         
         Swal.fire({
           title: t('emailError', 'common'),
@@ -97,7 +117,7 @@ export function useSendBatchEmail() {
         throw new Error(t('companyRequired', 'common'));
       }
 
-      return axiosInstance.post('/mail', { company: body.company, batch: body.batch.map(normalizeEmail) }, {
+      return axiosInstance.post('/mail', { company: body.company, batch: body.batch.map(({ company: _company, ...item }) => normalizeEmail(item)) }, {
         headers: {
           'Content-Type': 'application/json',
         },
@@ -134,9 +154,7 @@ export function useSendBatchEmail() {
 
       // Check for other client errors
       if ((error?.response?.status ?? 0) >= 400 && (error?.response?.status ?? 0) < 500) {
-        const errorMessage = error?.response?.data?.message ||
-          error?.response?.data?.error ||
-          t('emailInvalidMsg', 'common');
+        const errorMessage = serverErrorText(error) || t('emailInvalidMsg', 'common');
 
         Swal.fire({
           title: t('emailError', 'common'),

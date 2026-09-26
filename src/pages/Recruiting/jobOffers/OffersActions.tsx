@@ -144,8 +144,7 @@ export function ResendModal({
             jobPosition: offer.applicantId?.jobPositionId?._id,
           }
         : {}),
-      metadata: { offerId: offer._id, type: 'job-offer' },
-    } as any);
+    });
 
     await updateMutation.mutateAsync({
       id: offer._id,
