@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router';
-import PageBreadcrumb from '../../../components/common/PageBreadCrumb';
 import PageMeta from '../../../components/common/PageMeta';
 import {
   PlusIcon,
@@ -9,7 +8,7 @@ import {
   Building2Icon,
   MapPinIcon,
   CalendarIcon,
-  ArrowRightIcon,
+  ChevronRightIcon,
   LayoutGridIcon,
   MenuIcon as ListIcon,
   GripVerticalIcon,
@@ -30,7 +29,24 @@ import { useLocale } from '../../../context/LocaleContext';
 import { useCompanyFilter } from '../../../context/CompanyFilterContext';
 import { toPlainString, toSlug } from '../../../utils/strings';
 import { normalizeFieldConfig } from '../../../utils/jobUtils';
-import Switch from '../../../components/form/switch/Switch';
+import {
+  Badge,
+  Button,
+  Card,
+  CardToolbar,
+  EmptyState,
+  IconButton,
+  PageShell,
+  Segmented,
+  Switch,
+  Table,
+  Th,
+  filterSelectClass,
+  focusRing,
+  inputClass,
+  rowClass,
+} from '../../../components/ui/kit';
+import type { BadgeTone } from '../../../components/ui/kit';
 import { jobPositionsService } from '../../../services/jobPositionsService';
 import {
   DndContext,
@@ -120,6 +136,12 @@ const formatDate = (dateString?: string, locale?: string) => {
   });
 };
 
+const getJobStatus = (job: any): { tone: BadgeTone; key: string } => {
+  if (isJobExpired(job)) return { tone: 'red', key: 'jobsExpiredBadge' };
+  if (job.isActive !== false) return { tone: 'green', key: 'jobsActiveBadge' };
+  return { tone: 'slate', key: 'jobsDeprioritizedBadge' };
+};
+
 function SortableJobCard({
   job,
   canManageJobs,
@@ -156,6 +178,13 @@ function SortableJobCard({
     }
   };
 
+  const status = getJobStatus(job);
+  const arrangement =
+    ({ 'on-site': t('createOnSite', 'jobs'), remote: t('createRemote', 'jobs'), hybrid: t('createHybrid', 'jobs') } as Record<string, string>)[job.workArrangement] ||
+    job.workArrangement ||
+    t('jobsRemoteOffice', 'jobs');
+  const title = getTranslation(job.title, '', locale);
+
   return (
     <Link
       ref={setNodeRef}
@@ -163,109 +192,97 @@ function SortableJobCard({
       to={`/create-job?id=${job._id}`}
       state={{ job }}
       onClick={handleCardClick}
-      className={`group relative block cursor-pointer space-y-4 rounded-3xl border border-white/20 bg-white/60 p-6 backdrop-blur-xl transition-[transform,opacity,box-shadow] duration-200 hover:scale-[1.02] hover:shadow-2xl hover:shadow-brand-500/10 dark:border-slate-800/50 dark:bg-slate-900/60 ${
-        isDragging ? 'opacity-60 ring-2 ring-brand-400 z-50' : ''
+      className={`group relative flex flex-col rounded-2xl border border-slate-200 bg-white shadow-sm transition-[box-shadow,border-color,opacity] hover:border-slate-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700 ${focusRing} ${
+        isDragging ? 'z-50 opacity-60 ring-2 ring-brand-400' : ''
       }`}
     >
-      <div className="flex items-start justify-between">
-        <div className="space-y-1">
+      <div className="flex flex-1 flex-col gap-3 p-4">
+        <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <span
               {...attributes}
               {...listeners}
-              className="inline-flex items-center text-slate-400 cursor-grab active:cursor-grabbing"
+              className="inline-flex cursor-grab items-center rounded text-slate-400 hover:text-slate-600 active:cursor-grabbing dark:hover:text-slate-300"
               title={t('jobsDragReorder', 'jobs')}
+              aria-label={t('jobsDragReorder', 'jobs')}
             >
               <GripVerticalIcon className="size-4" />
             </span>
-            <span
-              className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                isJobExpired(job)
-                  ? 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400'
-                  : job.isActive !== false
-                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400'
-                    : 'bg-slate-100 text-slate-700 dark:bg-slate-500/10 dark:text-slate-400'
-              }`}
-            >
-              {isJobExpired(job)
-                ? t('jobsExpiredBadge', 'jobs')
-                : job.isActive !== false
-                  ? t('jobsActiveBadge', 'jobs')
-                  : t('jobsDeprioritizedBadge', 'jobs')}
-            </span>
+            <Badge tone={status.tone}>{t(status.key, 'jobs')}</Badge>
           </div>
-          <h3 className="text-lg font-bold text-slate-900 transition-colors group-hover:text-brand-600 dark:text-white dark:group-hover:text-brand-400">
-            {getTranslation(job.title, '', locale)}
-          </h3>
-        </div>
-
-        <div className="flex flex-col items-end gap-2">
           {canManageJobs && (
             <div onClick={(e) => e.preventDefault()}>
               <Switch
-                label=""
                 checked={job.isActive !== false}
                 onChange={() => onToggleActive(job)}
+                label={t('jobsToggleActive', 'jobs', { title })}
               />
             </div>
           )}
         </div>
+
+        <h3 className="line-clamp-2 text-base font-semibold text-slate-900 group-hover:text-brand-600 dark:text-white dark:group-hover:text-brand-400">
+          {title}
+        </h3>
+
+        <div className="space-y-1.5 text-sm text-slate-500 dark:text-slate-400">
+          <p className="flex items-center gap-2">
+            <Building2Icon className="size-4 shrink-0 text-slate-400" />
+            <span className="truncate">{getTranslation(job.companyId?.name, '', locale) || t('jobsGlobalCorp', 'jobs')}</span>
+          </p>
+          <p className="flex items-center gap-2">
+            <MapPinIcon className="size-4 shrink-0 text-slate-400" />
+            <span>{arrangement}</span>
+          </p>
+          <p className="flex items-center gap-2">
+            <CalendarIcon className="size-4 shrink-0 text-slate-400" />
+            <span>{t('jobsCreatedAt', 'jobs', { date: formatDate(job.createdAt, locale) })}</span>
+          </p>
+        </div>
       </div>
 
-      <div className="space-y-2.5">
-        <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-          <Building2Icon className="size-4 text-brand-500" />
-          <span className="font-medium truncate">
-            {getTranslation(job.companyId?.name, '', locale) || t('jobsGlobalCorp', 'jobs')}
-          </span>
-        </div>
-        <div className="flex items-center gap-2 text-sm text-slate-500">
-          <MapPinIcon className="size-4" />
-          <span>{({ 'on-site': t('createOnSite', 'jobs'), remote: t('createRemote', 'jobs'), hybrid: t('createHybrid', 'jobs') } as Record<string, string>)[job.workArrangement] || job.workArrangement || t('jobsRemoteOffice', 'jobs')}</span>
-        </div>
-        <div className="flex items-center gap-2 text-sm text-slate-500">
-          <CalendarIcon className="size-4" />
-          <span>{t('jobsCreatedAt', 'jobs', { date: formatDate(job.createdAt, locale) })}</span>
-        </div>
-      </div>
-
-      <div className="pt-4 flex items-center justify-between border-t border-slate-100 dark:border-slate-800">
-        <div />
-        <div
-          className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100"
-          onClick={(e) => e.preventDefault()}
-        >
-          <a
-            href={`https://form.sabergroup-eg.com/${toSlug(job.companyId?.name, 'en')}/${toSlug(job.title, 'en')}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="p-1.5 text-slate-400 hover:text-brand-600 transition-colors bg-white/80 rounded-lg dark:bg-slate-800"
-            title={t('jobsOpenForm', 'jobs')}
+      <div className="flex items-center justify-between gap-2 border-t border-slate-100 px-4 py-2 dark:border-slate-800">
+        <span className="text-xs text-slate-500 dark:text-slate-400">
+          <span className="font-semibold tabular-nums text-slate-900 dark:text-white">{job.applicantsCount || 0}</span>{' '}
+          {t('jobsCandidates', 'jobs')}
+        </span>
+        <div className="flex items-center gap-0.5" onClick={(e) => e.preventDefault()}>
+          {/* A button, not a link: this sits inside the card's <a>. */}
+          <IconButton
+            label={t('jobsOpenForm', 'jobs')}
+            onClick={(e) => {
+              e.stopPropagation();
+              window.open(
+                `https://form.sabergroup-eg.com/${toSlug(job.companyId?.name, 'en')}/${toSlug(job.title, 'en')}`,
+                '_blank',
+                'noopener,noreferrer'
+              );
+            }}
           >
             <ExternalLinkIcon className="size-4" />
-          </a>
+          </IconButton>
           {canManageJobs && (
-            <button
+            <IconButton
+              label={t('jobsEditJob', 'jobs')}
               onClick={(e) => {
                 e.stopPropagation();
                 onEdit(job);
               }}
-              className="p-1.5 text-slate-400 hover:text-brand-600 transition-colors bg-white/80 rounded-lg dark:bg-slate-800"
             >
               <PencilIcon className="size-4" />
-            </button>
+            </IconButton>
           )}
           {canManageJobs && (
-            <button
+            <IconButton
+              tone="danger"
+              label={t('jobsDeleteJob', 'jobs')}
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete(e, job._id);
               }}
-              className="p-1.5 text-slate-400 hover:text-red-600 transition-colors bg-white/80 rounded-lg dark:bg-slate-800"
             >
               <Trash2Icon className="size-4" />
-            </button>
+            </IconButton>
           )}
         </div>
       </div>
@@ -302,92 +319,55 @@ function SortableJobRow({
     onNavigate(job);
   };
 
+  const status = getJobStatus(job);
+
   return (
     <tr
       ref={setNodeRef}
       style={style}
       onClick={handleRowClick}
-      className={`group cursor-pointer transition-colors hover:bg-slate-50/50 dark:hover:bg-slate-800/30 ${
-        isDragging ? 'opacity-60 ring-2 ring-brand-400 z-50' : ''
-      }`}
+      className={`${rowClass} cursor-pointer ${isDragging ? 'relative z-50 opacity-60 ring-2 ring-brand-400' : ''}`}
     >
-      <td className="px-6 py-4">
+      <td className="px-4 py-3">
         <div className="flex items-center gap-3">
           <span
             {...attributes}
             {...listeners}
-            className="inline-flex items-center text-slate-400 cursor-grab active:cursor-grabbing"
+            className="inline-flex cursor-grab items-center text-slate-400 hover:text-slate-600 active:cursor-grabbing"
             title={t('jobsDragReorder', 'jobs')}
+            aria-label={t('jobsDragReorder', 'jobs')}
           >
             <GripVerticalIcon className="size-4" />
           </span>
-          <div className="rounded-xl bg-brand-50 p-2.5 dark:bg-brand-500/10">
-            <BriefcaseIcon className="size-5 text-brand-600" />
-          </div>
-          <div>
-            <Link
-              to={`/create-job?id=${job._id}`}
-              state={{ job }}
-              className="font-bold text-slate-900 hover:text-brand-600 transition-colors dark:text-white"
-              onClick={(e) => {
-                if (suppressNavigateRef.current) {
-                  e.preventDefault();
-                } else {
-                  onNavigate(job);
-                }
-              }}
-            >
-              {getTranslation(job.title, '', locale)}
-            </Link>
-          </div>
-        </div>
-      </td>
-      <td className="px-6 py-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">
-            <Building2Icon className="size-3.5 text-slate-400" />
-            {getTranslation(job.companyId?.name, '', locale) || t('jobsGlobalCorp', 'jobs')}
-          </div>
-          <div className="flex items-center gap-1.5 text-xs text-slate-500">
-            <MapPinIcon className="size-3.5" />
-            {({ 'on-site': t('createOnSite', 'jobs'), remote: t('createRemote', 'jobs'), hybrid: t('createHybrid', 'jobs') } as Record<string, string>)[job.workArrangement] || job.workArrangement || t('jobsOffice', 'jobs')}
-          </div>
-        </div>
-      </td>
-      <td className="px-6 py-4">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-slate-900 dark:text-white">
-            {job.applicantsCount || 0}
-          </span>
-           <span className="text-xs text-slate-500">{t('jobsCandidates', 'jobs')}</span>
-        </div>
-      </td>
-      <td className="px-6 py-4">
-        <span
-          className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${
-            isJobExpired(job)
-              ? 'border-red-200 bg-red-50 text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400'
-              : job.isActive !== false
-                ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400'
-                : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400'
-          }`}
-        >
-          {isJobExpired(job)
-            ? t('jobsExpiredStatus', 'jobs')
-            : job.isActive !== false
-              ? t('jobsActiveStatus', 'jobs')
-              : t('jobsInactiveStatus', 'jobs')}
-        </span>
-      </td>
-      <td className="px-6 py-4 text-right">
-        <div className="flex items-center justify-end gap-2">
-          <button
-            onClick={() => onNavigate(job)}
-            className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-white hover:text-brand-600 dark:hover:bg-slate-700"
+          <Link
+            to={`/create-job?id=${job._id}`}
+            state={{ job }}
+            className={`rounded font-medium text-slate-900 hover:text-brand-600 dark:text-white dark:hover:text-brand-400 ${focusRing}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (suppressNavigateRef.current) {
+                e.preventDefault();
+              }
+            }}
           >
-            <ArrowRightIcon className="size-4" />
-          </button>
+            {getTranslation(job.title, '', locale)}
+          </Link>
         </div>
+      </td>
+      <td className="px-4 py-3">
+        <p className="text-slate-700 dark:text-slate-300">
+          {getTranslation(job.companyId?.name, '', locale) || t('jobsGlobalCorp', 'jobs')}
+        </p>
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          {({ 'on-site': t('createOnSite', 'jobs'), remote: t('createRemote', 'jobs'), hybrid: t('createHybrid', 'jobs') } as Record<string, string>)[job.workArrangement] || job.workArrangement || t('jobsOffice', 'jobs')}
+        </p>
+      </td>
+      <td className="px-4 py-3 tabular-nums">{job.applicantsCount || 0}</td>
+      <td className="px-4 py-3">
+        <Badge tone={status.tone}>{t(status.key, 'jobs')}</Badge>
+      </td>
+      <td className="px-4 py-3 text-end">
+        <ChevronRightIcon className="ms-auto size-4 text-slate-300 rtl:rotate-180" aria-hidden="true" />
       </td>
     </tr>
   );
@@ -718,7 +698,7 @@ export default function Jobs() {
 
       return matchesSearch && matchesStatus && matchesCompany;
     });
-  }, [orderedJobs, searchTerm, statusFilter, selectedCompanyId]);
+  }, [orderedJobs, searchTerm, statusFilter, selectedCompanyId, locale]);
 
   const jobsGroupedByCompany = useMemo(() => {
     if (!Array.isArray(orderedJobs) || orderedJobs.length === 0) return [];
@@ -788,7 +768,7 @@ export default function Jobs() {
         };
       })
       .filter((g) => g.jobs.length > 0);
-  }, [orderedJobs, filteredJobs]);
+  }, [orderedJobs, filteredJobs, t]);
 
   const handleToggleActive = (job: any) => {
   const jobId = job._id;
@@ -864,285 +844,240 @@ export default function Jobs() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0F172A] p-4 sm:p-8 text-slate-900 dark:text-slate-100">
+    <>
       <PageMeta
         title={t('jobsPageTitle', 'jobs')}
         description={t('jobsPageDesc', 'jobs')}
       />
-
-      <div className="max-w-7xl mx-auto space-y-8">
-        <PageBreadcrumb pageTitle={t('jobsBreadcrumb', 'jobs')} />
-
-        {/* Header */}
-        <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-          <div className="space-y-1">
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              {t('jobsSubtitle', 'jobs', { count: jobPositions.length })}
-            </p>
-          </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => refetchJobs()}
-            className={`p-2.5 rounded-xl border border-white/20 bg-white/40 backdrop-blur-md transition-all hover:bg-white/60 dark:border-slate-800/50 dark:bg-slate-900/40 ${
-              isJobFetching ? 'animate-spin' : ''
-            }`}
-          >
-            <RefreshCwIcon className="size-4 text-slate-500" />
-          </button>
-
-          {canManageJobs && (
-            <button
-              onClick={() => navigate('/create-job')}
-              className="group flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-600 to-brand-400 px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition-all hover:scale-[1.02] hover:shadow-brand-500/25 active:scale-95"
-            >
-              <PlusIcon className="size-4 transition-transform group-hover:rotate-90" />
-              {t('jobsLaunchNewRole', 'jobs')}
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Control Bar */}
-      <div className="flex flex-col gap-4 rounded-2xl border border-white/20 bg-white/40 p-4 backdrop-blur-md dark:border-slate-800/50 dark:bg-slate-900/40 md:flex-row md:items-center">
-        <div className="relative flex-1">
-          <SearchIcon className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder={t('jobsSearchPlaceholder', 'jobs')}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full rounded-xl border-none bg-white/50 py-2.5 pl-11 pr-4 text-sm outline-none transition-all placeholder:text-slate-400 focus:ring-2 focus:ring-brand-500/20 dark:bg-slate-800/50"
-          />
-        </div>
-
-        <div className="flex items-center gap-4">
-          <div className="flex rounded-lg bg-slate-100/50 p-1 dark:bg-slate-800/50">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`rounded-md p-1.5 transition-all ${
-                viewMode === 'grid'
-                  ? 'bg-white text-brand-600 shadow-sm dark:bg-slate-700'
-                  : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              <LayoutGridIcon className="size-4" />
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`rounded-md p-1.5 transition-all ${
-                viewMode === 'list'
-                  ? 'bg-white text-brand-600 shadow-sm dark:bg-slate-700'
-                  : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              <ListIcon className="size-4" />
-            </button>
-          </div>
-
-          <div className="h-6 w-px bg-slate-200 dark:bg-slate-700" />
-
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="rounded-xl border-none bg-transparent py-2 pl-2 pr-8 text-sm font-medium text-slate-600 outline-none focus:ring-0 dark:text-slate-400"
-          >
-            <option value="all">{t('jobsAllStatus', 'jobs')}</option>
-            <option value="active">{t('jobsActive', 'jobs')}</option>
-            <option value="inactive">{t('jobsInactive', 'jobs')}</option>
-          </select>
-
-          {isSavingOrder && (
-            <span className="text-xs font-semibold text-brand-600 dark:text-brand-400">
-              {t('jobsSavingOrder', 'jobs')}
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Content */}
-      {filteredJobs.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-slate-200 py-24 dark:border-slate-800">
-          <div className="rounded-2xl bg-slate-50 p-6 dark:bg-slate-900/50">
-            <BriefcaseIcon className="size-12 text-slate-300 dark:text-slate-700" />
-          </div>
-          <h3 className="mt-6 text-lg font-semibold text-slate-900 dark:text-white">
-            {t('jobsNoPositions', 'jobs')}
-          </h3>
-          <p className="mt-2 text-slate-500 dark:text-slate-400">
-            {t('jobsNoPositionsDesc', 'jobs')}
-          </p>
-        </div>
-      ) : viewMode === 'grid' ? (
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragStart={handleGridDragStart}
-          onDragEnd={handleGridDragEnd}
-          onDragCancel={handleGridDragCancel}
-        >
-          <div className="space-y-10">
-            {jobsGroupedByCompany.map((group: any) => {
-              const groupJobIds = group.jobs.map((j: any) => j._id);
-              return (
-                <div key={group.companyId} className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-lg font-semibold text-slate-900 dark:text-white">
-                      {getTranslation(group.companyName, '', locale)}
-                    </h4>
-                    <span className="text-sm text-slate-500">
-                      {t('jobsPositions', 'jobs', { count: group.jobs.length })}
-                    </span>
-                  </div>
-
-                  <SortableContext
-                    items={groupJobIds}
-                    strategy={rectSortingStrategy}
-                  >
-                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
-                      {group.jobs.map((job: any) => (
-                        <SortableJobCard
-                          key={job._id}
-                          job={job}
-                          canManageJobs={canManageJobs}
-                          onToggleActive={handleToggleActive}
-                          onDelete={handleDelete}
-                          onEdit={handleEditJob}
-                          suppressNavigateRef={suppressNavigateRef}
-                        />
-                      ))}
-                    </div>
-                  </SortableContext>
-                </div>
-              );
-            })}
-          </div>
-
-          <DragOverlay>
-            {activeDragJob ? (
-              <div className="cursor-grabbing rounded-3xl border border-white/20 bg-white/80 p-6 shadow-2xl shadow-brand-500/20 backdrop-blur-xl opacity-90 dark:border-slate-800/50 dark:bg-slate-900/80">
-                <span className="text-sm font-bold text-slate-900 dark:text-white">
-                  {getTranslation(activeDragJob.title, '', locale)}
+      <PageShell
+        title={t('jobsBreadcrumb', 'jobs')}
+        subtitle={t('jobsSubtitle', 'jobs', { count: jobPositions.length })}
+        actions={
+          <>
+            <IconButton label={t('jobsRefresh', 'jobs')} onClick={() => refetchJobs()} disabled={isJobFetching}>
+              <RefreshCwIcon className={`size-4 ${isJobFetching ? 'animate-spin' : ''}`} />
+            </IconButton>
+            {canManageJobs && (
+              <Button variant="primary" icon={<PlusIcon className="size-4" />} onClick={() => navigate('/create-job')}>
+                {t('jobsLaunchNewRole', 'jobs')}
+              </Button>
+            )}
+          </>
+        }
+      >
+        {/* With results the toolbar stands alone, so drop its divider. */}
+        <Card className={filteredJobs.length > 0 ? '[&>div]:border-b-0' : ''}>
+          <CardToolbar>
+            <div className="relative w-full lg:max-w-sm">
+              <SearchIcon className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+              <input
+                type="search"
+                placeholder={t('jobsSearchPlaceholder', 'jobs')}
+                aria-label={t('jobsSearchPlaceholder', 'jobs')}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className={`${inputClass} ps-9`}
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {isSavingOrder && (
+                <span className="text-xs font-medium text-slate-500 dark:text-slate-400" role="status">
+                  {t('jobsSavingOrder', 'jobs')}
                 </span>
-              </div>
-            ) : null}
-          </DragOverlay>
-        </DndContext>
-      ) : (
-        <div className="overflow-hidden rounded-3xl border border-white/20 bg-white/60 backdrop-blur-xl dark:border-slate-800/50 dark:bg-slate-900/60">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="border-b border-slate-100 dark:border-slate-800">
-                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">
-                  {t('jobsColumnPosition', 'jobs')}
-                </th>
-                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">
-                  {t('jobsColumnInfrastructure', 'jobs')}
-                </th>
-                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">
-                  {t('jobsColumnApplicants', 'jobs')}
-                </th>
-                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">
-                  {t('jobsColumnStatus', 'jobs')}
-                </th>
-                <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-slate-500">
-                  {t('jobsColumnActions', 'jobs')}
-                </th>
-              </tr>
-            </thead>
+              )}
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                aria-label={t('jobsColumnStatus', 'jobs')}
+                className={filterSelectClass}
+              >
+                <option value="all">{t('jobsAllStatus', 'jobs')}</option>
+                <option value="active">{t('jobsActive', 'jobs')}</option>
+                <option value="inactive">{t('jobsInactive', 'jobs')}</option>
+              </select>
+              <Segmented
+                ariaLabel={t('jobsViewLabel', 'jobs')}
+                value={viewMode}
+                onChange={setViewMode}
+                options={[
+                  { value: 'grid', label: <span className="sr-only">{t('jobsViewGrid', 'jobs')}</span>, icon: <LayoutGridIcon className="size-4" /> },
+                  { value: 'list', label: <span className="sr-only">{t('jobsViewList', 'jobs')}</span>, icon: <ListIcon className="size-4" /> },
+                ]}
+              />
+            </div>
+          </CardToolbar>
+          {filteredJobs.length === 0 && (
+            <EmptyState
+              icon={<BriefcaseIcon className="size-6" />}
+              title={t('jobsNoPositions', 'jobs')}
+              text={t('jobsNoPositionsDesc', 'jobs')}
+              action={
+                canManageJobs && (
+                  <Button variant="primary" icon={<PlusIcon className="size-4" />} onClick={() => navigate('/create-job')}>
+                    {t('jobsLaunchNewRole', 'jobs')}
+                  </Button>
+                )
+              }
+            />
+          )}
+        </Card>
 
-            {jobsGroupedByCompany.map((group: any) => {
-              const groupJobIds = group.jobs.map((j: any) => j._id);
-              const companyId = group.companyId;
-
-              const handleListDragEnd = (event: DragEndEvent) => {
-                const { active, over } = event;
-                if (!over || active.id === over.id) return;
-
-                const oldIndex = groupJobIds.indexOf(active.id as string);
-                const newIndex = groupJobIds.indexOf(over.id as string);
-                if (oldIndex === -1 || newIndex === -1) return;
-
-                suppressNavigateRef.current = true;
-                window.setTimeout(() => {
-                  suppressNavigateRef.current = false;
-                }, 0);
-
-                const newCompanyOrder = arrayMove(
-                  groupJobIds,
-                  oldIndex,
-                  newIndex
-                );
-                const baselineOrderIds =
-                  orderedJobIds.length > 0
-                    ? [...orderedJobIds]
-                    : orderedJobs.map((job: any) => job._id);
-
-                const jobsById = new Map(
-                  orderedJobs.map((job: any) => [job?._id, job])
-                );
-
-                let companyIdx = 0;
-                const nextOrderIds = baselineOrderIds.map((id) => {
-                  const job = jobsById.get(id);
-                  if (getJobCompanyId(job) === companyId) {
-                    return newCompanyOrder[companyIdx++];
-                  }
-                  return id;
-                });
-
-                setOrderedJobIds(nextOrderIds);
-                scheduleJobOrderSync({
-                  previousOrderIds: baselineOrderIds,
-                  nextOrderIds,
-                  companyId,
-                  sourceJobId: active.id as string,
-                });
-              };
-
-              return (
-                <tbody
-                  key={group.companyId}
-                  className="divide-y divide-slate-50 dark:divide-slate-800/50"
-                >
-                  <tr className="bg-slate-50/30">
-                    <td
-                      colSpan={5}
-                      className="px-6 py-3 font-semibold text-slate-700 dark:text-slate-300"
-                    >
-                      {getTranslation(group.companyName, '', locale)}{' '}
-                      <span className="ml-2 text-sm text-slate-500">
-                        ({group.jobs.length})
+        {filteredJobs.length === 0 ? null : viewMode === 'grid' ? (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleGridDragStart}
+            onDragEnd={handleGridDragEnd}
+            onDragCancel={handleGridDragCancel}
+          >
+            <div className="space-y-8">
+              {jobsGroupedByCompany.map((group: any) => {
+                const groupJobIds = group.jobs.map((j: any) => j._id);
+                return (
+                  <section key={group.companyId} className="space-y-3">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
+                        {getTranslation(group.companyName, '', locale)}
+                      </h2>
+                      <span className="text-xs text-slate-500 dark:text-slate-400">
+                        {t('jobsPositions', 'jobs', { count: group.jobs.length })}
                       </span>
-                    </td>
-                  </tr>
+                    </div>
 
-                  <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={handleListDragEnd}
-                  >
                     <SortableContext
                       items={groupJobIds}
-                      strategy={verticalListSortingStrategy}
+                      strategy={rectSortingStrategy}
                     >
-                      {group.jobs.map((job: any) => (
-                        <SortableJobRow
-                          key={job._id}
-                          job={job}
-                          onNavigate={handleJobClick}
-                          suppressNavigateRef={suppressNavigateRef}
-                        />
-                      ))}
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                        {group.jobs.map((job: any) => (
+                          <SortableJobCard
+                            key={job._id}
+                            job={job}
+                            canManageJobs={canManageJobs}
+                            onToggleActive={handleToggleActive}
+                            onDelete={handleDelete}
+                            onEdit={handleEditJob}
+                            suppressNavigateRef={suppressNavigateRef}
+                          />
+                        ))}
+                      </div>
                     </SortableContext>
-                  </DndContext>
-                </tbody>
-              );
-            })}
-          </table>
-        </div>
-      )}
-      </div>
-    </div>
+                  </section>
+                );
+              })}
+            </div>
+
+            <DragOverlay>
+              {activeDragJob ? (
+                <div className="cursor-grabbing rounded-2xl border border-slate-200 bg-white p-4 shadow-lg dark:border-slate-700 dark:bg-slate-900">
+                  <span className="text-sm font-semibold text-slate-900 dark:text-white">
+                    {getTranslation(activeDragJob.title, '', locale)}
+                  </span>
+                </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+        ) : (
+          <Card className="overflow-hidden">
+            <Table minWidth={760}>
+              <thead>
+                <tr>
+                  <Th>{t('jobsColumnPosition', 'jobs')}</Th>
+                  <Th>{t('jobsColumnInfrastructure', 'jobs')}</Th>
+                  <Th>{t('jobsColumnApplicants', 'jobs')}</Th>
+                  <Th>{t('jobsColumnStatus', 'jobs')}</Th>
+                  <Th align="end"><span className="sr-only">{t('jobsColumnActions', 'jobs')}</span></Th>
+                </tr>
+              </thead>
+
+              {jobsGroupedByCompany.map((group: any) => {
+                const groupJobIds = group.jobs.map((j: any) => j._id);
+                const companyId = group.companyId;
+
+                const handleListDragEnd = (event: DragEndEvent) => {
+                  const { active, over } = event;
+                  if (!over || active.id === over.id) return;
+
+                  const oldIndex = groupJobIds.indexOf(active.id as string);
+                  const newIndex = groupJobIds.indexOf(over.id as string);
+                  if (oldIndex === -1 || newIndex === -1) return;
+
+                  suppressNavigateRef.current = true;
+                  window.setTimeout(() => {
+                    suppressNavigateRef.current = false;
+                  }, 0);
+
+                  const newCompanyOrder = arrayMove(
+                    groupJobIds,
+                    oldIndex,
+                    newIndex
+                  );
+                  const baselineOrderIds =
+                    orderedJobIds.length > 0
+                      ? [...orderedJobIds]
+                      : orderedJobs.map((job: any) => job._id);
+
+                  const jobsById = new Map(
+                    orderedJobs.map((job: any) => [job?._id, job])
+                  );
+
+                  let companyIdx = 0;
+                  const nextOrderIds = baselineOrderIds.map((id) => {
+                    const job = jobsById.get(id);
+                    if (getJobCompanyId(job) === companyId) {
+                      return newCompanyOrder[companyIdx++];
+                    }
+                    return id;
+                  });
+
+                  setOrderedJobIds(nextOrderIds);
+                  scheduleJobOrderSync({
+                    previousOrderIds: baselineOrderIds,
+                    nextOrderIds,
+                    companyId,
+                    sourceJobId: active.id as string,
+                  });
+                };
+
+                return (
+                  <tbody key={group.companyId}>
+                    <tr className="border-t border-slate-200 bg-slate-50/60 dark:border-slate-800 dark:bg-slate-800/30">
+                      <td colSpan={5} className="px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        {getTranslation(group.companyName, '', locale)}
+                        <span className="ms-2 font-normal text-slate-500 dark:text-slate-400">
+                          ({group.jobs.length})
+                        </span>
+                      </td>
+                    </tr>
+
+                    {/* Announcements go to <body>: a <div> can't sit inside <tbody>. */}
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={handleListDragEnd}
+                      accessibility={{ container: document.body }}
+                    >
+                      <SortableContext
+                        items={groupJobIds}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        {group.jobs.map((job: any) => (
+                          <SortableJobRow
+                            key={job._id}
+                            job={job}
+                            onNavigate={handleJobClick}
+                            suppressNavigateRef={suppressNavigateRef}
+                          />
+                        ))}
+                      </SortableContext>
+                    </DndContext>
+                  </tbody>
+                );
+              })}
+            </Table>
+          </Card>
+        )}
+      </PageShell>
+    </>
   );
 }
