@@ -129,6 +129,15 @@ export function UserPermissionsEditor({
     );
   }, [catalog, search]);
 
+  const actionLabel = (action: string) =>
+    action === "read"
+      ? t('permEditorColRead', 'users')
+      : action === "write"
+        ? t('permEditorColWrite', 'users')
+        : action === "create"
+          ? t('permEditorColCreate', 'users')
+          : action;
+
   const add = () => {
     if (!addValue) return;
     onChange((prev) => {
@@ -253,7 +262,7 @@ export function UserPermissionsEditor({
                           selected={permItem.access.includes(action)}
                           onClick={() => toggleAccess(permItem.permission, action)}
                         >
-                          <span className="capitalize">{action}</span>
+                          <span className="capitalize">{actionLabel(action)}</span>
                         </ChipToggle>
                       ))}
                       <IconButton
@@ -322,7 +331,7 @@ export function UserPermissionsEditor({
                           disabled={!isSelected}
                           checked={selectedAccess.includes(action)}
                           onChange={(e) => setAction(permissionId, action, e.target.checked)}
-                          aria-label={`${name}: ${action}`}
+                          aria-label={`${name}: ${actionLabel(action)}`}
                           className={checkboxClass}
                         />
                       </Td>
