@@ -1,15 +1,15 @@
 {
-  "pageTitle": "Company Directory | Job Application Maker",
+  "pageTitle": "Companies | Job Application Maker",
   "pageDesc": "Manage organizations and entities",
   "breadcrumb": "Company directory",
-  "title": "Company Directory",
-  "subtitle": "Manage corporate entities and their departmental structures",
+  "title": "Companies",
+  "subtitle": "Your companies and their departments.",
   "searchPlaceholder": "Search companies...",
   "createCompany": "Create Company",
-  "totalEntities": "Total Entities",
-  "totalDepartments": "Total Departments",
+  "totalEntities": "Companies",
+  "totalDepartments": "Departments",
   "departments": "{count} Departments",
-  "viewOperations": "View Operations",
+  "viewOperations": "Open",
   "showing": "Showing {start} to {end} of {total} entities",
   "deleteTitle": "Delete Company?",
   "deleteText": "Are you sure you want to delete {name}? This action cannot be undone.",
@@ -203,5 +203,6 @@
   "resendSwitchNote": "Connecting Gmail will replace Resend for sending and receiving. Your Resend setup is kept and comes back if you disconnect Gmail.",
   "resendKeep": "Keep Resend",
   "gmailResendKept": "Your Resend (custom domain) setup is kept; disconnecting Gmail switches back to it.",
-  "gmailDisconnectBackToResend": "Sending and receiving will switch back to your custom domain through Resend."
+  "gmailDisconnectBackToResend": "Sending and receiving will switch back to your custom domain through Resend.",
+  "noCompaniesFound": "No companies match your search."
 }

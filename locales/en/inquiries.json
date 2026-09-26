@@ -35,5 +35,6 @@
   "tableDate": "Date",
   "tableActions": "Actions",
   "selectedCount": "{count} selected",
-  "changeStatusTo": "Change status to..."
+  "changeStatusTo": "Change status to...",
+  "systemInquiry": "System"
 }

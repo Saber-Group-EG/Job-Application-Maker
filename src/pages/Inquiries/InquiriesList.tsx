@@ -2,7 +2,6 @@ import { useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { useAuth } from "../../context/AuthContext";
 import { useLocale } from "../../context/LocaleContext";
-import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import PageMeta from "../../components/common/PageMeta";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import { useInquiries, useDeleteInquiry, useUpdateInquiry } from "../../hooks/queries";
@@ -12,32 +11,39 @@ import { useCompanyFilter } from "../../context/CompanyFilterContext";
 import type { InquiryStatus } from "../../services/inquiriesService";
 import MessageModal from "../../components/modals/MessageModal";
 import {
+  Badge,
+  Button,
+  Card,
+  CardToolbar,
+  EmptyState,
+  IconButton,
+  PageShell,
+  Pagination,
+  Table,
+  Td,
+  Th,
+  filterSelectClass,
+  inputClass,
+  rowClass,
+  type BadgeTone,
+} from "../../components/ui/kit";
+import {
   TrashBinIcon,
   MailIcon,
-  ChevronLeftIcon,
-  AngleRightIcon,
   ChatIcon,
 } from "../../icons";
 
-const statusColors: Record<InquiryStatus, { bg: string; text: string; label: string }> = {
-  new: { bg: "bg-blue-500/10", text: "text-blue-600", label: "statusNew" },
-  in_progress: { bg: "bg-amber-500/10", text: "text-amber-600", label: "statusInProgress" },
-  resolved: { bg: "bg-green-500/10", text: "text-green-600", label: "statusResolved" },
-  closed: { bg: "bg-gray-500/10", text: "text-gray-600", label: "statusClosed" },
+const statusColors: Record<InquiryStatus, { tone: BadgeTone; label: string }> = {
+  new: { tone: "blue", label: "statusNew" },
+  in_progress: { tone: "amber", label: "statusInProgress" },
+  resolved: { tone: "green", label: "statusResolved" },
+  closed: { tone: "slate", label: "statusClosed" },
 };
 
 function IconSearch({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
-    </svg>
-  );
-}
-
-function IconFilter({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
     </svg>
   );
 }
@@ -169,303 +175,189 @@ export default function InquiriesList() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0F172A] p-4 sm:p-8 text-slate-900 dark:text-slate-100">
+    <PageShell title={t("inquiriesHeading", "inquiries")} subtitle={t("inquiriesSubtitle", "inquiries")}>
       <PageMeta
         title={t("inquiriesListPageTitle", "inquiries")}
         description={t("inquiriesListPageDesc", "inquiries")}
       />
 
-      <div className="max-w-7xl mx-auto space-y-8">
-        <PageBreadcrumb pageTitle={t("inquiryPreview", "sidebar")} />
-
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div>
-            <h1 className="text-3xl font-black bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400 bg-clip-text text-transparent tracking-tight">
-              {t("inquiriesHeading", "inquiries")}
-            </h1>
-            <p className="mt-1 text-gray-500 dark:text-gray-400 font-medium italic">
-              {t("inquiriesSubtitle", "inquiries")}
-            </p>
+      <Card>
+        <CardToolbar>
+          <div className="flex flex-1 flex-wrap items-center gap-2">
+            <div className="relative min-w-[220px] flex-1 sm:max-w-xs">
+              <IconSearch className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder={t("searchInquiries", "inquiries")}
+                value={searchTerm}
+                onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+                className={`${inputClass} ps-9`}
+              />
+            </div>
+            <select
+              value={statusFilter}
+              onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+              className={filterSelectClass}
+              aria-label={t("tableStatus", "inquiries")}
+            >
+              <option value="all">{t("filterAllStatuses", "users")}</option>
+              <option value="new">{t("statusNew", "inquiries")}</option>
+              <option value="in_progress">{t("statusInProgress", "inquiries")}</option>
+              <option value="resolved">{t("statusResolved", "inquiries")}</option>
+              <option value="closed">{t("statusClosed", "inquiries")}</option>
+            </select>
           </div>
-
-          <div className="relative flex-1 min-w-[300px]">
-            <IconSearch className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder={t("searchInquiries", "inquiries")}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-11 pr-4 py-3 bg-white dark:bg-white/5 backdrop-blur-md border-2 border-slate-200 dark:border-white/10 rounded-[1.25rem] shadow-sm focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 outline-none transition-all dark:text-white placeholder:text-gray-400 font-medium hover:border-slate-300"
-            />
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-4 items-center bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 p-4 rounded-[2rem] shadow-sm">
-          <div className="flex items-center gap-2 px-3 text-gray-400">
-            <IconFilter className="size-4" />
-            <span className="text-xs font-black uppercase tracking-widest">
-              {t("filtersLabel", "users")}
-            </span>
-          </div>
-
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-white dark:bg-black/20 border border-white/20 dark:border-white/5 rounded-xl px-4 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-brand-500/20 transition-all cursor-pointer"
-          >
-            <option value="all">{t("filterAllStatuses", "users")}</option>
-            <option value="new">{t("statusNew", "inquiries")}</option>
-            <option value="in_progress">{t("statusInProgress", "inquiries")}</option>
-            <option value="resolved">{t("statusResolved", "inquiries")}</option>
-            <option value="closed">{t("statusClosed", "inquiries")}</option>
-          </select>
-
-          <div className="ml-auto flex items-center gap-2 px-4 py-2 bg-brand-500/10 text-brand-500 rounded-xl border border-brand-500/20">
-            <ChatIcon className="size-4" />
-            <span className="text-sm font-black tabular-nums">
-              {filtered.length} {t("results", "inquiries")}
-            </span>
-          </div>
-        </div>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            <span className="font-medium tabular-nums text-slate-900 dark:text-white">{filtered.length}</span> {t("results", "inquiries")}
+          </p>
+        </CardToolbar>
 
         {selectedIds.size > 0 && (
-          <div className="flex flex-wrap items-center gap-2 px-4 py-3 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/50 rounded-2xl shadow-lg shadow-slate-200/50 dark:shadow-black/20 backdrop-blur-xl">
-            <div className="flex items-center gap-2.5 px-3 py-1.5 bg-brand-500/10 rounded-xl">
-              <svg className="size-4 text-brand-600 dark:text-brand-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z" /><path d="M6.5 10.2a8 8 0 0 1 11 0" /><path d="M12 14v4" /><path d="M12 22v-2" />
-                <circle cx="12" cy="16" r="6" fill="none" />
-              </svg>
-              <span className="text-sm font-semibold text-brand-600 dark:text-brand-400 tabular-nums">
-                {t("selectedCount", "inquiries", { count: selectedIds.size })}
-              </span>
-            </div>
-
-            <div className="w-px h-5 bg-slate-200 dark:bg-slate-700" />
-
-            <div className="relative">
-              <select
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val) handleBulkStatusChange(val as InquiryStatus);
-                  e.target.value = "";
-                }}
-                defaultValue=""
-                className="appearance-none bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-3 pr-8 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500/50 transition-all cursor-pointer hover:border-slate-300 dark:hover:border-slate-600"
-              >
-                <option value="" disabled>{t("changeStatusTo", "inquiries") || "Change status to..."}</option>
-                <option value="new">{t("statusNew", "inquiries")}</option>
-                <option value="in_progress">{t("statusInProgress", "inquiries")}</option>
-                <option value="resolved">{t("statusResolved", "inquiries")}</option>
-                <option value="closed">{t("statusClosed", "inquiries")}</option>
-              </select>
-              <svg className="absolute right-2.5 top-1/2 -translate-y-1/2 size-3.5 text-slate-400 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="6 9 12 15 18 9" />
-              </svg>
-            </div>
-
-            {canWrite && (
-              <button
-                onClick={handleBulkDelete}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-500/10 text-red-600 hover:bg-red-500 hover:text-white text-xs font-semibold transition-all"
-              >
-                <TrashBinIcon className="size-3.5" />
-                {t("delete", "common")}
-              </button>
-            )}
-
-            <button
-              onClick={() => setSelectedIds(new Set())}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium transition-all ml-auto"
+          <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-brand-50/60 px-4 py-2.5 dark:border-slate-800 dark:bg-brand-500/10">
+            <span className="text-sm font-medium text-brand-700 dark:text-brand-300">
+              {t("selectedCount", "inquiries", { count: selectedIds.size })}
+            </span>
+            <select
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val) handleBulkStatusChange(val as InquiryStatus);
+                e.target.value = "";
+              }}
+              defaultValue=""
+              className={filterSelectClass}
+              aria-label={t("changeStatusTo", "inquiries")}
             >
-              <svg className="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
+              <option value="" disabled>{t("changeStatusTo", "inquiries")}</option>
+              <option value="new">{t("statusNew", "inquiries")}</option>
+              <option value="in_progress">{t("statusInProgress", "inquiries")}</option>
+              <option value="resolved">{t("statusResolved", "inquiries")}</option>
+              <option value="closed">{t("statusClosed", "inquiries")}</option>
+            </select>
+            {canWrite && (
+              <Button variant="danger" size="sm" icon={<TrashBinIcon className="size-3.5" />} onClick={handleBulkDelete}>
+                {t("delete", "common")}
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" className="ms-auto" onClick={() => setSelectedIds(new Set())}>
               {t("cancel", "common")}
-            </button>
+            </Button>
           </div>
         )}
 
         {isLoading ? (
-          <div className="py-24 flex items-center justify-center">
+          <div className="flex items-center justify-center py-20">
             <LoadingSpinner />
           </div>
+        ) : paginated.length === 0 ? (
+          <EmptyState icon={<ChatIcon className="size-6" />} title={t("noInquiriesFound", "inquiries")} text={t("noInquiriesFoundText", "inquiries")} />
         ) : (
-          <div className="bg-white/60 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-[2.5rem] overflow-hidden shadow-sm">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 dark:border-white/10">
-                    <th className="w-12 px-4 py-4">
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={allSelected}
-                          onChange={toggleSelectAll}
-                          className="peer sr-only"
-                        />
-                        <div className="w-5 h-5 rounded-md border-2 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 peer-checked:bg-brand-500 peer-checked:border-brand-500 peer-hover:border-brand-400 transition-all duration-200" />
-                        <svg
-                          className="absolute inset-0 size-5 pointer-events-none text-white opacity-0 peer-checked:opacity-100 transition-opacity duration-200"
-                          viewBox="0 0 14 14"
-                          fill="none"
+          <Table minWidth={selectedCompanyId ? 760 : 880}>
+            <thead>
+              <tr>
+                <Th>
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={toggleSelectAll}
+                    aria-label={t("selectAll", "common")}
+                    className="size-4 cursor-pointer rounded border-slate-300 text-brand-500 focus:ring-brand-500/30"
+                  />
+                </Th>
+                <Th>{t("tableSubject", "inquiries")}</Th>
+                <Th>{t("tableName", "inquiries")}</Th>
+                <Th>{t("tableEmail", "inquiries")}</Th>
+                {!selectedCompanyId && <Th>{t("tableCompany", "inquiries")}</Th>}
+                <Th>{t("tableStatus", "inquiries")}</Th>
+                <Th>{t("tableDate", "inquiries")}</Th>
+                <Th align="end">{t("tableActions", "inquiries")}</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {paginated.map((inquiry: any) => {
+                const statusInfo = statusColors[inquiry.status as InquiryStatus] || statusColors.new;
+                const isSelected = selectedIds.has(inquiry._id);
+                return (
+                  <tr
+                    key={inquiry._id}
+                    onClick={() => navigate(`/inquiries/${inquiry._id}`)}
+                    className={`${rowClass} cursor-pointer ${isSelected ? "bg-brand-50/60 dark:bg-brand-500/10" : ""}`}
+                  >
+                    <Td className="w-10">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={() => toggleSelect(inquiry._id)}
+                        aria-label={toPlainString(inquiry.subject)}
+                        className="size-4 cursor-pointer rounded border-slate-300 text-brand-500 focus:ring-brand-500/30"
+                      />
+                    </Td>
+                    <Td>
+                      <span className="line-clamp-1 font-medium text-slate-900 dark:text-white">{toPlainString(inquiry.subject)}</span>
+                    </Td>
+                    <Td>{inquiry.name}</Td>
+                    <Td className="text-slate-500 dark:text-slate-400">{inquiry.email}</Td>
+                    {!selectedCompanyId && (
+                      <Td>
+                        {!inquiry.companyId ? (
+                          <span className="inline-flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
+                            <IconMonitor className="size-3.5" />
+                            {t("systemInquiry", "inquiries")}
+                          </span>
+                        ) : showCompanyTag ? (
+                          <span className="inline-flex items-center gap-1 text-xs text-slate-600 dark:text-slate-300">
+                            <IconBuilding className="size-3.5 text-slate-400" />
+                            {toPlainString(companyMap[inquiry.companyId._id || inquiry.companyId]?.name || inquiry.companyId.name)}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </Td>
+                    )}
+                    <Td>
+                      <Badge tone={statusInfo.tone}>{t(statusInfo.label, "inquiries")}</Badge>
+                    </Td>
+                    <Td className="whitespace-nowrap text-slate-500 dark:text-slate-400">
+                      {new Date(inquiry.createdAt).toLocaleDateString(locale === "ar" ? "ar-EG" : "en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    </Td>
+                    <Td align="end">
+                      <div className="flex items-center justify-end gap-1">
+                        <IconButton
+                          label={t("reply", "inquiries")}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setReplyInquiry(inquiry);
+                            setIsMessageModalOpen(true);
+                          }}
                         >
-                          <path d="M11.6666 3.5L5.24992 9.91667L2.33325 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      </label>
-                    </th>
-                    <th className="text-left px-6 py-4 text-[10px] font-semibold uppercase tracking-wider text-gray-400">{t("tableSubject", "inquiries")}</th>
-                    <th className="text-left px-6 py-4 text-[10px] font-semibold uppercase tracking-wider text-gray-400">{t("tableName", "inquiries")}</th>
-                    <th className="text-left px-6 py-4 text-[10px] font-semibold uppercase tracking-wider text-gray-400">{t("tableEmail", "inquiries")}</th>
-                    {!selectedCompanyId && <th className="text-left px-6 py-4 text-[10px] font-semibold uppercase tracking-wider text-gray-400">{t("tableCompany", "inquiries")}</th>}
-                    <th className="text-left px-6 py-4 text-[10px] font-semibold uppercase tracking-wider text-gray-400">{t("tableStatus", "inquiries")}</th>
-                    <th className="text-left px-6 py-4 text-[10px] font-semibold uppercase tracking-wider text-gray-400">{t("tableDate", "inquiries")}</th>
-                    <th className="text-right px-6 py-4 text-[10px] font-semibold uppercase tracking-wider text-gray-400">{t("tableActions", "inquiries")}</th>
+                          <MailIcon className="size-4" />
+                        </IconButton>
+                        {canWrite && (
+                          <IconButton
+                            label={t("delete", "common")}
+                            tone="danger"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(inquiry);
+                            }}
+                          >
+                            <TrashBinIcon className="size-4" />
+                          </IconButton>
+                        )}
+                      </div>
+                    </Td>
                   </tr>
-                </thead>
-                <tbody>
-                  {paginated.length === 0 ? (
-                    <tr>
-                      <td colSpan={selectedCompanyId ? 7 : 8} className="px-6 py-24 text-center">
-                        <div className="py-16 text-center">
-                          <div className="size-16 rounded-full bg-slate-100 dark:bg-white/5 mx-auto mb-4 flex items-center justify-center">
-                            <ChatIcon className="size-8 text-slate-300 dark:text-slate-700" />
-                          </div>
-                          <h3 className="text-lg font-black text-gray-900 dark:text-white">
-                            {t("noInquiriesFound", "inquiries")}
-                          </h3>
-                          <p className="text-gray-500 dark:text-gray-400 font-medium mt-1">
-                            {t("noInquiriesFoundText", "inquiries")}
-                          </p>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : (
-                    paginated.map((inquiry: any) => {
-                      const statusInfo = statusColors[inquiry.status as InquiryStatus] || statusColors.new;
-                      const isSelected = selectedIds.has(inquiry._id);
-                      return (
-                        <tr
-                          key={inquiry._id}
-                          onClick={() => navigate(`/inquiries/${inquiry._id}`)}
-                          className={`border-b border-slate-100 dark:border-white/5 hover:bg-white/40 dark:hover:bg-white/[0.02] transition-colors cursor-pointer group ${isSelected ? "bg-brand-500/5" : ""}`}
-                        >
-                          <td className="w-12 px-4 py-4" onClick={(e) => e.stopPropagation()}>
-                            <label className="relative inline-flex items-center cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={() => toggleSelect(inquiry._id)}
-                                className="peer sr-only"
-                              />
-                              <div className="w-5 h-5 rounded-md border-2 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 peer-checked:bg-brand-500 peer-checked:border-brand-500 peer-hover:border-brand-400 transition-all duration-200" />
-                              <svg
-                                className="absolute inset-0 size-5 pointer-events-none text-white opacity-0 peer-checked:opacity-100 transition-opacity duration-200"
-                                viewBox="0 0 14 14"
-                                fill="none"
-                              >
-                                <path d="M11.6666 3.5L5.24992 9.91667L2.33325 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                              </svg>
-                            </label>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-3">
-                              <div className="size-9 rounded-xl bg-gradient-to-br from-brand-500/10 to-brand-500/5 flex items-center justify-center text-sm font-black text-brand-500 shrink-0">
-                                {inquiry.name?.charAt(0) || "?"}
-                              </div>
-                              <p className="font-bold text-gray-900 dark:text-white line-clamp-1">
-                                {toPlainString(inquiry.subject)}
-                              </p>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-gray-700 dark:text-gray-300 font-medium">{inquiry.name}</td>
-                          <td className="px-6 py-4 text-gray-500 dark:text-gray-400">{inquiry.email}</td>
-                          {!selectedCompanyId && (
-                          <td className="px-6 py-4">
-                            {!inquiry.companyId ? (
-                              <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md bg-purple-500/10 text-purple-600">
-                                <IconMonitor className="size-3" />
-                                System
-                              </span>
-                            ) : showCompanyTag ? (
-                              <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md bg-cyan-500/10 text-cyan-600">
-                                <IconBuilding className="size-3" />
-                                {toPlainString(
-                                  companyMap[inquiry.companyId._id || inquiry.companyId]?.name || inquiry.companyId.name
-                                )}
-                              </span>
-                            ) : (
-                              <span className="text-gray-400 text-xs">—</span>
-                            )}
-                          </td>
-                          )}
-                          <td className="px-6 py-4">
-                            <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md ${statusInfo.bg} ${statusInfo.text}`}>
-                              {t(statusInfo.label, "inquiries")}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-gray-500 dark:text-gray-400 text-xs font-medium whitespace-nowrap">
-                            {new Date(inquiry.createdAt).toLocaleDateString(
-                              locale === "ar" ? "ar-EG" : "en-US",
-                              { month: "short", day: "numeric", year: "numeric" }
-                            )}
-                          </td>
-                          <td className="px-6 py-4 text-right">
-                            <div className="flex items-center justify-end gap-1.5">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setReplyInquiry(inquiry);
-                                  setIsMessageModalOpen(true);
-                                }}
-                                className="size-8 rounded-lg bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white flex items-center justify-center transition-all"
-                              >
-                                <MailIcon className="size-3.5" />
-                              </button>
-                              {canWrite && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDelete(inquiry);
-                                  }}
-                                  className="size-8 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white flex items-center justify-center transition-all"
-                                >
-                                  <TrashBinIcon className="size-3.5" />
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                );
+              })}
+            </tbody>
+          </Table>
         )}
 
         {!isLoading && totalPages > 1 && (
-          <div className="flex items-center justify-center gap-4 pt-10">
-            <button
-              disabled={page === 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="size-12 rounded-2xl bg-white/60 dark:bg-white/5 backdrop-blur-md border border-white/20 flex items-center justify-center disabled:opacity-30 hover:bg-brand-500 hover:text-white transition-all shadow-sm"
-            >
-              {locale === "ar" ? <AngleRightIcon className="size-5" /> : <ChevronLeftIcon className="size-5" />}
-            </button>
-            <div className="px-6 py-3 bg-white/60 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl font-semibold text-sm">
-              {t("phaseLabel", "users", { page })} <span className="opacity-30 mx-2">/</span> {totalPages}
-            </div>
-            <button
-              disabled={page === totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              className="size-12 rounded-2xl bg-white/60 dark:bg-white/5 backdrop-blur-md border border-white/20 flex items-center justify-center disabled:opacity-30 hover:bg-brand-500 hover:text-white transition-all shadow-sm"
-            >
-              {locale === "ar" ? <ChevronLeftIcon className="size-5" /> : <AngleRightIcon className="size-5" />}
-            </button>
-          </div>
+          <Pagination page={page} totalPages={totalPages} totalCount={filtered.length} onChange={setPage} />
         )}
-      </div>
+      </Card>
+
       <MessageModal
         isOpen={isMessageModalOpen}
         onClose={() => {
@@ -478,6 +370,6 @@ export default function InquiriesList() {
         defaultFrom={replyInquiry && !replyInquiry.companyId ? "noreply@sabergroup-eg.com" : undefined}
         isInquiry
       />
-    </div>
+    </PageShell>
   );
 }

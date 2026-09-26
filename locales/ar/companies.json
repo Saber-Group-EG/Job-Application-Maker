@@ -1,15 +1,15 @@
 {
-  "pageTitle": "دليل الشركات | Job Application Maker",
+  "pageTitle": "الشركات | صانع طلبات التوظيف",
   "pageDesc": "إدارة المؤسسات والشركات",
   "breadcrumb": "دليل الشركات",
-  "title": "دليل الشركات",
-  "subtitle": "إدارة الشركات المؤسسية وهياكلها الإدارية",
+  "title": "الشركات",
+  "subtitle": "شركاتك وأقسامها.",
   "searchPlaceholder": "البحث عن شركات...",
   "createCompany": "إنشاء شركة",
-  "totalEntities": "إجمالي الشركات",
-  "totalDepartments": "إجمالي الأقسام",
+  "totalEntities": "الشركات",
+  "totalDepartments": "الأقسام",
   "departments": "{count} أقسام",
-  "viewOperations": "عرض العمليات",
+  "viewOperations": "فتح",
   "showing": "عرض {start} إلى {end} من {total} كيان",
   "companyNameArPlaceholder": "اسم الشركة (بالعربية)",
   "companyNameEnPlaceholder": "اسم الشركة (بالإنجليزية)",
@@ -203,5 +203,6 @@
   "resendSwitchNote": "ربط Gmail سيستبدل Resend في الإرسال والاستقبال. يبقى إعداد Resend محفوظًا ويعود إذا فصلت Gmail.",
   "resendKeep": "الإبقاء على Resend",
   "gmailResendKept": "إعداد Resend (نطاقك الخاص) محفوظ؛ فصل Gmail يعيدك إليه.",
-  "gmailDisconnectBackToResend": "سيعود الإرسال والاستقبال إلى نطاق شركتك عبر Resend."
+  "gmailDisconnectBackToResend": "سيعود الإرسال والاستقبال إلى نطاق شركتك عبر Resend.",
+  "noCompaniesFound": "لا توجد شركات مطابقة لبحثك."
 }
