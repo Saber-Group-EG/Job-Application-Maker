@@ -35,5 +35,6 @@
   "tableDate": "التاريخ",
   "tableActions": "الإجراءات",
   "selectedCount": "{count} محدد",
-  "changeStatusTo": "تغيير الحالة إلى..."
+  "changeStatusTo": "تغيير الحالة إلى...",
+  "systemInquiry": "النظام"
 }

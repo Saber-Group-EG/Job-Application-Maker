@@ -377,5 +377,6 @@
   "cardPrimaryChangeFailed": "فشل تحديث البطاقة الأساسية.",
   "aiGenerateFailed": "فشل الإنشاء بالذكاء الاصطناعي",
   "aiSummaryFailed": "فشل إنشاء الملخص بالذكاء الاصطناعي",
-  "emailDraftFailed": "فشل إنشاء مسودة البريد الإلكتروني"
+  "emailDraftFailed": "فشل إنشاء مسودة البريد الإلكتروني",
+  "selectAll": "تحديد الكل"
 }
