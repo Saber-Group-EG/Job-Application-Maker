@@ -7,6 +7,7 @@ import Swal from '../../../utils/swal';
 import { useLocale } from "../../../context/LocaleContext";
 import { useCreateCompany } from "../../../hooks/queries/useCompanies";
 import { companiesKeys } from "../../../hooks/queries/useCompanies";
+import type { Company } from "../../../types/companies";
 import {
   ArrowLeft,
   Building2,
@@ -107,10 +108,10 @@ export default function CreateCompany() {
     if (!file) return;
     setIsUploadingLogo(true);
     try {
-      const result: any = await uploadToCloudinary(file);
+      const result: { secure_url?: string } = await uploadToCloudinary(file);
       setCompanyForm((prev) => ({ ...prev, logoPath: result.secure_url }));
-    } catch (err: any) {
-      Swal.fire(t('uploadFailed', 'companies'), err.message || t('uploadFailedDesc', 'companies'), "error");
+    } catch (err) {
+      Swal.fire(t('uploadFailed', 'companies'), (err as Error)?.message || t('uploadFailedDesc', 'companies'), "error");
     } finally {
       setIsUploadingLogo(false);
     }
@@ -131,9 +132,10 @@ export default function CreateCompany() {
     // Optimistic update
     const previousCompanies = queryClient.getQueryData(companiesKeys.list());
     const tempId = `temp-${Date.now()}`;
-    const tempCompany: any = { ...companyForm, _id: tempId };
+    const tempCompany: Company = { ...companyForm, _id: tempId };
 
-    queryClient.setQueryData<any>(companiesKeys.list(), (old: any) => {
+    // The list cache is either an array or a { data } envelope.
+    queryClient.setQueryData<Company[] | { data?: Company[] }>(companiesKeys.list(), (old) => {
       if (!old) return [tempCompany];
       if (Array.isArray(old)) return [...old, tempCompany];
       return { ...old, data: [...(old.data || []), tempCompany] };
@@ -158,13 +160,13 @@ export default function CreateCompany() {
       } else {
         navigate("/companies");
       }
-    } catch (err: any) {
+    } catch (err) {
       // Rollback optimistic update
       queryClient.setQueryData(companiesKeys.list(), previousCompanies);
       
       await Swal.fire({
         title: t('registrationFailed', 'companies'),
-        text: err.message || t('registrationFailedDesc', 'companies'),
+        text: (err as Error)?.message || t('registrationFailedDesc', 'companies'),
         icon: "error"
       });
     }

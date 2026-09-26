@@ -30,6 +30,8 @@ import {
   useDeleteDepartment,
 } from "../../../hooks/queries";
 import { toPlainString } from "../../../utils/strings";
+import type { Company } from "../../../types/companies";
+import type { Department } from "../../../types/departments";
 import {
   Badge,
   Button,
@@ -103,7 +105,9 @@ export default function PreviewCompany() {
 
   const loadCompanyForm = () => {
     if (!companyData) return;
-    const c: any = (companyData as any).company ?? (companyData as any).data ?? companyData;
+    // Some endpoints wrap the company in { company } or { data }.
+    const wrapped = companyData as Company & { company?: Company; data?: Company };
+    const c: Company = wrapped.company ?? wrapped.data ?? wrapped;
     setCompanyForm({
       name: {
         en: typeof c.name === 'object' ? c.name.en || '' : toPlainString(c.name) || '',
@@ -113,7 +117,7 @@ export default function PreviewCompany() {
         en: typeof c.description === 'object' ? c.description.en || '' : toPlainString(c.description) || '',
         ar: typeof c.description === 'object' ? c.description.ar || '' : '',
       },
-      address: Array.isArray(c.address) && c.address.length > 0 ? c.address.map((a: any) => ({
+      address: Array.isArray(c.address) && c.address.length > 0 ? c.address.map((a) => ({
         en: a.en || '',
         ar: a.ar || '',
         location: a.location || ''
@@ -157,11 +161,11 @@ export default function PreviewCompany() {
   const handleSaveCompany = async () => {
     setIsSaving(true);
     try {
-      await updateCompanyMutation.mutateAsync({ id: companyId!, data: companyForm as any });
+      await updateCompanyMutation.mutateAsync({ id: companyId!, data: companyForm });
       setIsEditingCompany(false);
       Swal.fire({ title: t('profileUpdated', 'companies'), icon: "success", timer: 1500, showConfirmButton: false });
-    } catch (err: any) {
-      Swal.fire(t('updateFailedTitle', 'companies'), err.message, "error");
+    } catch (err) {
+      Swal.fire(t('updateFailedTitle', 'companies'), (err as Error)?.message, "error");
     } finally {
       setIsSaving(false);
     }
@@ -188,8 +192,8 @@ export default function PreviewCompany() {
       try {
         await deleteDepartmentMutation.mutateAsync(deptId);
         Swal.fire({ title: t('dissolved', 'companies'), icon: "success", timer: 1500, showConfirmButton: false });
-      } catch (err: any) {
-        Swal.fire(t('error', 'companies'), err.message, "error");
+      } catch (err) {
+        Swal.fire(t('error', 'companies'), (err as Error)?.message, "error");
       }
     }
   };
@@ -207,8 +211,8 @@ export default function PreviewCompany() {
       setEditingDeptId(null);
       setDepartmentForm({ companyId: companyId!, name: { en: "", ar: "" }, description: { en: "", ar: "" } });
       Swal.fire({ title: editingDeptId ? t('updatedTitle', 'companies') : t('createdTitle', 'companies'), icon: "success", timer: 1500, showConfirmButton: false });
-    } catch (err: any) {
-      Swal.fire(t('error', 'companies'), err.message, "error");
+    } catch (err) {
+      Swal.fire(t('error', 'companies'), (err as Error)?.message, "error");
     } finally {
       setIsSaving(false);
     }
@@ -220,7 +224,7 @@ export default function PreviewCompany() {
     locale === 'ar' ? (toPlainString(ar) || toPlainString(en) || '') : (toPlainString(en) || toPlainString(ar) || '');
   const companyName = pick(companyForm.name?.en, companyForm.name?.ar);
 
-  const openDeptModal = (dept?: any) => {
+  const openDeptModal = (dept?: Department) => {
     setEditingDeptId(dept?._id ?? null);
     setDepartmentForm({
       companyId: companyId!,
@@ -387,7 +391,7 @@ export default function PreviewCompany() {
                     </tr>
                   </thead>
                   <tbody>
-                    {departments.map((dept: any) => {
+                    {departments.map((dept) => {
                       const deptName = pick(dept.name?.en, dept.name?.ar) || toPlainString(dept.name);
                       const deptDesc = pick(dept.description?.en, dept.description?.ar);
                       return (

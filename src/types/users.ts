@@ -1,19 +1,31 @@
 import type { FieldType, BilingualString, BilingualChoice } from './fieldTypes';
 
 // User types
+
+// The API returns references either as ids or, when populated, as documents.
+type Localized = string | { en?: string; ar?: string };
+export type UserRoleRef = string | {
+  _id: string;
+  name: string;
+  permissions?: Array<string | { permission?: string | { _id?: string; name?: string } | null; access?: string[] }>;
+};
+export type UserCompanyRef = string | { _id: string; id?: string; name?: Localized; departments?: Array<string | { _id?: string; name?: Localized }> };
+export type UserDepartmentRef = string | { _id?: string; name?: Localized; departmentId?: string | { _id?: string } };
+
 export interface User {
   _id: string;
   fullName?: string;
   name?: string;
   email: string;
-  roleId?: string | { _id: string; name: string };
+  roleId?: UserRoleRef;
   phone?: string;
   department?: string;
   isActive?: boolean;
-  permissions?: Array<{ permission: string; access?: string[] }>;
+  twoFactorEnabled?: boolean;
+  permissions?: Array<string | { permission?: string | { _id?: string; name?: string } | null; access?: string[] }>;
   companies?: {
-    companyId: string;
-    departments?: string[];
+    companyId: UserCompanyRef;
+    departments?: UserDepartmentRef[];
     isPrimary?: boolean;
   }[];
   createdAt?: string;

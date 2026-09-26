@@ -26,6 +26,7 @@ import {
   List
 } from "lucide-react";
 import Swal from '../../../utils/swal';
+import type { User } from "../../../types/users";
 import {
   Badge,
   Button,
@@ -57,10 +58,10 @@ function readStoredView(): UsersView {
 }
 
 // A user's company entries hold companyId as either an id string or a populated doc.
-function companyRefsOf(user: any): Array<{ id: string; name: string }> {
+function companyRefsOf(user: Pick<User, 'companies'> | undefined): Array<{ id: string; name: string }> {
   if (!Array.isArray(user?.companies)) return [];
   return user.companies
-    .map((c: any) => {
+    .map((c) => {
       const cid = c?.companyId;
       if (!cid) return null;
       if (typeof cid === 'string') return { id: cid, name: '' };
@@ -83,11 +84,11 @@ export default function Users() {
 
     const fromCompanies = Array.isArray(authUser?.companies)
       ? authUser.companies
-          .map((c: any) => {
+          .map((c) => {
             const cid = c?.companyId;
             if (!cid) return null;
             if (typeof cid === "string") return cid;
-            return String(cid._id || cid.id || "");
+            return String(cid._id || "");
           })
           .filter(Boolean) as string[]
       : [];
@@ -125,12 +126,19 @@ export default function Users() {
     return [];
   }, [users]);
 
+  // roleId is an id string unless the role was populated.
+  const roleIdOf = (user: User) =>
+    typeof user.roleId === "object" ? user.roleId?._id : user.roleId;
+  const roleNameOf = (user: User) =>
+    (typeof user.roleId === "object" && user.roleId?.name) ||
+    toPlainString(roles.find((r) => r._id === roleIdOf(user))?.name || t('userRoleLabel', 'users'));
+
   const companyOptions = useMemo(() => {
     const knownNames = new Map<string, string>(
-      (companies as any[]).map((c) => [String(c._id), toPlainString(c.name || '')])
+      companies.map((c) => [String(c._id), toPlainString(c.name || '')])
     );
     const byId = new Map<string, string>();
-    rawUsers.forEach((user: any) => {
+    rawUsers.forEach((user) => {
       companyRefsOf(user).forEach(({ id, name }) => {
         byId.set(id, name || byId.get(id) || knownNames.get(id) || '');
       });
@@ -140,7 +148,7 @@ export default function Users() {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [rawUsers, companies]);
 
-  const companyNamesOf = (user: any) =>
+  const companyNamesOf = (user: User) =>
     companyRefsOf(user)
       .map(({ id, name }) => name || companyOptions.find((c) => c.id === id)?.name || '')
       .filter(Boolean);
@@ -161,7 +169,7 @@ export default function Users() {
     // Search filter
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
-      result = result.filter((user: any) => 
+      result = result.filter((user) =>
         (user.fullName?.toLowerCase() || "").includes(term) ||
         (user.name?.toLowerCase() || "").includes(term) ||
         (user.email?.toLowerCase() || "").includes(term)
@@ -170,22 +178,20 @@ export default function Users() {
     
     // Role filter
     if (roleFilter !== "all") {
-      result = result.filter((user: any) => 
-        user.roleId?._id === roleFilter || user.roleId === roleFilter
-      );
+      result = result.filter((user) => roleIdOf(user) === roleFilter);
     }
     
     // Status filter
     if (statusFilter !== "all") {
       const isActive = statusFilter === "active";
-      result = result.filter((user: any) => 
+      result = result.filter((user) =>
         (user.isActive !== false) === isActive
       );
     }
     
     // Company filter
     if (companyFilter !== "all") {
-      result = result.filter((user: any) =>
+      result = result.filter((user) =>
         companyRefsOf(user).some((c) => c.id === companyFilter)
       );
     }
@@ -200,7 +206,7 @@ export default function Users() {
   const totalPages = Math.ceil(filteredBySearchAndRole.length / pageSize);
   const paginatedUsers = filteredBySearchAndRole.slice((page - 1) * pageSize, page * pageSize);
 
-  const handleDeleteUser = async (user: any) => {
+  const handleDeleteUser = async (user: User) => {
     const result = await Swal.fire({
       title: t('deactivateConfirmTitle', 'users'),
       text: t('deactivateConfirmText', 'users', { name: toPlainString(user.fullName || user.name) }),
@@ -215,8 +221,8 @@ export default function Users() {
       try {
         await deleteUserMutation.mutateAsync(user._id);
         Swal.fire({ title: t('deactivatedSuccess', 'users'), icon: "success", timer: 1500, showConfirmButton: false });
-      } catch (err: any) {
-        Swal.fire(t('deactivateError', 'users'), err.message || t('deactivateErrorText', 'users'), "error");
+      } catch (err) {
+        Swal.fire(t('deactivateError', 'users'), (err as { message?: string })?.message || t('deactivateErrorText', 'users'), "error");
       }
     }
   };
@@ -261,7 +267,7 @@ export default function Users() {
             <select value={roleFilter} onChange={(e) => { setRoleFilter(e.target.value); setPage(1); }} className={filterSelectClass} aria-label={t('filtersLabel', 'users')}>
               <option value="all">{t('filterAllAccessLevels', 'users')}</option>
               {roles.map((role) => (
-                <option key={role._id} value={role._id}>{toPlainString((role as any).name)}</option>
+                <option key={role._id} value={role._id}>{toPlainString(role.name)}</option>
               ))}
             </select>
             <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} className={filterSelectClass} aria-label={t('filtersLabel', 'users')}>
@@ -313,8 +319,8 @@ export default function Users() {
               </tr>
             </thead>
             <tbody>
-              {paginatedUsers.map((user: any) => {
-                const roleName = user.roleId?.name || toPlainString((roles.find(r => r._id === (user.roleId?._id || user.roleId)) as any)?.name || t('userRoleLabel', 'users'));
+              {paginatedUsers.map((user) => {
+                const roleName = roleNameOf(user);
                 const isActive = user.isActive !== false;
                 const name = toPlainString(user.fullName || user.name || t('unknownUser', 'users'));
                 const names = companyNamesOf(user);
@@ -358,8 +364,8 @@ export default function Users() {
           </Table>
         ) : (
           <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 xl:grid-cols-4">
-            {paginatedUsers.map((user: any) => {
-              const roleName = user.roleId?.name || toPlainString((roles.find(r => r._id === (user.roleId?._id || user.roleId)) as any)?.name || t('userRoleLabel', 'users'));
+            {paginatedUsers.map((user) => {
+              const roleName = roleNameOf(user);
               const isActive = user.isActive !== false;
               const name = toPlainString(user.fullName || user.name || t('unknownUser', 'users'));
 

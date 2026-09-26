@@ -22,6 +22,18 @@ type RoleForm = {
   singleCompany?: boolean;
 };
 
+// Error shapes the roles API returns (Joi `details`, express-validator `errors`).
+type RoleApiError = {
+  message?: string;
+  response?: {
+    data?: {
+      message?: string;
+      details?: Array<{ path?: string[]; message?: string }>;
+      errors?: Array<{ msg?: string; message?: string }> | Record<string, string>;
+    };
+  };
+};
+
 const defaultRoleForm: RoleForm = {
   name: "",
   description: "",
@@ -44,7 +56,7 @@ export default function Permissions() {
   const { data: permissions = [], isLoading: permissionsLoading } =
     usePermissions();
   const { data: usersData, isLoading: usersLoading } = useUsers();
-  const users: User[] = Array.isArray(usersData) ? usersData : ((usersData as any)?.data ?? []) as User[];
+  const users: User[] = useMemo(() => (Array.isArray(usersData) ? usersData : []), [usersData]);
 
   // Mutations
   const createRoleMutation = useCreateRole();
@@ -54,7 +66,7 @@ export default function Permissions() {
   const roleUserCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     users.forEach((user: User) => {
-      const userRoleId = typeof user.roleId === "string" ? user.roleId : (user.roleId as any)?._id;
+      const userRoleId = typeof user.roleId === "string" ? user.roleId : user.roleId?._id;
       if (userRoleId) {
         counts[userRoleId] = (counts[userRoleId] || 0) + 1;
       }
@@ -68,10 +80,11 @@ export default function Permissions() {
   const [searchTerm, setSearchTerm] = useState("");
 
   // Helper function to extract detailed error messages
-  const getErrorMessage = (err: any): string => {
+  const getErrorMessage = (error: unknown): string => {
+    const err = (error ?? {}) as RoleApiError;
     if (err.response?.data?.details && Array.isArray(err.response.data.details)) {
       return err.response.data.details
-        .map((detail: any) => {
+        .map((detail) => {
           const field = detail.path?.[0] || "";
           const message = detail.message || "";
           return field ? `${field}: ${message}` : message;
@@ -80,7 +93,7 @@ export default function Permissions() {
     }
     if (err.response?.data?.errors) {
       const errors = err.response.data.errors;
-      if (Array.isArray(errors)) return errors.map((e: any) => e.msg || e.message).join(", ");
+      if (Array.isArray(errors)) return errors.map((e) => e.msg || e.message).join(", ");
       if (typeof errors === "object") return Object.entries(errors).map(([field, msg]) => `${field}: ${msg}`).join(", ");
     }
     if (err.response?.data?.message) return err.response.data.message;
@@ -147,7 +160,7 @@ export default function Permissions() {
       setSelectedPermissions([]);
       setPermissionAccess({});
       setShowRoleForm(false);
-    } catch (err: any) {
+    } catch (err) {
       setFormError(getErrorMessage(err));
     }
   };
@@ -155,7 +168,7 @@ export default function Permissions() {
   const filteredRoles = useMemo(() => {
     if (!searchTerm) return roles;
     return roles.filter((role) => 
-      toPlainString((role as any).name).toLowerCase().includes(searchTerm.toLowerCase()) ||
+      toPlainString(role.name).toLowerCase().includes(searchTerm.toLowerCase()) ||
       (role.description && role.description.toLowerCase().includes(searchTerm.toLowerCase()))
     );
   }, [roles, searchTerm]);
@@ -185,7 +198,7 @@ export default function Permissions() {
     try {
       await deleteRoleMutation.mutateAsync(roleId);
       await Swal.fire({ title: t('rolesRemovedTitle', 'roles'), icon: "success", timer: 1500, showConfirmButton: false });
-    } catch (err: any) {
+    } catch (err) {
       Swal.fire({ title: t('previewErrorGeneric', 'roles'), text: getErrorMessage(err), icon: "error" });
     }
   };
@@ -367,7 +380,7 @@ export default function Permissions() {
               <div className="grid grid-cols-1 gap-4 p-4 md:grid-cols-2 xl:grid-cols-3">
                 {filteredRoles.map((role) => {
                   const userCount = roleUserCounts[role._id] || 0;
-                  const roleName = toPlainString((role as any).name);
+                  const roleName = toPlainString(role.name);
                   return (
                     <div
                       key={role._id}

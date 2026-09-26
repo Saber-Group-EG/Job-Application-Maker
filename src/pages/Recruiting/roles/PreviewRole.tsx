@@ -55,9 +55,7 @@ export default function PreviewRole() {
   const [permissionAccess, setPermissionAccess] = useState<Record<string, string[]>>({});
 
   const { data: roles = [], isLoading: rolesLoading, isFetching: rolesFetching, error: rolesError } = useRoles();
-  const role: any = Array.isArray(roles)
-    ? roles.find((r: any) => r._id === id)
-    : ((roles as any)?.data || []).find((r: any) => r._id === id);
+  const role = roles.find((r) => r._id === id);
   const { data: permissions = [], isLoading: permissionsLoading } = usePermissions();
   const { data: usersData, isLoading: usersLoading } = useUsers();
   
@@ -70,17 +68,19 @@ export default function PreviewRole() {
   const loadRoleForm = () => {
     if (role) {
       setFormData({
-        name: toPlainString((role as any).name) || "",
+        name: toPlainString(role.name) || "",
         description: role.description || "",
       });
       
       const rolePerms = role.permissions || [];
-      setSelectedPermissions(rolePerms.map((p: any) => p.permission?._id || p.permission));
-      
+      const permIdOf = (p: (typeof rolePerms)[number]) =>
+        typeof p === "string" ? p : typeof p.permission === "string" ? p.permission : p.permission?._id;
+      setSelectedPermissions(rolePerms.map(permIdOf).filter((pid): pid is string => Boolean(pid)));
+
       const accessMap: Record<string, string[]> = {};
-      rolePerms.forEach((p: any) => {
-        const permId = p.permission?._id || p.permission;
-        accessMap[permId] = p.access || [];
+      rolePerms.forEach((p) => {
+        const permId = permIdOf(p);
+        if (permId) accessMap[permId] = (typeof p === "string" ? undefined : p.access) || [];
       });
       setPermissionAccess(accessMap);
     }
@@ -152,8 +152,8 @@ export default function PreviewRole() {
         background: "rgba(255, 255, 255, 0.9)",
         backdrop: `rgba(0,0,0,0.4) blur(4px)`
       });
-    } catch (err: any) {
-      Swal.fire(t('previewUpdateFailed', 'roles'), err.message || t('previewErrorGeneric', 'roles'), "error");
+    } catch (err) {
+      Swal.fire(t('previewUpdateFailed', 'roles'), (err as { message?: string })?.message || t('previewErrorGeneric', 'roles'), "error");
     }
   };
 
@@ -173,14 +173,14 @@ export default function PreviewRole() {
         await deleteRoleMutation.mutateAsync(id!);
         navigate("/permissions");
         Swal.fire({ title: t('previewDecommissioned', 'roles'), icon: "success", timer: 1500, showConfirmButton: false });
-      } catch (err: any) {
-        Swal.fire(t('previewErrorGeneric', 'roles'), err.message, "error");
+      } catch (err) {
+        Swal.fire(t('previewErrorGeneric', 'roles'), (err as { message?: string })?.message, "error");
       }
     }
   };
 
-  const roleUsers = (Array.isArray(usersData) ? usersData : ((usersData as any)?.data ?? []))
-    .filter((u: any) => (u.roleId?._id || u.roleId) === id);
+  const roleUsers = (Array.isArray(usersData) ? usersData : [])
+    .filter((u) => (typeof u.roleId === "object" ? u.roleId?._id : u.roleId) === id);
 
   const actionLabels: Record<string, string> = {
     read: t('previewActionRead', 'roles'),
@@ -360,7 +360,7 @@ export default function PreviewRole() {
             ) : (
               <>
                 <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {roleUsers.slice(0, 5).map((user: any) => {
+                  {roleUsers.slice(0, 5).map((user) => {
                     const userName = toPlainString(user.fullName || user.name) || user.email;
                     return (
                       <li key={user._id}>

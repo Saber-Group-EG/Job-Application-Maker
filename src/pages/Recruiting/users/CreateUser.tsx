@@ -30,8 +30,8 @@ import {
 import {
   DepartmentPicker,
   UserPermissionsEditor,
-  type UserPermission,
 } from "./components/UserAccessEditors";
+import { normalizePermissionRefs, readApiErrorMessage, type UserPermission } from "./userFormUtils";
 
 type CompanyAssignment = {
   companyId: string;
@@ -100,7 +100,7 @@ export default function CreateUser() {
     });
   };
 
-  const getId = (value: any) => {
+  const getId = (value: string | { _id?: string } | null | undefined) => {
     if (!value) return "";
     if (typeof value === "string") return value;
     return value._id || "";
@@ -111,52 +111,26 @@ export default function CreateUser() {
 
     return new Set(
       departments
-        .filter((d: any) => String(getId(d?.companyId)) === String(companyId))
-        .map((d: any) => String(d._id))
+        .filter((d) => String(getId(d?.companyId)) === String(companyId))
+        .map((d) => String(d._id))
     );
   };
 
   const getDefaultAccessForPermission = (permissionId: string) => {
-    const permissionObj = permissions.find((p: any) => p._id === permissionId);
+    const permissionObj = permissions.find((p) => p._id === permissionId);
     const actions = Array.isArray(permissionObj?.actions) && permissionObj.actions.length > 0
       ? permissionObj.actions
       : ["read", "write", "create"];
 
-    return Array.from(new Set(actions.map((action: string) => String(action).toLowerCase())));
+    return Array.from(new Set(actions.map((action) => String(action).toLowerCase())));
   };
 
-  const normalizeRolePermissions = (role: any): UserPermission[] => {
-    const rawPermissions = Array.isArray(role?.permissions) ? role.permissions : [];
-    const merged = new Map<string, Set<string>>();
-
-    rawPermissions.forEach((perm: any) => {
-      const permissionId =
-        typeof perm === "string"
-          ? perm
-          : typeof perm?.permission === "string"
-            ? perm.permission
-            : perm?.permission?._id || "";
-
-      if (!permissionId) return;
-
-      const accessList = Array.isArray(perm?.access) && perm.access.length > 0
-        ? perm.access.map((action: string) => String(action).toLowerCase())
-        : getDefaultAccessForPermission(permissionId);
-
-      const existing = merged.get(permissionId) || new Set<string>();
-      accessList.forEach((action: string) => existing.add(action));
-      merged.set(permissionId, existing);
-    });
-
-    return Array.from(merged.entries()).map(([permission, accessSet]) => ({
-      permission,
-      access: Array.from(accessSet),
-    }));
-  };
+  const normalizeRolePermissions = (role?: { permissions?: unknown }): UserPermission[] =>
+    normalizePermissionRefs(role?.permissions, getDefaultAccessForPermission);
 
   const handleRoleChange = (nextRoleId: string) => {
     setFormData((prev) => ({ ...prev, roleId: nextRoleId }));
-    const selectedRole = roles.find((role: any) => role._id === nextRoleId);
+    const selectedRole = roles.find((role) => role._id === nextRoleId);
     setUserPermissions(normalizeRolePermissions(selectedRole));
   };
 
@@ -208,29 +182,9 @@ export default function CreateUser() {
     });
 
     navigate("/users");
-  } catch (err: any) {
-    // Extract detailed error message
-    let errorMessage = t('createErrorGeneric', 'users');
-    
-    // Try to get detailed error from response
-    if (err.response?.data) {
-      const responseData = err.response.data;
-      
-      if (typeof responseData === 'string') {
-        errorMessage = responseData;
-      } else if (responseData.message) {
-        errorMessage = responseData.message;
-      } else if (responseData.error?.message) {
-        errorMessage = responseData.error.message;
-      } else if (Array.isArray(responseData.errors) && responseData.errors.length > 0) {
-        errorMessage = responseData.errors[0].message || responseData.errors[0];
-      } else if (Array.isArray(responseData.details) && responseData.details.length > 0) {
-        errorMessage = responseData.details[0].message || responseData.details[0];
-      }
-    } else if (err.message) {
-      errorMessage = err.message;
-    }
-    
+  } catch (err) {
+    const errorMessage = readApiErrorMessage(err) || t('createErrorGeneric', 'users');
+
     setFormError(errorMessage);
     
     // Show error Swal alert
@@ -339,7 +293,7 @@ export default function CreateUser() {
                     className={selectClass}
                   >
                     <option value="">{t('createSelectRole', 'users')}</option>
-                    {roles.map((r: any) => (
+                    {roles.map((r) => (
                       <option key={r._id} value={r._id}>
                         {toPlainString(r.name)}
                       </option>
@@ -392,10 +346,10 @@ export default function CreateUser() {
                 {formData.companies.map((assignment, idx) => {
                   const selectedCompanyId = String(assignment.companyId || "");
                   const availableDepts = departments.filter(
-                    (d: any) => String(getId(d?.companyId)) === selectedCompanyId
+                    (d) => String(getId(d?.companyId)) === selectedCompanyId
                   );
                   const companyName =
-                    toPlainString(companies.find((c: any) => c._id === assignment.companyId)?.name) ||
+                    toPlainString(companies.find((c) => c._id === assignment.companyId)?.name) ||
                     t('createLinkedCompany', 'users');
 
                   return (
@@ -412,7 +366,7 @@ export default function CreateUser() {
                           className={selectClass}
                         >
                           <option value="">{t('createSelectCompany', 'users')}</option>
-                          {companies.map((c: any) => (
+                          {companies.map((c) => (
                             <option key={c._id} value={c._id}>
                               {toPlainString(c.name)}
                             </option>
