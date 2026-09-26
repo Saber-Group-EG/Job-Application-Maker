@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { CheckCircle2, ChevronDown, Loader2, Wand2, X } from 'lucide-react';
 import { useDebounce } from '../../hooks/useDebounce';
-import { useApplicants, useCompanies } from '../../hooks/queries';
+import { useQuery } from '@tanstack/react-query';
+import { useCompanies } from '../../hooks/queries';
+import { applicantsTableService } from '../../services/applicantsTableService';
 import { ApplicantObject } from '../modals/JobOffersModal/EmailModule';
 import { useLocale } from '../../context/LocaleContext';
 
@@ -26,24 +28,38 @@ export function ApplicantSelect({
   const debouncedSearch = useDebounce(search, 500);
   const { data: companiesData } = useCompanies();
   const companyId = companiesData?.map((c) => c._id);
-  const { data, isFetching } = useApplicants({
-    companyId: companyId,
-    search: debouncedSearch,
-    enabled: open && !!debouncedSearch.trim(),
-    fields: '_id,fullName,email,jobPositionId,expectedSalary', // only fetch fields we need for display
-    skipPopulation: false, // we only want raw applicant data, no need to populate related fields
+  const { locale } = useLocale();
+  const term = debouncedSearch.trim();
+  // Plain name/email/phone search through the applicants table endpoint:
+  // top 20 matches, no AI (the header's deep search spent AI credits on
+  // every keystroke here and returned up to 9,999 full applicants).
+  const { data, isFetching } = useQuery({
+    queryKey: ['applicants', 'picker', companyId, term],
+    queryFn: () =>
+      applicantsTableService.query({
+        companyIds: companyId,
+        columnFilters: [],
+        excludeColumns: [],
+        customFilters: [],
+        globalFilter: term,
+        sorting: [{ id: 'submittedAt', desc: true }],
+        pageIndex: 0,
+        pageSize: 20,
+        locale,
+      }),
+    enabled: open && term.length > 0,
+    staleTime: 30 * 1000,
   });
 
-  const applicants = (data ?? []) as ApplicantObject[];
+  const applicants = (data?.rows ?? []) as unknown as ApplicantObject[];
 
   // If editing an existing offer, value is set but selectedApplicant is null.
   // Try to resolve it from the current search results or fetch once.
-  const { data: prefetchData } = useApplicants({
-    companyId: companyId,
-    search: value ?? '',
+  const { data: prefetchData } = useQuery({
+    queryKey: ['applicants', 'picker-selected', companyId, value],
+    queryFn: () => applicantsTableService.rowsByIds([value as string], companyId),
     enabled: !!value && !selectedApplicant,
-    fields: '_id,fullName,email',
-    skipPopulation: true, // we only want raw applicant data, no need to populate related fields
+    staleTime: 60 * 1000,
   });
 
   // Once prefetch resolves, hydrate selectedApplicant from it
