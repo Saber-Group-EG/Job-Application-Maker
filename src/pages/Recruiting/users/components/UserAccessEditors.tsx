@@ -4,6 +4,9 @@ import type { Dispatch, SetStateAction } from "react";
 import { KeyRound, Plus, Search, X } from "lucide-react";
 import { useLocale } from "../../../../context/LocaleContext";
 import { toPlainString } from "../../../../utils/strings";
+import type { Permission } from "../../../../types/roles";
+import type { Department } from "../../../../types/departments";
+import type { UserPermission } from "../userFormUtils";
 import {
   Button,
   Card,
@@ -21,10 +24,6 @@ import {
   selectClass,
 } from "../../../../components/ui/kit";
 
-export type UserPermission = {
-  permission: string;
-  access: string[];
-};
 
 const MATRIX_ACTIONS = ["read", "write", "create"] as const;
 
@@ -37,7 +36,7 @@ export function DepartmentPicker({
   onChange,
   emptyText,
 }: {
-  departments: any[];
+  departments: Department[];
   selected: string[];
   onChange: (next: string[]) => void;
   emptyText: string;
@@ -47,7 +46,7 @@ export function DepartmentPicker({
   }
   return (
     <div className="flex flex-wrap gap-2">
-      {departments.map((d: any) => {
+      {departments.map((d) => {
         const isSelected = selected.includes(d._id);
         return (
           <ToggleChip
@@ -71,7 +70,7 @@ export function UserPermissionsEditor({
   onChange,
   getDefaultAccess,
 }: {
-  catalog: any[];
+  catalog: Permission[];
   value: UserPermission[];
   onChange: Dispatch<SetStateAction<UserPermission[]>>;
   getDefaultAccess: (permissionId: string) => string[];
@@ -83,12 +82,12 @@ export function UserPermissionsEditor({
 
   const available = useMemo(() => {
     const selectedIds = new Set(value.map((item) => item.permission));
-    return catalog.filter((perm: any) => !selectedIds.has(perm._id));
+    return catalog.filter((perm) => !selectedIds.has(perm._id));
   }, [catalog, value]);
 
   // A role change can preload the module that was picked in the dropdown;
   // treat it as cleared once it's no longer available.
-  const addValue = available.some((perm: any) => perm._id === toAdd) ? toAdd : "";
+  const addValue = available.some((perm) => perm._id === toAdd) ? toAdd : "";
 
   const selectedMap = useMemo(
     () => new Map(value.map((item) => [item.permission, item.access])),
@@ -98,7 +97,7 @@ export function UserPermissionsEditor({
   const filteredCatalog = useMemo(() => {
     const term = search.trim().toLowerCase();
     if (!term) return catalog;
-    return catalog.filter((perm: any) =>
+    return catalog.filter((perm) =>
       toPlainString(perm.name || "").toLowerCase().includes(term)
     );
   }, [catalog, search]);
@@ -194,7 +193,7 @@ export function UserPermissionsEditor({
               className={selectClass}
             >
               <option value="">{t('permEditorAddPlaceholder', 'users')}</option>
-              {available.map((perm: any) => (
+              {available.map((perm) => (
                 <option key={perm._id} value={perm._id}>
                   {toPlainString(perm.name)}
                 </option>
@@ -214,7 +213,7 @@ export function UserPermissionsEditor({
           ) : (
             <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200 dark:divide-slate-800 dark:border-slate-800">
               {value.map((permItem) => {
-                const permObj = catalog.find((perm: any) => perm._id === permItem.permission);
+                const permObj = catalog.find((perm) => perm._id === permItem.permission);
                 const name = toPlainString(permObj?.name || t('permEditorUnknown', 'users'));
                 const actions = Array.from(
                   new Set([
@@ -281,7 +280,7 @@ export function UserPermissionsEditor({
               </tr>
             </thead>
             <tbody>
-              {filteredCatalog.map((perm: any) => {
+              {filteredCatalog.map((perm) => {
                 const permissionId = String(perm._id);
                 const name = toPlainString(perm.name);
                 const selectedAccess = selectedMap.get(permissionId) || [];

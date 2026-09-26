@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Link, useParams, useNavigate } from "react-router";
 import { useLocale } from "../../../context/LocaleContext";
 import PageMeta from "../../../components/common/PageMeta";
+import type { UserDepartmentRef } from "../../../types/users";
 import LoadingSpinner from "../../../components/common/LoadingSpinner";
 import { 
   useUsers, 
@@ -45,80 +46,80 @@ export default function PreviewUser() {
 
   // Fetch data
   const { data: usersResponse, isLoading: usersLoading } = useUsers();
-  const rawUsers = Array.isArray(usersResponse) ? usersResponse : ((usersResponse as any)?.data ?? []);
+  const rawUsers = useMemo(() => (Array.isArray(usersResponse) ? usersResponse : []), [usersResponse]);
   const { data: roles = [] } = useRoles();
   const { data: companies = [] } = useCompanies();
   const { data: departments = [] } = useDepartments();
 
   // Find the current user
   const user = useMemo(() => {
-    return rawUsers.find((u: any) => u._id === id);
+    return rawUsers.find((u) => u._id === id);
   }, [rawUsers, id]);
 
   // Get role name
   const roleName = useMemo(() => {
     if (!user) return t('previewUnauthorized', 'users');
     if (typeof user.roleId === "object" && user.roleId) {
-      return toPlainString((user.roleId as any).name);
+      return toPlainString(user.roleId.name);
     }
     const role = roles.find((r) => r._id === user.roleId);
-    return role ? toPlainString((role as any).name) : t('previewStandardRole', 'users');
-  }, [user, roles]);
+    return role ? toPlainString(role.name) : t('previewStandardRole', 'users');
+  }, [user, roles, t]);
 
   // Transform company assignments
   const userCompanies = useMemo<UserCompanyView[]>(() => {
     if (!user || !user.companies) return [];
 
-    const resolveDepartmentName = (rawDept: any, companyObj: any) => {
-      if (!rawDept) return t('previewSectionUnknown', 'users');
+    const unknown = t('previewSectionUnknown', 'users');
+
+    // Departments may come populated, as bare ids, or wrapped in { departmentId }.
+    const resolveDepartmentName = (
+      rawDept: UserDepartmentRef | undefined,
+      companyObj: { departments?: UserDepartmentRef[] } | undefined
+    ) => {
+      if (!rawDept) return unknown;
 
       if (typeof rawDept === "object" && rawDept.name) {
-        return toPlainString(rawDept.name) || t('previewSectionUnknown', 'users');
+        return toPlainString(rawDept.name) || unknown;
       }
 
       const directId =
         typeof rawDept === "string"
           ? rawDept
-          : rawDept?._id || rawDept?.departmentId?._id || rawDept?.departmentId;
+          : rawDept._id ||
+            (typeof rawDept.departmentId === "object" ? rawDept.departmentId?._id : rawDept.departmentId);
 
-      if (!directId) return t('previewSectionUnknown', 'users');
+      if (!directId) return unknown;
 
-      const fromGlobal = departments.find(
-        (item: any) =>
-          item?._id === directId || String(item?._id) === String(directId)
-      );
+      const fromGlobal = departments.find((item) => String(item?._id) === String(directId));
       if (fromGlobal) {
-        return toPlainString((fromGlobal as any).name) || t('previewSectionUnknown', 'users');
+        return toPlainString(fromGlobal.name) || unknown;
       }
 
-      const companyDepartments = (companyObj as any)?.departments || [];
-      const fromCompany = companyDepartments.find(
-        (item: any) =>
-          item?._id === directId ||
-          item === directId ||
-          String(item?._id) === String(directId)
+      const fromCompany = (companyObj?.departments || []).find((item) =>
+        typeof item === "string" ? item === directId : String(item?._id) === String(directId)
       );
       if (fromCompany) {
-        return toPlainString((fromCompany as any).name || fromCompany) || t('previewSectionUnknown', 'users');
+        return (typeof fromCompany === "string" ? fromCompany : toPlainString(fromCompany.name || fromCompany)) || unknown;
       }
 
-      return t('previewSectionUnknown', 'users');
+      return unknown;
     };
 
     return user.companies
-      .filter((userCompany: any) => userCompany && userCompany.companyId)
-      .map((userCompany: any) => {
+      .filter((userCompany) => userCompany && userCompany.companyId)
+      .map((userCompany) => {
         const companyId = typeof userCompany.companyId === "string" ? userCompany.companyId : userCompany.companyId?._id;
         const companyObj = companies.find((c) => c._id === companyId);
         const companyName = companyObj ? toPlainString(companyObj.name) : t('previewUnassigned', 'users');
 
-        const userDepts = (userCompany.departments || []).map((dept: any) =>
-          resolveDepartmentName(dept, companyObj)
+        const userDepts = (userCompany.departments || []).map((dept) =>
+          resolveDepartmentName(dept, companyObj as { departments?: UserDepartmentRef[] } | undefined)
         );
 
         return { companyName, departments: userDepts, isPrimary: userCompany.isPrimary };
       });
-  }, [user, companies, departments]);
+  }, [user, companies, departments, t]);
 
   if (usersLoading) return <LoadingSpinner fullPage />;
 

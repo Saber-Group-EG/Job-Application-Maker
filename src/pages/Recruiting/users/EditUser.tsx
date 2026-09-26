@@ -32,12 +32,12 @@ import {
 import {
   DepartmentPicker,
   UserPermissionsEditor,
-  type UserPermission,
 } from "./components/UserAccessEditors";
+import { normalizePermissionRefs, type UserPermission } from "./userFormUtils";
 
 type UserCompany = {
   companyId: string;
-  companyName: any;
+  companyName: string | { en?: string; ar?: string };
   departments: string[];
 };
 
@@ -48,7 +48,7 @@ export default function EditUser() {
 
   // Data fetching
   const { data: usersResponse, isLoading: usersLoading, refetch: refetchUsers } = useUsers();
-  const rawUsers = Array.isArray(usersResponse) ? usersResponse : ((usersResponse as any)?.data ?? []);
+  const rawUsers = useMemo(() => (Array.isArray(usersResponse) ? usersResponse : []), [usersResponse]);
   const { data: roles = [] } = useRoles();
   const { data: permissions = [] } = usePermissions();
   const { data: companies = [] } = useCompanies();
@@ -75,75 +75,23 @@ export default function EditUser() {
 
   // Find user
   const user = useMemo(() => {
-    return rawUsers.find((u: any) => u._id === id);
+    return rawUsers.find((u) => u._id === id);
   }, [rawUsers, id]);
 
   const getDefaultAccessForPermission = (permissionId: string) => {
-    const permissionObj = permissions.find((p: any) => p._id === permissionId);
+    const permissionObj = permissions.find((p) => p._id === permissionId);
     const actions = Array.isArray(permissionObj?.actions) && permissionObj.actions.length > 0
       ? permissionObj.actions
       : ["read", "write", "create"];
 
-    return Array.from(new Set(actions.map((action: string) => String(action).toLowerCase())));
+    return Array.from(new Set(actions.map((action) => String(action).toLowerCase())));
   };
 
-  const normalizeRolePermissions = (role: any): UserPermission[] => {
-    const rawPermissions = Array.isArray(role?.permissions) ? role.permissions : [];
-    const merged = new Map<string, Set<string>>();
+  const normalizeRolePermissions = (role?: { permissions?: unknown }): UserPermission[] =>
+    normalizePermissionRefs(role?.permissions, getDefaultAccessForPermission);
 
-    rawPermissions.forEach((perm: any) => {
-      const permissionId =
-        typeof perm === "string"
-          ? perm
-          : typeof perm?.permission === "string"
-            ? perm.permission
-            : perm?.permission?._id || "";
-
-      if (!permissionId) return;
-
-      const accessList = Array.isArray(perm?.access) && perm.access.length > 0
-        ? perm.access.map((action: string) => String(action).toLowerCase())
-        : getDefaultAccessForPermission(permissionId);
-
-      const existing = merged.get(permissionId) || new Set<string>();
-      accessList.forEach((action: string) => existing.add(action));
-      merged.set(permissionId, existing);
-    });
-
-    return Array.from(merged.entries()).map(([permission, accessSet]) => ({
-      permission,
-      access: Array.from(accessSet),
-    }));
-  };
-
-  const normalizeUserPermissions = (rawUser: any): UserPermission[] => {
-    const raw = Array.isArray(rawUser?.permissions) ? rawUser.permissions : [];
-    const merged = new Map<string, Set<string>>();
-
-    raw.forEach((item: any) => {
-      const permissionId =
-        typeof item === "string"
-          ? item
-          : typeof item?.permission === "string"
-            ? item.permission
-            : item?.permission?._id || "";
-
-      if (!permissionId) return;
-
-      const access = Array.isArray(item?.access) && item.access.length > 0
-        ? item.access.map((action: string) => String(action).toLowerCase())
-        : getDefaultAccessForPermission(permissionId);
-
-      const existing = merged.get(permissionId) || new Set<string>();
-      access.forEach((action: string) => existing.add(action));
-      merged.set(permissionId, existing);
-    });
-
-    return Array.from(merged.entries()).map(([permission, accessSet]) => ({
-      permission,
-      access: Array.from(accessSet),
-    }));
-  };
+  const normalizeUserPermissions = (rawUser?: { permissions?: unknown }): UserPermission[] =>
+    normalizePermissionRefs(rawUser?.permissions, getDefaultAccessForPermission);
 
   useEffect(() => {
     if (user && user._id !== initializedUserId) {
@@ -157,10 +105,10 @@ export default function EditUser() {
       });
 
       // Initialize companies from user data
-      const initialCompanies = user.companies?.map((c: any) => ({
+      const initialCompanies = user.companies?.map((c) => ({
         companyId: typeof c.companyId === "string" ? c.companyId : c.companyId?._id,
-        companyName: c.companyId?.name || "",
-        departments: c.departments?.map((d: any) => {
+        companyName: (typeof c.companyId === "object" && c.companyId?.name) || "",
+        departments: c.departments?.map((d) => {
           if (typeof d === "string") return d;
           if (d?._id) return d._id;
           return "";
@@ -173,7 +121,7 @@ export default function EditUser() {
         setUserPermissions(fromUser);
       } else {
         const currentRoleId = typeof user.roleId === "string" ? user.roleId : user.roleId?._id;
-        const selectedRole = roles.find((role: any) => role._id === currentRoleId);
+        const selectedRole = roles.find((role) => role._id === currentRoleId);
         setUserPermissions(normalizeRolePermissions(selectedRole));
       }
 
@@ -192,7 +140,7 @@ export default function EditUser() {
       return;
     }
 
-    const selectedCompany = companies.find((c: any) => c._id === selectedCompanyId);
+    const selectedCompany = companies.find((c) => c._id === selectedCompanyId);
     setUserCompanies(prev => [...prev, {
       companyId: selectedCompanyId,
       companyName: selectedCompany?.name || "",
@@ -213,7 +161,7 @@ const handleUpdateDepartments = (companyId: string, departments: string[]) => {
 
   const handleRoleChange = (nextRoleId: string) => {
     setFormData((prev) => ({ ...prev, roleId: nextRoleId }));
-    const selectedRole = roles.find((role: any) => role._id === nextRoleId);
+    const selectedRole = roles.find((role) => role._id === nextRoleId);
     setUserPermissions(normalizeRolePermissions(selectedRole));
   };
 
@@ -260,8 +208,8 @@ const handleUpdateDepartments = (companyId: string, departments: string[]) => {
       // Refetch users to get updated data
       await refetchUsers();
       navigate("/users");
-    } catch (err: any) {
-      setFormError(err.message || t('editErrorValidation', 'users'));
+    } catch (err) {
+      setFormError((err as { message?: string })?.message || t('editErrorValidation', 'users'));
     } finally {
       setIsSaving(false);
     }
@@ -271,7 +219,7 @@ const handleUpdateDepartments = (companyId: string, departments: string[]) => {
 
   // Get available companies (not yet assigned to user)
   const availableCompanies = companies.filter(
-    (c: any) => !userCompanies.some(uc => uc.companyId === c._id)
+    (c) => !userCompanies.some(uc => uc.companyId === c._id)
   );
 
   const back = (
@@ -352,7 +300,7 @@ const handleUpdateDepartments = (companyId: string, departments: string[]) => {
                     className={selectClass}
                   >
                     <option value="">{t('editSelectRole', 'users')}</option>
-                    {roles.map((r: any) => (
+                    {roles.map((r) => (
                       <option key={r._id} value={r._id}>{toPlainString(r.name)}</option>
                     ))}
                   </select>
@@ -393,7 +341,7 @@ const handleUpdateDepartments = (companyId: string, departments: string[]) => {
                   className={`${selectClass} sm:w-64`}
                 >
                   <option value="">{t('editSelectCompany', 'users')}</option>
-                  {availableCompanies.map((c: any) => (
+                  {availableCompanies.map((c) => (
                     <option key={c._id} value={c._id}>{toPlainString(c.name)}</option>
                   ))}
                 </select>
@@ -413,7 +361,7 @@ const handleUpdateDepartments = (companyId: string, departments: string[]) => {
               <ul className="divide-y divide-slate-100 dark:divide-slate-800">
                 {userCompanies.map((assignment) => {
                   // Get departments for this specific company
-                  const companyDepartments = departments.filter((d: any) => {
+                  const companyDepartments = departments.filter((d) => {
                     const deptCompanyId = typeof d.companyId === "string" ? d.companyId : d.companyId?._id;
                     return deptCompanyId === assignment.companyId;
                   });
