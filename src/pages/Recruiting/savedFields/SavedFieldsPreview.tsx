@@ -2,6 +2,7 @@ import { useLocation, useNavigate, useParams } from "react-router";
 import PageMeta from "../../../components/common/PageMeta";
 import { useSavedFields } from "../../../hooks/queries";
 import { useLocale } from '../../../context/LocaleContext';
+import type { SavedField } from '../../../types/users';
 import { ArrowLeft, FileQuestion, Info, ListChecks, Pencil, Rows3, SlidersHorizontal } from "lucide-react";
 import {
   Badge,
@@ -21,7 +22,10 @@ export default function SavedFieldsPreview() {
   const navigate = useNavigate();
   const { data } = useSavedFields();
 
-  const field = state?.field || (data || []).find((f: any) => f.fieldId === decodeURIComponent(fieldId || ""));
+  // The list page passes the field in router state; a direct visit looks it up.
+  const field: SavedField | undefined =
+    (state as { field?: SavedField } | null)?.field ||
+    (data || []).find((f) => f.fieldId === decodeURIComponent(fieldId || ""));
 
   const back = (
     <button
@@ -115,7 +119,7 @@ export default function SavedFieldsPreview() {
                   </SectionTitle>
                 </CardToolbar>
                 <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {field.choices.map((c: any, i: number) => (
+                  {field.choices.map((c, i) => (
                     <li key={i} className="flex items-center justify-between gap-4 px-4 py-3 text-sm">
                       <span className="text-slate-900 dark:text-white">{typeof c === "string" ? c : c.en}</span>
                       {typeof c !== "string" && c.ar && (
@@ -133,7 +137,7 @@ export default function SavedFieldsPreview() {
                   <SectionTitle icon={<Rows3 className="size-4" />}>{t('previewNestedSchema', 'savedFields')}</SectionTitle>
                 </CardToolbar>
                 <ol className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {field.groupFields.map((gf: any, i: number) => (
+                  {field.groupFields.map((gf, i) => (
                     <li key={i} className="flex items-center justify-between gap-4 px-4 py-3">
                       <div className="flex min-w-0 items-center gap-3">
                         <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-slate-100 text-xs font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">

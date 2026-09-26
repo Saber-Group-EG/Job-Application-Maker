@@ -106,7 +106,7 @@ export default function ProfileEdit() {
           // would open underneath the modal and block nothing but the view.
           setCodeSent(true);
         },
-        onError: (err: any) => {
+        onError: (err) => {
           setTwoFAError(err.message);
         },
       });
@@ -135,8 +135,8 @@ export default function ProfileEdit() {
             icon: 'success',
           });
         },
-        onError: (err: any) => {
-          if (err?.statusCode === 429) {
+        onError: (err) => {
+          if ((err as { statusCode?: number })?.statusCode === 429) {
             setTwoFAModalOpen(false);
             setTwoFAEnabled(false);
             setTwoFAError(null);
