@@ -260,7 +260,12 @@ a svg:not(.lucide) path {
   html, body, #root {
     max-width: 100%;
     margin: 0;
+    /* clip, not hidden: hidden also makes these elements scroll containers
+       (overflow-y becomes auto), and since they never actually scroll, every
+       position: sticky inside them (app header, Mail Preview side panel)
+       stopped sticking. hidden stays as the fallback for old browsers. */
     overflow-x: hidden !important;
+    overflow-x: clip !important;
     overscroll-behavior-x: none !important;
     touch-action: pan-y !important;
     position: relative;
