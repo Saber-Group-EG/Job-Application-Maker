@@ -190,5 +190,16 @@
   "createRemoveCompanyTitle": "Remove Company Access",
   "createRemoveCompanyText": "Are you sure you want to remove this company access?",
   "createRemoveCompanyConfirm": "Yes, remove it!",
-  "usersShownOfTotal": "{count} of {total} users"
+  "usersShownOfTotal": "{count} of {total} users",
+  "filterCompany": "Company",
+  "filterAllCompanies": "All companies",
+  "viewLabel": "View",
+  "viewCards": "Cards",
+  "viewTable": "Table",
+  "tableName": "Name",
+  "tableRole": "Role",
+  "tablePhone": "Phone",
+  "tableCompanies": "Companies",
+  "tableStatus": "Status",
+  "tableActions": "Actions"
 }
