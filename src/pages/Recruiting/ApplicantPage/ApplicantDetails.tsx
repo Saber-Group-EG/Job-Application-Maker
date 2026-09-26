@@ -163,12 +163,13 @@ const ApplicantDetails: React.FC = () => {
     refetch,
   } = useApplicant(id || '');
 
-  // Set title immediately from nav state, update when API data arrives
+  // Tab title: the applicant's name as soon as it's known (nav state, then
+  // the quick name fetch, then the full record).
   const titleName =
     navApplicant?.fullName || applicantName?.fullName || applicant?.fullName;
-  if (titleName && document.title !== titleName) {
-    document.title = titleName;
-  }
+  useEffect(() => {
+    if (titleName) document.title = titleName;
+  }, [titleName]);
   const updateApplicant = useUpdateApplicant();
   const updateStatus = useUpdateApplicantStatus();
   const addComment = useAddComment();
