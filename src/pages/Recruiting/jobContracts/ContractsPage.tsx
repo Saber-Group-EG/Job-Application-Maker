@@ -38,6 +38,7 @@ import {
   useUpdateContractStatus,
   jobContractsKeys,
   useJobContracts,
+  useJobContractStatusCounts,
   useDeleteJobContract,
 } from '../../../hooks/queries/useContracts';
 
@@ -134,13 +135,18 @@ export default function JobContractsPage() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 500);
 
+  // No company picked: send no companyId and let the API scope the list to
+  // the user's companies, so the list doesn't wait for company details.
+  const scopeCompanyIds = selectedCompanyId ? [selectedCompanyId] : undefined;
+  const trimmedSearch = debouncedSearch.trim();
+
   const queryParams = {
-    companyId: selectedCompanyId ? [selectedCompanyId] : companyId,
+    companyId: scopeCompanyIds,
     isTemplate: false as const,
     PageCount: LIMIT,
     page,
     ...(statusFilter !== 'all' ? { status: statusFilter } : {}),
-    ...(debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}),
+    ...(trimmedSearch ? { search: trimmedSearch } : {}),
   };
 
   // ── Data ───────────────────────────────────────────────────────────────
@@ -148,28 +154,24 @@ export default function JobContractsPage() {
     data: contractsData,
     isLoading,
     isFetching,
+    isPlaceholderData,
   } = useJobContracts(queryParams);
 
   const contracts = contractsData?.data ?? [];
   const total = contractsData?.totalCount ?? 0;
   const totalPages = contractsData?.totalPages ?? 1;
 
-  // ── Per-status counts ────────────────────────────────────────────────────
-  const countBaseParams = {
-    companyId: selectedCompanyId ? [selectedCompanyId] : companyId,
-    isTemplate: false as const,
-    PageCount: 1 as const,
-    page: 1,
-    ...(debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}),
-  };
-
-  const { data: signedCountData } = useJobContracts({ ...countBaseParams, status: 'signed' });
-  const { data: sentCountData } = useJobContracts({ ...countBaseParams, status: 'sent' });
-  const { data: rejectedCountData } = useJobContracts({ ...countBaseParams, status: 'rejected' });
+  // ── Per-status counts (one request for every tab) ──────────────────────
+  const { data: statusCounts } = useJobContractStatusCounts({
+    companyId: scopeCompanyIds,
+    ...(trimmedSearch ? { search: trimmedSearch } : {}),
+  });
 
   // ── Prefetch next page ─────────────────────────────────────────────────
   useEffect(() => {
-    if (page < totalPages) {
+    // Wait for the real result: while the previous filter's data is shown as
+    // a placeholder, totalPages belongs to that filter.
+    if (!isPlaceholderData && page < totalPages) {
       queryClient.prefetchQuery({
         queryKey: jobContractsKeys.list({ ...queryParams, page: page + 1 }),
         queryFn: () =>
@@ -177,7 +179,7 @@ export default function JobContractsPage() {
         staleTime: 2 * 60 * 1000,
       });
     }
-  }, [page, totalPages, companyId, statusFilter]);
+  }, [page, totalPages, isPlaceholderData, selectedCompanyId, statusFilter, trimmedSearch]);
 
   // Reset page on filter change
   useEffect(() => {
@@ -213,13 +215,8 @@ export default function JobContractsPage() {
   );
 
   const getStatusCount = (status: 'all' | ContractStatus) => {
-    if (status === 'all') return total;
-    switch (status) {
-      case 'signed': return signedCountData?.totalCount ?? 0;
-      case 'sent': return sentCountData?.totalCount ?? 0;
-      case 'rejected': return rejectedCountData?.totalCount ?? 0;
-      default: return contracts.filter((c) => c.status === status).length;
-    }
+    if (!statusCounts) return status === 'all' || status === statusFilter ? total : 0;
+    return status === 'all' ? statusCounts.total : (statusCounts.counts[status] ?? 0);
   };
 
   const handleContractClick = (id: string) => {
@@ -300,31 +297,31 @@ export default function JobContractsPage() {
                   <div className="flex justify-between text-xs">
                     <span className="text-slate-500">{t('totalContracts', 'jobContracts')}</span>
                     <span className="font-semibold text-slate-700 dark:text-slate-300">
-                      {total}
+                      {getStatusCount('all')}
                     </span>
                   </div>
                   <div className="flex justify-between text-xs">
                     <span className="text-slate-500">{t('signed', 'jobContracts')}</span>
                     <span className="font-semibold text-emerald-600">
-                      {contracts.filter((c) => c.status === 'signed').length}
+                      {getStatusCount('signed')}
                     </span>
                   </div>
                   <div className="flex justify-between text-xs">
                     <span className="text-slate-500">{t('pending', 'jobContracts')}</span>
                     <span className="font-semibold text-blue-600">
-                      {contracts.filter((c) => c.status === 'draft' || c.status === 'sent').length}
+                      {getStatusCount('draft') + getStatusCount('sent')}
                     </span>
                   </div>
                   <div className="flex justify-between text-xs">
                     <span className="text-slate-500">{t('rejected', 'jobContracts')}</span>
                     <span className="font-semibold text-red-500">
-                      {contracts.filter((c) => c.status === 'rejected').length}
+                      {getStatusCount('rejected')}
                     </span>
                   </div>
                   <div className="flex justify-between text-xs">
                     <span className="text-slate-500">{t('expired', 'jobContracts')}</span>
                     <span className="font-semibold text-amber-600">
-                      {contracts.filter((c) => c.status === 'expired').length}
+                      {getStatusCount('expired')}
                     </span>
                   </div>
                 </div>

@@ -310,31 +310,31 @@ export default function JobOffersPage() {
                   <div className="flex justify-between text-xs">
                     <span className="text-slate-500">{t('totalOffers', 'jobOffers')}</span>
                     <span className="font-semibold text-slate-700 dark:text-slate-300">
-                      {total}
+                      {getStatusCount('all')}
                     </span>
                   </div>
                   <div className="flex justify-between text-xs">
                     <span className="text-slate-500">{t('accepted', 'jobOffers')}</span>
                     <span className="font-semibold text-emerald-600">
-                      {offers.filter((o) => o.status === 'accepted').length}
+                      {getStatusCount('accepted')}
                     </span>
                   </div>
                   <div className="flex justify-between text-xs">
                     <span className="text-slate-500">{t('pending', 'jobOffers')}</span>
                     <span className="font-semibold text-blue-600">
-                      {offers.filter((o) => o.status === 'draft' || o.status === 'sent').length}
+                      {getStatusCount('draft') + getStatusCount('sent')}
                     </span>
                   </div>
                   <div className="flex justify-between text-xs">
                     <span className="text-slate-500">{t('rejected', 'jobOffers')}</span>
                     <span className="font-semibold text-red-500">
-                      {offers.filter((o) => o.status === 'rejected').length}
+                      {getStatusCount('rejected')}
                     </span>
                   </div>
                   <div className="flex justify-between text-xs">
                     <span className="text-slate-500">{t('expired', 'jobOffers')}</span>
                     <span className="font-semibold text-amber-600">
-                      {offers.filter((o) => o.status === 'expired').length}
+                      {getStatusCount('expired')}
                     </span>
                   </div>
                 </div>
