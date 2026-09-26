@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useParams, useNavigate } from "react-router";
+import { Link, useParams, useNavigate } from "react-router";
 import { useLocale } from "../../../context/LocaleContext";
 import Swal from '../../../utils/swal';
 import PageMeta from "../../../components/common/PageMeta";
@@ -14,25 +14,26 @@ import {
   useDepartments,
 } from "../../../hooks/queries";
 import { toPlainString } from "../../../utils/strings";
-import { 
-  User as UserIcon, 
-  Shield, 
-  Building2, 
-  ChevronLeft, 
-  Save, 
-  UserCheck,
-  Plus,
-  Trash2,
-  Lock,
-  Hash,
-  AlertCircle,
-  X
-} from "lucide-react";
-
-type UserPermission = {
-  permission: string;
-  access: string[];
-};
+import { ArrowLeft, Building2, Plus, Shield, Trash2, UserRound } from "lucide-react";
+import {
+  Button,
+  Card,
+  CardToolbar,
+  EmptyState,
+  Field,
+  IconButton,
+  PageShell,
+  SectionTitle,
+  Switch,
+  focusRing,
+  inputClass,
+  selectClass,
+} from "../../../components/ui/kit";
+import {
+  DepartmentPicker,
+  UserPermissionsEditor,
+  type UserPermission,
+} from "./components/UserAccessEditors";
 
 type UserCompany = {
   companyId: string;
@@ -69,10 +70,7 @@ export default function EditUser() {
   const [formError, setFormError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [selectedCompanyId, setSelectedCompanyId] = useState("");
-  const [permissionToAdd, setPermissionToAdd] = useState("");
   const [userPermissions, setUserPermissions] = useState<UserPermission[]>([]);
-  const [permissionViewMode, setPermissionViewMode] = useState<"cards" | "matrix">("cards");
-  const [permissionSearchTerm, setPermissionSearchTerm] = useState("");
   const [initializedUserId, setInitializedUserId] = useState("");
 
   // Find user
@@ -217,96 +215,6 @@ const handleUpdateDepartments = (companyId: string, departments: string[]) => {
     setFormData((prev) => ({ ...prev, roleId: nextRoleId }));
     const selectedRole = roles.find((role: any) => role._id === nextRoleId);
     setUserPermissions(normalizeRolePermissions(selectedRole));
-    setPermissionToAdd("");
-  };
-
-  const availablePermissions = useMemo(() => {
-    const selectedIds = new Set(userPermissions.map((item) => item.permission));
-    return permissions.filter((perm: any) => !selectedIds.has(perm._id));
-  }, [permissions, userPermissions]);
-
-  const selectedPermissionMap = useMemo(() => {
-    return new Map(userPermissions.map((item) => [item.permission, item.access]));
-  }, [userPermissions]);
-
-  const filteredPermissionCatalog = useMemo(() => {
-    const term = permissionSearchTerm.trim().toLowerCase();
-    if (!term) return permissions;
-    return permissions.filter((perm: any) =>
-      toPlainString(perm.name || "").toLowerCase().includes(term)
-    );
-  }, [permissions, permissionSearchTerm]);
-
-  const handleAddPermission = () => {
-    if (!permissionToAdd) return;
-
-    setUserPermissions((prev) => {
-      if (prev.some((item) => item.permission === permissionToAdd)) return prev;
-      return [
-        ...prev,
-        {
-          permission: permissionToAdd,
-          access: getDefaultAccessForPermission(permissionToAdd),
-        },
-      ];
-    });
-    setPermissionToAdd("");
-  };
-
-  const handleRemovePermission = (permissionId: string) => {
-    setUserPermissions((prev) => prev.filter((item) => item.permission !== permissionId));
-  };
-
-  const handleTogglePermissionAccess = (permissionId: string, action: string) => {
-    setUserPermissions((prev) =>
-      prev.map((item) => {
-        if (item.permission !== permissionId) return item;
-        const hasAccess = item.access.includes(action);
-        return {
-          ...item,
-          access: hasAccess
-            ? item.access.filter((acc) => acc !== action)
-            : [...item.access, action],
-        };
-      })
-    );
-  };
-
-  const setPermissionSelection = (permissionId: string, selected: boolean) => {
-    if (selected) {
-      setUserPermissions((prev) => {
-        if (prev.some((item) => item.permission === permissionId)) return prev;
-        return [
-          ...prev,
-          {
-            permission: permissionId,
-            access: getDefaultAccessForPermission(permissionId),
-          },
-        ];
-      });
-      return;
-    }
-
-    handleRemovePermission(permissionId);
-  };
-
-  const setPermissionAction = (permissionId: string, action: string, enabled: boolean) => {
-    setUserPermissions((prev) => {
-      const existing = prev.find((item) => item.permission === permissionId);
-
-      if (!existing) {
-        if (!enabled) return prev;
-        return [...prev, { permission: permissionId, access: [action] }];
-      }
-
-      const nextAccess = enabled
-        ? Array.from(new Set([...existing.access, action]))
-        : existing.access.filter((acc) => acc !== action);
-
-      return prev.map((item) =>
-        item.permission === permissionId ? { ...item, access: nextAccess } : item
-      );
-    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -366,453 +274,187 @@ const handleUpdateDepartments = (companyId: string, departments: string[]) => {
     (c: any) => !userCompanies.some(uc => uc.companyId === c._id)
   );
 
+  const back = (
+    <Link
+      to="/users"
+      className={`inline-flex items-center gap-1.5 rounded-md text-sm font-medium text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white ${focusRing}`}
+    >
+      <ArrowLeft className="size-4 rtl:rotate-180" />
+      {t('editBackButton', 'users')}
+    </Link>
+  );
+
   return (
-    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0F172A] p-4 sm:p-8">
+    <>
       <PageMeta title={t('editMetaTitle', 'users', { name: toPlainString(formData.fullName) })} description={t('editMetaDescription', 'users')} />
-      
-      <div className="max-w-5xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
-        <div className="flex items-center justify-between">
-          <button 
-            onClick={() => navigate("/users")}
-            className="group flex items-center gap-3 transition-all"
-          >
-            <div className="size-12 bg-white/60 dark:bg-white/5 backdrop-blur-xl border border-white/20 rounded-2xl flex items-center justify-center shadow-sm group-hover:-translate-x-1 group-hover:bg-brand-500 group-hover:text-white transition-all">
-              <ChevronLeft className="size-5" />
-            </div>
-            <span className="font-black text-xs uppercase tracking-widest text-gray-400 group-hover:text-brand-500 transition-colors">{t('editBackButton', 'users')}</span>
-          </button>
-        </div>
+      <PageShell
+        back={back}
+        title={toPlainString(formData.fullName) || t('editModifyCredential', 'users')}
+        subtitle={t('editSubtitle', 'users')}
+      >
+        <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+          {formError && <ValidationErrorAlert error={formError} onDismiss={() => setFormError("")} />}
 
-        <div className="relative overflow-hidden bg-white/60 dark:bg-white/5 backdrop-blur-2xl border border-white/20 dark:border-white/10 rounded-[3.5rem] p-10 shadow-2xl">
-           <div className="absolute -top-20 -right-20 p-20 opacity-5 pointer-events-none">
-             <UserIcon className="size-80" />
-           </div>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <Card className="lg:col-span-2">
+              <CardToolbar>
+                <SectionTitle icon={<UserRound className="size-4" />}>{t('editPersonalInfo', 'users')}</SectionTitle>
+              </CardToolbar>
+              <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2">
+                <Field label={t('editFullName', 'users')} htmlFor="eu-name">
+                  <input
+                    id="eu-name"
+                    type="text"
+                    required
+                    value={formData.fullName}
+                    onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                    className={inputClass}
+                    placeholder={t('editFullNamePlaceholder', 'users')}
+                  />
+                </Field>
+                <Field label={t('editEmail', 'users')} htmlFor="eu-email">
+                  <input
+                    id="eu-email"
+                    type="email"
+                    required
+                    dir="ltr"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className={inputClass}
+                    placeholder={t('editEmailPlaceholder', 'users')}
+                  />
+                </Field>
+                <Field label={t('editPhone', 'users')} htmlFor="eu-phone" optional>
+                  <input
+                    id="eu-phone"
+                    type="tel"
+                    dir="ltr"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className={inputClass}
+                    placeholder={t('editPhonePlaceholder', 'users')}
+                  />
+                </Field>
+              </div>
+            </Card>
 
-           <div className="relative z-10 flex flex-col md:flex-row items-center gap-8 mb-12">
-             <div className="size-28 rounded-[2rem] bg-gradient-to-br from-brand-500/10 to-purple-500/10 border-2 border-brand-500/20 flex items-center justify-center text-4xl font-black text-brand-500 shadow-xl">
-               {toPlainString(formData.fullName)?.charAt(0) || <Hash className="size-8" />}
-             </div>
-             <div className="text-center md:text-left space-y-2">
-               <h1 className="text-4xl font-black tracking-tight dark:text-white">{t('editModifyCredential', 'users')}</h1>
-               <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px] italic">{t('editPersonnelId', 'users', { id: (id?.slice(-8).toUpperCase() || '') })}</p>
-             </div>
-           </div>
-
-           {formError && (
-             <div className="mb-10">
-               <ValidationErrorAlert error={formError} onDismiss={() => setFormError("")} />
-             </div>
-           )}
-
-           <form onSubmit={handleSubmit} className="space-y-12">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                <div className="space-y-8">
-                  <h3 className="text-lg font-black flex items-center gap-2 mb-6 tracking-tight">
-                    <Shield className="size-5 text-brand-500" />
-                    {t('editPersonalInfo', 'users')}
-                  </h3>
-                  
-                  <div className="space-y-6">
-                    <div className="group space-y-2">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 flex items-center gap-2">
-                         {t('editFullName', 'users')}
-                      </label>
-                      <input 
-                        type="text" 
-                        value={formData.fullName} 
-                        onChange={(e) => setFormData({...formData, fullName: e.target.value})}
-                        className="w-full px-6 py-4 bg-white/40 dark:bg-black/20 border-2 border-slate-100 dark:border-white/5 rounded-2xl focus:border-brand-500/50 focus:ring-4 focus:ring-brand-500/5 outline-none transition-all font-bold dark:text-white"
-                        placeholder={t('editFullNamePlaceholder', 'users')}
-                      />
-                    </div>
-
-                    <div className="group space-y-2">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 flex items-center gap-2">
-                         {t('editEmail', 'users')}
-                      </label>
-                      <input 
-                        type="email" 
-                        value={formData.email} 
-                        onChange={(e) => setFormData({...formData, email: e.target.value})}
-                        className="w-full px-6 py-4 bg-white/40 dark:bg-black/20 border-2 border-slate-100 dark:border-white/5 rounded-2xl focus:border-brand-500/50 focus:ring-4 focus:ring-brand-500/5 outline-none transition-all font-bold dark:text-white"
-                        placeholder={t('editEmailPlaceholder', 'users')}
-                      />
-                    </div>
-
-                    <div className="group space-y-2">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 flex items-center gap-2">
-                          {t('editPhone', 'users')}
-                      </label>
-                      <input 
-                        type="text" 
-                        value={formData.phone} 
-                        onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                        className="w-full px-6 py-4 bg-white/40 dark:bg-black/20 border-2 border-slate-100 dark:border-white/5 rounded-2xl focus:border-brand-500/50 focus:ring-4 focus:ring-brand-500/5 outline-none transition-all font-bold dark:text-white"
-                        placeholder={t('editPhonePlaceholder', 'users')}
-                      />
-                    </div>
+            <Card>
+              <CardToolbar>
+                <SectionTitle icon={<Shield className="size-4" />}>{t('editSecurityAccess', 'users')}</SectionTitle>
+              </CardToolbar>
+              <div className="space-y-4 p-4">
+                <Field label={t('editAssignedRole', 'users')} htmlFor="eu-role" hint={t('editRoleHint', 'users')}>
+                  <select
+                    id="eu-role"
+                    required
+                    value={formData.roleId}
+                    onChange={(e) => handleRoleChange(e.target.value)}
+                    className={selectClass}
+                  >
+                    <option value="">{t('editSelectRole', 'users')}</option>
+                    {roles.map((r: any) => (
+                      <option key={r._id} value={r._id}>{toPlainString(r.name)}</option>
+                    ))}
+                  </select>
+                </Field>
+                <div className="flex items-center justify-between gap-4 border-t border-slate-100 pt-4 dark:border-slate-800">
+                  <div>
+                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('editActivityStatus', 'users')}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{t('editActivityHint', 'users')}</p>
                   </div>
+                  <Switch
+                    checked={formData.isActive}
+                    onChange={(next) => setFormData({ ...formData, isActive: next })}
+                    label={t('editActivityStatus', 'users')}
+                  />
                 </div>
+              </div>
+            </Card>
+          </div>
 
-                <div className="space-y-8">
-                  <h3 className="text-lg font-black flex items-center gap-2 mb-6 tracking-tight">
-                    <Lock className="size-5 text-purple-500" />
-                    {t('editSecurityAccess', 'users')}
-                  </h3>
-                  
-                  <div className="space-y-8 p-8 bg-slate-50/50 dark:bg-white/5 rounded-[2.5rem] border border-slate-100 dark:border-white/5">
-                    <div className="group space-y-4">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t('editAssignedRole', 'users')}</label>
-                      <select 
-                        value={formData.roleId} 
-                        onChange={(e) => handleRoleChange(e.target.value)}
-                        className="w-full px-6 py-4 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-white/5 rounded-2xl focus:border-purple-500 outline-none transition-all font-bold dark:text-white appearance-none cursor-pointer"
-                      >
-                        <option value="">{t('editSelectRole', 'users')}</option>
-                        {roles.map((r: any) => (
-                          <option key={r._id} value={r._id}>{toPlainString(r.name)}</option>
-                        ))}
-                      </select>
-                    </div>
+          <UserPermissionsEditor
+            catalog={permissions}
+            value={userPermissions}
+            onChange={setUserPermissions}
+            getDefaultAccess={getDefaultAccessForPermission}
+          />
 
-                    <div className="pt-6 border-t border-slate-100 dark:border-white/5 flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t('editActivityStatus', 'users')}</label>
-                        <p className="text-xs font-bold text-slate-500 italic">{t('editActivityHint', 'users')}</p>
+          <Card>
+            <CardToolbar>
+              <div>
+                <SectionTitle icon={<Building2 className="size-4" />}>{t('editCompanyAccess', 'users')}</SectionTitle>
+                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{t('editCompanyAccessHint', 'users')}</p>
+              </div>
+              <div className="flex gap-2">
+                <select
+                  value={selectedCompanyId}
+                  onChange={(e) => setSelectedCompanyId(e.target.value)}
+                  aria-label={t('editAddCompanyAccess', 'users')}
+                  className={`${selectClass} sm:w-64`}
+                >
+                  <option value="">{t('editSelectCompany', 'users')}</option>
+                  {availableCompanies.map((c: any) => (
+                    <option key={c._id} value={c._id}>{toPlainString(c.name)}</option>
+                  ))}
+                </select>
+                <Button onClick={handleAddCompany} disabled={!selectedCompanyId} icon={<Plus className="size-4" />}>
+                  {t('editAddCompanyButton', 'users')}
+                </Button>
+              </div>
+            </CardToolbar>
+
+            {userCompanies.length === 0 ? (
+              <EmptyState
+                icon={<Building2 className="size-6" />}
+                title={t('editNoCompanyAccess', 'users')}
+                text={t('editAddCompanyHint', 'users')}
+              />
+            ) : (
+              <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+                {userCompanies.map((assignment) => {
+                  // Get departments for this specific company
+                  const companyDepartments = departments.filter((d: any) => {
+                    const deptCompanyId = typeof d.companyId === "string" ? d.companyId : d.companyId?._id;
+                    return deptCompanyId === assignment.companyId;
+                  });
+                  const companyName = toPlainString(assignment.companyName);
+
+                  return (
+                    <li key={assignment.companyId} className="flex items-start gap-4 p-4">
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <p className="text-sm font-semibold text-slate-900 dark:text-white">{companyName}</p>
+                        <DepartmentPicker
+                          departments={companyDepartments}
+                          selected={assignment.departments || []}
+                          onChange={(next) => handleUpdateDepartments(assignment.companyId, next)}
+                          emptyText={t('editNoDepartments', 'users')}
+                        />
+                        {companyDepartments.length > 0 && (
+                          <p className="text-xs text-slate-500 dark:text-slate-400">{t('editDepartmentHint', 'users')}</p>
+                        )}
                       </div>
-                      <button 
-                        type="button"
-                        onClick={() => setFormData({...formData, isActive: !formData.isActive})}
-                        className={`relative w-16 h-8 rounded-full transition-all duration-300 ${formData.isActive ? "bg-green-500 shadow-lg shadow-green-500/20" : "bg-slate-200 dark:bg-slate-700"}`}
+                      <IconButton
+                        tone="danger"
+                        label={t('editRemoveCompany', 'users', { name: companyName })}
+                        onClick={() => handleRemoveCompany(assignment.companyId)}
                       >
-                        <div className={`absolute top-1 size-6 bg-white rounded-full shadow-md transition-all duration-300 ${formData.isActive ? "left-9" : "left-1"}`} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
+                        <Trash2 className="size-4" />
+                      </IconButton>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </Card>
 
-              {/* Permissions Section */}
-              <div className="space-y-6 p-10 bg-purple-500/5 dark:bg-purple-500/10 rounded-[4rem] border border-purple-500/15">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <h3 className="text-xl font-black tracking-tight flex items-center gap-3">
-                    <Shield className="size-6 text-purple-500" />
-                    {t('editPermissions', 'users')}
-                  </h3>
-                  <div className="inline-flex items-center p-1 bg-slate-100 dark:bg-black/20 rounded-xl border border-slate-200 dark:border-white/10">
-                    <button
-                      type="button"
-                      onClick={() => setPermissionViewMode("cards")}
-                      className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${
-                        permissionViewMode === "cards"
-                          ? "bg-white dark:bg-slate-900 text-brand-500 shadow"
-                          : "text-slate-500"
-                      }`}
-                    >
-                      {t('editViewCards', 'users')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPermissionViewMode("matrix")}
-                      className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${
-                        permissionViewMode === "matrix"
-                          ? "bg-white dark:bg-slate-900 text-brand-500 shadow"
-                          : "text-slate-500"
-                      }`}
-                    >
-                      {t('editViewMatrix', 'users')}
-                    </button>
-                  </div>
-                </div>
-
-                {permissionViewMode === "cards" && (
-                  <>
-                    <div className="flex gap-2">
-                      <select
-                        value={permissionToAdd}
-                        onChange={(e) => setPermissionToAdd(e.target.value)}
-                        className="flex-1 px-4 py-3 bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/5 rounded-xl font-bold dark:text-white"
-                      >
-                        <option value="">{t('editAddPermissionModule', 'users')}</option>
-                        {availablePermissions.map((perm: any) => (
-                          <option key={perm._id} value={perm._id}>
-                            {toPlainString(perm.name)}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        type="button"
-                        onClick={handleAddPermission}
-                        disabled={!permissionToAdd}
-                        className="px-4 py-3 bg-purple-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest disabled:opacity-50"
-                      >
-                        {t('editAddPermission', 'users')}
-                      </button>
-                    </div>
-
-                    <div className="space-y-3">
-                      {userPermissions.map((permItem) => {
-                        const permObj = permissions.find((perm: any) => perm._id === permItem.permission);
-                        const actions = Array.from(
-                          new Set([
-                            "read",
-                            "write",
-                            "create",
-                            ...getDefaultAccessForPermission(permItem.permission),
-                            ...permItem.access,
-                          ])
-                        );
-
-                        return (
-                          <div
-                            key={permItem.permission}
-                            className="p-4 bg-white/60 dark:bg-black/20 rounded-2xl border border-slate-100 dark:border-white/5"
-                          >
-                            <div className="flex items-center justify-between gap-2 mb-3">
-                              <p className="text-sm font-black tracking-tight dark:text-white">
-                                {toPlainString(permObj?.name || t('editUnknownPermission', 'users'))}
-                              </p>
-                              <button
-                                type="button"
-                                onClick={() => handleRemovePermission(permItem.permission)}
-                                className="size-8 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white flex items-center justify-center transition-all"
-                              >
-                                <X className="size-4" />
-                              </button>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              {actions.map((action) => {
-                                const active = permItem.access.includes(action);
-                                return (
-                                  <button
-                                    key={`${permItem.permission}-${action}`}
-                                    type="button"
-                                    onClick={() => handleTogglePermissionAccess(permItem.permission, action)}
-                                    className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
-                                      active
-                                        ? "bg-brand-500 text-white"
-                                        : "bg-white dark:bg-white/5 text-gray-400"
-                                    }`}
-                                  >
-                                    {action}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        );
-                      })}
-
-                      {userPermissions.length === 0 && (
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 italic px-1">
-                          {t('editNoPermissionsHint', 'users')}
-                        </p>
-                      )}
-                    </div>
-                  </>
-                )}
-
-                {permissionViewMode === "matrix" && (
-                  <div className="space-y-3">
-                    <input
-                      type="text"
-                      value={permissionSearchTerm}
-                      onChange={(e) => setPermissionSearchTerm(e.target.value)}
-                      placeholder={t('editSearchPermission', 'users')}
-                      className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/5 rounded-xl font-bold dark:text-white"
-                    />
-
-                    <div className="rounded-2xl border border-slate-100 dark:border-white/5 overflow-x-auto">
-                      <table className="w-full text-xs min-w-[620px]">
-                        <thead className="bg-slate-50 dark:bg-slate-900/90">
-                          <tr>
-                            <th className="text-left px-3 py-2 font-black uppercase tracking-widest text-[10px] text-slate-400">{t('editTableModule', 'users')}</th>
-                            <th className="text-center px-2 py-2 font-black uppercase tracking-widest text-[10px] text-slate-400">{t('editTableUse', 'users')}</th>
-                            <th className="text-center px-2 py-2 font-black uppercase tracking-widest text-[10px] text-slate-400">{t('editTableRead', 'users')}</th>
-                            <th className="text-center px-2 py-2 font-black uppercase tracking-widest text-[10px] text-slate-400">{t('editTableWrite', 'users')}</th>
-                            <th className="text-center px-2 py-2 font-black uppercase tracking-widest text-[10px] text-slate-400">{t('editTableCreate', 'users')}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {filteredPermissionCatalog.map((perm: any) => {
-                            const permissionId = String(perm._id);
-                            const selectedAccess = selectedPermissionMap.get(permissionId) || [];
-                            const isSelected = selectedPermissionMap.has(permissionId);
-                            return (
-                              <tr key={permissionId} className="border-t border-slate-100 dark:border-white/5">
-                                <td className="px-3 py-2 font-bold dark:text-white">{toPlainString(perm.name)}</td>
-                                <td className="px-2 py-2 text-center">
-                                  <input
-                                    type="checkbox"
-                                    checked={isSelected}
-                                    onChange={(e) => setPermissionSelection(permissionId, e.target.checked)}
-                                    className="size-4 accent-brand-500"
-                                  />
-                                </td>
-                                {["read", "write", "create"].map((action) => (
-                                  <td key={`${permissionId}-${action}`} className="px-2 py-2 text-center">
-                                    <input
-                                      type="checkbox"
-                                      disabled={!isSelected}
-                                      checked={selectedAccess.includes(action)}
-                                      onChange={(e) => setPermissionAction(permissionId, action, e.target.checked)}
-                                      className="size-4 accent-brand-500 disabled:opacity-40"
-                                    />
-                                  </td>
-                                ))}
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Company Selection Section */}
-              <div className="space-y-8 p-10 bg-brand-500/5 dark:bg-brand-500/10 rounded-[4rem] border border-brand-500/10">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-black flex items-center gap-3 tracking-tight">
-                    <Building2 className="size-6 text-brand-500" />
-                    {t('editCompanyAccess', 'users')}
-                  </h3>
-                </div>
-
-                {/* Add Company Section */}
-                <div className="flex gap-4 items-end">
-                  <div className="flex-1 space-y-2">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                      {t('editAddCompanyAccess', 'users')}
-                    </label>
-                    <select
-                      value={selectedCompanyId}
-                      onChange={(e) => setSelectedCompanyId(e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/5 rounded-xl font-bold dark:text-white"
-                    >
-                        <option value="">{t('editSelectCompany', 'users')}</option>
-                      {availableCompanies.map((c: any) => (
-                        <option key={c._id} value={c._id}>{toPlainString(c.name)}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleAddCompany}
-                    disabled={!selectedCompanyId}
-                    className="px-6 py-3 bg-brand-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-lg shadow-brand-500/20 disabled:opacity-50 disabled:hover:scale-100"
-                  >
-                    <Plus className="size-4" />
-                  </button>
-                </div>
-
-                {/* Existing Companies List */}
-                <div className="space-y-4">
-                  {userCompanies.map((assignment) => {
-                    // Get departments for this specific company
-                    const companyDepartments = departments.filter((d: any) => {
-                      const deptCompanyId = typeof d.companyId === "string" ? d.companyId : d.companyId?._id;
-                      return deptCompanyId === assignment.companyId;
-                    });
-
-                    return (
-                      <div key={assignment.companyId} className="relative group bg-white dark:bg-slate-900/50 p-6 rounded-[2rem] border border-slate-200 dark:border-white/5 shadow-sm">
-                        <button 
-                          type="button" 
-                          onClick={() => handleRemoveCompany(assignment.companyId)}
-                          className="absolute -top-3 -right-3 size-8 bg-red-500 text-white rounded-xl items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity flex shadow-lg hover:rotate-12"
-                        >
-                          <Trash2 className="size-4" />
-                        </button>
-
-                        <div className="space-y-4">
-                          <h4 className="text-lg font-black dark:text-white">
-                            {toPlainString(assignment.companyName)}
-                          </h4>
-                          
-                          <div className="space-y-2">
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                              {t('editDepartmentAccess', 'users')}
-                            </label>
-                            <div className="flex flex-wrap gap-2">
-                              {companyDepartments.length === 0 ? (
-                                <p className="text-xs text-slate-400 italic">{t('editNoDepartments', 'users')}</p>
-                              ) : (
-                                companyDepartments.map((dept: any) => {
-                                  const isSelected = assignment.departments?.includes(dept._id);
-                                  return (
-                                    <button
-                                      key={dept._id}
-                                      type="button"
-                                      onClick={() => {
-                                        const newDepartments = isSelected
-                                          ? assignment.departments.filter((id: string) => id !== dept._id)
-                                          : [...(assignment.departments || []), dept._id];
-                                        handleUpdateDepartments(assignment.companyId, newDepartments);
-                                      }}
-                                      className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${
-                                        isSelected
-                                          ? "bg-brand-500 text-white"
-                                          : "bg-white dark:bg-white/5 text-gray-400 hover:bg-brand-500/20"
-                                      }`}
-                                    >
-                                      {toPlainString(dept.name)}
-                                    </button>
-                                  );
-                                })
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  
-                  {userCompanies.length === 0 && (
-                    <div className="text-center py-12 bg-white/30 dark:bg-black/10 rounded-[2rem] border-2 border-dashed border-slate-200 dark:border-white/10">
-                      <AlertCircle className="size-10 text-slate-300 mx-auto mb-3" />
-                      <p className="text-slate-400 font-bold text-sm">{t('editNoCompanyAccess', 'users')}</p>
-                      <p className="text-slate-400 text-xs mt-1">{t('editAddCompanyHint', 'users')}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-6 pt-10 border-t border-slate-100 dark:border-white/10">
-                <div className="space-y-1 text-center sm:text-left">
-                  <p className="text-xs font-black dark:text-white flex items-center gap-2">
-                    <UserCheck className="size-4 text-green-500" /> {t('editAuthPersonnelUpdate', 'users')}
-                  </p>
-                  <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest italic">{t('editProceedCaution', 'users')}</p>
-                </div>
-                
-                <div className="flex items-center gap-4">
-                  <button 
-                    type="button"
-                    onClick={() => navigate("/users")}
-                    className="px-8 py-4 bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-gray-400 rounded-3xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 transition-all"
-                  >
-                    {t('editCancel', 'users')}
-                  </button>
-                  <button 
-                    type="submit" 
-                    disabled={isSaving}
-                    className="flex items-center gap-3 px-10 py-4 bg-brand-500 text-white rounded-[2rem] font-black tracking-widest uppercase text-xs shadow-xl shadow-brand-500/30 hover:scale-105 active:scale-95 disabled:opacity-50 transition-all"
-                  >
-                    {isSaving ? (
-                      <div className="size-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    ) : (
-                      <>
-                        <Save className="size-4" />
-                        {t('editSaveChanges', 'users')}
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-           </form>
-        </div>
-      </div>
-    </div>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button onClick={() => navigate("/users")}>{t('editCancel', 'users')}</Button>
+            <Button type="submit" variant="primary" loading={isSaving}>
+              {t('editSaveChanges', 'users')}
+            </Button>
+          </div>
+        </form>
+      </PageShell>
+    </>
   );
 }
