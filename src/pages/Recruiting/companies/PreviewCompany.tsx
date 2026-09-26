@@ -506,7 +506,6 @@ export default function PreviewCompany() {
                         className={inputClass}
                       />
                       <input
-                        type="url"
                         dir="ltr"
                         aria-label={t('googleMapsUrl', 'companies')}
                         placeholder={t('googleMapsUrl', 'companies')}
@@ -530,7 +529,7 @@ export default function PreviewCompany() {
                         {locale !== 'ar' && addr.ar && (
                           <p className="text-xs text-slate-500 dark:text-slate-400"><bdi>{toPlainString(addr.ar)}</bdi></p>
                         )}
-                        {addr.location && (
+                        {/^https?:\/\//i.test(addr.location) ? (
                           <a
                             href={addr.location}
                             target="_blank"
@@ -540,7 +539,13 @@ export default function PreviewCompany() {
                             <MapPin className="size-3.5" />
                             {t('openInMaps', 'companies')}
                           </a>
-                        )}
+                        ) : addr.location ? (
+                          // Landmark notes rather than a link.
+                          <p className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
+                            <MapPin className="size-3.5 shrink-0" />
+                            {addr.location}
+                          </p>
+                        ) : null}
                       </li>
                     );
                   })}
