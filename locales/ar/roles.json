@@ -90,5 +90,6 @@
   "rolesTableHeaderUse": "استخدام",
   "rolesTableHeaderRead": "قراءة",
   "rolesTableHeaderWrite": "كتابة",
-  "rolesTableHeaderCreate": "إنشاء"
+  "rolesTableHeaderCreate": "إنشاء",
+  "rolesTableDescription": "الوصف"
 }

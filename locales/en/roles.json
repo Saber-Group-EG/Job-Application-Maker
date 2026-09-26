@@ -90,5 +90,6 @@
   "rolesTableHeaderUse": "Use",
   "rolesTableHeaderRead": "Read",
   "rolesTableHeaderWrite": "Write",
-  "rolesTableHeaderCreate": "Create"
+  "rolesTableHeaderCreate": "Create",
+  "rolesTableDescription": "Description"
 }

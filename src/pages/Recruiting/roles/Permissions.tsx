@@ -11,7 +11,7 @@ import { useRoles, usePermissions, useCreateRole, useUsers, useDeleteRole } from
 import type { User } from "../../../services/usersService";
 import type { CreateRoleRequest } from "../../../services/rolesService";
 import { toPlainString } from "../../../utils/strings";
-import { Search, Shield, Users, Calendar, ArrowRight, X, Check, Minus } from "lucide-react";
+import { Search, Shield, Users, Calendar, ArrowRight, X } from "lucide-react";
 import { Button, Card, CardToolbar, EmptyState, Field, IconButton, PageShell, SectionTitle, StatCard, Table, Td, Th, focusRing, inputClass, rowClass } from '../../../components/ui/kit';
 
 type RoleForm = {
@@ -433,31 +433,20 @@ export default function Permissions() {
             <CardToolbar>
               <SectionTitle icon={<Shield className="size-4" />}>{t('rolesPermissions', 'roles')}</SectionTitle>
             </CardToolbar>
-            <Table minWidth={560}>
+            <Table minWidth={480}>
               <thead>
                 <tr>
                   <Th>{t('rolesTableDomain', 'roles')}</Th>
-                  <Th>{t('rolesTableHeaderCreate', 'roles')}</Th>
-                  <Th>{t('rolesTableHeaderWrite', 'roles')}</Th>
-                  <Th>{t('rolesTableHeaderRead', 'roles')}</Th>
+                  <Th>{t('rolesTableDescription', 'roles')}</Th>
                 </tr>
               </thead>
               <tbody>
                 {permissions.map((permission) => (
                   <tr key={permission._id} className={rowClass}>
-                    <Td className="font-medium text-slate-900 dark:text-white">{permission.name}</Td>
-                    {['create', 'write', 'read'].map((action) => {
-                      const present = permission.actions != null && permission.actions.indexOf(action) >= 0;
-                      return (
-                        <Td key={action}>
-                          {present ? (
-                            <Check className="size-4 text-emerald-600 dark:text-emerald-400" aria-label={t('yes', 'common')} />
-                          ) : (
-                            <Minus className="size-4 text-slate-300 dark:text-slate-600" aria-label={t('no', 'common')} />
-                          )}
-                        </Td>
-                      );
-                    })}
+                    <Td className="whitespace-nowrap font-medium text-slate-900 dark:text-white">{permission.name}</Td>
+                    <Td className="text-slate-500 dark:text-slate-400">
+                      {permission.description || t('rolesFormDefaultPermDesc', 'roles')}
+                    </Td>
                   </tr>
                 ))}
               </tbody>
