@@ -15,6 +15,8 @@ export const jobOffersKeys = {
   all: ['jobOffers'] as const,
   lists: () => [...jobOffersKeys.all, 'list'] as const,
   list: (params?: object) => [...jobOffersKeys.lists(), params] as const,
+  // Under lists() so every mutation that refreshes the lists refreshes these too.
+  statusCounts: (params?: object) => [...jobOffersKeys.lists(), 'status-counts', params] as const,
   templates: (companyId?: string[] | string) =>
     [...jobOffersKeys.all, 'templates', companyId] as const,
   detail: (id: string) => [...jobOffersKeys.all, 'detail', id] as const,
@@ -36,6 +38,20 @@ export function useJobOfferTemplates(
       }),
     enabled: (options?.enabled ?? true) && !!companyId,
     staleTime: 2 * 60 * 1000,
+  });
+}
+
+// Per-status totals for the status tabs, in one request.
+export function useJobOfferStatusCounts(
+  params?: { companyId?: string[]; search?: string },
+  options?: { enabled?: boolean }
+) {
+  return useQuery({
+    queryKey: jobOffersKeys.statusCounts(params),
+    queryFn: () => jobOffersService.getStatusCounts(params),
+    enabled: options?.enabled ?? true,
+    staleTime: 2 * 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 }
 

@@ -2,6 +2,11 @@ import axios from '../config/axios';
 import { getErrorMessage } from '../utils/errorHandler';
 
 // ===== Types =====
+export interface JobOfferStatusCounts {
+  counts: Record<OfferStatus, number>;
+  total: number;
+}
+
 export type WorkType = 'full-time' | 'part-time' | 'contract' | 'internship';
 export type OfferStatus =
   | 'draft'
@@ -191,6 +196,21 @@ class JobOffersService {
         error.response?.data?.code,
         error.response?.data?.featurePath
       );
+    }
+  }
+
+  async getStatusCounts(params?: {
+    companyId?: string[];
+    search?: string;
+  }): Promise<JobOfferStatusCounts> {
+    try {
+      const response = await axios.get('/job-offers/status-counts', {
+        params: { isTemplate: false, ...params },
+      });
+      const { counts, total } = response.data;
+      return { counts, total };
+    } catch (error: any) {
+      throw new ApiError(getErrorMessage(error), error.response?.status);
     }
   }
 
