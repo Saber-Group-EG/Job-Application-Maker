@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { CheckCircle2, ChevronDown, Loader2, Wand2, X } from 'lucide-react';
 import { useDebounce } from '../../hooks/useDebounce';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useCompanies } from '../../hooks/queries';
 import { applicantsTableService } from '../../services/applicantsTableService';
 import { ApplicantObject } from '../modals/JobOffersModal/EmailModule';
@@ -30,12 +30,13 @@ export function ApplicantSelect({
   const companyId = companiesData?.map((c) => c._id);
   const { locale } = useLocale();
   const term = debouncedSearch.trim();
-  // Plain name/email/phone search through the applicants table endpoint:
-  // top 20 matches, no AI (the header's deep search spent AI credits on
-  // every keystroke here and returned up to 9,999 full applicants).
-  const { data, isFetching } = useQuery({
+  // Plain name/email/phone search through the applicants table endpoint, 20
+  // at a time with "Show more" until every match is listed; no AI (the
+  // header's deep search spent AI credits on every keystroke here).
+  const PAGE_SIZE = 20;
+  const { data, isFetching, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: ['applicants', 'picker', companyId, term],
-    queryFn: () =>
+    queryFn: ({ pageParam }) =>
       applicantsTableService.query({
         companyIds: companyId,
         columnFilters: [],
@@ -43,15 +44,19 @@ export function ApplicantSelect({
         customFilters: [],
         globalFilter: term,
         sorting: [{ id: 'submittedAt', desc: true }],
-        pageIndex: 0,
-        pageSize: 20,
+        pageIndex: pageParam,
+        pageSize: PAGE_SIZE,
         locale,
       }),
+    initialPageParam: 0,
+    getNextPageParam: (last) =>
+      (last.pageIndex + 1) * last.pageSize < last.total ? last.pageIndex + 1 : undefined,
     enabled: open && term.length > 0,
     staleTime: 30 * 1000,
   });
 
-  const applicants = (data?.rows ?? []) as unknown as ApplicantObject[];
+  const applicants = (data?.pages.flatMap((p) => p.rows) ?? []) as unknown as ApplicantObject[];
+  const totalMatches = data?.pages[0]?.total ?? 0;
 
   // If editing an existing offer, value is set but selectedApplicant is null.
   // Try to resolve it from the current search results or fetch once.
@@ -167,18 +172,18 @@ export function ApplicantSelect({
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
-              {isFetching && (
+              {isFetching && !isFetchingNextPage && (
                 <Loader2 className="absolute right-3 top-1/2 size-4 -translate-y-1/2 animate-spin text-slate-400" />
               )}
             </div>
           </div>
 
-          <div className="max-h-52 overflow-y-auto">
+          <div className="max-h-72 overflow-y-auto">
             {!debouncedSearch.trim() ? (
               <p className="px-3 py-4 text-center text-xs text-slate-400">
                 {t('startTypingSearch', 'modals')}
               </p>
-            ) : isFetching ? (
+            ) : isLoading ? (
               <div className="flex items-center justify-center py-6">
                 <Loader2 className="size-5 animate-spin text-slate-400" />
               </div>
@@ -187,7 +192,8 @@ export function ApplicantSelect({
                 {t('noApplicantsFound', 'modals', { search: debouncedSearch })}
               </p>
             ) : (
-              applicants.map((a) => (
+              <>
+              {applicants.map((a) => (
                 <button
                   key={a._id}
                   type="button"
@@ -209,7 +215,19 @@ export function ApplicantSelect({
                     <CheckCircle2 className="ml-auto size-4 shrink-0 text-brand-500" />
                   )}
                 </button>
-              ))
+              ))}
+              {hasNextPage && (
+                <button
+                  type="button"
+                  onClick={() => fetchNextPage()}
+                  disabled={isFetchingNextPage}
+                  className="flex w-full items-center justify-center gap-2 border-t border-slate-100 px-3 py-2.5 text-xs font-semibold text-brand-600 transition hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:text-brand-400 dark:hover:bg-slate-700/50"
+                >
+                  {isFetchingNextPage && <Loader2 className="size-3.5 animate-spin" />}
+                  {t('showMoreApplicants', 'modals', { shown: applicants.length, total: totalMatches })}
+                </button>
+              )}
+              </>
             )}
           </div>
         </div>
