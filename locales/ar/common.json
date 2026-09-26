@@ -399,5 +399,7 @@
   "acctFieldType_url": "رابط",
   "acctFieldType_tags": "وسوم",
   "acctFieldType_repeatable_group": "مجموعة متكررة",
-  "acctFieldType_group_field": "مجموعة"
+  "acctFieldType_group_field": "مجموعة",
+  "on": "مفعّل",
+  "off": "غير مفعّل"
 }

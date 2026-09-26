@@ -399,5 +399,7 @@
   "acctFieldType_url": "Link",
   "acctFieldType_tags": "Tags",
   "acctFieldType_repeatable_group": "Repeatable group",
-  "acctFieldType_group_field": "Group"
+  "acctFieldType_group_field": "Group",
+  "on": "On",
+  "off": "Off"
 }
