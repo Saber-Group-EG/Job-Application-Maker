@@ -54,6 +54,9 @@ export default function GmailConnectionCard({
   const [senderName, setSenderName] = useState('');
   const [receiveEnabled, setReceiveEnabled] = useState(true);
   const [googleStarting, setGoogleStarting] = useState(false);
+  // A company with Resend set up sees that first; the Gmail form only opens
+  // after confirming that Gmail would replace Resend.
+  const [gmailInsteadOfResend, setGmailInsteadOfResend] = useState(false);
   const queryClient = useQueryClient();
 
   // Back from Google's consent screen: show the outcome once, then drop the
@@ -196,11 +199,25 @@ export default function GmailConnectionCard({
     }
   };
 
+  const handleUseGmailInstead = async () => {
+    const confirm = await Swal.fire({
+      icon: 'warning',
+      title: t('resendSwitchConfirmTitle', 'companies'),
+      text: t('resendSwitchConfirmDesc', 'companies'),
+      showCancelButton: true,
+      confirmButtonText: t('resendSwitchConfirm', 'companies'),
+      cancelButtonText: t('cancel', 'common'),
+    });
+    if (confirm.isConfirmed) setGmailInsteadOfResend(true);
+  };
+
   const handleDisconnect = async () => {
     const confirm = await Swal.fire({
       icon: 'warning',
       title: t('gmailDisconnectConfirmTitle', 'companies'),
-      text: t('gmailDisconnectConfirmDesc', 'companies'),
+      text: status?.hasResendKey
+        ? `${t('gmailDisconnectConfirmDesc', 'companies')} ${t('gmailDisconnectBackToResend', 'companies')}`
+        : t('gmailDisconnectConfirmDesc', 'companies'),
       showCancelButton: true,
       confirmButtonText: t('gmailDisconnect', 'companies'),
       cancelButtonText: t('cancel', 'common'),
@@ -240,6 +257,11 @@ export default function GmailConnectionCard({
             <CheckCircle2 className="size-3.5" />
             {t('gmailConnectedBadge', 'companies')}
           </span>
+        ) : status?.hasResendKey ? (
+          <span className="inline-flex items-center gap-1.5 self-start rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-700 dark:bg-sky-500/15 dark:text-sky-300">
+            <CheckCircle2 className="size-3.5" />
+            {t('resendInUseBadge', 'companies')}
+          </span>
         ) : (
           <span className="inline-flex items-center self-start rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
             {t('gmailFreeBadge', 'companies')}
@@ -264,6 +286,11 @@ export default function GmailConnectionCard({
                 ? t('gmailViaGoogle', 'companies')
                 : t('gmailViaAppPassword', 'companies')}
             </p>
+            {status.hasResendKey && (
+              <p className="mt-1 text-xs text-green-900/70 dark:text-green-200/70">
+                {t('gmailResendKept', 'companies')}
+              </p>
+            )}
           </div>
 
           {status.lastError && (
@@ -369,8 +396,42 @@ export default function GmailConnectionCard({
             </button>
           </div>
         </div>
+      ) : status?.hasResendKey && !gmailInsteadOfResend ? (
+        <div className="space-y-4 p-6">
+          <div className="flex items-start gap-3 rounded-xl border border-sky-200 bg-sky-50/70 p-4 dark:border-sky-500/30 dark:bg-sky-500/10">
+            <Send className="mt-0.5 size-5 shrink-0 text-sky-600 dark:text-sky-300" />
+            <div>
+              <p className="text-sm font-semibold text-sky-900 dark:text-sky-100">
+                {t('resendActiveTitle', 'companies')}
+              </p>
+              <p className="mt-1 text-sm text-sky-900/80 dark:text-sky-100/80">
+                {t('resendActiveDesc', 'companies')}
+              </p>
+            </div>
+          </div>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={handleUseGmailInstead}
+              className="text-sm font-medium text-slate-500 underline-offset-4 hover:text-slate-800 hover:underline dark:text-slate-400 dark:hover:text-slate-200"
+            >
+              {t('resendUseGmailInstead', 'companies')}
+            </button>
+          )}
+        </div>
       ) : (
         <div>
+        {status?.hasResendKey && (
+          <div className="flex flex-col gap-3 border-b border-amber-200 bg-amber-50 p-4 dark:border-amber-500/30 dark:bg-amber-500/10 sm:flex-row sm:items-center sm:justify-between">
+            <p className="flex items-start gap-2 text-sm text-amber-900 dark:text-amber-200">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-500" />
+              {t('resendSwitchNote', 'companies')}
+            </p>
+            <button type="button" onClick={() => setGmailInsteadOfResend(false)} className={secondaryBtn}>
+              {t('resendKeep', 'companies')}
+            </button>
+          </div>
+        )}
         {status?.oauthAvailable && (
           <div className="border-b border-slate-200 p-6 dark:border-slate-800">
             <p className="text-sm font-semibold">{t('gmailGoogleTitle', 'companies')}</p>
