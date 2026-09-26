@@ -326,18 +326,9 @@ class JobPositionsService {
       return this.extractJobPositions(response);
     };
 
-    if (companyIds.length <= 1) {
-      return fetchOne(companyIds[0]);
-    }
-
-    const positionLists = await Promise.all(
-      companyIds.map((id) => fetchOne(id))
-    );
-    const unique = new Map<string, JobPosition>();
-    positionLists.flat().forEach((position) => {
-      if (position?._id) unique.set(position._id, position);
-    });
-    return Array.from(unique.values());
+    // One request for all companies: the API takes a comma-separated
+    // companyId list and scopes the result to those companies.
+    return fetchOne(companyIds.length ? companyIds.join(',') : undefined);
   }
 
   async getJobPositionById(id: string): Promise<JobPosition> {

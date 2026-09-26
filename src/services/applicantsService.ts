@@ -259,11 +259,14 @@ class ApplicantsService {
 
     let allApplicants: Applicant[] = [];
 
+    // The API takes a comma-separated companyId list and scopes the result
+    // to those companies, so one request covers all of them (it used to be
+    // one per company, and one per company x job).
+    const companyList = companyIds.join(',');
+
     if (companyIds.length > 0 && jobIds.length > 0) {
       const sets = await Promise.all(
-        companyIds.flatMap((cid) =>
-          jobIds.map((jid) => fetchOne({ companyId: cid, jobPositionId: jid }))
-        )
+        jobIds.map((jid) => fetchOne({ companyId: companyList, jobPositionId: jid }))
       );
       const combined = sets.flat();
       const uniqueMap = new Map<string, Applicant>();
@@ -272,9 +275,7 @@ class ApplicantsService {
       });
       allApplicants = Array.from(uniqueMap.values());
     } else if (companyIds.length > 0) {
-      const sets = await Promise.all(
-        companyIds.map((cid) => fetchOne({ companyId: cid }))
-      );
+      const sets = [await fetchOne({ companyId: companyList })];
       const combined = sets.flat();
       const uniqueMap = new Map<string, Applicant>();
       combined.forEach((a) => {
