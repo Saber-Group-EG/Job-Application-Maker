@@ -2,24 +2,19 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import { useNavigate } from 'react-router';
-import { useQueryClient } from '@tanstack/react-query';
-import { applicantsKeys } from '../../../../hooks/queries/useApplicants';
 import Swal from '../../../../utils/swal';
 import { useAuth } from '../../../../context/AuthContext';
 import { useLocale } from '../../../../context/LocaleContext';
 import { useCompanyFilter } from '../../../../context/CompanyFilterContext';
 import {
-  useApplicants,
   useJobPositions,
   useCompanies,
   useUpdateApplicantStatus,
 } from '../../../../hooks/queries';
 import { useTableLayout } from '../../../../hooks/queries/useTableLayout';
-import { buildApplicantDuplicateLookup } from '../../../../utils/applicantDuplicateSort';
 import { toPlainString } from '../../../../utils/strings';
 import { thumbnailCache } from '../../../../utils/persistentThumbnailCache';
 import { paths } from '../../../../router/Paths';
-import { buildFieldToJobIds } from '../../../../components/modals/CustomFilterModal';
 
 // Components
 import PageBreadcrumb from '../../../../components/common/PageBreadCrumb';
@@ -38,16 +33,18 @@ import { TrashBinIcon, ChatIcon, AlertIcon } from '../../../../icons';
 import { useTableState } from './hooks/useTableState';
 import { useApplicantSelection } from './hooks/useApplicantSelection';
 import { useBulkActions } from './hooks/useBulkActions';
-import { useApplicantFilters } from './hooks/useApplicantFilters';
+import { useApplicantsTable } from '../../../../hooks/queries/useApplicantsTable';
+import { useDebounce } from '../../../../hooks/useDebounce';
 import { useAnimatedColumnDrag } from '../../../../hooks/useAnimatedColumnDrag';
 
 // Utils
-import { exportToExcel, extractRejectionReasons } from './utils/exportHelpers';
-import { normalizeGender, getApplicantCompanyId } from './utils/filterHelpers';
+import { exportToExcel } from './utils/exportHelpers';
+import { normalizeGender } from './utils/filterHelpers';
+import { isTrashed } from '../../../../pages/Recruiting/ApplicantPage/utils/statusUtils';
 import {
-  getPreviousStatus,
-  isTrashed,
-} from '../../../../pages/Recruiting/ApplicantPage/utils/statusUtils';
+  applicantsTableService,
+  type ApplicantTableRow,
+} from '../../../../services/applicantsTableService';
 
 // Type
 import {
@@ -470,7 +467,6 @@ export default function Applicants({
   companyIdOverride,
 }: ApplicantsProps = {}) {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const { user, hasPermission } = useAuth();
   const { t, dir, locale } = useLocale();
   const location = useLocation();
@@ -556,11 +552,6 @@ export default function Applicants({
     );
   }, [isSuperAdmin, hasPermission]);
 
-  const canViewTrashed = useMemo(() => {
-    if (isSuperAdmin) return true;
-    return hasPermission('Restore Applicant');
-  }, [isSuperAdmin, hasPermission]);
-
   const persistedTableState = useMemo(() => {
     try {
       const rawLocal = localStorage.getItem('applicants_table_state');
@@ -633,32 +624,6 @@ export default function Applicants({
   const finalCompanyId = searchCompanyId ?? apiCompanyId;
 
   const {
-    data: applicants = [],
-    error,
-    refetch: refetchApplicants,
-    isFetching: isApplicantsFetching,
-    isFetched: isApplicantsFetched,
-  } = useApplicants({
-    companyId: finalCompanyId as any,
-    jobPositionId: effectiveOnlyJobPositions,
-    status: effectiveOnlyStatus,
-    search: effectiveSearch,
-    enabled: true,
-  });
-
-  // Check the query state directly to detect ongoing fetches for this key
-  const applicantsQueryKey = applicantsKeys.list({
-    companyId: apiCompanyId as any,
-    jobPositionId: effectiveOnlyJobPositions,
-    status: effectiveOnlyStatus,
-  });
-  const applicantsQueryState = queryClient.getQueryState(
-    applicantsQueryKey as any
-  );
-  const isApplicantsQueryFetching =
-    applicantsQueryState?.fetchStatus === 'fetching';
-
-  const {
     data: allCompaniesRaw = [],
     refetch: refetchCompanies,
     isFetching: isCompaniesFetching,
@@ -725,6 +690,95 @@ export default function Applicants({
     }
   }, [urlParams.status, urlParams.company, setColumnFilters]);
 
+  const selectedCompanyFilterValue = useMemo(():
+    | string[]
+    | string
+    | null
+    | undefined => {
+    const companyFilter = columnFilters.find((f: any) => f.id === 'companyId');
+    if (companyFilter?.value) {
+      const value = companyFilter.value;
+      if (Array.isArray(value)) {
+        return value as string[];
+      }
+      if (typeof value === 'string') {
+        return value;
+      }
+      if (value === null) {
+        return null;
+      }
+      return undefined;
+    }
+    if (globalSelectedCompanyId) {
+      return globalSelectedCompanyId;
+    }
+    return undefined;
+  }, [columnFilters, globalSelectedCompanyId]);
+
+  // Debounced so typing in the search box doesn't send a request per key.
+  const debouncedGlobalFilter = useDebounce(globalFilter, 300);
+  const tableRequest = useMemo(
+    () => ({
+      companyIds: (finalCompanyId as string[] | undefined) || undefined,
+      columnFilters: (columnFilters as any[]).map((f) => ({ id: f.id, value: f.value })),
+      excludeColumns: layout.excludeColumns ?? [],
+      customFilters,
+      globalFilter: debouncedGlobalFilter,
+      companyFilterValue: selectedCompanyFilterValue ?? null,
+      onlyStatus: effectiveOnlyStatus,
+      onlyJobPositions: effectiveOnlyJobPositions,
+      search: effectiveSearch,
+      sorting,
+      pageIndex: pagination.pageIndex,
+      pageSize: pagination.pageSize,
+      locale,
+    }),
+    [
+      finalCompanyId,
+      columnFilters,
+      layout.excludeColumns,
+      customFilters,
+      debouncedGlobalFilter,
+      selectedCompanyFilterValue,
+      effectiveOnlyStatus,
+      effectiveOnlyJobPositions,
+      effectiveSearch,
+      sorting,
+      pagination.pageIndex,
+      pagination.pageSize,
+      locale,
+    ]
+  );
+  const {
+    data: tableData,
+    error,
+    refetch: refetchApplicants,
+    isFetching: isApplicantsFetching,
+    isFetched: isApplicantsFetched,
+    isPlaceholderData: isTablePlaceholder,
+  } = useApplicantsTable(tableRequest, { enabled: Boolean(user) });
+  const pageRows: ApplicantTableRow[] = useMemo(() => tableData?.rows ?? [], [tableData]);
+  const totalRows = tableData?.total ?? 0;
+
+  // Back to the first page whenever the result set or its order changes.
+  const filterSignature = JSON.stringify([
+    sorting,
+    columnFilters,
+    layout.excludeColumns,
+    customFilters,
+    debouncedGlobalFilter,
+    selectedCompanyFilterValue,
+    effectiveOnlyStatus,
+    effectiveOnlyJobPositions,
+    effectiveSearch,
+  ]);
+  const prevFilterSignature = useRef(filterSignature);
+  useEffect(() => {
+    if (prevFilterSignature.current === filterSignature) return;
+    prevFilterSignature.current = filterSignature;
+    setPagination((p: any) => (p.pageIndex === 0 ? p : { ...p, pageIndex: 0 }));
+  }, [filterSignature, setPagination]);
+
   const jobPositionMap = useMemo(() => {
     const map: Record<string, any> = {};
     const getIdValue = (v: any) =>
@@ -756,29 +810,13 @@ export default function Applicants({
   }, [allCompaniesRaw]);
 
   const genderOptions = useMemo(() => {
-    const s = new Set<string>();
-    const rows = Array.isArray(applicants) ? applicants : [];
-    rows.forEach((a: any) => {
-      if (!isSuperAdmin && !canViewTrashed && a?.status === 'trashed') return;
-      const raw =
-        a?.gender ||
-        a?.customResponses?.gender ||
-        a?.customResponses?.genderAr ||
-        a?.customResponses?.['النوع'] ||
-        (a as any)['النوع'] ||
-        (a as any)?.genderAr;
-      const g = normalizeGender(raw);
-      if (g) s.add(g);
-    });
-    const items = Array.from(s);
-    const ordered: string[] = [];
-    if (items.includes('Male')) ordered.push('Male');
-    if (items.includes('Female')) ordered.push('Female');
-    items.forEach((it) => {
-      if (it !== 'Male' && it !== 'Female') ordered.push(it);
-    });
+    const items = tableData?.genderOptions ?? [];
+    const ordered = [
+      ...['Male', 'Female'].filter((g) => items.includes(g)),
+      ...items.filter((g) => g !== 'Male' && g !== 'Female'),
+    ];
     return ordered.map((g) => ({ id: g, title: g }));
-  }, [applicants, isSuperAdmin, canViewTrashed]);
+  }, [tableData?.genderOptions]);
 
   const jobOptions = useMemo(() => {
     const getIdValue = (v: any) =>
@@ -813,22 +851,13 @@ export default function Applicants({
         });
         const companyName = getTitleString(company?.name || '');
 
-        // ✅ Calculate applicant count for this job - EXCLUDE trashed status
-        const applicantCount = applicants.filter((applicant: any) => {
-          // Skip trashed applicants
-          if (applicant?.status?.toLowerCase() === 'trashed') return false;
-
-          const applicantJobId =
-            typeof applicant.jobPositionId === 'string'
-              ? applicant.jobPositionId
-              : applicant.jobPositionId?._id || applicant.jobPositionId?.id;
-          return applicantJobId === id;
-        }).length;
+        // Non-trashed applicants per job, counted on the server.
+        const applicantCount = tableData?.jobCounts?.[id] ?? 0;
 
         return { id, title, companyName, companyId, applicantCount };
       })
       .filter((x) => x.id && x.title);
-  }, [jobPositions, allCompaniesRaw, applicants, locale]);
+  }, [jobPositions, allCompaniesRaw, tableData?.jobCounts, locale]);
 
   const companyOptions = useMemo(() => {
     return allCompaniesRaw
@@ -925,57 +954,83 @@ export default function Applicants({
     });
   }, [jobOptions, companyMap, locale]);
 
-  const fieldToJobIds = useMemo(
-    () => buildFieldToJobIds(jobPositions),
-    [jobPositions]
+
+
+  const duplicatesOnlyEnabled = useMemo(
+    () =>
+      Array.isArray(customFilters) &&
+      customFilters.some(
+        (f: any) => f?.fieldId === '__duplicates_only' && f?.value === true
+      ),
+    [customFilters]
   );
 
-  const selectedCompanyFilterValue = useMemo(():
-    | string[]
-    | string
-    | null
-    | undefined => {
-    const companyFilter = columnFilters.find((f: any) => f.id === 'companyId');
-    if (companyFilter?.value) {
-      const value = companyFilter.value;
-      if (Array.isArray(value)) {
-        return value as string[];
-      }
-      if (typeof value === 'string') {
-        return value;
-      }
-      if (value === null) {
-        return null;
-      }
-      return undefined;
-    }
-    if (globalSelectedCompanyId) {
-      return globalSelectedCompanyId;
-    }
-    return undefined;
-  }, [columnFilters, globalSelectedCompanyId]);
+  const selectedCompanyFilter = useMemo(() => {
+    if (Array.isArray(selectedCompanyFilterValue)) return selectedCompanyFilterValue;
+    if (typeof selectedCompanyFilterValue === 'string') return [selectedCompanyFilterValue];
+    return null;
+  }, [selectedCompanyFilterValue]);
 
-  const {
-    filteredApplicants,
-    duplicatesOnlyEnabled,
-    statusFilterOptions,
-    selectedCompanyFilter,
-  } = useApplicantFilters({
-    applicants,
-    columnFilters,
-    customFilters,
-    isSuperAdmin,
-    effectiveOnlyStatus,
-    effectiveOnlyJobPositions,
-    selectedCompanyFilterValue,
-    excludeColumns: layout.excludeColumns ?? [],
-    jobPositionMap,
-    fieldToJobIds,
-    currentUserId,
-    allCompaniesRaw,
-    canViewTrashed,
-    globalFilter,
-  });
+  const statusFilterOptions = useMemo(() => {
+    const statuses = new Map<string, string>();
+    allCompaniesRaw.forEach((company: any) => {
+      (company?.settings?.statuses || []).forEach((st: any) => {
+        const name = st?.name?.trim();
+        if (name) statuses.set(name.toLowerCase(), name);
+      });
+    });
+    if (statuses.size === 0) {
+      (tableData?.statusValues ?? []).forEach((st) => statuses.set(st.toLowerCase(), st));
+    }
+    const unique = Array.from(statuses.values());
+    const defaultOrder = ['pending', 'approved', 'interview', 'interviewed', 'rejected', 'trashed'];
+    const sorted = [
+      ...defaultOrder
+        .map((key) => unique.find((st) => st.toLowerCase() === key))
+        .filter(Boolean) as string[],
+      ...unique
+        .filter((st) => !defaultOrder.includes(st.toLowerCase()))
+        .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase())),
+    ];
+    return sorted.map((status) => ({
+      id: status,
+      title: status.charAt(0).toUpperCase() + status.slice(1),
+    }));
+  }, [allCompaniesRaw, tableData?.statusValues]);
+
+  // Rows seen on any loaded page (or fetched for a selection), so selection
+  // and bulk actions work for applicants that aren't on the current page.
+  const [knownRowsById, setKnownRowsById] = useState<Map<string, ApplicantTableRow>>(
+    () => new Map()
+  );
+  useEffect(() => {
+    if (!pageRows.length) return;
+    setKnownRowsById((prev) => {
+      const next = new Map(prev);
+      pageRows.forEach((r) => next.set(r._id, r));
+      return next;
+    });
+  }, [pageRows]);
+  useEffect(() => {
+    const missing = Object.keys(rowSelection).filter((id) => !knownRowsById.has(id));
+    if (!missing.length) return;
+    let cancelled = false;
+    applicantsTableService
+      .rowsByIds(missing, finalCompanyId as string[] | undefined, effectiveSearch)
+      .then((rows) => {
+        if (cancelled || !rows.length) return;
+        setKnownRowsById((prev) => {
+          const next = new Map(prev);
+          rows.forEach((r) => next.set(r._id, r));
+          return next;
+        });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [rowSelection, knownRowsById, finalCompanyId, effectiveSearch]);
+  const knownRows = useMemo(() => Array.from(knownRowsById.values()), [knownRowsById]);
 
   const {
     selectedApplicantIds,
@@ -987,15 +1042,15 @@ export default function Applicants({
     selectedApplicants,
   } = useApplicantSelection({
     rowSelection,
-    applicants,
+    applicants: knownRows as any[],
     allCompaniesRaw,
   });
 
   const selectedTrashedApplicants = useMemo(() => {
     if (!selectedApplicantIds.length) return [];
     const ids = new Set(selectedApplicantIds);
-    return applicants.filter((a: any) => ids.has(a._id) && isTrashed(a));
-  }, [selectedApplicantIds, applicants]);
+    return knownRows.filter((a) => ids.has(a._id) && isTrashed(a as any));
+  }, [selectedApplicantIds, knownRows]);
 
   const handleBulkRestore = useCallback(async () => {
     if (selectedTrashedApplicants.length === 0) return;
@@ -1016,7 +1071,7 @@ export default function Applicants({
     try {
       for (const applicant of selectedTrashedApplicants) {
         const orig = applicant as any;
-        const previousStatus = getPreviousStatus(orig);
+        const previousStatus = orig.previousStatus || 'pending';
         await updateStatus.mutateAsync({
           id: orig._id,
           data: { status: previousStatus },
@@ -1036,7 +1091,7 @@ export default function Applicants({
     const jobIds = new Set<string>();
     const ids = new Set(selectedApplicantIds);
 
-    applicants.forEach((applicant: any) => {
+    knownRows.forEach((applicant: any) => {
       const applicantId =
         typeof applicant._id === 'string'
           ? applicant._id
@@ -1056,7 +1111,7 @@ export default function Applicants({
     });
 
     return Array.from(jobIds);
-  }, [selectedApplicantIds, applicants]);
+  }, [selectedApplicantIds, knownRows]);
 
   const {
     isDeleting,
@@ -1180,17 +1235,17 @@ export default function Applicants({
   const currentFiltersRef = useRef<{
     columnFilters: any[];
     customFilters: any[];
-    filteredApplicants: any[];
+    total: number;
   }>({
     columnFilters: [],
     customFilters: [],
-    filteredApplicants: [],
+    total: 0,
   });
 
   currentFiltersRef.current = {
     columnFilters,
     customFilters,
-    filteredApplicants,
+    total: totalRows,
   };
 
   const handleApplicantLinkClick = useCallback(
@@ -1217,8 +1272,7 @@ export default function Applicants({
           companyFilter: currentFilters.columnFilters.find(
             (f: any) => f.id === 'companyId'
           )?.value,
-          totalFilteredCount: currentFilters.filteredApplicants.length,
-          applicantsList: currentFilters.filteredApplicants,
+          totalFilteredCount: currentFilters.total,
           returnToApplicants: true,
           timestamp: Date.now(),
         },
@@ -1745,7 +1799,12 @@ export default function Applicants({
     }
     setIsExporting(true);
     try {
-      const result = await exportToExcel(applicants, selectedApplicantIds, {
+      const fullRecords = await applicantsTableService.fullByIds(
+        selectedApplicantIds,
+        finalCompanyId as string[] | undefined,
+        effectiveSearch
+      );
+      const result = await exportToExcel(fullRecords, selectedApplicantIds, {
         jobPositionMap,
         companyMap,
         getExpectedSalaryDisplay,
@@ -1775,22 +1834,21 @@ export default function Applicants({
     }
   }, [
     selectedApplicantIds,
-    applicants,
+    finalCompanyId,
+    effectiveSearch,
     jobPositionMap,
     companyMap,
     getExpectedSalaryDisplay,
     getApplicantSScore,
   ]);
 
+  // Skeleton only until the first page arrives; after that the previous page
+  // stays on screen (with a progress bar) while the next one loads.
   const isTableLoading = Boolean(
-    isJobPositionsFetching ||
-    isApplicantsFetching ||
-    isCompaniesFetching ||
-    isFilterTransitioning ||
-    isApplicantsQueryFetching ||
-    !isApplicantsFetched ||
-    !isJobPositionsFetched ||
-    !isCompaniesFetched
+    !tableData || !isJobPositionsFetched || !isCompaniesFetched
+  );
+  const isTableRefreshing = Boolean(
+    isApplicantsFetching || isTablePlaceholder || isFilterTransitioning
   );
 
   const renderCellSkeleton = (
@@ -1818,174 +1876,24 @@ export default function Applicants({
     );
   };
 
-  const rejectionReasonsOptions = useMemo(() => {
-    const reasonsSet = new Set<string>();
-    (filteredApplicants || []).forEach((applicant: any) => {
-      const reasons = extractRejectionReasons(applicant);
-      reasons.forEach((reason: string) => {
-        if (reason) reasonsSet.add(reason);
-      });
-    });
-    return Array.from(reasonsSet)
-      .sort()
-      .map((reason) => ({ id: reason, title: reason }));
-  }, [filteredApplicants]);
+  const rejectionReasonsOptions = useMemo(
+    () =>
+      (tableData?.rejectionReasonOptions ?? []).map((reason) => ({
+        id: reason,
+        title: reason,
+      })),
+    [tableData?.rejectionReasonOptions]
+  );
 
+  // Per-option counts for the column filter menus (each column's counts
+  // ignore that column's own filter), computed on the server.
   const unfilteredCounts = useMemo(() => {
-    const allRows = Array.isArray(applicants) ? applicants : [];
-    const globalCompanyIds = (() => {
-      const hasCompanyColumnFilter = columnFilters.some(
-        (f: any) => f.id === 'companyId'
-      );
-      if (!hasCompanyColumnFilter && selectedCompanyFilterValue) {
-        return Array.isArray(selectedCompanyFilterValue)
-          ? selectedCompanyFilterValue
-          : [selectedCompanyFilterValue];
-      }
-      return null;
-    })();
-
-    const getChildColumnIds = (colId: string): string[] => {
-      if (colId === 'companyId') return ['jobPositionId'];
-      return [];
-    };
-
-    const applyFilterToRows = (rows: any[], excludeColId: string) => {
-      const skipIds = new Set([
-        excludeColId,
-        ...getChildColumnIds(excludeColId),
-      ]);
-      let filtered = rows;
-      for (const filter of columnFilters) {
-        if (skipIds.has(filter.id)) continue;
-        if (!filter.value) continue;
-        const vals = Array.isArray(filter.value)
-          ? filter.value
-          : [filter.value];
-        if (vals.length === 0) continue;
-
-        if (filter.id === 'jobPositionId') {
-          filtered = filtered.filter((a: any) => {
-            const raw = a?.jobPositionId;
-            const id =
-              typeof raw === 'string' ? raw : (raw?._id ?? raw?.id ?? '');
-            return vals.includes(id);
-          });
-        } else if (filter.id === 'companyId') {
-          filtered = filtered.filter((a: any) => {
-            const cId = getApplicantCompanyId(a, jobPositionMap);
-            return !!cId && vals.includes(cId);
-          });
-        } else if (filter.id === 'gender') {
-          filtered = filtered.filter((a: any) => {
-            const raw =
-              a?.gender ||
-              a?.customResponses?.gender ||
-              a?.customResponses?.genderAr ||
-              a?.customResponses?.['النوع'] ||
-              (a as any)['النوع'] ||
-              (a as any)?.genderAr;
-            const g = normalizeGender(raw);
-            return !!g && vals.includes(g);
-          });
-        } else if (filter.id === 'status') {
-          filtered = filtered.filter((a: any) => {
-            const status = a?.status?.trim?.() ?? a?.status;
-            return !!status && vals.includes(status);
-          });
-        } else if (filter.id === 'rejectionReasons') {
-          filtered = filtered.filter((a: any) => {
-            const reasons = extractRejectionReasons(a);
-            if (!Array.isArray(reasons) || reasons.length === 0) return false;
-            return vals.some((v: string) =>
-              reasons.some(
-                (r: string) =>
-                  r.toLowerCase().includes(v.toLowerCase()) ||
-                  v.toLowerCase().includes(r.toLowerCase())
-              )
-            );
-          });
-        }
-      }
-      if (globalCompanyIds && !skipIds.has('companyId')) {
-        filtered = filtered.filter((a: any) => {
-          const cId = getApplicantCompanyId(a, jobPositionMap);
-          return !!cId && globalCompanyIds.includes(cId);
-        });
-      }
-      return filtered;
-    };
-
     const maps: Record<string, Map<string, number>> = {};
-    const trackedCols = [
-      'status',
-      'jobPositionId',
-      'companyId',
-      'gender',
-      'rejectionReasons',
-    ];
-
-    const statusFilterIncludesTrashed = columnFilters.some(
-      (f: any) =>
-        f.id === 'status' &&
-        Array.isArray(f.value) &&
-        f.value.some(
-          (v: string) => String(v).toLowerCase().trim() === 'trashed'
-        )
-    );
-
-    for (const colId of trackedCols) {
-      const rows = applyFilterToRows(allRows, colId);
-      const map = new Map<string, number>();
-
-      const add = (key: string) => {
-        if (!key) return;
-        map.set(key, (map.get(key) ?? 0) + 1);
-      };
-
-      rows.forEach((a: any) => {
-        const isTrashed = a?.status?.toLowerCase() === 'trashed';
-        const includeRow = !isTrashed || statusFilterIncludesTrashed;
-
-        if (colId === 'status') {
-          add(a?.status?.trim?.() ?? a?.status);
-        } else if (colId === 'gender' && includeRow) {
-          const rawGender =
-            a?.gender ||
-            a?.customResponses?.gender ||
-            a?.customResponses?.genderAr ||
-            a?.customResponses?.['النوع'] ||
-            (a as any)['النوع'] ||
-            (a as any)?.genderAr;
-          add(normalizeGender(rawGender));
-        } else if (colId === 'companyId' && includeRow) {
-          add(getApplicantCompanyId(a, jobPositionMap) || '');
-        } else if (colId === 'jobPositionId' && includeRow) {
-          const rawJob = a?.jobPositionId;
-          const getId = (v: any) =>
-            typeof v === 'string' ? v : (v?._id ?? v?.id ?? '');
-          add(getId(rawJob));
-        } else if (colId === 'rejectionReasons' && includeRow) {
-          const reasons = extractRejectionReasons(a);
-          if (Array.isArray(reasons)) {
-            reasons.forEach((r: string) => {
-              if (r) add(r);
-            });
-          }
-        }
-      });
-
-      maps[colId] = map;
-    }
-
+    Object.entries(tableData?.facets ?? {}).forEach(([colId, counts]) => {
+      maps[colId] = new Map(Object.entries(counts));
+    });
     return maps;
-  }, [
-    applicants,
-    isSuperAdmin,
-    jobPositionMap,
-    columnFilters,
-    selectedCompanyFilterValue,
-  ]);
+  }, [tableData?.facets]);
 
   const [isDarkMode, setIsDarkMode] = useState(
     () =>
@@ -2171,14 +2079,7 @@ export default function Applicants({
         Cell: ({ row }: { row: { original: any } }) => {
           if (isTableLoading) return renderCellSkeleton('text');
           const orig: any = row.original;
-          const seenBy = orig?.seenBy ?? [];
-          const isSeen =
-            Array.isArray(seenBy) &&
-            seenBy.some((s: any) => {
-              if (!s) return false;
-              if (typeof s === 'string') return s === currentUserId;
-              return s._id === currentUserId || s.id === currentUserId;
-            });
+          const isSeen = Boolean(orig?.isSeen);
           const isDuplicated = orig?.isDuplicated ?? false;
           return (
             <div className="flex items-center gap-2">
@@ -2340,8 +2241,7 @@ export default function Applicants({
               header: t('company', 'applicants'),
               size: columnSizeConfig.companyId,
               enableSorting: true,
-              accessorFn: (row: any) =>
-                getApplicantCompanyId(row, jobPositionMap),
+              accessorFn: (row: any) => row.companyId,
               ...makeExcludableColumnProps(
                 'companyId',
                 companyOptions.map((o) => ({ label: o.title, value: o.id })),
@@ -2363,8 +2263,7 @@ export default function Applicants({
               },
               Cell: ({ row }: { row: { original: any } }) => {
                 if (isTableLoading) return renderCellSkeleton('text');
-                const cId = getApplicantCompanyId(row.original, jobPositionMap);
-                const company = companyMap[cId || ''];
+                const company = companyMap[row.original.companyId || ''];
                 return (
                   <a
                     href={getApplicantHref(row)}
@@ -2458,22 +2357,10 @@ export default function Applicants({
         size: columnSizeConfig.expectedSalary,
         enableColumnFilter: false,
         enableSorting: true,
-        accessorFn: (row: any) => getExpectedSalaryDisplay(row),
-        sortingFn: (rowA: any, rowB: any) => {
-          const a = parseComparableNumber(
-            getExpectedSalaryDisplay(rowA.original)
-          );
-          const b = parseComparableNumber(
-            getExpectedSalaryDisplay(rowB.original)
-          );
-          const va = a ?? -1;
-          const vb = b ?? -1;
-          if (va === vb) return 0;
-          return va > vb ? 1 : -1;
-        },
+        accessorFn: (row: any) => row.expectedSalaryDisplay,
         Cell: ({ row }: { row: { original: any } }) => {
           if (isTableLoading) return renderCellSkeleton('text');
-          const expectedSalary = getExpectedSalaryDisplay(row.original);
+          const expectedSalary = row.original.expectedSalaryDisplay;
           return (
             <a
               href={getApplicantHref(row)}
@@ -2492,18 +2379,10 @@ export default function Applicants({
         size: columnSizeConfig.sscore,
         enableColumnFilter: false,
         enableSorting: true,
-        accessorFn: (row: any) => getApplicantSScore(row),
-        sortingFn: (rowA: any, rowB: any, columnId: string) => {
-          const a = Number(rowA.getValue(columnId));
-          const b = Number(rowB.getValue(columnId));
-          const scoreA = Number.isFinite(a) ? a : -1;
-          const scoreB = Number.isFinite(b) ? b : -1;
-          if (scoreA === scoreB) return 0;
-          return scoreA > scoreB ? 1 : -1;
-        },
+        accessorFn: (row: any) => row.sscore,
         Cell: ({ row }: { row: { original: any } }) => {
           if (isTableLoading) return renderCellSkeleton('text');
-          const score = getApplicantSScore(row.original);
+          const score = row.original.sscore;
           return (
             <a
               href={getApplicantHref(row)}
@@ -2598,10 +2477,7 @@ export default function Applicants({
         Cell: ({ row }: { row: { original: any } }) => {
           if (isTableLoading) return renderCellSkeleton('text', '80px');
 
-          const applicantCompanyId = getApplicantCompanyId(
-            row.original,
-            jobPositionMap
-          );
+          const applicantCompanyId = row.original.companyId;
 
           return (
             <a
@@ -2629,7 +2505,7 @@ export default function Applicants({
         enableSorting: true,
         enableColumnFilter: true,
         size: 260,
-        accessorFn: (row: any) => extractRejectionReasons(row),
+        accessorFn: (row: any) => row.rejectionReasons ?? [],
         sortingFn: (rowA: any, rowB: any, columnId: string) => {
           const reasonsA = rowA.getValue(columnId) as string[];
           const reasonsB = rowB.getValue(columnId) as string[];
@@ -2671,7 +2547,7 @@ export default function Applicants({
         Cell: ({ row }: { row: { original: any } }) => {
           if (isTableLoading) return renderCellSkeleton('text');
           const a = row.original || {};
-          const reasons = extractRejectionReasons(a);
+          const reasons: string[] = a.rejectionReasons ?? [];
 
           if (!reasons || reasons.length === 0) {
             return <span className="text-sm text-gray-500">-</span>;
@@ -2697,22 +2573,11 @@ export default function Applicants({
         size: columnSizeConfig.lastComment,
         enableColumnFilter: false,
         enableSorting: false,
-        accessorFn: (row: any) => {
-          const comments = row?.comments ?? [];
-          const last =
-            comments.length > 0 ? comments[comments.length - 1] : null;
-          return last?.comment ?? '';
-        },
+        accessorFn: (row: any) => row?.lastComment?.comment ?? '',
         Cell: ({ row }: any) => {
           if (isTableLoading) return renderCellSkeleton('text');
-          const comments = row.original?.comments ?? [];
-          const last =
-            comments.length > 0 ? comments[comments.length - 1] : null;
-          const commentText = last?.comment ?? '';
-          const commentedByName =
-            typeof last?.commentedBy === 'object' && last?.commentedBy
-              ? last.commentedBy.fullName || last.commentedBy.name || ''
-              : '';
+          const commentText = row.original?.lastComment?.comment ?? '';
+          const commentedByName = row.original?.lastComment?.commentedByName ?? '';
           if (!commentText) return <span className="text-gray-400">-</span>;
           return (
             <div className="flex flex-col gap-0.5 min-w-0 max-w-[280px]">
@@ -2810,7 +2675,7 @@ export default function Applicants({
           };
           const hasCv = Boolean(resolveCvPath(orig));
           const isTrashedApplicant = isTrashed(orig);
-          const previousStatus = getPreviousStatus(orig);
+          const previousStatus = orig.previousStatus || 'pending';
           const handleRestore = async (
             e: React.MouseEvent<HTMLButtonElement>
           ) => {
@@ -2925,9 +2790,6 @@ export default function Applicants({
       excludeModes,
       columnFilters,
       formatDate,
-      getExpectedSalaryDisplay,
-      getApplicantSScore,
-      parseComparableNumber,
       mailCountByApplicantId,
       jobPositionMap,
       companyMap,
@@ -3019,7 +2881,7 @@ export default function Applicants({
     localization: mrtLocalization,
     columns,
     enableSorting: true,
-    data: isTableLoading ? skeletonData : filteredApplicants,
+    data: isTableLoading ? skeletonData : pageRows,
     enableRowVirtualization: true, // Enable virtual scrolling for better performance
     displayColumnDefOptions: {
       'mrt-row-select': {
@@ -3080,10 +2942,31 @@ export default function Applicants({
     enableColumnResizing: true,
     enableColumnOrdering: true,
     layoutMode: 'grid',
-    manualPagination: false,
+    // Filtering, sorting and paging all happen on the server.
+    manualPagination: true,
     manualFiltering: true,
-    manualSorting: false,
-    rowCount: isTableLoading ? skeletonData.length : filteredApplicants.length,
+    manualSorting: true,
+    rowCount: isTableLoading ? skeletonData.length : totalRows,
+    // "Select all" selects every matching applicant, not just this page.
+    muiSelectAllCheckboxProps: () => {
+      const ids = tableData?.ids ?? [];
+      const selectedCount = ids.reduce((n, id) => (rowSelection[id] ? n + 1 : n), 0);
+      const all = ids.length > 0 && selectedCount === ids.length;
+      return {
+        checked: all,
+        indeterminate: selectedCount > 0 && !all,
+        onChange: () => {
+          setRowSelection((prev: Record<string, boolean>) => {
+            const next = { ...prev };
+            ids.forEach((id) => {
+              if (all) delete next[id];
+              else next[id] = true;
+            });
+            return next;
+          });
+        },
+      };
+    },
     initialState: {
       pagination,
       columnFilters: isTableLoading ? [] : columnFilters,
@@ -3092,6 +2975,7 @@ export default function Applicants({
       density: 'compact',
     },
     state: {
+      showProgressBars: !isTableLoading && isTableRefreshing,
       sorting,
       pagination: isTableLoading ? { ...pagination, pageIndex: 0 } : pagination,
       columnFilters: isTableLoading ? [] : columnFilters,
@@ -3214,22 +3098,9 @@ export default function Applicants({
           </button>
           {duplicatesOnlyEnabled && (
             <span className="text-xs text-amber-600 dark:text-amber-400">
-              {(() => {
-                const duplicateLookup = buildApplicantDuplicateLookup(
-                  filteredApplicants as any[],
-                  currentUserId,
-                  {
-                    getCompanyId: (applicant: any) =>
-                      getApplicantCompanyId(applicant, jobPositionMap),
-                  }
-                );
-                const duplicateCount = Array.from(
-                  duplicateLookup.values()
-                ).filter((d) => d.isDuplicate === true).length;
-                return t('duplicateCount', 'applicants', {
-                  count: duplicateCount,
-                });
-              })()}
+              {t('duplicateCount', 'applicants', {
+                count: tableData?.duplicateCount ?? 0,
+              })}
             </span>
           )}
         </div>
@@ -3801,7 +3672,8 @@ export default function Applicants({
           open={customFilterOpen}
           onClose={() => setCustomFilterOpen(false)}
           jobPositions={jobPositions}
-          applicants={applicants}
+          applicants={[]}
+          salaryRange={tableData?.salaryRange}
           jobPositionMap={jobPositionMap}
           companies={allCompaniesRaw}
           customFilters={customFilters}

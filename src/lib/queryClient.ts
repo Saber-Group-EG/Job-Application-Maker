@@ -1,6 +1,14 @@
-import { QueryClient } from "@tanstack/react-query";
+import { MutationCache, QueryClient } from "@tanstack/react-query";
 
-export const queryClient = new QueryClient({
+export const queryClient: QueryClient = new QueryClient({
+  // The applicants table is filtered and paged on the server, so no
+  // mutation can patch it in place; refetch it after any change (only runs
+  // if the table is on screen, and the server re-reads just what changed).
+  mutationCache: new MutationCache({
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["applicants", "table"] });
+    },
+  }),
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
