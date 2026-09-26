@@ -129,18 +129,8 @@ export function useCompanies(
         return company ? [company] : [];
       }
 
-      // Multiple companies case - fetch all in parallel
-      const companiesPromises = effectiveIds.map((id) =>
-        companiesService.getCompanyById(id).catch((error) => {
-          console.error(`Failed to fetch company ${id}:`, error);
-          return null;
-        })
-      );
-
-      const results = await Promise.all(companiesPromises);
-      const validCompanies = results.filter((company) => company !== null);
-
-      return validCompanies;
+      // Multiple companies - one request for all of them
+      return companiesService.getAllCompanies(effectiveIds);
     },
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,

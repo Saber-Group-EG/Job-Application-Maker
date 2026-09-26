@@ -136,20 +136,14 @@ class CompaniesService {
       return response ? [response] : [];
     }
 
-    // For multiple companies, make parallel requests to individual endpoints
-    const companiesLists = await Promise.all(
-      uniqueIds.map((id) =>
-        this.request<Company>('get', `/companies/${id}`, undefined, {
-          deleted: 'false',
-        })
-      )
-    );
-
-    const uniqueCompanies = new Map<string, Company>();
-    companiesLists.forEach((company) => {
-      if (company?._id) uniqueCompanies.set(company._id, company);
+    // Several companies: one list request filtered to those ids (the API
+    // also limits it to companies the user belongs to).
+    const response = await this.request<Company[]>('get', '/companies', undefined, {
+      deleted: 'false',
+      PageCount: 'all',
+      companyId: uniqueIds.join(','),
     });
-    return Array.from(uniqueCompanies.values());
+    return Array.isArray(response) ? response : [];
   }
 
   async getCompaniesByIds(companyIds: string[]): Promise<Company[]> {
@@ -407,11 +401,16 @@ class CompaniesService {
     );
   }
 
-  async getSubscription(companyId: string): Promise<SubscriptionDetails> {
-    return this.request<SubscriptionDetails>(
+  // null when the company has no subscription (the API answers 200 + data: null).
+  async getSubscription(companyId: string): Promise<SubscriptionDetails | null> {
+    const body = await this.request<{ data?: SubscriptionDetails | null }>(
       'get',
-      `/billing/${companyId}/subscription`
+      `/billing/${companyId}/subscription`,
+      undefined,
+      undefined,
+      { raw: true }
     );
+    return body?.data ?? null;
   }
 
   async cancelSubscription(

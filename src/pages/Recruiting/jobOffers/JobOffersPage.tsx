@@ -23,6 +23,7 @@ import { useCompanyFilter } from '../../../context/CompanyFilterContext';
 import {
   jobOffersKeys,
   useJobOffers,
+  useJobOfferStatusCounts,
   useDeleteJobOffer,
   useUpdateOfferStatus,
 } from '../../../hooks/queries/useJobOffers';
@@ -131,13 +132,18 @@ export default function JobOffersPage() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 500);
 
+  // No company picked: send no companyId and let the API scope the list to
+  // the user's companies, so the list doesn't wait for company details.
+  const scopeCompanyIds = selectedCompanyId ? [selectedCompanyId] : undefined;
+  const trimmedSearch = debouncedSearch.trim();
+
   const queryParams = {
-    companyId: selectedCompanyId ? [selectedCompanyId] : companyId,
+    companyId: scopeCompanyIds,
     isTemplate: false as const,
     PageCount: LIMIT,
     page,
     ...(statusFilter !== 'all' ? { status: statusFilter } : {}),
-    ...(debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}),
+    ...(trimmedSearch ? { search: trimmedSearch } : {}),
   };
 
   // ── Data ───────────────────────────────────────────────────────────────
@@ -147,18 +153,11 @@ export default function JobOffersPage() {
   const total = offersData?.totalCount ?? 0;
   const totalPages = offersData?.totalPages ?? 1;
 
-  // ── Per-status counts ────────────────────────────────────────────────────
-  const countBaseParams = {
-    companyId: selectedCompanyId ? [selectedCompanyId] : companyId,
-    isTemplate: false as const,
-    PageCount: 1 as const,
-    page: 1,
-    ...(debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}),
-  };
-
-  const { data: acceptedCountData } = useJobOffers({ ...countBaseParams, status: 'accepted' });
-  const { data: sentCountData } = useJobOffers({ ...countBaseParams, status: 'sent' });
-  const { data: rejectedCountData } = useJobOffers({ ...countBaseParams, status: 'rejected' });
+  // ── Per-status counts (one request for every tab) ──────────────────────
+  const { data: statusCounts } = useJobOfferStatusCounts({
+    companyId: scopeCompanyIds,
+    ...(trimmedSearch ? { search: trimmedSearch } : {}),
+  });
 
   // ── Prefetch next page ─────────────────────────────────────────────────
   useEffect(() => {
@@ -170,7 +169,7 @@ export default function JobOffersPage() {
         staleTime: 2 * 60 * 1000,
       });
     }
-  }, [page, totalPages, companyId, statusFilter]);
+  }, [page, totalPages, selectedCompanyId, statusFilter, trimmedSearch]);
 
   // Reset page on filter change
   useEffect(() => {
@@ -211,13 +210,8 @@ export default function JobOffersPage() {
   );
 
   const getStatusCount = (status: 'all' | OfferStatus) => {
-    if (status === 'all') return total;
-    switch (status) {
-      case 'accepted': return acceptedCountData?.totalCount ?? 0;
-      case 'sent': return sentCountData?.totalCount ?? 0;
-      case 'rejected': return rejectedCountData?.totalCount ?? 0;
-      default: return offers.filter((o) => o.status === status).length;
-    }
+    if (!statusCounts) return status === 'all' || status === statusFilter ? total : 0;
+    return status === 'all' ? statusCounts.total : (statusCounts.counts[status] ?? 0);
   };
 
   const handleOfferClick = (id: string) => {
