@@ -90,7 +90,18 @@ const readPersistedMobileFilters = () => {
   }
 };
 
-export default function ApplicantsMobilePage(): JSX.Element {
+type ApplicantsMobilePageProps = {
+  // Fixed filters of a saved applicants page (e.g. "Rejected").
+  onlyStatus?: string | string[];
+  onlyJobPositions?: string[];
+  companyIdOverride?: string | string[];
+};
+
+export default function ApplicantsMobilePage({
+  onlyStatus,
+  onlyJobPositions,
+  companyIdOverride,
+}: ApplicantsMobilePageProps = {}): JSX.Element {
   const navigate = useNavigate();
   const [initialMobileFilters] = useState(() => readPersistedMobileFilters());
 
@@ -217,10 +228,16 @@ export default function ApplicantsMobilePage(): JSX.Element {
   // Filtering, sorting and paging run on the server (POST /applicants/table),
   // like the desktop table. A search ignores the other filters, as before.
   const debouncedQuery = useDebounce(query.trim(), 300);
+  const hasPageStatus = Array.isArray(onlyStatus) ? onlyStatus.length > 0 : Boolean(onlyStatus);
   const searching = debouncedQuery.length > 0;
   const tableRequest = useMemo(
     () => ({
-      companyIds: (applicantsFetchParam as string[] | undefined) || undefined,
+      companyIds:
+        (companyIdOverride
+          ? (Array.isArray(companyIdOverride) ? companyIdOverride : [companyIdOverride])
+          : (applicantsFetchParam as string[] | undefined)) || undefined,
+      onlyStatus: hasPageStatus ? onlyStatus : undefined,
+      onlyJobPositions: onlyJobPositions?.length ? onlyJobPositions : undefined,
       columnFilters: searching
         ? []
         : [
@@ -237,7 +254,7 @@ export default function ApplicantsMobilePage(): JSX.Element {
       pageSize,
       locale,
     }),
-    [applicantsFetchParam, searching, jobFilters, statusFilters, genderFilters, customFilters, debouncedQuery, companyFilters, submittedDesc, pageIndex, pageSize, locale]
+    [applicantsFetchParam, companyIdOverride, hasPageStatus, onlyStatus, onlyJobPositions, searching, jobFilters, statusFilters, genderFilters, customFilters, debouncedQuery, companyFilters, submittedDesc, pageIndex, pageSize, locale]
   );
   const {
     data: tableData,
@@ -1118,7 +1135,8 @@ export default function ApplicantsMobilePage(): JSX.Element {
               )}
             </div>
 
-            {/* Status Filter */}
+            {/* Status Filter (a saved page fixes the status) */}
+            {!hasPageStatus && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">{t('status', 'applicants')}</label>
               <div className="rounded-xl border border-gray-200 bg-gray-50 p-2">
@@ -1158,6 +1176,7 @@ export default function ApplicantsMobilePage(): JSX.Element {
                 </div>
               </div>
             </div>
+            )}
 
             {/* Gender Filter */}
             <div>
