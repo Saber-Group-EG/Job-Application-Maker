@@ -62,8 +62,9 @@ const CreateJob = lazy(() => import('../pages/Recruiting/jobs/CreateJob'));
 const PreviewJob = lazy(() => import('../pages/Recruiting/jobs/PreviewJob'));
 
 // Applicants
+// Desktop table or phone cards, chosen by screen width.
 const Applicants = lazy(
-  () => import('../pages/Recruiting/applicants/Table/ApplicantsTable')
+  () => import('../pages/Recruiting/applicants/Table/ApplicantsView')
 );
 
 const ApplicantDynamicPage = lazy(
