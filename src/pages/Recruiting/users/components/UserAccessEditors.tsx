@@ -15,7 +15,7 @@ import {
   Table,
   Td,
   Th,
-  focusRing,
+  ToggleChip,
   inputClass,
   rowClass,
   selectClass,
@@ -30,32 +30,6 @@ const MATRIX_ACTIONS = ["read", "write", "create"] as const;
 
 const checkboxClass =
   "size-4 cursor-pointer rounded border-slate-300 accent-brand-500 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-600";
-
-// A toggleable pill, used for permission actions and departments.
-export function ChipToggle({
-  selected,
-  onClick,
-  children,
-}: {
-  selected: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={selected}
-      onClick={onClick}
-      className={`rounded-md border px-2.5 py-1 text-xs font-medium transition ${focusRing} ${
-        selected
-          ? "border-brand-500 bg-brand-50 text-brand-700 dark:border-brand-400/60 dark:bg-brand-500/15 dark:text-brand-300"
-          : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
 
 export function DepartmentPicker({
   departments,
@@ -76,7 +50,7 @@ export function DepartmentPicker({
       {departments.map((d: any) => {
         const isSelected = selected.includes(d._id);
         return (
-          <ChipToggle
+          <ToggleChip
             key={d._id}
             selected={isSelected}
             onClick={() =>
@@ -84,7 +58,7 @@ export function DepartmentPicker({
             }
           >
             {toPlainString(d.name)}
-          </ChipToggle>
+          </ToggleChip>
         );
       })}
     </div>
@@ -257,13 +231,13 @@ export function UserPermissionsEditor({
                     <p className="text-sm font-medium text-slate-900 dark:text-white">{name}</p>
                     <div className="flex flex-wrap items-center gap-2">
                       {actions.map((action) => (
-                        <ChipToggle
+                        <ToggleChip
                           key={action}
                           selected={permItem.access.includes(action)}
                           onClick={() => toggleAccess(permItem.permission, action)}
                         >
                           <span className="capitalize">{actionLabel(action)}</span>
-                        </ChipToggle>
+                        </ToggleChip>
                       ))}
                       <IconButton
                         tone="danger"

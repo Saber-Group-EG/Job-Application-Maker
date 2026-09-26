@@ -542,6 +542,35 @@ export function Segmented<T extends string>({
   );
 }
 
+// A pill that toggles on/off (permission actions, departments, tags).
+export function ToggleChip({
+  selected,
+  onClick,
+  disabled,
+  children,
+}: {
+  selected: boolean;
+  onClick: () => void;
+  disabled?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={selected}
+      onClick={onClick}
+      disabled={disabled}
+      className={`rounded-md border px-2.5 py-1 text-xs font-medium transition disabled:cursor-default ${focusRing} ${
+        selected
+          ? 'border-brand-500 bg-brand-50 text-brand-700 dark:border-brand-400/60 dark:bg-brand-500/15 dark:text-brand-300'
+          : 'border-slate-200 bg-white text-slate-600 enabled:hover:border-slate-300 enabled:hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:enabled:hover:bg-slate-800'
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
 export function Switch({
   checked,
   onChange,
