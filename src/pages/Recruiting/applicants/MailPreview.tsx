@@ -22,11 +22,14 @@ import {
     Trash2,
     Paperclip,
     Loader2,
+    Maximize2,
     type LucideIcon,
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import PageMeta from '../../../components/common/PageMeta';
 import MailAttachments from '../../../components/mail/MailAttachments';
+import MailBody from '../../../components/mail/MailBody';
+import { Modal } from '../../../components/ui/modal';
 import MailReplyBox from '../../../components/mail/MailReplyBox';
 import AssignMailPanel from '../../../components/mail/AssignMailPanel';
 import { useLocale } from '../../../context/LocaleContext';
@@ -292,6 +295,7 @@ export default function MailPreview() {
     const [panel, setPanel] = useState<'none' | 'reply' | 'assign'>('none');
     const [notice, setNotice] = useState<string | null>(null);
     const [showRaw, setShowRaw] = useState(false);
+    const [expanded, setExpanded] = useState(false);
 
     const { selectedCompanyId } = useCompanyFilter();
     const companyId = selectedCompanyId && selectedCompanyId !== 'all' ? selectedCompanyId : undefined;
@@ -391,6 +395,7 @@ export default function MailPreview() {
         setPanel('none');
         setNotice(null);
         setShowRaw(false);
+        setExpanded(false);
         setView('detail');
     };
 
@@ -427,12 +432,12 @@ export default function MailPreview() {
 
     if (view === 'list' || !selectedMail) {
         return (
-            <div className="mx-auto flex h-full max-h-screen flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
+            <div className="mx-auto flex flex-col bg-slate-50 dark:bg-slate-950 [&_button_svg]:!fill-none [&_a_svg]:!fill-none">
                 <PageMeta title={t('pageTitle', 'mailPreview')} description={t('pageDesc', 'mailPreview')} />
 
-                <div className="flex h-full flex-1 overflow-hidden">
+                <div className="flex flex-1">
                     {/* Sidebar */}
-                    <aside className="hidden w-72 flex-shrink-0 overflow-y-auto border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 lg:block">
+                    <aside className="hidden w-72 flex-shrink-0 border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 lg:block">
                         <div className="sticky top-0 p-4">
                             <div className="mb-6 flex items-center gap-2">
                                 <Mail className="h-6 w-6 text-brand-600" />
@@ -449,7 +454,7 @@ export default function MailPreview() {
                     </aside>
 
                     {/* Main Content - Email List */}
-                    <div className="flex flex-1 flex-col overflow-hidden">
+                    <div className="flex min-w-0 flex-1 flex-col">
                         {/* Folders on small screens */}
                         <div className="flex gap-2 overflow-x-auto border-b border-slate-200 bg-white px-4 py-2 no-scrollbar dark:border-slate-800 dark:bg-slate-900 lg:hidden" role="tablist">
                             {(['all', 'inbound', 'unassigned', 'outbound', 'marked'] as Folder[]).map((f) => (
@@ -518,10 +523,10 @@ export default function MailPreview() {
                         </div>
 
                         {/* Email List */}
-                        <div className="relative flex-1 overflow-y-auto bg-white dark:bg-slate-900" aria-busy={isLoading || isSwitching}>
+                        <div className="relative flex-1 bg-white dark:bg-slate-900" aria-busy={isLoading || isSwitching}>
                             {/* Thin bar while a background refresh runs */}
                             {isFetching && !isLoading && !isSwitching && (
-                                <div className="sticky top-0 z-10 h-0.5 w-full animate-pulse bg-brand-500" role="progressbar" aria-label={t('loading', 'mailPreview')} />
+                                <div className="absolute inset-x-0 top-0 z-10 h-0.5 animate-pulse bg-brand-500" role="progressbar" aria-label={t('loading', 'mailPreview')} />
                             )}
                             <div className="divide-y divide-slate-100 dark:divide-slate-800">
                                 {isLoading || isSwitching ? (
@@ -622,11 +627,11 @@ export default function MailPreview() {
 
     // Detail view
     return (
-        <div className="mx-auto flex h-full max-h-screen flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
+        <div className="mx-auto flex flex-col bg-slate-50 dark:bg-slate-950 [&_button_svg]:!fill-none [&_a_svg]:!fill-none">
             <PageMeta title={t('detailPageTitle', 'mailPreview', { subject: selectedMail.subject })} description={t('detailPageDesc', 'mailPreview')} />
 
-            <div className="flex h-full flex-1 overflow-hidden">
-                <aside className="hidden w-72 flex-shrink-0 overflow-y-auto border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 lg:block">
+            <div className="flex flex-1">
+                <aside className="hidden w-72 flex-shrink-0 border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 lg:block">
                     <div className="sticky top-0 p-4">
                         <div className="mb-6 flex items-center gap-2">
                             <Mail className="h-6 w-6 text-brand-600" />
@@ -635,9 +640,9 @@ export default function MailPreview() {
                     </div>
                 </aside>
 
-                <div className="flex-1 overflow-y-auto bg-white dark:bg-slate-900">
+                <div className="min-w-0 flex-1 bg-white dark:bg-slate-900">
                     {/* Back + actions */}
-                    <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-slate-200 bg-white/95 px-6 py-3 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-900/95">
+                    <div className="flex items-center justify-between gap-2 border-b border-slate-200 bg-white px-6 py-3 dark:border-slate-800 dark:bg-slate-900">
                         <button
                             onClick={handleBackToList}
                             className="flex items-center gap-2 text-sm font-medium text-slate-600 transition hover:text-brand-600 dark:text-slate-400 dark:hover:text-brand-400"
@@ -737,17 +742,22 @@ export default function MailPreview() {
                         </div>
                     )}
 
-                    {/* Body */}
+                    {/* Body: grows to fit, so the page is the only scroll area */}
                     <div className="p-6">
-                        <iframe
-                            srcDoc={selectedMail.bodyHtml}
-                            // Replies come from outside the company: no scripts (no
-                            // allow-scripts). allow-same-origin is needed for the
-                            // body to render; popups let links open in a new tab.
-                            sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-                            title={t('mailBody', 'mailPreview')}
-                            className="h-auto min-h-[400px] w-full rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800"
-                        />
+                        <div className="mb-3 flex items-center justify-between gap-2">
+                            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                                {selectedMail.direction === 'inbound' ? t('bodyReplyLabel', 'mailPreview') : t('bodySentLabel', 'mailPreview')}
+                            </p>
+                            <button
+                                type="button"
+                                onClick={() => setExpanded(true)}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                            >
+                                <Maximize2 className="h-3.5 w-3.5" />
+                                {t('expandMail', 'mailPreview')}
+                            </button>
+                        </div>
+                        <MailBody key={selectedMail.id} html={selectedMail.bodyHtml} title={t('mailBody', 'mailPreview')} />
                     </div>
 
                     {/* Conversation with this applicant: sent and received, oldest first */}
@@ -823,6 +833,26 @@ export default function MailPreview() {
                     </details>
                 </div>
             </div>
+
+            {/* Large view of the open email */}
+            <Modal isOpen={expanded} onClose={() => setExpanded(false)} className="mx-4 max-w-5xl !rounded-2xl !bg-white dark:!bg-slate-900">
+                <div className="space-y-4 p-2 pe-14">
+                    <div>
+                        <h2 className="text-lg font-semibold text-slate-900 dark:text-white">{selectedMail.subject}</h2>
+                        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                            {selectedMail.applicantName} ·{' '}
+                            {selectedMail.direction === 'inbound'
+                                ? t('from', 'mailPreview', { email: selectedMail.applicantEmail })
+                                : t('to', 'mailPreview', { email: selectedMail.applicantEmail })}{' '}
+                            · {formatDateTime(selectedMail.createdAt, locale)}
+                        </p>
+                        <MailAttachments mailId={selectedMail.id} attachments={selectedMail.attachments} />
+                    </div>
+                </div>
+                <div className="p-2">
+                    {expanded && <MailBody html={selectedMail.bodyHtml} title={t('mailBody', 'mailPreview')} minHeight={400} />}
+                </div>
+            </Modal>
         </div>
     );
 }

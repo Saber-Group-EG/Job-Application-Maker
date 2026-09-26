@@ -85,5 +85,10 @@
   "attachmentError": "تعذر فتح المرفق.",
   "loading": "جارٍ التحميل",
   "mailBody": "محتوى الرسالة",
-  "perPage": "لكل صفحة"
+  "perPage": "لكل صفحة",
+  "showQuoted": "عرض الرسالة المقتبسة",
+  "hideQuoted": "إخفاء الرسالة المقتبسة",
+  "bodyReplyLabel": "رد المتقدم",
+  "bodySentLabel": "الرسالة المرسلة",
+  "expandMail": "عرض مكبّر"
 }
