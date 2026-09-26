@@ -192,5 +192,16 @@
   "gmailOrAppPassword": "Or connect with an App Password",
   "gmailGoogleConnectedDesc": "Your Gmail is connected. Emails to applicants will now be sent from it.",
   "gmailViaGoogle": "connected with Google sign-in",
-  "gmailViaAppPassword": "connected with an App Password"
+  "gmailViaAppPassword": "connected with an App Password",
+  "resendInUseBadge": "Using your domain",
+  "resendActiveTitle": "Sending from your custom domain through Resend",
+  "resendActiveDesc": "Emails to applicants go out from your company's own address, and their replies come back into the system automatically. Nothing to set up here.",
+  "resendUseGmailInstead": "Use Gmail instead",
+  "resendSwitchConfirmTitle": "Replace Resend with Gmail?",
+  "resendSwitchConfirmDesc": "Once you connect a Gmail account, emails will be sent from that Gmail address instead of your company domain, and replies will be collected from that Gmail inbox instead of through Resend. Your Resend setup is kept: disconnecting Gmail later switches back to it.",
+  "resendSwitchConfirm": "Continue with Gmail",
+  "resendSwitchNote": "Connecting Gmail will replace Resend for sending and receiving. Your Resend setup is kept and comes back if you disconnect Gmail.",
+  "resendKeep": "Keep Resend",
+  "gmailResendKept": "Your Resend (custom domain) setup is kept; disconnecting Gmail switches back to it.",
+  "gmailDisconnectBackToResend": "Sending and receiving will switch back to your custom domain through Resend."
 }
