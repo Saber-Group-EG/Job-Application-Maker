@@ -9,15 +9,18 @@ layer(base);
 @custom-variant dark (&:is(.dark *));
 @custom-variant pwa (@media (display-mode: standalone));
 
-/* Fix for SVG icons not showing in buttons - ensure SVG paths inherit currentColor */
-button svg,
-a svg {
+/* Some custom icons in src/icons hard-code their colours; inside buttons and
+   links make them follow the text colour. Lucide icons are outline icons that
+   already use currentColor, so they are left alone (filling them turns the
+   outline into a solid blob). */
+button svg:not(.lucide),
+a svg:not(.lucide) {
   fill: currentColor;
   stroke: currentColor;
 }
 
-button svg path,
-a svg path {
+button svg:not(.lucide) path,
+a svg:not(.lucide) path {
   fill: inherit;
   stroke: inherit;
 }
