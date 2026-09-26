@@ -9,7 +9,7 @@ export type UserRoleRef = string | {
   name: string;
   permissions?: Array<string | { permission?: string | { _id?: string; name?: string } | null; access?: string[] }>;
 };
-export type UserCompanyRef = string | { _id: string; name?: Localized; departments?: Array<string | { _id?: string; name?: Localized }> };
+export type UserCompanyRef = string | { _id: string; id?: string; name?: Localized; departments?: Array<string | { _id?: string; name?: Localized }> };
 export type UserDepartmentRef = string | { _id?: string; name?: Localized; departmentId?: string | { _id?: string } };
 
 export interface User {
