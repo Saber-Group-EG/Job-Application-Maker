@@ -192,5 +192,16 @@
   "gmailOrAppPassword": "أو اربط باستخدام كلمة مرور التطبيق",
   "gmailGoogleConnectedDesc": "تم ربط Gmail الخاص بك. سيتم إرسال الرسائل إلى المتقدمين منه من الآن.",
   "gmailViaGoogle": "مربوط عبر تسجيل الدخول باستخدام Google",
-  "gmailViaAppPassword": "مربوط عبر كلمة مرور التطبيق"
+  "gmailViaAppPassword": "مربوط عبر كلمة مرور التطبيق",
+  "resendInUseBadge": "يستخدم نطاقك",
+  "resendActiveTitle": "الإرسال من نطاق شركتك الخاص عبر Resend",
+  "resendActiveDesc": "تُرسل الإيميلات للمتقدمين من عنوان شركتك، وتعود ردودهم إلى النظام تلقائيًا. لا يوجد ما يلزم إعداده هنا.",
+  "resendUseGmailInstead": "استخدام Gmail بدلًا من ذلك",
+  "resendSwitchConfirmTitle": "استبدال Resend بـ Gmail؟",
+  "resendSwitchConfirmDesc": "بعد ربط حساب Gmail، ستُرسل الإيميلات من عنوان Gmail هذا بدلًا من نطاق شركتك، وستُجمع الردود من صندوق Gmail بدلًا من Resend. يبقى إعداد Resend محفوظًا: فصل Gmail لاحقًا يعيدك إليه.",
+  "resendSwitchConfirm": "المتابعة مع Gmail",
+  "resendSwitchNote": "ربط Gmail سيستبدل Resend في الإرسال والاستقبال. يبقى إعداد Resend محفوظًا ويعود إذا فصلت Gmail.",
+  "resendKeep": "الإبقاء على Resend",
+  "gmailResendKept": "إعداد Resend (نطاقك الخاص) محفوظ؛ فصل Gmail يعيدك إليه.",
+  "gmailDisconnectBackToResend": "سيعود الإرسال والاستقبال إلى نطاق شركتك عبر Resend."
 }
