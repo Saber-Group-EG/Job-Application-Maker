@@ -27,11 +27,6 @@ export const selectClass = `${inputClass} cursor-pointer pe-8`;
 export const filterSelectClass =
   'w-auto cursor-pointer rounded-lg border border-slate-300 bg-white px-3 py-2 pe-8 text-sm text-slate-900 transition focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:[color-scheme:dark]';
 
-// The app's global CSS sets `button svg, a svg { fill: currentColor }`, which
-// turns outline (lucide) icons into solid blobs. Promo screens opt out;
-// !important because that rule is unlayered and beats Tailwind utilities.
-export const outlineIcons = '[&_button_svg]:!fill-none [&_a_svg]:!fill-none';
-
 export const invalidClass =
   '!border-rose-400 focus:!border-rose-500 focus:!ring-rose-500/20';
 
@@ -51,7 +46,7 @@ export function PageShell({
   children: ReactNode;
 }) {
   return (
-    <div className={`min-h-screen bg-slate-50 px-4 py-6 text-slate-900 dark:bg-slate-950 dark:text-slate-100 sm:px-6 lg:px-8 ${outlineIcons}`}>
+    <div className={`min-h-screen bg-slate-50 px-4 py-6 text-slate-900 dark:bg-slate-950 dark:text-slate-100 sm:px-6 lg:px-8`}>
       <div className="mx-auto max-w-7xl space-y-6">
         {back}
         <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
