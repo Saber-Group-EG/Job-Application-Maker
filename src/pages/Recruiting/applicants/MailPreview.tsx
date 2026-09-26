@@ -432,7 +432,7 @@ export default function MailPreview() {
 
     if (view === 'list' || !selectedMail) {
         return (
-            <div className="mx-auto flex flex-col bg-slate-50 dark:bg-slate-950 [&_button_svg]:!fill-none [&_a_svg]:!fill-none">
+            <div className="mx-auto flex flex-col bg-slate-50 dark:bg-slate-950">
                 <PageMeta title={t('pageTitle', 'mailPreview')} description={t('pageDesc', 'mailPreview')} />
 
                 <div className="flex flex-1">
@@ -627,7 +627,7 @@ export default function MailPreview() {
 
     // Detail view
     return (
-        <div className="mx-auto flex flex-col bg-slate-50 dark:bg-slate-950 [&_button_svg]:!fill-none [&_a_svg]:!fill-none">
+        <div className="mx-auto flex flex-col bg-slate-50 dark:bg-slate-950">
             <PageMeta title={t('detailPageTitle', 'mailPreview', { subject: selectedMail.subject })} description={t('detailPageDesc', 'mailPreview')} />
 
             <div className="flex flex-1">
