@@ -147,7 +147,7 @@ export default function JobOffersPage() {
   };
 
   // ── Data ───────────────────────────────────────────────────────────────
-  const { data: offersData, isLoading, isFetching } = useJobOffers(queryParams);
+  const { data: offersData, isLoading, isFetching, isPlaceholderData } = useJobOffers(queryParams);
 
   const offers = offersData?.data ?? [];
   const total = offersData?.totalCount ?? 0;
@@ -161,7 +161,9 @@ export default function JobOffersPage() {
 
   // ── Prefetch next page ─────────────────────────────────────────────────
   useEffect(() => {
-    if (page < totalPages) {
+    // Wait for the real result: while the previous filter's data is shown as
+    // a placeholder, totalPages belongs to that filter.
+    if (!isPlaceholderData && page < totalPages) {
       queryClient.prefetchQuery({
         queryKey: jobOffersKeys.list({ ...queryParams, page: page + 1 }),
         queryFn: () =>
@@ -169,7 +171,7 @@ export default function JobOffersPage() {
         staleTime: 2 * 60 * 1000,
       });
     }
-  }, [page, totalPages, selectedCompanyId, statusFilter, trimmedSearch]);
+  }, [page, totalPages, isPlaceholderData, selectedCompanyId, statusFilter, trimmedSearch]);
 
   // Reset page on filter change
   useEffect(() => {
