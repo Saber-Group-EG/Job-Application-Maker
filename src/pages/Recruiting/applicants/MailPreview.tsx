@@ -438,7 +438,7 @@ export default function MailPreview() {
                 <div className="flex flex-1">
                     {/* Sidebar */}
                     <aside className="hidden w-72 flex-shrink-0 border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 lg:block">
-                        <div className="sticky top-0 p-4">
+                        <div className="sticky top-16 p-4">
                             <div className="mb-6 flex items-center gap-2">
                                 <Mail className="h-6 w-6 text-brand-600" />
                                 <span className="text-lg font-bold text-slate-800 dark:text-white">{t('sidebarTitle', 'mailPreview')}</span>
@@ -632,7 +632,7 @@ export default function MailPreview() {
 
             <div className="flex flex-1">
                 <aside className="hidden w-72 flex-shrink-0 border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 lg:block">
-                    <div className="sticky top-0 p-4">
+                    <div className="sticky top-16 p-4">
                         <div className="mb-6 flex items-center gap-2">
                             <Mail className="h-6 w-6 text-brand-600" />
                             <span className="text-lg font-bold text-slate-800 dark:text-white">{t('sidebarTitle', 'mailPreview')}</span>
@@ -642,7 +642,7 @@ export default function MailPreview() {
 
                 <div className="min-w-0 flex-1 bg-white dark:bg-slate-900">
                     {/* Back + actions */}
-                    <div className="flex items-center justify-between gap-2 border-b border-slate-200 bg-white px-6 py-3 dark:border-slate-800 dark:bg-slate-900">
+                    <div className="sticky top-14 z-20 flex items-center justify-between gap-2 border-b border-slate-200 bg-white px-6 py-3 dark:border-slate-800 dark:bg-slate-900">
                         <button
                             onClick={handleBackToList}
                             className="flex items-center gap-2 text-sm font-medium text-slate-600 transition hover:text-brand-600 dark:text-slate-400 dark:hover:text-brand-400"
@@ -826,7 +826,7 @@ export default function MailPreview() {
                         {isRawLoading && !rawDetail ? (
                             <Loader2 className="mt-4 h-4 w-4 animate-spin text-slate-400" />
                         ) : (
-                            <pre className="mt-4 max-h-96 overflow-auto rounded-lg bg-slate-100 p-4 text-xs dark:bg-slate-800">
+                            <pre className="mt-4 whitespace-pre-wrap break-all rounded-lg bg-slate-100 p-4 text-xs dark:bg-slate-800">
                                 {JSON.stringify(rawDetail ?? selectedMail.raw, null, 2)}
                             </pre>
                         )}

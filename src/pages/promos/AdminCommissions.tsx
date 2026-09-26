@@ -204,9 +204,9 @@ function ReportView({ month, onDrillThrough }: { month: string; onDrillThrough: 
                     <Td align="end" className="whitespace-nowrap font-medium tabular-nums text-slate-900 dark:text-white"><bdi>{money(row.totalCents)}</bdi></Td>
                     <Td align="end" className="whitespace-nowrap tabular-nums text-emerald-700 dark:text-emerald-400"><bdi>{money(row.paidCents)}</bdi></Td>
                     <Td align="end" className="whitespace-nowrap tabular-nums text-amber-700 dark:text-amber-400"><bdi>{money(row.pendingCents)}</bdi></Td>
-                    {/* Total includes voided commissions; show them so the row adds up. */}
+                    {/* Voided commission, for reference; not part of Total. */}
                     <Td align="end" className="whitespace-nowrap tabular-nums text-slate-400">
-                      <bdi>{money(Math.max(0, (row.totalCents ?? 0) - (row.paidCents ?? 0) - (row.pendingCents ?? 0)))}</bdi>
+                      <bdi>{money(row.voidCents ?? 0)}</bdi>
                     </Td>
                     <Td align="end">
                       <ChevronRight className="ms-auto size-4 text-slate-400 rtl:rotate-180" />
