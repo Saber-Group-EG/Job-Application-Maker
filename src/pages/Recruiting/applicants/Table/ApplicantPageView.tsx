@@ -1,6 +1,6 @@
 // ApplicantPageView.tsx
 import PageMeta from '../../../../components/common/PageMeta';
-import Applicants from './ApplicantsTable';
+import Applicants from './ApplicantsView';
 
 interface ApplicantPageViewProps {
   title: string;
