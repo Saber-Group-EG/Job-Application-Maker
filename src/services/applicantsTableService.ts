@@ -14,7 +14,11 @@ export interface ApplicantTableRow {
   phone: string;
   gender: string;
   companyId: string;
-  jobPositionId: { _id: string; companyId: { _id: string; name?: { en?: string; ar?: string } } };
+  jobPositionId: {
+    _id: string;
+    title?: { en?: string; ar?: string };
+    companyId: { _id: string; name?: { en?: string; ar?: string } };
+  };
   jobPositionNameSnapshot?: { en?: string; ar?: string };
   expectedSalary?: number;
   expectedSalaryDisplay: string;
