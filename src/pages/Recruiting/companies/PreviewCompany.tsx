@@ -126,7 +126,6 @@ export default function PreviewCompany() {
     });
   };
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(loadCompanyForm, [companyData]);
 
   // Cancel throws away unsaved edits.
