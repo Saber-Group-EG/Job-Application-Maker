@@ -190,5 +190,16 @@
   "createRemoveCompanyTitle": "إزالة الوصول للشركة",
   "createRemoveCompanyText": "هل أنت متأكد من رغبتك في إزالة الوصول لهذه الشركة؟",
   "createRemoveCompanyConfirm": "نعم، قم بالإزالة!",
-  "usersShownOfTotal": "{count} من {total} مستخدم"
+  "usersShownOfTotal": "{count} من {total} مستخدم",
+  "filterCompany": "الشركة",
+  "filterAllCompanies": "كل الشركات",
+  "viewLabel": "طريقة العرض",
+  "viewCards": "بطاقات",
+  "viewTable": "جدول",
+  "tableName": "الاسم",
+  "tableRole": "الدور",
+  "tablePhone": "الهاتف",
+  "tableCompanies": "الشركات",
+  "tableStatus": "الحالة",
+  "tableActions": "الإجراءات"
 }
