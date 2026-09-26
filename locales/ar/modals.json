@@ -23,12 +23,12 @@
   "generate": "إنشاء",
   "generateOfferWithAi": "إنشاء بالذكاء الاصطناعي",
   "generateContractWithAi": "إنشاء بالذكاء الاصطناعي",
-"aiContractJobTitlePlaceholder": "مثال: مسؤول مبيعات أول",
-"aiContractJobDescriptionPlaceholder": "وصف مختصر للوظيفة (اختياري)",
-"aiContractPromptPlaceholder": "أي تعليمات محددة للذكاء الاصطناعي (اختياري)",
-"aiContractValidationTitleRequired": "المسمى الوظيفي مطلوب لإنشاء العقد",
-"aiContractUsingOffer": "سيتم الإنشاء بناءً على منصب ومحتوى هذا العرض. يمكنك إضافة تعليمات إضافية أدناه (اختياري).",
-"aiContractUsingJobPosition": "سيتم الإنشاء بناءً على المسمى والوصف ومتطلبات هذه الوظيفة. يمكنك إضافة تعليمات إضافية أدناه (اختياري).",
+  "aiContractJobTitlePlaceholder": "مثال: مسؤول مبيعات أول",
+  "aiContractJobDescriptionPlaceholder": "وصف مختصر للوظيفة (اختياري)",
+  "aiContractPromptPlaceholder": "أي تعليمات محددة للذكاء الاصطناعي (اختياري)",
+  "aiContractValidationTitleRequired": "المسمى الوظيفي مطلوب لإنشاء العقد",
+  "aiContractUsingOffer": "سيتم الإنشاء بناءً على منصب ومحتوى هذا العرض. يمكنك إضافة تعليمات إضافية أدناه (اختياري).",
+  "aiContractUsingJobPosition": "سيتم الإنشاء بناءً على المسمى والوصف ومتطلبات هذه الوظيفة. يمكنك إضافة تعليمات إضافية أدناه (اختياري).",
   "aiOfferJobTitlePlaceholder": "مثال: مسؤول مبيعات أول",
   "aiOfferUsingJobPosition": "سيتم الإنشاء بناءً على المسمى والوصف ومتطلبات هذه الوظيفة. يمكنك إضافة تعليمات إضافية أدناه (اختياري).",
   "aiOfferJobDescriptionPlaceholder": "وصف مختصر للوظيفة (اختياري)",
@@ -387,5 +387,6 @@
   "has": "موجود",
   "no": "غير موجود",
   "revert": "عكس",
-  "saveFilters": "حفظ التصفية"
+  "saveFilters": "حفظ التصفية",
+  "showMoreApplicants": "عرض المزيد ({shown} من {total})"
 }

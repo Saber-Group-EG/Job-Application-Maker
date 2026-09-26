@@ -387,5 +387,6 @@
   "draftWithAiPlaceholder": "e.g. Reject them, mention they can reapply in 6 months",
   "generate": "Generate",
   "generating": "Generating…",
-  "aiTemplateNote": "AI will use placeholders like {{candidateName}} so this works for every recipient."
+  "aiTemplateNote": "AI will use placeholders like {{candidateName}} so this works for every recipient.",
+  "showMoreApplicants": "Show more ({shown} of {total})"
 }
