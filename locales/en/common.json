@@ -377,5 +377,6 @@
   "aiGenerateFailed": "AI Generation Failed",
   "aiSummaryFailed": "Failed to generate AI summary",
   "emailDraftFailed": "Failed to generate email draft",
-  "interviewQuestionsDraftFailed": "Failed to generate interview questions"
+  "interviewQuestionsDraftFailed": "Failed to generate interview questions",
+  "selectAll": "Select all"
 }
