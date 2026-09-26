@@ -57,6 +57,9 @@ type Props = {
   onClose: () => void;
   jobPositions: any[];
   applicants?: any[];
+  // Observed expected-salary range from the server (the applicants table no
+  // longer loads every applicant); used instead of scanning `applicants`.
+  salaryRange?: { min: number; max: number };
   companies?: any[];
   jobPositionMap?: Record<string, any>;
   customFilters: any[];
@@ -343,6 +346,7 @@ const CustomFilterModal: React.FC<Props> = ({
   onClose, 
   jobPositions = [], 
   applicants = [], 
+  salaryRange,
   customFilters = [], 
   setCustomFilters, 
   columnFilters = [], 
@@ -472,8 +476,10 @@ const CustomFilterModal: React.FC<Props> = ({
     // Exclude zero values from observed salaries (ignore 0 entries) and keep ids
     const validEntries = numsWithId.filter((entry) => Number.isFinite(entry.n) && entry.n > 0).sort((a,b)=>a.n-b.n);
     // Ensure observed range is non-negative (salaries shouldn't be negative)
-    const observedMin = validEntries.length ? validEntries[0].n : 0;
-    let observedMax = validEntries.length ? Math.max(observedMin, validEntries[validEntries.length - 1].n) : observedMin + 1000;
+    const observedMin = salaryRange ? salaryRange.min : validEntries.length ? validEntries[0].n : 0;
+    let observedMax = salaryRange
+      ? salaryRange.max
+      : validEntries.length ? Math.max(observedMin, validEntries[validEntries.length - 1].n) : observedMin + 1000;
     // Cap max at 100000 as requested
     observedMax = Math.min(observedMax, 100000);
     if (observedMax <= observedMin) observedMax = observedMin + Math.max(100, Math.abs(observedMin || 1000));
