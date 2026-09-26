@@ -1,7 +1,7 @@
 {
-  "pageMetaTitle": "BlueCaller Applicants | Recruiting",
+  "pageMetaTitle": "Add Applicants | Recruiting",
   "pageMetaDesc": "Insert applicants manually or from Excel using a brand-themed dashboard.",
-  "badgeText": "BlueCaller Applicants",
+  "badgeText": "Add Applicants",
   "heading": "Insert applicants with a focused admin workflow.",
   "description": "Select a company, add applicants manually or bulk import from Excel, validate everything up front, and submit clean payloads to the API.",
   "selectCompanyLabel": "Select Company",

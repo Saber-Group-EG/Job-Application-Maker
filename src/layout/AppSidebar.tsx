@@ -166,7 +166,7 @@ const AppSidebar: React.FC = () => {
           pro: false,
         },
         {
-          name: 'Blue Caller Applicants',
+          name: 'Add Applicants',
           tKey: 'blueCallerApplicants',
           path: '/applicants/blue-caller',
           pro: false,
