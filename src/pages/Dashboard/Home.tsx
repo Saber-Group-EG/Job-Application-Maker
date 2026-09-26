@@ -18,6 +18,7 @@ import {
 } from '../../icons';
 import InterviewScheduleWidget from '../../components/charts/MyInterviewWidget';
 import RejectionInsightsChart from '../../components/charts/RejectionInsightsChart';
+import DashboardSections from '../../components/dashboard/DashboardSections';
 
 const getStatusIcon = (statusName: string): any => {
   const lowerStatus = statusName.toLowerCase();
@@ -360,7 +361,10 @@ export default function Home() {
                 );
               })}
         </div>
-        <InterviewScheduleWidget />
+        <DashboardSections companyIds={companyIds} companies={companies} />
+        <div id="my-interviews" className="scroll-mt-20">
+          <InterviewScheduleWidget />
+        </div>
         <RejectionInsightsChart companyId={companyIds} />
 
         {!loading && statusCards.length === 0 && countsData && (
