@@ -7,6 +7,11 @@ export type ContractType =
   | 'fixed-term'
   | 'freelance'
   | 'probation';
+export interface JobContractStatusCounts {
+  counts: Record<ContractStatus, number>;
+  total: number;
+}
+
 export type ContractStatus =
   | 'draft'
   | 'sent'
@@ -171,6 +176,21 @@ class JobContractsService {
         error.response?.data?.code,
         error.response?.data?.featurePath
       );
+    }
+  }
+
+  async getStatusCounts(params?: {
+    companyId?: string[];
+    search?: string;
+  }): Promise<JobContractStatusCounts> {
+    try {
+      const response = await axios.get('/job-contracts/status-counts', {
+        params: { isTemplate: false, ...params },
+      });
+      const { counts, total } = response.data;
+      return { counts, total };
+    } catch (error: any) {
+      throw new ApiError(getErrorMessage(error), error.response?.status);
     }
   }
 
