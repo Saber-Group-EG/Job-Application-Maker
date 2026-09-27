@@ -125,7 +125,6 @@ const ServicesPage = () => {
       });
       setErrors({});
     } catch (error) {
-      console.debug('Quote request submission error:', error);
       await Swal.fire({
         icon: 'error',
         title: t('services:quoteForm.errorTitle'),
@@ -282,7 +281,6 @@ const ServicesPage = () => {
                       className={`p-4 rounded-b-xl ${tier.highlighted ? 'bg-primary-500/10' : ''}`}
                     >
                       <button
-                        // onClick={() => selectTierFromTable(tier.name)}
                         className={`w-full px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
                           tier.highlighted
                             ? 'bg-primary-500 text-white hover:bg-primary-600'

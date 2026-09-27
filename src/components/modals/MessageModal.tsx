@@ -148,7 +148,6 @@ const MessageModal = ({
       : '');
 
   // Handle template selection - this populates subject and body
-  // Replace your handleTemplateSelect function with this optimized version
   const handleTemplateSelect = (templateId: string) => {
     if (!templateId) {
       setSelectedTemplateId('');
@@ -178,8 +177,6 @@ const MessageModal = ({
       }));
       setSelectedTemplateId(templateId);
 
-      // Remove the Swal notification to avoid extra re-renders
-      // Just show a subtle indication instead
     }
   };
 
@@ -691,7 +688,6 @@ const MessageModal = ({
     } catch (err: any) {
       const errorMsg = getErrorMessage(err);
       setMessageError(errorMsg);
-      console.error('Error:', err);
     } finally {
       setIsSubmittingMessage(false);
     }

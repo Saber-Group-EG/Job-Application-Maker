@@ -1,4 +1,4 @@
-import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { Component, type ReactNode } from 'react';
 import { AlertTriangle, Home, RefreshCw, Sparkles } from 'lucide-react';
 import { useLocale } from '../../context/LocaleContext';
 import { Button } from '../ui/kit';
@@ -48,8 +48,7 @@ export class ErrorBoundary extends Component<Props, State> {
     return { error, ref: crashRef(error) };
   }
 
-  componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error('[crash]', error, info.componentStack);
+  componentDidCatch(error: Error) {
     if (isNewVersionError(error)) reloadOnceForNewVersion();
   }
 

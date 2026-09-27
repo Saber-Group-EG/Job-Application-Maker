@@ -3,6 +3,8 @@ import { JobContract } from '../../../services/contractsService';
 import { useLocale } from '../../../context/LocaleContext';
 import { downloadContractAsPdf } from '../../../utils/contractPdfGenerator';
 import { PdfDownloadButton } from '../../../components/documents/DocumentUi';
+import Swal from '../../../utils/swal';
+import { getErrorMessage } from '../../../utils/errorHandler';
 
 export function ContractActions({ contract }: { contract: JobContract }) {
   const { t } = useLocale();
@@ -11,7 +13,7 @@ export function ContractActions({ contract }: { contract: JobContract }) {
     try {
       await downloadContractAsPdf(contract, lang);
     } catch (error) {
-      console.error('Failed to download PDF:', error);
+      Swal.fire({ title: t('error', 'common'), text: getErrorMessage(error), icon: 'error' });
     }
   };
 

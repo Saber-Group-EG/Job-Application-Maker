@@ -175,7 +175,7 @@ export default function InterviewScheduleModal(props: Props) {
     return merged;
   }, [companyData, companyFromList]);
 
-  // Fetch users for the company using the correct hook
+  // Fetch users for the company
   const { data: usersData = [], isLoading: isLoadingUsers } = useUsers(
     companyId ? { companies: [companyId] } : {}
   );
@@ -681,7 +681,6 @@ export default function InterviewScheduleModal(props: Props) {
 
               return '[' + t('interviewType', 'modals') + ']';
             } catch (error) {
-              console.error('Error getting job title:', error);
               return '[' + t('interviewType', 'modals') + ']';
             }
           })();
@@ -1067,8 +1066,7 @@ export default function InterviewScheduleModal(props: Props) {
 
       const newEmail = `${local}@${domain}`;
 
-      // Instead of calling updateCompanySettings, just set the custom email
-      // The actual addition to availableMails should be handled by the backend when sending
+      // Only used for this send; it isn't added to the company's sender list.
       setCustomEmail(newEmail);
     }
 

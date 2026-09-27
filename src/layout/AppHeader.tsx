@@ -4,7 +4,6 @@ import i18n from '../pages/Landing/i18n/index';
 
 import { useSidebar } from '../context/SidebarContext';
 import { ThemeToggleButton } from '../components/common/ThemeToggleButton';
-// import NotificationDropdown from "../components/header/NotificationDropdown";
 import UserDropdown from '../components/header/UserDropdown';
 import { useLocale } from '../context/LocaleContext';
 import { useCompanyFilter } from '../context/CompanyFilterContext';

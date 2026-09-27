@@ -40,12 +40,6 @@ export async function uploadToR2(file: File, folder = 'JobApplications'): Promis
         xhr.setRequestHeader('Content-Type', file.type);
         xhr.timeout = 180000;
 
-        xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable) {
-            console.log(`${Math.round((e.loaded / e.total) * 100)}%`);
-          }
-        };
-
         xhr.onload = () => {
           if (xhr.status >= 200 && xhr.status < 300) {
             resolve(publicUrl as string);
@@ -81,7 +75,6 @@ export async function uploadToR2(file: File, folder = 'JobApplications'): Promis
       attempt++;
       if (attempt >= maxRetries) {
         // The detail is for us (console + popup reference), not the user.
-        console.error(`Upload failed after ${maxRetries} attempts:`, lastError);
         rememberError({ message: '', ref: `UPLOAD · ${new Date().toLocaleTimeString('en-GB')} · ${String(lastError?.message ?? '').slice(0, 120)}` });
         throw new Error(errorText('errUpload'));
       }

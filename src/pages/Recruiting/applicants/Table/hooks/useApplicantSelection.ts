@@ -76,7 +76,6 @@ export function useApplicantSelection({
     return Object.keys(rowSelection);
   }, [rowSelection]);
 
-  // useApplicantSelection.ts
   const selectedApplicants = useMemo(() => {
     const ids = new Set(selectedApplicantIds);
     return applicants

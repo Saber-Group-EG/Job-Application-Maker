@@ -71,7 +71,6 @@ axiosInstance.interceptors.response.use(
     return response;
   },
   async (error: AxiosError) => {
-    // Enhance error with detailed validation messages
     if (error.response) {
       handleNearLimitHeader(error.response);
 

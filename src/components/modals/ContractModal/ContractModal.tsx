@@ -299,7 +299,6 @@ export default function JobContractModal({
   const [activeBenefitId, setActiveBenefitId] = useState<string | null>(null);
   const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
   const [translatingAll, setTranslatingAll] = useState(false);
-  // inside JobContractModal, alongside other state
   const [aiPanelOpen, setAiPanelOpen] = useState(false);
   const [aiJobTitle, setAiJobTitle] = useState('');
   const [aiJobDescription, setAiJobDescription] = useState('');
@@ -313,8 +312,7 @@ export default function JobContractModal({
     propCompanyId ||
     form.selectedApplicantObject?.jobPositionId?.companyId?._id;
 
-  // offerId wins over jobPositionId, matching the backend's own priority —
-  // not re-confirmed with you, same flag as the backend design
+  // offerId wins over jobPositionId, matching the backend's own priority.
   const aiHasKnownSource = Boolean(offerId || jobPositionId);
 
   const applyAiDraft = (draft: DraftContractResult) => {

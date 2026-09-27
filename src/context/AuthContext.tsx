@@ -43,7 +43,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   
-  // ✅ Get user from React Query (no Redux)
+  // Get user from React Query
   const { data: user, isLoading: isLoadingUser, error: userError, refetch } = useCurrentUser();
   
   const loginMutation = useLoginMutation();
@@ -76,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     name?: string;
   }) => {
     await registerMutation.mutateAsync(userData);
-    // ✅ Force refetch after register to ensure fresh data
+    // Force refetch after register to ensure fresh data
     await refetch();
   };
 
@@ -90,7 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, [logoutMutation]);
 
-  // ✅ Watch for token changes and clear cache if needed
+  // Watch for token changes and clear cache if needed
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'accessToken' && !e.newValue) {
@@ -116,7 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [user, queryClient]);
 
-  // ✅ Proactive token refresh — backend access token expires after 1 hour
+  // Proactive token refresh — backend access token expires after 1 hour
   useEffect(() => {
     if (!user) return;
 

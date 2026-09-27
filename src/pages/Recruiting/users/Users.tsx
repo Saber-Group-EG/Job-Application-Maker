@@ -110,7 +110,7 @@ export default function Users() {
   const [page, setPage] = useState(1);
   const pageSize = 8;
 
-  // ✅ Fixed: useUsers expects { companies?: string[] } not pagination params
+  // useUsers takes { companies?: string[] }, not pagination params
   const usersQueryParams = allowedCompanyIds === undefined
     ? {}
     : { companies: allowedCompanyIds };
@@ -120,7 +120,7 @@ export default function Users() {
   const { data: companies = [] } = useCompanies();
   const deleteUserMutation = useDeleteUser();
 
-  // ✅ Simplified: users is already an array from the hook
+  // users is already an array from the hook
   const rawUsers = useMemo(() => {
     if (!users) return [];
     if (Array.isArray(users)) return users;
@@ -201,7 +201,7 @@ export default function Users() {
   }, [rawUsers, searchTerm, roleFilter, statusFilter, companyFilter]);
 
   // Pagination
-  // 🛑 TODO: move pagination to the backend API. Currently all users are fetched
+  // TODO: move pagination to the backend API. Currently all users are fetched
   // then paginated client-side, which won't scale. The useUsers query should
   // accept { page, pageSize } params once the backend supports it.
   const totalPages = Math.ceil(filteredBySearchAndRole.length / pageSize);
