@@ -10,18 +10,13 @@ import {
   Rocket,
   Crown,
   Package,
-  Star,
   Plus,
   Check,
   Clock,
-  ChevronLeft,
-  ChevronRight,
   AlertTriangle,
-  ArrowDown,
-  ArrowUp,
 } from 'lucide-react';
 import { useLocale } from '../../../context/LocaleContext';
-import PageBreadCrumb from '../../../components/common/PageBreadCrumb';
+import { BackLink, Badge, Button, Card, CardToolbar, EmptyState, ErrorState, PageShell, SectionTitle, focusRing } from '../../../components/ui/kit';
 import {
   useSubscription,
   useTopUpPacks,
@@ -78,7 +73,7 @@ const TOP_UP_ICONS: Record<string, typeof Zap> = {
 };
 
 export default function CheckoutPage() {
-  const { t, locale, dir } = useLocale();
+  const { t, locale } = useLocale();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const queryClient = useQueryClient();
@@ -112,32 +107,42 @@ export default function CheckoutPage() {
     checkoutUrl: string;
   } | null>(null);
 
+  const pageTitle = t('subscription.checkout', 'settings');
+  const back = (
+    <BackLink onClick={() => navigate(paths.recruiting.subscription)}>
+      {t('subscription.backToSubscription', 'settings')}
+    </BackLink>
+  );
+
   if (!companyId) {
     return (
-      <div className="p-6 text-sm text-slate-500 dark:text-slate-400">
-        {t('subscription.noCompany', 'settings')}
-      </div>
+      <PageShell title={pageTitle} back={back}>
+        <Card>
+          <EmptyState icon={<Receipt className="size-6" />} title={t('subscription.noCompany', 'settings')} />
+        </Card>
+      </PageShell>
     );
   }
 
   if (isLoading || packsLoading || plansLoading) {
     return (
-      <div className="space-y-6 p-6">
-        {[...Array(3)].map((_, i) => (
-          <div
-            key={i}
-            className="h-32 animate-pulse rounded-2xl border border-slate-200 bg-slate-100 dark:border-slate-800 dark:bg-slate-800"
-          />
-        ))}
-      </div>
+      <PageShell title={pageTitle} back={back}>
+        <div className="grid gap-6 xl:grid-cols-[1fr_400px]">
+          {[0, 1].map((i) => (
+            <div key={i} className="h-64 animate-pulse rounded-2xl border border-slate-200 bg-white motion-reduce:animate-none dark:border-slate-800 dark:bg-slate-900" />
+          ))}
+        </div>
+      </PageShell>
     );
   }
 
   if (isError || !data) {
     return (
-      <div className="p-6 text-sm text-red-500">
-        {t('subscription.loadFailed', 'settings')}
-      </div>
+      <PageShell title={pageTitle} back={back}>
+        <Card>
+          <ErrorState title={t('subscription.loadFailed', 'settings')} />
+        </Card>
+      </PageShell>
     );
   }
 
@@ -284,344 +289,225 @@ export default function CheckoutPage() {
           'settings'
         )} / ${targetPlan?.frequency ?? ''} ${t('subscription.days', 'settings')}`;
 
+  const payLabel = isDowngrade
+    ? t('subscription.confirmChangePlan', 'settings')
+    : `${t('subscription.payNow', 'settings')} — ${formatMoney(amountCents, currency)}`;
+
   if (result) {
     const queued = result.kind === 'queued';
     return (
-      <div className="space-y-6 p-6">
-        <PageBreadCrumb pageTitle={t('subscription.checkout', 'settings')} />
-        <div className="flex min-h-[60vh] items-center justify-center">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            {queued ? (
-              <>
-                <span className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-blue-100 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400">
-                  <Clock className="size-6" />
-                </span>
-                <h1 className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                  {t('subscription.downgradeQueuedTitle', 'settings')}
-                </h1>
-                <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-                  {t('subscription.downgradeQueuedText', 'settings')}{' '}
-                  {result.effectiveAt
-                    ? formatDate(result.effectiveAt, locale)
-                    : formatDate(periodEndDate.toISOString(), locale)}
-                  .
-                </p>
-              </>
-            ) : (
-              <>
-                <span className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
-                  <Check className="size-6" />
-                </span>
-                <h1 className="text-lg font-bold text-emerald-600">
-                  {t('subscription.paymentSuccessful', 'settings')}
-                </h1>
-                <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-                  {t('subscription.paymentSuccessText', 'settings')}
-                </p>
-              </>
-            )}
-            <button
-              type="button"
-              onClick={goBack}
-              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-600"
+      <PageShell title={pageTitle}>
+        <Card className="mx-auto w-full max-w-md">
+          <div className="flex flex-col items-center px-6 py-10 text-center">
+            <span
+              className={`flex size-12 items-center justify-center rounded-full ${
+                queued ? 'bg-sky-50 text-sky-600 dark:bg-sky-500/10 dark:text-sky-400' : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400'
+              }`}
             >
+              {queued ? <Clock className="size-6" /> : <Check className="size-6" />}
+            </span>
+            <h2 className="mt-4 text-base font-semibold text-slate-900 dark:text-white">
+              {queued ? t('subscription.downgradeQueuedTitle', 'settings') : t('subscription.paymentSuccessful', 'settings')}
+            </h2>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              {queued ? (
+                <>
+                  {t('subscription.downgradeQueuedText', 'settings')}{' '}
+                  {result.effectiveAt ? formatDate(result.effectiveAt, locale) : formatDate(periodEndDate.toISOString(), locale)}.
+                </>
+              ) : (
+                t('subscription.paymentSuccessText', 'settings')
+              )}
+            </p>
+            <Button variant="primary" className="mt-6" onClick={goBack}>
               {t('subscription.backToSubscription', 'settings')}
-            </button>
+            </Button>
           </div>
-        </div>
-      </div>
+        </Card>
+      </PageShell>
+    );
+  }
+
+  if (invalid) {
+    return (
+      <PageShell title={pageTitle} back={back}>
+        <Card className="mx-auto w-full max-w-md">
+          <EmptyState
+            icon={<AlertTriangle className="size-6" />}
+            title={t('subscription.checkoutInvalid', 'settings')}
+            action={<Button onClick={goBack}>{t('subscription.backToSubscription', 'settings')}</Button>}
+          />
+        </Card>
+      </PageShell>
     );
   }
 
   return (
-    <div className="space-y-6 p-6">
-      <PageBreadCrumb pageTitle={t('subscription.checkout', 'settings')} />
-
-      {invalid ? (
-        <div className="flex min-h-[40vh] items-center justify-center">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <span className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-amber-100 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400">
-              <AlertTriangle className="size-6" />
-            </span>
-            <h1 className="text-lg font-bold text-slate-900 dark:text-slate-100">
-              {t('subscription.checkoutInvalid', 'settings')}
-            </h1>
-            <button
-              type="button"
-              onClick={goBack}
-              className="mt-6 inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-            >
-              {t('subscription.backToSubscription', 'settings')}
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="grid gap-6 xl:grid-cols-[1fr_400px]">
-          {/* Order summary */}
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <div className="flex items-center gap-3 border-b border-slate-200 px-6 py-5 dark:border-slate-800">
-              <div className="flex size-10 items-center justify-center rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400">
-                <Receipt className="size-5" />
-              </div>
-              <h2 className="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100">
-                {t('subscription.orderSummary', 'settings')}
-              </h2>
-            </div>
-
-            <div className="p-6">
-              <div className="flex items-start gap-4 rounded-xl border border-slate-200 p-4 dark:border-slate-800">
-                <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400">
-                  <ItemIcon className="size-6" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-slate-900 dark:text-slate-100">
-                    {itemName}
-                    {type === 'plan' && isDowngrade && (
-                      <span className="ms-2 inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700 dark:bg-blue-500/10 dark:text-blue-400">
-                        <ArrowDown className="size-3" />
-                        {t('subscription.type_downgrade', 'settings')}
-                      </span>
-                    )}
-                    {type === 'plan' && !isDowngrade && (
-                      <span className="ms-2 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">
-                        <ArrowUp className="size-3" />
-                        {t('subscription.type_upgrade', 'settings')}
-                      </span>
-                    )}
-                  </p>
-                  <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-                    {itemDesc}
-                  </p>
-                </div>
-                <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                  {formatMoney(amountCents, currency)}
+    <PageShell title={pageTitle} back={back}>
+      <div className="grid items-start gap-6 xl:grid-cols-[1fr_400px]">
+        <Card>
+          <CardToolbar>
+            <SectionTitle icon={<Receipt className="size-4" />}>{t('subscription.orderSummary', 'settings')}</SectionTitle>
+          </CardToolbar>
+          <div className="space-y-4 p-4">
+            <div className="flex items-start gap-4 rounded-xl border border-slate-200 p-4 dark:border-slate-800">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                <ItemIcon className="size-5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-900 dark:text-white">
+                  {itemName}
+                  {type === 'plan' && (
+                    <Badge tone={isDowngrade ? 'blue' : 'amber'}>
+                      {isDowngrade ? t('subscription.type_downgrade', 'settings') : t('subscription.type_upgrade', 'settings')}
+                    </Badge>
+                  )}
                 </p>
+                <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{itemDesc}</p>
               </div>
+              <p className="text-base font-semibold tabular-nums text-slate-900 dark:text-white">{formatMoney(amountCents, currency)}</p>
+            </div>
 
-              {type === 'plan' && (
-                <div className="mt-4 space-y-2 text-sm">
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-500 dark:text-slate-400">
-                      {t('subscription.billingCycle', 'settings')}
-                    </span>
-                    <span className="font-semibold text-slate-900 dark:text-slate-100">
-                      {targetPlan?.frequency} {t('subscription.days', 'settings')}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-500 dark:text-slate-400">
-                      {t('subscription.credits', 'settings')}
-                    </span>
-                    <span className="font-semibold text-slate-900 dark:text-slate-100">
-                      {requestsToCredits(targetPlan?.requestQuota ?? 0)}
-                    </span>
-                  </div>
-                  {isDowngrade && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500 dark:text-slate-400">
-                        {t('subscription.effectiveDate', 'settings')}
-                      </span>
-                      <span className="font-semibold text-slate-900 dark:text-slate-100">
-                        {formatDate(periodEndDate.toISOString(), locale)}
-                      </span>
-                    </div>
-                  )}
+            {type === 'plan' && (
+              <dl className="space-y-2 text-sm">
+                <div className="flex items-center justify-between">
+                  <dt className="text-slate-500 dark:text-slate-400">{t('subscription.billingCycle', 'settings')}</dt>
+                  <dd className="font-medium text-slate-900 dark:text-white">
+                    {targetPlan?.frequency} {t('subscription.days', 'settings')}
+                  </dd>
                 </div>
-              )}
-
-              <div className="mt-4 flex items-center justify-between border-t border-slate-200 pt-4 dark:border-slate-800">
-                <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">
-                  {t('subscription.total', 'settings')}
-                </span>
-                {isDowngrade ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-500/10 dark:text-blue-400">
-                    <Clock className="size-3.5" />
-                    {t('subscription.noChargeNow', 'settings')}
-                  </span>
-                ) : (
-                  <span className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-                    {formatMoney(amountCents, currency)}
-                  </span>
+                <div className="flex items-center justify-between">
+                  <dt className="text-slate-500 dark:text-slate-400">{t('subscription.credits', 'settings')}</dt>
+                  <dd className="font-medium tabular-nums text-slate-900 dark:text-white">{requestsToCredits(targetPlan?.requestQuota ?? 0)}</dd>
+                </div>
+                {isDowngrade && (
+                  <div className="flex items-center justify-between">
+                    <dt className="text-slate-500 dark:text-slate-400">{t('subscription.effectiveDate', 'settings')}</dt>
+                    <dd className="font-medium text-slate-900 dark:text-white">{formatDate(periodEndDate.toISOString(), locale)}</dd>
+                  </div>
                 )}
-              </div>
+              </dl>
+            )}
 
-              {type === 'plan' && !isDowngrade && (
-                <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300">
-                  <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
-                  <span>
-                    {t('subscription.upgradeChargedNow', 'settings')}{' '}
-                    {t('subscription.forfeitTopUpWarning', 'settings')}
-                  </span>
-                </div>
+            <div className="flex items-center justify-between border-t border-slate-200 pt-4 dark:border-slate-800">
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('subscription.total', 'settings')}</span>
+              {isDowngrade ? (
+                <Badge tone="blue">{t('subscription.noChargeNow', 'settings')}</Badge>
+              ) : (
+                <span className="text-2xl font-semibold tabular-nums text-slate-900 dark:text-white">{formatMoney(amountCents, currency)}</span>
               )}
             </div>
+
+            {type === 'plan' && !isDowngrade && (
+              <p className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300">
+                <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
+                <span>
+                  {t('subscription.upgradeChargedNow', 'settings')} {t('subscription.forfeitTopUpWarning', 'settings')}
+                </span>
+              </p>
+            )}
           </div>
+        </Card>
 
-          {/* Payment method */}
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <div className="flex items-center gap-3 border-b border-slate-200 px-6 py-5 dark:border-slate-800">
-              <div className="flex size-10 items-center justify-center rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400">
-                <CreditCard className="size-5" />
-              </div>
-              <h2 className="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100">
-                {t('subscription.paymentMethod', 'settings')}
-              </h2>
-            </div>
+        <Card>
+          <CardToolbar>
+            <SectionTitle icon={<CreditCard className="size-4" />}>{t('subscription.paymentMethod', 'settings')}</SectionTitle>
+          </CardToolbar>
+          <div className="space-y-3 p-4">
+            {cardSession ? (
+              <>
+                <p className="text-sm text-slate-500 dark:text-slate-400">{t('subscription.enterCardDetails', 'settings')}</p>
+                <PaymobCardForm
+                  publicKey={cardSession.publicKey}
+                  clientSecret={cardSession.clientSecret}
+                  checkoutUrl={cardSession.checkoutUrl}
+                  payButtonLabel={payLabel}
+                  onSuccess={handleCardComplete}
+                  onPending={handleCardPending}
+                  onCancel={() => setCardSession(null)}
+                />
+              </>
+            ) : (
+              <>
+                {cardsLoading && <div className="h-14 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800" />}
 
-            <div className="space-y-3 p-6">
-              {cardSession ? (
-                <>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">
-                    {t('subscription.enterCardDetails', 'settings')}
-                  </p>
-                  <PaymobCardForm
-                    publicKey={cardSession.publicKey}
-                    clientSecret={cardSession.clientSecret}
-                    checkoutUrl={cardSession.checkoutUrl}
-                    payButtonLabel={
-                      isDowngrade
-                        ? t('subscription.confirmChangePlan', 'settings')
-                        : `${t('subscription.payNow', 'settings')} — ${formatMoney(
-                            amountCents,
-                            currency
-                          )}`
-                    }
-                    onSuccess={handleCardComplete}
-                    onPending={handleCardPending}
-                    onCancel={() => setCardSession(null)}
-                  />
-                </>
-              ) : (
-                <>
-                  {cardsLoading && (
-                    <div className="h-14 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800" />
-                  )}
+                {!cardsLoading && cards.length === 0 && (
+                  <>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">{t('subscription.noCardsCheckout', 'settings')}</p>
+                    <Button className="w-full" icon={<Plus className="size-4" />} onClick={goToAddCard}>
+                      {t('subscription.addCard', 'settings')}
+                    </Button>
+                  </>
+                )}
 
-                  {!cardsLoading && cards.length === 0 && (
-                    <>
-                      <p className="text-sm text-slate-500 dark:text-slate-400">
-                        {t('subscription.noCardsCheckout', 'settings')}
-                      </p>
-                      <button
-                        type="button"
-                        onClick={goToAddCard}
-                        className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 px-4 py-3.5 text-sm font-semibold text-slate-500 transition hover:border-brand-300 hover:bg-brand-50 hover:text-brand-600 dark:border-slate-700 dark:text-slate-400 dark:hover:border-brand-500/40 dark:hover:bg-brand-500/10"
-                      >
-                        <Plus className="size-4" />
-                        {t('subscription.addCard', 'settings')}
-                      </button>
-                    </>
-                  )}
-
-                  {!cardsLoading &&
-                    cards.map((card) => (
+                {!cardsLoading && cards.length > 0 && (
+                  <div role="radiogroup" aria-label={t('subscription.paymentMethod', 'settings')} className="space-y-2">
+                    {cards.map((card) => (
                       <button
                         key={card.id}
                         type="button"
+                        role="radio"
+                        aria-checked={card.isPrimary}
                         onClick={() => handleMakePrimary(card)}
                         disabled={changePrimaryMutation.isPending}
-                        className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-start transition ${
+                        className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-start transition ${focusRing} ${
                           card.isPrimary
-                            ? 'border-brand-300 bg-brand-50 dark:border-brand-500/40 dark:bg-brand-500/10'
-                            : 'border-slate-200 hover:border-brand-300 hover:bg-brand-50 dark:border-slate-700 dark:hover:border-brand-500/40 dark:hover:bg-brand-500/10'
+                            ? 'border-brand-400 bg-brand-50/60 dark:border-brand-500/50 dark:bg-brand-500/10'
+                            : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800/60'
                         }`}
                       >
-                        <div className="flex items-center gap-3">
-                          <span
-                            className={`flex size-5 items-center justify-center rounded-full border-2 ${
-                              card.isPrimary
-                                ? 'border-brand-500 bg-brand-500 text-white'
-                                : 'border-slate-300 dark:border-slate-600'
-                            }`}
-                          >
-                            {card.isPrimary && <Check className="size-3" />}
+                        <span
+                          className={`flex size-4 shrink-0 items-center justify-center rounded-full border ${
+                            card.isPrimary ? 'border-brand-500 bg-brand-500 text-white' : 'border-slate-300 dark:border-slate-600'
+                          }`}
+                        >
+                          {card.isPrimary && <span className="size-1.5 rounded-full bg-white" />}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="flex flex-wrap items-center gap-2 text-sm font-medium text-slate-900 dark:text-white">
+                            <span dir="ltr" className="font-mono">{card.maskedPan}</span>
+                            {card.isPrimary && <Badge tone="blue">{t('subscription.primaryCard', 'settings')}</Badge>}
                           </span>
-                          <div>
-                            <p className="flex items-center gap-2 font-semibold text-slate-900 dark:text-slate-100">
-                              {card.maskedPan}
-                              {card.isPrimary && (
-                                <span className="inline-flex items-center gap-1 rounded-full bg-brand-500/10 px-2 py-0.5 text-[10px] font-semibold text-brand-600 dark:text-brand-400">
-                                  <Star className="size-3" />
-                                  {t('subscription.primaryCard', 'settings')}
-                                </span>
-                              )}
-                            </p>
-                            {card.failedAttempts > 0 && (
-                              <p className="text-xs text-amber-600 dark:text-amber-400">
-                                {card.failedAttempts}{' '}
-                                {t('subscription.failedAttempts', 'settings')}
-                              </p>
-                            )}
-                          </div>
-                        </div>
+                          {card.failedAttempts > 0 && (
+                            <span className="mt-0.5 block text-xs text-amber-600 dark:text-amber-400">
+                              {card.failedAttempts} {t('subscription.failedAttempts', 'settings')}
+                            </span>
+                          )}
+                        </span>
                       </button>
                     ))}
-
-                  {!cardsLoading && cards.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={goToAddCard}
-                      className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-600 transition hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
-                    >
-                      <Plus className="size-4" />
+                    <Button variant="ghost" size="sm" icon={<Plus className="size-4" />} onClick={goToAddCard}>
                       {t('subscription.addCard', 'settings')}
-                    </button>
-                  )}
+                    </Button>
+                  </div>
+                )}
 
-                  <p className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
-                    <ShieldCheck className="size-3.5" />
-                    {t('subscription.securePayment', 'settings')}
+                <Button
+                  variant="primary"
+                  className="w-full"
+                  loading={submitting}
+                  disabled={!primaryCard || changePrimaryMutation.isPending}
+                  onClick={handlePay}
+                >
+                  {payLabel}
+                </Button>
+
+                {payError && (
+                  <p className="text-xs text-rose-600 dark:text-rose-400" role="alert">
+                    {t('subscription.payFailed', 'settings')}
                   </p>
+                )}
 
-                  <button
-                    type="button"
-                    onClick={handlePay}
-                    disabled={
-                      submitting || !primaryCard || changePrimaryMutation.isPending
-                    }
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {submitting ? (
-                      <span className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                    ) : null}
-                    {isDowngrade
-                      ? t('subscription.confirmChangePlan', 'settings')
-                      : `${t('subscription.payNow', 'settings')} — ${formatMoney(
-                          amountCents,
-                          currency
-                        )}`}
-                  </button>
-
-                  {payError && (
-                    <p className="text-xs text-red-500">
-                      {t('subscription.payFailed', 'settings')}
-                    </p>
-                  )}
-
-                  {primaryCard && (
-                    <p className="text-center text-xs text-slate-400 dark:text-slate-500">
-                      {t('subscription.chargedToPrimary', 'settings')}
-                    </p>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={goBack}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-                  >
-                    {dir === 'rtl' ? (
-                      <ChevronRight className="size-4" />
-                    ) : (
-                      <ChevronLeft className="size-4" />
-                    )}
-                    {t('subscription.backToSubscription', 'settings')}
-                  </button>
-                </>
-              )}
-            </div>
+                <p className="flex items-center justify-center gap-1.5 text-center text-xs text-slate-500 dark:text-slate-400">
+                  <ShieldCheck className="size-3.5" />
+                  {t('subscription.securePayment', 'settings')}
+                  {primaryCard && <> · {t('subscription.chargedToPrimary', 'settings')}</>}
+                </p>
+              </>
+            )}
           </div>
-        </div>
-      )}
-    </div>
+        </Card>
+      </div>
+    </PageShell>
   );
 }

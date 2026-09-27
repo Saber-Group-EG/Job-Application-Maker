@@ -2,8 +2,8 @@
 import { Calendar, Clock3, Copy, FileText, Gift, Pencil, Trash2, UserRound } from 'lucide-react';
 import type { JobContract, ContractStatus } from '../../../services/contractsService';
 import { useLocale } from '../../../context/LocaleContext';
-import { Badge, Card, CardToolbar, IconButton, PageShell, SectionTitle, selectClass } from '../../../components/ui/kit';
-import { BackLink, DocCard, DocTimeline, Meta } from '../../../components/documents/DocumentUi';
+import { BackLink, Badge, Card, CardToolbar, IconButton, PageShell, SectionTitle, selectClass } from '../../../components/ui/kit';
+import { DocCard, DocTimeline, Meta } from '../../../components/documents/DocumentUi';
 import { ContractActions } from './ContractActions';
 import { CONTRACT_STATUSES, CONTRACT_STATUS_TONE, CONTRACT_TYPE_TONE, contractStatusKey, contractTypeKey } from './contractMeta';
 

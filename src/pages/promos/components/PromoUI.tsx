@@ -6,6 +6,8 @@ import { useEffect, useRef, useState } from 'react';
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import {
   AlertTriangle,
+  ArrowLeft,
+  ArrowRight,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -785,6 +787,83 @@ export function StatStrip({ stats }: { stats: StatItem[] }) {
           </p>
         </div>
       ))}
+    </div>
+  );
+}
+
+// "← Back to …" link above a page title; the arrow follows the text direction.
+export function BackLink({ onClick, children }: { onClick: () => void; children: ReactNode }) {
+  const { locale } = useLocale();
+  const Arrow = locale === 'ar' ? ArrowRight : ArrowLeft;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex items-center gap-1.5 rounded-md text-sm font-medium text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white ${focusRing}`}
+    >
+      <Arrow className="size-4" />
+      {children}
+    </button>
+  );
+}
+
+// Side panel that slides over the page from the end edge.
+export function Sheet({
+  open,
+  onClose,
+  title,
+  description,
+  footer,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: ReactNode;
+  description?: ReactNode;
+  footer?: ReactNode;
+  children: ReactNode;
+}) {
+  const { t } = useLocale();
+  const titleId = useRef(`sheet-${Math.random().toString(36).slice(2, 9)}`).current;
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCloseRef.current();
+    };
+    document.addEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [open]);
+
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-99999">
+      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm dark:bg-black/60" onClick={onClose} aria-hidden="true" />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="absolute inset-y-0 end-0 flex w-full max-w-md flex-col border-s border-slate-200 bg-white text-slate-900 shadow-xl dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4 dark:border-slate-800">
+          <div className="min-w-0">
+            <h2 id={titleId} className="truncate text-base font-semibold text-slate-900 dark:text-white">{title}</h2>
+            {description && <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{description}</p>}
+          </div>
+          <IconButton label={t('close', 'common')} onClick={onClose} className="-me-1.5 -mt-1">
+            <X className="size-4" />
+          </IconButton>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        {footer && <div className="flex items-center justify-end gap-2 border-t border-slate-200 px-5 py-3 dark:border-slate-800">{footer}</div>}
+      </div>
     </div>
   );
 }

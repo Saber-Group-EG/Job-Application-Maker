@@ -1,41 +1,36 @@
-import { useMemo, useState } from 'react';
-import {
-  MaterialReactTable,
-  type MRT_ColumnDef,
-  type MRT_Localization,
-} from 'material-react-table';
-import {
-  Avatar,
-  Box,
-  Chip,
-  LinearProgress,
-  ThemeProvider,
-  Tooltip,
-  Typography,
-  createTheme,
-} from '@mui/material';
-import {
-  useCompaniesUsageOverview,
-} from '../../../hooks/queries/useSystemSettings';
+import { useEffect, useState } from 'react';
+import { Building2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useCompaniesUsageOverview } from '../../../hooks/queries/useSystemSettings';
 import CompanyUsageDetailDrawer from '../../../components/settings/CompanyUsageDetailDrawer';
-import PageBreadcrumb from '../../../components/common/PageBreadCrumb';
 import PageMeta from '../../../components/common/PageMeta';
 import { useLocale } from '../../../context/LocaleContext';
-import { useTheme as useAppTheme } from '../../../context/ThemeContext';
+import { useDebounce } from '../../../hooks/useDebounce';
 import type { CompanyUsageRow } from '../../../types/SystemSettings';
+import {
+  Badge,
+  Button,
+  Card,
+  CardToolbar,
+  EmptyState,
+  PageShell,
+  SearchInput,
+  SkeletonRows,
+  Table,
+  Td,
+  Th,
+  focusRing,
+  rowClass,
+} from '../../../components/ui/kit';
+import type { BadgeTone } from '../../../components/ui/kit';
 
-const usageColor = (ratio: number) =>
-  ratio >= 1 ? 'error' : ratio >= 0.9 ? 'warning' : 'success';
+const PAGE_SIZE = 25;
 
-const STATUS_COLOR: Record<
-  string,
-  'success' | 'warning' | 'error' | 'default'
-> = {
-  active: 'success',
-  past_due: 'warning',
-  suspended: 'error',
-  expired: 'error',
-  cancelled: 'default',
+const STATUS_TONE: Record<string, BadgeTone> = {
+  active: 'green',
+  past_due: 'amber',
+  suspended: 'red',
+  expired: 'red',
+  cancelled: 'slate',
 };
 
 const STATUS_LABEL_KEY: Record<string, string> = {
@@ -46,257 +41,146 @@ const STATUS_LABEL_KEY: Record<string, string> = {
   cancelled: 'statusCancelled',
 };
 
-const UsageBar = ({ used, limit }: { used: number; limit: number }) => {
+function UsageBar({ used, limit }: { used: number; limit: number }) {
   const { t, dir } = useLocale();
   const ratio = limit > 0 ? used / limit : 0;
+  const numberLocale = dir === 'rtl' ? 'ar-EG' : 'en-US';
+  const color = ratio >= 1 ? 'bg-rose-500' : ratio >= 0.9 ? 'bg-amber-500' : 'bg-emerald-500';
+  const percent = Math.round(Math.min(ratio, 1) * 100);
   return (
-    <Box sx={{ minWidth: 140 }}>
-      <Typography variant="caption">
-        {used.toLocaleString(dir === 'rtl' ? 'ar-EG' : 'en-US')} /{' '}
-        {limit.toLocaleString(dir === 'rtl' ? 'ar-EG' : 'en-US')}
-      </Typography>
-      <Tooltip
-        title={t('usagePercent', 'systemSettings', {
-          percent: Math.round(Math.min(ratio, 1) * 100),
-        })}
-      >
-        <LinearProgress
-          variant="determinate"
-          value={Math.min(ratio * 100, 100)}
-          color={usageColor(ratio)}
-          sx={{ height: 6, borderRadius: '999px' }}
-        />
-      </Tooltip>
-    </Box>
+    <div className="min-w-[140px]" title={t('usagePercent', 'systemSettings', { percent })}>
+      <p className="text-xs tabular-nums text-slate-600 dark:text-slate-300">
+        {used.toLocaleString(numberLocale)} / {limit.toLocaleString(numberLocale)}
+      </p>
+      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
+        <div className={`h-full rounded-full ${color}`} style={{ width: `${Math.min(ratio * 100, 100)}%` }} />
+      </div>
+    </div>
   );
-};
+}
 
 export default function AdminUsagePage() {
-  const { t, locale, dir } = useLocale();
-  const { theme: appTheme } = useAppTheme();
-  const isDark = appTheme === 'dark';
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 25 });
+  const { t, locale } = useLocale();
+  const [pageIndex, setPageIndex] = useState(0);
   const [search, setSearch] = useState('');
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(
-    null
-  );
+  const debouncedSearch = useDebounce(search, 300);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setPageIndex(0);
+  }, [debouncedSearch]);
 
   const { data, isLoading, isFetching } = useCompaniesUsageOverview({
-    page: pagination.pageIndex + 1,
-    limit: pagination.pageSize,
-    search: search || undefined,
+    page: pageIndex + 1,
+    limit: PAGE_SIZE,
+    search: debouncedSearch || undefined,
   });
+  const rows: CompanyUsageRow[] = data?.data ?? [];
+  const hasNext = rows.length === PAGE_SIZE;
 
-  const muiTheme = useMemo(
-    () =>
-      createTheme({
-        direction: dir,
-        palette: { mode: isDark ? 'dark' : 'light' },
-        typography: { fontFamily: "'Outfit', 'Cairo', sans-serif" },
-        components: {
-          MuiLinearProgress: {
-            styleOverrides: {
-              root: ({ theme }) => ({
-                backgroundColor:
-                  theme.palette.mode === 'dark'
-                    ? 'rgba(148,163,184,0.15)'
-                    : '#E2E8F0',
-              }),
-              bar: { borderRadius: '999px' },
-            },
-          },
-        },
-      }),
-    [dir, isDark]
-  );
-
-  const columns = useMemo<MRT_ColumnDef<CompanyUsageRow>[]>(
-    () => [
-      {
-        accessorKey: 'companyName',
-        header: t('colCompany', 'systemSettings'),
-        Cell: ({ row }) => {
-          const name = row.original.companyName;
-          return (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Avatar
-                src={row.original.companyLogo ?? undefined}
-                sx={{ width: 28, height: 28, bgcolor: 'primary.main' }}
-              >
-                {name.en.charAt(0)}
-              </Avatar>
-              <Typography variant="body2">
-                {locale === 'ar' ? name.ar || name.en : name.en || name.ar}
-              </Typography>
-            </Box>
-          );
-        },
-      },
-      { accessorKey: 'planName', header: t('colPlan', 'systemSettings') },
-      {
-        accessorKey: 'subscriptionStatus',
-        header: t('colStatus', 'systemSettings'),
-        Cell: ({ cell }) => {
-          const status = cell.getValue<string>();
-          const labelKey = STATUS_LABEL_KEY[status];
-          return (
-            <Chip
-              size="small"
-              label={labelKey ? t(labelKey, 'systemSettings') : status}
-              color={STATUS_COLOR[status] ?? 'default'}
-            />
-          );
-        },
-      },
-      {
-        accessorKey: 'requestQuota',
-        header: t('colRequestQuota', 'systemSettings'),
-        Cell: ({ cell }) => {
-          const v = cell.getValue<CompanyUsageRow['requestQuota']>();
-          return <UsageBar used={v.used} limit={v.limit} />;
-        },
-      },
-      {
-        accessorKey: 'aiCredits',
-        header: t('colAiCredits', 'systemSettings'),
-        Cell: ({ cell }) => {
-          const v = cell.getValue<CompanyUsageRow['aiCredits']>();
-          return <UsageBar used={v.used} limit={v.limit} />;
-        },
-      },
-      {
-        accessorKey: 'aiEnabled',
-        header: t('colAiEnabled', 'systemSettings'),
-        Cell: ({ cell }) => (
-          <Chip
-            size="small"
-            label={
-              cell.getValue<boolean>()
-                ? t('aiEnabled', 'systemSettings')
-                : t('aiDisabled', 'systemSettings')
-            }
-            color={cell.getValue<boolean>() ? 'success' : 'default'}
-          />
-        ),
-      },
-    ],
-    [t, locale]
-  );
-
-  // MRT v3.2.1's MRT_Localization type lacks globalSearch/columns; they are
-  // still consumed by older MRT internals, so pass them as an extension.
-  const mrtLocalization: Partial<MRT_Localization> & {
-    globalSearch: string;
-    columns: string;
-  } = {
-    noRecordsToDisplay: t('mrtNoRecordsToDisplay', 'systemSettings'),
-    rowsPerPage: t('mrtRowsPerPage', 'systemSettings'),
-    of: t('mrtOf', 'systemSettings'),
-    search: t('mrtSearch', 'systemSettings'),
-    clearSearch: t('mrtClearSearch', 'systemSettings'),
-    showHideColumns: t('mrtShowHideColumns', 'systemSettings'),
-    globalSearch: t('mrtGlobalSearch', 'systemSettings'),
-    columns: t('mrtColumns', 'systemSettings'),
-    noResultsFound: t('mrtNoResultsFound', 'systemSettings'),
-    filterByColumn: t('mrtFilterByColumn', 'systemSettings'),
-  };
+  const companyName = (row: CompanyUsageRow) =>
+    locale === 'ar' ? row.companyName.ar || row.companyName.en : row.companyName.en || row.companyName.ar;
 
   return (
-    <Box sx={{ p: 3, mx: 'auto', maxWidth: '80rem' }}>
-      <PageMeta
-        title={t('adminMetaTitle', 'systemSettings')}
-        description={t('adminMetaDescription', 'systemSettings')}
-      />
-      <PageBreadcrumb pageTitle={t('adminPageTitle', 'systemSettings')} />
-      <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">
-        {t('adminPageSubtitle', 'systemSettings')}
-      </p>
-      <div className="overflow-hidden rounded-[2rem] border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
-        <ThemeProvider theme={muiTheme}>
-          <MaterialReactTable
-            columns={columns}
-            data={data?.data ?? []}
-            manualPagination
-            onPaginationChange={setPagination}
-            state={{ pagination, isLoading, showProgressBars: isFetching }}
-            rowCount={
-              undefined /* wire up total count once the backend returns one */
-            }
-            enableGlobalFilter
-            onGlobalFilterChange={setSearch}
-            localization={mrtLocalization}
-            muiTablePaperProps={{
-              elevation: 0,
-              sx: { backgroundColor: 'transparent', boxShadow: 'none' },
-            }}
-            muiTableContainerProps={{
-              sx: { backgroundColor: 'transparent' },
-            }}
-            muiTableHeadCellProps={{
-              sx: (theme) => ({
-                backgroundColor:
-                  theme.palette.mode === 'dark' ? 'transparent' : '#F8FAFC',
-                color: theme.palette.mode === 'dark' ? '#94A3B8' : '#475569',
-                fontSize: 13,
-                fontWeight: 600,
-                textTransform: 'none',
-                padding: '12px 16px',
-                borderBottom: `1px solid ${
-                  theme.palette.mode === 'dark' ? '#1F2937' : '#E2E8F0'
-                }`,
-              }),
-            }}
-            muiTableBodyCellProps={{
-              sx: (theme) => ({
-                padding: '12px 16px',
-                fontSize: 13,
-                color: theme.palette.mode === 'dark' ? '#E2E8F0' : '#334155',
-                borderBottom: `1px solid ${
-                  theme.palette.mode === 'dark' ? '#1F2937' : '#F1F5F9'
-                }`,
-              }),
-            }}
-            muiTableBodyRowProps={({ row }) => ({
-              onClick: () => setSelectedCompanyId(row.original.companyId),
-              sx: (theme) => ({
-                cursor: 'pointer',
-                backgroundColor:
-                  selectedCompanyId === row.original.companyId
-                    ? theme.palette.mode === 'dark'
-                      ? 'rgba(228,46,43,0.10)'
-                      : 'rgba(228,46,43,0.06)'
-                    : undefined,
-                '&:hover': {
-                  backgroundColor:
-                    theme.palette.mode === 'dark'
-                      ? 'rgba(148,163,184,0.06)'
-                      : 'rgba(15,23,42,0.04)',
-                },
-              }),
-            })}
-            muiTopToolbarProps={{ sx: { backgroundColor: 'transparent' } }}
-            muiBottomToolbarProps={{ sx: { backgroundColor: 'transparent' } }}
-            muiSearchTextFieldProps={{
-              size: 'small',
-              sx: {
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: '12px',
-                  backgroundColor: (theme) =>
-                    theme.palette.mode === 'dark'
-                      ? 'rgba(148,163,184,0.08)'
-                      : '#F8FAFC',
-                  '& fieldset': { borderColor: 'transparent' },
-                  '&:hover fieldset': { borderColor: 'transparent' },
-                },
-              },
-            }}
-          />
-        </ThemeProvider>
-      </div>
-      <CompanyUsageDetailDrawer
-        companyId={selectedCompanyId}
-        onClose={() => setSelectedCompanyId(null)}
-      />
-    </Box>
+    <PageShell title={t('adminPageTitle', 'systemSettings')} subtitle={t('adminPageSubtitle', 'systemSettings')}>
+      <PageMeta title={t('adminMetaTitle', 'systemSettings')} description={t('adminMetaDescription', 'systemSettings')} />
+
+      <Card>
+        <CardToolbar>
+          <SearchInput value={search} onChange={setSearch} placeholder={t('mrtSearch', 'systemSettings')} className="w-full max-w-sm" />
+        </CardToolbar>
+
+        {!isLoading && rows.length === 0 ? (
+          <EmptyState icon={<Building2 className="size-6" />} title={t('mrtNoRecordsToDisplay', 'systemSettings')} />
+        ) : (
+          <Table minWidth={880} busy={isFetching}>
+            <thead>
+              <tr>
+                <Th>{t('colCompany', 'systemSettings')}</Th>
+                <Th>{t('colPlan', 'systemSettings')}</Th>
+                <Th>{t('colStatus', 'systemSettings')}</Th>
+                <Th>{t('colRequestQuota', 'systemSettings')}</Th>
+                <Th>{t('colAiCredits', 'systemSettings')}</Th>
+                <Th>{t('colAiEnabled', 'systemSettings')}</Th>
+              </tr>
+            </thead>
+            <tbody className={isFetching && !isLoading ? 'opacity-60' : ''}>
+              {isLoading ? (
+                <SkeletonRows rows={6} cols={6} />
+              ) : (
+                rows.map((row) => {
+                  const name = companyName(row);
+                  const labelKey = STATUS_LABEL_KEY[row.subscriptionStatus];
+                  return (
+                    <tr
+                      key={row.companyId}
+                      className={`${rowClass} cursor-pointer ${selectedCompanyId === row.companyId ? 'bg-brand-50/60 dark:bg-brand-500/10' : ''}`}
+                      onClick={() => setSelectedCompanyId(row.companyId)}
+                    >
+                      <Td>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedCompanyId(row.companyId);
+                          }}
+                          className={`flex items-center gap-2 rounded-md text-start font-medium text-slate-900 hover:text-brand-600 dark:text-white ${focusRing}`}
+                        >
+                          {row.companyLogo ? (
+                            <img src={row.companyLogo} alt="" className="size-7 rounded-full object-cover" />
+                          ) : (
+                            <span className="flex size-7 items-center justify-center rounded-full bg-brand-50 text-xs font-semibold text-brand-600 dark:bg-brand-500/15 dark:text-brand-300">
+                              {row.companyName.en.charAt(0)}
+                            </span>
+                          )}
+                          {name}
+                        </button>
+                      </Td>
+                      <Td>{row.planName}</Td>
+                      <Td>
+                        <Badge tone={STATUS_TONE[row.subscriptionStatus] ?? 'slate'}>
+                          {labelKey ? t(labelKey, 'systemSettings') : row.subscriptionStatus}
+                        </Badge>
+                      </Td>
+                      <Td>
+                        <UsageBar used={row.requestQuota.used} limit={row.requestQuota.limit} />
+                      </Td>
+                      <Td>
+                        <UsageBar used={row.aiCredits.used} limit={row.aiCredits.limit} />
+                      </Td>
+                      <Td>
+                        <Badge tone={row.aiEnabled ? 'green' : 'slate'}>
+                          {row.aiEnabled ? t('aiEnabled', 'systemSettings') : t('aiDisabled', 'systemSettings')}
+                        </Badge>
+                      </Td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </Table>
+        )}
+
+        {(pageIndex > 0 || hasNext) && (
+          <div className="flex items-center justify-end gap-2 border-t border-slate-200 px-4 py-3 dark:border-slate-800">
+            <Button
+              size="sm"
+              disabled={pageIndex === 0}
+              onClick={() => setPageIndex((p) => Math.max(0, p - 1))}
+              icon={locale === 'ar' ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
+            >
+              {t('prevShort', 'promos')}
+            </Button>
+            <span className="text-sm tabular-nums text-slate-500 dark:text-slate-400">{pageIndex + 1}</span>
+            <Button size="sm" disabled={!hasNext} onClick={() => setPageIndex((p) => p + 1)}>
+              {t('nextShort', 'promos')}
+              {locale === 'ar' ? <ChevronLeft className="size-4" /> : <ChevronRight className="size-4" />}
+            </Button>
+          </div>
+        )}
+      </Card>
+
+      <CompanyUsageDetailDrawer companyId={selectedCompanyId} onClose={() => setSelectedCompanyId(null)} />
+    </PageShell>
   );
 }

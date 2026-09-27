@@ -1,15 +1,6 @@
 import { useState } from 'react';
-import {
-  Drawer,
-  Box,
-  Typography,
-  Divider,
-  TextField,
-  Button,
-  Stack,
-  LinearProgress,
-} from '@mui/material';
-import Switch from '../../components/form/switch/Switch';
+import type { ReactNode } from 'react';
+import { Loader2 } from 'lucide-react';
 import { useLocale } from '../../context/LocaleContext';
 import {
   useCompanyUsageDetail,
@@ -19,6 +10,51 @@ import {
   useToggleAiEnabled,
   useToggleBypassPlanLimits,
 } from '../../hooks/queries/useSystemSettings';
+import { Button, Sheet, Switch, inputClass } from '../ui/kit';
+
+function ToggleRow({ title, hint, children }: { title: ReactNode; hint?: ReactNode; children: ReactNode }) {
+  return (
+    <div className="flex items-start justify-between gap-4">
+      <div>
+        <p className="text-sm font-medium text-slate-900 dark:text-white">{title}</p>
+        {hint && <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{hint}</p>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function CompRow({
+  label,
+  buttonLabel,
+  value,
+  onChange,
+  onSubmit,
+  pending,
+}: {
+  label: string;
+  buttonLabel: string;
+  value: string;
+  onChange: (v: string) => void;
+  onSubmit: () => void;
+  pending: boolean;
+}) {
+  return (
+    <div className="mt-2 flex gap-2">
+      <input
+        type="number"
+        aria-label={label}
+        placeholder={label}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={`${inputClass} tabular-nums`}
+      />
+      <Button disabled={!value} loading={pending} onClick={onSubmit}>
+        {buttonLabel}
+      </Button>
+    </div>
+  );
+}
 
 export default function CompanyUsageDetailDrawer({
   companyId,
@@ -27,7 +63,7 @@ export default function CompanyUsageDetailDrawer({
   companyId: string | null;
   onClose: () => void;
 }) {
-  const { t, dir } = useLocale();
+  const { t } = useLocale();
   const { data, isLoading } = useCompanyUsageDetail(companyId);
   const compQuota = useCompRequestQuota();
   const compCredits = useCompAiCredits();
@@ -50,187 +86,94 @@ export default function CompanyUsageDetailDrawer({
     cvParse: t('featureCvParse', 'systemSettings'),
   };
 
+  const sectionClass = 'border-t border-slate-200 pt-5 dark:border-slate-800';
+
   return (
-    <Drawer
-      anchor={dir === 'rtl' ? 'left' : 'right'}
+    <Sheet
       open={!!companyId}
       onClose={onClose}
+      title={data?.subscription?.companyId?.name.en ?? t('drawerAriaLabel', 'systemSettings')}
+      description={data?.subscription?.planName}
     >
-      <Box
-        sx={{ width: 420, p: 3 }}
-        role="dialog"
-        aria-label={t('drawerAriaLabel', 'systemSettings')}
-      >
-        {isLoading || !data ? (
-          <LinearProgress />
-        ) : (
-          <Stack spacing={3}>
-            <Typography variant="h6">
-              {data.subscription?.companyId?.name.en}
-            </Typography>
+      {isLoading || !data ? (
+        <p className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400" role="status">
+          <Loader2 className="size-4 animate-spin" />
+        </p>
+      ) : (
+        <div className="space-y-5">
+          <ToggleRow title={t('drawerBypassPlanLimits', 'systemSettings')} hint={t('drawerBypassPlanLimitsHelp', 'systemSettings')}>
+            <Switch
+              label={t('drawerBypassPlanLimits', 'systemSettings')}
+              checked={!!data.bypassPlanLimits}
+              disabled={toggleBypass.isPending}
+              onChange={(checked) => companyId && toggleBypass.mutate({ companyId, enabled: checked })}
+            />
+          </ToggleRow>
 
-            <Box>
-              <Stack
-                direction="row"
-                justifyContent="space-between"
-                alignItems="center"
-              >
-                <Typography variant="subtitle1">
-                  {t('drawerBypassPlanLimits', 'systemSettings')}
-                </Typography>
-                <Switch
-                  label={t('drawerBypassPlanLimits', 'systemSettings')}
-                  checked={!!data.bypassPlanLimits}
-                  disabled={toggleBypass.isPending}
-                  onChange={(checked) =>
-                    companyId &&
-                    toggleBypass.mutate({ companyId, enabled: checked })
-                  }
-                />
-              </Stack>
-              <Typography variant="caption" color="text.secondary">
-                {t('drawerBypassPlanLimitsHelp', 'systemSettings')}
-              </Typography>
-            </Box>
+          <div className={sectionClass}>
+            <p className="text-sm font-medium text-slate-900 dark:text-white">{t('drawerRequestQuota', 'systemSettings')}</p>
+            <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
+              {t('drawerUsedThisCycle', 'systemSettings', { count: data.requestUsage?.count ?? 0 })}
+            </p>
+            <CompRow
+              label={t('drawerCompAmount', 'systemSettings')}
+              buttonLabel={t('drawerCompButton', 'systemSettings')}
+              value={quotaAmount}
+              onChange={setQuotaAmount}
+              pending={compQuota.isPending}
+              onSubmit={() =>
+                companyId && compQuota.mutate({ companyId, amount: Number(quotaAmount) }, { onSuccess: () => setQuotaAmount('') })
+              }
+            />
+          </div>
 
-            <Divider />
+          <div className={sectionClass}>
+            <p className="text-sm font-medium text-slate-900 dark:text-white">{t('drawerAiCredits', 'systemSettings')}</p>
+            <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
+              {t('drawerUsedAmount', 'systemSettings', { amount: data.aiUsage?.currentUsage?.toFixed(2) ?? '0.00' })}
+              {data.aiUsage?.compedCredits ? ` ${t('drawerComped', 'systemSettings', { count: data.aiUsage.compedCredits })}` : ''}
+            </p>
+            <CompRow
+              label={t('drawerCompAmount', 'systemSettings')}
+              buttonLabel={t('drawerCompButton', 'systemSettings')}
+              value={creditsAmount}
+              onChange={setCreditsAmount}
+              pending={compCredits.isPending}
+              onSubmit={() =>
+                companyId && compCredits.mutate({ companyId, amount: Number(creditsAmount) }, { onSuccess: () => setCreditsAmount('') })
+              }
+            />
+          </div>
 
-            <Box>
-              <Typography variant="subtitle2">
-                {t('drawerRequestQuota', 'systemSettings')}
-              </Typography>
-              <Typography variant="body2">
-                {t('drawerUsedThisCycle', 'systemSettings', {
-                  count: data.requestUsage?.count ?? 0,
-                })}
-              </Typography>
-              <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                <TextField
-                  size="small"
-                  label={t('drawerCompAmount', 'systemSettings')}
-                  type="number"
-                  value={quotaAmount}
-                  onChange={(e) => setQuotaAmount(e.target.value)}
-                />
-                <Button
-                  variant="outlined"
-                  disabled={!quotaAmount || compQuota.isPending}
-                  onClick={() =>
-                    companyId &&
-                    compQuota.mutate(
-                      { companyId, amount: Number(quotaAmount) },
-                      { onSuccess: () => setQuotaAmount('') }
-                    )
-                  }
-                >
-                  {t('drawerCompButton', 'systemSettings')}
-                </Button>
-              </Stack>
-            </Box>
+          <div className={`${sectionClass} space-y-4`}>
+            <ToggleRow title={t('drawerAiEnabled', 'systemSettings')} hint={t('drawerAiEnabledHelp', 'systemSettings')}>
+              <Switch
+                label={t('drawerAiEnabled', 'systemSettings')}
+                checked={!!data.aiSettings?.enabled}
+                disabled={toggleAiEnabled.isPending}
+                onChange={(checked) => companyId && toggleAiEnabled.mutate({ companyId, enabled: checked })}
+              />
+            </ToggleRow>
 
-            <Divider />
-
-            <Box>
-              <Typography variant="subtitle2">
-                {t('drawerAiCredits', 'systemSettings')}
-              </Typography>
-              <Typography variant="body2">
-                {t('drawerUsedAmount', 'systemSettings', {
-                  amount: data.aiUsage?.currentUsage?.toFixed(2) ?? '0.00',
-                })}
-                {data.aiUsage?.compedCredits
-                  ? ` ${t('drawerComped', 'systemSettings', {
-                      count: data.aiUsage.compedCredits,
-                    })}`
-                  : ''}
-              </Typography>
-              <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                <TextField
-                  size="small"
-                  label={t('drawerCompAmount', 'systemSettings')}
-                  type="number"
-                  value={creditsAmount}
-                  onChange={(e) => setCreditsAmount(e.target.value)}
-                />
-                <Button
-                  variant="outlined"
-                  disabled={!creditsAmount || compCredits.isPending}
-                  onClick={() =>
-                    companyId &&
-                    compCredits.mutate(
-                      { companyId, amount: Number(creditsAmount) },
-                      { onSuccess: () => setCreditsAmount('') }
-                    )
-                  }
-                >
-                  {t('drawerCompButton', 'systemSettings')}
-                </Button>
-              </Stack>
-            </Box>
-
-            <Divider />
-
-            <Box>
-              <Stack
-                direction="row"
-                justifyContent="space-between"
-                alignItems="center"
-              >
-                <Typography variant="subtitle1">
-                  {t('drawerAiEnabled', 'systemSettings')}
-                </Typography>
-                <Switch
-                  label={t('drawerAiEnabled', 'systemSettings')}
-                  checked={!!data.aiSettings?.enabled}
-                  disabled={toggleAiEnabled.isPending}
-                  onChange={(checked) =>
-                    companyId &&
-                    toggleAiEnabled.mutate({ companyId, enabled: checked })
-                  }
-                />
-              </Stack>
-              <Typography variant="caption" color="text.secondary">
-                {t('drawerAiEnabledHelp', 'systemSettings')}
-              </Typography>
-            </Box>
-
-            <Box>
-              <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                {t('drawerAiFeatures', 'systemSettings')}
-              </Typography>
-              <Stack spacing={0.5}>
-                {Object.entries(data.aiSettings?.featureToggles ?? {}).map(
-                  ([key, enabled]) => (
-                    <Stack
-                      key={key}
-                      direction="row"
-                      justifyContent="space-between"
-                      alignItems="center"
-                    >
-                      <Typography variant="body2">
-                        {FEATURE_LABELS[key] ?? key}
-                      </Typography>
-                      <Switch
-                        label={FEATURE_LABELS[key] ?? key}
-                        checked={!!enabled}
-                        disabled={toggleFeature.isPending}
-                        onChange={(checked) =>
-                          companyId &&
-                          toggleFeature.mutate({
-                            companyId,
-                            feature: key,
-                            enabled: checked,
-                          })
-                        }
-                      />
-                    </Stack>
-                  )
-                )}
-              </Stack>
-            </Box>
-          </Stack>
-        )}
-      </Box>
-    </Drawer>
+            <div>
+              <p className="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400">{t('drawerAiFeatures', 'systemSettings')}</p>
+              <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200 dark:divide-slate-800 dark:border-slate-800">
+                {Object.entries(data.aiSettings?.featureToggles ?? {}).map(([key, enabled]) => (
+                  <li key={key} className="flex items-center justify-between gap-4 px-3 py-2">
+                    <span className="text-sm text-slate-700 dark:text-slate-300">{FEATURE_LABELS[key] ?? key}</span>
+                    <Switch
+                      label={FEATURE_LABELS[key] ?? key}
+                      checked={!!enabled}
+                      disabled={toggleFeature.isPending}
+                      onChange={(checked) => companyId && toggleFeature.mutate({ companyId, feature: key, enabled: checked })}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+    </Sheet>
   );
 }

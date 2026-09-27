@@ -1,13 +1,22 @@
 import { useState } from "react";
 import Swal from '../../../utils/swal';
-import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
-import LoadingSpinner from "../../../components/common/LoadingSpinner";
-import Label from "../../../components/form/Label";
-import Input from "../../../components/form/input/InputField";
-import Switch from "../../../components/form/switch/Switch";
-import Select from "../../../components/form/Select";
-import { PlusIcon, TrashBinIcon, PencilIcon } from "../../../icons";
+import { ChevronDown, ChevronRight, Inbox, Layers, ListChecks, Pencil, Plus, Save, SlidersHorizontal, Trash2, X } from "lucide-react";
+import {
+  Badge,
+  Button,
+  Card,
+  CardToolbar,
+  EmptyState,
+  Field,
+  IconButton,
+  PageShell,
+  SectionTitle,
+  Switch,
+  focusRing,
+  inputClass,
+  selectClass,
+} from "../../../components/ui/kit";
 import {
   useRecommendedFields,
   useCreateRecommendedField,
@@ -210,7 +219,6 @@ const RecommendedFields = () => {
       confirmButtonColor: "#EF4444",
       confirmButtonText: t('deleteConfirmButton', 'systemSettings'),
       cancelButtonText: t('cancel', 'common'),
-      customClass: { popup: "rounded-3xl", confirmButton: "rounded-xl", cancelButton: "rounded-xl" }
     });
     if (!result.isConfirmed) return;
 
@@ -246,224 +254,289 @@ const RecommendedFields = () => {
     });
   };
 
-  if (loading) return <LoadingSpinner fullPage message={t('loadingMessage', 'systemSettings')} />;
+  const updateGroupField = (idx: number, patch: Partial<GroupField>) => {
+    const next = [...(form.groupFields || [])];
+    next[idx] = { ...next[idx], ...patch };
+    handleInputChange("groupFields", next);
+  };
+
+  const removeOption = (i: number) => {
+    handleInputChange("options", form.options?.filter((_, idx) => idx !== i));
+    handleInputChange("optionsAr", form.optionsAr?.filter((_, idx) => idx !== i));
+  };
+
+  const visibleFields = recommendedFields.filter((f) => f.fieldId !== isDeletingField);
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0F172A] p-4 sm:p-8 text-slate-900 dark:text-slate-100">
+    <PageShell
+      title={t('pageTitle', 'systemSettings')}
+      actions={
+        !showForm && (
+          <Button variant="primary" icon={<Plus className="size-4" />} onClick={() => setShowForm(true)}>
+            {t('addNewPreset', 'systemSettings')}
+          </Button>
+        )
+      }
+    >
       <PageMeta title={t('metaTitle', 'systemSettings')} description={t('metaDescription', 'systemSettings')} />
 
-      <div className="mx-auto max-w-7xl space-y-8">
-        <PageBreadcrumb pageTitle={t('pageTitle', 'systemSettings')} />
-
-        {!showForm && (
-          <div className="flex justify-end">
-            <button
-              onClick={() => setShowForm(true)}
-              className="inline-flex items-center gap-2 rounded-2xl bg-brand-500 px-6 py-3 text-sm font-bold text-white shadow-xl shadow-brand-500/25 transition-all hover:bg-brand-600 hover:shadow-brand-500/40 active:scale-95"
-            >
-              <PlusIcon className="size-5" />
-              {t('addNewPreset', 'systemSettings')}
-            </button>
-          </div>
-        )}
-
       {showForm && (
-        <form onSubmit={handleSave} className="animate-in fade-in slide-in-from-top-4 space-y-8">
-          <div className="group relative overflow-hidden rounded-[2rem] border border-gray-200 bg-white p-8 shadow-sm transition-all hover:shadow-md dark:border-gray-800 dark:bg-gray-900">
-            <div className="mb-10 flex items-center justify-between">
+        <form onSubmit={handleSave} className="space-y-6">
+          <Card>
+            <CardToolbar>
               <div>
-                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{editFieldId ? t('editPresetTitle', 'systemSettings') : t('createPresetTitle', 'systemSettings')}</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">{t('presetSubtitle', 'systemSettings')}</p>
+                <SectionTitle icon={<SlidersHorizontal className="size-4" />}>
+                  {editFieldId ? t('editPresetTitle', 'systemSettings') : t('createPresetTitle', 'systemSettings')}
+                </SectionTitle>
+                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{t('presetSubtitle', 'systemSettings')}</p>
               </div>
-              <button 
-                type="button" 
-                onClick={resetForm}
-                className="rounded-xl p-2 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
-              >
-                <svg className="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            </div>
-
-            <div className="space-y-8">
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="label" required>{t('labelEn', 'systemSettings')}</Label>
-                  <Input
+              <IconButton label={t('cancelButton', 'systemSettings')} onClick={resetForm}>
+                <X className="size-4" />
+              </IconButton>
+            </CardToolbar>
+            <div className="space-y-5 p-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <Field label={t('labelEn', 'systemSettings')} htmlFor="label">
+                  <input
                     id="label"
+                    dir="ltr"
                     value={form.label}
-                    onChange={(e: any) => handleInputChange("label", e.target.value)}
+                    onChange={(e) => handleInputChange("label", e.target.value)}
                     placeholder={t('labelEnPlaceholder', 'systemSettings')}
                     required
+                    className={inputClass}
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="labelAr" required className="block w-full text-right">{t('labelAr', 'systemSettings')}</Label>
-                  <Input
+                </Field>
+                <Field label={t('labelAr', 'systemSettings')} htmlFor="labelAr">
+                  <input
                     id="labelAr"
+                    dir="rtl"
                     value={form.labelAr}
-                    onChange={(e: any) => handleInputChange("labelAr", e.target.value)}
+                    onChange={(e) => handleInputChange("labelAr", e.target.value)}
                     placeholder={t('labelArPlaceholder', 'systemSettings')}
                     required
-                    className="text-right"
+                    className={inputClass}
                   />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-                <div className="space-y-4">
-                  <Label>{t('behavior', 'systemSettings')}</Label>
-                  <div className="rounded-2xl bg-gray-50/50 p-4 dark:bg-gray-800/30">
-                    <Switch 
-                      checked={form.required} 
-                      onChange={(val) => handleInputChange("required", val)} 
-                      label={t('mandatoryByDefault', 'systemSettings')}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <Label>{t('dataType', 'systemSettings')}</Label>
-                  <Select
-                    options={inputTypeOptions}
-                    value={form.type}
-                    onChange={(v: string) => handleInputChange("type", v)}
-                  />
+                </Field>
+                <Field label={t('dataType', 'systemSettings')} htmlFor="dataType">
+                  <select id="dataType" value={form.type} onChange={(e) => handleInputChange("type", e.target.value)} className={selectClass}>
+                    {inputTypeOptions.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 p-3 dark:border-slate-800 md:mt-7">
+                  <span className="text-sm font-medium text-slate-900 dark:text-white">{t('mandatoryByDefault', 'systemSettings')}</span>
+                  <Switch checked={form.required} onChange={(val) => handleInputChange("required", val)} label={t('mandatoryByDefault', 'systemSettings')} />
                 </div>
               </div>
 
               {form.type === "number" && (
-                <div className="flex gap-4 rounded-2xl border border-blue-100 bg-blue-50/30 p-5 dark:border-blue-900/30 dark:bg-blue-900/10">
-                  <div className="flex-1 space-y-2">
-                    <Label>{t('minimum', 'systemSettings')}</Label>
-                    <Input type="number" value={form.validation?.min ?? ""} onChange={(e: any) => handleInputChange("validation", { ...form.validation, min: e.target.value ? Number(e.target.value) : null })} />
-                  </div>
-                  <div className="flex-1 space-y-2">
-                    <Label>{t('maximum', 'systemSettings')}</Label>
-                    <Input type="number" value={form.validation?.max ?? ""} onChange={(e: any) => handleInputChange("validation", { ...form.validation, max: e.target.value ? Number(e.target.value) : null })} />
-                  </div>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <Field label={t('minimum', 'systemSettings')} htmlFor="rf-min">
+                    <input id="rf-min" type="number" className={inputClass} value={form.validation?.min ?? ""} onChange={(e) => handleInputChange("validation", { ...form.validation, min: e.target.value ? Number(e.target.value) : null })} />
+                  </Field>
+                  <Field label={t('maximum', 'systemSettings')} htmlFor="rf-max">
+                    <input id="rf-max" type="number" className={inputClass} value={form.validation?.max ?? ""} onChange={(e) => handleInputChange("validation", { ...form.validation, max: e.target.value ? Number(e.target.value) : null })} />
+                  </Field>
                 </div>
               )}
             </div>
-          </div>
+          </Card>
 
-          {(["radio", "dropdown", "checkbox", "tags"].includes(form.type)) && (
-            <div className="animate-in slide-in-from-bottom-4 rounded-[2rem] border border-gray-200 bg-white p-8 dark:border-gray-800 dark:bg-gray-900">
-              <h4 className="mb-6 text-xl font-bold">{t('manageOptions', 'systemSettings')}</h4>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <Input placeholder={t('optionEnPlaceholder', 'systemSettings')} value={newChoice} onChange={(e: any) => setNewChoice(e.target.value)} />
-                <Input placeholder={t('optionArPlaceholder', 'systemSettings')} value={newChoiceAr} onChange={(e: any) => setNewChoiceAr(e.target.value)} className="text-right" />
+          {["radio", "dropdown", "checkbox", "tags"].includes(form.type) && (
+            <Card>
+              <CardToolbar>
+                <SectionTitle icon={<ListChecks className="size-4" />}>{t('manageOptions', 'systemSettings')}</SectionTitle>
+                <Badge tone="slate">{form.options?.length ?? 0}</Badge>
+              </CardToolbar>
+              <div className="space-y-4 p-4">
+                <div className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_1fr_auto]">
+                  <input dir="ltr" aria-label={t('optionEnPlaceholder', 'systemSettings')} placeholder={t('optionEnPlaceholder', 'systemSettings')} value={newChoice} onChange={(e) => setNewChoice(e.target.value)} className={inputClass} />
+                  <input dir="rtl" aria-label={t('optionArPlaceholder', 'systemSettings')} placeholder={t('optionArPlaceholder', 'systemSettings')} value={newChoiceAr} onChange={(e) => setNewChoiceAr(e.target.value)} className={inputClass} />
+                  <Button icon={<Plus className="size-4" />} onClick={handleAddChoice}>
+                    {t('addOption', 'systemSettings')}
+                  </Button>
+                </div>
+                {(form.options?.length ?? 0) > 0 && (
+                  <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 dark:divide-slate-800 dark:border-slate-800">
+                    {form.options?.map((opt, i) => {
+                      const en = typeof opt === 'string' ? opt : ((opt as any)?.en || '');
+                      const arRaw = form.optionsAr?.[i];
+                      const ar = typeof arRaw === 'string' ? arRaw : ((arRaw as any)?.ar || '');
+                      return (
+                        <li key={i} className="flex items-center gap-3 px-3 py-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium text-slate-900 dark:text-white">{en}</p>
+                            <p dir="rtl" className="truncate text-start text-xs text-slate-500 dark:text-slate-400">{ar}</p>
+                          </div>
+                          <IconButton
+                            label={t('addOption', 'systemSettings')}
+                            onClick={() => {
+                              setNewChoice(en);
+                              setNewChoiceAr(form.optionsAr?.[i] || '');
+                              removeOption(i);
+                            }}
+                          >
+                            <Pencil className="size-4" />
+                          </IconButton>
+                          <IconButton tone="danger" label={t('delete', 'common')} onClick={() => removeOption(i)}>
+                            <Trash2 className="size-4" />
+                          </IconButton>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
               </div>
-              <button 
-                type="button" 
-                onClick={handleAddChoice} 
-                className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-brand-600 hover:text-brand-700"
-              >
-                <PlusIcon className="size-4" /> {t('addOption', 'systemSettings')}
-              </button>
-
-              <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {form.options?.map((opt, i) => (
-                  <div key={i} className="flex items-center justify-between rounded-2xl border border-gray-100 bg-gray-50/50 p-4 dark:border-gray-800 dark:bg-gray-800/20">
-                    <div className="overflow-hidden">
-                      <div className="font-bold truncate text-gray-900 dark:text-white">{typeof opt === 'string' ? opt : ((opt as any)?.en || '')}</div>
-                      <div className="text-xs text-gray-500 truncate text-right">{(() => {
-                        const a = form.optionsAr?.[i];
-                        return typeof a === 'string' ? a : ((a as any)?.ar || '');
-                      })()}</div>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <button type="button" onClick={() => { setNewChoice(typeof opt === 'string' ? opt : ((opt as any)?.en || '')); setNewChoiceAr(form.optionsAr?.[i] || ''); handleInputChange("options", form.options?.filter((_, idx) => idx !== i)); handleInputChange("optionsAr", form.optionsAr?.filter((_, idx) => idx !== i)); }} className="text-gray-400 hover:text-brand-600 p-2 rounded-lg transition-colors">
-                        <PencilIcon className="size-4" />
-                      </button>
-                      <button type="button" onClick={() => { handleInputChange("options", form.options?.filter((_, idx) => idx !== i)); handleInputChange("optionsAr", form.optionsAr?.filter((_, idx) => idx !== i)); }} className="text-error-500 hover:bg-error-50 p-2 rounded-lg transition-colors">
-                        <TrashBinIcon className="size-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            </Card>
           )}
 
           {form.type === "repeatable_group" && (
-            <div className="animate-in slide-in-from-bottom-4 rounded-[2rem] border border-gray-200 bg-white p-8 dark:border-gray-800 dark:bg-gray-900">
-               <div className="mb-6 flex items-center justify-between">
-                <h4 className="text-xl font-bold">{t('groupSchema', 'systemSettings')}</h4>
-                <button 
-                  type="button" 
+            <Card>
+              <CardToolbar>
+                <SectionTitle icon={<Layers className="size-4" />}>{t('groupSchema', 'systemSettings')}</SectionTitle>
+                <Button
+                  size="sm"
+                  icon={<Plus className="size-4" />}
                   onClick={() => handleInputChange("groupFields", [...(form.groupFields || []), { fieldId: `gf_${Date.now()}`, label: "", inputType: "text", isRequired: false }])}
-                  className="inline-flex items-center gap-2 text-sm font-bold text-brand-600"
                 >
-                  <PlusIcon className="size-4" /> {t('addNestedField', 'systemSettings')}
-                </button>
-               </div>
-
-               <div className="space-y-4">
-                  {form.groupFields?.map((gf, idx) => (
-                    <div key={gf.fieldId} className="rounded-2xl border border-gray-100 bg-gray-50/30 dark:border-gray-800 dark:bg-gray-800/10">
-                        <div 
-                          className="flex cursor-pointer items-center justify-between p-4"
+                  {t('addNestedField', 'systemSettings')}
+                </Button>
+              </CardToolbar>
+              <div className="space-y-3 p-4">
+                {form.groupFields?.map((gf, idx) => {
+                  const collapsed = collapsedSubFields.has(idx);
+                  return (
+                    <div key={gf.fieldId} className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800">
+                      <div className="flex items-center gap-2 bg-slate-50 px-3 py-2 dark:bg-slate-800/50">
+                        <button
+                          type="button"
                           onClick={() => toggleSubFieldCollapse(idx)}
+                          aria-expanded={!collapsed}
+                          className={`flex min-w-0 flex-1 items-center gap-2 rounded-lg text-start ${focusRing}`}
                         >
-                          <span className="font-bold text-gray-700 dark:text-gray-300">{typeof gf.label === 'string' ? gf.label : ((gf.label as any)?.en || t('unnamedNestedField', 'systemSettings'))} <span className="text-[10px] font-black opacity-50 ml-2 uppercase tracking-widest">{gf.inputType}</span></span>
-                          <div className="flex items-center gap-2">
-                            <button type="button" onClick={(e) => { e.stopPropagation(); handleInputChange("groupFields", form.groupFields?.filter((_, i) => i !== idx)); }} className="p-2 text-gray-400 hover:text-error-600"><TrashBinIcon className="size-4" /></button>
-                            <svg className={`size-5 transform transition-transform ${collapsedSubFields.has(idx) ? "" : "rotate-180"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                          {collapsed ? <ChevronRight className="size-4 shrink-0 text-slate-400 rtl:rotate-180" /> : <ChevronDown className="size-4 shrink-0 text-slate-400" />}
+                          <span className="truncate text-sm font-medium text-slate-900 dark:text-white">
+                            {typeof gf.label === 'string' ? gf.label || t('unnamedNestedField', 'systemSettings') : ((gf.label as any)?.en || t('unnamedNestedField', 'systemSettings'))}
+                          </span>
+                          <Badge tone="slate">{gf.inputType}</Badge>
+                        </button>
+                        <IconButton tone="danger" label={t('delete', 'common')} onClick={() => handleInputChange("groupFields", form.groupFields?.filter((_, i) => i !== idx))}>
+                          <Trash2 className="size-4" />
+                        </IconButton>
+                      </div>
+                      {!collapsed && (
+                        <div className="grid grid-cols-1 gap-3 p-4 md:grid-cols-2">
+                          <input
+                            dir="ltr"
+                            aria-label={t('labelEnPlaceholderShort', 'systemSettings')}
+                            placeholder={t('labelEnPlaceholderShort', 'systemSettings')}
+                            value={typeof gf.label === 'string' ? (gf.label as string) : ((gf.label as any)?.en || '')}
+                            onChange={(e) => updateGroupField(idx, { label: e.target.value })}
+                            className={inputClass}
+                          />
+                          <input
+                            dir="rtl"
+                            aria-label={t('labelArPlaceholderShort', 'systemSettings')}
+                            placeholder={t('labelArPlaceholderShort', 'systemSettings')}
+                            value={typeof gf.label === 'string' ? (gf.labelAr || '') : ((gf.label as any)?.ar || '')}
+                            onChange={(e) => updateGroupField(idx, { labelAr: e.target.value })}
+                            className={inputClass}
+                          />
+                          <select
+                            aria-label={t('dataType', 'systemSettings')}
+                            value={gf.inputType}
+                            onChange={(e) => updateGroupField(idx, { inputType: e.target.value as GroupField['inputType'] })}
+                            className={selectClass}
+                          >
+                            {subFieldTypeOptions.map((o) => (
+                              <option key={o.value} value={o.value}>
+                                {o.label}
+                              </option>
+                            ))}
+                          </select>
+                          <div className="flex items-center justify-between gap-4 rounded-lg border border-slate-200 px-3 py-2 dark:border-slate-800">
+                            <span className="text-sm text-slate-700 dark:text-slate-300">{t('required', 'systemSettings')}</span>
+                            <Switch checked={gf.isRequired} onChange={(val) => updateGroupField(idx, { isRequired: val })} label={t('required', 'systemSettings')} />
                           </div>
                         </div>
-                        {!collapsedSubFields.has(idx) && (
-                          <div className="p-5 pt-0 border-t border-gray-100 dark:border-gray-800 grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 animate-in fade-in">
-                            <Input placeholder={t('labelEnPlaceholderShort', 'systemSettings')} value={typeof gf.label === 'string' ? (gf.label as string) : ((gf.label as any)?.en || '')} onChange={(e: any) => { const next = [...(form.groupFields || [])]; next[idx].label = e.target.value; handleInputChange("groupFields", next); }} />
-                            <Input placeholder={t('labelArPlaceholderShort', 'systemSettings')} value={typeof gf.label === 'string' ? (gf.labelAr || '') : ((gf.label as any)?.ar || '')} onChange={(e: any) => { const next = [...(form.groupFields || [])]; next[idx].labelAr = e.target.value; handleInputChange("groupFields", next); }} className="text-right" />
-                            <Select options={subFieldTypeOptions} value={gf.inputType} onChange={(val: string) => { const next = [...(form.groupFields || [])]; (next[idx].inputType as any) = val; handleInputChange("groupFields", next); }} />
-                            <div className="pt-2"><Switch checked={gf.isRequired} onChange={(val) => { const next = [...(form.groupFields || [])]; next[idx].isRequired = val; handleInputChange("groupFields", next); }} label={t('required', 'systemSettings')} /></div>
-                          </div>
-                        )}
+                      )}
                     </div>
-                  ))}
-               </div>
-            </div>
+                  );
+                })}
+              </div>
+            </Card>
           )}
 
-          <div className="flex justify-end gap-4">
-            <button type="button" onClick={resetForm} className="rounded-2xl bg-white px-8 py-3 text-sm font-bold text-gray-700 shadow-lg dark:bg-gray-800 dark:text-gray-300">{t('cancelButton', 'systemSettings')}</button>
-            <button type="submit" className="rounded-2xl bg-brand-500 px-10 py-3 text-sm font-bold text-white shadow-xl shadow-brand-500/25 hover:bg-brand-600">
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={resetForm}>
+              {t('cancelButton', 'systemSettings')}
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              icon={<Save className="size-4" />}
+              loading={createFieldMutation.isPending || updateFieldMutation.isPending}
+            >
               {editFieldId ? t('saveChanges', 'systemSettings') : t('createPreset', 'systemSettings')}
-            </button>
+            </Button>
           </div>
         </form>
       )}
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {recommendedFields.filter(f => f.fieldId !== isDeletingField).map((f: any) => (
-          <div key={f.fieldId} className="group relative overflow-hidden rounded-[2rem] border border-gray-100 bg-white p-6 shadow-sm transition-all hover:border-brand-200 hover:shadow-xl dark:border-gray-800 dark:bg-gray-950">
-            <div className="flex items-start justify-between">
-              <div className="space-y-4 flex-1">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-xl bg-gray-50 px-2.5 py-1 dark:bg-gray-800">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{f.inputType.replace("_", " ")}</span>
-                  </div>
-                  {f.isRequired && <span className="rounded-full bg-error-50 px-2 py-0.5 text-[10px] font-bold text-error-600 dark:bg-error-500/10">{t('requiredBadge', 'systemSettings')}</span>}
+      {loading ? (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3" aria-busy="true">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="h-32 animate-pulse rounded-2xl border border-slate-200 bg-white motion-reduce:animate-none dark:border-slate-800 dark:bg-slate-900" />
+          ))}
+          <span className="sr-only" role="status">{t('loadingMessage', 'systemSettings')}</span>
+        </div>
+      ) : visibleFields.length === 0 ? (
+        !showForm && (
+          <Card>
+            <EmptyState icon={<Inbox className="size-6" />} title={t('pageTitle', 'systemSettings')} />
+          </Card>
+        )
+      ) : (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {visibleFields.map((f: any) => (
+            <Card key={f.fieldId} className="flex items-start gap-3 p-4 transition hover:border-slate-300 dark:hover:border-slate-700">
+              <div className="min-w-0 flex-1 space-y-2">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <Badge tone="blue">{f.inputType.replace("_", " ")}</Badge>
+                  {f.isRequired && <Badge tone="red">{t('requiredBadge', 'systemSettings')}</Badge>}
                 </div>
                 <div>
-                  <h4 className="text-lg font-black text-gray-900 dark:text-white group-hover:text-brand-600 transition-colors capitalize">{typeof f.label === "string" ? f.label : (f.label?.en || t('unnamedField', 'systemSettings'))}</h4>
-                  <p className="mt-1 text-sm text-gray-400 font-medium" dir="rtl">{typeof f.label === "string" ? f.labelAr : (f.label?.ar || "")}</p>
+                  <h3 className="truncate text-sm font-semibold capitalize text-slate-900 dark:text-white">
+                    {typeof f.label === "string" ? f.label : (f.label?.en || t('unnamedField', 'systemSettings'))}
+                  </h3>
+                  <p className="mt-0.5 truncate text-start text-sm text-slate-500 dark:text-slate-400" dir="rtl">
+                    {typeof f.label === "string" ? f.labelAr : (f.label?.ar || "")}
+                  </p>
                 </div>
-                <div className="flex flex-wrap gap-2 text-[11px] font-bold text-gray-500 uppercase tracking-tighter">
-                  {f.choices?.length > 0 && <span>{t('optionsCount', 'systemSettings', { count: f.choices.length })}</span>}
-                  {f.groupFields?.length > 0 && <span>{t('nestedFieldsCount', 'systemSettings', { count: f.groupFields.length })}</span>}
-                </div>
+                {(f.choices?.length > 0 || f.groupFields?.length > 0) && (
+                  <p className="flex flex-wrap gap-3 text-xs text-slate-500 dark:text-slate-400">
+                    {f.choices?.length > 0 && <span>{t('optionsCount', 'systemSettings', { count: f.choices.length })}</span>}
+                    {f.groupFields?.length > 0 && <span>{t('nestedFieldsCount', 'systemSettings', { count: f.groupFields.length })}</span>}
+                  </p>
+                )}
               </div>
-              
-              <div className="flex flex-col gap-2">
-                <button onClick={() => handleEdit(f)} className="rounded-xl p-2.5 bg-gray-50 text-gray-400 hover:text-brand-600 dark:bg-gray-800"><PencilIcon className="size-5" /></button>
-                <button onClick={() => handleDelete(f.fieldId)} className="rounded-xl p-2.5 bg-gray-50 text-gray-400 hover:text-error-600 dark:bg-gray-800"><TrashBinIcon className="size-5" /></button>
+              <div className="-me-1.5 -mt-1 flex shrink-0">
+                <IconButton label={t('editPresetTitle', 'systemSettings')} onClick={() => handleEdit(f)}>
+                  <Pencil className="size-4" />
+                </IconButton>
+                <IconButton tone="danger" label={t('delete', 'common')} onClick={() => handleDelete(f.fieldId)}>
+                  <Trash2 className="size-4" />
+                </IconButton>
               </div>
-            </div>
-          </div>
-        ))}
-      </div>
-      </div>
-    </div>
+            </Card>
+          ))}
+        </div>
+      )}
+    </PageShell>
   );
 };
 
