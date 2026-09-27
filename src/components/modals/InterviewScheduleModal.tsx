@@ -775,7 +775,7 @@ export default function InterviewScheduleModal(props: Props) {
         <head>
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>${t('scheduleBulkPreviewTitle', 'modals')} - ${recipients.length} Recipients</title>
+          <title>${t('scheduleBulkPreviewTitle', 'modals', { count: recipients.length })}</title>
           <style>
             body { font-family: Arial, sans-serif; padding: 20px; margin: 0; background-color: #f5f5f5; }
             .container { max-width: 700px; margin: 0 auto; }
@@ -1051,6 +1051,9 @@ export default function InterviewScheduleModal(props: Props) {
   const onSubmit = async (e: any) => {
     if (e && typeof e.preventDefault === 'function') e.preventDefault();
 
+    // A typed sender is passed along too: setCustomEmail only takes effect
+    // on the next render, after the submit handler has already run.
+    let senderEmail: string | undefined;
     if (
       notificationChannels.email &&
       emailOption === 'new' &&
@@ -1068,6 +1071,7 @@ export default function InterviewScheduleModal(props: Props) {
 
       // Only used for this send; it isn't added to the company's sender list.
       setCustomEmail(newEmail);
+      senderEmail = newEmail;
     }
 
     if (!interviewForm?.date && !bulkMode) {
@@ -1081,7 +1085,7 @@ export default function InterviewScheduleModal(props: Props) {
     }
 
     try {
-      await handleInterviewSubmit(e);
+      await handleInterviewSubmit(e, { senderEmail });
     } catch (err: any) {
       const msg =
         (err && (err.message || err.response?.data?.message)) ||
@@ -1967,7 +1971,7 @@ export default function InterviewScheduleModal(props: Props) {
               className="flex w-full justify-center rounded-lg border border-stroke px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-strokedark dark:hover:bg-slate-800 sm:w-auto dark:text-slate-200"
             >
               {bulkMode
-                ? t('scheduleBulkPreviewTitle', 'modals')
+                ? t('scheduleBulkPreviewTitle', 'modals', { count: recipients.length })
                 : t('previewEmail', 'modals')}
             </button>
           )}

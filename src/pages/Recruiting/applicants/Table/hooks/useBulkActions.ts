@@ -6,7 +6,15 @@ import { useLocale } from '../../../../../context/LocaleContext';
 import {
   useScheduleBulkInterviews,
   useBatchUpdateApplicantStatus,
+  useSendBatchEmail,
+  useSendMessage,
 } from '../../../../../hooks/queries';
+import {
+  buildInterviewEmailHtml,
+  bulkInterviewStart,
+  fillInterviewTemplate,
+  resolveInterviewSender,
+} from '../utils/interviewEmail';
 
 interface SelectedApplicantForInterview {
   applicantId: string;
@@ -45,6 +53,8 @@ interface UseBulkActionsProps {
   selectedApplicantsForInterview: SelectedApplicantForInterview[];
   selectedApplicantCompanyId: string | null;
   selectedApplicantCompany: any | null;
+  /** Job title for the {{jobTitle}} placeholder in invitation emails. */
+  jobTitleOf?: (jobPositionId?: string) => string;
   onClearSelection?: () => void;
 }
 
@@ -104,7 +114,7 @@ interface UseBulkActionsReturn {
   // Actions
   handleBulkDelete: () => Promise<void>;
   handleBulkStatusChange: (e: React.FormEvent) => Promise<void>;
-  handleBulkInterviewSubmit: (e: React.FormEvent) => Promise<void>;
+  handleBulkInterviewSubmit: (e: React.FormEvent, opts?: { senderEmail?: string }) => Promise<void>;
   handlePreviewBulkInterviews: () => void;
   handleBulkChangeStatus: (action: string) => Promise<void>;
   openBulkInterviewModal: () => Promise<void>;
@@ -120,12 +130,15 @@ export function useBulkActions({
   selectedApplicantsForInterview,
   selectedApplicantCompanyId,
   selectedApplicantCompany,
+  jobTitleOf,
   onClearSelection,
 }: UseBulkActionsProps): UseBulkActionsReturn {
   const { t, locale } = useLocale();
   // Mutations
   const batchUpdateStatusMutation = useBatchUpdateApplicantStatus();
   const scheduleBulkInterviewsMutation = useScheduleBulkInterviews();
+  const sendBatchEmailMutation = useSendBatchEmail();
+  const sendMessageMutation = useSendMessage();
 
   // State
   const [isDeleting, setIsDeleting] = useState(false);
@@ -480,7 +493,7 @@ export function useBulkActions({
       return { error: 'Please select at least one applicant.', items: [] };
     }
 
-    const baseDate = new Date();
+    const baseDate = bulkInterviewStart(bulkInterviewForm.date, bulkInterviewForm.time);
     const items = selectedApplicantsForInterview.map((candidate, index) => {
       const scheduled = new Date(baseDate.getTime() + index * bulkInterviewIntervalMinutes * 60000);
       
@@ -512,7 +525,7 @@ export function useBulkActions({
     });
 
     return { error: '', items };
-  }, [selectedApplicantsForInterview, bulkInterviewIntervalMinutes, bulkInterviewEmailSubject]);
+  }, [selectedApplicantsForInterview, bulkInterviewIntervalMinutes, bulkInterviewEmailSubject, bulkInterviewForm.date, bulkInterviewForm.time, locale]);
 
   // Handle preview bulk interviews
   const handlePreviewBulkInterviews = useCallback(() => {
@@ -528,7 +541,7 @@ export function useBulkActions({
 
   // Handle bulk interview submit
   const handleBulkInterviewSubmit = useCallback(
-    async (e: React.FormEvent) => {
+    async (e: React.FormEvent, opts?: { senderEmail?: string }) => {
       e.preventDefault();
       setBulkInterviewError('');
 
@@ -572,33 +585,81 @@ export function useBulkActions({
           await batchUpdateStatusMutation.mutateAsync(statusUpdates);
         }
 
+        // The interviews are saved; the invitation emails go out next. An
+        // email failure is reported but doesn't undo the scheduling.
         let emailResultNote = '';
-        if (bulkNotificationChannels.email) {
-          const emailableItems = previewItems.filter((item: any) => Boolean(item.to));
-          if (emailableItems.length > 0) {
-            // Nothing is emailed here: this only reports how many applicants have an address.
-            if (missingEmails.length > 0) {
-              emailResultNote = t('emailSentTo', 'applicants', { sent: emailableItems.length, skipped: missingEmails.length });
+        let emailProblem = '';
+        const emailableItems = previewItems.filter((item: any) => Boolean(item.to));
+        if (bulkNotificationChannels.email && emailableItems.length > 0) {
+          const from = resolveInterviewSender(selectedApplicantCompany, opts?.senderEmail || bulkCustomEmail);
+          if (!from) {
+            emailProblem = t('interviewsNoSender', 'applicants');
+          } else {
+            const dateLocale = locale === 'ar' ? 'ar-EG' : 'en-US';
+            const batch = emailableItems.map((item: any) => {
+              const when = new Date(item.scheduledAt);
+              const values = {
+                candidateName: item.applicantName || t('candidate', 'applicantDetails'),
+                jobTitle: jobTitleOf?.(item.jobPositionId) || '',
+                interviewDate: when.toLocaleDateString(dateLocale, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
+                interviewTime: when.toLocaleTimeString(dateLocale, { hour: 'numeric', minute: '2-digit', hour12: true }),
+                interviewType: t(bulkInterviewForm.type || 'phone', 'modals'),
+                location: bulkInterviewForm.link || bulkInterviewForm.location || '',
+                address: bulkInterviewForm.location || '',
+              };
+              const subject = fillInterviewTemplate(bulkInterviewEmailSubject || t('interviewInvitation', 'applicantDetails'), values, false);
+              const body = fillInterviewTemplate(bulkMessageTemplate, values, true);
+              return {
+                to: item.to,
+                from,
+                subject,
+                html: buildInterviewEmailHtml(subject, body),
+                applicant: item.applicantId,
+                jobPosition: item.jobPositionId,
+                company: selectedApplicantCompanyId || item.companyId,
+              };
+            });
+            try {
+              await sendBatchEmailMutation.mutateAsync({
+                company: String(selectedApplicantCompanyId || batch[0].company),
+                batch,
+              });
+              emailResultNote =
+                missingEmails.length > 0
+                  ? t('emailSentTo', 'applicants', { sent: batch.length, skipped: missingEmails.length })
+                  : t('interviewEmailsSent', 'applicants', { count: batch.length });
+              // Log each invitation in the applicant's message history, as the
+              // single-applicant flow does; a failure here isn't worth reporting.
+              await Promise.allSettled(
+                batch.map((email) =>
+                  sendMessageMutation.mutateAsync({ id: email.applicant, data: { type: 'email', content: email.html } })
+                )
+              );
+            } catch (mailErr) {
+              emailProblem = t('interviewsEmailFailed', 'applicants', { msg: getErrorMessage(mailErr) });
             }
           }
         }
 
-        const successMessageBase = t('interviewsScheduledFor', 'applicants', { count: previewItems.length });
-        const successText = emailResultNote ? `${successMessageBase} ${emailResultNote}` : successMessageBase;
-
-        await Swal.fire({
-          title: t('success', 'applicants'),
-          text: successText,
-          icon: 'success',
-          position: 'center',
-          timer: 2000,
-          showConfirmButton: false,
-        });
-
+        // Close the modal first: it sits above SweetAlert and would hide it.
         clearSelection();
         setShowBulkInterviewModal(false);
         setShowBulkInterviewPreviewModal(false);
         resetBulkInterviewModal();
+
+        const successMessageBase = t('interviewsScheduledFor', 'applicants', { count: previewItems.length });
+        if (emailProblem) {
+          await Swal.fire({ title: t('interviewsScheduledNoEmail', 'applicants'), text: emailProblem, icon: 'warning' });
+        } else {
+          await Swal.fire({
+            title: t('success', 'applicants'),
+            text: emailResultNote ? `${successMessageBase} ${emailResultNote}` : successMessageBase,
+            icon: 'success',
+            position: 'center',
+            timer: 2500,
+            showConfirmButton: false,
+          });
+        }
       } catch (err: any) {
         setBulkInterviewError(getErrorMessage(err));
       } finally {
@@ -609,8 +670,18 @@ export function useBulkActions({
       buildBulkInterviewPreview,
       bulkInterviewForm,
       bulkNotificationChannels,
+      bulkCustomEmail,
+      bulkMessageTemplate,
+      bulkInterviewEmailSubject,
+      selectedApplicantCompany,
+      selectedApplicantCompanyId,
+      jobTitleOf,
+      locale,
+      t,
       scheduleBulkInterviewsMutation,
       batchUpdateStatusMutation,
+      sendBatchEmailMutation,
+      sendMessageMutation,
       clearSelection,
       resetBulkInterviewModal,
     ]
