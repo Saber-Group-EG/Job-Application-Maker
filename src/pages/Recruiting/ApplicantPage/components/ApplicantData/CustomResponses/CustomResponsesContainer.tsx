@@ -1,4 +1,3 @@
-// ApplicantData/CustomResponse/CustomResponsesContainer.tsx
 import React from 'react';
 import { useCustomResponses } from './Usecustomresponses';
 import { CustomResponsesView } from './CustomResponsesView';

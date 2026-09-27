@@ -1,4 +1,3 @@
-// Components/QuestionItems/DateItem.tsx
 import React from 'react';
 import type { DateQuestion } from '../../../../../../../types/applicants';
 import type { QuestionHandlers } from './types';
