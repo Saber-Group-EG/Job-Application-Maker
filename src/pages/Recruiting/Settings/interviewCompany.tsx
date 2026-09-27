@@ -1278,28 +1278,13 @@ export default function InterviewCompanySettingsPage() {
         data: { interviewSettings: { groups: serverGroups } } as any,
       });
 
-    updateInterviewMutation.mutateAsync({
-      settingsId,
-      companyId: effectiveCompanyId,
-      data: { interviewSettings: { groups: serverGroups } } as any,
-    }).then(() => {
       Swal.fire({
         title: t('commonSaved', 'settings'),
         icon: 'success',
         timer: 1200,
         showConfirmButton: false,
       });
-    }).catch((error: any) => {
-      setGroups(prev => prev === optimisticGroups ? normalizeGroups(derivedInterviewSettings?.groups).map((g, i) => ({ ...g, _id: prev[i]?._id ?? uid() })) as (InterviewGroup & { _id: string })[] : prev);
-      Swal.fire(
-        t('interviewCompany.swalSaveFailed', 'settings'),
-        error?.message || t('interviewCompany.swalSaveFailedMsg', 'settings'),
-        'error'
-      );
-    }).finally(() => {
-      setIsSaving(false);
-    });
-  } catch (error: any) {
+    } catch (error: any) {
       setGroups(prev => prev === optimisticGroups ? normalizeGroups(derivedInterviewSettings?.groups).map((g, i) => ({ ...g, _id: prev[i]?._id ?? uid() })) as (InterviewGroup & { _id: string })[] : prev);
       Swal.fire(
         t('interviewCompany.swalSaveFailed', 'settings'),
