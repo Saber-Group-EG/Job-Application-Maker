@@ -58,6 +58,7 @@
   "featureCvParse": "تحليل السيرة الذاتية",
   "emailTypePersonalGmail": "Gmail فقط (مجاني)",
   "emailTypeCustomDomain": "دومين خاص + Gmail",
+  "sendReceiveDisabled": "معطّل",
   "sendReceiveSendOnly": "إرسال فقط",
   "sendReceiveSendReceive": "إرسال واستقبال الردود"
 }
