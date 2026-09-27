@@ -58,7 +58,9 @@ class DepartmentsService {
     const normalizedIds = this.normalizeCompanyIds(companyId);
     
     const fetchOne = async (singleCompanyId?: string): Promise<Department[]> => {
-      const params: any = { deleted: "false" };
+      // The API pages at 10 by default; without this, companies past the
+      // first page of departments see an empty or partial list.
+      const params: any = { deleted: "false", PageCount: "all" };
       if (singleCompanyId) params.companyId = singleCompanyId;
       const response = await this.request<any>('get', "/departments", undefined, params);
       return this.extractDepartments(response);
