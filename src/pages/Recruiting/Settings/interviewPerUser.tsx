@@ -5,13 +5,24 @@ import {
 	PlusCircle,
 	Save,
 	Trash2,
-	ArrowRight,
 	CircleCheckBig,
-	LibraryBig,
+	Loader2,
+	X,
 } from "lucide-react";
 import Swal from "../../../utils/swal";
 import PageMeta from "../../../components/common/PageMeta";
-import PageBreadCrumb from "../../../components/common/PageBreadCrumb";
+import {
+	Button,
+	Card,
+	CardToolbar,
+	EmptyState,
+	PageShell,
+	SectionTitle,
+	focusRing,
+	inputClass,
+	selectClass,
+} from "../../../components/ui/kit";
+import { StatStrip } from "./components/SettingsSection";
 import {
 	useDeleteSavedQuestionGroup,
 	useSavedQuestionGroups,
@@ -319,130 +330,76 @@ export default function SavedQuestionsPage() {
 	};
 
 	return (
-		<div className="min-h-screen bg-slate-50 p-4 text-slate-900 dark:bg-slate-950 dark:text-slate-100 sm:p-8">
+		<PageShell
+			title={t('interviewPerUser.title', 'settings')}
+			subtitle={t('interviewPerUser.description', 'settings')}
+			actions={
+				<Button variant="primary" icon={<Save className="size-4" />} loading={isSaving} disabled={isLoading} onClick={handleSaveAll}>
+					{t('interviewPerUser.saveAll', 'settings')}
+				</Button>
+			}
+		>
 			<PageMeta
 				title={t('interviewPerUser.pageMetaTitle', 'settings')}
 				description={t('interviewPerUser.pageMetaDesc', 'settings')}
 			/>
 
-			<div className="mx-auto max-w-7xl space-y-6">
-				<PageBreadCrumb pageTitle={t('interviewPerUser.pageBreadcrumb', 'settings')} />
-				<div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-					<div className="flex flex-col gap-5 border-b border-slate-200 px-6 py-6 dark:border-slate-800 md:flex-row md:items-center md:justify-between">
-						<div className="flex items-start gap-4">
-							<div className="flex size-12 items-center justify-center rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400">
-								<LibraryBig className="size-6" />
-							</div>
-							<div>
-								<p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600/80 dark:text-brand-300">
-									{t('interviewPerUser.sectionTitle', 'settings')}
-								</p>
-								<h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
-									{t('interviewPerUser.title', 'settings')}
-								</h1>
-								<p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-									{t('interviewPerUser.description', 'settings')}
-								</p>
-							</div>
-						</div>
-						<button
-							onClick={handleSaveAll}
-							disabled={isSaving || isLoading}
-							className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
-						>
-							{isSaving ? (
-								<div className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-							) : (
-								<Save className="size-4" />
-							)}
-							{t('interviewPerUser.saveAll', 'settings')}
-							<ArrowRight className="size-4" />
-						</button>
-					</div>
+			<Card>
+				<StatStrip
+					stats={[
+						{ label: t('interviewPerUser.statQuestionGroups', 'settings'), value: groups.length },
+						{ label: t('interviewPerUser.statTotalQuestions', 'settings'), value: totalQuestions },
+						{
+							label: t('interviewPerUser.statSaveStatus', 'settings'),
+							value: (
+								<>
+									<CircleCheckBig className="size-4" /> {t('interviewPerUser.statReady', 'settings')}
+								</>
+							),
+							tone: 'success',
+						},
+					]}
+				/>
+			</Card>
 
-					<div className="grid grid-cols-1 gap-4 p-6 md:grid-cols-3">
-						<div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/60">
-							<p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-								{t('interviewPerUser.statQuestionGroups', 'settings')}
-							</p>
-							<p className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
-								{groups.length}
-							</p>
+				<Card>
+					<CardToolbar>
+						<div>
+							<SectionTitle icon={<ClipboardList className="size-4" />}>{t('interviewPerUser.groupsSectionTitle', 'settings')}</SectionTitle>
+							<p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{t('interviewPerUser.groupsSectionDesc', 'settings')}</p>
 						</div>
-						<div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/60">
-							<p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-								{t('interviewPerUser.statTotalQuestions', 'settings')}
-							</p>
-							<p className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
-								{totalQuestions}
-							</p>
-						</div>
-						<div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/60">
-							<p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-								{t('interviewPerUser.statSaveStatus', 'settings')}
-							</p>
-							<p className="mt-1 inline-flex items-center gap-2 text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-								<CircleCheckBig className="size-4" /> {t('interviewPerUser.statReady', 'settings')}
-							</p>
-						</div>
-					</div>
-				</div>
+						<Button variant="primary" icon={<PlusCircle className="size-4" />} onClick={addGroup} disabled={isLoading}>
+							{t('interviewPerUser.addGroup', 'settings')}
+						</Button>
+					</CardToolbar>
 
-				<div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-					<div className="flex flex-col gap-3 border-b border-slate-200 p-6 dark:border-slate-800 sm:flex-row sm:items-start sm:justify-between">
-						<div className="flex items-center gap-3">
-							<div className="flex size-11 items-center justify-center rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400">
-								<ClipboardList className="size-6" />
-							</div>
-							<div>
-								<h2 className="text-xl font-semibold tracking-tight">{t('interviewPerUser.groupsSectionTitle', 'settings')}</h2>
-								<p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-									{t('interviewPerUser.groupsSectionDesc', 'settings')}
-								</p>
-							</div>
-						</div>
-
-						<button
-							type="button"
-							onClick={addGroup}
-							disabled={isLoading}
-							className="inline-flex items-center gap-2 self-start rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
-						>
-							<PlusCircle className="size-4" /> {t('interviewPerUser.addGroup', 'settings')}
-						</button>
-					</div>
-
-					<div className="space-y-5 p-6">
+					<div className="space-y-4 p-4">
 						{isLoading && (
-							<div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
+							<div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400" role="status">
+								<Loader2 className="size-4 animate-spin" />
 								{t('interviewPerUser.loading', 'settings')}
 							</div>
 						)}
 
 						{!isLoading && groups.length === 0 && (
-							<div className="rounded-xl border border-dashed border-slate-300 px-6 py-10 text-center dark:border-slate-700">
-								<ClipboardList className="mx-auto mb-3 size-10 text-slate-300 dark:text-slate-600" />
-								<p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-									{t('interviewPerUser.emptyState', 'settings')}
-								</p>
-							</div>
+							<EmptyState icon={<ClipboardList className="size-6" />} title={t('interviewPerUser.emptyState', 'settings')} />
 						)}
 
 						{groups.map((group, groupIndex) => (
 							<div
 								key={`${group.name}-${groupIndex}`}
-								className="rounded-xl border border-slate-200 p-4 dark:border-slate-700"
+								className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-700 dark:bg-slate-800/30"
 							>
 								<div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 									<div className="flex-1">
-										<label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+										<label className="mb-1.5 block text-xs font-medium text-slate-500 dark:text-slate-400">
 											{t('interviewPerUser.labelGroupName', 'settings')}
 										</label>
 										<input
 											value={group.name}
 											onChange={(e) => updateGroupName(groupIndex, e.target.value)}
 											placeholder={t('interviewPerUser.groupNamePlaceholder', 'settings')}
-											className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800"
+											className={inputClass}
 										/>
 									</div>
 
@@ -459,10 +416,10 @@ export default function SavedQuestionsPage() {
 									{group.questions.map((question, questionIndex) => (
 										<div
 											key={`${groupIndex}-${questionIndex}`}
-											className="grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/60 lg:grid-cols-[1fr_170px_120px_auto]"
+											className="grid grid-cols-1 gap-3 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900 lg:grid-cols-[1fr_170px_120px_auto]"
 										>
 											<div>
-												<label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+												<label className="mb-1.5 block text-xs font-medium text-slate-500 dark:text-slate-400">
 													{t('interviewPerUser.labelQuestion', 'settings')}
 												</label>
 												<input
@@ -473,12 +430,12 @@ export default function SavedQuestionsPage() {
 														})
 													}
 													placeholder={t('interviewPerUser.questionPlaceholder', 'settings')}
-													className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-900"
+													className={inputClass}
 												/>
 											</div>
 
 											<div>
-												<label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+												<label className="mb-1.5 block text-xs font-medium text-slate-500 dark:text-slate-400">
 													{t('interviewPerUser.labelAnswerType', 'settings')}
 												</label>
 												<select
@@ -488,7 +445,7 @@ export default function SavedQuestionsPage() {
 																answerType: e.target.value as SavedQuestionAnswerType,
 														})
 													}
-													className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-900"
+													className={selectClass}
 												>
 													{ANSWER_TYPES.map((type) => (
 														<option key={type} value={type}>
@@ -499,7 +456,7 @@ export default function SavedQuestionsPage() {
 											</div>
 
 											<div>
-												<label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+												<label className="mb-1.5 block text-xs font-medium text-slate-500 dark:text-slate-400">
 													{t('interviewPerUser.labelScore', 'settings')}
 												</label>
 												<input
@@ -528,7 +485,7 @@ export default function SavedQuestionsPage() {
 															updateQuestion(groupIndex, questionIndex, { score: 0 });
 														}
 													}}
-													className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-900"
+													className={inputClass}
 												/>
 											</div>
 
@@ -544,7 +501,7 @@ export default function SavedQuestionsPage() {
 
 											{(question.answerType === 'radio' || question.answerType === 'dropdown' || question.answerType === 'checkbox') && (
 												<div className="lg:col-span-4">
-													<label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+													<label className="mb-1.5 block text-xs font-medium text-slate-500 dark:text-slate-400">
 														{t('interviewPerUser.labelChoices', 'settings')}
 													</label>
 													<div className="space-y-2">
@@ -577,12 +534,10 @@ export default function SavedQuestionsPage() {
 																			const next = existing.filter((_: any, idx: number) => idx !== i);
 																			updateQuestion(groupIndex, questionIndex, { choices: next });
 																		}}
-																		className="cursor-pointer p-1 text-gray-400 hover:text-red-500"
+																		className={`rounded p-1 text-slate-400 transition hover:text-rose-500 ${focusRing}`}
 																		aria-label={t('interviewPerUser.removeChoice', 'settings', { value: label })}
 																	>
-																		<svg className="fill-current" width="14" height="14" viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg">
-																			<path fillRule="evenodd" clipRule="evenodd" d="M3.40717 4.46881C3.11428 4.17591 3.11428 3.70104 3.40717 3.40815C3.70006 3.11525 4.17494 3.11525 4.46783 3.40815L6.99943 5.93975L9.53095 3.40822C9.82385 3.11533 10.2987 3.11533 10.5916 3.40822C10.8845 3.70112 10.8845 4.17599 10.5916 4.46888L8.06009 7.00041L10.5916 9.53193C10.8845 9.82482 10.8845 10.2997 10.5916 10.5926C10.2987 10.8855 9.82385 10.8855 9.53095 10.5926L6.99943 8.06107L4.46783 10.5927C4.17494 10.8856 3.70006 10.8856 3.40717 10.5927C3.11428 10.2998 3.11428 9.8249 3.40717 9.53201L5.93877 7.00041L3.40717 4.46881Z" />
-																		</svg>
+																		<X className="size-3.5" />
 																	</button>
 																</div>
 															);
@@ -610,7 +565,7 @@ export default function SavedQuestionsPage() {
 																}
 															}}
 															placeholder={t('interviewPerUser.choicePlaceholder', 'settings')}
-															className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-900"
+															className={`${inputClass} flex-1`}
 														/>
 														<input
 															type="text"
@@ -636,22 +591,23 @@ export default function SavedQuestionsPage() {
 																	setScoreBuffers((prev) => ({ ...prev, [scoreKey]: '' }));
 																}
 															}}
-															placeholder="Score"
-															className="w-20 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-center outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-900"
+															placeholder={t('interviewPerUser.labelScore', 'settings')}
+															aria-label={t('interviewPerUser.labelScore', 'settings')}
+															className={`${inputClass} w-20 text-center tabular-nums`}
 														/>
 													</div>
 												</div>
 											)}
 
 											<div className="lg:col-span-4">
-												<label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+												<label className="mb-1.5 block text-xs font-medium text-slate-500 dark:text-slate-400">
 													{t('interviewPerUser.labelTags', 'settings')}
 												</label>
-												<div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white p-2 dark:border-slate-700 dark:bg-slate-900">
+												<div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-300 bg-white px-2 py-1.5 focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-500/20 dark:border-slate-700 dark:bg-slate-900">
 													{(Array.isArray(question.tags) ? question.tags : []).map((tag: string, i: number) => (
 														<span
 															key={`${tag}_${i}`}
-															className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-700 dark:bg-brand-500/10 dark:text-brand-300"
+															className="inline-flex items-center gap-1 rounded-md bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-500/15 dark:text-brand-300"
 														>
 															{tag}
 															<button
@@ -661,12 +617,10 @@ export default function SavedQuestionsPage() {
 																	const next = existing.filter((_: string, idx: number) => idx !== i);
 																	updateQuestion(groupIndex, questionIndex, { tags: next });
 																}}
-																className="cursor-pointer text-brand-500 hover:text-red-500"
+																className={`rounded text-brand-500 transition hover:text-rose-500 ${focusRing}`}
 																aria-label={t('interviewPerUser.removeTag', 'settings', { value: tag })}
 															>
-																<svg className="fill-current" width="12" height="12" viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg">
-																	<path fillRule="evenodd" clipRule="evenodd" d="M3.40717 4.46881C3.11428 4.17591 3.11428 3.70104 3.40717 3.40815C3.70006 3.11525 4.17494 3.11525 4.46783 3.40815L6.99943 5.93975L9.53095 3.40822C9.82385 3.11533 10.2987 3.11533 10.5916 3.40822C10.8845 3.70112 10.8845 4.17599 10.5916 4.46888L8.06009 7.00041L10.5916 9.53193C10.8845 9.82482 10.8845 10.2997 10.5916 10.5926C10.2987 10.8855 9.82385 10.8855 9.53095 10.5926L6.99943 8.06107L4.46783 10.5927C4.17494 10.8856 3.70006 10.8856 3.40717 10.5927C3.11428 10.2998 3.11428 9.8249 3.40717 9.53201L5.93877 7.00041L3.40717 4.46881Z" />
-																</svg>
+																<X className="size-3.5" />
 															</button>
 														</span>
 													))}
@@ -705,19 +659,14 @@ export default function SavedQuestionsPage() {
 										</div>
 									))}
 
-									<button
-										type="button"
-										onClick={() => addQuestion(groupIndex)}
-										className="inline-flex items-center gap-2 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-sm font-semibold text-brand-700 transition hover:bg-brand-100 dark:border-brand-500/30 dark:bg-brand-500/10 dark:text-brand-300"
-									>
-										<PlusCircle className="size-4" /> {t('interviewPerUser.addQuestion', 'settings')}
-									</button>
+									<Button size="sm" icon={<PlusCircle className="size-4" />} onClick={() => addQuestion(groupIndex)}>
+										{t('interviewPerUser.addQuestion', 'settings')}
+									</Button>
 								</div>
 							</div>
 						))}
 					</div>
-				</div>
-			</div>
-		</div>
+				</Card>
+		</PageShell>
 	);
 }

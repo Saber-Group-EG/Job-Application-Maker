@@ -12,6 +12,8 @@ import {
   Copy,
   Loader2,
   RotateCcw,
+  ShieldAlert,
+  X,
 } from 'lucide-react';
 import { useLocale } from '../../../context/LocaleContext';
 
@@ -576,11 +578,13 @@ export function Switch({
   onChange,
   id,
   label,
+  disabled,
 }: {
   checked: boolean;
   onChange: (next: boolean) => void;
   id?: string;
   label: string;
+  disabled?: boolean;
 }) {
   return (
     <button
@@ -589,8 +593,9 @@ export function Switch({
       role="switch"
       aria-checked={checked}
       aria-label={label}
+      disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition ${focusRing} ${
+      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-50 ${focusRing} ${
         checked ? 'bg-brand-500' : 'bg-slate-300 dark:bg-slate-700'
       }`}
     >
@@ -600,5 +605,131 @@ export function Switch({
         }`}
       />
     </button>
+  );
+}
+
+// Page-level tabs: underlined, scrolls sideways when there are many.
+export function TabBar<T extends string>({
+  tabs,
+  value,
+  onChange,
+  ariaLabel,
+}: {
+  tabs: Array<{ value: T; label: ReactNode; icon?: ReactNode }>;
+  value: T;
+  onChange: (value: T) => void;
+  ariaLabel: string;
+}) {
+  return (
+    <div role="tablist" aria-label={ariaLabel} className="flex gap-1 overflow-x-auto border-b border-slate-200 px-2 dark:border-slate-800">
+      {tabs.map((tab) => {
+        const selected = tab.value === value;
+        return (
+          <button
+            key={tab.value}
+            type="button"
+            role="tab"
+            aria-selected={selected}
+            onClick={() => onChange(tab.value)}
+            className={`-mb-px inline-flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-3 py-3 text-sm font-medium transition ${focusRing} ${
+              selected
+                ? 'border-brand-500 text-brand-600 dark:text-brand-400'
+                : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+            }`}
+          >
+            {tab.icon}
+            {tab.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// Full-card notice for pages the user can't open.
+export function NoAccess({ title, text }: { title: ReactNode; text?: ReactNode }) {
+  return (
+    <div className="min-h-screen bg-slate-50 px-4 py-10 dark:bg-slate-950">
+      <Card className="mx-auto max-w-lg">
+        <div className="flex flex-col items-center px-6 py-12 text-center">
+          <div className="flex size-12 items-center justify-center rounded-full bg-rose-50 text-rose-500 dark:bg-rose-500/10">
+            <ShieldAlert className="size-6" />
+          </div>
+          <h2 className="mt-4 text-base font-semibold text-slate-900 dark:text-white">{title}</h2>
+          {text && <p className="mt-1 max-w-sm text-sm text-slate-500 dark:text-slate-400">{text}</p>}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+export const textareaClass = `${inputClass} min-h-[5rem] resize-y`;
+
+// Modal dialog in the kit style: title bar with a close button, scrolling
+// body, optional footer for actions. Escape and the backdrop close it.
+export function Dialog({
+  open,
+  onClose,
+  title,
+  description,
+  footer,
+  size = 'md',
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: ReactNode;
+  description?: ReactNode;
+  footer?: ReactNode;
+  size?: 'sm' | 'md' | 'lg' | 'xl';
+  children: ReactNode;
+}) {
+  const { t } = useLocale();
+  const titleId = useRef(`dlg-${Math.random().toString(36).slice(2, 9)}`).current;
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCloseRef.current();
+    };
+    document.addEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [open]);
+
+  if (!open) return null;
+  const widths = { sm: 'max-w-md', md: 'max-w-xl', lg: 'max-w-3xl', xl: 'max-w-5xl' };
+  return (
+    <div className="fixed inset-0 z-99999 flex items-center justify-center p-4">
+      <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm dark:bg-black/60" onClick={onClose} aria-hidden="true" />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className={`relative flex max-h-[90vh] w-full ${widths[size]} flex-col rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-xl dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100`}
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4 dark:border-slate-800">
+          <div className="min-w-0">
+            <h2 id={titleId} className="text-base font-semibold text-slate-900 dark:text-white">{title}</h2>
+            {description && <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{description}</p>}
+          </div>
+          <IconButton label={t('close', 'common')} onClick={onClose} className="-me-1.5 -mt-1">
+            <X className="size-4" />
+          </IconButton>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        {footer && (
+          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 px-5 py-3 dark:border-slate-800">
+            {footer}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

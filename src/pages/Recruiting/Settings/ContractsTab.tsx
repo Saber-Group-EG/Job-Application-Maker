@@ -2,9 +2,6 @@ import { useMemo, useState } from 'react';
 import {
   FileSignature,
   PlusCircle,
-  Copy,
-  Trash2,
-  Pencil,
   DollarSign,
   Calendar,
   Gift,
@@ -23,6 +20,10 @@ import type {
   ContractType,
 } from '../../../services/contractsService';
 import JobContractModal from '../../../components/modals/ContractModal/ContractModal';
+import { Button } from '../../../components/ui/kit';
+import type { BadgeTone } from '../../../components/ui/kit';
+import SettingsSection from './components/SettingsSection';
+import { TemplateCard as TemplateTile, TemplateGrid } from './components/TemplateLibrary';
 import SectionTemplatesPanel from '../../../components/settings/SectionTemplatesPanel';
 import {
   useCompanies,
@@ -32,15 +33,11 @@ import type { SectionTemplate } from '../../../types/companies';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const CONTRACT_TYPE_COLORS: Record<ContractType, string> = {
-  permanent:
-    'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400',
-  'fixed-term':
-    'bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400',
-  freelance:
-    'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400',
-  probation:
-    'bg-violet-100 text-violet-700 dark:bg-violet-500/10 dark:text-violet-400',
+const CONTRACT_TYPE_TONES: Record<ContractType, BadgeTone> = {
+  permanent: 'green',
+  'fixed-term': 'blue',
+  freelance: 'amber',
+  probation: 'slate',
 };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -74,83 +71,33 @@ function TemplateCard({
     probation: t('contracts.probation', 'settings'),
   };
   return (
-    <div className="group flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-5 transition hover:border-slate-300 hover:shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-600">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-bold text-slate-900 dark:text-slate-100">
-            {locale === 'ar' ? (contract.position?.ar || contract.position?.en || t('contracts.untitled', 'settings')) : (contract.position?.en || contract.position?.ar || t('contracts.untitled', 'settings'))}
-          </p>
-          <span
-            className={`mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${CONTRACT_TYPE_COLORS[contract.contractType]}`}
-          >
-            {typeLabels[contract.contractType] ?? contract.contractType}
-          </span>
-        </div>
-
-        {canEdit && (
-          <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 [@media(pointer:coarse)]:opacity-100">
-            <button
-              type="button"
-              title={t('contracts.edit', 'settings')}
-              onClick={() => onEdit(contract)}
-              className="flex size-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-brand-50 hover:text-brand-600 dark:border-slate-700 dark:hover:bg-brand-500/10 dark:hover:text-brand-400"
-            >
-              <Pencil className="size-3.5" />
-            </button>
-            <button
-              type="button"
-              title={t('contracts.clone', 'settings')}
-              onClick={() => onClone(contract._id)}
-              className="flex size-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-emerald-50 hover:text-emerald-600 dark:border-slate-700 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-400"
-            >
-              <Copy className="size-3.5" />
-            </button>
-            <button
-              type="button"
-              title={t('contracts.delete', 'settings')}
-              onClick={() => onDelete(contract._id)}
-              className="flex size-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-red-50 hover:text-red-600 dark:border-slate-700 dark:hover:bg-red-500/10 dark:hover:text-red-400"
-            >
-              <Trash2 className="size-3.5" />
-            </button>
-          </div>
-        )}
-      </div>
-
-      <div className="flex flex-wrap gap-x-4 gap-y-2">
-        {contract.salary.basic != null && (
-          <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-            <DollarSign className="size-3.5 shrink-0" />
-            <span>
-              {contract.salary.basic.toLocaleString()}{' '}
-              {contract.salary.currency}
-            </span>
-          </div>
-        )}
-        {contract.probationPeriod != null && (
-          <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-            <Calendar className="size-3.5 shrink-0" />
-            <span>{t('contracts.probationPeriod', 'settings', { months: contract.probationPeriod })}</span>
-          </div>
-        )}
-        {contract.benefits.length > 0 && (
-          <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-            <Gift className="size-3.5 shrink-0" />
-            <span>
-              {t('contracts.benefitsCount', 'settings', { count: contract.benefits.length })}
-            </span>
-          </div>
-        )}
-        {contract.sections.length > 0 && (
-          <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-            <FileText className="size-3.5 shrink-0" />
-            <span>
-              {t('contracts.sectionsCount', 'settings', { count: contract.sections.length })}
-            </span>
-          </div>
-        )}
-      </div>
-    </div>
+    <TemplateTile
+      title={locale === 'ar' ? (contract.position?.ar || contract.position?.en || t('contracts.untitled', 'settings')) : (contract.position?.en || contract.position?.ar || t('contracts.untitled', 'settings'))}
+      badge={{ tone: CONTRACT_TYPE_TONES[contract.contractType] ?? 'slate', label: typeLabels[contract.contractType] ?? contract.contractType }}
+      meta={[
+        contract.salary.basic != null && {
+          icon: <DollarSign className="size-3.5" />,
+          label: `${contract.salary.basic.toLocaleString()} ${contract.salary.currency}`,
+        },
+        contract.probationPeriod != null && {
+          icon: <Calendar className="size-3.5" />,
+          label: t('contracts.probationPeriod', 'settings', { months: contract.probationPeriod }),
+        },
+        contract.benefits.length > 0 && {
+          icon: <Gift className="size-3.5" />,
+          label: t('contracts.benefitsCount', 'settings', { count: contract.benefits.length }),
+        },
+        contract.sections.length > 0 && {
+          icon: <FileText className="size-3.5" />,
+          label: t('contracts.sectionsCount', 'settings', { count: contract.sections.length }),
+        },
+      ]}
+      canEdit={canEdit}
+      labels={{ edit: t('contracts.edit', 'settings'), clone: t('contracts.clone', 'settings'), delete: t('contracts.delete', 'settings') }}
+      onEdit={() => onEdit(contract)}
+      onClone={() => onClone(contract._id)}
+      onDelete={() => onDelete(contract._id)}
+    />
   );
 }
 
@@ -231,107 +178,45 @@ export default function ContractTemplatesTab({
   const withSections = templates.filter((t) => t.sections.length > 0).length;
 
   return (
-    <div className={embedded ? 'space-y-6' : 'space-y-6 p-6'}>
-      {/* ── Header card ─────────────────────────────────────────────────────── */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex flex-col gap-4 border-b border-slate-200 px-6 py-6 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex size-11 items-center justify-center rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400">
-              <FileSignature className="size-6" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-                {t('contracts.title', 'settings')}
-              </h2>
-              <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-                {t('contracts.description', 'settings')}
-              </p>
-            </div>
-          </div>
-          {canEdit && (
-            <button
-              type="button"
-              onClick={openCreate}
-              className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-600"
-            >
-              <PlusCircle className="size-4" /> {t('contracts.newTemplate', 'settings')}
-            </button>
-          )}
-        </div>
+    <SettingsSection
+      embedded={embedded}
+      icon={<FileSignature className="size-4" />}
+      title={t('contracts.title', 'settings')}
+      description={t('contracts.description', 'settings')}
+      actions={
+        canEdit && (
+          <Button variant="primary" icon={<PlusCircle className="size-4" />} onClick={openCreate}>
+            {t('contracts.newTemplate', 'settings')}
+          </Button>
+        )
+      }
+      stats={[
+        { label: t('contracts.totalTemplates', 'settings'), value: templates.length },
+        { label: t('contracts.withBenefits', 'settings'), value: withBenefits },
+        { label: t('contracts.withSections', 'settings'), value: withSections },
+      ]}
+    >
+      <TemplateGrid
+        isLoading={isLoading}
+        isEmpty={templates.length === 0}
+        emptyIcon={<FileSignature className="size-6" />}
+        emptyTitle={t('contracts.emptyStateTitle', 'settings')}
+        emptyText={t('contracts.emptyStateDesc', 'settings')}
+        createLabel={t('contracts.createFirst', 'settings')}
+        onCreate={canEdit ? openCreate : undefined}
+      >
+        {templates.map((contract) => (
+          <TemplateCard
+            key={contract._id}
+            contract={contract}
+            canEdit={canEdit}
+            onEdit={openEdit}
+            onClone={handleClone}
+            onDelete={handleDelete}
+          />
+        ))}
+      </TemplateGrid>
 
-        <div className="grid grid-cols-2 divide-x divide-slate-200 dark:divide-slate-800 sm:grid-cols-3">
-          <div className="px-6 py-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-              {t('contracts.totalTemplates', 'settings')}
-            </p>
-            <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100">
-              {templates.length}
-            </p>
-          </div>
-          <div className="px-6 py-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-              {t('contracts.withBenefits', 'settings')}
-            </p>
-            <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100">
-              {withBenefits}
-            </p>
-          </div>
-          <div className="hidden px-6 py-4 sm:block">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-              {t('contracts.withSections', 'settings')}
-            </p>
-            <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100">
-              {withSections}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Templates grid ──────────────────────────────────────────────────── */}
-      {isLoading ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {[...Array(3)].map((_, i) => (
-            <div
-              key={i}
-              className="h-32 animate-pulse rounded-xl border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-800"
-            />
-          ))}
-        </div>
-      ) : templates.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 py-16 text-center dark:border-slate-700">
-          <FileSignature className="mb-3 size-12 text-slate-300 dark:text-slate-600" />
-          <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">
-            {t('contracts.emptyStateTitle', 'settings')}
-          </p>
-          <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
-            {t('contracts.emptyStateDesc', 'settings')}
-          </p>
-          {canEdit && (
-            <button
-              type="button"
-              onClick={openCreate}
-              className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-600"
-            >
-              <PlusCircle className="size-4" /> {t('contracts.createFirst', 'settings')}
-            </button>
-          )}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {templates.map((contract) => (
-            <TemplateCard
-              key={contract._id}
-              contract={contract}
-              canEdit={canEdit}
-              onEdit={openEdit}
-              onClone={handleClone}
-              onDelete={handleDelete}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* ── Section Templates Panel ──────────────────────────────────────────── */}
       <SectionTemplatesPanel
         type="contract"
         settingsId={settingsId}
@@ -342,7 +227,6 @@ export default function ContractTemplatesTab({
         isSaving={updateContractSections.isPending}
       />
 
-      {/* ── Drawer ──────────────────────────────────────────────────────────── */}
       {companyId && (
         <JobContractModal
           isOpen={drawerOpen}
@@ -352,6 +236,6 @@ export default function ContractTemplatesTab({
           editing={editingContract}
         />
       )}
-    </div>
+    </SettingsSection>
   );
 }

@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
-import { PlusCircle, Save, Trash2, ArrowRight, Settings, GripVertical } from 'lucide-react';
+import { Eye, GripVertical, Lock, PlusCircle, Save, Settings, Trash2 } from 'lucide-react';
 import Swal from '../../../utils/swal';
 import { useLocale } from '../../../context/LocaleContext';
-import PageMeta from '../../../components/common/PageMeta';
-import PageBreadCrumb from '../../../components/common/PageBreadCrumb';
+import { Button, Card, CardToolbar, IconButton, SectionTitle, focusRing } from '../../../components/ui/kit';
+import SettingsSection from './components/SettingsSection';
 import { useAuth } from '../../../context/AuthContext';
 import {
   useCompanies,
@@ -194,40 +194,45 @@ function SortableStatusItem({
     <div
       ref={setNodeRef}
       style={style}
-      className={`group flex flex-col gap-3 rounded-xl border p-4 transition-shadow duration-200 md:flex-row md:items-center md:justify-between ${
+      className={`group flex flex-col gap-3 rounded-xl border p-3 transition-shadow duration-200 md:flex-row md:items-center ${
         status.isDefault
           ? 'border-brand-300 bg-brand-50/60 dark:border-brand-500/40 dark:bg-brand-500/10'
-          : 'border-slate-200 bg-white hover:shadow-sm dark:border-slate-700 dark:bg-slate-900'
-      } ${isLocked ? 'border-l-4 border-l-amber-500' : ''} ${
-        isDragging ? 'shadow-lg ring-2 ring-brand-500' : ''
-      }`}
+          : 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900'
+      } ${isDragging ? 'shadow-lg ring-2 ring-brand-500' : ''}`}
     >
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <div
           {...attributes}
           {...listeners}
-          className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
+          className={`flex size-8 shrink-0 touch-none items-center justify-center rounded-lg transition-colors ${focusRing} ${
             !isLocked && canEdit
-              ? 'cursor-grab hover:bg-slate-100 active:cursor-grabbing dark:hover:bg-slate-800'
-              : 'cursor-not-allowed opacity-50'
+              ? 'cursor-grab text-slate-400 hover:bg-slate-100 hover:text-slate-600 active:cursor-grabbing dark:hover:bg-slate-800'
+              : 'cursor-not-allowed text-slate-300 dark:text-slate-600'
           }`}
         >
-          <GripVertical className="size-5 text-slate-400" />
+          {isLocked ? <Lock className="size-4" /> : <GripVertical className="size-4" />}
         </div>
 
-        <div className="min-w-0 flex-1">
+        <span
+          className="size-3 shrink-0 rounded-full ring-1 ring-inset ring-black/10"
+          style={{ backgroundColor: status.color }}
+          aria-hidden="true"
+        />
+
+        <div className="min-w-0 flex-1 space-y-1">
           <input
             value={status.name}
             onChange={(e) => onNameChange(index, e.target.value)}
             placeholder={t('statusSettings.statusLabelPlaceholder', 'settings')}
+            aria-label={t('statusSettings.statusLabelPlaceholder', 'settings')}
             disabled={isLocked || !canEdit}
-            className={`w-full rounded-xl border border-transparent bg-transparent py-2 text-sm font-semibold outline-none focus:border-brand-300 focus:ring-0 ${
-              isLocked || !canEdit ? 'cursor-not-allowed opacity-70' : ''
+            className={`w-full rounded-md border border-transparent bg-transparent px-2 py-1 text-sm font-semibold text-slate-900 outline-none transition hover:border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 disabled:cursor-not-allowed disabled:hover:border-transparent dark:text-white dark:hover:border-slate-700 ${
+              isLocked || !canEdit ? 'opacity-70' : ''
             }`}
           />
 
           {isLocked ? (
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            <p className="px-2 text-xs text-slate-500 dark:text-slate-400">
               {staticDescription ||
                 t(STATUS_DESC_LOCALE_KEYS[status.statusKey?.toLowerCase() || ''] || '', 'settings')}
             </p>
@@ -236,51 +241,48 @@ function SortableStatusItem({
               value={status.description}
               onChange={(e) => onDescriptionChange(index, e.target.value)}
               placeholder={t('statusSettings.descriptionPlaceholder', 'settings')}
+              aria-label={t('statusSettings.descriptionPlaceholder', 'settings')}
               disabled={!canEdit}
-              className="mt-1 w-full rounded-xl border border-transparent bg-transparent py-1 text-xs text-slate-500 outline-none focus:border-brand-300 focus:ring-0 dark:text-slate-400"
+              className="w-full rounded-md border border-transparent bg-transparent px-2 py-1 text-xs text-slate-500 outline-none transition hover:border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:text-slate-400 dark:hover:border-slate-700"
             />
           )}
         </div>
       </div>
 
-      <div className="mt-3 flex items-center gap-3 md:mt-0">
-        <div className="relative h-8 w-8">
-          <div
-            className="absolute inset-0 rounded-full border border-slate-200 shadow-sm pointer-events-none"
-            style={{ backgroundColor: status.color }}
-          />
+      <div className="flex items-center gap-3 ps-11 md:ps-0">
+        <label
+          className={`relative inline-flex size-8 items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 ${
+            canEdit ? 'cursor-pointer hover:border-slate-300' : 'cursor-not-allowed'
+          }`}
+          title={isLocked ? t('statusSettings.colorCustomizableTitle', 'settings') : t('statusSettings.colorPickerTitle', 'settings')}
+        >
+          <span className="size-5 rounded-md ring-1 ring-inset ring-black/10" style={{ backgroundColor: status.color }} />
           <input
             type="color"
             value={status.color}
             onChange={(e) => onColorChange(index, e.target.value)}
             disabled={!canEdit}
-            className="absolute inset-0 cursor-pointer opacity-0 disabled:cursor-not-allowed disabled:opacity-0"
-            title={isLocked ? t('statusSettings.colorCustomizableTitle', 'settings') : t('statusSettings.colorPickerTitle', 'settings')}
+            aria-label={t('statusSettings.colorPickerTitle', 'settings')}
+            className="absolute inset-0 cursor-pointer opacity-0 disabled:cursor-not-allowed"
           />
-        </div>
+        </label>
 
-        <label className="inline-flex items-center gap-2 text-sm">
+        <label className={`inline-flex items-center gap-2 text-sm ${isLocked || !canEdit ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
           <input
             type="radio"
             name="default-status"
             checked={!!status.isDefault}
             onChange={() => !isLocked && canEdit && onSetDefault(index)}
             disabled={isLocked || !canEdit}
-            className={`h-4 w-4 ${isLocked || !canEdit ? 'cursor-not-allowed' : ''}`}
+            className="size-4 accent-brand-500"
           />
-          <span className={`text-slate-600 dark:text-slate-400 ${isLocked || !canEdit ? 'opacity-50' : ''}`}>
-            {t('statusSettings.labelDefault', 'settings')}
-          </span>
+          <span className="text-slate-600 dark:text-slate-400">{t('statusSettings.labelDefault', 'settings')}</span>
         </label>
 
         {!isLocked && (
-          <button
-            onClick={() => onRemove(index)}
-            disabled={!canEdit}
-            className="inline-flex items-center justify-center rounded-lg border border-red-200 bg-red-50 p-2 text-red-500 transition-colors hover:bg-red-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-          >
+          <IconButton tone="danger" label={t('delete', 'common')} onClick={() => onRemove(index)} disabled={!canEdit}>
             <Trash2 className="size-4" />
-          </button>
+          </IconButton>
         )}
       </div>
     </div>
@@ -291,10 +293,10 @@ function SortableStatusItem({
 const DragOverlayItem = React.memo(({ status}: { status: LeadStatus; index: number }) => {
   const { t } = useLocale();
   return (
-    <div className="flex flex-col gap-3 rounded-xl border-2 border-brand-400 bg-white p-4 shadow-xl md:flex-row md:items-center md:justify-between dark:bg-slate-800">
+    <div className="flex flex-col gap-3 rounded-xl border border-brand-400 bg-white p-3 shadow-xl md:flex-row md:items-center md:justify-between dark:bg-slate-900">
       <div className="flex min-w-0 flex-1 items-center gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg">
-          <GripVertical className="size-5 text-brand-500" />
+        <div className="flex size-8 items-center justify-center rounded-lg">
+          <GripVertical className="size-4 text-brand-500" />
         </div>
         <div className="min-w-0 flex-1">
           <div className="w-full rounded-xl px-2 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
@@ -308,8 +310,8 @@ const DragOverlayItem = React.memo(({ status}: { status: LeadStatus; index: numb
         </div>
       </div>
       <div className="mt-3 flex items-center gap-3 md:mt-0">
-        <div
-          className="h-8 w-8 rounded-full border border-slate-200 shadow-sm"
+        <span
+          className="size-5 rounded-md ring-1 ring-inset ring-black/10"
           style={{ backgroundColor: status.color }}
         />
         {status.isDefault && (
@@ -574,165 +576,116 @@ export default function StatusLabelsSettings({
   const activeIndex = activeItem ? statuses.findIndex(s => s === activeItem) : -1;
 
   return (
-    <div
-      className={
-        embedded
-          ? 'space-y-6'
-          : 'min-h-screen bg-slate-50 p-4 text-slate-900 dark:bg-slate-950 dark:text-slate-100 sm:p-8'
+    <SettingsSection
+      embedded={embedded}
+      metaTitle={t('statusSettings.pageMetaTitle', 'settings')}
+      metaDescription={t('statusSettings.pageMetaDesc', 'settings')}
+      icon={<Settings className="size-4" />}
+      title={t('statusSettings.title', 'settings')}
+      description={t('statusSettings.description', 'settings')}
+      actions={
+        <>
+          <Button icon={<PlusCircle className="size-4" />} onClick={addStatus} disabled={!canEdit}>
+            {t('statusSettings.addStatus', 'settings')}
+          </Button>
+          <Button
+            variant="primary"
+            icon={<Save className="size-4" />}
+            loading={isSaving}
+            disabled={!canEdit || !hasChanges}
+            onClick={handleSave}
+          >
+            {t('statusSettings.saveChanges', 'settings')}
+          </Button>
+        </>
       }
     >
-      {!embedded && (
-        <>
-          <PageMeta
-            title={t('statusSettings.pageMetaTitle', 'settings')}
-            description={t('statusSettings.pageMetaDesc', 'settings')}
-          />
-        </>
-      )}
-
-      <div className={embedded ? 'space-y-6' : 'mx-auto max-w-7xl space-y-6'}>
-        {!embedded && <PageBreadCrumb pageTitle={t('statusSettings.pageBreadcrumb', 'settings')} />}
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <div className="flex flex-col gap-5 border-b border-slate-200 px-6 py-6 dark:border-slate-800 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-start gap-4">
-              <div className="flex size-12 items-center justify-center rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400">
-                <Settings className="size-6" />
-              </div>
-              <div>
-                <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
-                  {t('statusSettings.title', 'settings')}
-                </h1>
-                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                  {t('statusSettings.description', 'settings')}
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-row gap-3">
-              <button
-                onClick={addStatus}
-                disabled={!canEdit}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-4 py-1.5 text-xs font-semibold text-slate-700 whitespace-nowrap transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <PlusCircle className="size-3.5" /> {t('statusSettings.addStatus', 'settings')}
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={!canEdit || !hasChanges || isSaving}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {isSaving ? (
-                  <div className="size-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                ) : (
-                  <Save className="size-3.5" />
-                )}
-                {t('statusSettings.saveChanges', 'settings')}
-                <ArrowRight className="size-3.5" />
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-6 p-6 xl:grid-cols-12">
-            <div className="space-y-6 xl:col-span-4">
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                <div className="mb-4 flex items-center gap-3">
-                  <div className="flex size-10 items-center justify-center rounded-lg bg-blue-500/10 text-blue-500">
-                    <PlusCircle className="size-5" />
-                  </div>
-                  <h3 className="text-lg font-semibold tracking-tight">
-                    {t('statusSettings.previewTitle', 'settings')}
-                  </h3>
-                </div>
-                <div className="flex flex-wrap gap-3">
-                  {statuses.map((s, i) => (
-                    <span
-                      key={statusIds[i] ?? i}
-                      className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium"
-                      style={{
-                        background: s.color,
-                        color: s.textColor ?? getContrastColor(s.color),
-                      }}
-                    >
-                      {s.name || t('statusSettings.previewFallback', 'settings')}
-                    </span>
-                  ))}
-                </div>
-                <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-                  {t('statusSettings.previewDesc', 'settings')}
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 shadow-sm dark:border-amber-800/30 dark:bg-amber-950/20">
-                <h3 className="mb-2 text-sm font-semibold text-amber-800 dark:text-amber-400">
-                  {t('statusSettings.noteTitle', 'settings')}
-                </h3>
-                <p className="text-xs text-amber-700 dark:text-amber-500">
-                  {t('statusSettings.noteText', 'settings')}
-                </p>
-              </div>
-            </div>
-
-            <div className="xl:col-span-8">
-              <div className="space-y-4">
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragStart={handleDragStart}
-                  onDragEnd={handleDragEnd}
-                  onDragCancel={handleDragCancel}
-                >
-                  <SortableContext
-                    items={statusIds}
-                    strategy={verticalListSortingStrategy}
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+        <div className="space-y-6 xl:col-span-4">
+          <Card>
+            <CardToolbar>
+              <SectionTitle icon={<Eye className="size-4" />}>{t('statusSettings.previewTitle', 'settings')}</SectionTitle>
+            </CardToolbar>
+            <div className="p-4">
+              <div className="flex flex-wrap gap-2">
+                {statuses.map((s, i) => (
+                  <span
+                    key={statusIds[i] ?? i}
+                    className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
+                    style={{
+                      background: s.color,
+                      color: s.textColor ?? getContrastColor(s.color),
+                    }}
                   >
-                    <div ref={listRef} className="space-y-4">
-                    {statuses.map((status, index) => {
-                      const locked = isLocked(status);
-                      const isStatic = checkIsStatic(
-                        status.statusKey || status.name
-                      );
-                      const staticDescription = isStatic
-                        ? getDescription(status.statusKey || status.name)
-                        : null;
-
-                      return (
-                        <SortableStatusItem
-                          key={statusIds[index]}
-                          id={statusIds[index]}
-                          status={status}
-                          index={index}
-                          canEdit={canEdit}
-                          isLocked={locked}
-                          isStatic={isStatic}
-                          staticDescription={staticDescription}
-                          statusIds={statusIds}
-                          onNameChange={handleNameChange}
-                          onDescriptionChange={handleDescriptionChange}
-                          onColorChange={handleColorChange}
-                          onSetDefault={setDefault}
-                          onRemove={removeStatus}
-                        />
-                      );
-                    })}
-                    </div>
-                  </SortableContext>
-
-                  {createPortal(
-                    <DragOverlay dropAnimation={dropAnimation}>
-                      {activeId && activeItem && activeIndex !== -1 ? (
-                        <DragOverlayItem
-                          status={activeItem}
-                          index={activeIndex}
-                        />
-                      ) : null}
-                    </DragOverlay>,
-                    document.body
-                  )}
-                </DndContext>
+                    {s.name || t('statusSettings.previewFallback', 'settings')}
+                  </span>
+                ))}
               </div>
+              <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+                {t('statusSettings.previewDesc', 'settings')}
+              </p>
+            </div>
+          </Card>
+
+          <div className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-500/20 dark:bg-amber-500/10">
+            <Lock className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <div>
+              <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-300">{t('statusSettings.noteTitle', 'settings')}</h3>
+              <p className="mt-0.5 text-xs text-amber-700 dark:text-amber-400/90">{t('statusSettings.noteText', 'settings')}</p>
             </div>
           </div>
         </div>
+
+        <Card className="p-4 xl:col-span-8">
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
+          >
+            <SortableContext items={statusIds} strategy={verticalListSortingStrategy}>
+              <div ref={listRef} className="space-y-2">
+                {statuses.map((status, index) => {
+                  const locked = isLocked(status);
+                  const isStatic = checkIsStatic(status.statusKey || status.name);
+                  const staticDescription = isStatic
+                    ? getDescription(status.statusKey || status.name)
+                    : null;
+
+                  return (
+                    <SortableStatusItem
+                      key={statusIds[index]}
+                      id={statusIds[index]}
+                      status={status}
+                      index={index}
+                      canEdit={canEdit}
+                      isLocked={locked}
+                      isStatic={isStatic}
+                      staticDescription={staticDescription}
+                      statusIds={statusIds}
+                      onNameChange={handleNameChange}
+                      onDescriptionChange={handleDescriptionChange}
+                      onColorChange={handleColorChange}
+                      onSetDefault={setDefault}
+                      onRemove={removeStatus}
+                    />
+                  );
+                })}
+              </div>
+            </SortableContext>
+
+            {createPortal(
+              <DragOverlay dropAnimation={dropAnimation}>
+                {activeId && activeItem && activeIndex !== -1 ? (
+                  <DragOverlayItem status={activeItem} index={activeIndex} />
+                ) : null}
+              </DragOverlay>,
+              document.body
+            )}
+          </DndContext>
+        </Card>
       </div>
-    </div>
+    </SettingsSection>
   );
 }

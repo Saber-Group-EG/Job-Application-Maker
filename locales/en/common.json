@@ -401,5 +401,8 @@
   "acctFieldType_repeatable_group": "Repeatable group",
   "acctFieldType_group_field": "Group",
   "on": "On",
-  "off": "Off"
+  "off": "Off",
+  "duplicate": "Duplicate",
+  "expand": "Expand",
+  "collapse": "Collapse"
 }

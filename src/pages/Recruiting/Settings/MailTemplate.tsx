@@ -1,9 +1,7 @@
 // pages/Settings/EmailTemplates.tsx
 import React, { useState } from "react";
 import DOMPurify from 'dompurify';
-import {
-  PlusCircle, Save, Trash2, Edit, Copy, Mail, Eye, X
-} from "lucide-react";
+import { Copy, Edit, Eye, Mail, PlusCircle, Save, Trash2 } from "lucide-react";
 import Swal from "../../../utils/swal";
 import { useAuth } from "../../../context/AuthContext";
 import { useLocale } from "../../../context/LocaleContext";
@@ -15,9 +13,21 @@ import {
   useDuplicateMailTemplate,
   previewEmailTemplate // ✅ Changed from usePreviewMailTemplate to previewEmailTemplate
 } from "../../../hooks/queries/useCompanies";
-import Label from "../../../components/form/Label";
-import Input from "../../../components/form/input/InputField";
-import Select from "../../../components/form/Select";
+import {
+  Badge,
+  Button,
+  Card,
+  CardToolbar,
+  Dialog,
+  EmptyState,
+  Field,
+  IconButton,
+  ToggleChip,
+  inputClass,
+  selectClass,
+} from "../../../components/ui/kit";
+import type { BadgeTone } from "../../../components/ui/kit";
+import SettingsSection from "./components/SettingsSection";
 import RichTextEditor from "../../../components/form/RichTextEditor";
 import { useCompanyFilter } from '../../../context/CompanyFilterContext';
 import {
@@ -103,134 +113,104 @@ function TemplateFormModal({
   };
 
   const isLoading = createMutation.isPending || updateMutation.isPending;
-  if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 p-6 flex justify-between items-center">
-          <h2 className="text-2xl font-bold">{template ? t('mailTemplates.editTemplate', 'settings') : t('mailTemplates.createTemplate', 'settings')}</h2>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
-            <X className="size-5" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          <div>
-            <Label htmlFor="name">{t('mailTemplates.labelTemplateName', 'settings')}</Label>
-            <Input 
-              id="name" 
-              value={formData.name} 
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })} 
-              placeholder={t('mailTemplates.templateNamePlaceholder', 'settings')} 
-              required 
-            />
-          </div>
-          
-          <div>
-            <Label htmlFor="subject">{t('mailTemplates.labelEmailSubject', 'settings')}</Label>
-            <Input 
-              id="subject" 
-              value={formData.subject} 
-              onChange={(e) => setFormData({ ...formData, subject: e.target.value })} 
-              placeholder={t('mailTemplates.emailSubjectPlaceholder', 'settings')} 
-              required 
-            />
-            <p className="mt-1 text-xs text-gray-500">
-              {t('mailTemplates.variablesHelpText', 'settings')} <code>{`{{candidateName}}`}</code>, <code>{`{{jobTitle}}`}</code>, <code>{`{{InterviewDate}}`}</code>, <code>{`{{interviewTime}}`}</code>, <code>{`{{interviewType}}`}</code>, <code>{`{{location}}`}</code>, <code>{`{{address}}`}</code>
-            </p>
-          </div>
-          
-          <div>
-            <Label htmlFor="category">{t('mailTemplates.labelCategory', 'settings')}</Label>
-            <Select
-              options={MAIL_TEMPLATE_CATEGORIES.map((cat) => ({
-                value: cat,
-                label: t(`mailTemplates.category.${cat}`, 'settings'),
-              }))}
-              value={formData.category}
-              onChange={(value) =>
-                setFormData({ ...formData, category: value as MailTemplateCategory })
-              }
-              placeholder={t('mailTemplates.labelCategory', 'settings')}
-            />
-            <p className="mt-1 text-xs text-gray-500">
-              {t('mailTemplates.categoryHelp', 'settings')}
-            </p>
-          </div>
-
-          <div>
-            <Label htmlFor="html">Email Body *</Label>
-            <RichTextEditor value={formData.html} onChange={(content) => setFormData({ ...formData, html: content })} />
-            <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-              <p className="text-xs font-semibold text-blue-800 dark:text-blue-300 mb-2">{t('mailTemplates.variablesHelpText', 'settings')}</p>
-              <div className="flex flex-wrap gap-3 text-xs">
-                <code className="bg-blue-100 dark:bg-blue-800 px-2 py-1 rounded text-blue-800 dark:text-blue-200">{`{{candidateName}}`}</code>
-                <code className="bg-blue-100 dark:bg-blue-800 px-2 py-1 rounded text-blue-800 dark:text-blue-200">{`{{jobTitle}}`}</code>
-                <code className="bg-blue-100 dark:bg-blue-800 px-2 py-1 rounded text-blue-800 dark:text-blue-200">{`{{InterviewDate}}`}</code>
-                <code className="bg-blue-100 dark:bg-blue-800 px-2 py-1 rounded text-blue-800 dark:text-blue-200">{`{{interviewTime}}`}</code>
-                <code className="bg-blue-100 dark:bg-blue-800 px-2 py-1 rounded text-blue-800 dark:text-blue-200">{`{{interviewType}}`}</code>
-                <code className="bg-blue-100 dark:bg-blue-800 px-2 py-1 rounded text-blue-800 dark:text-blue-200">{`{{location}}`}</code>
-                <code className="bg-blue-100 dark:bg-blue-800 px-2 py-1 rounded text-blue-800 dark:text-blue-200">{`{{address}}`}</code>
-              </div>
-              <p className="text-xs text-blue-700 dark:text-blue-300 mt-2">
-                {t('mailTemplates.variablesExplanation', 'settings')}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <button 
-              type="button" 
-              onClick={handlePreview} 
-              className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
-            >
-              <Eye className="size-4 inline mr-2" />
+    <>
+      <Dialog
+        open={isOpen}
+        onClose={onClose}
+        size="lg"
+        title={template ? t('mailTemplates.editTemplate', 'settings') : t('mailTemplates.createTemplate', 'settings')}
+        footer={
+          <>
+            <Button icon={<Eye className="size-4" />} onClick={handlePreview} className="me-auto">
               {t('mailTemplates.preview', 'settings')}
-            </button>
-            <button 
-              type="button" 
-              onClick={onClose} 
-              className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
-            >
+            </Button>
+            <Button variant="ghost" onClick={onClose}>
               {t('mailTemplates.cancel', 'settings')}
-            </button>
-            <button 
-              type="submit" 
-              disabled={isLoading} 
-              className="px-6 py-2 bg-brand-500 text-white rounded-lg hover:bg-brand-600 disabled:opacity-50"
-            >
-              {isLoading ? (
-                <div className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white inline-block mr-2" />
-              ) : (
-                <Save className="size-4 inline mr-2" />
-              )}
+            </Button>
+            <Button type="submit" form="mail-template-form" variant="primary" icon={<Save className="size-4" />} loading={isLoading}>
               {t('mailTemplates.saveTemplate', 'settings')}
-            </button>
+            </Button>
+          </>
+        }
+      >
+        <form id="mail-template-form" onSubmit={handleSubmit} className="space-y-5">
+          <Field label={t('mailTemplates.labelTemplateName', 'settings')} htmlFor="mt-name">
+            <input
+              id="mt-name"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              placeholder={t('mailTemplates.templateNamePlaceholder', 'settings')}
+              required
+              className={inputClass}
+            />
+          </Field>
+
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-[minmax(0,1fr)_14rem]">
+            <Field label={t('mailTemplates.labelEmailSubject', 'settings')} htmlFor="mt-subject">
+              <input
+                id="mt-subject"
+                value={formData.subject}
+                onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                placeholder={t('mailTemplates.emailSubjectPlaceholder', 'settings')}
+                required
+                className={inputClass}
+              />
+            </Field>
+            <Field label={t('mailTemplates.labelCategory', 'settings')} htmlFor="mt-category" hint={t('mailTemplates.categoryHelp', 'settings')}>
+              <select
+                id="mt-category"
+                value={formData.category}
+                onChange={(e) => setFormData({ ...formData, category: e.target.value as MailTemplateCategory })}
+                className={selectClass}
+              >
+                {MAIL_TEMPLATE_CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {t(`mailTemplates.category.${cat}`, 'settings')}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
+
+          <Field label={t('mailTemplates.labelEmailBody', 'settings')}>
+            <RichTextEditor value={formData.html} onChange={(content) => setFormData({ ...formData, html: content })} />
+          </Field>
+
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-800/40">
+            <p className="text-xs font-medium text-slate-700 dark:text-slate-300">{t('mailTemplates.variablesHelpText', 'settings')}</p>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {TEMPLATE_VARIABLES.map((v) => (
+                <code key={v} dir="ltr" className="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 font-mono text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+                  {v}
+                </code>
+              ))}
+            </div>
+            <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{t('mailTemplates.variablesExplanation', 'settings')}</p>
           </div>
         </form>
-      </div>
-      {showPreview && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50" onClick={() => setShowPreview(false)}>
-          <div className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6" onClick={e => e.stopPropagation()}>
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-bold">Email Preview</h2>
-              <button onClick={() => setShowPreview(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
-                <X className="size-5" />
-              </button>
-            </div>
-            <iframe
-              srcDoc={DOMPurify.sanitize(previewContent)}
-              className="w-full border rounded"
-              style={{ height: '70vh' }}
-              title="Email Preview"
-            />
-          </div>
-        </div>
-      )}
-    </div>
+      </Dialog>
+
+      <Dialog open={showPreview} onClose={() => setShowPreview(false)} size="xl" title={t('mailTemplates.previewTitle', 'settings')}>
+        <iframe
+          srcDoc={DOMPurify.sanitize(previewContent)}
+          className="w-full rounded-lg border border-slate-200 bg-white dark:border-slate-700"
+          style={{ height: '70vh' }}
+          title={t('mailTemplates.previewTitle', 'settings')}
+        />
+      </Dialog>
+    </>
   );
 }
+
+const TEMPLATE_VARIABLES = ['{{candidateName}}', '{{jobTitle}}', '{{InterviewDate}}', '{{interviewTime}}', '{{interviewType}}', '{{location}}', '{{address}}'];
+
+const CATEGORY_TONES: Record<string, BadgeTone> = {
+  general: 'slate',
+  applicants: 'blue',
+  interviews: 'amber',
+};
 
 export default function EmailTemplates({
   companyId: _companyId,
@@ -323,132 +303,81 @@ export default function EmailTemplates({
     });
   };
 
+  const createDisabled = !canEdit || !selectedCompanyId || !settingsId;
+
   return (
-    <div className={embedded ? "space-y-6" : "min-h-screen bg-slate-50 p-4 dark:bg-slate-950"}>
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex flex-col gap-5 border-b border-slate-200 px-6 py-6 dark:border-slate-800 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-start gap-4">
-            <div className="flex size-12 items-center justify-center rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400">
-              <Mail className="size-6" />
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold tracking-tight">{t('mailTemplates.sectionTitle', 'settings')}</h2>
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                {t('mailTemplates.sectionDesc', 'settings')}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={openCreateModal}
-            disabled={!canEdit || !selectedCompanyId || !settingsId}
-            className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <PlusCircle className="size-4" />
-            {t('mailTemplates.createTemplateBtn', 'settings')}
-          </button>
-        </div>
-
-        <div className="p-6">
-
-          <div className="mb-6 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setCategoryFilter('all')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium border transition ${
-                categoryFilter === 'all'
-                  ? 'bg-brand-500 text-white border-brand-500'
-                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-700'
-              }`}
-            >
+    <SettingsSection
+      embedded={embedded}
+      icon={<Mail className="size-4" />}
+      title={t('mailTemplates.sectionTitle', 'settings')}
+      description={t('mailTemplates.sectionDesc', 'settings')}
+      actions={
+        <Button variant="primary" icon={<PlusCircle className="size-4" />} onClick={openCreateModal} disabled={createDisabled}>
+          {t('mailTemplates.createTemplateBtn', 'settings')}
+        </Button>
+      }
+    >
+      <Card>
+        <CardToolbar>
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label={t('mailTemplates.labelCategory', 'settings')}>
+            <ToggleChip selected={categoryFilter === 'all'} onClick={() => setCategoryFilter('all')}>
               {t('mailTemplates.category.all', 'settings')}
-            </button>
+            </ToggleChip>
             {MAIL_TEMPLATE_CATEGORIES.map((cat) => (
-              <button
-                key={cat}
-                type="button"
-                onClick={() => setCategoryFilter(cat)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium border transition ${
-                  categoryFilter === cat
-                    ? 'bg-brand-500 text-white border-brand-500'
-                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-700'
-                }`}
-              >
+              <ToggleChip key={cat} selected={categoryFilter === cat} onClick={() => setCategoryFilter(cat)}>
                 {t(`mailTemplates.category.${cat}`, 'settings')}
-              </button>
+              </ToggleChip>
             ))}
           </div>
+          <span className="text-xs text-slate-500 dark:text-slate-400">{filteredTemplates.length}</span>
+        </CardToolbar>
 
-          {filteredTemplates.length === 0 ? (
-            <div className="text-center py-12">
-              <Mail className="size-12 text-slate-300 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">{t('mailTemplates.emptyStateTitle', 'settings')}</h3>
-              <p className="text-slate-500 mb-4">{t('mailTemplates.emptyStateDesc', 'settings')}</p>
-              <button
-                onClick={openCreateModal}
-                disabled={!canEdit || !settingsId}
-                className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-              >
-                <PlusCircle className="size-4" />
+        {filteredTemplates.length === 0 ? (
+          <EmptyState
+            icon={<Mail className="size-6" />}
+            title={t('mailTemplates.emptyStateTitle', 'settings')}
+            text={t('mailTemplates.emptyStateDesc', 'settings')}
+            action={
+              <Button variant="primary" icon={<PlusCircle className="size-4" />} onClick={openCreateModal} disabled={!canEdit || !settingsId}>
                 {t('mailTemplates.createTemplateBtn', 'settings')}
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredTemplates.map((template) => (
-                <div 
-                  key={template._id} 
-                  className="border border-slate-200 dark:border-slate-700 rounded-xl p-4 hover:shadow-lg transition-shadow bg-white dark:bg-slate-900"
-                >
-                  <div className="flex justify-between items-start mb-3">
-                    <h3 className="font-semibold text-lg dark:text-white">{template.name}</h3>
-                    <div className="flex gap-1">
-                      <button 
-                        onClick={() => openEditModal(template)} 
-                        disabled={!canEdit || !settingsId} 
-                        className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded"
-                      >
-                        <Edit className="size-4" />
-                      </button>
-                      <button 
-                        onClick={() => handleDuplicate(template)} 
-                        disabled={!canEdit || duplicateMutation.isPending || !settingsId} 
-                        className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded"
-                      >
-                        <Copy className="size-4" />
-                      </button>
-                      <button 
-                        onClick={() => handleDeleteTemplate(template)} 
-                        disabled={!canEdit || deleteMutation.isPending || !settingsId} 
-                        className="p-1 hover:bg-red-100 dark:hover:bg-red-900/20 text-red-500 rounded"
-                      >
-                        <Trash2 className="size-4" />
-                      </button>
-                    </div>
+              </Button>
+            }
+          />
+        ) : (
+          <div className="grid grid-cols-1 gap-4 p-4 md:grid-cols-2 lg:grid-cols-3">
+            {filteredTemplates.map((template) => (
+              <div
+                key={template._id}
+                className="flex flex-col rounded-xl border border-slate-200 p-4 transition hover:border-slate-300 hover:shadow-sm dark:border-slate-800 dark:hover:border-slate-700"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="min-w-0 truncate text-sm font-semibold text-slate-900 dark:text-white">{template.name}</h3>
+                  <div className="-me-1.5 -mt-1 flex shrink-0">
+                    <IconButton label={t('mailTemplates.editTemplate', 'settings')} onClick={() => openEditModal(template)} disabled={!canEdit || !settingsId}>
+                      <Edit className="size-4" />
+                    </IconButton>
+                    <IconButton label={t('duplicate', 'common')} onClick={() => handleDuplicate(template)} disabled={!canEdit || duplicateMutation.isPending || !settingsId}>
+                      <Copy className="size-4" />
+                    </IconButton>
+                    <IconButton tone="danger" label={t('delete', 'common')} onClick={() => handleDeleteTemplate(template)} disabled={!canEdit || deleteMutation.isPending || !settingsId}>
+                      <Trash2 className="size-4" />
+                    </IconButton>
                   </div>
-                  <span className={`inline-block mb-2 px-2 py-0.5 rounded-full text-xs font-medium ${
-                    getTemplateCategory(template) === 'general'
-                      ? 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
-                      : getTemplateCategory(template) === 'applicants'
-                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                        : getTemplateCategory(template) === 'interviews'
-                          ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
-                          : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
-                  }`}>
-                    {t(`mailTemplates.category.${getTemplateCategory(template)}`, 'settings')}
-                  </span>
-                  <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
-                    <strong>{t('mailTemplates.cardSubject', 'settings')}</strong> {template.subject}
-                  </p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-3">
-                    {stripHtml(template.html)}
-                  </p>
-
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+                <div className="mt-1">
+                  <Badge tone={CATEGORY_TONES[getTemplateCategory(template)] ?? 'green'}>
+                    {t(`mailTemplates.category.${getTemplateCategory(template)}`, 'settings')}
+                  </Badge>
+                </div>
+                <p className="mt-3 truncate text-sm text-slate-700 dark:text-slate-300">
+                  <span className="text-slate-500 dark:text-slate-400">{t('mailTemplates.cardSubject', 'settings')}</span> {template.subject}
+                </p>
+                <p className="mt-1 line-clamp-3 text-xs text-slate-500 dark:text-slate-400">{stripHtml(template.html)}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
 
       {settingsId && (
         <TemplateFormModal
@@ -460,6 +389,6 @@ export default function EmailTemplates({
           existingTemplates={templates}
         />
       )}
-    </div>
+    </SettingsSection>
   );
 }
