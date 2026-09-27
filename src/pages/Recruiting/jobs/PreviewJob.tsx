@@ -1,21 +1,37 @@
 import { useMemo, useState, useEffect } from "react";
 import { useLocale } from '../../../context/LocaleContext';
 import Swal from '../../../utils/swal';
-import { useParams, useNavigate, useLocation } from "react-router";
-import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
+import { Link, useParams, useNavigate, useLocation } from "react-router";
 import PageMeta from "../../../components/common/PageMeta";
 import LoadingSpinner from "../../../components/common/LoadingSpinner";
-import { 
-  PencilIcon, 
-  TrashBinIcon, 
-  CalenderIcon, 
-  InfoIcon, 
-  DollarLineIcon, 
-  TimeIcon, 
-  CheckCircleIcon,
-  UserIcon,
-  AngleLeftIcon
-} from "../../../icons";
+import {
+  ArrowLeft,
+  Briefcase,
+  CalendarDays,
+  CircleCheck,
+  FileText,
+  ListChecks,
+  Pencil,
+  RefreshCw,
+  Scale,
+  SlidersHorizontal,
+  Trash2,
+} from "lucide-react";
+import {
+  Badge,
+  Button,
+  Card,
+  CardToolbar,
+  EmptyState,
+  PageShell,
+  SectionTitle,
+  Table,
+  Td,
+  Th,
+  focusRing,
+  rowClass,
+} from "../../../components/ui/kit";
+import type { BadgeTone } from "../../../components/ui/kit";
 import {
   useCompany,
   useDepartment,
@@ -249,482 +265,349 @@ export default function PreviewJob() {
     return typeMap[type] || type;
   };
 
+  const back = (
+    <Link
+      to="/jobs"
+      className={`inline-flex items-center gap-1.5 rounded-md text-sm font-medium text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white ${focusRing}`}
+    >
+      <ArrowLeft className="size-4 rtl:rotate-180" />
+      {t('previewBackToList', 'jobs')}
+    </Link>
+  );
+
   if (isLoadingJob && !job) {
     return (
-      <div className="space-y-6">
+      <>
         <PageMeta title={t('previewLoadingTitle', 'jobs')} description={t('previewLoadingDesc', 'jobs')} />
-        <PageBreadcrumb pageTitle={t('previewBreadcrumb', 'jobs')} />
         <LoadingSpinner fullPage message={t('previewLoadingMsg', 'jobs')} />
-      </div>
+      </>
     );
   }
 
   if (!job) {
     return (
-      <div className="space-y-6 p-4 md:p-6">
+      <>
         <PageMeta title={t('previewNotFoundTitle', 'jobs')} description={t('previewNotFoundDesc', 'jobs')} />
-        <PageBreadcrumb pageTitle={t('previewBreadcrumb', 'jobs')} />
-        <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 py-20 dark:border-gray-800">
-          <div className="rounded-full bg-gray-50 p-4 dark:bg-gray-900">
-             <InfoIcon className="size-12 text-gray-400" />
-          </div>
-          <p className="mt-4 text-xl font-bold text-gray-900 dark:text-white">{t('previewNotFoundTitle', 'jobs')}</p>
-          <p className="mt-2 text-center text-gray-500 dark:text-gray-400 max-w-sm px-6">
-            {t('previewNotFoundText', 'jobs')}
-          </p>
-          <button
-            onClick={() => navigate("/jobs")}
-            className="mt-8 rounded-xl bg-brand-500 px-6 py-3 text-sm font-bold text-white shadow-lg transition hover:bg-brand-600 active:scale-95"
-          >
-            {t('previewGoBack', 'jobs')}
-          </button>
-        </div>
-      </div>
+        <PageShell back={back} title={t('previewNotFoundTitle', 'jobs')}>
+          <Card>
+            <EmptyState
+              icon={<Briefcase className="size-6" />}
+              title={t('previewNotFoundTitle', 'jobs')}
+              text={t('previewNotFoundText', 'jobs')}
+              action={<Button onClick={() => navigate("/jobs")}>{t('previewGoBack', 'jobs')}</Button>}
+            />
+          </Card>
+        </PageShell>
+      </>
     );
   }
 
+  const title = getTranslation(job.title, t('previewUntitledPosition', 'jobs'), locale);
+  const companyName = getTranslation((company as any)?.name, t('previewCorporate', 'jobs'), locale);
+  const departmentName = toPlainString((department as any)?.name, locale) || t('previewCrossFunctional', 'jobs');
+  const syncing = isJobFetching || isCompanyFetching || isDepartmentFetching;
+  const expired = (() => {
+    if (!job.registrationEnd) return false;
+    const end = new Date(job.registrationEnd).getTime();
+    return !Number.isNaN(end) && end + 24 * 60 * 60 * 1000 - 1 < Date.now();
+  })();
+  const status: { tone: BadgeTone; label: string } = expired
+    ? { tone: "red", label: t('jobsExpiredBadge', 'jobs') }
+    : job.isActive !== false
+      ? { tone: "green", label: t('jobsActiveBadge', 'jobs') }
+      : { tone: "slate", label: t('jobsDeprioritizedBadge', 'jobs') };
+
   return (
-    <div className="space-y-6 pb-20 md:pb-10">
+    <>
       <PageMeta
-        title={`${getTranslation(job.title, t('previewUntitledPosition', 'jobs'), locale)} | ${t('previewBreadcrumb', 'jobs')}`}
-        description={t('previewDetailsFor', 'jobs', { title: getTranslation(job.title, t('previewUntitledPosition', 'jobs'), locale) })}
+        title={`${title} | ${t('previewBreadcrumb', 'jobs')}`}
+        description={t('previewDetailsFor', 'jobs', { title })}
       />
-
-      {/* Floating Mobile Action Header (Optional enhancement for UX) */}
-      <div className="sticky top-0 z-40 -mx-4 flex items-center justify-between border-b bg-white/80 px-4 py-3 backdrop-blur-md md:hidden dark:border-gray-800 dark:bg-gray-900/80">
-        <button onClick={() => navigate("/jobs")} className="rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-gray-800">
-          <AngleLeftIcon className="size-6 text-gray-600 dark:text-gray-400" />
-        </button>
-        <span className="font-semibold text-gray-900 dark:text-white truncate max-w-[200px]">
-          {getTranslation(job.title, '', locale)}
-        </span>
-        <div className="flex gap-2 items-center">
-           <button 
-             onClick={handleUpdate} 
-             title={t('previewUpdateData', 'jobs')}
-             className={`p-2 rounded-lg transition-colors ${isJobFetching || isCompanyFetching || isDepartmentFetching ? 'text-amber-500 animate-spin' : 'text-gray-400 hover:text-brand-500'}`}
-           >
-             <TimeIcon className="size-5" />
-           </button>
-           <button onClick={handleEdit} className="p-2 text-brand-500 hover:bg-brand-50 rounded-lg transition-colors"><PencilIcon className="size-5"/></button>
-        </div>
-      </div>
-
-      <div className="hidden md:flex items-center justify-between">
-        <button
-          onClick={() => navigate("/jobs")}
-          className="group flex items-center gap-2 text-sm font-medium text-gray-500 transition hover:text-brand-600 dark:text-gray-400 dark:hover:text-brand-400"
-        >
-          <AngleLeftIcon className="size-4 transition-transform group-hover:-translate-x-1" />
-          {t('previewBackToList', 'jobs')}
-        </button>
-        
-        <div className="flex items-center gap-4 text-xs text-gray-400 italic">
-          <button 
-            onClick={handleUpdate}
-            className="flex items-center gap-1.5 hover:text-brand-500 transition-colors cursor-pointer group/sync"
-          >
-            <span className={`size-2 rounded-full ${isJobFetching || isCompanyFetching || isDepartmentFetching ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400 group-hover/sync:bg-brand-400'}`} />
-            {isJobFetching || isCompanyFetching || isDepartmentFetching ? t('previewSyncing', 'jobs') : t('previewSynced', 'jobs')}
-          </button>
-          {elapsed && <span>{elapsed}</span>}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Main Content Area */}
-        <div className="space-y-6 lg:col-span-2">
-          {/* Hero Section */}
-          <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:border-gray-800 dark:bg-gray-900 md:p-8">
-            <div className="absolute top-0 right-0 p-4 opacity-0 transition-opacity group-hover:opacity-100 hidden md:block">
-               <span className="text-[120px] font-black text-gray-50/10 leading-none pointer-events-none select-none dark:text-white/[0.02]">JOB</span>
-            </div>
-            
-            <div className="relative">
-              <div className="flex flex-wrap items-center gap-3 mb-4">
-                <span className="inline-flex items-center rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
-                  <CheckCircleIcon className="mr-1 size-3.5" />
-                  {t('previewActiveListing', 'jobs')}
-                </span>
-                <span className="inline-flex items-center rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-bold text-gray-600 dark:bg-gray-800 dark:text-gray-400">
-                   {job.jobCode || t('previewNoCode', 'jobs')}
-                </span>
-              </div>
-
-              <h1 className="text-2xl font-black tracking-tight text-gray-900 sm:text-4xl dark:text-white">
-                {getTranslation(job.title, t('previewUntitledPosition', 'jobs'), locale)}
-              </h1>
-
-              <div className="mt-6 flex flex-wrap gap-y-4 gap-x-8">
-                <div className="flex items-center gap-3">
-                  <div className="flex size-10 items-center justify-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
-                    <UserIcon className="size-5" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{t('previewDepartment', 'jobs')}</p>
-                    <p className="text-sm font-bold text-gray-900 dark:text-white">
-                      {toPlainString((department as any)?.name, locale) || t('previewCrossFunctional', 'jobs')}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <div className="flex size-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400">
-                    <TimeIcon className="size-5" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{t('previewType', 'jobs')}</p>
-                    <p className="text-sm font-bold text-gray-900 dark:text-white">
-                      {formatEmploymentType(job?.employmentType)}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <div className="flex size-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400">
-                    <CalenderIcon className="size-5" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{t('previewDeadline', 'jobs')}</p>
-                    <p className="text-sm font-bold text-gray-900 dark:text-white">
-                      {formatDate(job.registrationEnd)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Description Section */}
-          <section className="rounded-3xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900 md:p-8">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-               <InfoIcon className="size-5 text-brand-500" />
-               {t('previewRoleOverview', 'jobs')}
-            </h2>
-            <div className="prose prose-brand max-w-none dark:prose-invert">
-              <div className="whitespace-pre-wrap text-gray-600 leading-relaxed dark:text-gray-400">
+      <PageShell
+        back={back}
+        title={title}
+        subtitle={
+          <span className="flex flex-wrap items-center gap-2">
+            <Badge tone={status.tone}>{status.label}</Badge>
+            {job.jobCode && (
+              <span className="rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                {job.jobCode}
+              </span>
+            )}
+            <span>{companyName} · {departmentName}</span>
+          </span>
+        }
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={handleUpdate}
+              title={t('previewUpdateData', 'jobs')}
+              className={`inline-flex items-center gap-1.5 rounded-md px-1 text-xs text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white ${focusRing}`}
+            >
+              <RefreshCw className={`size-3.5 ${syncing ? "animate-spin" : ""}`} />
+              {syncing ? t('previewSyncing', 'jobs') : elapsed ? t('previewSyncedAgo', 'jobs', { time: elapsed }) : t('previewSynced', 'jobs')}
+            </button>
+            <Button variant="danger" icon={<Trash2 className="size-4" />} onClick={handleDelete} loading={isDeletingJob}>
+              {isDeletingJob ? t('previewDeleting', 'jobs') : t('previewDeleteJob', 'jobs')}
+            </Button>
+            <Button variant="primary" icon={<Pencil className="size-4" />} onClick={handleEdit}>
+              {t('previewEditJob', 'jobs')}
+            </Button>
+          </>
+        }
+      >
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="space-y-6 lg:col-span-2">
+            <Card>
+              <CardToolbar>
+                <SectionTitle icon={<FileText className="size-4" />}>{t('previewRoleOverview', 'jobs')}</SectionTitle>
+              </CardToolbar>
+              <p dir="auto" className="whitespace-pre-wrap p-4 text-start text-sm leading-relaxed text-slate-700 dark:text-slate-300">
                 {getTranslation(job.description, t('previewDescComingSoon', 'jobs'), locale)}
-              </div>
-            </div>
-          </section>
+              </p>
+            </Card>
 
-          {/* Requirements & Terms (Consolidated) */}
-          <div className="grid grid-cols-1 gap-6 items-start md:grid-cols-2">
-            {job.requirements && job.requirements.length > 0 && (
-              <section className="rounded-3xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">{t('previewRequirements', 'jobs')}</h3>
-                <ul className="space-y-3">
-                  {job.requirements.map((req: any, i: number) => (
-                    <li key={i} className="flex gap-3 text-sm text-gray-600 dark:text-gray-400">
-                      <div className="mt-1 flex-shrink-0 size-1.5 rounded-full bg-brand-500" />
-                      {getTranslation(req, '', locale)}
-                    </li>
-                  ))}
-                </ul>
-              </section>
+            {((job.requirements && job.requirements.length > 0) || (job.termsAndConditions && job.termsAndConditions.length > 0)) && (
+              <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-2">
+                {job.requirements && job.requirements.length > 0 && (
+                  <BulletCard title={t('previewRequirements', 'jobs')} items={job.requirements.map((req: any) => getTranslation(req, '', locale))} />
+                )}
+                {job.termsAndConditions && job.termsAndConditions.length > 0 && (
+                  <BulletCard title={t('previewTerms', 'jobs')} items={job.termsAndConditions.map((term: any) => getTranslation(term, '', locale))} />
+                )}
+              </div>
             )}
 
-            {job.termsAndConditions && job.termsAndConditions.length > 0 && (
-              <section className="rounded-3xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">{t('previewTerms', 'jobs')}</h3>
-                <ul className="space-y-3">
-                  {job.termsAndConditions.map((term: any, i: number) => (
-                    <li key={i} className="flex gap-3 text-sm text-gray-600 dark:text-gray-400 italic">
-                       <span className="text-brand-500 font-bold">�</span>
-                       {getTranslation(term, '', locale)}
+            <Card>
+              <CardToolbar>
+                <div>
+                  <SectionTitle icon={<ListChecks className="size-4" />}>{t('previewBaseFields', 'jobs')}</SectionTitle>
+                  <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{t('previewBaseFieldsDesc', 'jobs')}</p>
+                </div>
+              </CardToolbar>
+              <dl className="grid grid-cols-2 divide-slate-100 border-b border-slate-100 dark:divide-slate-800 dark:border-slate-800 sm:grid-cols-4 sm:divide-x rtl:sm:divide-x-reverse">
+                <MiniStat label={t('previewOpenSeats', 'jobs')} value={job.openPositions || 0} />
+                <MiniStat label={t('previewBaseFieldsVisible', 'jobs')} value={visibleBaseFieldCount} />
+                <MiniStat label={t('previewCustomInputs', 'jobs')} value={job.customFields?.length || 0} />
+                <MiniStat label={t('previewScoringFactors', 'jobs')} value={job.jobSpecs?.length || 0} />
+              </dl>
+              <ul className="grid grid-cols-1 divide-y divide-slate-100 dark:divide-slate-800 sm:grid-cols-2 sm:divide-y-0">
+                {previewFieldConfigItems.map((item) => {
+                  const config = normalizedFieldConfig[item.key];
+                  return (
+                    <li key={item.key} className="flex items-center justify-between gap-3 px-4 py-2.5 sm:border-b sm:border-slate-100 sm:dark:border-slate-800">
+                      <span className={`text-sm ${config.visible ? "text-slate-900 dark:text-white" : "text-slate-400 line-through decoration-slate-300"}`}>
+                        {item.label}
+                      </span>
+                      <span className="flex shrink-0 gap-1.5">
+                        {config.visible ? (
+                          <Badge tone={config.required ? "amber" : "slate"}>
+                            {config.required ? t('createRequired', 'jobs') : t('previewFieldOptional', 'jobs')}
+                          </Badge>
+                        ) : (
+                          <Badge tone="slate">{t('previewFieldHidden', 'jobs')}</Badge>
+                        )}
+                      </span>
                     </li>
-                  ))}
-                </ul>
-              </section>
-            )}
-          </div>
+                  );
+                })}
+              </ul>
+            </Card>
 
-          <section className="rounded-3xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900 md:p-7">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white">{t('previewApplicationGuidance', 'jobs')}</h3>
-            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-              {t('previewGuidanceDesc', 'jobs')}
-            </p>
-            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="rounded-2xl bg-gray-50 p-4 dark:bg-gray-800/60">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{t('previewOpenSeats', 'jobs')}</p>
-                <p className="mt-1 text-base font-black text-gray-900 dark:text-white">{job.openPositions || 0}</p>
-              </div>
-              <div className="rounded-2xl bg-gray-50 p-4 dark:bg-gray-800/60">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{t('previewBaseFieldsVisible', 'jobs')}</p>
-                <p className="mt-1 text-base font-black text-gray-900 dark:text-white">{visibleBaseFieldCount}</p>
-              </div>
-              <div className="rounded-2xl bg-gray-50 p-4 dark:bg-gray-800/60">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{t('previewCustomInputs', 'jobs')}</p>
-                <p className="mt-1 text-base font-black text-gray-900 dark:text-white">{job.customFields?.length || 0}</p>
-              </div>
-              <div className="rounded-2xl bg-gray-50 p-4 dark:bg-gray-800/60">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{t('previewScoringFactors', 'jobs')}</p>
-                <p className="mt-1 text-base font-black text-gray-900 dark:text-white">{job.jobSpecs?.length || 0}</p>
-              </div>
-            </div>
-          </section>
-
-          <section className="rounded-3xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900 md:p-7">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white">{t('previewBaseFields', 'jobs')}</h3>
-            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-              {t('previewBaseFieldsDesc', 'jobs')}
-            </p>
-            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {previewFieldConfigItems.map((item) => {
-                const config = normalizedFieldConfig[item.key];
-
-                return (
-                  <div
-                    key={item.key}
-                    className="rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-800/50"
-                  >
-                    <p className="text-sm font-bold text-gray-900 dark:text-white">{item.label}</p>
-                    <div className="mt-2 flex items-center gap-2 text-[10px] uppercase tracking-wider">
-                      <span
-                        className={`rounded-md px-2 py-1 font-bold ${
-                          config.visible
-                            ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
-                            : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
-                        }`}
-                      >
-                        {config.visible ? t('createVisible', 'jobs') : t('previewFieldHidden', 'jobs')}
-                      </span>
-                      <span
-                        className={`rounded-md px-2 py-1 font-bold ${
-                          config.required
-                            ? "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
-                            : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
-                        }`}
-                      >
-                        {config.required ? t('createRequired', 'jobs') : t('previewFieldOptional', 'jobs')}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        </div>
-
-        {/* Sidebar info */}
-        <div className="space-y-6">
-          {/* Actions Card */}
-          <div className="hidden md:block rounded-3xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-            <h3 className="text-sm font-bold uppercase tracking-widest text-gray-400 mb-4">{t('previewManagePosition', 'jobs')}</h3>
-            <div className="space-y-3">
-              <button
-                onClick={handleEdit}
-                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-brand-500 py-3.5 text-sm font-bold text-white shadow-brand-100 transition hover:bg-brand-600 hover:shadow-lg dark:shadow-none"
-              >
-                <PencilIcon className="size-4" />
-                {t('previewEditJob', 'jobs')}
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={isDeletingJob}
-                className="flex w-full items-center justify-center gap-2 rounded-2xl border border-red-100 bg-red-50 py-3.5 text-sm font-bold text-red-600 transition hover:bg-red-100 dark:border-red-900/30 dark:bg-red-900/20 dark:text-red-400"
-              >
-                <TrashBinIcon className="size-4" />
-                {isDeletingJob ? t('previewDeleting', 'jobs') : t('previewDeleteJob', 'jobs')}
-              </button>
-            </div>
-          </div>
-
-          {/* Quick Stats Widget */}
-          <div className="rounded-3xl border border-gray-200 bg-brand-500 p-6 text-white shadow-lg dark:border-gray-800">
-            <p className="text-brand-100 text-xs font-bold uppercase tracking-wider">{t('previewHiringGoal', 'jobs')}</p>
-            <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-4xl font-black">{job.openPositions || 0}</span>
-              <span className="text-brand-100 font-medium">{t('previewOpenSeats', 'jobs')}</span>
-            </div>
-            <div className="mt-6 flex gap-4 border-t border-white/10 pt-6">
-               <div className="flex-1">
-                  <p className="text-[10px] font-bold text-brand-100 uppercase mb-1">{t('previewStatus', 'jobs')}</p>
-                  <p className="text-sm font-bold">{t('previewInternalExternal', 'jobs')}</p>
-               </div>
-               <div className="flex-1">
-                  <p className="text-[10px] font-bold text-brand-100 uppercase mb-1">{t('previewCompany', 'jobs')}</p>
-                <p className="text-sm font-bold truncate">{getTranslation((company as any)?.name, t('previewCorporate', 'jobs'), locale)}</p>
-               </div>
-            </div>
-          </div>
-
-          {/* Salary Card */}
-          {job.salary && typeof job.salary === "number" && (
-            <div className="rounded-3xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
-              <div className="flex items-center justify-between mb-4">
-                <span className="bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 p-2 rounded-xl">
-                  <DollarLineIcon className="size-5" />
-                </span>
-                <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-md ${job.salaryVisible ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30' : 'bg-gray-100 text-gray-500 dark:bg-gray-800'}`}>
-                  {job.salaryVisible ? t('previewPublic', 'jobs') : t('previewConfidential', 'jobs')}
-                </span>
-              </div>
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">{t('previewAnnualComp', 'jobs')}</p>
-              <h3 className="mt-1 text-2xl font-black text-gray-900 dark:text-white">
-                ${job.salary.toLocaleString()}
-              </h3>
-            </div>
-          )}
-
-          {/* Timeline Card */}
-          <div className="rounded-3xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
-             <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-4">{t('previewApplicationPeriod', 'jobs')}</h3>
-             <div className="space-y-4 relative before:absolute before:left-2 before:top-2 before:bottom-2 before:w-px before:bg-gray-100 dark:before:bg-gray-800">
-                <div className="pl-6 relative">
-                   <div className="absolute left-0 top-1.5 size-4 -translate-x-1/2 rounded-full border-2 border-white bg-emerald-500 ring-4 ring-emerald-100 dark:border-gray-900 dark:ring-emerald-900/30" />
-                   <p className="text-xs font-bold text-gray-400 uppercase">{t('previewStarts', 'jobs')}</p>
-                   <p className="text-sm font-bold text-gray-900 dark:text-white">{formatDate(job.registrationStart)}</p>
-                </div>
-                <div className="pl-6 relative">
-                   <div className="absolute left-0 top-1.5 size-4 -translate-x-1/2 rounded-full border-2 border-white bg-amber-500 ring-4 ring-amber-100 dark:border-gray-900 dark:ring-amber-900/30" />
-                   <p className="text-xs font-bold text-gray-400 uppercase">{t('previewCloses', 'jobs')}</p>
-                   <p className="text-sm font-bold text-gray-900 dark:text-white">{formatDate(job.registrationEnd)}</p>
-                </div>
-             </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Specifications Table - Smarter UI */}
-      {job.jobSpecs && job.jobSpecs.length > 0 && (
-        <section className="rounded-3xl border border-gray-200 bg-white overflow-hidden shadow-sm dark:border-gray-800 dark:bg-gray-900">
-          <div className="p-6 md:p-8 border-b dark:border-gray-800">
-             <h3 className="text-xl font-bold text-gray-900 dark:text-white">{t('previewEvalMatrix', 'jobs')}</h3>
-             <p className="text-sm text-gray-500">{t('previewEvalMatrixDesc', 'jobs')}</p>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="bg-gray-50/50 dark:bg-gray-800/50 text-[10px] font-black uppercase tracking-widest text-gray-400">
-                  <th className="px-8 py-4">{t('previewAssessmentFactor', 'jobs')}</th>
-                  <th className="px-8 py-4 text-center">{t('previewRelativeWeight', 'jobs')}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y dark:divide-gray-800">
-                {job.jobSpecs.map((spec: any, i: number) => (
-                  <tr key={i} className="group hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors">
-                    <td className="px-8 py-5">
-                      <p className="font-bold text-gray-900 dark:text-white">
-                        {getTranslation(spec.spec, t('previewCriterion', 'jobs'), locale)}
-                      </p>
-                    </td>
-                    <td className="px-8 py-5">
-                      <div className="flex items-center justify-center gap-4">
-                        <div className="w-24 bg-gray-100 rounded-full h-1.5 dark:bg-gray-800 hidden sm:block">
-                          <div className="bg-brand-500 h-1.5 rounded-full" style={{ width: `${spec.weight}%` }} />
-                        </div>
-                        <span className="font-mono text-sm font-bold text-brand-600 dark:text-brand-400">
-                          {spec.weight}%
+            {job.customFields && job.customFields.length > 0 && (
+              <Card>
+                <CardToolbar>
+                  <SectionTitle icon={<SlidersHorizontal className="size-4" />}>
+                    {t('previewDynamicFields', 'jobs')}
+                    <span className="ms-1 font-normal text-slate-400">({job.customFields.length})</span>
+                  </SectionTitle>
+                </CardToolbar>
+                <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {job.customFields.map((field: any, idx: number) => (
+                    <li key={field.fieldId ?? idx} className="space-y-2 px-4 py-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-sm font-medium text-slate-900 dark:text-white">
+                          <bdi>{getTranslation(field.label, t('previewCustomInput', 'jobs'), locale)}</bdi>
+                        </p>
+                        <span className="flex items-center gap-1.5">
+                          <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                            {formatInputType(field.inputType)}
+                          </span>
+                          {field.isRequired && <Badge tone="amber">{t('createRequiredBadge', 'jobs')}</Badge>}
                         </span>
                       </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="bg-gray-50/80 dark:bg-gray-800/80">
-                  <td className="px-8 py-4 font-black text-gray-900 dark:text-white">{t('previewOverallScore', 'jobs')}</td>
-                  <td className="px-8 py-4 text-center font-black text-brand-600 dark:text-brand-400">
-                    {job.jobSpecs.reduce((sum: number, spec: any) => sum + spec.weight, 0)}%
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </section>
-      )}
+                      {field.choices && field.choices.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {field.choices.slice(0, 6).map((c: any, i: number) => (
+                            <span key={i} className="rounded-md border border-slate-200 px-2 py-0.5 text-xs text-slate-600 dark:border-slate-700 dark:text-slate-300">
+                              <bdi>{getTranslation(c, '', locale)}</bdi>
+                            </span>
+                          ))}
+                          {field.choices.length > 6 && (
+                            <span className="px-1 py-0.5 text-xs text-slate-400">{t('previewMoreChoices', 'jobs', { count: field.choices.length - 6 })}</span>
+                          )}
+                        </div>
+                      )}
+                      {(field.minValue !== undefined || field.maxValue !== undefined) && (
+                        <p className="flex gap-3 text-xs text-slate-500 dark:text-slate-400">
+                          {field.minValue !== undefined && <span>{t('previewMin', 'jobs', { value: field.minValue })}</span>}
+                          {field.maxValue !== undefined && <span>{t('previewMax', 'jobs', { value: field.maxValue })}</span>}
+                        </p>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            )}
 
-      {/* Allowed Statuses Section */}
-      {job.allowedStatuses && job.allowedStatuses.length > 0 && company?.settings?.statuses && (
-        <section className="rounded-3xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900 md:p-8">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-            <CheckCircleIcon className="size-5 text-brand-500" />
-            {t('previewAllowedStatuses', 'jobs')}
-          </h2>
-          <div className="flex flex-wrap gap-3">
-            {job.allowedStatuses.map((statusId: string) => {
-              const status = company.settings.statuses.find((s: any) => s._id === statusId || s.id === statusId);
-              if (!status) return null;
-              return (
-                <div 
-                  key={statusId} 
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700"
-                  style={{
-                    backgroundColor: `${status.color || '#e0e0e0'}20`,
-                    borderColor: status.color || '#e0e0e0'
-                  }}
-                >
-                  <div 
-                    className="size-3 rounded-full"
-                    style={{ backgroundColor: status.color || '#e0e0e0' }}
-                  />
-                  <span className="font-medium text-gray-900 dark:text-white">
-                    {status.name}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-          {job.allowedStatuses.some((statusId: string) => !company.settings.statuses.find((s: any) => s._id === statusId || s.id === statusId)) && (
-            <p className="mt-4 text-sm text-gray-500 italic">
-              {t('previewStatusesNote', 'jobs')}
-            </p>
-          )}
-        </section>
-      )}
-
-      {/* Custom Fields - Cards-style UI */}
-      {job.customFields && job.customFields.length > 0 && (
-        <section className="space-y-4">
-          <div className="flex items-baseline gap-2 px-2">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white">{t('previewDynamicFields', 'jobs')}</h3>
-            <span className="text-xs font-bold text-gray-400">({job.customFields.length})</span>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {job.customFields.map((field: any) => (
-              <div key={field.fieldId} className="group rounded-2xl border border-gray-200 bg-white p-5 transition-all hover:border-brand-200 hover:shadow-lg dark:border-gray-800 dark:bg-gray-900 dark:hover:border-brand-900/40">
-                <div className="flex justify-between items-start mb-3">
-                  <div className="px-2 py-0.5 rounded-md bg-gray-100 text-gray-500 text-[10px] font-black uppercase dark:bg-gray-800">
-                    {formatInputType(field.inputType)}
+            {job.jobSpecs && job.jobSpecs.length > 0 && (
+              <Card className="overflow-hidden">
+                <CardToolbar>
+                  <div>
+                    <SectionTitle icon={<Scale className="size-4" />}>{t('previewEvalMatrix', 'jobs')}</SectionTitle>
+                    <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{t('previewEvalMatrixDesc', 'jobs')}</p>
                   </div>
-                  {field.isRequired && (
-                    <span className="text-[10px] font-bold text-red-500 uppercase">{t('createRequiredBadge', 'jobs')}</span>
+                </CardToolbar>
+                <Table minWidth={420}>
+                  <thead>
+                    <tr>
+                      <Th>{t('previewAssessmentFactor', 'jobs')}</Th>
+                      <Th align="end">{t('previewRelativeWeight', 'jobs')}</Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {job.jobSpecs.map((spec: any, i: number) => (
+                      <tr key={i} className={rowClass}>
+                        <Td className="font-medium text-slate-900 dark:text-white">
+                          <bdi>{getTranslation(spec.spec, t('previewCriterion', 'jobs'), locale)}</bdi>
+                        </Td>
+                        <Td align="end">
+                          <span className="inline-flex items-center gap-3">
+                            <span className="hidden h-1.5 w-24 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800 sm:block">
+                              <span className="block h-full rounded-full bg-brand-500" style={{ width: `${Math.min(Number(spec.weight) || 0, 100)}%` }} />
+                            </span>
+                            <span className="w-10 tabular-nums">{spec.weight}%</span>
+                          </span>
+                        </Td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-800/50">
+                      <Td className="font-semibold text-slate-900 dark:text-white">{t('previewOverallScore', 'jobs')}</Td>
+                      <Td align="end" className="font-semibold tabular-nums text-slate-900 dark:text-white">
+                        {job.jobSpecs.reduce((sum: number, spec: any) => sum + spec.weight, 0)}%
+                      </Td>
+                    </tr>
+                  </tfoot>
+                </Table>
+              </Card>
+            )}
+
+            {job.allowedStatuses && job.allowedStatuses.length > 0 && company?.settings?.statuses && (
+              <Card>
+                <CardToolbar>
+                  <SectionTitle icon={<CircleCheck className="size-4" />}>{t('previewAllowedStatuses', 'jobs')}</SectionTitle>
+                </CardToolbar>
+                <div className="space-y-3 p-4">
+                  <div className="flex flex-wrap gap-2">
+                    {job.allowedStatuses.map((statusId: string) => {
+                      const st = company.settings.statuses.find((s: any) => s._id === statusId || s.id === statusId);
+                      if (!st) return null;
+                      return (
+                        <span
+                          key={statusId}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-700 dark:border-slate-700 dark:text-slate-200"
+                        >
+                          <span className="size-2 rounded-full" style={{ backgroundColor: st.color || '#94a3b8' }} />
+                          {toPlainString(st.name, locale)}
+                        </span>
+                      );
+                    })}
+                  </div>
+                  {job.allowedStatuses.some((statusId: string) => !company.settings.statuses.find((s: any) => s._id === statusId || s.id === statusId)) && (
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{t('previewStatusesNote', 'jobs')}</p>
                   )}
                 </div>
-                
-                <h4 className="font-bold text-gray-900 dark:text-white leading-tight mb-2">
-                  {getTranslation(field.label, t('previewCustomInput', 'jobs'), locale)}
-                </h4>
-                
-                {field.choices && field.choices.length > 0 && (
-                   <div className="mt-4 flex flex-wrap gap-1.5">
-                      {field.choices.slice(0, 4).map((c: any, idx: number) => (
-                        <span key={idx} className="text-[10px] font-medium px-2 py-1 rounded bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:text-brand-400">
-                          {getTranslation(c, '', locale)}
-                        </span>
-                      ))}
-                      {field.choices.length > 4 && (
-                        <span className="text-[10px] font-medium px-2 py-1 text-gray-400">{t('previewMoreChoices', 'jobs', { count: field.choices.length - 4 })}</span>
-                      )}
-                   </div>
-                )}
-                
-                <div className="mt-4 pt-4 border-t border-gray-50 dark:border-gray-800 flex items-center justify-between opacity-50 group-hover:opacity-100 transition-opacity">
-                   <span className="text-[10px] text-gray-400">{t('previewDisplayOrder', 'jobs', { order: field.displayOrder ?? field.order ?? 0 })}</span>
-                   <div className="flex gap-2">
-                      {field.minValue !== undefined && <span className="text-[10px] text-gray-400 italic">{t('previewMin', 'jobs', { value: field.minValue })}</span>}
-                      {field.maxValue !== undefined && <span className="text-[10px] text-gray-400 italic">{t('previewMax', 'jobs', { value: field.maxValue })}</span>}
-                   </div>
-                </div>
-              </div>
-            ))}
+              </Card>
+            )}
           </div>
-        </section>
-      )}
 
-      {/* Floating Action Button for Mobile Add Applicant or similar could go here */}
+          <div className="space-y-6">
+            <Card>
+              <CardToolbar>
+                <SectionTitle icon={<Briefcase className="size-4" />}>{t('previewManagePosition', 'jobs')}</SectionTitle>
+              </CardToolbar>
+              <dl className="divide-y divide-slate-100 dark:divide-slate-800">
+                <DetailRow label={t('previewCompany', 'jobs')} value={companyName} />
+                <DetailRow label={t('previewDepartment', 'jobs')} value={departmentName} />
+                <DetailRow label={t('previewType', 'jobs')} value={formatEmploymentType(job?.employmentType)} />
+                <DetailRow label={t('previewOpenSeats', 'jobs')} value={job.openPositions || 0} />
+                {job.salary && typeof job.salary === "number" && (
+                  <DetailRow
+                    label={t('previewAnnualComp', 'jobs')}
+                    value={
+                      <span className="inline-flex flex-wrap items-center justify-end gap-2">
+                        <span className="tabular-nums">${job.salary.toLocaleString()}</span>
+                        <Badge tone={job.salaryVisible ? "blue" : "slate"}>
+                          {job.salaryVisible ? t('previewPublic', 'jobs') : t('previewConfidential', 'jobs')}
+                        </Badge>
+                      </span>
+                    }
+                  />
+                )}
+              </dl>
+            </Card>
+
+            <Card>
+              <CardToolbar>
+                <SectionTitle icon={<CalendarDays className="size-4" />}>{t('previewApplicationPeriod', 'jobs')}</SectionTitle>
+              </CardToolbar>
+              <dl className="divide-y divide-slate-100 dark:divide-slate-800">
+                <DetailRow label={t('previewStarts', 'jobs')} value={formatDate(job.registrationStart)} />
+                <DetailRow label={t('previewCloses', 'jobs')} value={formatDate(job.registrationEnd)} />
+              </dl>
+            </Card>
+          </div>
+        </div>
+      </PageShell>
+    </>
+  );
+}
+
+function BulletCard({ title, items }: { title: string; items: string[] }) {
+  return (
+    <Card>
+      <CardToolbar>
+        <SectionTitle>{title}</SectionTitle>
+      </CardToolbar>
+      <ul className="space-y-2 p-4">
+        {items.map((item, i) => (
+          <li key={i} className="flex gap-2.5 text-sm text-slate-700 dark:text-slate-300">
+            <span className="mt-2 size-1.5 shrink-0 rounded-full bg-slate-400" aria-hidden="true" />
+            <span dir="auto">{item}</span>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
+function MiniStat({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="px-4 py-3">
+      <dt className="text-xs text-slate-500 dark:text-slate-400">{label}</dt>
+      <dd className="mt-0.5 text-lg font-semibold tabular-nums text-slate-900 dark:text-white">{value}</dd>
     </div>
   );
 }
 
+function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex items-start justify-between gap-4 px-4 py-3 text-sm">
+      <dt className="text-slate-500 dark:text-slate-400">{label}</dt>
+      <dd className="text-end font-medium text-slate-900 dark:text-white">{value}</dd>
+    </div>
+  );
+}

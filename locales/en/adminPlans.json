@@ -58,6 +58,7 @@
   "featureCvParse": "CV Parser",
   "emailTypePersonalGmail": "Gmail only (free)",
   "emailTypeCustomDomain": "Custom domain + Gmail",
+  "sendReceiveDisabled": "Disabled",
   "sendReceiveSendOnly": "Send only",
   "sendReceiveSendReceive": "Send & receive replies"
 }

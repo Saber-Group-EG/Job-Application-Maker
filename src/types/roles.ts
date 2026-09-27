@@ -13,7 +13,8 @@ export interface Role {
   _id: string;
   name: string;
   description: string;
-  permissions?: Array<string | { permission: string; access?: string[] }>;
+  // Ids, or entries whose permission is an id or (when populated) a document.
+  permissions?: Array<string | { permission: string | { _id: string; name?: string }; access?: string[] }>;
   isSystemRole?: boolean;
   singleCompany?: boolean;
   permissionsCount?: number;

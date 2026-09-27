@@ -26,9 +26,12 @@ export interface User {
   email: string;
   fullName?: string;
   name?: string;
+  // /auth/me populates the role (name, isSystemRole) and, with
+  // ?populate=roleId.permissions.permission, its permissions.
   roleId?: {
     _id: string;
     name: string;
+    isSystemRole?: boolean;
     permissions?: Array<{
       permission: {
         _id: string;

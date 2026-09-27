@@ -1,27 +1,35 @@
 import type { ChangeEvent, FormEvent } from "react";
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
 import Swal from '../../../utils/swal';
 import { useLocale } from "../../../context/LocaleContext";
 import { useCreateCompany } from "../../../hooks/queries/useCompanies";
 import { companiesKeys } from "../../../hooks/queries/useCompanies";
-import { 
-  Building2, 
-  Mail, 
-  Phone, 
-  Globe, 
-  MapPin, 
-  Save, 
-  Plus, 
-  Trash2, 
+import type { Company } from "../../../types/companies";
+import {
+  ArrowLeft,
+  Building2,
   Image as ImageIcon,
+  Loader2,
+  Mail,
+  MapPin,
+  Plus,
+  Trash2,
   Upload,
- 
-  ArrowLeft
 } from "lucide-react";
+import {
+  Button,
+  Card,
+  CardToolbar,
+  Field,
+  IconButton,
+  PageShell,
+  SectionTitle,
+  focusRing,
+  inputClass,
+} from "../../../components/ui/kit";
 
 type CompanyForm = {
   name: { en: string; ar: string; };
@@ -47,7 +55,7 @@ export default function CreateCompany() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const createCompanyMutation = useCreateCompany();
-  const { t, locale } = useLocale();
+  const { t } = useLocale();
   
   const [companyForm, setCompanyForm] = useState<CompanyForm>(defaultCompany);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
@@ -100,10 +108,10 @@ export default function CreateCompany() {
     if (!file) return;
     setIsUploadingLogo(true);
     try {
-      const result: any = await uploadToCloudinary(file);
+      const result: { secure_url?: string } = await uploadToCloudinary(file);
       setCompanyForm((prev) => ({ ...prev, logoPath: result.secure_url }));
-    } catch (err: any) {
-      Swal.fire(t('uploadFailed', 'companies'), err.message || t('uploadFailedDesc', 'companies'), "error");
+    } catch (err) {
+      Swal.fire(t('uploadFailed', 'companies'), (err as Error)?.message || t('uploadFailedDesc', 'companies'), "error");
     } finally {
       setIsUploadingLogo(false);
     }
@@ -124,9 +132,10 @@ export default function CreateCompany() {
     // Optimistic update
     const previousCompanies = queryClient.getQueryData(companiesKeys.list());
     const tempId = `temp-${Date.now()}`;
-    const tempCompany: any = { ...companyForm, _id: tempId };
+    const tempCompany: Company = { ...companyForm, _id: tempId };
 
-    queryClient.setQueryData<any>(companiesKeys.list(), (old: any) => {
+    // The list cache is either an array or a { data } envelope.
+    queryClient.setQueryData<Company[] | { data?: Company[] }>(companiesKeys.list(), (old) => {
       if (!old) return [tempCompany];
       if (Array.isArray(old)) return [...old, tempCompany];
       return { ...old, data: [...(old.data || []), tempCompany] };
@@ -151,258 +160,231 @@ export default function CreateCompany() {
       } else {
         navigate("/companies");
       }
-    } catch (err: any) {
+    } catch (err) {
       // Rollback optimistic update
       queryClient.setQueryData(companiesKeys.list(), previousCompanies);
       
       await Swal.fire({
         title: t('registrationFailed', 'companies'),
-        text: err.message || t('registrationFailedDesc', 'companies'),
+        text: (err as Error)?.message || t('registrationFailedDesc', 'companies'),
         icon: "error"
       });
     }
   };
 
+  const busy = createCompanyMutation.isPending || isUploadingLogo;
+
+  const back = (
+    <Link
+      to="/companies"
+      className={`inline-flex items-center gap-1.5 rounded-md text-sm font-medium text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white ${focusRing}`}
+    >
+      <ArrowLeft className="size-4 rtl:rotate-180" />
+      {t('backToCompanies', 'companies')}
+    </Link>
+  );
+
   return (
-    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0F172A] p-4 sm:p-8 text-slate-900 dark:text-slate-100">
+    <>
       <PageMeta title={t('newPageTitle', 'companies')} description={t('newPageDesc', 'companies')} />
-
-      <div className="max-w-7xl mx-auto space-y-8">
-        <PageBreadcrumb pageTitle={t('newBreadcrumb', 'companies')} />
-
-        {/* Header Section */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={() => navigate("/companies")}
-              className="size-12 rounded-2xl bg-white dark:bg-white/5 border border-white/20 dark:border-white/10 flex items-center justify-center hover:scale-110 active:scale-90 transition-all shadow-sm"
-            >
-              <ArrowLeft className="size-5" />
-            </button>
-            <div>
-              <h1 className="text-3xl font-black bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400 bg-clip-text text-transparent tracking-tight">
-                {t('companyInformation', 'companies')}
-              </h1>
-              <p className="text-gray-500 dark:text-gray-400 font-medium italic">{t('companyInformationDesc', 'companies')}</p>
-            </div>
-          </div>
-          
-          <button
-            form="company-form"
-            type="submit"
-            disabled={createCompanyMutation.isPending || isUploadingLogo}
-            className="flex items-center justify-center gap-2 px-8 py-4 bg-brand-500 text-white rounded-[1.25rem] font-bold shadow-xl shadow-brand-500/20 hover:scale-105 active:scale-95 disabled:opacity-50 transition-all"
-          >
-            {createCompanyMutation.isPending ? (
-              <div className="size-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            ) : (
-              <Save className="size-5" />
-            )}
-            {t('saveCompany', 'companies')}
-          </button>
-        </div>
-
-        <form id="company-form" onSubmit={handleCompanySubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column: Basic Info & Branding */}
-          <div className="lg:col-span-2 space-y-8">
-            <div className="bg-white/60 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-[2.5rem] p-8 shadow-sm">
-              <div className="flex items-center gap-3 mb-8">
-                <div className="size-10 rounded-xl bg-brand-500/10 flex items-center justify-center text-brand-500">
-                  <Building2 className="size-5" />
-                </div>
-                <h2 className="text-xl font-black tracking-tight">{t('companyProfile', 'companies')}</h2>
-              </div>
-
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className={`space-y-2 ${locale === 'ar' ? 'order-2' : 'order-1'}`}>
-                    <label className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
-                      {t('companyNameEn', 'companies')} <span className="text-brand-500">*</span>
-                    </label>
+      <PageShell back={back} title={t('companyInformation', 'companies')} subtitle={t('companyInformationDesc', 'companies')}>
+        <form id="company-form" onSubmit={handleCompanySubmit} className="space-y-6">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <div className="space-y-6 lg:col-span-2">
+              <Card>
+                <CardToolbar>
+                  <SectionTitle icon={<Building2 className="size-4" />}>{t('companyProfile', 'companies')}</SectionTitle>
+                </CardToolbar>
+                <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2">
+                  <Field label={t('companyNameEn', 'companies')} htmlFor="cc-name-en">
                     <input
+                      id="cc-name-en"
                       required
+                      dir="ltr"
                       value={companyForm.name.en}
                       onChange={(e) => handleLocalizedChange('name', 'en', e.target.value)}
                       placeholder={t('companyNameEnPlaceholder', 'companies')}
-                      className="w-full px-5 py-3.5 bg-white dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-brand-500/20 outline-none transition-all font-bold"
+                      className={inputClass}
                     />
-                  </div>
-                  <div className={`space-y-2 ${locale === 'ar' ? 'order-1' : 'order-2'}`}>
-                    <label className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center justify-end gap-2" dir="rtl">
-                      {t('companyNameAr', 'companies')} <span className="text-brand-500">*</span>
-                    </label>
+                  </Field>
+                  <Field label={t('companyNameAr', 'companies')} htmlFor="cc-name-ar">
                     <input
+                      id="cc-name-ar"
                       required
+                      dir="rtl"
                       value={companyForm.name.ar}
                       onChange={(e) => handleLocalizedChange('name', 'ar', e.target.value)}
                       placeholder={t('companyNameArPlaceholder', 'companies')}
-                      dir="rtl"
-                      className="w-full px-5 py-3.5 bg-white dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-brand-500/20 outline-none transition-all font-bold"
+                      className={inputClass}
                     />
-                  </div>
+                  </Field>
+                  <Field label={t('companyDescEn', 'companies')} htmlFor="cc-desc-en" optional>
+                    <textarea
+                      id="cc-desc-en"
+                      dir="ltr"
+                      rows={4}
+                      value={companyForm.description.en}
+                      onChange={(e) => handleLocalizedChange('description', 'en', e.target.value)}
+                      placeholder={t('companyDescPlaceholder', 'companies')}
+                      className={`${inputClass} resize-y`}
+                    />
+                  </Field>
+                  <Field label={t('companyDescAr', 'companies')} htmlFor="cc-desc-ar" optional>
+                    <textarea
+                      id="cc-desc-ar"
+                      dir="rtl"
+                      rows={4}
+                      value={companyForm.description.ar}
+                      onChange={(e) => handleLocalizedChange('description', 'ar', e.target.value)}
+                      placeholder={t('companyDescArPlaceholder', 'companies')}
+                      className={`${inputClass} resize-y`}
+                    />
+                  </Field>
                 </div>
+              </Card>
 
-                <div className="space-y-2">
-                  <label className="text-xs font-black uppercase tracking-widest text-slate-400">{t('companyDescEn', 'companies')}</label>
-                  <textarea
-                    rows={4}
-                    value={companyForm.description.en}
-                    onChange={(e) => handleLocalizedChange('description', 'en', e.target.value)}
-                    placeholder={t('companyDescPlaceholder', 'companies')}
-                    className="w-full px-5 py-3.5 bg-white dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-brand-500/20 outline-none transition-all font-medium italic"
-                  />
-                </div>
-              </div>
+              <Card>
+                <CardToolbar>
+                  <SectionTitle icon={<MapPin className="size-4" />}>{t('locations', 'companies')}</SectionTitle>
+                  <Button onClick={handleAddAddress} icon={<Plus className="size-4" />}>
+                    {t('addLocation', 'companies')}
+                  </Button>
+                </CardToolbar>
+                <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {companyForm.address.map((addr, idx) => (
+                    <li key={idx} className="space-y-3 p-4">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                          {t('locationNumber', 'companies', { n: idx + 1 })}
+                        </p>
+                        {companyForm.address.length > 1 && (
+                          <IconButton tone="danger" label={t('dissolveLocation', 'companies')} onClick={() => handleRemoveAddress(idx)}>
+                            <Trash2 className="size-4" />
+                          </IconButton>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <Field label={t('streetAddressEn', 'companies')} htmlFor={`cc-addr-en-${idx}`}>
+                          <input
+                            id={`cc-addr-en-${idx}`}
+                            dir="ltr"
+                            value={addr.en}
+                            onChange={(e) => handleAddressChange(idx, 'en', e.target.value)}
+                            className={inputClass}
+                          />
+                        </Field>
+                        <Field label={t('streetAddressAr', 'companies')} htmlFor={`cc-addr-ar-${idx}`}>
+                          <input
+                            id={`cc-addr-ar-${idx}`}
+                            dir="rtl"
+                            value={addr.ar}
+                            onChange={(e) => handleAddressChange(idx, 'ar', e.target.value)}
+                            className={inputClass}
+                          />
+                        </Field>
+                        <div className="sm:col-span-2">
+                          <Field label={t('geolocation', 'companies')} htmlFor={`cc-addr-loc-${idx}`} optional>
+                            <input
+                              id={`cc-addr-loc-${idx}`}
+                              dir="ltr"
+                              value={addr.location}
+                              onChange={(e) => handleAddressChange(idx, 'location', e.target.value)}
+                              placeholder={t('geolocationPlaceholder', 'companies')}
+                              className={inputClass}
+                            />
+                          </Field>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
             </div>
 
-            <div className="bg-white/60 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-[2.5rem] p-8 shadow-sm">
-              <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center gap-3">
-                  <div className="size-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500">
-                    <MapPin className="size-5" />
-                  </div>
-                  <h2 className="text-xl font-black tracking-tight">{t('locations', 'companies')}</h2>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleAddAddress}
-                  className="flex items-center gap-2 px-4 py-2 bg-brand-500/10 text-brand-500 rounded-xl text-xs font-black hover:bg-brand-500 hover:text-white transition-all"
-                >
-                  <Plus className="size-3" /> {t('addLocation', 'companies')}
-                </button>
-              </div>
-
-              <div className="space-y-6">
-                {companyForm.address.map((addr, idx) => (
-                  <div                   key={`addr-${idx}-${addr.en}-${addr.ar}`} className="relative group p-6 border border-slate-200 dark:border-white/5 rounded-[2rem] bg-slate-50/50 dark:bg-white/5 space-y-4">
-                    {companyForm.address.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveAddress(idx)}
-                        className="absolute -top-3 -right-3 size-8 bg-red-500 text-white rounded-full flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-all hover:scale-110 active:scale-90"
-                      >
-                        <Trash2 className="size-3.5" />
-                      </button>
-                    )}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className={`space-y-2 ${locale === 'ar' ? 'order-2' : 'order-1'}`}>
-                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">{t('streetAddressEn', 'companies')}</label>
-                        <input
-                          value={addr.en}
-                          onChange={(e) => handleAddressChange(idx, 'en', e.target.value)}
-                          className="w-full bg-transparent border-b border-slate-300 dark:border-white/10 py-1 outline-none focus:border-brand-500 transition-colors font-bold"
-                        />
-                      </div>
-                      <div className={`space-y-2 ${locale === 'ar' ? 'order-1' : 'order-2'}`}>
-                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-right block">{t('streetAddressAr', 'companies')}</label>
-                        <input
-                          value={addr.ar}
-                          dir="rtl"
-                          onChange={(e) => handleAddressChange(idx, 'ar', e.target.value)}
-                          className="w-full bg-transparent border-b border-slate-300 dark:border-white/10 py-1 outline-none focus:border-brand-500 transition-colors font-bold"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">{t('geolocation', 'companies')}</label>
-                      <input
-                        value={addr.location}
-                        onChange={(e) => handleAddressChange(idx, 'location', e.target.value)}
-                        placeholder={t('geolocationPlaceholder', 'companies')}
-                        className="w-full bg-transparent border-b border-slate-300 dark:border-white/10 py-1 outline-none focus:border-brand-500 transition-colors font-medium italic"
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column: Contact & Logo */}
-          <div className="space-y-8">
-            <div className="bg-white/60 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-[2.5rem] p-8 shadow-sm">
-              <div className="flex flex-col items-center gap-6 text-center">
-                <div className="relative group">
-                  <div className="size-40 rounded-[3rem] bg-gradient-to-br from-slate-100 to-slate-200 dark:from-white/10 dark:to-white/5 flex items-center justify-center text-4xl font-black text-slate-300 overflow-hidden border-2 border-dashed border-slate-300 dark:border-white/10 group-hover:border-brand-500/50 transition-all">
+            <div className="space-y-6">
+              <Card>
+                <CardToolbar>
+                  <SectionTitle icon={<ImageIcon className="size-4" />}>{t('brandCompany', 'companies')}</SectionTitle>
+                </CardToolbar>
+                <div className="flex items-center gap-4 p-4">
+                  <span className="relative flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-dashed border-slate-300 bg-slate-50 text-slate-400 dark:border-slate-700 dark:bg-slate-800">
                     {companyForm.logoPath ? (
-                      <img src={companyForm.logoPath} alt="Logo Preview" className="w-full h-full object-cover" />
+                      <img src={companyForm.logoPath} alt="" className="size-full object-cover" />
                     ) : (
-                      <ImageIcon className="size-12 opacity-20" />
+                      <ImageIcon className="size-6" />
                     )}
-                    <label className="absolute inset-0 bg-brand-500/80 text-white flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-all gap-2 p-4">
-                      <Upload className="size-6" />
-                      <span className="text-xs font-black uppercase tracking-wider">{t('updateLogo', 'companies')}</span>
-                      <input type="file" className="hidden" accept="image/*" onChange={handleLogoChange} />
+                    {isUploadingLogo && (
+                      <span className="absolute inset-0 flex items-center justify-center bg-white/70 dark:bg-slate-900/70">
+                        <Loader2 className="size-5 animate-spin text-brand-500" />
+                      </span>
+                    )}
+                  </span>
+                  <div className="space-y-2">
+                    <label
+                      className={`inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 focus-within:ring-2 focus-within:ring-brand-500/40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 ${isUploadingLogo ? "pointer-events-none opacity-50" : ""}`}
+                    >
+                      <Upload className="size-4" />
+                      {companyForm.logoPath ? t('updateLogo', 'companies') : t('uploadCompanyMark', 'companies')}
+                      <input type="file" className="sr-only" accept="image/*" onChange={handleLogoChange} disabled={isUploadingLogo} />
                     </label>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{t('brandSubtext', 'companies')}</p>
                   </div>
-                  {isUploadingLogo && (
-                    <div className="absolute inset-0 bg-white/60 dark:bg-black/60 backdrop-blur-sm rounded-[3rem] flex items-center justify-center">
-                      <div className="size-8 border-4 border-brand-500 border-t-transparent rounded-full animate-spin" />
-                    </div>
-                  )}
                 </div>
-                <div>
-                  <h3 className="text-lg font-black tracking-tight">{t('brandCompany', 'companies')}</h3>
-                  <p className="text-xs text-gray-400 mt-1">{t('brandSubtext', 'companies')}</p>
-                </div>
-              </div>
-            </div>
+              </Card>
 
-            <div className="bg-white/60 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-[2.5rem] p-8 shadow-sm space-y-8">
-              <div className="flex items-center gap-3">
-                <div className="size-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-500">
-                  <Mail className="size-5" />
-                </div>
-                <h2 className="text-xl font-black tracking-tight">{t('contact', 'companies')}</h2>
-              </div>
-
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">{t('corporateEmail', 'companies')}</label>
-                  <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
+              <Card>
+                <CardToolbar>
+                  <SectionTitle icon={<Mail className="size-4" />}>{t('contact', 'companies')}</SectionTitle>
+                </CardToolbar>
+                <div className="space-y-4 p-4">
+                  <Field label={t('corporateEmail', 'companies')} htmlFor="cc-email" optional>
                     <input
+                      id="cc-email"
                       name="contactEmail"
+                      type="email"
+                      dir="ltr"
                       value={companyForm.contactEmail}
                       onChange={handleCompanyChange}
                       placeholder={t('emailPlaceholder', 'companies')}
-                      className="w-full pl-11 pr-5 py-3.5 bg-white dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-brand-500/20 outline-none transition-all font-bold"
+                      className={inputClass}
                     />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">{t('centralSwitchboard', 'companies')}</label>
-                  <div className="relative">
-                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
+                  </Field>
+                  <Field label={t('centralSwitchboard', 'companies')} htmlFor="cc-phone" optional>
                     <input
+                      id="cc-phone"
                       name="phone"
+                      type="tel"
+                      dir="ltr"
                       value={companyForm.phone}
                       onChange={handleCompanyChange}
                       placeholder={t('phonePlaceholder', 'companies')}
-                      className="w-full pl-11 pr-5 py-3.5 bg-white dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-brand-500/20 outline-none transition-all font-bold"
+                      className={inputClass}
                     />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">{t('officialWebsite', 'companies')}</label>
-                  <div className="relative">
-                    <Globe className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
+                  </Field>
+                  <Field label={t('officialWebsite', 'companies')} htmlFor="cc-website" optional>
                     <input
+                      id="cc-website"
                       name="website"
+                      dir="ltr"
                       value={companyForm.website}
                       onChange={handleCompanyChange}
                       placeholder={t('websitePlaceholder', 'companies')}
-                      className="w-full pl-11 pr-5 py-3.5 bg-white dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-brand-500/20 outline-none transition-all font-bold"
+                      className={inputClass}
                     />
-                  </div>
+                  </Field>
                 </div>
-              </div>
+              </Card>
             </div>
           </div>
+
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button onClick={() => navigate("/companies")}>{t('cancel', 'companies')}</Button>
+            <Button type="submit" variant="primary" loading={createCompanyMutation.isPending} disabled={busy}>
+              {t('saveCompany', 'companies')}
+            </Button>
+          </div>
         </form>
-      </div>
-    </div>
+      </PageShell>
+    </>
   );
 }

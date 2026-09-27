@@ -11,6 +11,7 @@ import type {
   CreateSavedFieldRequest,
   UpdateSavedFieldRequest,
   SavedQuestionGroup,
+  User,
 } from "../../services/usersService";
 import { ApiError } from "../../services/companiesService";
 import Swal from "../../utils/swal";
@@ -88,7 +89,7 @@ interface UseUsersParams {
   PageCount?: string | number; // Add this
 }
 
-export function useUsers(params: UseUsersParams = {}): UseQueryResult<any[], Error> {
+export function useUsers(params: UseUsersParams = {}): UseQueryResult<User[], Error> {
   const { user } = useAuth();
   const userCompanyIds = getUserCompanyIds(user);
   const companies = params?.companies ?? userCompanyIds;

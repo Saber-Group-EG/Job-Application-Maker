@@ -1,13 +1,10 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate, useLocation } from "react-router";
+import { Link, useParams, useNavigate, useLocation } from "react-router";
 import { useAuth } from "../../../context/AuthContext";
 import { useLocale } from "../../../context/LocaleContext";
 import Swal from '../../../utils/swal';
-import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
 import LoadingSpinner from "../../../components/common/LoadingSpinner";
-// Label was unused — removed during refactor
-import Input from "../../../components/form/input/InputField";
 import {
   useRoles,
   usePermissions,
@@ -16,22 +13,30 @@ import {
   useDeleteRole,
 } from "../../../hooks/queries";
 import { toPlainString } from "../../../utils/strings";
-import { 
-  Shield, 
-  Users, 
-  ChevronLeft, 
-  Pencil, 
-  Trash2, 
-  CheckCircle2, 
-  ShieldAlert, 
-  Lock,
+import {
+  ArrowLeft,
   Calendar,
-  Layers,
-  Fingerprint,
-  ArrowRight,
-  ShieldCheck,
-  UserCheck
+  ChevronRight,
+  KeyRound,
+  Pencil,
+  ShieldAlert,
+  Trash2,
+  Users,
 } from "lucide-react";
+import {
+  Badge,
+  Button,
+  Card,
+  CardToolbar,
+  EmptyState,
+  Field,
+  PageShell,
+  SectionTitle,
+  StatCard,
+  ToggleChip,
+  focusRing,
+  inputClass,
+} from "../../../components/ui/kit";
 
 export default function PreviewRole() {
   const { t, locale } = useLocale();
@@ -50,9 +55,7 @@ export default function PreviewRole() {
   const [permissionAccess, setPermissionAccess] = useState<Record<string, string[]>>({});
 
   const { data: roles = [], isLoading: rolesLoading, isFetching: rolesFetching, error: rolesError } = useRoles();
-  const role: any = Array.isArray(roles)
-    ? roles.find((r: any) => r._id === id)
-    : ((roles as any)?.data || []).find((r: any) => r._id === id);
+  const role = roles.find((r) => r._id === id);
   const { data: permissions = [], isLoading: permissionsLoading } = usePermissions();
   const { data: usersData, isLoading: usersLoading } = useUsers();
   
@@ -62,24 +65,34 @@ export default function PreviewRole() {
   const canUpdate = hasPermission("Role Management", "write");
   const canDelete = hasPermission("Role Management", "write");
 
-  useEffect(() => {
+  const loadRoleForm = () => {
     if (role) {
       setFormData({
-        name: toPlainString((role as any).name) || "",
+        name: toPlainString(role.name) || "",
         description: role.description || "",
       });
       
       const rolePerms = role.permissions || [];
-      setSelectedPermissions(rolePerms.map((p: any) => p.permission?._id || p.permission));
-      
+      const permIdOf = (p: (typeof rolePerms)[number]) =>
+        typeof p === "string" ? p : typeof p.permission === "string" ? p.permission : p.permission?._id;
+      setSelectedPermissions(rolePerms.map(permIdOf).filter((pid): pid is string => Boolean(pid)));
+
       const accessMap: Record<string, string[]> = {};
-      rolePerms.forEach((p: any) => {
-        const permId = p.permission?._id || p.permission;
-        accessMap[permId] = p.access || [];
+      rolePerms.forEach((p) => {
+        const permId = permIdOf(p);
+        if (permId) accessMap[permId] = (typeof p === "string" ? undefined : p.access) || [];
       });
       setPermissionAccess(accessMap);
     }
-  }, [role]);
+  };
+
+  useEffect(loadRoleForm, [role]);
+
+  // Cancel throws away unsaved edits.
+  const cancelEditing = () => {
+    loadRoleForm();
+    setIsEditing(false);
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -120,6 +133,7 @@ export default function PreviewRole() {
   const handleSave = async () => {
     const payload = {
       name: formData.name,
+      description: formData.description,
       permissions: selectedPermissions.map((permId) => ({
         permission: permId,
         access: permissionAccess[permId] || [],
@@ -127,7 +141,7 @@ export default function PreviewRole() {
     };
 
     try {
-      await updateRoleMutation.mutateAsync({ id: id!, data: payload as any });
+      await updateRoleMutation.mutateAsync({ id: id!, data: payload });
       setIsEditing(false);
       Swal.fire({
         title: t('previewUpdatedTitle', 'roles'),
@@ -138,8 +152,8 @@ export default function PreviewRole() {
         background: "rgba(255, 255, 255, 0.9)",
         backdrop: `rgba(0,0,0,0.4) blur(4px)`
       });
-    } catch (err: any) {
-      Swal.fire(t('previewUpdateFailed', 'roles'), err.message || t('previewErrorGeneric', 'roles'), "error");
+    } catch (err) {
+      Swal.fire(t('previewUpdateFailed', 'roles'), (err as { message?: string })?.message || t('previewErrorGeneric', 'roles'), "error");
     }
   };
 
@@ -159,293 +173,224 @@ export default function PreviewRole() {
         await deleteRoleMutation.mutateAsync(id!);
         navigate("/permissions");
         Swal.fire({ title: t('previewDecommissioned', 'roles'), icon: "success", timer: 1500, showConfirmButton: false });
-      } catch (err: any) {
-        Swal.fire(t('previewErrorGeneric', 'roles'), err.message, "error");
+      } catch (err) {
+        Swal.fire(t('previewErrorGeneric', 'roles'), (err as { message?: string })?.message, "error");
       }
     }
   };
 
-  const roleUsers = (Array.isArray(usersData) ? usersData : ((usersData as any)?.data ?? []))
-    .filter((u: any) => (u.roleId?._id || u.roleId) === id);
+  const roleUsers = (Array.isArray(usersData) ? usersData : [])
+    .filter((u) => (typeof u.roleId === "object" ? u.roleId?._id : u.roleId) === id);
+
+  const actionLabels: Record<string, string> = {
+    read: t('previewActionRead', 'roles'),
+    write: t('previewActionWrite', 'roles'),
+    create: t('previewActionCreate', 'roles'),
+    update: t('previewActionUpdate', 'roles'),
+    delete: t('previewActionDelete', 'roles'),
+  };
+  const actionLabel = (action: string) => actionLabels[action] ?? action;
+
+  const back = (
+    <Link
+      to="/permissions"
+      className={`inline-flex items-center gap-1.5 rounded-md text-sm font-medium text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white ${focusRing}`}
+    >
+      <ArrowLeft className="size-4 rtl:rotate-180" />
+      {t('previewBackButton', 'roles')}
+    </Link>
+  );
 
   if (rolesLoading || permissionsLoading || usersLoading || (!role && rolesFetching)) return <LoadingSpinner fullPage />;
   if (rolesError || !role) return (
-    <div className="p-8 text-center bg-white/60 dark:bg-white/5 backdrop-blur-xl rounded-[3rem] border border-red-500/20 max-w-2xl mx-auto mt-20">
-      <ShieldAlert className="size-16 text-red-500 mx-auto mb-6" />
-      <h2 className="text-2xl font-black text-gray-900 dark:text-white">{t('previewNotFoundTitle', 'roles')}</h2>
-      <p className="text-gray-500 mt-2">{t('previewNotFoundText', 'roles')}</p>
-      <button onClick={() => navigate("/permissions")} className="mt-8 px-8 py-3 bg-brand-500 text-white font-bold rounded-2xl shadow-xl shadow-brand-500/20">
-        {t('previewReturnButton', 'roles')}
-      </button>
-    </div>
+    <PageShell back={back} title={t('previewNotFoundTitle', 'roles')}>
+      <Card>
+        <EmptyState
+          icon={<ShieldAlert className="size-6" />}
+          title={t('previewNotFoundTitle', 'roles')}
+          text={t('previewNotFoundText', 'roles')}
+          action={<Button onClick={() => navigate("/permissions")}>{t('previewReturnButton', 'roles')}</Button>}
+        />
+      </Card>
+    </PageShell>
+  );
+
+  const createdAt = role.createdAt
+    ? new Date(role.createdAt).toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', { dateStyle: 'medium' })
+    : "—";
+
+  const actions = isEditing ? (
+    <>
+      <Button onClick={cancelEditing} disabled={updateRoleMutation.isPending}>{t('previewCancelButton', 'roles')}</Button>
+      <Button variant="primary" onClick={handleSave} loading={updateRoleMutation.isPending}>
+        {t('previewSaveChanges', 'roles')}
+      </Button>
+    </>
+  ) : (
+    <>
+      {canDelete && (
+        <Button variant="danger" icon={<Trash2 className="size-4" />} onClick={handleDelete}>
+          {t('previewDeleteButton', 'roles')}
+        </Button>
+      )}
+      {canUpdate && (
+        <Button icon={<Pencil className="size-4" />} onClick={() => setIsEditing(true)}>
+          {t('previewEditButton', 'roles')}
+        </Button>
+      )}
+    </>
   );
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0F172A] p-4 sm:p-8 text-slate-900 dark:text-slate-100">
+    <>
       <PageMeta title={t('previewMetaTitle', 'roles', { name: formData.name })} description={t('previewMetaDescription', 'roles')} />
-
-      <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in duration-700">
-        <PageBreadcrumb pageTitle={t('previewPageTitle', 'roles')} />
-        {/* Profile Navigation */}
-        <div className="flex items-center justify-between">
-          <button 
-            onClick={() => navigate("/permissions")}
-            className="group flex items-center gap-2 text-gray-400 hover:text-brand-500 transition-all font-bold tracking-tight"
-          >
-            <div className="size-10 rounded-xl bg-white/60 dark:bg-white/5 backdrop-blur-md border border-white/20 flex items-center justify-center transition-transform group-hover:-translate-x-1 shadow-sm">
-              <ChevronLeft className="size-5" />
+      <PageShell
+        back={back}
+        title={formData.name || t('previewPageTitle', 'roles')}
+        subtitle={!isEditing && formData.description ? formData.description : undefined}
+        actions={actions}
+      >
+        {isEditing && (
+          <Card>
+            <CardToolbar>
+              <SectionTitle>{t('previewDetailsTitle', 'roles')}</SectionTitle>
+            </CardToolbar>
+            <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2">
+              <Field label={t('previewRoleNameLabel', 'roles')} htmlFor="pr-name">
+                <input
+                  id="pr-name"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  className={inputClass}
+                  placeholder={t('previewRoleNamePlaceholder', 'roles')}
+                />
+              </Field>
+              <Field label={t('previewRoleDescLabel', 'roles')} htmlFor="pr-desc" optional>
+                <textarea
+                  id="pr-desc"
+                  name="description"
+                  rows={2}
+                  value={formData.description}
+                  onChange={handleInputChange}
+                  className={`${inputClass} resize-y`}
+                  placeholder={t('previewRoleDescPlaceholder', 'roles')}
+                />
+              </Field>
             </div>
-            {t('previewBackButton', 'roles')}
-          </button>
-          
-          <div className="flex gap-3">
-            {!isEditing && canUpdate && (
-              <button 
-                onClick={() => setIsEditing(true)}
-                className="flex items-center gap-2 px-6 py-3 bg-brand-500 text-white rounded-[1.25rem] font-bold shadow-xl shadow-brand-500/20 hover:scale-105 transition-all"
-              >
-                <Pencil className="size-4" />
-                {t('previewEditButton', 'roles')}
-              </button>
-            )}
-            {!isEditing && canDelete && (
-              <button 
-                onClick={handleDelete}
-                className="size-12 flex items-center justify-center bg-red-500/10 text-red-500 rounded-[1.25rem] border border-red-500/20 hover:bg-red-500 hover:text-white transition-all shadow-sm"
-              >
-                <Trash2 className="size-5" />
-              </button>
-            )}
-            {isEditing && (
-              <div className="flex gap-3 animate-in zoom-in-95 duration-200">
-                <button 
-                  onClick={() => setIsEditing(false)}
-                  className="px-6 py-3 text-gray-400 hover:text-gray-900 dark:hover:text-white font-bold transition-colors"
-                >
-                  {t('previewCancelButton', 'roles')}
-                </button>
-                <button 
-                  onClick={handleSave}
-                  className="px-8 py-3 bg-brand-500 text-white rounded-[1.25rem] font-black tracking-widest uppercase shadow-xl shadow-brand-500/20 hover:scale-105 transition-all"
-                >
-                  {t('previewSaveChanges', 'roles')}
-                </button>
-              </div>
-            )}
-          </div>
+          </Card>
+        )}
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <StatCard label={t('previewDeployedLabel', 'roles')} value={createdAt} icon={<Calendar className="size-4" />} />
+          <StatCard
+            label={t('previewModulesLabel', 'roles')}
+            value={t('previewModulesEnabled', 'roles', { selected: selectedPermissions.length, total: permissions.length })}
+            icon={<KeyRound className="size-4" />}
+          />
+          <StatCard label={t('previewInfluenceLabel', 'roles')} value={roleUsers.length} icon={<Users className="size-4" />} />
         </div>
 
-        {/* Company Profile Header */}
-        <div className="relative overflow-hidden bg-white/60 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-[3rem] p-8 sm:p-12 shadow-2xl">
-          <div className="absolute top-0 right-0 p-12 opacity-[0.03] pointer-events-none">
-            <Fingerprint className="size-64" />
-          </div>
-          
-          <div className="relative z-10 flex flex-col md:flex-row gap-10 items-start md:items-center">
-            <div className="size-32 rounded-[2.5rem] bg-gradient-to-br from-brand-500/20 to-purple-500/10 border-2 border-white/40 dark:border-white/10 flex items-center justify-center shadow-inner group transition-all duration-500">
-              <ShieldCheck className="size-16 text-brand-500 drop-shadow-lg" />
-            </div>
-            
-            <div className="flex-1 space-y-4">
-              <div className="space-y-1">
-                {isEditing ? (
-                  <div className="space-y-4 max-w-lg">
-                    <Input
-                      name="name"
-                      value={formData.name}
-                      onChange={handleInputChange}
-                      className="!text-3xl !font-black !bg-transparent !border-b-2 !border-brand-500 !p-0 focus:!ring-0 transition-all text-gray-900 dark:text-white"
-                      placeholder={t('previewRoleNamePlaceholder', 'roles')}
-                    />
-                    <textarea
-                      name="description"
-                      value={formData.description}
-                      onChange={handleInputChange}
-                      rows={2}
-                      className="w-full bg-white/40 dark:bg-black/20 border border-white/20 rounded-2xl p-4 text-gray-600 dark:text-gray-300 font-medium focus:ring-2 focus:ring-brand-500/20 outline-none transition-all placeholder:text-gray-400"
-                      placeholder={t('previewRoleDescPlaceholder', 'roles')}
-                    />
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex items-center gap-4">
-                      <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter">
-                        {formData.name}
-                      </h1>
-                      <div className="px-3 py-1 bg-brand-500/10 text-brand-500 border border-brand-500/20 rounded-full text-[10px] font-black uppercase tracking-widest">
-                        {t('previewCoreRole', 'roles')}
-                      </div>
-                    </div>
-                    {formData.description && (
-                      <p className="text-lg text-gray-500 dark:text-gray-400 font-medium leading-relaxed max-w-2xl">
-                        {formData.description}
-                      </p>
-                    )}
-                  </>
-                )}
-              </div>
-
-              <div className="flex flex-wrap gap-6 pt-2">
-                <div className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest">
-                  <Calendar className="size-4 text-brand-500" />
-                  {t('previewDeployedLabel', 'roles')}: <span className="text-gray-700 dark:text-gray-300">{role.createdAt ? new Date(role.createdAt).toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US') : t('previewHistorical', 'roles')}</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest">
-                  <Layers className="size-4 text-purple-500" />
-                  {t('previewModulesLabel', 'roles')}: <span className="text-gray-700 dark:text-gray-300">{t('previewModulesCount', 'roles', { count: selectedPermissions.length })}</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest">
-                  <UserCheck className="size-4 text-blue-500" />
-                  {t('previewInfluenceLabel', 'roles')}: <span className="text-gray-700 dark:text-gray-300">{t('previewInfluenceCount', 'roles', { count: roleUsers.length })}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-          {/* Permission Matrix */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="flex items-center justify-between px-4">
-              <h2 className="text-xl font-bold flex items-center gap-3">
-                <Lock className="size-5 text-brand-500" />
-                {t('previewCapabilitiesMatrix', 'roles')}
-              </h2>
-              <span className="text-xs font-black text-gray-400 uppercase tracking-widest">
-                 {t('previewModulesEnabled', 'roles', { selected: selectedPermissions.length, total: permissions.length })}
-              </span>
-            </div>
-
-            <div className={`grid grid-cols-1 md:grid-cols-2 gap-5 ${!isEditing ? "opacity-90" : ""}`}>
-              {permissions.map((perm) => {
-                const isSelected = selectedPermissions.includes(perm._id);
-                return (
-                  <div 
-                    key={perm._id}
-                    onClick={() => isEditing && handlePermissionToggle(perm._id)}
-                    className={`group p-6 rounded-[2.5rem] border transition-all duration-300 ${
-                      isSelected 
-                      ? "bg-brand-500/[0.05] border-brand-500/30 ring-1 ring-brand-500/10 shadow-lg" 
-                      : "bg-white/40 dark:bg-white/5 border-white/20 hover:border-brand-500/20"
-                    } ${isEditing ? "cursor-pointer" : "cursor-default"}`}
-                  >
-                    <div className="flex flex-col gap-5">
-                      <div className="flex items-center justify-between">
-                        <div className={`p-3 rounded-xl ${isSelected ? "bg-brand-500 text-white shadow-brand-500/30 shadow-lg" : "bg-white dark:bg-black/20 text-gray-400 dark:text-gray-600 border border-white/20"} transition-all`}>
-                          <Shield className="size-5" />
-                        </div>
-                        {isSelected && !isEditing && (
-                          <div className="flex items-center gap-1.5 text-brand-500">
-                            <CheckCircle2 className="size-4" />
-                            <span className="text-[10px] font-black uppercase tracking-widest">{t('previewEnabledLabel', 'roles')}</span>
-                          </div>
-                        )}
-                        {isEditing && (
-                          <div className={`size-6 rounded-lg border-2 transition-all flex items-center justify-center ${isSelected ? "bg-brand-500 border-brand-500 text-white scale-110" : "border-slate-200 dark:border-slate-800"}`}>
-                            {isSelected && <CheckCircle2 className="size-4" />}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="space-y-1">
-                        <h4 className={`text-base font-black transition-colors ${isSelected ? "text-brand-600 dark:text-brand-400" : "text-gray-500 dark:text-gray-500"}`}>
-                          {perm.name}
-                        </h4>
-                        <p className="text-[11px] font-medium text-gray-400 line-clamp-1 italic">
-                          {perm.description || t('previewDefaultPermDesc', 'roles')}
-                        </p>
-                      </div>
-
-                      {isSelected && (
-                        <div className="flex flex-wrap gap-2 pt-2 border-t border-brand-500/10 animate-in slide-in-from-top-2 duration-300">
-                          {(perm.actions || ["read", "write", "create", "delete", "update"]).map((action) => {
-                            const isActionActive = permissionAccess[perm._id]?.includes(action);
-                            return (
-                              <button
-                                key={action}
-                                disabled={!isEditing}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleAccessToggle(perm._id, action);
-                                }}
-                                className={`px-3 py-1.5 text-[9px] font-black tracking-widest uppercase rounded-lg transition-all border-2 ${
-                                  isActionActive
-                                  ? "bg-brand-500 text-white border-brand-500 shadow-sm"
-                                  : "bg-transparent text-gray-400 dark:text-gray-600 border-slate-100 dark:border-white/5 hover:border-brand-500/20"
-                                }`}
-                              >
-                                {action}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Side Info / Associated Users */}
-          <div className="space-y-8">
-            <div className="bg-white/60 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-[3rem] p-8 shadow-xl">
-              <div className="flex items-center gap-3 mb-8">
-                <div className="p-3 bg-blue-500/10 rounded-2xl text-blue-500">
-                  <Users className="size-6" />
-                </div>
-                <h3 className="text-xl font-bold tracking-tight">{t('previewActiveReach', 'roles')}</h3>
-              </div>
-
-              <div className="space-y-6">
-                <div className="flex flex-col gap-1 px-4 py-5 bg-blue-500/[0.03] rounded-3xl border border-blue-500/10">
-                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t('previewConnectedIdentities', 'roles')}</span>
-                  <span className="text-4xl font-black text-blue-600 dark:text-blue-400 tabular-nums">{roleUsers.length}</span>
-                </div>
-
-                <div className="space-y-4">
-                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-4">{t('previewPrimaryStakeholders', 'roles')}</span>
-                  <div className="space-y-3">
-                    {roleUsers.slice(0, 5).map((user: any) => (
-                      <div key={user._id} className="flex items-center gap-3 p-3 hover:bg-white/40 dark:hover:bg-white/10 rounded-2xl transition-all group cursor-pointer">
-                        <div className="size-10 rounded-full bg-slate-200 dark:bg-slate-800 border-2 border-white/50 dark:border-white/5 overflow-hidden flex items-center justify-center font-bold text-gray-500">
-                          {user.name?.charAt(0) || "U"}
-                        </div>
-                        <div className="flex-1 overflow-hidden">
-                          <p className="text-sm font-bold truncate text-gray-700 dark:text-gray-200">{user.name}</p>
-                          <p className="text-[10px] text-gray-400 font-medium truncate">{user.email}</p>
-                        </div>
-                        <ArrowRight className="size-4 text-gray-300 group-hover:text-brand-500 group-hover:translate-x-1 transition-all" />
-                      </div>
-                    ))}
-                    {roleUsers.length > 5 && (
-                      <p className="text-center text-[11px] font-bold text-gray-400 pt-2 italic">
-                        {t('previewAdditionalUsers', 'roles', { count: roleUsers.length - 5 })}
-                      </p>
-                    )}
-                    {roleUsers.length === 0 && (
-                      <div className="text-center py-6 border-2 border-dashed border-slate-100 dark:border-white/5 rounded-3xl">
-                        <p className="text-xs font-bold text-gray-400">{t('previewNoUsers', 'roles')}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="relative group overflow-hidden bg-brand-500 rounded-[3rem] p-8 shadow-2xl shadow-brand-500/30">
-              <div className="absolute -top-10 -right-10 size-32 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700" />
-              <div className="relative z-10 space-y-4">
-                <ShieldAlert className="size-10 text-white/50" />
-                <h4 className="text-xl font-black text-white leading-tight">{t('previewComplianceAudit', 'roles')}</h4>
-                <p className="text-sm text-brand-50/70 font-medium leading-relaxed">
-                  {t('previewComplianceText', 'roles', { count: roleUsers.length })}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <Card className="lg:col-span-2">
+            <CardToolbar>
+              <div>
+                <SectionTitle icon={<KeyRound className="size-4" />}>{t('previewCapabilitiesMatrix', 'roles')}</SectionTitle>
+                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                  {isEditing ? t('previewPermsEditHint', 'roles') : t('previewPermsViewHint', 'roles')}
                 </p>
               </div>
-            </div>
-          </div>
+            </CardToolbar>
+            <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+              {permissions.map((perm) => {
+                const isSelected = selectedPermissions.includes(perm._id);
+                const name = toPlainString(perm.name);
+                return (
+                  <li key={perm._id} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                    <label className={`flex min-w-0 items-start gap-3 ${isEditing ? "cursor-pointer" : ""}`}>
+                      {isEditing && (
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => handlePermissionToggle(perm._id)}
+                          className="mt-0.5 size-4 shrink-0 cursor-pointer accent-brand-500"
+                        />
+                      )}
+                      <span className="min-w-0">
+                        <span className={`block text-sm font-medium ${isSelected ? "text-slate-900 dark:text-white" : "text-slate-500 dark:text-slate-400"}`}>
+                          {name}
+                        </span>
+                        <span className="block truncate text-xs text-slate-500 dark:text-slate-400">
+                          {toPlainString(perm.description) || t('previewDefaultPermDesc', 'roles')}
+                        </span>
+                      </span>
+                    </label>
+                    {isSelected ? (
+                      <div className="flex flex-wrap gap-1.5 sm:justify-end">
+                        {(perm.actions || ["read", "write", "create", "delete", "update"]).map((action) => (
+                          <ToggleChip
+                            key={action}
+                            selected={Boolean(permissionAccess[perm._id]?.includes(action))}
+                            disabled={!isEditing}
+                            onClick={() => handleAccessToggle(perm._id, action)}
+                          >
+                            {actionLabel(action)}
+                          </ToggleChip>
+                        ))}
+                      </div>
+                    ) : (
+                      !isEditing && (
+                        <span className="self-start sm:self-auto">
+                          <Badge tone="slate">{t('previewDisabledLabel', 'roles')}</Badge>
+                        </span>
+                      )
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </Card>
+
+          <Card className="self-start">
+            <CardToolbar>
+              <SectionTitle icon={<Users className="size-4" />}>{t('previewActiveReach', 'roles')}</SectionTitle>
+            </CardToolbar>
+            {roleUsers.length === 0 ? (
+              <EmptyState icon={<Users className="size-6" />} title={t('previewNoUsers', 'roles')} />
+            ) : (
+              <>
+                <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {roleUsers.slice(0, 5).map((user) => {
+                    const userName = toPlainString(user.fullName || user.name) || user.email;
+                    return (
+                      <li key={user._id}>
+                        <Link
+                          to={`/user/${user._id}`}
+                          className={`group flex items-center gap-3 px-4 py-3 transition hover:bg-slate-50 dark:hover:bg-slate-800/40 ${focusRing}`}
+                        >
+                          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                            {userName?.charAt(0).toUpperCase() || "?"}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-medium text-slate-900 dark:text-white">{userName}</span>
+                            <span className="block truncate text-xs text-slate-500 dark:text-slate-400" dir="ltr">{user.email}</span>
+                          </span>
+                          <ChevronRight className="size-4 shrink-0 text-slate-300 transition group-hover:text-slate-500 rtl:rotate-180" />
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+                {roleUsers.length > 5 && (
+                  <p className="border-t border-slate-100 px-4 py-3 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                    {t('previewAdditionalUsers', 'roles', { count: roleUsers.length - 5 })}
+                  </p>
+                )}
+              </>
+            )}
+          </Card>
         </div>
-      </div>
-    </div>
+      </PageShell>
+    </>
   );
 }

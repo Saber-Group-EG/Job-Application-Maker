@@ -8,6 +8,7 @@ import type {
   ReorderJobPositionsRequestItem,
   JobFieldConfig,
   JobFieldConfigRule,
+  GeneratedJobFields,
 } from '../types/jobPositions';
 import type { Applicant } from '../types/applicants';
 import { ApiError } from './companiesService';
@@ -406,13 +407,7 @@ class JobPositionsService {
     companyId: string;
     jobTitle?: string;
     prompt: string;
-  }): Promise<{
-    title: string;
-    description: string;
-    termsAndConditions: string[];
-    jobSpecs: { spec: string; weight: number }[];
-    customFields: any[];
-  }> {
+  }): Promise<GeneratedJobFields> {
     return this.request('post', '/job-positions/generate-fields', payload);
   }
 }

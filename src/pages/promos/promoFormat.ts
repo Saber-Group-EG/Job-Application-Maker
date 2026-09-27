@@ -13,8 +13,9 @@ export const REDEMPTION_STATUS_OPTIONS = [
   { value: 'revoked', labelKey: 'redemptionsStatusRevoked' },
 ];
 
-export const isHrUser = (u: { roleId?: { name?: string } } | null | undefined) =>
-  String(u?.roleId?.name || '').toLowerCase().trim() === HR_ROLE_NAME;
+// roleId is an id string unless the role was populated.
+export const isHrUser = (u: { roleId?: string | { name?: string } | null } | null | undefined) =>
+  String((typeof u?.roleId === 'object' && u.roleId?.name) || '').toLowerCase().trim() === HR_ROLE_NAME;
 
 export const personName = (p: string | PromoOwner | null | undefined): string =>
   p && typeof p === 'object' ? toPlainString(p.fullName || p.name || p.email || '') : '';
