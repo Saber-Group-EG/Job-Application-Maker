@@ -1,3 +1,4 @@
+import { getErrorMessage } from '../../../utils/errorHandler';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router';
 import PageMeta from '../../../components/common/PageMeta';
@@ -545,14 +546,9 @@ export default function Jobs() {
     } catch (err: any) {
       if (requestVersion === orderSyncVersionRef.current) {
         setOrderedJobIds(previousOrderIds);
-        const details = err?.response?.data?.details;
-        const detailMessage =
-          Array.isArray(details) && details.length > 0
-            ? details[0]?.message
-            : '';
         Swal.fire(
           t('jobsReorderFailed', 'jobs'),
-          detailMessage || err?.message || t('jobsReorderFailedMsg', 'jobs'),
+          getErrorMessage(err) || t('jobsReorderFailedMsg', 'jobs'),
           'error'
         );
       }
@@ -810,10 +806,7 @@ export default function Jobs() {
     queryClient.setQueryData(listKey, previousList);
     queryClient.setQueryData(detailKey, previousDetail);
 
-    const details = err?.response?.data?.details;
-    const detailMessage =
-      Array.isArray(details) && details.length > 0 ? details[0]?.message : '';
-    Swal.fire(t('jobsError', 'jobs'), detailMessage || t('jobsUpdateFailed', 'jobs'), 'error');
+    Swal.fire(t('jobsError', 'jobs'), getErrorMessage(err) || t('jobsUpdateFailed', 'jobs'), 'error');
   });
 };
 

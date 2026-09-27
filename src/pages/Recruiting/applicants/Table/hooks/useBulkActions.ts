@@ -1,3 +1,4 @@
+import { describeError } from '../../../../../lib/userErrors';
 // hooks/useBulkActions.ts
 import { useState, useCallback } from 'react';
 import Swal from '../../../../../utils/swal';
@@ -112,31 +113,7 @@ interface UseBulkActionsReturn {
   getSelectedCompanyAddress: () => string;
 }
 
-const getErrorMessage = (err: any): string => {
-  if (err.response?.data?.details && Array.isArray(err.response.data.details)) {
-    return err.response.data.details
-      .map((detail: any) => {
-        const field = detail.path?.[0] || '';
-        const message = detail.message || '';
-        return field ? `${field}: ${message}` : message;
-      })
-      .join(', ');
-  }
-  if (err.response?.data?.errors) {
-    const { errors } = err.response.data;
-    if (Array.isArray(errors)) {
-      return errors.map((e: any) => e.msg || e.message).join(', ');
-    }
-    if (typeof errors === 'object') {
-      return Object.entries(errors)
-        .map(([field, msg]) => `${field}: ${msg}`)
-        .join(', ');
-    }
-  }
-  if (err.response?.data?.message) return err.response.data.message;
-  if (err.message) return err.message;
-  return 'An unexpected error occurred';
-};
+const getErrorMessage = (err: unknown): string => describeError(err).message;
 
 export function useBulkActions({
   selectedApplicantIds,

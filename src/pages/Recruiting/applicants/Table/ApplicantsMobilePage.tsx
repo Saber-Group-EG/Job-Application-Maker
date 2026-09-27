@@ -1,3 +1,4 @@
+import { describeError } from '../../../../lib/userErrors';
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router";
 import { useApplicantsTable } from "../../../../hooks/queries/useApplicantsTable";
@@ -698,7 +699,7 @@ export default function ApplicantsMobilePage({
         ) : error ? (
           <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center dark:bg-rose-500/10 dark:border-rose-500/20">
             <AlertCircle size={32} className="text-red-500 mx-auto mb-2" />
-            <p className="text-red-700 text-sm dark:text-rose-300">{String(error)}</p>
+            <p className="text-red-700 text-sm dark:text-rose-300">{describeError(error).message}</p>
             <button
               onClick={handleRefresh}
               className="mt-3 px-4 py-2 bg-white border border-red-200 rounded-lg text-sm text-red-600 hover:bg-red-50 dark:bg-slate-900 dark:border-rose-500/20 dark:text-rose-400 dark:hover:bg-rose-500/10"

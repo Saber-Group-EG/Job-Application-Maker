@@ -1,3 +1,4 @@
+import { describeError } from '../../../../lib/userErrors';
 // Applicants.tsx - Optimized version with improved photo loading
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
@@ -3265,7 +3266,7 @@ export default function Applicants({
               <>
                 {error && (
                   <div className="m-4 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300" role="alert">
-                    {String(error)}
+                    {describeError(error).message}
                   </div>
                 )}
 

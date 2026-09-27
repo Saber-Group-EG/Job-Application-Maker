@@ -1,3 +1,4 @@
+import { getErrorMessage } from '../../../utils/errorHandler';
 import { useState } from "react";
 import Swal from '../../../utils/swal';
 import PageMeta from "../../../components/common/PageMeta";
@@ -206,7 +207,7 @@ const RecommendedFields = () => {
       }
       resetForm();
     } catch (err: any) {
-      Swal.fire({ title: t('saveError', 'systemSettings'), text: err.response?.data?.message || t('saveErrorText', 'systemSettings'), icon: "error" });
+      Swal.fire({ title: t('saveError', 'systemSettings'), text: getErrorMessage(err) || t('saveErrorText', 'systemSettings'), icon: "error" });
     }
   };
 

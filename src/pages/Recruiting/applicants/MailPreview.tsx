@@ -25,7 +25,7 @@ import {
     Maximize2,
     type LucideIcon,
 } from 'lucide-react';
-import Swal from 'sweetalert2';
+import Swal from '../../../utils/swal';
 import PageMeta from '../../../components/common/PageMeta';
 import MailAttachments from '../../../components/mail/MailAttachments';
 import MailBody from '../../../components/mail/MailBody';

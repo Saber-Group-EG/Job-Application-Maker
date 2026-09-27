@@ -11,18 +11,26 @@ import { AppWrapper } from './components/common/PageMeta.tsx';
 import { ThemeProvider } from './context/ThemeContext.tsx';
 import { AuthProvider } from './context/AuthContext.tsx';
 import { LocaleProvider } from './context/LocaleContext.tsx';
+import { ErrorBoundary, reloadOnceForNewVersion } from './components/common/ErrorBoundary.tsx';
+
+// Vite fires this when a page file from an older deploy is gone.
+window.addEventListener('vite:preloadError', (event) => {
+  if (reloadOnceForNewVersion()) event.preventDefault();
+});
 
 createRoot(document.getElementById('root')!).render(
   <Provider store={store}>
     <QueryClientProvider client={queryClient}>
       <LocaleProvider>
-        <AuthProvider>
-          <ThemeProvider>
-            <AppWrapper>
-              <App />
-            </AppWrapper>
-          </ThemeProvider>
-        </AuthProvider>
+        <ErrorBoundary fullPage>
+          <AuthProvider>
+            <ThemeProvider>
+              <AppWrapper>
+                <App />
+              </AppWrapper>
+            </ThemeProvider>
+          </AuthProvider>
+        </ErrorBoundary>
       </LocaleProvider>
     </QueryClientProvider>
   </Provider>

@@ -17,6 +17,7 @@ import type {
   LoginResult,
 } from "../types/auth";
 import { ApiError } from "../types/auth";
+import { describeError, rememberError } from "../lib/userErrors";
 
 // ===== API Client (reusable, clean) =====
 class ApiClient {
@@ -50,9 +51,23 @@ class ApiClient {
       headers,
     };
 
+    const fail = (raw: ApiError) => {
+      // Keep the raw body on the error, but show the user a readable message.
+      (raw as any).config = { method: options.method, url: endpoint };
+      const userError = describeError(raw);
+      raw.message = userError.message;
+      (raw as any).__userError = userError;
+      if (raw.statusCode !== 401) rememberError(userError);
+      return raw;
+    };
+    // A proxy or crash page can answer with HTML instead of JSON.
+    const readBody = (res: Response) => res.json().catch(() => null);
+
+    let response: Response;
+    let data: any;
     try {
-      let response = await fetch(url, config);
-      let data = await response.json();
+      response = await fetch(url, config);
+      data = await readBody(response);
 
       // Expired access token — refresh once and retry the request
       if (
@@ -64,27 +79,26 @@ class ApiClient {
         if (newToken) {
           headers["Authorization"] = `Bearer ${newToken}`;
           response = await fetch(url, { ...config, headers });
-          data = await response.json();
+          data = await readBody(response);
         }
       }
+    } catch (error) {
+      throw fail(new ApiError(error instanceof Error ? error.message : "Failed to fetch"));
+    }
 
-      if (!response.ok) {
-        throw new ApiError(
+    if (!response.ok) {
+      throw fail(
+        new ApiError(
           data?.message || "An error occurred",
           response.status,
           data,
           data?.code,
           data?.featurePath
-        );
-      }
-
-      return data;
-    } catch (error) {
-      if (error instanceof ApiError) throw error;
-      throw new ApiError(
-        error instanceof Error ? error.message : "Network error occurred"
+        )
       );
     }
+
+    return data;
   }
 
   get<T>(endpoint: string, requiresAuth: boolean = true): Promise<T> {
