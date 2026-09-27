@@ -471,5 +471,6 @@
   "subscription.page": "Page",
   "subscription.promoActive": "Promo code active:",
   "subscription.cyclesRemaining": "cycles remaining",
-  "subscription.revertsOn": "reverts to standard price after"
+  "subscription.revertsOn": "reverts to standard price after",
+  "mailTemplates.previewTitle": "Email preview"
 }
