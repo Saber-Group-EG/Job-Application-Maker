@@ -150,8 +150,6 @@
   "sendMessage": "إرسال رسالة",
   "messageType": "نوع الرسالة",
   "emailSentSaved": "📧 بريد إلكتروني (سيتم إرساله وحفظه)",
-  "smsSoon": "💬 رسالة نصية (قريباً)",
-  "whatsappSoon": "📱 واتساب (قريباً)",
   "emailSentHistory": "✓ سيتم إرسال البريد الإلكتروني عبر خدمة البريد وحفظه في سجل الرسائل",
   "messageSubject": "الموضوع *",
   "messageSubjectPlaceholder": "موضوع الرسالة",
@@ -388,5 +386,14 @@
   "no": "غير موجود",
   "revert": "عكس",
   "saveFilters": "حفظ التصفية",
-  "showMoreApplicants": "عرض المزيد ({shown} من {total})"
+  "showMoreApplicants": "عرض المزيد ({shown} من {total})",
+  "whatsappMessage": "رسالة واتساب",
+  "whatsappHint": "بعد الجدولة سيظهر زر يفتح واتساب بهذه الرسالة جاهزة للإرسال من حسابك.",
+  "whatsappDialogTitle": "أرسل رسالة واتساب",
+  "whatsappDialogText": "كل زر يفتح واتساب والرسالة جاهزة. اضغط إرسال في واتساب.",
+  "whatsappOpen": "فتح واتساب",
+  "whatsappNoPhone": "لا يوجد رقم هاتف صالح",
+  "whatsappDone": "تم",
+  "whatsappOpened": "تم فتح واتساب برسالتك. اضغط إرسال هناك.",
+  "whatsappNeedsPhone": "لا يوجد لهذا المتقدم رقم هاتف صالح لواتساب."
 }

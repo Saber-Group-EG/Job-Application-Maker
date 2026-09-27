@@ -192,6 +192,7 @@ export function useApplicantSelection({
               typeof jobPositionId === 'string' ? jobPositionId : undefined,
             companyId: String(companyId || ''),
             status: String(a.status || ''),
+            phone: String(a.phone || ''),
           };
         })
         .filter((item: any) => item.applicantId);
