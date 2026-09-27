@@ -1,3 +1,4 @@
+import { describeError } from '../../../lib/userErrors';
 import type { ChangeEvent, FormEvent } from "react";
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router";
@@ -20,18 +21,6 @@ type RoleForm = {
   permissions: string[];
   isSystemRole?: boolean;
   singleCompany?: boolean;
-};
-
-// Error shapes the roles API returns (Joi `details`, express-validator `errors`).
-type RoleApiError = {
-  message?: string;
-  response?: {
-    data?: {
-      message?: string;
-      details?: Array<{ path?: string[]; message?: string }>;
-      errors?: Array<{ msg?: string; message?: string }> | Record<string, string>;
-    };
-  };
 };
 
 const defaultRoleForm: RoleForm = {
@@ -79,27 +68,7 @@ export default function Permissions() {
   const [formError, setFormError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Helper function to extract detailed error messages
-  const getErrorMessage = (error: unknown): string => {
-    const err = (error ?? {}) as RoleApiError;
-    if (err.response?.data?.details && Array.isArray(err.response.data.details)) {
-      return err.response.data.details
-        .map((detail) => {
-          const field = detail.path?.[0] || "";
-          const message = detail.message || "";
-          return field ? `${field}: ${message}` : message;
-        })
-        .join(", ");
-    }
-    if (err.response?.data?.errors) {
-      const errors = err.response.data.errors;
-      if (Array.isArray(errors)) return errors.map((e) => e.msg || e.message).join(", ");
-      if (typeof errors === "object") return Object.entries(errors).map(([field, msg]) => `${field}: ${msg}`).join(", ");
-    }
-    if (err.response?.data?.message) return err.response.data.message;
-    if (err.message) return err.message;
-    return t('rolesFormErrorGeneric', 'roles');
-  };
+  const getErrorMessage = (error: unknown): string => describeError(error).message;
 
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
   const [permissionAccess, setPermissionAccess] = useState<Record<string, string[]>>({});

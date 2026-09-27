@@ -1,3 +1,4 @@
+import { describeError } from '../../../../lib/userErrors';
 // Pure helpers for the Create/Edit job form: converting API documents to
 // editing state and back. No React here.
 import { toPlainString } from '../../../../utils/strings';
@@ -516,41 +517,8 @@ export function nextCompanyOrder(jobs: JobPosition[], companyId: string, editJob
   return order;
 }
 
-type JobApiError = {
-  message?: string;
-  response?: {
-    data?: {
-      message?: string;
-      details?: Array<{ path?: string[]; message?: string }>;
-      errors?: Array<{ msg?: string; message?: string }> | Record<string, string>;
-    };
-  };
-};
-
-export function getJobErrorMessage(error: unknown, fallback: string): string {
-  const err = (error ?? {}) as JobApiError;
-  const data = err.response?.data;
-  if (data?.details && Array.isArray(data.details)) {
-    return data.details
-      .map((detail) => {
-        const field = detail.path?.[0] || '';
-        const message = detail.message || '';
-        return field ? `${field}: ${message}` : message;
-      })
-      .join(', ');
-  }
-  if (data?.errors) {
-    const errors = data.errors;
-    if (Array.isArray(errors)) return errors.map((e) => e.msg || e.message).join(', ');
-    if (typeof errors === 'object') {
-      return Object.entries(errors)
-        .map(([field, msg]) => `${field}: ${msg}`)
-        .join(', ');
-    }
-  }
-  if (data?.message) return data.message;
-  if (err.message) return err.message;
-  return fallback;
+export function getJobErrorMessage(error: unknown, _fallback?: string): string {
+  return describeError(error).message;
 }
 
 // ─── Immutable form updaters ─────────────────────────────────────────────────

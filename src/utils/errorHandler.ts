@@ -2,6 +2,7 @@
  * Centralized error handling utility
  * Extracts detailed validation errors from API responses
  */
+import { describeError } from '../lib/userErrors';
 
 export interface ValidationError {
   field: string;
@@ -14,57 +15,11 @@ export interface ErrorResponse {
 }
 
 /**
- * Extract detailed error message from API error response
- * Supports multiple backend error formats
+ * The message to show the user for any error (API, network or code).
+ * Raw server/JS text only comes through when it already reads like a
+ * sentence; see lib/userErrors.
  */
-export const getErrorMessage = (err: any): string => {
-  // Check for validation errors in 'details' array (Joi validation format)
-  if (err.response?.data?.details && Array.isArray(err.response.data.details)) {
-    return err.response.data.details
-      .map((detail: any) => {
-        const field = detail.path?.join('.') || detail.context?.key || '';
-        const message = detail.message || '';
-        return field ? `${field}: ${message}` : message;
-      })
-      .join('\n');
-  }
-
-  // Check for validation errors in 'errors' array (express-validator format)
-  if (err.response?.data?.errors) {
-    const errors = err.response.data.errors;
-    if (Array.isArray(errors)) {
-      return errors
-        .map((e: any) => {
-          const field = e.param || e.path || '';
-          const message = e.msg || e.message || '';
-          return field ? `${field}: ${message}` : message;
-        })
-        .join('\n');
-    }
-    if (typeof errors === 'object') {
-      return Object.entries(errors)
-        .map(([field, msg]) => `${field}: ${msg}`)
-        .join('\n');
-    }
-  }
-
-  // Check for error object with message and error fields
-  if (err.response?.data?.error && err.response?.data?.message) {
-    return `${err.response.data.message}\n${err.response.data.error}`;
-  }
-
-  // Standard error message
-  if (err.response?.data?.message) {
-    return err.response.data.message;
-  }
-
-  // Axios error message
-  if (err.message) {
-    return err.message;
-  }
-
-  return 'An unexpected error occurred';
-};
+export const getErrorMessage = (err: any): string => describeError(err).message;
 
 /**
  * Extract validation errors as structured array
