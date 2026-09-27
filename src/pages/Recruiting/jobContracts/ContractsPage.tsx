@@ -26,7 +26,7 @@ import type {
 import Swal from '../../../utils/swal';
 import JobContractModal from '../../../components/modals/ContractModal/ContractModal';
 import { useDebounce } from '../../../hooks/useDebounce';
-import { Badge, Button, Card, EmptyState, IconButton, PageShell, Pagination, SearchInput, StatStrip, TabBar, focusRing } from '../../../components/ui/kit';
+import { Badge, Button, Card, EmptyState, IconButton, PageShell, Pagination, SearchInput, StatStrip, TabBar, focusRing, ErrorState } from '../../../components/ui/kit';
 import { CONTRACT_STATUS_TONE, CONTRACT_TYPE_TONE, contractStatusKey, contractTypeKey } from './contractMeta';
 import { useLocale } from '../../../context/LocaleContext';
 import PageMeta from '../../../components/common/PageMeta';
@@ -110,6 +110,9 @@ export default function JobContractsPage() {
     isLoading,
     isFetching,
     isPlaceholderData,
+    isError,
+    error,
+    refetch,
   } = useJobContracts(queryParams);
 
   const contracts = contractsData?.data ?? [];
@@ -282,6 +285,8 @@ export default function JobContractsPage() {
                 </li>
               ))}
             </ul>
+          ) : isError && !contractsData ? (
+            <ErrorState error={error} onRetry={() => refetch()} />
           ) : contracts.length === 0 ? (
             <EmptyState
               icon={<FileSignature className="size-6" />}

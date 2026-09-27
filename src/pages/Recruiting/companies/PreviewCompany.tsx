@@ -48,6 +48,7 @@ import {
   focusRing,
   inputClass,
   rowClass,
+  ErrorState,
 } from "../../../components/ui/kit";
 
 type CompanyForm = {
@@ -73,7 +74,7 @@ export default function PreviewCompany() {
   const { t, locale } = useLocale();
   const canEdit = hasPermission("Company Management", "write");
 
-  const { data: companyData, isLoading: loading } = useCompany(companyId || "");
+  const { data: companyData, isLoading: loading, error: companyError, refetch: refetchCompany } = useCompany(companyId || "");
   const { data: departments = [] } = useDepartments(companyId);
 
   const updateCompanyMutation = useUpdateCompany();
@@ -259,6 +260,16 @@ export default function PreviewCompany() {
       )}
     </span>
   );
+
+  if (!companyData && companyError) {
+    return (
+      <PageShell back={back} title={t('loadFailedTitle', 'common')}>
+        <Card>
+          <ErrorState error={companyError} onRetry={() => refetchCompany()} />
+        </Card>
+      </PageShell>
+    );
+  }
 
   return (
     <>

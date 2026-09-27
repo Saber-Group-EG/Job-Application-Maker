@@ -31,6 +31,7 @@ import {
   PageShell,
   SectionTitle,
   focusRing,
+  ErrorState,
 } from "../../../components/ui/kit";
 
 type UserCompanyView = {
@@ -45,7 +46,7 @@ export default function PreviewUser() {
   const navigate = useNavigate();
 
   // Fetch data
-  const { data: usersResponse, isLoading: usersLoading } = useUsers();
+  const { data: usersResponse, isLoading: usersLoading, error: usersError, refetch: refetchUsers } = useUsers();
   const rawUsers = useMemo(() => (Array.isArray(usersResponse) ? usersResponse : []), [usersResponse]);
   const { data: roles = [] } = useRoles();
   const { data: companies = [] } = useCompanies();
@@ -131,6 +132,14 @@ export default function PreviewUser() {
       <ArrowLeft className="size-4 rtl:rotate-180" />
       {t('previewBackButton', 'users')}
     </Link>
+  );
+
+  if (!user && usersError) return (
+    <PageShell back={back} title={t('loadFailedTitle', 'common')}>
+      <Card>
+        <ErrorState error={usersError} onRetry={() => refetchUsers()} />
+      </Card>
+    </PageShell>
   );
 
   if (!user) return (

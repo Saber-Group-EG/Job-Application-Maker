@@ -31,6 +31,7 @@ import {
   Th,
   focusRing,
   rowClass,
+  ErrorState,
 } from "../../../components/ui/kit";
 import type { BadgeTone } from "../../../components/ui/kit";
 import {
@@ -63,7 +64,8 @@ export default function PreviewJob() {
     isPending: isLoadingJob,
     isFetching: isJobFetching,
     isFetched: isJobFetched,
-    refetch: refetchJob
+    refetch: refetchJob,
+    error: jobError,
   } = useJobPosition(jobId || "", { enabled: !jobFromState && !!jobId });
   
   // Use data from state if available, otherwise use fetched data
@@ -267,6 +269,16 @@ export default function PreviewJob() {
         <PageMeta title={t('previewLoadingTitle', 'jobs')} description={t('previewLoadingDesc', 'jobs')} />
         <LoadingSpinner fullPage message={t('previewLoadingMsg', 'jobs')} />
       </>
+    );
+  }
+
+  if (!job && jobError) {
+    return (
+      <PageShell back={back} title={t('loadFailedTitle', 'common')}>
+        <Card>
+          <ErrorState error={jobError} onRetry={() => refetchJob()} />
+        </Card>
+      </PageShell>
     );
   }
 

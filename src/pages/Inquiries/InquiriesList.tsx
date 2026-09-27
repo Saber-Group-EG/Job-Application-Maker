@@ -26,6 +26,7 @@ import {
   inputClass,
   rowClass,
   type BadgeTone,
+  ErrorState,
 } from "../../components/ui/kit";
 import {
   TrashBinIcon,
@@ -79,7 +80,7 @@ export default function InquiriesList() {
   const [page, setPage] = useState(1);
   const pageSize = 12;
 
-  const { data: inquiries, isLoading } = useInquiries();
+  const { data: inquiries, isLoading, isError, error, refetch } = useInquiries();
   const deleteMutation = useDeleteInquiry();
   const updateMutation = useUpdateInquiry();
   const [replyInquiry, setReplyInquiry] = useState<any>(null);
@@ -248,6 +249,8 @@ export default function InquiriesList() {
           <div className="flex items-center justify-center py-20">
             <LoadingSpinner />
           </div>
+        ) : isError && !inquiries ? (
+          <ErrorState error={error} onRetry={() => refetch()} />
         ) : paginated.length === 0 ? (
           <EmptyState icon={<ChatIcon className="size-6" />} title={t("noInquiriesFound", "inquiries")} text={t("noInquiriesFoundText", "inquiries")} />
         ) : (

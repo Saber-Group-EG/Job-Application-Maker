@@ -137,11 +137,18 @@ export function describeError(err: unknown): UserError {
   }
 
   const requestId = str(e.response?.headers?.['x-request-id']) ?? str(data?.requestId);
-  const ref = status === undefined && !isNetworkFailure(e)
+  const ref = typeof e.ref === 'string' && !url
+    ? e.ref
+    : status === undefined && !isNetworkFailure(e)
     ? `JS · ${clock()} · ${String(e.name ?? 'Error')}: ${String(e.message ?? '').slice(0, 80)}`
     : [status ?? 'NET', method && url ? `${method} ${maskPath(url)}` : url ? maskPath(url) : '', requestId, clock()].filter(Boolean).join(' · ');
 
-  return { message, ref, status };
+  const result = { message, ref, status };
+  // Cache it so the reference time doesn't change on every re-render.
+  if (err && typeof err === 'object' && Object.isExtensible(err)) {
+    try { e.__userError = result; } catch { /* frozen */ }
+  }
+  return result;
 }
 
 // The last failure, so an error popup opened right after it can print its

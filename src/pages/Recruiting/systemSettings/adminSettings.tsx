@@ -20,6 +20,7 @@ import {
   Th,
   focusRing,
   rowClass,
+  ErrorState,
 } from '../../../components/ui/kit';
 import type { BadgeTone } from '../../../components/ui/kit';
 
@@ -70,7 +71,7 @@ export default function AdminUsagePage() {
     setPageIndex(0);
   }, [debouncedSearch]);
 
-  const { data, isLoading, isFetching } = useCompaniesUsageOverview({
+  const { data, isLoading, isFetching, isError, error, refetch } = useCompaniesUsageOverview({
     page: pageIndex + 1,
     limit: PAGE_SIZE,
     search: debouncedSearch || undefined,
@@ -90,7 +91,9 @@ export default function AdminUsagePage() {
           <SearchInput value={search} onChange={setSearch} placeholder={t('mrtSearch', 'systemSettings')} className="w-full max-w-sm" />
         </CardToolbar>
 
-        {!isLoading && rows.length === 0 ? (
+        {isError && !data ? (
+          <ErrorState error={error} onRetry={() => refetch()} />
+        ) : !isLoading && rows.length === 0 ? (
           <EmptyState icon={<Building2 className="size-6" />} title={t('mrtNoRecordsToDisplay', 'systemSettings')} />
         ) : (
           <Table minWidth={880} busy={isFetching}>

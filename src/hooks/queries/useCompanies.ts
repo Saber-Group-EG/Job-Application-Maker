@@ -305,6 +305,7 @@ export function useSubscription(
 ) {
   return useQuery({
     queryKey: subscriptionKeys.detail(companyId),
+    meta: { silentError: true }, // optional extra; the page works without it
     queryFn: () => companiesService.getSubscription(companyId),
     enabled: options?.enabled ?? !!companyId,
     staleTime: 60 * 1000, // usage numbers are more time-sensitive than company profile data
@@ -315,6 +316,7 @@ export function useSubscription(
 export function useTopUpStatus(companyId: string, ref: string | null) {
   return useQuery({
     queryKey: ['topup-status', companyId, ref],
+    meta: { silentError: true }, // optional extra; the page works without it
     queryFn: () => companiesService.getTopUpStatus(companyId, ref!),
     enabled: !!companyId && !!ref,
     refetchInterval: (query) =>

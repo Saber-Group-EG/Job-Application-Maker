@@ -29,7 +29,7 @@ import type { JobOffer, OfferStatus } from '../../../services/jobOffersService';
 import Swal from '../../../utils/swal';
 import JobOfferModal from '../../../components/modals/JobOffersModal/JobOffersModal';
 import { useDebounce } from '../../../hooks/useDebounce';
-import { Badge, Button, Card, EmptyState, IconButton, PageShell, Pagination, SearchInput, StatStrip, TabBar, focusRing } from '../../../components/ui/kit';
+import { Badge, Button, Card, EmptyState, IconButton, PageShell, Pagination, SearchInput, StatStrip, TabBar, focusRing, ErrorState } from '../../../components/ui/kit';
 import { OFFER_STATUS_TONE, WORK_TYPE_TONE, offerStatusKey, workTypeKey } from './offerMeta';
 import { useLocale } from '../../../context/LocaleContext';
 import PageMeta from '../../../components/common/PageMeta';
@@ -103,7 +103,7 @@ export default function JobOffersPage() {
   };
 
   // ── Data ───────────────────────────────────────────────────────────────
-  const { data: offersData, isLoading, isFetching, isPlaceholderData } = useJobOffers(queryParams);
+  const { data: offersData, isLoading, isFetching, isPlaceholderData, isError, error, refetch } = useJobOffers(queryParams);
 
   const offers = offersData?.data ?? [];
   const total = offersData?.totalCount ?? 0;
@@ -295,6 +295,8 @@ export default function JobOffersPage() {
                 </li>
               ))}
             </ul>
+          ) : isError && !offersData ? (
+            <ErrorState error={error} onRetry={() => refetch()} />
           ) : offers.length === 0 ? (
             <EmptyState
               icon={<Briefcase className="size-6" />}

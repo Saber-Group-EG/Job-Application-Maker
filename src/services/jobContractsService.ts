@@ -1,5 +1,6 @@
 import axios from '../config/axios';
 import { getErrorMessage } from '../utils/errorHandler';
+import { recentErrorRef } from '../lib/userErrors';
 
 export type ContractType = 'permanent' | 'fixed-term' | 'freelance' | 'probation';
 export type ContractStatus = string;
@@ -54,6 +55,8 @@ export interface PaginatedJobContracts {
 }
 
 export class ApiError extends Error {
+  ref?: string;
+
   constructor(
     message: string,
     public statusCode?: number,
@@ -63,6 +66,8 @@ export class ApiError extends Error {
   ) {
     super(message);
     this.name = 'ApiError';
+    // Keep the failed request's reference (status, endpoint, time) for error screens.
+    this.ref = recentErrorRef(2000);
   }
 }
 

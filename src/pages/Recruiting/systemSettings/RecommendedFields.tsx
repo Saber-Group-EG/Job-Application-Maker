@@ -17,6 +17,7 @@ import {
   focusRing,
   inputClass,
   selectClass,
+  ErrorState,
 } from "../../../components/ui/kit";
 import {
   useRecommendedFields,
@@ -93,7 +94,7 @@ const RecommendedFields = () => {
   const { t } = useLocale();
   const inputTypeOptions = getInputTypeOptions(t);
   const subFieldTypeOptions = getSubFieldTypeOptions(t);
-  const { data: recommendedFields = [], isLoading: loading } = useRecommendedFields();
+  const { data: recommendedFields = [], isLoading: loading, isError: loadFailed, error: loadError, refetch } = useRecommendedFields();
   const createFieldMutation = useCreateRecommendedField();
   const updateFieldMutation = useUpdateRecommendedField();
   const deleteFieldMutation = useDeleteRecommendedField();
@@ -495,6 +496,10 @@ const RecommendedFields = () => {
           ))}
           <span className="sr-only" role="status">{t('loadingMessage', 'systemSettings')}</span>
         </div>
+      ) : loadFailed && recommendedFields.length === 0 ? (
+        <Card>
+          <ErrorState error={loadError} onRetry={() => refetch()} />
+        </Card>
       ) : visibleFields.length === 0 ? (
         !showForm && (
           <Card>

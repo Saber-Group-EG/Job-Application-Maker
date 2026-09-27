@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Badge, Card, PageShell, Switch, filterSelectClass } from '../../../components/ui/kit';
+import { Badge, Card, PageShell, Switch, filterSelectClass, ErrorState } from '../../../components/ui/kit';
 import { useLocale } from '../../../context/LocaleContext';
 import { useAdminPlans, useUpdatePlanFeature } from '../../../hooks/queries/usePlansAdmin';
 import type { Plan, PlanBooleanFeature, PlanLimitFeature } from '../../../types/companies';
@@ -99,7 +99,7 @@ function LimitCell({
 
 export default function AdminPlansPage() {
   const { t } = useLocale();
-  const { data: plans = [], isLoading } = useAdminPlans();
+  const { data: plans = [], isLoading, isError, error, refetch } = useAdminPlans();
   const updateFeature = useUpdatePlanFeature();
   const mutating = updateFeature.isPending;
 
@@ -246,6 +246,10 @@ export default function AdminPlansPage() {
             />
           ))}
         </div>
+      ) : isError && plans.length === 0 ? (
+        <Card>
+          <ErrorState error={error} onRetry={() => refetch()} />
+        </Card>
       ) : (
         <Card className="overflow-hidden">
           <div className="overflow-x-auto">
