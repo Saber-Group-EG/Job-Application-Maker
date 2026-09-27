@@ -13,7 +13,7 @@ import type { User } from "../../../services/usersService";
 import type { CreateRoleRequest } from "../../../services/rolesService";
 import { toPlainString } from "../../../utils/strings";
 import { Search, Shield, Users, Calendar, ArrowRight, X } from "lucide-react";
-import { Button, Card, CardToolbar, EmptyState, Field, IconButton, PageShell, SectionTitle, StatCard, Table, Td, Th, focusRing, inputClass, rowClass } from '../../../components/ui/kit';
+import { Button, Card, CardToolbar, EmptyState, Field, IconButton, PageShell, SectionTitle, StatCard, Table, Td, Th, focusRing, inputClass, rowClass, ErrorState } from '../../../components/ui/kit';
 
 type RoleForm = {
   name: string;
@@ -41,7 +41,7 @@ export default function Permissions() {
   const canCreate = hasPermission("Role Management", "create");
 
   // React Query hooks - data fetching happens automatically
-  const { data: roles = [], isLoading: rolesLoading} = useRoles();
+  const { data: roles = [], isLoading: rolesLoading, isError: rolesFailed, error: rolesError, refetch: refetchRoles } = useRoles();
   const { data: permissions = [], isLoading: permissionsLoading } =
     usePermissions();
   const { data: usersData, isLoading: usersLoading } = useUsers();
@@ -343,7 +343,9 @@ export default function Permissions() {
               </div>
             </CardToolbar>
 
-            {filteredRoles.length === 0 ? (
+            {rolesFailed && roles.length === 0 ? (
+              <ErrorState error={rolesError} onRetry={() => refetchRoles()} />
+            ) : filteredRoles.length === 0 ? (
               <EmptyState icon={<Shield className="size-6" />} title={t('rolesNoResultsTitle', 'roles')} text={t('rolesNoResultsText', 'roles')} />
             ) : (
               <div className="grid grid-cols-1 gap-4 p-4 md:grid-cols-2 xl:grid-cols-3">

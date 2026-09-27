@@ -46,6 +46,7 @@ import {
   focusRing,
   inputClass,
   rowClass,
+  ErrorState,
 } from '../../../components/ui/kit';
 import type { BadgeTone } from '../../../components/ui/kit';
 import { jobPositionsService } from '../../../services/jobPositionsService';
@@ -414,6 +415,8 @@ export default function Jobs() {
     isLoading: isLoadingJobs,
     refetch: refetchJobs,
     isFetching: isJobFetching,
+    isError: jobsFailed,
+    error: jobsError,
   } = useJobPositions(
     jobQueryCompanyParam as any,
     false,
@@ -427,7 +430,7 @@ export default function Jobs() {
       const incomingIds = sortJobsByOrder(jobPositions)
         .map((job: any) => job?._id)
         .filter(Boolean) as string[];
-      if (incomingIds.length === 0) return [];
+      if (incomingIds.length === 0) return prevIds.length === 0 ? prevIds : [];
       const unchanged =
         incomingIds.length === prevIds.length &&
         incomingIds.every((id, index) => id === prevIds[index]);
@@ -899,7 +902,9 @@ export default function Jobs() {
               />
             </div>
           </CardToolbar>
-          {filteredJobs.length === 0 && (
+          {jobsFailed && jobPositions.length === 0 ? (
+            <ErrorState error={jobsError} onRetry={() => refetchJobs()} />
+          ) : filteredJobs.length === 0 && (
             <EmptyState
               icon={<BriefcaseIcon className="size-6" />}
               title={t('jobsNoPositions', 'jobs')}

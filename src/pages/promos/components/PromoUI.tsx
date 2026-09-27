@@ -19,6 +19,8 @@ import {
   X,
 } from 'lucide-react';
 import { useLocale } from '../../../context/LocaleContext';
+import { useMarkInlineError } from '../../../context/InlineErrorContext';
+import { describeError } from '../../../lib/userErrors';
 
 export const focusRing =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-slate-900';
@@ -389,24 +391,35 @@ export function EmptyState({
 export function ErrorState({
   title,
   text,
+  error,
   onRetry,
 }: {
-  title: ReactNode;
+  title?: ReactNode;
   text?: ReactNode;
+  /** The failed query's error: shown as a readable reason plus a reference line. */
+  error?: unknown;
   onRetry?: () => void;
 }) {
   const { t } = useLocale();
+  useMarkInlineError();
+  const described = error ? describeError(error) : undefined;
+  const body = text ?? described?.message;
   return (
     <div className="flex flex-col items-center px-6 py-14 text-center" role="alert">
       <div className="flex size-12 items-center justify-center rounded-full bg-rose-50 text-rose-500 dark:bg-rose-500/10">
         <AlertTriangle className="size-6" />
       </div>
-      <h3 className="mt-4 text-sm font-semibold text-slate-900 dark:text-white">{title}</h3>
-      {text && <p className="mt-1 max-w-sm text-sm text-slate-500 dark:text-slate-400">{text}</p>}
+      <h3 className="mt-4 text-sm font-semibold text-slate-900 dark:text-white">{title ?? t('loadFailedTitle', 'common')}</h3>
+      {body && <p className="mt-1 max-w-sm text-sm text-slate-500 dark:text-slate-400">{body}</p>}
       {onRetry && (
         <Button className="mt-5" icon={<RotateCcw className="size-4" />} onClick={onRetry}>
-          {t('retry', 'promos')}
+          {t('tryAgain', 'common')}
         </Button>
+      )}
+      {described && (
+        <p className="mt-4 text-xs text-slate-400 dark:text-slate-500">
+          {t('errReference', 'common')}: <span dir="ltr">{described.ref}</span>
+        </p>
       )}
     </div>
   );

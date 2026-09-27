@@ -26,6 +26,7 @@ import {
   focusRing,
   selectClass,
   textareaClass,
+  ErrorState,
 } from "../../components/ui/kit";
 import type { BadgeTone } from "../../components/ui/kit";
 import { DocCard, Meta } from "../../components/documents/DocumentUi";
@@ -58,7 +59,7 @@ export default function InquiryPreview() {
   const { hasPermission } = useAuth();
   const canWrite = hasPermission("Inquiry Management", "write");
 
-  const { data, isLoading } = useInquiry(id!);
+  const { data, isLoading, error, refetch } = useInquiry(id!);
   const inquiry = (data as any)?.inquiry ?? data;
 
   const updateMutation = useUpdateInquiry();
@@ -105,6 +106,16 @@ export default function InquiryPreview() {
     return (
       <PageShell title={t("inquiryPreviewTitle", "inquiries")} back={back}>
         <div className="h-64 animate-pulse rounded-2xl border border-slate-200 bg-white motion-reduce:animate-none dark:border-slate-800 dark:bg-slate-900" />
+      </PageShell>
+    );
+  }
+
+  if (!inquiry && error) {
+    return (
+      <PageShell title={t("inquiryPreviewTitle", "inquiries")} back={back}>
+        <Card>
+          <ErrorState error={error} onRetry={() => refetch()} />
+        </Card>
       </PageShell>
     );
   }

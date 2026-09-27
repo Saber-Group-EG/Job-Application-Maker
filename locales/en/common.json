@@ -430,5 +430,8 @@
   "crashDetails": "Details for support",
   "updateTitle": "A new version is available",
   "updateText": "The app was updated while this page was open. Reload to get the latest version.",
-  "errUpload": "The file couldn't be uploaded. Check your connection and try again."
+  "errUpload": "The file couldn't be uploaded. Check your connection and try again.",
+  "loadFailedTitle": "Couldn't load this information",
+  "loadFailedBanner": "Some information on this page couldn't be loaded, so what you see may be incomplete.",
+  "tryAgain": "Try again"
 }

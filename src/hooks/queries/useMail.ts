@@ -33,6 +33,7 @@ export function useMailList(params: MailListParams, { poll = true }: { poll?: bo
 export function useMailCounts(params: { companyId?: string; jobPosition?: string }) {
   return useQuery({
     queryKey: mailKeys.counts(params),
+    meta: { silentError: true }, // optional extra; the page works without it
     queryFn: () => mailService.counts(params),
     refetchInterval: MAIL_POLL_INTERVAL_MS,
   });
@@ -41,6 +42,7 @@ export function useMailCounts(params: { companyId?: string; jobPosition?: string
 export function useApplicantMailCounts(companyId?: string, enabled = true) {
   return useQuery({
     queryKey: mailKeys.applicantCounts(companyId),
+    meta: { silentError: true }, // optional extra; the page works without it
     queryFn: () => mailService.applicantCounts(companyId),
     enabled,
     staleTime: 5 * 60 * 1000,

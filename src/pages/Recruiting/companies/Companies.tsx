@@ -24,7 +24,7 @@ import {
   ArrowRight,
   ShieldAlert,
 } from "lucide-react";
-import { Button, Card, CardToolbar, EmptyState, IconButton, PageShell, Pagination, StatCard, focusRing, inputClass } from '../../../components/ui/kit';
+import { Button, Card, CardToolbar, EmptyState, IconButton, PageShell, Pagination, StatCard, focusRing, inputClass, ErrorState } from '../../../components/ui/kit';
 
 export default function Companies() {
   const navigate = useNavigate();
@@ -68,6 +68,9 @@ export default function Companies() {
   const {
     data: companies = [],
     isLoading: companiesLoading,
+    isError: companiesFailed,
+    error: companiesError,
+    refetch: refetchCompanies,
   } = useCompanies(companyId);
   const { data: departments = [] } = useDepartments();
   const deleteCompanyMutation = useDeleteCompany();
@@ -174,6 +177,8 @@ export default function Companies() {
           <div className="flex items-center justify-center py-20">
             <LoadingSpinner />
           </div>
+        ) : companiesFailed && companies.length === 0 ? (
+          <ErrorState error={companiesError} onRetry={() => refetchCompanies()} />
         ) : filteredCompanies.length === 0 ? (
           <EmptyState icon={<Building2 className="size-6" />} title={t('noCompaniesFound', 'companies')} />
         ) : (

@@ -44,6 +44,7 @@ import {
   focusRing,
   inputClass,
   rowClass,
+  ErrorState,
 } from '../../../components/ui/kit';
 
 type UsersView = 'cards' | 'table';
@@ -114,7 +115,7 @@ export default function Users() {
     ? {}
     : { companies: allowedCompanyIds };
 
-  const { data: users, isLoading: usersLoading } = useUsers(usersQueryParams);
+  const { data: users, isLoading: usersLoading, isError: usersFailed, error: usersError, refetch: refetchUsers } = useUsers(usersQueryParams);
   const { data: roles = [] } = useRoles();
   const { data: companies = [] } = useCompanies();
   const deleteUserMutation = useDeleteUser();
@@ -304,6 +305,8 @@ export default function Users() {
           <div className="flex items-center justify-center py-20">
             <LoadingSpinner />
           </div>
+        ) : usersFailed && !users ? (
+          <ErrorState error={usersError} onRetry={() => refetchUsers()} />
         ) : filteredBySearchAndRole.length === 0 ? (
           <EmptyState icon={<UserMinus className="size-6" />} title={t('noPersonnelFound', 'users')} text={t('noPersonnelFoundText', 'users')} />
         ) : view === 'table' ? (
