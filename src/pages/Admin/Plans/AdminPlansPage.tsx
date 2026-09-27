@@ -10,6 +10,9 @@ type Row =
   | { kind: 'section'; label: string }
   | { kind: 'boolean'; label: string; path: string }
   | { kind: 'limit'; label: string; path: string }
+  // Email access: one dropdown over emails.sendLimit.allowed (sending on/off)
+  // and emails.sendReceive (whether replies are imported).
+  | { kind: 'emailMode'; label: string; path: string }
   | {
       kind: 'enum';
       label: string;
@@ -110,6 +113,29 @@ export default function AdminPlansPage() {
   const setValue = (planId: string, path: string, value: string) =>
     updateFeature.mutate({ planId, path, value });
 
+  const emailModeOptions = [
+    { value: 'disabled', label: t('sendReceiveDisabled', 'adminPlans') },
+    { value: 'sendOnly', label: t('sendReceiveSendOnly', 'adminPlans') },
+    { value: 'sendReceive', label: t('sendReceiveSendReceive', 'adminPlans') },
+  ];
+  const getEmailMode = (features: NonNullable<Plan['features']>) => {
+    const sendLimit = getNode(features, 'emails.sendLimit') as PlanLimitFeature | undefined;
+    if (sendLimit?.allowed === false) return 'disabled';
+    return (getNode(features, 'emails.sendReceive') as string | undefined) ?? 'sendOnly';
+  };
+  // Disabled turns sending off (the backend blocks sends when
+  // emails.sendLimit isn't allowed) and stops reply imports.
+  const setEmailMode = (plan: Plan, mode: string) => {
+    const sendAllowed = getNode(plan.features!, 'emails.sendLimit')?.allowed !== false;
+    const sendReceive = mode === 'sendReceive' ? 'sendReceive' : 'sendOnly';
+    if (getNode(plan.features!, 'emails.sendReceive') !== sendReceive) {
+      setValue(plan._id, 'emails.sendReceive', sendReceive);
+    }
+    if (sendAllowed !== (mode !== 'disabled')) {
+      setAllowed(plan._id, 'emails.sendLimit', mode !== 'disabled');
+    }
+  };
+
   const rows: Row[] = [
     { kind: 'section', label: t('sectionApplicants', 'adminPlans') },
     { kind: 'limit', label: t('applicantsTotal', 'adminPlans'), path: 'applicants.total' },
@@ -172,15 +198,7 @@ export default function AdminPlansPage() {
         { value: 'customDomain', label: t('emailTypeCustomDomain', 'adminPlans') },
       ],
     },
-    {
-      kind: 'enum',
-      label: t('emailsSendReceive', 'adminPlans'),
-      path: 'emails.sendReceive',
-      options: [
-        { value: 'sendOnly', label: t('sendReceiveSendOnly', 'adminPlans') },
-        { value: 'sendReceive', label: t('sendReceiveSendReceive', 'adminPlans') },
-      ],
-    },
+    { kind: 'emailMode', label: t('emailsSendReceive', 'adminPlans'), path: 'emails.sendReceive' },
     { kind: 'section', label: t('sectionContracts', 'adminPlans') },
     { kind: 'boolean', label: t('contractsLabel', 'adminPlans'), path: 'contracts' },
     { kind: 'section', label: t('sectionOffers', 'adminPlans') },
@@ -294,6 +312,28 @@ export default function AdminPlansPage() {
                       {plans.map((p) => {
                         if (!p.features)
                           return <td key={p._id} className="p-4 min-h-[64px]" />;
+
+                        if (row.kind === 'emailMode') {
+                          return (
+                            <td key={p._id} className="min-h-[64px] p-4">
+                              <div className="flex min-h-[36px] items-center justify-center">
+                                <select
+                                  value={getEmailMode(p.features)}
+                                  disabled={mutating}
+                                  onChange={(e) => setEmailMode(p, e.target.value)}
+                                  aria-label={`${row.label} — ${p.name}`}
+                                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-800 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                                >
+                                  {emailModeOptions.map((o) => (
+                                    <option key={o.value} value={o.value}>
+                                      {o.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            </td>
+                          );
+                        }
 
                         if (row.kind === 'enum') {
                           const current = getNode(p.features, row.path) as string | undefined;
