@@ -24,6 +24,7 @@ interface SelectedApplicantForInterview {
   companyId: string;
   jobPositionId?: string;
   status: string;
+  phone?: string;
 }
 
 interface BulkStatusForm {
@@ -114,7 +115,7 @@ interface UseBulkActionsReturn {
   // Actions
   handleBulkDelete: () => Promise<void>;
   handleBulkStatusChange: (e: React.FormEvent) => Promise<void>;
-  handleBulkInterviewSubmit: (e: React.FormEvent, opts?: { senderEmail?: string }) => Promise<void>;
+  handleBulkInterviewSubmit: (e: React.FormEvent, opts?: { senderEmail?: string }) => Promise<boolean>;
   handlePreviewBulkInterviews: () => void;
   handleBulkChangeStatus: (action: string) => Promise<void>;
   openBulkInterviewModal: () => Promise<void>;
@@ -548,7 +549,7 @@ export function useBulkActions({
       const built = buildBulkInterviewPreview();
       if (built.error) {
         setBulkInterviewError(built.error);
-        return;
+        return false;
       }
 
       const previewItems = built.items;
@@ -660,8 +661,10 @@ export function useBulkActions({
             showConfirmButton: false,
           });
         }
+        return true;
       } catch (err: any) {
         setBulkInterviewError(getErrorMessage(err));
+        return false;
       } finally {
         setIsSubmittingBulkInterview(false);
       }
