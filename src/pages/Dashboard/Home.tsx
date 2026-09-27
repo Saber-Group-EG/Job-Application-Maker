@@ -19,6 +19,8 @@ import {
 import InterviewScheduleWidget from '../../components/charts/MyInterviewWidget';
 import RejectionInsightsChart from '../../components/charts/RejectionInsightsChart';
 import DashboardSections from '../../components/dashboard/DashboardSections';
+import { RefreshCw } from 'lucide-react';
+import { Button, Card, EmptyState, PageShell, focusRing } from '../../components/ui/kit';
 
 const getStatusIcon = (statusName: string): any => {
   const lowerStatus = statusName.toLowerCase();
@@ -205,176 +207,130 @@ export default function Home() {
     return total - trashed;
   }, [countsData]);
 
-  if (companiesLoading) {
-    return (
-      <>
-        <PageMeta
-          title={t('pageTitle', 'home')}
-          description={t('pageDescription', 'home')}
-        />
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div
-                key={`skeleton-${i}`}
-                className="rounded-2xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-800"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="h-4 w-20 rounded bg-gray-200 animate-pulse" />
-                  <div className="size-5 rounded bg-gray-200 animate-pulse" />
-                </div>
-                <div className="mt-2 h-8 w-12 rounded bg-gray-200 animate-pulse" />
-              </div>
-            ))}
-          </div>
+  const refresh = async () => {
+    try {
+      await refetch();
+      setLastRefetch(new Date());
+    } catch {
+      // ignore
+    }
+  };
+
+  const statusSkeleton = (count: number) =>
+    Array.from({ length: count }).map((_, i) => (
+      <div key={`skeleton-${i}`} className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900" aria-hidden="true">
+        <div className="flex items-center justify-between">
+          <div className="h-4 w-20 animate-pulse rounded bg-slate-200 motion-reduce:animate-none dark:bg-slate-800" />
+          <div className="size-5 animate-pulse rounded bg-slate-200 motion-reduce:animate-none dark:bg-slate-800" />
         </div>
-      </>
-    );
-  }
+        <div className="mt-3 h-7 w-12 animate-pulse rounded bg-slate-200 motion-reduce:animate-none dark:bg-slate-800" />
+      </div>
+    ));
+
+  const cardButton = `group rounded-2xl border border-slate-200 bg-white p-5 text-start shadow-sm transition hover:border-slate-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700 ${focusRing}`;
 
   return (
-    <>
-      <PageMeta
-        title={t('pageTitle', 'home')}
-        description={t('pageDescription', 'home')}
-      />
+    <PageShell
+      title={t('pageTitle', 'home')}
+      subtitle={
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span>
+            {t('showing', 'home')}{' '}
+            <span className="font-medium text-slate-900 dark:text-white">
+              {loading || companiesLoading ? t('loading', 'home') : t('applicantsCount', 'home', { count: totalApplicants })}
+            </span>
+          </span>
+          <span aria-hidden="true">·</span>
+          <span>{elapsed ? t('lastUpdate', 'home', { time: elapsed }) : t('notUpdatedYet', 'home')}</span>
+        </span>
+      }
+      actions={
+        <Button icon={<RefreshCw className={`size-4 ${isFetching ? 'animate-spin' : ''}`} />} onClick={refresh} disabled={isFetching || !hasSelection}>
+          {isFetching ? t('updatingData', 'home') : t('updateData', 'home')}
+        </Button>
+      }
+    >
+      <PageMeta title={t('pageTitle', 'home')} description={t('pageDescription', 'home')} />
 
-      <div className="space-y-6">
-        <div className="grid grid-cols-12 gap-4 md:gap-6 items-end">
-          <div className="col-span-12 sm:col-span-12 md:col-span-12 lg:col-span-6">
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="text-sm text-gray-500">{t('showing', 'home')}</div>
-              <div className="font-semibold text-gray-800">
-                {loading ? t('loading', 'home') : t('applicantsCount', 'home', { count: totalApplicants })}
-              </div>
-              <button
-                type="button"
-                onClick={async () => {
-                  try {
-                    await refetch();
-                    setLastRefetch(new Date());
-                  } catch {
-                    // ignore
-                  }
-                }}
-                disabled={isFetching}
-                className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-3 py-1 text-sm font-semibold text-white shadow-sm hover:bg-brand-600 disabled:opacity-50"
-              >
-                {isFetching ? t('updatingData', 'home') : t('updateData', 'home')}
-              </button>
-              <div className="text-sm text-gray-500">
-                {elapsed ? t('lastUpdate', 'home', { time: elapsed }) : t('notUpdatedYet', 'home')}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {!hasSelection ? (
-          <div className="flex flex-col items-center justify-center py-16">
-            <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-6">
-              {t('selectCompany', 'home')}
-            </h2>
-            <div className="flex flex-wrap gap-4 justify-center">
+      {companiesLoading ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">{statusSkeleton(6)}</div>
+      ) : !hasSelection ? (
+        <Card>
+          <div className="flex flex-col items-center px-6 py-12">
+            <h2 className="text-base font-semibold text-slate-900 dark:text-white">{t('selectCompany', 'home')}</h2>
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
               {companyOptions.map((c) => (
                 <button
                   key={c.id}
                   type="button"
                   onClick={() => setSelectedCompanyId(c.id)}
-                  className="flex flex-col items-center gap-3 rounded-2xl border-2 border-gray-200 bg-white px-8 py-6 text-sm font-medium text-gray-700 shadow-sm transition hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-brand-400 dark:hover:bg-brand-900/20 min-w-[160px]"
+                  className={`flex min-w-[160px] flex-col items-center gap-3 rounded-xl border border-slate-200 bg-white px-6 py-5 text-sm font-medium text-slate-700 transition hover:border-brand-300 hover:bg-brand-50/50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-brand-500/40 dark:hover:bg-brand-500/5 ${focusRing}`}
                 >
                   {c.logoPath ? (
-                    <img src={c.logoPath} alt="" className="size-12 rounded object-cover" />
+                    <img src={c.logoPath} alt="" className="size-12 rounded-lg object-cover" />
                   ) : (
-                    <div className="flex size-12 items-center justify-center rounded-full bg-slate-200 text-lg font-bold text-slate-600 dark:bg-slate-600 dark:text-slate-300">
+                    <span className="flex size-12 items-center justify-center rounded-full bg-slate-100 text-lg font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                       {c.title.charAt(0).toUpperCase()}
-                    </div>
+                    </span>
                   )}
-                  <span className="text-base font-semibold">{c.title}</span>
+                  <span className="font-semibold">{c.title}</span>
                 </button>
               ))}
             </div>
           </div>
-        ) : (
-          <>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-          <div
-            onClick={handleTotalCardClick}
-            className="rounded-2xl border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 p-5 dark:from-gray-800 dark:to-gray-900 cursor-pointer transition hover:shadow-md hover:scale-[1.02]"
-          >
-            <div className="flex items-center justify-between">
-              <div className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                {t('totalApplicants', 'home')}
+        </Card>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            <button type="button" onClick={handleTotalCardClick} className={cardButton}>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-slate-500 dark:text-slate-400">{t('totalApplicants', 'home')}</span>
+                <span className="flex size-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                  <UserIcon className="size-4" />
+                </span>
               </div>
-              <div className="text-gray-400">
-                <UserIcon className="size-5" />
+              <div className="mt-2 text-2xl font-semibold tabular-nums text-slate-900 dark:text-white">
+                {loading ? <span className="inline-block h-7 w-14 animate-pulse rounded bg-slate-200 dark:bg-slate-800" /> : totalApplicants}
               </div>
-            </div>
-            <div className="mt-2 text-2xl font-bold text-gray-800 dark:text-gray-200">
-              {loading ? (
-                <span className="inline-block h-6 w-14 rounded bg-gray-200 animate-pulse" />
-              ) : (
-                totalApplicants
-              )}
-            </div>
+            </button>
+
+            {loading
+              ? statusSkeleton(5)
+              : statusCards.map((card) => {
+                  const Icon = card.icon;
+                  return (
+                    <button key={card.name} type="button" onClick={() => handleStatusCardClick(card.name)} className={cardButton}>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="flex min-w-0 items-center gap-2 text-sm font-medium capitalize text-slate-700 dark:text-slate-300">
+                          <span className="size-2.5 shrink-0 rounded-full ring-1 ring-inset ring-black/10" style={{ backgroundColor: card.bgColor }} />
+                          <span className="truncate">{card.displayName || card.name}</span>
+                        </span>
+                        <span
+                          className="flex size-8 shrink-0 items-center justify-center rounded-lg"
+                          style={{ backgroundColor: `${card.bgColor}26`, color: card.bgColor }}
+                        >
+                          {Icon && <Icon className="size-4" />}
+                        </span>
+                      </div>
+                      <div className="mt-2 text-2xl font-semibold tabular-nums text-slate-900 dark:text-white">{card.count}</div>
+                    </button>
+                  );
+                })}
           </div>
 
-          {loading
-            ? Array.from({ length: 5 }).map((_, i) => (
-                <div
-                  key={`skeleton-${i}`}
-                  className="rounded-2xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-800"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="h-4 w-16 rounded bg-gray-200 animate-pulse" />
-                    <div className="h-5 w-5 rounded bg-gray-200 animate-pulse" />
-                  </div>
-                  <div className="mt-2 h-8 w-12 rounded bg-gray-200 animate-pulse" />
-                </div>
-              ))
-            : statusCards.map((card) => {
-                const Icon = card.icon;
-                const bgStyle = {
-                  backgroundColor: card.bgColor + '15',
-                  borderLeftColor: card.bgColor,
-                  borderLeftWidth: '4px',
-                };
-
-                return (
-                  <div
-                    key={card.name}
-                    onClick={() => handleStatusCardClick(card.name)}
-                    className="rounded-2xl border border-gray-200 p-5 dark:border-gray-800 cursor-pointer transition-all hover:shadow-md hover:scale-[1.02]"
-                    style={bgStyle}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm font-semibold" style={{ color: card.textColor }}>
-                        {card.displayName || card.name}
-                      </div>
-                      <div style={{ color: card.bgColor }}>
-                        {Icon && <Icon className="size-5" />}
-                      </div>
-                    </div>
-                    <div className="mt-2 text-2xl font-bold" style={{ color: card.textColor }}>
-                      {card.count}
-                    </div>
-                  </div>
-                );
-              })}
-        </div>
-        <DashboardSections companyIds={companyIds} companies={companies} />
-        <div id="my-interviews" className="scroll-mt-20">
-          <InterviewScheduleWidget />
-        </div>
-        <RejectionInsightsChart companyId={companyIds} />
-
-        {!loading && statusCards.length === 0 && countsData && (
-          <div className="text-center py-12">
-            <p className="text-gray-500">{t('noStatusData', 'home')}</p>
+          <DashboardSections companyIds={companyIds} companies={companies} />
+          <div id="my-interviews" className="scroll-mt-20">
+            <InterviewScheduleWidget />
           </div>
-        )}
-          </>
-        )}
-      </div>
-    </>
+          <RejectionInsightsChart companyId={companyIds} />
+
+          {!loading && statusCards.length === 0 && countsData && (
+            <Card>
+              <EmptyState icon={<UserIcon className="size-6" />} title={t('noStatusData', 'home')} />
+            </Card>
+          )}
+        </>
+      )}
+    </PageShell>
   );
 }

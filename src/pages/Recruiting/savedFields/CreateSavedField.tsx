@@ -1,12 +1,21 @@
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router";
-import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import PageMeta from "../../../components/common/PageMeta";
-import Label from "../../../components/form/Label";
-import Input from "../../../components/form/input/InputField";
-import Select from "../../../components/form/Select";
-import Switch from "../../../components/form/switch/Switch";
-import { PlusIcon, PencilIcon, TrashBinIcon, CheckCircleIcon } from "../../../icons";
+import { Check, ChevronDown, ChevronRight, Layers, ListChecks, Pencil, Plus, Save, SlidersHorizontal, Trash2, X } from "lucide-react";
+import { BackLink,
+  Badge,
+  Button,
+  Card,
+  CardToolbar,
+  Field,
+  IconButton,
+  PageShell,
+  SectionTitle,
+  Switch,
+  focusRing,
+  inputClass,
+  selectClass,
+} from "../../../components/ui/kit";
 import { useCreateSavedField, useUpdateSavedField } from "../../../hooks/queries";
 import { useQueryClient } from "@tanstack/react-query";
 import { savedFieldsKeys } from "../../../hooks/queries/useUsers";
@@ -207,467 +216,382 @@ export default function CreateSavedField() {
     }
   };
 
+  const addSubChoice = (idx: number) => {
+    const sf = subFields[idx] || {};
+    const en = (sf._newChoiceEn || "").trim();
+    const ar = (sf._newChoiceAr || "").trim();
+    if (!en || !ar) return;
+    const nextChoices = (sf.choices || []).concat([{ en, ar }]);
+    updateSubField(idx, { choices: nextChoices, _newChoiceEn: "", _newChoiceAr: "" });
+  };
+
+  const typeOptions = [
+    { value: "text", label: t('typeText', 'savedFields') },
+    { value: "textarea", label: t('typeTextarea', 'savedFields') },
+    { value: "number", label: t('typeNumber', 'savedFields') },
+    { value: "email", label: t('typeEmail', 'savedFields') },
+    { value: "date", label: t('typeDate', 'savedFields') },
+    { value: "url", label: t('typeUrl', 'savedFields') },
+    { value: "checkbox", label: t('typeCheckbox', 'savedFields') },
+    { value: "radio", label: t('typeRadio', 'savedFields') },
+    { value: "dropdown", label: t('typeDropdown', 'savedFields') },
+    { value: "tags", label: t('typeTags', 'savedFields') },
+  ];
+  const isSaving = createMutation.isPending || updateMutation.isPending;
+  const pageTitle = editingField ? t('editMetaTitle', 'savedFields') : t('createMetaTitle', 'savedFields');
+
   return (
-    <div className="mx-auto max-w-[1000px] space-y-8 pb-20">
-      <PageMeta
-        title={editingField ? t('editMetaTitle', 'savedFields') : t('createMetaTitle', 'savedFields')}
-        description={t('createMetaDescription', 'savedFields')}
-      />
+    <PageShell
+      title={pageTitle}
+      back={<BackLink onClick={() => navigate(-1)}>{t('back', 'common')}</BackLink>}
+    >
+      <PageMeta title={pageTitle} description={t('createMetaDescription', 'savedFields')} />
 
-      <PageBreadcrumb
-        pageTitle={editingField ? t('editMetaTitle', 'savedFields') : t('createMetaTitle', 'savedFields')}
-       
-      />
-
-      <form onSubmit={handleSubmit} className="space-y-8">
-        <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:border-gray-800 dark:bg-gray-900">
-          <div className="mb-8 flex items-center justify-between">
+      <form onSubmit={handleSubmit} className="mx-auto max-w-4xl space-y-6 pb-4">
+        <Card>
+          <CardToolbar>
             <div>
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white">{t('fieldConfiguration', 'savedFields')}</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400">{t('fieldConfigurationDesc', 'savedFields')}</p>
+              <SectionTitle icon={<SlidersHorizontal className="size-4" />}>{t('fieldConfiguration', 'savedFields')}</SectionTitle>
+              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{t('fieldConfigurationDesc', 'savedFields')}</p>
             </div>
-            <div className="rounded-2xl bg-brand-50 p-3 text-brand-600 dark:bg-brand-500/10">
-              <svg className="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-            </div>
-          </div>
-
-          <div className="space-y-8">
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="labelEn" required>{t('displayLabelEn', 'savedFields')}</Label>
-                <Input
+          </CardToolbar>
+          <div className="space-y-5 p-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <Field label={t('displayLabelEn', 'savedFields')} htmlFor="labelEn">
+                <input
                   id="labelEn"
+                  dir="ltr"
                   value={labelEn}
-                  onChange={(e: any) => setLabelEn(e.target.value)}
+                  onChange={(e) => setLabelEn(e.target.value)}
                   placeholder={t('labelEnPlaceholder', 'savedFields')}
                   required
+                  className={inputClass}
                 />
-              </div>
-              <div className="space-y-2" dir="rtl">
-                <Label htmlFor="labelAr" required className="block w-full text-right">{t('displayLabelAr', 'savedFields')}</Label>
-                <Input
+              </Field>
+              <Field label={t('displayLabelAr', 'savedFields')} htmlFor="labelAr">
+                <input
                   id="labelAr"
+                  dir="rtl"
                   value={labelAr}
-                  onChange={(e: any) => setLabelAr(e.target.value)}
+                  onChange={(e) => setLabelAr(e.target.value)}
                   placeholder={t('labelArPlaceholder', 'savedFields')}
                   required
-                  className="text-right"
+                  className={inputClass}
                 />
-              </div>
+              </Field>
             </div>
 
-            <div className="h-px bg-gray-100 dark:bg-gray-800" />
-
-            <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-              <div className="space-y-3">
-                <Label>{t('inputBehavior', 'savedFields')}</Label>
-                <div className="flex flex-col gap-4 rounded-2xl bg-gray-50/50 p-4 dark:bg-gray-800/30">
-                  <div className="group/toggle relative">
-                    <Switch 
-                      checked={isRequired} 
-                      onChange={(val: boolean) => setIsRequired(val)} 
-                      label={t('requiredField', 'savedFields')}
-                    />
-                    <p className="ml-11 mt-1 text-[11px] text-gray-500 opacity-70 group-hover/toggle:opacity-100 transition-opacity">
-                      {t('requiredHint', 'savedFields')}
-                    </p>
-                  </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <Field label={t('dataType', 'savedFields')} htmlFor="inputType" hint={t('dataTypeHint', 'savedFields')}>
+                <select id="inputType" value={inputType} onChange={(e) => setInputType(e.target.value)} className={selectClass}>
+                  {[...typeOptions, { value: "repeatable_group", label: t('typeRepeatableGroup', 'savedFields') }].map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <div className="flex items-start justify-between gap-4 rounded-xl border border-slate-200 p-3 dark:border-slate-800 md:mt-7">
+                <div>
+                  <p className="text-sm font-medium text-slate-900 dark:text-white">{t('requiredField', 'savedFields')}</p>
+                  <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{t('requiredHint', 'savedFields')}</p>
                 </div>
-              </div>
-
-              <div className="space-y-3">
-                <Label htmlFor="inputType">{t('dataType', 'savedFields')}</Label>
-                <Select
-                  options={[
-  { value: "text", label: t('typeText', 'savedFields') },
-  { value: "textarea", label: t('typeTextarea', 'savedFields') },
-  { value: "number", label: t('typeNumber', 'savedFields') },
-  { value: "email", label: t('typeEmail', 'savedFields') },
-  { value: "date", label: t('typeDate', 'savedFields') },
-  { value: "url", label: t('typeUrl', 'savedFields') },
-  { value: "checkbox", label: t('typeCheckbox', 'savedFields') },
-  { value: "radio", label: t('typeRadio', 'savedFields') },
-  { value: "dropdown", label: t('typeDropdown', 'savedFields') },
-  { value: "tags", label: t('typeTags', 'savedFields') },
-  { value: "repeatable_group", label: t('typeRepeatableGroup', 'savedFields') },
-]}
-                  value={inputType}
-                  onChange={(v: string) => setInputType(v)}
-                  placeholder={t('selectInputType', 'savedFields')}
-                />
-                <p className="text-[11px] text-gray-500 italic">
-                  {t('dataTypeHint', 'savedFields')}
-                </p>
+                <Switch checked={isRequired} onChange={setIsRequired} label={t('requiredField', 'savedFields')} />
               </div>
             </div>
 
             {inputType === "number" && (
-              <div className="animate-in slide-in-from-top-2 flex gap-4 rounded-2xl border border-blue-100 bg-blue-50/30 p-4 dark:border-blue-900/30 dark:bg-blue-900/10">
-                <div className="flex-1 space-y-2">
-                  <Label>{t('minimumAllowed', 'savedFields')}</Label>
-                  <Input 
-                    type="number" 
-                    value={minValue ?? ""} 
-                    onChange={(e: any) => setMinValue(e.target.value ? Number(e.target.value) : undefined)} 
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <Field label={t('minimumAllowed', 'savedFields')} htmlFor="minValue">
+                  <input
+                    id="minValue"
+                    type="number"
+                    value={minValue ?? ""}
+                    onChange={(e) => setMinValue(e.target.value ? Number(e.target.value) : undefined)}
                     placeholder={t('nonePlaceholder', 'savedFields')}
+                    className={inputClass}
                   />
-                </div>
-                <div className="flex-1 space-y-2">
-                  <Label>{t('maximumAllowed', 'savedFields')}</Label>
-                  <Input 
-                    type="number" 
-                    value={maxValue ?? ""} 
-                    onChange={(e: any) => setMaxValue(e.target.value ? Number(e.target.value) : undefined)} 
+                </Field>
+                <Field label={t('maximumAllowed', 'savedFields')} htmlFor="maxValue">
+                  <input
+                    id="maxValue"
+                    type="number"
+                    value={maxValue ?? ""}
+                    onChange={(e) => setMaxValue(e.target.value ? Number(e.target.value) : undefined)}
                     placeholder={t('nonePlaceholder', 'savedFields')}
+                    className={inputClass}
                   />
-                </div>
+                </Field>
               </div>
             )}
           </div>
-        </div>
+        </Card>
 
         {(inputType === "radio" || inputType === "dropdown" || inputType === "checkbox" || inputType === "tags") && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:border-gray-800 dark:bg-gray-900">
-            <div className="mb-6 flex items-center justify-between">
+          <Card>
+            <CardToolbar>
               <div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white">{t('optionsChoices', 'savedFields')}</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">{t('optionsChoicesDesc', 'savedFields')}</p>
+                <SectionTitle icon={<ListChecks className="size-4" />}>{t('optionsChoices', 'savedFields')}</SectionTitle>
+                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{t('optionsChoicesDesc', 'savedFields')}</p>
               </div>
-              <div className="rounded-2xl bg-amber-50 p-3 text-amber-600 dark:bg-amber-500/10">
-                <svg className="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
-                </svg>
-              </div>
-            </div>
-
-            <div className="space-y-6">
-              <div className="rounded-2xl bg-gray-50 p-5 dark:bg-gray-800/50">
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label>{t('newChoiceEn', 'savedFields')}</Label>
-                    <Input 
-                      placeholder={t('newChoiceEnPlaceholder', 'savedFields')} 
-                      value={newChoiceEn} 
-                      onChange={(e: any) => setNewChoiceEn(e.target.value)} 
-                      onKeyDown={(e: any) => { if (e.key === "Enter") { e.preventDefault(); addChoice(); } }} 
-                    />
-                  </div>
-                  <div className="space-y-2" dir="rtl">
-                    <Label className="block w-full text-right">{t('newChoiceAr', 'savedFields')}</Label>
-                    <Input 
-                      placeholder={t('newChoiceArPlaceholder', 'savedFields')} 
-                      value={newChoiceAr} 
-                      onChange={(e: any) => setNewChoiceAr(e.target.value)} 
-                      onKeyDown={(e: any) => { if (e.key === "Enter") { e.preventDefault(); addChoice(); } }}
-                      className="text-right"
-                    />
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <button 
-                    type="button" 
-                    onClick={addChoice} 
-                    className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-brand-500/20 transition-all hover:bg-brand-600 hover:shadow-brand-500/40 active:scale-95"
-                  >
-                    <PlusIcon className="size-4" />
-                    {t('appendChoice', 'savedFields')}
-                  </button>
-                </div>
+              <Badge tone="slate">{choices.length}</Badge>
+            </CardToolbar>
+            <div className="space-y-4 p-4">
+              <div className="grid grid-cols-1 items-end gap-3 md:grid-cols-[1fr_1fr_auto]">
+                <Field label={t('newChoiceEn', 'savedFields')} htmlFor="newChoiceEn">
+                  <input
+                    id="newChoiceEn"
+                    dir="ltr"
+                    placeholder={t('newChoiceEnPlaceholder', 'savedFields')}
+                    value={newChoiceEn}
+                    onChange={(e) => setNewChoiceEn(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addChoice(); } }}
+                    className={inputClass}
+                  />
+                </Field>
+                <Field label={t('newChoiceAr', 'savedFields')} htmlFor="newChoiceAr">
+                  <input
+                    id="newChoiceAr"
+                    dir="rtl"
+                    placeholder={t('newChoiceArPlaceholder', 'savedFields')}
+                    value={newChoiceAr}
+                    onChange={(e) => setNewChoiceAr(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addChoice(); } }}
+                    className={inputClass}
+                  />
+                </Field>
+                <Button icon={<Plus className="size-4" />} onClick={addChoice}>
+                  {t('appendChoice', 'savedFields')}
+                </Button>
               </div>
 
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {choices.map((c, idx) => (
-                  <div 
-                    key={idx} 
-                    className="group item animate-in fade-in slide-in-from-bottom-2 duration-300 relative flex items-center justify-between gap-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:border-brand-200 hover:shadow-md dark:border-gray-800 dark:bg-gray-900"
-                  >
-                    <div className="absolute left-0 top-0 h-full w-1 rounded-l-2xl bg-brand-500 opacity-0 transition-opacity group-hover:opacity-100" />
-                    
-                    {editingChoiceIndex === idx ? (
-                      <div className="flex-1 space-y-3">
-                        <div className="grid grid-cols-1 gap-2">
-                          <Input
-                            value={editChoiceEn}
-                            onChange={(e: any) => setEditChoiceEn(e.target.value)}
-                            className="text-sm"
-                            autoFocus
-                          />
-                          <Input
-                            value={editChoiceAr}
-                            onChange={(e: any) => setEditChoiceAr(e.target.value)}
-                            className="text-right text-sm"
-                          />
+              {choices.length > 0 && (
+                <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 dark:divide-slate-800 dark:border-slate-800">
+                  {choices.map((c, idx) => (
+                    <li key={idx} className="px-3 py-2">
+                      {editingChoiceIndex === idx ? (
+                        <div className="space-y-2">
+                          <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                            <input
+                              dir="ltr"
+                              aria-label={t('newChoiceEn', 'savedFields')}
+                              value={editChoiceEn}
+                              onChange={(e) => setEditChoiceEn(e.target.value)}
+                              className={inputClass}
+                              autoFocus
+                            />
+                            <input
+                              dir="rtl"
+                              aria-label={t('newChoiceAr', 'savedFields')}
+                              value={editChoiceAr}
+                              onChange={(e) => setEditChoiceAr(e.target.value)}
+                              className={inputClass}
+                            />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button size="sm" variant="success" icon={<Check className="size-4" />} onClick={handleUpdateChoice}>
+                              {t('saveChoice', 'savedFields')}
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={handleCancelEditChoice}>
+                              {t('cancelChoice', 'savedFields')}
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <button 
-                            type="button" 
-                            onClick={handleUpdateChoice} 
-                            className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400"
-                          >
-                            <CheckCircleIcon className="size-3" /> {t('saveChoice', 'savedFields')}
-                          </button>
-                          <button 
-                            type="button" 
-                            onClick={handleCancelEditChoice}
-                            className="text-xs font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                          >
-                            {t('cancelChoice', 'savedFields')}
-                          </button>
+                      ) : (
+                        <div className="flex items-center gap-3">
+                          <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-slate-100 text-xs font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                            {idx + 1}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium text-slate-900 dark:text-white">{c.en}</p>
+                            <p className="truncate text-start text-xs text-slate-500 dark:text-slate-400" dir="rtl">{c.ar}</p>
+                          </div>
+                          <IconButton label={t('saveChoice', 'savedFields')} onClick={() => handleEditChoice(idx)}>
+                            <Pencil className="size-4" />
+                          </IconButton>
+                          <IconButton tone="danger" label={t('delete', 'common')} onClick={() => removeChoice(idx)}>
+                            <Trash2 className="size-4" />
+                          </IconButton>
                         </div>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="flex-1 overflow-hidden">
-                          <div className="truncate font-semibold text-gray-900 dark:text-white">{c.en}</div>
-                          <div className="truncate text-xs text-gray-500 dark:text-gray-400" dir="rtl">{c.ar}</div>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <button 
-                            type="button" 
-                            onClick={() => handleEditChoice(idx)} 
-                            className="rounded-lg p-2 text-gray-400 hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-brand-500/10 dark:hover:text-brand-400"
-                          >
-                            <PencilIcon className="size-4" />
-                          </button>
-                          <button 
-                            type="button" 
-                            onClick={() => removeChoice(idx)}
-                            className="rounded-lg p-2 text-gray-400 hover:bg-error-50 hover:text-error-600 dark:hover:bg-error-500/10 dark:hover:text-error-400"
-                          >
-                            <TrashBinIcon className="size-4" />
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                ))}
-              </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
-          </div>
+          </Card>
         )}
 
         {inputType === "repeatable_group" && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:border-gray-800 dark:bg-gray-900">
-            <div className="mb-8 flex items-center justify-between">
+          <Card>
+            <CardToolbar>
               <div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white">{t('nestedFieldsConfig', 'savedFields')}</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">{t('nestedFieldsConfigDesc', 'savedFields')}</p>
+                <SectionTitle icon={<Layers className="size-4" />}>{t('nestedFieldsConfig', 'savedFields')}</SectionTitle>
+                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{t('nestedFieldsConfigDesc', 'savedFields')}</p>
               </div>
-              <div className="rounded-2xl bg-indigo-50 p-3 text-indigo-600 dark:bg-indigo-500/10">
-                <svg className="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                </svg>
-              </div>
-            </div>
-
-            <div className="space-y-6">
-              {subFields.map((sf, idx) => (
-                <div 
-                  key={sf.fieldId} 
-                  className={`relative overflow-hidden rounded-2xl border transition-all ${
-                    collapsedSubFields.has(idx) 
-                      ? "border-gray-100 bg-gray-50/30 dark:border-gray-800 dark:bg-gray-800/10" 
-                      : "border-brand-200 bg-white shadow-sm dark:border-brand-800/50 dark:bg-gray-900"
-                  }`}
-                >
-                  <div 
-                    className="flex cursor-pointer items-center justify-between p-4"
-                    onClick={() => toggleSubFieldCollapse(idx)}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold ${
-                        collapsedSubFields.has(idx)
-                          ? "bg-gray-100 text-gray-500 dark:bg-gray-800"
-                          : "bg-brand-100 text-brand-600 dark:bg-brand-500/20 dark:text-brand-400"
-                      }`}>
-                        {idx + 1}
-                      </div>
-                      <div>
-                        <span className="font-semibold text-gray-900 dark:text-white">
-                          {(typeof sf.label === "string" ? sf.label : sf.label?.en) || t('untitledSubField', 'savedFields', { index: idx + 1 })}
-                        </span>
-                        <span className="ml-2 rounded-md bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:bg-gray-800">
-                          {sf.inputType}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
+            </CardToolbar>
+            <div className="space-y-3 p-4">
+              {subFields.map((sf, idx) => {
+                const collapsed = collapsedSubFields.has(idx);
+                return (
+                  <div key={sf.fieldId} className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800">
+                    <div className="flex items-center gap-3 bg-slate-50 px-3 py-2.5 dark:bg-slate-800/50">
                       <button
                         type="button"
-                        onClick={(e) => { e.stopPropagation(); removeSubField(idx); }}
-                        className="rounded-lg p-2 text-gray-400 hover:bg-error-50 hover:text-error-600 dark:hover:bg-error-500/10"
+                        onClick={() => toggleSubFieldCollapse(idx)}
+                        aria-expanded={!collapsed}
+                        className={`flex min-w-0 flex-1 items-center gap-3 rounded-lg text-start ${focusRing}`}
                       >
-                        <TrashBinIcon className="size-4" />
+                        {collapsed ? <ChevronRight className="size-4 shrink-0 text-slate-400 rtl:rotate-180" /> : <ChevronDown className="size-4 shrink-0 text-slate-400" />}
+                        <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-white text-xs font-semibold text-slate-500 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-700">
+                          {idx + 1}
+                        </span>
+                        <span className="truncate text-sm font-medium text-slate-900 dark:text-white">
+                          {(typeof sf.label === "string" ? sf.label : sf.label?.en) || t('untitledSubField', 'savedFields', { index: idx + 1 })}
+                        </span>
+                        <Badge tone="slate">{sf.inputType}</Badge>
                       </button>
-                      <svg 
-                        className={`size-5 transform text-gray-400 transition-transform duration-300 ${collapsedSubFields.has(idx) ? "" : "rotate-180"}`} 
-                        fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
+                      <IconButton tone="danger" label={t('delete', 'common')} onClick={() => removeSubField(idx)}>
+                        <Trash2 className="size-4" />
+                      </IconButton>
                     </div>
-                  </div>
 
-                  {!collapsedSubFields.has(idx) && (
-                    <div className="animate-in fade-in slide-in-from-top-2 border-t border-gray-100 p-5 dark:border-gray-800">
-                      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                        <div className="space-y-4">
-                          <div className="space-y-2">
-                            <Label>{t('labelEn', 'savedFields')}</Label>
-                            <Input
+                    {!collapsed && (
+                      <div className="space-y-4 p-4">
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                          <Field label={t('labelEn', 'savedFields')} htmlFor={`sf-en-${idx}`}>
+                            <input
+                              id={`sf-en-${idx}`}
+                              dir="ltr"
                               value={typeof sf.label === "string" ? sf.label : (sf.label?.en || "")}
-                              onChange={(e: any) => {
+                              onChange={(e) => {
                                 const base = typeof sf.label === "string" ? { en: sf.label } : (sf.label || {});
                                 updateSubField(idx, { label: { ...base, en: e.target.value } });
                               }}
                               placeholder={t('labelEnPlaceholder', 'savedFields')}
+                              className={inputClass}
                             />
-                          </div>
-                          <div className="space-y-2" dir="rtl">
-                            <Label className="block w-full text-right">{t('labelAr', 'savedFields')}</Label>
-                            <Input
+                          </Field>
+                          <Field label={t('labelAr', 'savedFields')} htmlFor={`sf-ar-${idx}`}>
+                            <input
+                              id={`sf-ar-${idx}`}
+                              dir="rtl"
                               value={typeof sf.label === "string" ? "" : (sf.label?.ar ?? "")}
-                              onChange={(e: any) => {
+                              onChange={(e) => {
                                 const base = typeof sf.label === "string" ? { en: sf.label } : (sf.label || {});
                                 updateSubField(idx, { label: { ...base, ar: e.target.value } });
                               }}
-                              className="text-right"
+                              className={inputClass}
                             />
-                          </div>
-                        </div>
-                        <div className="space-y-4">
-                          <div className="space-y-2">
-                            <Label>{t('fieldType', 'savedFields')}</Label>
-                            <Select
-                              options={[
-  { value: "text", label: t('typeText', 'savedFields') },
-  { value: "textarea", label: t('typeTextarea', 'savedFields') },
-  { value: "number", label: t('typeNumber', 'savedFields') },
-  { value: "email", label: t('typeEmail', 'savedFields') },
-  { value: "date", label: t('typeDate', 'savedFields') },
-  { value: "url", label: t('typeUrl', 'savedFields') },
-  { value: "checkbox", label: t('typeCheckbox', 'savedFields') },
-  { value: "radio", label: t('typeRadio', 'savedFields') },
-  { value: "dropdown", label: t('typeDropdown', 'savedFields') },
-  { value: "tags", label: t('typeTags', 'savedFields') },
-]}
+                          </Field>
+                          <Field label={t('fieldType', 'savedFields')} htmlFor={`sf-type-${idx}`}>
+                            <select
+                              id={`sf-type-${idx}`}
                               value={sf.inputType}
-                              onChange={(v: string) => updateSubField(idx, { inputType: v })}
-                            />
-                          </div>
-                          <div className="pt-4">
-                            <Switch 
+                              onChange={(e) => updateSubField(idx, { inputType: e.target.value })}
+                              className={selectClass}
+                            >
+                              {typeOptions.map((o) => (
+                                <option key={o.value} value={o.value}>
+                                  {o.label}
+                                </option>
+                              ))}
+                            </select>
+                          </Field>
+                          <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 p-3 dark:border-slate-800 md:mt-7">
+                            <span className="text-sm font-medium text-slate-900 dark:text-white">{t('isRequired', 'savedFields')}</span>
+                            <Switch
                               label={t('isRequired', 'savedFields')}
                               checked={!!sf.isRequired}
                               onChange={(val) => updateSubField(idx, { isRequired: val })}
                             />
                           </div>
                         </div>
-                      </div>
 
-                      {(sf.inputType === "radio" || sf.inputType === "dropdown" || sf.inputType === "checkbox") && (
-                        <div className="mt-8 rounded-2xl bg-gray-50/50 p-4 dark:bg-gray-800/20">
-                          <Label className="mb-4 block text-xs font-bold uppercase tracking-widest text-gray-400">{t('optionManagement', 'savedFields')}</Label>
-                          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                            <Input 
-                              placeholder={t('choiceEnPlaceholder', 'savedFields')} 
-                              value={sf._newChoiceEn || ""} 
-                              onChange={(e: any) => updateSubField(idx, { _newChoiceEn: e.target.value })} 
-                              onKeyDown={(e: any) => { if (e.key === "Enter") { e.preventDefault(); const en = (sf._newChoiceEn || "").trim(); const ar = (sf._newChoiceAr || "").trim(); if (!en || !ar) return; const nextChoices = (sf.choices || []).concat([{ en, ar }]); updateSubField(idx, { choices: nextChoices, _newChoiceEn: "", _newChoiceAr: "" }); } }} 
-                              className="bg-white dark:bg-gray-900"
-                            />
-                            <Input 
-                              placeholder={t('choiceArPlaceholder', 'savedFields')} 
-                              value={sf._newChoiceAr || ""} 
-                              onChange={(e: any) => updateSubField(idx, { _newChoiceAr: e.target.value })} 
-                              onKeyDown={(e: any) => { if (e.key === "Enter") { e.preventDefault(); const en = (sf._newChoiceEn || "").trim(); const ar = (sf._newChoiceAr || "").trim(); if (!en || !ar) return; const nextChoices = (sf.choices || []).concat([{ en, ar }]); updateSubField(idx, { choices: nextChoices, _newChoiceEn: "", _newChoiceAr: "" }); } }} 
-                              className="text-right bg-white dark:bg-gray-900"
-                            />
-                          </div>
-                          <button 
-                            type="button" 
-                            onClick={() => {
-                              const en = (sf._newChoiceEn || "").trim();
-                              const ar = (sf._newChoiceAr || "").trim();
-                              if (!en || !ar) return;
-                              const nextChoices = (sf.choices || []).concat([{ en, ar }]);
-                              updateSubField(idx, { choices: nextChoices, _newChoiceEn: "", _newChoiceAr: "" });
-                            }} 
-                            className="mt-3 inline-flex items-center gap-1.5 text-sm font-bold text-brand-600 hover:text-brand-700 dark:text-brand-400"
-                          >
-                            <PlusIcon className="size-4" /> {t('addSubOption', 'savedFields')}
-                          </button>
-
-                          <div className="mt-4 flex flex-wrap gap-2">
-                            {(sf.choices || []).map((c: any, cidx: number) => (
-                              <div key={cidx} className="group/choice relative flex items-center gap-2 rounded-xl border border-gray-100 bg-white py-1.5 pl-3 pr-2 shadow-sm dark:border-gray-800 dark:bg-gray-950">
-                                <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                                  {typeof c === "string" ? c : c.en}
-                                </span>
-                                <button 
-                                  type="button"
-                                  onClick={() => {
-                                    const next = sf.choices.filter((_: any, i: number) => i !== cidx);
-                                    updateSubField(idx, { choices: next });
-                                  }}
-                                  className="rounded-md p-1 text-gray-400 hover:bg-error-50 hover:text-error-600 dark:hover:bg-error-500/10"
-                                >
-                                  ×
-                                </button>
+                        {(sf.inputType === "radio" || sf.inputType === "dropdown" || sf.inputType === "checkbox") && (
+                          <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+                            <p className="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400">{t('optionManagement', 'savedFields')}</p>
+                            <div className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_1fr_auto]">
+                              <input
+                                dir="ltr"
+                                aria-label={t('choiceEnPlaceholder', 'savedFields')}
+                                placeholder={t('choiceEnPlaceholder', 'savedFields')}
+                                value={sf._newChoiceEn || ""}
+                                onChange={(e) => updateSubField(idx, { _newChoiceEn: e.target.value })}
+                                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSubChoice(idx); } }}
+                                className={inputClass}
+                              />
+                              <input
+                                dir="rtl"
+                                aria-label={t('choiceArPlaceholder', 'savedFields')}
+                                placeholder={t('choiceArPlaceholder', 'savedFields')}
+                                value={sf._newChoiceAr || ""}
+                                onChange={(e) => updateSubField(idx, { _newChoiceAr: e.target.value })}
+                                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSubChoice(idx); } }}
+                                className={inputClass}
+                              />
+                              <Button icon={<Plus className="size-4" />} onClick={() => addSubChoice(idx)}>
+                                {t('addSubOption', 'savedFields')}
+                              </Button>
+                            </div>
+                            {(sf.choices || []).length > 0 && (
+                              <div className="mt-3 flex flex-wrap gap-1.5">
+                                {(sf.choices || []).map((c: any, cidx: number) => {
+                                  const label = typeof c === "string" ? c : c.en;
+                                  return (
+                                    <span key={cidx} className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white py-0.5 pe-1 ps-2 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+                                      {label}
+                                      <button
+                                        type="button"
+                                        aria-label={`${t('delete', 'common')} ${label}`}
+                                        onClick={() => {
+                                          const next = sf.choices.filter((_: any, i: number) => i !== cidx);
+                                          updateSubField(idx, { choices: next });
+                                        }}
+                                        className={`rounded p-0.5 text-slate-400 hover:text-rose-500 ${focusRing}`}
+                                      >
+                                        <X className="size-3" />
+                                      </button>
+                                    </span>
+                                  );
+                                })}
                               </div>
-                            ))}
+                            )}
                           </div>
-                        </div>
-                      )}
+                        )}
 
-                      { sf.inputType === "number" && (
-                        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-                          <div className="space-y-2">
-                            <Label>{t('minValue', 'savedFields')}</Label>
-                            <Input type="number" value={sf.minValue ?? ""} onChange={(e: any) => updateSubField(idx, { minValue: e.target.value ? Number(e.target.value) : undefined })} placeholder={t('nonePlaceholder', 'savedFields')} />
+                        {sf.inputType === "number" && (
+                          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <Field label={t('minValue', 'savedFields')} htmlFor={`sf-min-${idx}`}>
+                              <input id={`sf-min-${idx}`} type="number" value={sf.minValue ?? ""} onChange={(e) => updateSubField(idx, { minValue: e.target.value ? Number(e.target.value) : undefined })} placeholder={t('nonePlaceholder', 'savedFields')} className={inputClass} />
+                            </Field>
+                            <Field label={t('maxValue', 'savedFields')} htmlFor={`sf-max-${idx}`}>
+                              <input id={`sf-max-${idx}`} type="number" value={sf.maxValue ?? ""} onChange={(e) => updateSubField(idx, { maxValue: e.target.value ? Number(e.target.value) : undefined })} placeholder={t('nonePlaceholder', 'savedFields')} className={inputClass} />
+                            </Field>
                           </div>
-                          <div className="space-y-2">
-                            <Label>{t('maxValue', 'savedFields')}</Label>
-                            <Input type="number" value={sf.maxValue ?? ""} onChange={(e: any) => updateSubField(idx, { maxValue: e.target.value ? Number(e.target.value) : undefined })} placeholder={t('nonePlaceholder', 'savedFields')} />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
 
-              <button
-                type="button"
-                onClick={addSubField}
-                className="flex i w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-gray-200 py-6 text-sm font-bold text-gray-500 transition-all hover:border-brand-300 hover:bg-brand-50/30 hover:text-brand-600 dark:border-gray-800 dark:hover:border-brand-800/50 dark:hover:bg-brand-500/5"
-              >
-                <PlusIcon className="size-5" />
+              <Button className="w-full" icon={<Plus className="size-4" />} onClick={addSubField}>
                 {t('addGroupField', 'savedFields')}
-              </button>
+              </Button>
             </div>
-          </div>
+          </Card>
         )}
 
-        <div className="sticky bottom-6 z-20 flex items-center justify-end gap-4">
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="rounded-2xl bg-white/80 px-8 py-3 text-sm font-bold text-gray-700 shadow-lg backdrop-blur-md transition-all hover:bg-gray-50 dark:bg-gray-900/80 dark:text-gray-300 dark:hover:bg-gray-800"
-          >
+        <div className="sticky bottom-4 z-20 flex items-center justify-end gap-2 rounded-2xl border border-slate-200 bg-white/90 p-3 shadow-lg backdrop-blur dark:border-slate-800 dark:bg-slate-900/90">
+          <Button variant="ghost" onClick={() => navigate(-1)}>
             {t('cancelButton', 'savedFields')}
-          </button>
-          <button
-            type="submit"
-            disabled={createMutation.isPending || updateMutation.isPending}
-            className="flex items-center gap-2 rounded-2xl bg-brand-500 px-10 py-3 text-sm font-bold text-white shadow-xl shadow-brand-500/25 transition-all hover:bg-brand-600 hover:shadow-brand-500/40 active:scale-95 disabled:opacity-50"
-          >
-            {createMutation.isPending || updateMutation.isPending ? t('savingButton', 'savedFields') : (editingField ? t('updateFieldButton', 'savedFields') : t('saveFieldButton', 'savedFields'))}
-          </button>
+          </Button>
+          <Button type="submit" variant="primary" icon={<Save className="size-4" />} loading={isSaving}>
+            {isSaving ? t('savingButton', 'savedFields') : editingField ? t('updateFieldButton', 'savedFields') : t('saveFieldButton', 'savedFields')}
+          </Button>
         </div>
       </form>
-    </div>
+    </PageShell>
   );
 }

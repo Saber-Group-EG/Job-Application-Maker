@@ -1,24 +1,8 @@
 // Pieces shared by the job offer and contract pages.
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { ArrowLeft, ArrowRight, FileDown, Loader2 } from 'lucide-react';
-import { useLocale } from '../../context/LocaleContext';
+import { FileDown, Loader2 } from 'lucide-react';
 import { Card, CardToolbar, IconButton, SectionTitle, focusRing } from '../ui/kit';
-
-export function BackLink({ onClick, children }: { onClick: () => void; children: ReactNode }) {
-  const { locale } = useLocale();
-  const Arrow = locale === 'ar' ? ArrowRight : ArrowLeft;
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`inline-flex items-center gap-1.5 rounded-md text-sm font-medium text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white ${focusRing}`}
-    >
-      <Arrow className="size-4" />
-      {children}
-    </button>
-  );
-}
 
 // PDF download with an EN / AR choice.
 export function PdfDownloadButton({

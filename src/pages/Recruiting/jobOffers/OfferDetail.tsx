@@ -3,8 +3,8 @@ import { Briefcase, Clock3, Copy, DollarSign, FileSignature, FileText, Pencil, T
 import { Link } from 'react-router';
 import { JobOffer, OfferStatus } from '../../../services/jobOffersService';
 import { useLocale } from '../../../context/LocaleContext';
-import { Badge, Button, Card, CardToolbar, IconButton, PageShell, SectionTitle, focusRing, selectClass } from '../../../components/ui/kit';
-import { BackLink, DocCard, DocTimeline, Meta } from '../../../components/documents/DocumentUi';
+import { BackLink, Badge, Button, Card, CardToolbar, IconButton, PageShell, SectionTitle, focusRing, selectClass } from '../../../components/ui/kit';
+import { DocCard, DocTimeline, Meta } from '../../../components/documents/DocumentUi';
 import { OfferActions } from './OffersActions';
 import { OFFER_STATUSES, OFFER_STATUS_TONE, WORK_TYPE_TONE, offerStatusKey, workTypeKey } from './offerMeta';
 

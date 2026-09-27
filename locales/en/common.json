@@ -404,5 +404,9 @@
   "off": "Off",
   "duplicate": "Duplicate",
   "expand": "Expand",
-  "collapse": "Collapse"
+  "collapse": "Collapse",
+  "supportTo": "To",
+  "supportSystem": "System",
+  "dropHint": "Click to browse files",
+  "filesSelected": "{count} file(s) selected"
 }

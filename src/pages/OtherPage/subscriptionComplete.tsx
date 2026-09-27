@@ -6,6 +6,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { cardsKeys } from '../../hooks/queries/useCompanies'; // adjust import path/name to wherever this key factory actually lives
 import { paths } from '../../router/Paths';
 import { useEffect } from 'react';
+import { Check, Loader2, XCircle } from 'lucide-react';
+import { Card, focusRing } from '../../components/ui/kit';
 
 export default function SubscriptionComplete() {
   const { t } = useLocale();
@@ -63,46 +65,51 @@ export default function SubscriptionComplete() {
     ? 'subscription.addCardProcessing'
     : 'subscription.topupProcessing';
 
+  const backLink = (primary: boolean) => (
+    <Link
+      to={paths.recruiting.subscription}
+      className={`mt-6 inline-flex h-10 items-center justify-center rounded-lg px-4 text-sm font-medium transition ${focusRing} ${
+        primary
+          ? 'bg-brand-500 text-white shadow-sm hover:bg-brand-600'
+          : 'border border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800'
+      }`}
+    >
+      {t('subscription.backToSubscription', 'settings')}
+    </Link>
+  );
+
   return (
-    <div className="flex min-h-[70vh] items-center justify-center p-6">
-      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        {isPending && (
-          <>
-            <div className="mx-auto mb-4 size-10 animate-spin rounded-full border-4 border-slate-200 border-t-brand-500" />
-            <h1 className="text-lg font-bold">
-              {t(processingKey, 'settings')}
-            </h1>
-          </>
-        )}
+    <div className="flex min-h-[70vh] items-center justify-center bg-slate-50 p-6 dark:bg-slate-950">
+      <Card className="w-full max-w-md">
+        <div className="flex flex-col items-center px-6 py-10 text-center" role="status" aria-live="polite">
+          {isPending && (
+            <>
+              <Loader2 className="size-10 animate-spin text-brand-500" />
+              <h1 className="mt-4 text-base font-semibold text-slate-900 dark:text-white">{t(processingKey, 'settings')}</h1>
+            </>
+          )}
 
-        {status === 'paid' && (
-          <>
-            <h1 className="text-lg font-bold text-emerald-600">
-              {t(successKey, 'settings')}
-            </h1>
-            <Link
-              to={paths.recruiting.subscription}
-              className="mt-6 inline-block rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white"
-            >
-              {t('subscription.backToSubscription', 'settings')}
-            </Link>
-          </>
-        )}
+          {status === 'paid' && (
+            <>
+              <span className="flex size-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
+                <Check className="size-6" />
+              </span>
+              <h1 className="mt-4 text-base font-semibold text-slate-900 dark:text-white">{t(successKey, 'settings')}</h1>
+              {backLink(true)}
+            </>
+          )}
 
-        {isFailed && (
-          <>
-            <h1 className="text-lg font-bold text-red-600">
-              {t(failedKey, 'settings')}
-            </h1>
-            <Link
-              to={paths.recruiting.subscription}
-              className="mt-6 inline-block rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold"
-            >
-              {t('subscription.backToSubscription', 'settings')}
-            </Link>
-          </>
-        )}
-      </div>
+          {isFailed && (
+            <>
+              <span className="flex size-12 items-center justify-center rounded-full bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400">
+                <XCircle className="size-6" />
+              </span>
+              <h1 className="mt-4 text-base font-semibold text-slate-900 dark:text-white">{t(failedKey, 'settings')}</h1>
+              {backLink(false)}
+            </>
+          )}
+        </div>
+      </Card>
     </div>
   );
 }

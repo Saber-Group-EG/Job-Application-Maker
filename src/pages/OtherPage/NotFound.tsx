@@ -2,6 +2,7 @@ import GridShape from "../../components/common/GridShape";
 import { Link } from "react-router";
 import PageMeta from "../../components/common/PageMeta";
 import { useLocale } from "../../context/LocaleContext";
+import { focusRing } from "../../components/ui/kit";
 
 export default function NotFound() {
   const { t } = useLocale();
@@ -12,10 +13,10 @@ export default function NotFound() {
         title={t('notFoundPageTitle', 'common')}
         description={t('notFoundPageDesc', 'common')}
       />
-      <div className="relative flex flex-col items-center justify-center min-h-screen p-6 overflow-hidden z-1">
+      <div className="relative z-1 flex min-h-screen flex-col items-center justify-center overflow-hidden bg-white p-6 dark:bg-slate-950">
         <GridShape />
         <div className="mx-auto w-full max-w-[242px] text-center sm:max-w-[472px]">
-          <h1 className="mb-8 font-bold text-gray-800 text-title-md dark:text-white/90 xl:text-title-2xl">
+          <h1 className="mb-8 text-3xl font-semibold text-slate-900 dark:text-white xl:text-4xl">
             {t('404errorHeading', 'common')}
           </h1>
 
@@ -26,19 +27,19 @@ export default function NotFound() {
             className="hidden dark:block"
           />
 
-          <p className="mt-10 mb-6 text-base text-gray-700 dark:text-gray-400 sm:text-lg">
+          <p className="mb-6 mt-10 text-base text-slate-600 dark:text-slate-400 sm:text-lg">
             {t('pageNotFound', 'common')}
           </p>
 
           <Link
             to="/"
-            className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-5 py-3.5 text-sm font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 hover:text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] dark:hover:text-gray-200"
+            className={`inline-flex h-10 items-center justify-center rounded-lg bg-brand-500 px-4 text-sm font-medium text-white shadow-sm transition hover:bg-brand-600 ${focusRing}`}
           >
             {t('backToHome', 'common')}
           </Link>
         </div>
         {/* <!-- Footer --> */}
-        <p className="absolute text-sm text-center text-gray-500 -translate-x-1/2 bottom-6 left-1/2 dark:text-gray-400">
+        <p className="absolute bottom-6 left-1/2 -translate-x-1/2 text-center text-sm text-slate-500 dark:text-slate-400">
           {t('footerCopyright', 'common', { year: new Date().getFullYear() })}
         </p>
       </div>
