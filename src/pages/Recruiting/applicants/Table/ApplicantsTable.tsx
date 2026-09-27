@@ -1171,6 +1171,10 @@ export default function Applicants({
     selectedApplicantsForInterview,
     selectedApplicantCompanyId,
     selectedApplicantCompany,
+    jobTitleOf: (jobPositionId?: string) => {
+      const title = jobPositionId ? jobPositionMap[jobPositionId]?.title : undefined;
+      return typeof title === 'string' ? title : title?.[locale] || title?.en || title?.ar || '';
+    },
     onClearSelection: () => setRowSelection({}),
   });
 

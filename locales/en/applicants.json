@@ -212,5 +212,9 @@
   "summaryMayBeStale": "The summary may be stale. Regenerate to get the latest insights.",
   "hideBreakdown": "Hide breakdown",
   "showBreakdown": "Show breakdown",
-  "aiInsights": "AI Insights"
+  "aiInsights": "AI Insights",
+  "interviewEmailsSent": "Invitation email sent to {count} applicant(s).",
+  "interviewsEmailFailed": "The interviews were scheduled, but the invitation emails couldn't be sent: {msg}",
+  "interviewsNoSender": "The interviews were scheduled, but no emails were sent because this company has no sender address. Pick a sender in the scheduling form or set one in Mail Settings.",
+  "interviewsScheduledNoEmail": "Interviews scheduled, emails not sent"
 }
