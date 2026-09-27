@@ -1,22 +1,11 @@
-import {
-  ArrowLeft,
-  Calendar,
-  Clock,
-  Clock3,
-  Copy,
-  DollarSign,
-  FileText,
-  Gift,
-  Pencil,
-  Trash2,
-} from 'lucide-react';
-import type {
-  JobContract,
-  ContractStatus,
-} from '../../../services/contractsService';
-import { STATUS_CHIP, CONTRACT_TYPE_COLORS } from './ContractsPage';
+// Contract detail view: overview, period, benefits, sections, notes, status and timeline.
+import { Calendar, Clock3, Copy, FileText, Gift, Pencil, Trash2, UserRound } from 'lucide-react';
+import type { JobContract, ContractStatus } from '../../../services/contractsService';
 import { useLocale } from '../../../context/LocaleContext';
+import { Badge, Card, CardToolbar, IconButton, PageShell, SectionTitle, selectClass } from '../../../components/ui/kit';
+import { BackLink, DocCard, DocTimeline, Meta } from '../../../components/documents/DocumentUi';
 import { ContractActions } from './ContractActions';
+import { CONTRACT_STATUSES, CONTRACT_STATUS_TONE, CONTRACT_TYPE_TONE, contractStatusKey, contractTypeKey } from './contractMeta';
 
 export function ContractDetail({
   contract,
@@ -36,320 +25,157 @@ export function ContractDetail({
   onStatusChange: (id: string, status: ContractStatus) => void;
 }) {
   const { t, locale } = useLocale();
-  const chip = STATUS_CHIP[contract.status];
+  const pick = (v?: { en?: string | null; ar?: string | null } | null) => (locale === 'ar' ? v?.ar || v?.en : v?.en || v?.ar) || '';
 
-  const applicantName =
-    typeof contract.applicantId === 'object' && contract.applicantId !== null
-      ? contract.applicantId.fullName
-      : '—';
-  const applicantEmail =
-    typeof contract.applicantId === 'object' && contract.applicantId !== null
-      ? contract.applicantId.email
-      : '—';
+  const applicant = typeof contract.applicantId === 'object' && contract.applicantId !== null ? contract.applicantId : null;
+  const applicantName = applicant?.fullName ?? '—';
+  const applicantEmail = applicant?.email ?? '—';
 
   const formatDate = (d: string | null | undefined) => {
     if (!d) return null;
-    return new Date(d).toLocaleDateString(locale, {
-      month: 'short',
-      day: '2-digit',
-      year: 'numeric',
-    });
+    return new Date(d).toLocaleDateString(locale, { month: 'short', day: '2-digit', year: 'numeric' });
   };
+  const notes = locale === 'ar' ? contract.notes?.ar : contract.notes?.en;
 
   return (
-    <div className="flex-1 overflow-y-auto bg-white dark:bg-slate-900">
-      {/* Sticky top bar */}
-      <div className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-6 py-4 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-900/95">
-        <div className="flex items-center justify-between">
-          <button
-            onClick={onBack}
-            className="flex items-center gap-2 text-sm font-medium text-slate-600 transition hover:text-brand-600 dark:text-slate-400 dark:hover:text-brand-400"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            {t('backToContracts', 'jobContracts')}
-          </button>
-
-          <div className="flex items-center gap-2">
-            {/* PDF download only — no email */}
-            <ContractActions contract={contract} />
-
-            {canWrite && (
-              <>
-                <button
-                  onClick={() => onEdit(contract)}
-                  className="flex size-8 items-center justify-center rounded-lg border border-slate-200 text-slate-400 transition hover:border-brand-300 hover:bg-brand-50 hover:text-brand-600 dark:border-slate-700"
-                  title={t('edit', 'jobContracts')}
-                >
-                  <Pencil className="size-3.5" />
-                </button>
-                <button
-                  onClick={() => onClone(contract)}
-                  className="flex size-8 items-center justify-center rounded-lg border border-slate-200 text-slate-400 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-600 dark:border-slate-700"
-                  title={t('clone', 'jobContracts')}
-                >
-                  <Copy className="size-3.5" />
-                </button>
-                <button
-                  onClick={() => onDelete(contract._id)}
-                  className="flex size-8 items-center justify-center rounded-lg border border-slate-200 text-slate-400 transition hover:border-red-300 hover:bg-red-50 hover:text-red-600 dark:border-slate-700"
-                  title={t('delete', 'jobContracts')}
-                >
-                  <Trash2 className="size-3.5" />
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Contract header */}
-      <div className="border-b border-slate-200 p-6 dark:border-slate-800">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-              {locale === 'ar' ? (contract.position?.ar || contract.position?.en) : (contract.position?.en || contract.position?.ar)}
-            </h2>
-            <div className="mt-2 flex flex-wrap items-center gap-3">
-              <span
-                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${CONTRACT_TYPE_COLORS[contract.contractType]}`}
-              >
-                {t(
-                  contract.contractType === 'fixed-term'
-                    ? 'fixedTerm'
-                    : contract.contractType || '',
-                  'modals',
-                )}
-              </span>
+    <PageShell
+      back={<BackLink onClick={onBack}>{t('backToContracts', 'jobContracts')}</BackLink>}
+      title={pick(contract.position)}
+      actions={
+        <>
+          <ContractActions contract={contract} />
+          {canWrite && (
+            <>
+              <IconButton label={t('edit', 'jobContracts')} onClick={() => onEdit(contract)}>
+                <Pencil className="size-4" />
+              </IconButton>
+              <IconButton label={t('clone', 'jobContracts')} onClick={() => onClone(contract)}>
+                <Copy className="size-4" />
+              </IconButton>
+              <IconButton tone="danger" label={t('delete', 'jobContracts')} onClick={() => onDelete(contract._id)}>
+                <Trash2 className="size-4" />
+              </IconButton>
+            </>
+          )}
+        </>
+      }
+    >
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="space-y-6 lg:col-span-2">
+          <Card>
+            <CardToolbar>
+              <SectionTitle icon={<UserRound className="size-4" />}>{applicantName}</SectionTitle>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge tone={CONTRACT_TYPE_TONE[contract.contractType] ?? 'slate'}>{t(contractTypeKey(contract.contractType), 'modals')}</Badge>
+                <Badge tone={CONTRACT_STATUS_TONE[contract.status]}>{t(contractStatusKey(contract.status), 'jobContracts')}</Badge>
+              </div>
+            </CardToolbar>
+            <dl className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3">
+              <Meta label={t('email', 'jobContracts')}>
+                <span dir="ltr">{applicantEmail}</span>
+              </Meta>
               {contract.salary.basic != null && (
-                <span className="flex items-center gap-1 text-xs text-slate-500">
-                  <DollarSign className="size-3.5" />
-                  {contract.salary.basic.toLocaleString()}{' '}
-                  {contract.salary.currency}
-                </span>
-              )}
-              {contract.probationPeriod != null && (
-                <span className="flex items-center gap-1 text-xs text-slate-500">
-                  <Clock className="size-3.5" />
-                  {t('moProbation', 'jobContracts', { months: contract.probationPeriod })}
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Status selector */}
-          <select
-            className={`rounded-full border-0 px-3 py-1 text-xs font-semibold outline-none ${chip.bg} ${chip.text} ${canWrite ? 'cursor-pointer' : 'cursor-default'}`}
-            value={contract.status}
-            disabled={!canWrite}
-            onChange={(e) =>
-              onStatusChange(contract._id, e.target.value as ContractStatus)
-            }
-          >
-            {(
-              [
-                'draft',
-                'sent',
-                'signed',
-                'rejected',
-                'expired',
-              ] as ContractStatus[]
-            ).map((s) => (
-              <option key={s} value={s}>
-                {t(
-                  `status${s.charAt(0).toUpperCase() + s.slice(1)}` as const,
-                  'jobContracts',
-                )}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Applicant info */}
-        <div className="mt-4 flex items-center justify-between">
-          <div>
-            <p className="text-sm font-semibold text-slate-900 dark:text-white">
-              {applicantName}
-            </p>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              {applicantEmail}
-            </p>
-          </div>
-          <div className="text-right text-xs text-slate-400">
-            <p>
-              {t('createdBy', 'jobContracts')}{' '}
-              <span className="font-medium text-slate-600 dark:text-slate-300">
-                {contract.createdBy?.fullName ?? '—'}
-              </span>
-            </p>
-            <p className="mt-0.5">{formatDate(contract.createdAt)}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Contract dates */}
-      <div className="border-b border-slate-200 p-6 dark:border-slate-800">
-        <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
-          <Calendar className="h-4 w-4" />
-          {t('contractPeriod', 'jobContracts')}
-        </h3>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-          <div className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/40">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-              {t('startDate', 'jobContracts')}
-            </p>
-            <p className="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-200">
-              {formatDate(contract.startDate) ?? '—'}
-            </p>
-          </div>
-          <div className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/40">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-              {t('endDate', 'jobContracts')}
-            </p>
-            <p className="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-200">
-              {formatDate(contract.endDate) ?? t('openEnded', 'jobContracts')}
-            </p>
-          </div>
-          {contract.probationPeriod != null && (
-            <div className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/40">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                {t('probation', 'jobContracts')}
-              </p>
-              <p className="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-200">
-                {contract.probationPeriod} {contract.probationPeriod !== 1 ? t('months', 'jobContracts') : t('month', 'jobContracts')}
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Benefits */}
-      {contract.benefits.length > 0 && (
-        <div className="border-b border-slate-200 p-6 dark:border-slate-800">
-          <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
-            <Gift className="h-4 w-4" />
-            {t('benefits', 'jobContracts')}
-          </h3>
-          <div className="space-y-2">
-            {contract.benefits.map((b, i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-4 py-2.5 dark:border-slate-700 dark:bg-slate-800/40"
-              >
-                <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
-                  {locale === 'ar' ? (b.label.ar || b.label.en) : (b.label.en || b.label.ar)}
-                </p>
-                {(b.value?.en || b.value?.ar) && (
-                  <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">
-                    {locale === 'ar' ? (b.value?.ar || b.value?.en) : (b.value?.en || b.value?.ar)}
+                <Meta label={t('salary', 'jobContracts')}>
+                  <span className="tabular-nums">
+                    {contract.salary.basic.toLocaleString()} {contract.salary.currency}
                   </span>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+                </Meta>
+              )}
+              <Meta label={t('createdBy', 'jobContracts')}>{contract.createdBy?.fullName ?? '—'}</Meta>
+              <Meta label={t('timelineCreated', 'jobContracts')}>{formatDate(contract.createdAt)}</Meta>
+            </dl>
+          </Card>
 
-      {/* Sections */}
-      {contract.sections.length > 0 && (
-        <div className="border-b border-slate-200 p-6 dark:border-slate-800">
-          <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
-            <FileText className="h-4 w-4" />
-            {t('contractSections', 'jobContracts')}
-          </h3>
-          <div className="space-y-4">
-            {contract.sections
-              .slice()
-              .sort((a, b) => a.displayOrder - b.displayOrder)
-              .filter((s) => {
-                if (locale === 'ar') return s.title?.ar || s.items?.some((it) => it.ar);
-                return s.title?.en || s.items?.some((it) => it.en);
-              })
-              .map((section, i) => (
-                <div key={i}>
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                    {locale === 'ar' ? (section.title.ar || section.title.en) : (section.title.en || section.title.ar)}
-                  </p>
-                  <ul className="space-y-1">
-                    {section.items.map((item, j) => (
-                      <li
-                        key={j}
-                        className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-400"
-                      >
-                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-400" />
-                        {locale === 'ar' ? (item.ar || item.en) : (item.en || item.ar)}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-          </div>
-        </div>
-      )}
+          <DocCard icon={<Calendar className="size-4" />} title={t('contractPeriod', 'jobContracts')}>
+            <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+              <Meta label={t('startDate', 'jobContracts')}>{formatDate(contract.startDate) ?? '—'}</Meta>
+              <Meta label={t('endDate', 'jobContracts')}>{formatDate(contract.endDate) ?? t('openEnded', 'jobContracts')}</Meta>
+              {contract.probationPeriod != null && (
+                <Meta label={t('probation', 'jobContracts')}>
+                  {contract.probationPeriod} {contract.probationPeriod !== 1 ? t('months', 'jobContracts') : t('month', 'jobContracts')}
+                </Meta>
+              )}
+            </dl>
+          </DocCard>
 
-      {/* Notes */}
-      {locale === 'ar'
-        ? contract.notes?.ar && (
-            <div className="border-b border-slate-200 p-6 dark:border-slate-800">
-              <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
-                <Clock3 className="h-4 w-4" />
-                {t('internalNotes', 'jobContracts')}
-              </h3>
-              <p className="text-sm text-slate-600 dark:text-slate-400">
-                {contract.notes.ar}
-              </p>
-            </div>
-          )
-        : contract.notes?.en && (
-            <div className="border-b border-slate-200 p-6 dark:border-slate-800">
-              <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
-                <Clock3 className="h-4 w-4" />
-                {t('internalNotes', 'jobContracts')}
-              </h3>
-              <p className="text-sm text-slate-600 dark:text-slate-400">
-                {contract.notes.en}
-              </p>
-            </div>
+          {contract.benefits.length > 0 && (
+            <DocCard icon={<Gift className="size-4" />} title={t('benefits', 'jobContracts')}>
+              <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 dark:divide-slate-800 dark:border-slate-800">
+                {contract.benefits.map((b, i) => (
+                  <li key={i} className="flex items-center justify-between gap-4 px-4 py-2.5">
+                    <p className="text-sm font-medium text-slate-900 dark:text-white">{pick(b.label)}</p>
+                    {(b.value?.en || b.value?.ar) && (
+                      <span className="text-sm text-slate-600 dark:text-slate-300">{pick(b.value)}</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </DocCard>
           )}
 
-      {/* Timeline */}
-      <div className="p-6">
-        <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
-          <Clock3 className="h-4 w-4" />
-          {t('timeline', 'jobContracts')}
-        </h3>
-        <div className="space-y-4">
-          {[
-            { label: t('timelineCreated', 'jobContracts'), date: contract.createdAt },
-            { label: t('timelineSent', 'jobContracts'), date: contract.sentAt },
-            { label: t('timelineSigned', 'jobContracts'), date: contract.signedAt },
-            { label: t('timelineExpires', 'jobContracts'), date: contract.expiresAt },
-          ]
-            .filter((e) => e.date)
-            .map((event, idx, arr) => (
-              <div key={idx} className="flex gap-3">
-                <div className="relative flex flex-col items-center">
-                  <div className="h-2 w-2 rounded-full bg-brand-500" />
-                  {idx !== arr.length - 1 && (
-                    <div className="absolute top-2 h-full w-px bg-slate-200 dark:bg-slate-700" />
-                  )}
-                </div>
-                <div className="pb-4">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                    {event.label}
-                  </p>
-                  <p className="text-sm text-slate-700 dark:text-slate-300">
-                    {new Date(event.date!).toLocaleString(locale, {
-                      month: 'short',
-                      day: '2-digit',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </p>
-                </div>
+          {contract.sections.length > 0 && (
+            <DocCard icon={<FileText className="size-4" />} title={t('contractSections', 'jobContracts')}>
+              <div className="space-y-5">
+                {contract.sections
+                  .slice()
+                  .sort((a, b) => a.displayOrder - b.displayOrder)
+                  .map((section, i) => (
+                    <div key={i}>
+                      <h3 className="mb-2 text-sm font-semibold text-slate-900 dark:text-white">{pick(section.title)}</h3>
+                      <ul className="space-y-1.5">
+                        {section.items.map((item, j) => (
+                          <li key={j} className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
+                            <span className="mt-2 size-1.5 shrink-0 rounded-full bg-brand-400" />
+                            {pick(item)}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
               </div>
-            ))}
+            </DocCard>
+          )}
+
+          {notes && (
+            <DocCard icon={<Clock3 className="size-4" />} title={t('internalNotes', 'jobContracts')}>
+              <p className="whitespace-pre-line text-sm text-slate-700 dark:text-slate-300">{notes}</p>
+            </DocCard>
+          )}
+        </div>
+
+        <div className="space-y-6">
+          <Card className="p-4">
+            <label htmlFor="contract-status" className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
+              {t('status', 'jobContracts')}
+            </label>
+            <select
+              id="contract-status"
+              className={selectClass}
+              value={contract.status}
+              disabled={!canWrite}
+              onChange={(e) => onStatusChange(contract._id, e.target.value as ContractStatus)}
+            >
+              {CONTRACT_STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {t(contractStatusKey(s), 'jobContracts')}
+                </option>
+              ))}
+            </select>
+          </Card>
+
+          <DocCard icon={<Clock3 className="size-4" />} title={t('timeline', 'jobContracts')}>
+            <DocTimeline
+              locale={locale}
+              events={[
+                { label: t('timelineCreated', 'jobContracts'), date: contract.createdAt },
+                { label: t('timelineSent', 'jobContracts'), date: contract.sentAt },
+                { label: t('timelineSigned', 'jobContracts'), date: contract.signedAt },
+                { label: t('timelineExpires', 'jobContracts'), date: contract.expiresAt },
+              ]}
+            />
+          </DocCard>
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 }

@@ -12,6 +12,7 @@ import {
   Copy,
   Loader2,
   RotateCcw,
+  Search,
   ShieldAlert,
   X,
 } from 'lucide-react';
@@ -730,6 +731,60 @@ export function Dialog({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// Search box with a leading icon, for list toolbars.
+export function SearchInput({
+  value,
+  onChange,
+  placeholder,
+  className = '',
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  className?: string;
+}) {
+  return (
+    <div className={`relative ${className}`}>
+      <Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+      <input
+        type="search"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        aria-label={placeholder}
+        className={`${inputClass} ps-9`}
+      />
+    </div>
+  );
+}
+
+export type StatItem = { label: ReactNode; value: ReactNode; tone?: 'default' | 'success' | 'danger' | 'warning' | 'info' };
+
+const STAT_TONES = {
+  default: 'text-slate-900 dark:text-white',
+  success: 'text-emerald-600 dark:text-emerald-400',
+  danger: 'text-rose-600 dark:text-rose-400',
+  warning: 'text-amber-600 dark:text-amber-400',
+  info: 'text-sky-600 dark:text-sky-400',
+};
+
+// A row of small figures inside a card.
+export function StatStrip({ stats }: { stats: StatItem[] }) {
+  const cols = stats.length >= 5 ? 'md:grid-cols-5' : stats.length === 4 ? 'md:grid-cols-4' : 'md:grid-cols-3';
+  return (
+    <div className={`grid grid-cols-2 gap-3 p-4 ${cols}`}>
+      {stats.map((stat, i) => (
+        <div key={i} className="min-w-0 rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-800">
+          <p className="truncate text-xs font-medium text-slate-500 dark:text-slate-400">{stat.label}</p>
+          <p className={`mt-1 flex items-center gap-1.5 truncate text-sm font-semibold tabular-nums ${STAT_TONES[stat.tone ?? 'default']}`}>
+            {stat.value}
+          </p>
+        </div>
+      ))}
     </div>
   );
 }

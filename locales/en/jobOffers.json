@@ -58,5 +58,10 @@
   "cancel": "Cancel",
   "send": "Send",
   "sending": "Sending…",
-  "resendBtnTitle": "Resend offer email"
+  "resendBtnTitle": "Resend offer email",
+  "salary": "Salary",
+  "workHours": "Work hours",
+  "status": "Status",
+  "overview": "Overview",
+  "summaryPending": "Pending"
 }
