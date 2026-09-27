@@ -29,7 +29,7 @@ export default function CommentModal({
   return (
     <Modal isOpen={isOpen} onClose={() => { onClose(); setCommentError(''); }} className="max-w-2xl p-6" closeOnBackdrop={false}>
       <form onSubmit={handleCommentSubmit} className="space-y-6">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t('addComment', 'modals')}</h2>
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{t('addComment', 'modals')}</h2>
 
         {commentError && (
           <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
@@ -46,8 +46,8 @@ export default function CommentModal({
         </div>
 
         <div className="flex justify-end gap-3">
-          <button type="button" onClick={onClose} className="rounded-lg border border-stroke px-6 py-2 hover:bg-gray-100 dark:border-strokedark dark:hover:bg-gray-800" disabled={isSubmittingComment}>{t('cancel', 'modals')}</button>
-          <button type="submit" className="rounded-lg bg-gray-600 px-6 py-2 text-white hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2" disabled={isSubmittingComment}>
+          <button type="button" onClick={onClose} className="rounded-lg border border-stroke px-6 py-2 hover:bg-slate-100 dark:border-strokedark dark:hover:bg-slate-800" disabled={isSubmittingComment}>{t('cancel', 'modals')}</button>
+          <button type="submit" className="rounded-lg bg-slate-600 px-6 py-2 text-white hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2" disabled={isSubmittingComment}>
             {isSubmittingComment ? (
               <>
                 <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
