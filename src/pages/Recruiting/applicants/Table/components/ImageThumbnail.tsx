@@ -186,7 +186,6 @@ export function ImageThumbnail({
           onLoad?.();
         }
       } catch (e) {
-        console.warn('Failed to compress image:', e);
         if (mounted) {
           setThumb(src as string);
           setIsLoading(false);

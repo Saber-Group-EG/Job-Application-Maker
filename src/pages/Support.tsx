@@ -92,8 +92,8 @@ export default function Support() {
       setAttachments([]);
       setCompanyId("");
       if (fileInputRef.current) fileInputRef.current.value = "";
-    } catch (err) {
-      console.error(err);
+    } catch {
+      // The mutation's own onError already told the user.
     } finally {
       setUploading(false);
     }

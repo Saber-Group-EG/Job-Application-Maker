@@ -99,7 +99,6 @@ export default function RejectionInsightsChart({
     return new Intl.NumberFormat().format(num);
   }, []);
 
-  // ApexCharts options with fixed type issues
   const options: ApexOptions = useMemo(() => ({
     chart: {
       fontFamily: "Outfit, system-ui, -apple-system, sans-serif",
@@ -336,7 +335,7 @@ export default function RejectionInsightsChart({
             </p>
           </div>
 
-          {/* Top reasons list with improved UX */}
+          {/* Top reasons list */}
           <div className="mt-5">
             <div className="mb-3 text-xs font-medium text-slate-500 dark:text-slate-400">
               {showAllReasons ? t('allReasons', 'rejection', { count: allRows.length }) : t('topReasons', 'rejection', { count: Math.min(rows.length, 8) })}

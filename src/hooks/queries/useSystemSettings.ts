@@ -210,10 +210,6 @@ export const useTableLayout = (
   const saveMutation = useMutation({
     mutationFn: (layout: TableLayout) =>
       systemSettingsService.saveTableLayout(tableKey, layout),
-
-    onError: (error: any) => {
-      console.error('Failed to save layout:', error);
-    },
   });
 
   const layout = {

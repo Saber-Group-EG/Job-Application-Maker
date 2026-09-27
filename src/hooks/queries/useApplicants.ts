@@ -670,11 +670,7 @@ export function useMarkApplicantSeen() {
   return useMutation({
     mutationFn: (id: string) => applicantsService.markAsSeen(id),
     onSuccess: (_, id) => {
-      // Silently update - no toast needed
       queryClient.invalidateQueries({ queryKey: applicantsKeys.detail(id) });
-    },
-    onError: (error: ApiError) => {
-      console.error('Failed to mark as seen:', error.message);
     },
   });
 }

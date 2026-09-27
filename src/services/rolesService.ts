@@ -61,7 +61,6 @@ class RolesService {
       return nestedWithId as Role;
     }
 
-    console.warn('RolesService: Unable to extract role from response', responseData);
     throw new ApiError('Invalid response format from server');
   }
 

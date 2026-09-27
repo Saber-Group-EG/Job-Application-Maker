@@ -532,7 +532,6 @@ export async function exportToExcel(
       rowCount: selectedIds.length,
     };
   } catch (error) {
-    console.error('Export error:', error);
     return {
       success: false,
       message: 'Failed to export data',
@@ -639,7 +638,6 @@ export async function exportToCSV(
       rowCount: selectedIds.length,
     };
   } catch (error) {
-    console.error('Export error:', error);
     return {
       success: false,
       message: 'Failed to export data',

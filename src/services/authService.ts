@@ -141,7 +141,6 @@ class AuthService {
     const refreshToken = response.data?.refreshToken || (response as any).refreshToken;
     
     if (!accessToken && !refreshToken) {
-      console.warn("Tokens missing in response", response);
     }
     
     return { accessToken, refreshToken };

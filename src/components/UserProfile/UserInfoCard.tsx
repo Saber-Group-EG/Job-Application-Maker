@@ -10,7 +10,6 @@ export default function UserInfoCard() {
   const { isOpen, openModal, closeModal } = useModal();
   const { user } = useAuth();
   const handleSave = () => {
-    // Handle save logic here
     closeModal();
   };
   return (
@@ -35,15 +34,6 @@ export default function UserInfoCard() {
             </div>
 
             <div>
-              {/* <p className="mb-2 text-xs leading-normal text-gray-500 dark:text-gray-400">
-                Last Name
-              </p>
-              <p className="text-sm font-medium text-gray-800 dark:text-white/90">
-                {(() => {
-                  const full = toPlainString(user?.fullName || user?.name || "");
-                  return full.split(" ").slice(1).join(" ") || "";
-                })()}
-              </p> */}
             </div>
 
             <div>
@@ -65,12 +55,6 @@ export default function UserInfoCard() {
             </div>
 
             <div>
-              {/* <p className="mb-2 text-xs leading-normal text-gray-500 dark:text-gray-400">
-                Bio
-              </p>
-                <p className="text-sm font-medium text-gray-800 dark:text-white/90">
-                {(user as any).bio || toPlainString(user?.roleId?.name) || '-'}
-              </p> */}
             </div>
           </div>
         </div>
@@ -110,39 +94,6 @@ export default function UserInfoCard() {
           </div>
           <form className="flex flex-col">
             <div className="custom-scrollbar h-[450px] overflow-y-auto px-2 pb-3">
-              {/* <div>
-                <h5 className="mb-5 text-lg font-medium text-gray-800 dark:text-white/90 lg:mb-6">
-                  Social Links
-                </h5>
-
-                <div className="grid grid-cols-1 gap-x-6 gap-y-5 lg:grid-cols-2">
-                  <div>
-                    <Label>Facebook</Label>
-                    <Input
-                      type="text"
-                      value="https://www.facebook.com/PimjoHQ"
-                    />
-                  </div>
-
-                  <div>
-                    <Label>X.com</Label>
-                    <Input type="text" value="https://x.com/PimjoHQ" />
-                  </div>
-
-                  <div>
-                    <Label>Linkedin</Label>
-                    <Input
-                      type="text"
-                      value="https://www.linkedin.com/company/pimjo"
-                    />
-                  </div>
-
-                  <div>
-                    <Label>Instagram</Label>
-                    <Input type="text" value="https://instagram.com/PimjoHQ" />
-                  </div>
-                </div>
-              </div> */}
               <div className="mt-7">
                 <h5 className="mb-5 text-lg font-medium text-gray-800 dark:text-white/90 lg:mb-6">
                   Personal Information
@@ -154,10 +105,6 @@ export default function UserInfoCard() {
                     <Input type="text" value="Musharof" />
                   </div>
 
-                  {/* <div className="col-span-2 lg:col-span-1">
-                    <Label>Last Name</Label>
-                    <Input type="text" value="Chowdhury" />
-                  </div> */}
 
                   <div className="col-span-2 lg:col-span-1">
                     <Label>Email Address</Label>
@@ -169,10 +116,6 @@ export default function UserInfoCard() {
                     <Input type="text" value="+09 363 398 46" />
                   </div>
 
-                  {/* <div className="col-span-2">
-                    <Label>Bio</Label>
-                    <Input type="text" value="Team Manager" />
-                  </div> */}
                 </div>
               </div>
             </div>

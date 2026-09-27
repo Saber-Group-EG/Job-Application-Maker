@@ -157,8 +157,8 @@ const ContactUs = () => {
           setFormData((prev) => ({ ...prev, country: egypt._id }));
           fetchGovernorates(egypt._id);
         }
-      } catch (err) {
-        console.error("Failed to fetch countries:", err);
+      } catch {
+        // The dropdown just stays empty.
       }
     };
 
@@ -166,8 +166,8 @@ const ContactUs = () => {
       try {
         const res = await apiFetchCities({ deleted: false, PageCount: 1000, page: 1 });
         setAllCities(res.data?.data || []);
-      } catch (err) {
-        console.error("Failed to fetch cities:", err);
+      } catch {
+        // The dropdown just stays empty.
       }
     };
 
@@ -188,7 +188,6 @@ const ContactUs = () => {
       setGovernorates(res.data?.data || []);
       setFormData((prev) => ({ ...prev, government: "", city: "" }));
     } catch (err) {
-      console.error("Failed to fetch governorates:", err);
       setGovernorates([]);
     }
   };
@@ -207,7 +206,6 @@ const ContactUs = () => {
     return name === "egypt" || name === "مصر";
   })();
 
-  // extend handleChange to react to country/government/projectInterest
   const originalHandleChange = handleChange;
   const enhancedHandleChange = (e) => {
     const { name, value } = e.target;
@@ -231,12 +229,10 @@ const ContactUs = () => {
       setFormData((prev) => ({ ...prev, city: "" }));
     }
 
-    // projectInterest removed
 
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
-  // replace validate and submit with CRM payload logic
   const validateFormExtended = () => {
     const newErrors = {};
     if (!formData.name.trim()) newErrors.name = t("contact:nameRequired") || "Name is required";
@@ -280,7 +276,6 @@ const ContactUs = () => {
         subCategories: [],
         campaigns: [],
         channels: [],
-        // no projects field — projectInterest removed
         files: [],
         prevOrders: [],
         sales: [],
@@ -305,7 +300,6 @@ const ContactUs = () => {
       setErrors({});
       setTimeout(() => setSubmitSuccess(false), 3000);
     } catch (error) {
-      console.debug("Form submission error:", error);
       const errorMessage = error?.response?.data?.message || t("contact:submitError") || "An error occurred. Please try again.";
       setErrors({ submit: errorMessage });
       await Swal.fire({ icon: 'error', title: t('contact:error') || 'Error', text: errorMessage, confirmButtonText: t('common:ok') || 'OK', confirmButtonColor: '#ef4444' });
@@ -365,7 +359,6 @@ const ContactUs = () => {
       setErrors({});
       setTimeout(() => setSubmitSuccess(false), 3000);
     } catch (err) {
-      console.debug("submission error", err);
       const errorMessage = t("contact:submitError") || "An error occurred. Please try again.";
       setErrors({ submit: errorMessage });
       Swal.fire({
@@ -393,7 +386,7 @@ const ContactUs = () => {
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-secondary-500/10 rounded-full blur-3xl animate-pulse delay-1000" />
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-primary-500/5 rounded-full blur-3xl" />
 
-        {/* Decorative grid (replacing inline SVG data-URL) */}
+        {/* Decorative grid */}
         <div
           className="absolute inset-0 opacity-20"
           style={{

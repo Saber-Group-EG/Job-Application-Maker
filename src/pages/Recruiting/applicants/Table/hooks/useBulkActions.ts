@@ -216,7 +216,6 @@ export function useBulkActions({
 
       clearSelection();
     } catch (err: any) {
-      console.error('Error deleting applicants:', err);
       setBulkDeleteError(err.message || 'Failed to delete applicants');
     } finally {
       setIsDeleting(false);
@@ -271,7 +270,6 @@ export function useBulkActions({
         setShowBulkStatusModal(false);
         setBulkStatusForm({ status: '', reasons: [], notes: '' });
       } catch (err: any) {
-        console.error('Error bulk changing status:', err);
         setBulkStatusError(err.message || 'Failed to update statuses');
       } finally {
         setIsSubmittingBulkStatus(false);
@@ -328,7 +326,6 @@ export function useBulkActions({
         clearSelection();
         setBulkAction('');
       } catch (err: any) {
-        console.error('Error changing status:', err);
         setBulkStatusError(getErrorMessage(err));
       } finally {
         setIsProcessing(false);
@@ -579,7 +576,7 @@ export function useBulkActions({
         if (bulkNotificationChannels.email) {
           const emailableItems = previewItems.filter((item: any) => Boolean(item.to));
           if (emailableItems.length > 0) {
-            // Here you would send emails
+            // Nothing is emailed here: this only reports how many applicants have an address.
             if (missingEmails.length > 0) {
               emailResultNote = t('emailSentTo', 'applicants', { sent: emailableItems.length, skipped: missingEmails.length });
             }
@@ -603,7 +600,6 @@ export function useBulkActions({
         setShowBulkInterviewPreviewModal(false);
         resetBulkInterviewModal();
       } catch (err: any) {
-        console.error('Error scheduling bulk interviews:', err);
         setBulkInterviewError(getErrorMessage(err));
       } finally {
         setIsSubmittingBulkInterview(false);

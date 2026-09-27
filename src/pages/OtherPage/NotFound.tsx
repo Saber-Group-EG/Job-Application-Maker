@@ -38,7 +38,6 @@ export default function NotFound() {
             {t('backToHome', 'common')}
           </Link>
         </div>
-        {/* <!-- Footer --> */}
         <p className="absolute bottom-6 left-1/2 -translate-x-1/2 text-center text-sm text-slate-500 dark:text-slate-400">
           {t('footerCopyright', 'common', { year: new Date().getFullYear() })}
         </p>

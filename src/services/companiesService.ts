@@ -70,7 +70,6 @@ function extractData<T>(response: ApiResponse<T>, fallback?: T): T {
 function extractCompany(response: any): Company {
   const company = response?.data ?? response?.company ?? response;
   if (!company?._id) {
-    console.warn('Unexpected company response shape:', response);
     throw new ApiError('Company not found or invalid response format');
   }
   return company;
@@ -323,9 +322,7 @@ class CompaniesService {
     return Array.isArray(response) ? response : [];
   }
 
-  // services/companiesService.ts - Update updateCompanyStatuses
 
-  // Change from companyId to settingsId
   async updateCompanyStatuses(
     settingsId: string,
     statuses: CompanyStatus[]

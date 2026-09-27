@@ -137,7 +137,7 @@ export function useCompanies(
     refetchOnMount: false,
     refetchOnReconnect: false,
     enabled: options?.enabled ?? true,
-    // Add this to ensure the query doesn't get stuck in loading state
+    // Keeps the query from getting stuck in the loading state
     retry: 1,
   });
 }
@@ -624,7 +624,6 @@ export function useSyncGmailInbox() {
   });
 }
 
-// ✅ FIXED: Changed from `interviewSetting` to `interviewSettings` (plural)
 export function useUpdateCompanyInterviewSettings() {
   const queryClient = useQueryClient();
   const { t } = useLocale();
@@ -725,7 +724,6 @@ export function useUpdateCompanyInterviewSettings() {
   });
 }
 
-// ✅ FIXED: Removed unused 'result' parameter
 export function useUpdateCompanyRejectionReasons() {
   const queryClient = useQueryClient();
   const { t } = useLocale();
@@ -856,7 +854,7 @@ export function useUpdateCompanyStatuses() {
       settingsId,
       statuses,
     }: {
-      settingsId: string; // ✅ Changed from companyId to settingsId
+      settingsId: string;
       statuses: CompanyStatus[];
     }) => companiesService.updateCompanyStatuses(settingsId, statuses),
     onSuccess: (_, { settingsId }) => {
@@ -878,8 +876,8 @@ export function useUpdateCompanyApplicantPages() {
       settingsId,
       applicantPages,
     }: {
-      settingsId: string; // ✅ Service expects settingsId
-      applicantPages: any[]; // ✅ Service expects array directly
+      settingsId: string; // Service expects settingsId
+      applicantPages: any[]; // Service expects array directly
     }) => {
       // Service expects (settingsId, applicantPages) - applicantPages as second param
       return companiesService.updateCompanyApplicantPages(

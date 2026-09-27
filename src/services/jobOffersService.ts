@@ -53,7 +53,6 @@ export interface OfferSection {
   displayOrder: number;
 }
 
-// jobOffersService.ts (or wherever JobOffer types live)
 export type DraftOfferResult = {
   position: { en: string; ar: string };
   workType: WorkType;

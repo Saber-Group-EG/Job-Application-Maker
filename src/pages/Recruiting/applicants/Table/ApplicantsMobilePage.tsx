@@ -17,7 +17,7 @@ import Swal from '../../../../utils/swal';
 import BulkMessageModal from '../../../../components/modals/BulkMessageModal';
 import { useDeleteApplicant, useUpdateApplicantStatus } from '../../../../hooks/queries/useApplicants';
 
-// Icons (using emoji as fallback, but in production use proper icon library)
+// Icons
 import { 
   Search, 
   RefreshCw, 
@@ -382,7 +382,7 @@ export default function ApplicantsMobilePage({
   ]);
 
 
-    // Helpers to resolve and download CVs for applicants (copied from Applicants.tsx)
+    // Helpers to resolve and download CVs for applicants
     const buildCloudinaryDownloadUrl = (u: string, idHint?: string) => {
       try {
         if (!u) return null;
@@ -594,8 +594,8 @@ export default function ApplicantsMobilePage({
       if (refetch) promises.push(refetch());
       if (refetchCompanies) promises.push(refetchCompanies());
       await Promise.all(promises);
-    } catch (e) {
-      console.error('Refresh failed', e);
+    } catch {
+      // Each query surfaces its own load error.
     } finally {
       setRefreshing(false);
     }
@@ -968,14 +968,6 @@ export default function ApplicantsMobilePage({
                           <ExternalLink size={16} />
                           <span>{t('openInNewTab', 'applicants')}</span>
                         </button>
-                        {/* <a
-                          href={`mailto:${a.email}`}
-                          onClick={(e) => e.stopPropagation()}
-                          className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-50 rounded-xl text-blue-700 text-sm font-medium hover:bg-blue-100 transition-colors dark:bg-sky-500/10 dark:text-sky-300 dark:hover:bg-sky-500/20"
-                        >
-                          <Mail size={16} />
-                          <span>Email</span>
-                        </a> */}
                         {a.cvFilePath && (
                           <button
                             onClick={(e) => { e.stopPropagation(); void downloadCvForApplicant(a); }}
