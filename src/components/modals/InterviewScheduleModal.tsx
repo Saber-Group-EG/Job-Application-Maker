@@ -1170,12 +1170,12 @@ export default function InterviewScheduleModal(props: Props) {
         className="flex flex-col px-2"
       >
         <div>
-          <h5 className="mb-2 font-semibold text-gray-800 text-xl dark:text-white/90 lg:text-2xl">
+          <h5 className="mb-2 font-semibold text-slate-800 text-xl dark:text-white lg:text-2xl">
             {bulkMode
               ? t('scheduleInterviews', 'modals', { count: bulkCount })
               : t('scheduleInterview', 'modals')}
           </h5>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
             {bulkMode
               ? t('scheduleBulkDesc', 'modals')
               : t('scheduleDesc', 'modals')}
@@ -1211,7 +1211,7 @@ export default function InterviewScheduleModal(props: Props) {
               onChange={(value) => handleTemplateSelect(value as string)}
               placeholder={t('selectTemplateToLoad', 'modals')}
             />
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
               {t('templateAutoFillHtml', 'modals')}
             </p>
           </div>
@@ -1295,7 +1295,7 @@ export default function InterviewScheduleModal(props: Props) {
                       setInterviewError('');
                     }}
                   />
-                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                  <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
                     {t('addressAutoUse', 'modals')}
                   </p>
                 </>
@@ -1407,11 +1407,11 @@ export default function InterviewScheduleModal(props: Props) {
                   setInterviewError('');
                 }}
               />
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                 {t('requiredConductedBy', 'modals')}
               </p>
               {isLoadingUsers && (
-                <p className="mt-1 text-xs text-gray-400">
+                <p className="mt-1 text-xs text-slate-400">
                   {t('loadingUsers', 'modals')}
                 </p>
               )}
@@ -1447,16 +1447,16 @@ export default function InterviewScheduleModal(props: Props) {
             </div>
           </div>
 
-          <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4 dark:border-gray-700 dark:bg-gray-800/30">
-            <h3 className="mb-3 text-base font-medium text-gray-800 dark:text-white/90">
+          <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-4 dark:border-slate-700 dark:bg-slate-800/30">
+            <h3 className="mb-3 text-base font-medium text-slate-800 dark:text-white">
               {t('notificationSettings', 'modals')}
             </h3>
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-400">
                 {t('sendNotificationVia', 'modals')}:
               </label>
               <div className="flex flex-wrap gap-3">
-                <label className="group relative inline-flex items-center gap-3 cursor-pointer rounded-lg border border-gray-300 bg-white px-4 py-2.5 transition-all hover:border-brand-400 hover:bg-brand-50/50 dark:border-gray-600 dark:bg-gray-800 dark:hover:border-brand-600 dark:hover:bg-brand-900/20">
+                <label className="group relative inline-flex items-center gap-3 cursor-pointer rounded-lg border border-slate-300 bg-white px-4 py-2.5 transition-all hover:border-brand-400 hover:bg-brand-50/50 dark:border-slate-600 dark:bg-slate-800 dark:hover:border-brand-600 dark:hover:bg-brand-900/20">
                   <input
                     type="checkbox"
                     checked={notificationChannels.email}
@@ -1473,7 +1473,7 @@ export default function InterviewScheduleModal(props: Props) {
                     }}
                     className="peer sr-only"
                   />
-                  <div className="h-5 w-5 rounded border-2 border-gray-300 bg-white transition-all peer-checked:border-brand-600 peer-checked:bg-brand-600 dark:border-gray-600 dark:bg-gray-700 dark:peer-checked:border-brand-500 dark:peer-checked:bg-brand-500 flex items-center justify-center">
+                  <div className="h-5 w-5 rounded border-2 border-slate-300 bg-white transition-all peer-checked:border-brand-600 peer-checked:bg-brand-600 dark:border-slate-600 dark:bg-slate-700 dark:peer-checked:border-brand-500 dark:peer-checked:bg-brand-500 flex items-center justify-center">
                     <svg
                       className="h-3 w-3 text-white scale-0 peer-checked:scale-100 transition-transform"
                       fill="none"
@@ -1488,11 +1488,11 @@ export default function InterviewScheduleModal(props: Props) {
                       />
                     </svg>
                   </div>
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
                     📧 {t('email', 'modals')}
                   </span>
                 </label>
-                <label className="group relative inline-flex items-center gap-3 cursor-pointer rounded-lg border border-gray-300 bg-white px-4 py-2.5 transition-all hover:border-brand-400 hover:bg-brand-50/50 dark:border-gray-600 dark:bg-gray-800 dark:hover:border-brand-600 dark:hover:bg-brand-900/20">
+                <label className="group relative inline-flex items-center gap-3 cursor-pointer rounded-lg border border-slate-300 bg-white px-4 py-2.5 transition-all hover:border-brand-400 hover:bg-brand-50/50 dark:border-slate-600 dark:bg-slate-800 dark:hover:border-brand-600 dark:hover:bg-brand-900/20">
                   <input
                     type="checkbox"
                     checked={notificationChannels.sms}
@@ -1508,7 +1508,7 @@ export default function InterviewScheduleModal(props: Props) {
                     }}
                     className="peer sr-only"
                   />
-                  <div className="h-5 w-5 rounded border-2 border-gray-300 bg-white transition-all peer-checked:border-brand-600 peer-checked:bg-brand-600 dark:border-gray-600 dark:bg-gray-700 dark:peer-checked:border-brand-500 dark:peer-checked:bg-brand-500 flex items-center justify-center">
+                  <div className="h-5 w-5 rounded border-2 border-slate-300 bg-white transition-all peer-checked:border-brand-600 peer-checked:bg-brand-600 dark:border-slate-600 dark:bg-slate-700 dark:peer-checked:border-brand-500 dark:peer-checked:bg-brand-500 flex items-center justify-center">
                     <svg
                       className="h-3 w-3 text-white scale-0 peer-checked:scale-100 transition-transform"
                       fill="none"
@@ -1523,11 +1523,11 @@ export default function InterviewScheduleModal(props: Props) {
                       />
                     </svg>
                   </div>
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
                     💬 {t('sms', 'modals')}
                   </span>
                 </label>
-                <label className="group relative inline-flex items-center gap-3 cursor-pointer rounded-lg border border-gray-300 bg-white px-4 py-2.5 transition-all hover:border-brand-400 hover:bg-brand-50/50 dark:border-gray-600 dark:bg-gray-800 dark:hover:border-brand-600 dark:hover:bg-brand-900/20">
+                <label className="group relative inline-flex items-center gap-3 cursor-pointer rounded-lg border border-slate-300 bg-white px-4 py-2.5 transition-all hover:border-brand-400 hover:bg-brand-50/50 dark:border-slate-600 dark:bg-slate-800 dark:hover:border-brand-600 dark:hover:bg-brand-900/20">
                   <input
                     type="checkbox"
                     checked={notificationChannels.whatsapp}
@@ -1544,7 +1544,7 @@ export default function InterviewScheduleModal(props: Props) {
                     }}
                     className="peer sr-only"
                   />
-                  <div className="h-5 w-5 rounded border-2 border-gray-300 bg-white transition-all peer-checked:border-brand-600 peer-checked:bg-brand-600 dark:border-gray-600 dark:bg-gray-700 dark:peer-checked:border-brand-500 dark:peer-checked:bg-brand-500 flex items-center justify-center">
+                  <div className="h-5 w-5 rounded border-2 border-slate-300 bg-white transition-all peer-checked:border-brand-600 peer-checked:bg-brand-600 dark:border-slate-600 dark:bg-slate-700 dark:peer-checked:border-brand-500 dark:peer-checked:bg-brand-500 flex items-center justify-center">
                     <svg
                       className="h-3 w-3 text-white scale-0 peer-checked:scale-100 transition-transform"
                       fill="none"
@@ -1559,7 +1559,7 @@ export default function InterviewScheduleModal(props: Props) {
                       />
                     </svg>
                   </div>
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
                     📱 {t('whatsapp', 'modals')}
                   </span>
                 </label>
@@ -1576,7 +1576,7 @@ export default function InterviewScheduleModal(props: Props) {
                       type="text"
                       value={connectedGmail}
                       readOnly
-                      className="bg-gray-50 dark:bg-gray-800"
+                      className="bg-slate-50 dark:bg-slate-800"
                     />
                   </div>
                 )}
@@ -1622,7 +1622,7 @@ export default function InterviewScheduleModal(props: Props) {
                           className="mt-0"
                         />
                         {domainForDisplay ? (
-                          <div className="text-sm text-gray-600">
+                          <div className="text-sm text-slate-600 dark:text-slate-300">
                             @{domainForDisplay}
                           </div>
                         ) : (
@@ -1687,11 +1687,11 @@ export default function InterviewScheduleModal(props: Props) {
                   <div className="space-y-2">
                     <Label htmlFor="phone-option">{t('sms', 'modals')}</Label>
                     {notificationChannels.sms ? (
-                      <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-600 dark:bg-gray-700/50">
-                        <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-600 dark:bg-slate-700/50">
+                        <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
                           Company Number (SMS)
                         </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                           SMS will be sent from the company number only
                         </p>
                       </div>
@@ -1760,7 +1760,7 @@ export default function InterviewScheduleModal(props: Props) {
                           : t('generate', 'modals')}
                       </button>
                     </div>
-                    <p className="mt-1 text-xs text-gray-500">
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                       {t('aiTemplateNote', 'modals')}
                     </p>
                   </div>
@@ -1794,7 +1794,7 @@ export default function InterviewScheduleModal(props: Props) {
                         }
                         placeholder="Email subject"
                       />
-                      <p className="mt-1 text-xs text-gray-500">
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                         {t('availableVariables', 'modals')}:{' '}
                         {'{{candidateName}}'}, {'{{jobTitle}}'},{' '}
                         {'{{InterviewDate}}'}, {'{{interviewTime}}'},{' '}
@@ -1803,7 +1803,7 @@ export default function InterviewScheduleModal(props: Props) {
                     </div>
                     <div className="mt-3">
 <RichTextEditor value={messageTemplate} onChange={(content: string) => setMessageTemplate(content)} minHeight={120} />
-                      <p className="mt-1 text-xs text-gray-500">
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                         {t('availableVariables', 'modals')}:{' '}
                         {'{{candidateName}}'}, {'{{jobTitle}}'},{' '}
                         {'{{InterviewDate}}'}, {'{{interviewTime}}'},{' '}
@@ -1818,7 +1818,7 @@ export default function InterviewScheduleModal(props: Props) {
                               messageTemplate + '{{candidateName}}'
                             )
                           }
-                          className="text-blue-600 hover:underline mx-1"
+                          className="text-blue-600 hover:underline mx-1 dark:text-sky-400"
                         >
                           {'{{candidateName}}'}
                         </button>
@@ -1827,7 +1827,7 @@ export default function InterviewScheduleModal(props: Props) {
                           onClick={() =>
                             setMessageTemplate(messageTemplate + '{{jobTitle}}')
                           }
-                          className="text-blue-600 hover:underline mx-1"
+                          className="text-blue-600 hover:underline mx-1 dark:text-sky-400"
                         >
                           {'{{jobTitle}}'}
                         </button>
@@ -1838,7 +1838,7 @@ export default function InterviewScheduleModal(props: Props) {
                               messageTemplate + '{{InterviewDate}}'
                             )
                           }
-                          className="text-blue-600 hover:underline mx-1"
+                          className="text-blue-600 hover:underline mx-1 dark:text-sky-400"
                         >
                           {'{{InterviewDate}}'}
                         </button>
@@ -1849,7 +1849,7 @@ export default function InterviewScheduleModal(props: Props) {
                               messageTemplate + '{{interviewTime}}'
                             )
                           }
-                          className="text-blue-600 hover:underline mx-1"
+                          className="text-blue-600 hover:underline mx-1 dark:text-sky-400"
                         >
                           {'{{interviewTime}}'}
                         </button>
@@ -1860,7 +1860,7 @@ export default function InterviewScheduleModal(props: Props) {
                               messageTemplate + '{{interviewType}}'
                             )
                           }
-                          className="text-blue-600 hover:underline mx-1"
+                          className="text-blue-600 hover:underline mx-1 dark:text-sky-400"
                         >
                           {'{{interviewType}}'}
                         </button>
@@ -1869,7 +1869,7 @@ export default function InterviewScheduleModal(props: Props) {
                           onClick={() =>
                             setMessageTemplate(messageTemplate + '{{location}}')
                           }
-                          className="text-blue-600 hover:underline mx-1"
+                          className="text-blue-600 hover:underline mx-1 dark:text-sky-400"
                         >
                           {'{{location}}'}
                         </button>
@@ -1878,7 +1878,7 @@ export default function InterviewScheduleModal(props: Props) {
                           onClick={() =>
                             setMessageTemplate(messageTemplate + '{{address}}')
                           }
-                          className="text-blue-600 hover:underline mx-1"
+                          className="text-blue-600 hover:underline mx-1 dark:text-sky-400"
                         >
                           {'{{address}}'}
                         </button>
@@ -1897,7 +1897,7 @@ export default function InterviewScheduleModal(props: Props) {
                             messageTemplate + '{{candidateName}}'
                           )
                         }
-                        className="text-blue-600 hover:underline mx-1"
+                        className="text-blue-600 hover:underline mx-1 dark:text-sky-400"
                       >
                         {'{{candidateName}}'}
                       </button>
@@ -1906,7 +1906,7 @@ export default function InterviewScheduleModal(props: Props) {
                         onClick={() =>
                           setMessageTemplate(messageTemplate + '{{jobTitle}}')
                         }
-                        className="text-blue-600 hover:underline mx-1"
+                        className="text-blue-600 hover:underline mx-1 dark:text-sky-400"
                       >
                         {'{{jobTitle}}'}
                       </button>
@@ -1917,7 +1917,7 @@ export default function InterviewScheduleModal(props: Props) {
                             messageTemplate + '{{InterviewDate}}'
                           )
                         }
-                        className="text-blue-600 hover:underline mx-1"
+                        className="text-blue-600 hover:underline mx-1 dark:text-sky-400"
                       >
                         {'{{InterviewDate}}'}
                       </button>
@@ -1928,7 +1928,7 @@ export default function InterviewScheduleModal(props: Props) {
                             messageTemplate + '{{interviewTime}}'
                           )
                         }
-                        className="text-blue-600 hover:underline mx-1"
+                        className="text-blue-600 hover:underline mx-1 dark:text-sky-400"
                       >
                         {'{{interviewTime}}'}
                       </button>
@@ -1939,7 +1939,7 @@ export default function InterviewScheduleModal(props: Props) {
                             messageTemplate + '{{interviewType}}'
                           )
                         }
-                        className="text-blue-600 hover:underline mx-1"
+                        className="text-blue-600 hover:underline mx-1 dark:text-sky-400"
                       >
                         {'{{interviewType}}'}
                       </button>
@@ -1956,7 +1956,7 @@ export default function InterviewScheduleModal(props: Props) {
             type="button"
             onClick={onClose}
             disabled={isSubmittingInterview}
-            className="flex w-full justify-center rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] sm:w-auto"
+            className="flex w-full justify-center rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 sm:w-auto"
           >
             {t('cancel', 'modals')}
           </button>
@@ -1966,7 +1966,7 @@ export default function InterviewScheduleModal(props: Props) {
             <button
               type="button"
               onClick={handlePreview}
-              className="flex w-full justify-center rounded-lg border border-stroke px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-strokedark dark:hover:bg-gray-800 sm:w-auto"
+              className="flex w-full justify-center rounded-lg border border-stroke px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-strokedark dark:hover:bg-slate-800 sm:w-auto dark:text-slate-200"
             >
               {bulkMode
                 ? t('scheduleBulkPreviewTitle', 'modals')

@@ -706,7 +706,7 @@ const MessageModal = ({
         closeOnBackdrop={false}
       >
         <form onSubmit={handleMessageSubmit} className="space-y-6">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
             {t('sendMessage', 'modals')}
           </h2>
 
@@ -789,7 +789,7 @@ const MessageModal = ({
                         : t('generate', 'modals')}
                     </button>
                   </div>
-                  <p className="mt-1 text-xs text-gray-500">
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                     {t('aiTemplateNote', 'modals')}
                   </p>
                 </div>
@@ -815,7 +815,7 @@ const MessageModal = ({
                 onChange={(value) => handleTemplateSelect(value as string)}
                 placeholder={t('selectTemplateToLoad', 'modals')}
               />
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                 {t('selectTemplateAutoFill', 'modals')}
               </p>
             </div>
@@ -837,7 +837,7 @@ const MessageModal = ({
                 placeholder={t('messageSubjectPlaceholder', 'modals')}
                 required
               />
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                 {t('availableVariables', 'modals')}: {'{{candidateName}}'},{' '}
                 {'{{position}}'} or {'{{jobTitle}}'}
               </p>
@@ -866,7 +866,7 @@ const MessageModal = ({
                   <Input
                     value={defaultFrom}
                     readOnly
-                    className="bg-gray-50 dark:bg-gray-800"
+                    className="bg-slate-50 dark:bg-slate-800"
                   />
                 ) : (
                   <>
@@ -914,7 +914,7 @@ const MessageModal = ({
                           onChange={(e) => setNewLocalEmail(e.target.value)}
                           placeholder="your-name"
                         />
-                        <div className="text-sm text-gray-600">
+                        <div className="text-sm text-slate-600 dark:text-slate-300">
                           @{displayDomain}
                         </div>
                       </div>
@@ -944,7 +944,7 @@ const MessageModal = ({
                   minHeight={120}
                 />
 
-                <p className="mt-2 text-xs text-gray-500">
+                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
                   {t('availableVariables', 'modals')}
                 </p>
                 <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded text-xs">
@@ -957,7 +957,7 @@ const MessageModal = ({
                         body: messageForm.body + '{{candidateName}}',
                       })
                     }
-                    className="text-blue-600 hover:underline mx-1"
+                    className="text-blue-600 hover:underline mx-1 dark:text-sky-400"
                   >
                     {'{{candidateName}}'}
                   </button>
@@ -969,7 +969,7 @@ const MessageModal = ({
                         body: messageForm.body + '{{position}}',
                       })
                     }
-                    className="text-blue-600 hover:underline mx-1"
+                    className="text-blue-600 hover:underline mx-1 dark:text-sky-400"
                   >
                     {'{{position}}'}
                   </button>
@@ -981,7 +981,7 @@ const MessageModal = ({
                         body: messageForm.body + '{{jobTitle}}',
                       })
                     }
-                    className="text-blue-600 hover:underline mx-1"
+                    className="text-blue-600 hover:underline mx-1 dark:text-sky-400"
                   >
                     {'{{jobTitle}}'}
                   </button>
@@ -1003,7 +1003,7 @@ const MessageModal = ({
             <button
               type="button"
               onClick={handleCloseMessageModal}
-              className="rounded-lg border border-stroke px-6 py-2 hover:bg-gray-100 dark:border-strokedark dark:hover:bg-gray-800"
+              className="rounded-lg border border-stroke px-6 py-2 hover:bg-slate-100 dark:border-strokedark dark:hover:bg-slate-800"
               disabled={isSubmittingMessage}
             >
               {t('cancel', 'modals')}
@@ -1012,7 +1012,7 @@ const MessageModal = ({
               <button
                 type="button"
                 onClick={handlePreviewEmail}
-                className="rounded-lg border border-stroke px-6 py-2 hover:bg-gray-100 dark:border-strokedark dark:hover:bg-gray-800"
+                className="rounded-lg border border-stroke px-6 py-2 hover:bg-slate-100 dark:border-strokedark dark:hover:bg-slate-800"
                 disabled={isSubmittingMessage}
               >
                 {t('previewEmail', 'modals')}
@@ -1067,11 +1067,11 @@ const MessageModal = ({
         className="max-w-3xl p-6"
       >
         <div className="space-y-4">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
             {t('emailPreview', 'modals')}
           </h2>
           <div
-            className="border rounded p-2 bg-white dark:bg-gray-800"
+            className="border rounded p-2 bg-white dark:bg-slate-800"
             style={{ maxHeight: '70vh', overflow: 'auto' }}
           >
             <iframe
@@ -1084,7 +1084,7 @@ const MessageModal = ({
             <button
               type="button"
               onClick={() => setShowEmailPreview(false)}
-              className="rounded-lg border border-stroke px-4 py-2 hover:bg-gray-100 dark:border-strokedark dark:hover:bg-gray-800"
+              className="rounded-lg border border-stroke px-4 py-2 hover:bg-slate-100 dark:border-strokedark dark:hover:bg-slate-800"
             >
               {t('close', 'modals')}
             </button>
