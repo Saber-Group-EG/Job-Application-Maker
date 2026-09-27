@@ -1,4 +1,3 @@
-// components/settings/ApplicantPagesSettings.tsx
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, ChevronDown, ChevronRight, GripVertical, Layout, PlusCircle, Save, Trash2 } from 'lucide-react';

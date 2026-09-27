@@ -1,5 +1,4 @@
 import { describeError } from '../../../../lib/userErrors';
-// Applicants.tsx - Optimized version with improved photo loading
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import { useNavigate } from 'react-router';
@@ -172,11 +171,8 @@ async function createCompressedDataUrl(
 
       thumbnailCache.set(src, dataUrl).catch(() => {});
       return dataUrl;
-    } catch (e) {
-      console.debug(
-        'OffscreenCanvas failed, falling back to regular canvas',
-        e
-      );
+    } catch {
+      // OffscreenCanvas unsupported or failed: fall back to a regular canvas below.
     }
   }
 
@@ -1175,6 +1171,10 @@ export default function Applicants({
     selectedApplicantsForInterview,
     selectedApplicantCompanyId,
     selectedApplicantCompany,
+    jobTitleOf: (jobPositionId?: string) => {
+      const title = jobPositionId ? jobPositionMap[jobPositionId]?.title : undefined;
+      return typeof title === 'string' ? title : title?.[locale] || title?.en || title?.ar || '';
+    },
     onClearSelection: () => setRowSelection({}),
   });
 

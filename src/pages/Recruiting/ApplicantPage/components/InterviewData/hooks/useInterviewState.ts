@@ -158,8 +158,6 @@ export const useInterviewState = (
   // optimistic update), seed local state from it. Uses useLayoutEffect so
   // groupMeta is populated BEFORE the first paint — otherwise
   // groupedQuestions collapses everything into __ungrouped__.
-  //
-  // We preserve the user's existing slider state for any question whose id
   // Seed group meta from loaded questions so answerType is available for
   // enrichment even before the question pool finishes loading.
   // Must run in useLayoutEffect: a background GET swaps question id-space
@@ -196,7 +194,8 @@ export const useInterviewState = (
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [flatExistingQuestions, selectedInterview]);
-  
+
+  // We preserve the user's existing slider state for any question whose id
   // is still present, and only seed entries for new questions from their
   // achievedScore. This way, the slider responds to drags immediately after
   // a "Save & Start" replaces the question list.

@@ -68,10 +68,8 @@ export default function SignUpForm() {
         lastName: formData.lastName,
         name: `${formData.firstName} ${formData.lastName}`,
       });
-      // Redirect to dashboard after successful registration
       navigate("/");
     } catch (err) {
-      console.error("Registration failed:", err);
       // Error is handled in AuthContext via React Query
     }
   };
@@ -157,7 +155,6 @@ export default function SignUpForm() {
             <form onSubmit={handleSubmit}>
               <div className="space-y-5">
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                  {/* <!-- First Name --> */}
                   <div className="sm:col-span-1">
                     <Label>
                       {t('firstName', 'common')}<span className="text-error-500">*</span>
@@ -172,7 +169,6 @@ export default function SignUpForm() {
                       disabled={isLoading}
                     />
                   </div>
-                  {/* <!-- Last Name --> */}
                   <div className="sm:col-span-1">
                     <Label>
                       {t('lastName', 'common')}<span className="text-error-500">*</span>
@@ -188,7 +184,6 @@ export default function SignUpForm() {
                     />
                   </div>
                 </div>
-                {/* <!-- Email --> */}
                 <div>
                   <Label>
                     {t('email', 'common')}<span className="text-error-500">*</span>
@@ -203,7 +198,6 @@ export default function SignUpForm() {
                     disabled={isLoading}
                   />
                 </div>
-                {/* <!-- Password --> */}
                 <div>
                   <Label>
                     {t('password', 'common')}<span className="text-error-500">*</span>
@@ -229,7 +223,6 @@ export default function SignUpForm() {
                     </span>
                   </div>
                 </div>
-                {/* <!-- Checkbox --> */}
                 <div className="flex items-center gap-3">
                   <Checkbox
                     className="w-5 h-5"
@@ -247,7 +240,6 @@ export default function SignUpForm() {
                     </span>
                   </p>
                 </div>
-                {/* <!-- Button --> */}
                 <div>
                   <button
                     type="submit"

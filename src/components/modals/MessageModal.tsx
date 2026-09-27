@@ -16,6 +16,7 @@ import { useLocale } from '../../context/LocaleContext';
 import { filterTemplatesByCategory } from '../../utils/mailTemplateCategories';
 import RichTextEditor from '../form/RichTextEditor';
 import { useConnectedGmailSender } from '../../hooks/useConnectedGmailSender';
+import { whatsAppLink } from '../../utils/whatsapp';
 
 const MessageModal = ({
   isOpen,
@@ -37,7 +38,7 @@ const MessageModal = ({
   const [messageForm, setMessageForm] = useState({
     subject: '',
     body: '',
-    type: 'email' as 'email' | 'sms' | 'whatsapp' | 'internal',
+    type: 'email' as 'email' | 'whatsapp' | 'internal',
   });
   const [messageError, setMessageError] = useState('');
   const [isSubmittingMessage, setIsSubmittingMessage] = useState(false);
@@ -148,7 +149,6 @@ const MessageModal = ({
       : '');
 
   // Handle template selection - this populates subject and body
-  // Replace your handleTemplateSelect function with this optimized version
   const handleTemplateSelect = (templateId: string) => {
     if (!templateId) {
       setSelectedTemplateId('');
@@ -178,8 +178,6 @@ const MessageModal = ({
       }));
       setSelectedTemplateId(templateId);
 
-      // Remove the Swal notification to avoid extra re-renders
-      // Just show a subtle indication instead
     }
   };
 
@@ -590,6 +588,37 @@ const MessageModal = ({
       return;
     }
 
+    // WhatsApp: open the user's WhatsApp with the message typed in. Opened
+    // here, before any await, so the browser treats it as part of the click.
+    if (messageForm.type === 'whatsapp') {
+      const text = messageForm.body
+        .replace(/\{\{\s*candidateName\s*\}\}/gi, getCandidateName())
+        .replace(/\{\{\s*(?:position|jobTitle)\s*\}\}/gi, getJobTitleFromApplicant());
+      const link = whatsAppLink(applicant.phone, text);
+      if (!link) {
+        setMessageError(t('whatsappNeedsPhone', 'modals'));
+        return;
+      }
+      window.open(link, '_blank', 'noopener,noreferrer');
+      setIsSubmittingMessage(true);
+      try {
+        await sendMessageMutation.mutateAsync({ id, data: { type: 'whatsapp', content: text } });
+      } catch {
+        // WhatsApp is already open; a missing history entry isn't worth an error.
+      }
+      setIsSubmittingMessage(false);
+      setMessageForm({ subject: '', body: '', type: 'email' });
+      onClose();
+      await Swal.fire({
+        title: t('success', 'modals'),
+        text: t('whatsappOpened', 'modals'),
+        icon: 'success',
+        timer: 2500,
+        showConfirmButton: false,
+      });
+      return;
+    }
+
     setIsSubmittingMessage(true);
 
     try {
@@ -691,7 +720,6 @@ const MessageModal = ({
     } catch (err: any) {
       const errorMsg = getErrorMessage(err);
       setMessageError(errorMsg);
-      console.error('Error:', err);
     } finally {
       setIsSubmittingMessage(false);
     }
@@ -735,18 +763,16 @@ const MessageModal = ({
                   value: 'email',
                   label: `📧 ${t('emailSentSaved', 'modals')}`,
                 },
-                { value: 'sms', label: `💬 ${t('smsSoon', 'modals')}` },
-                {
-                  value: 'whatsapp',
-                  label: `📱 ${t('whatsappSoon', 'modals')}`,
-                },
+                ...(isInquiry
+                  ? []
+                  : [{ value: 'whatsapp', label: `📱 ${t('whatsapp', 'modals')}` }]),
               ]}
               value={messageForm.type}
               placeholder={t('messageType', 'modals')}
               onChange={(value) =>
                 setMessageForm({
                   ...messageForm,
-                  type: value as 'email' | 'sms' | 'whatsapp',
+                  type: value as 'email' | 'whatsapp',
                   subject: value !== 'email' ? '' : messageForm.subject,
                 })
               }
@@ -1051,7 +1077,7 @@ const MessageModal = ({
                 <span>
                   {messageForm.type === 'email'
                     ? t('sendEmailSave', 'modals')
-                    : t('sendMessageSimple', 'modals')}
+                    : t('whatsappOpen', 'modals')}
                 </span>
               )}
             </button>

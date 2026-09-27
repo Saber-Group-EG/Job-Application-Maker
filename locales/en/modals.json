@@ -130,8 +130,6 @@
   "sendMessage": "Send Message",
   "messageType": "Message Type",
   "emailSentSaved": "Email (Will be sent & saved)",
-  "smsSoon": " SMS (Soon)",
-  "whatsappSoon": " WhatsApp (Soon)",
   "emailSentHistory": "Email will be sent via email service AND saved to message history",
   "messageSubject": "Subject *",
   "messageSubjectPlaceholder": "Message subject",
@@ -388,5 +386,14 @@
   "generate": "Generate",
   "generating": "Generating…",
   "aiTemplateNote": "AI will use placeholders like {{candidateName}} so this works for every recipient.",
-  "showMoreApplicants": "Show more ({shown} of {total})"
+  "showMoreApplicants": "Show more ({shown} of {total})",
+  "whatsappMessage": "WhatsApp message",
+  "whatsappHint": "After scheduling you'll get a button that opens WhatsApp with this message ready to send from your own WhatsApp.",
+  "whatsappDialogTitle": "Send the WhatsApp message",
+  "whatsappDialogText": "Each button opens WhatsApp with the message ready. Press send in WhatsApp.",
+  "whatsappOpen": "Open WhatsApp",
+  "whatsappNoPhone": "No valid phone number",
+  "whatsappDone": "Done",
+  "whatsappOpened": "WhatsApp opened with your message. Press send there.",
+  "whatsappNeedsPhone": "This applicant has no valid phone number for WhatsApp."
 }

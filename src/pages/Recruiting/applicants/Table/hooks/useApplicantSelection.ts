@@ -76,7 +76,6 @@ export function useApplicantSelection({
     return Object.keys(rowSelection);
   }, [rowSelection]);
 
-  // useApplicantSelection.ts
   const selectedApplicants = useMemo(() => {
     const ids = new Set(selectedApplicantIds);
     return applicants
@@ -193,6 +192,7 @@ export function useApplicantSelection({
               typeof jobPositionId === 'string' ? jobPositionId : undefined,
             companyId: String(companyId || ''),
             status: String(a.status || ''),
+            phone: String(a.phone || ''),
           };
         })
         .filter((item: any) => item.applicantId);

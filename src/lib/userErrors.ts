@@ -157,7 +157,6 @@ let last: { ref: string; at: number } | null = null;
 
 export function rememberError(ue: UserError) {
   last = { ref: ue.ref, at: Date.now() };
-  console.warn(`[error] ${ue.ref}`);
 }
 
 export function recentErrorRef(withinMs = 8000): string | undefined {

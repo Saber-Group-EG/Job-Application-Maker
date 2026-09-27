@@ -37,9 +37,8 @@ export function useCurrentUser(options?: { enabled?: boolean }) {
     staleTime: 10 * 60 * 1000, // 10 minutes
     gcTime: 30 * 60 * 1000, // 30 minutes
     retry: false,
-    // ✅ Add refetch on mount to ensure fresh data
     refetchOnMount: true,
-    // ✅ Don't use cached data if token exists but user might be different
+    // Refetch on focus: the signed-in user may have changed in another tab
     refetchOnWindowFocus: true,
   });
 }
@@ -81,7 +80,6 @@ export function useRegisterMutation() {
   });
 }
 
-// hooks/queries/useAuth.ts - Update the logout mutation
 export function useLogoutMutation() {
   const queryClient = useQueryClient();
   const { t } = useLocale();
@@ -93,26 +91,26 @@ export function useLogoutMutation() {
       // Call logout (if it makes API call)
       authService.logout();
       
-      // ✅ Also clear localStorage session if exists
+      // Also clear stored tokens and the session
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
       sessionStorage.clear();
     },
     onSuccess: () => {
-      // ✅ Method 1: Reset all queries (resets to initial state)
+      // Method 1: Reset all queries (resets to initial state)
       queryClient.resetQueries();
       
-      // ✅ Method 2: Clear all cached data
+      // Method 2: Clear all cached data
       queryClient.clear();
       
-      // ✅ Method 3: Specifically remove auth queries
+      // Method 3: Specifically remove auth queries
       queryClient.removeQueries({ queryKey: authKeys.all });
       
-      // ✅ Method 4: Cancel all ongoing queries
+      // Method 4: Cancel all ongoing queries
       queryClient.cancelQueries();
       
       
-      // ✅ Don't navigate here - let the AuthProvider handle it
+      // Don't navigate here - let the AuthProvider handle it
     },
     onError: (error: ApiError) => {
       showErrorToast(error.message, t('logoutFailed', 'common'), t);
@@ -129,7 +127,7 @@ export function useChangePasswordMutation() {
   return useMutation({
     mutationFn: (passwords: ChangePasswordRequest) => authService.changePassword(passwords),
     onSuccess: () => {
-      // ✅ After password change, invalidate user data to refresh
+      // After password change, invalidate user data to refresh
       queryClient.invalidateQueries({ queryKey: authKeys.currentUser() });
 
     },
@@ -145,12 +143,10 @@ export function useRefreshTokenMutation() {
   return useMutation({
     mutationFn: () => authService.refreshToken(),
     onSuccess: () => {
-      // ✅ After token refresh, refresh user data
       queryClient.invalidateQueries({ queryKey: authKeys.currentUser() });
     },
-    onError: (error: ApiError) => {
-      console.error("Token refresh failed:", error.message);
-      // ✅ If refresh fails, log the user out
+    // If refresh fails, log the user out
+    onError: () => {
       tokenStorage.clearTokens();
       queryClient.clear();
     },

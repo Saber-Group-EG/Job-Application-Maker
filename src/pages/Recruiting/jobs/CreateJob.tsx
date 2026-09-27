@@ -172,7 +172,6 @@ export default function CreateJob() {
         collapseAll(next.customFields);
         jobDataLoaded.current = true;
       } catch (err) {
-        console.error('Failed to load job data:', err);
         const errorMsg = getJobErrorMessage(err, t('createErrorOccurred', 'jobs'));
         setFormError(errorMsg);
         setJobStatus(`Error: ${errorMsg}`);
@@ -426,7 +425,6 @@ export default function CreateJob() {
       const errorMsg = getJobErrorMessage(err, t('createErrorOccurred', 'jobs'));
       setFormError(errorMsg);
       setJobStatus(t('createErrorPrefix', 'jobs', { msg: errorMsg }));
-      console.error(`Error ${isEditMode ? 'updating' : 'creating'} job:`, err);
       await Swal.fire({
         title: t('createErrorTitle', 'jobs'),
         text: errorMsg,

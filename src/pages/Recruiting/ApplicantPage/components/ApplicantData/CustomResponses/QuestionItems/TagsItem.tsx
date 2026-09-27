@@ -1,4 +1,3 @@
-// Components/QuestionItems/TagsItem.tsx
 import React, { useState, useRef, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { useLocale } from '../../../../../../../context/LocaleContext';

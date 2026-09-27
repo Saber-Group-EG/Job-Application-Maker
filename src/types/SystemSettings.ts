@@ -89,7 +89,6 @@ export interface UsageOverviewResponse {
   limit: number;
 }
 
-// types/SystemSettings.ts
 export interface CompanyUsageDetail {
   subscription?: {
     companyId?: {

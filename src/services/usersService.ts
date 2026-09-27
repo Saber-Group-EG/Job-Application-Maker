@@ -179,7 +179,6 @@ class UsersService extends BaseService {
       queryParams.companyId = companies;
     }
   }
-  // Add pageCount parameter
   if (params?.PageCount) {
     queryParams.PageCount = params.PageCount;
   }

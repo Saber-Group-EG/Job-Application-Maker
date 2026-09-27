@@ -157,7 +157,6 @@ const ToggleGroup = styled(ToggleButtonGroup)({
   },
 });
 
-// Helper functions remain the same
 export const normalizeLabelSimple = (l: any) => (l || '').toString().replace(/\u200E|\u200F/g, '').replace(/[^\w\u0600-\u06FF\s]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
 export const normalizeForCompare = (s: any) => (s || '').toString().replace(/\u200E|\u200F/g, '').trim().toLowerCase();
 
@@ -480,7 +479,7 @@ const CustomFilterModal: React.FC<Props> = ({
     let observedMax = salaryRange
       ? salaryRange.max
       : validEntries.length ? Math.max(observedMin, validEntries[validEntries.length - 1].n) : observedMin + 1000;
-    // Cap max at 100000 as requested
+    // Cap max at 100000
     observedMax = Math.min(observedMax, 100000);
     if (observedMax <= observedMin) observedMax = observedMin + Math.max(100, Math.abs(observedMin || 1000));
     observedMax = Math.min(observedMax, 100000);

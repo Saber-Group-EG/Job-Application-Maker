@@ -63,7 +63,6 @@ export default function SignInForm() {
       navigate('/home', { replace: true });
     } catch (err) {
       setIsLoggingIn(false);
-      console.error('Login failed:', err);
     }
   };
 

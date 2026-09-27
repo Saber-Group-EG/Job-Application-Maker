@@ -24,6 +24,8 @@ import { useLocale } from '../../../context/LocaleContext';
 import { downloadJobOfferAsPdf } from '../../../utils/jobOfferPdfGenerator';
 import { Button, Dialog, Field, IconButton, Segmented, selectClass } from '../../../components/ui/kit';
 import { PdfDownloadButton } from '../../../components/documents/DocumentUi';
+import Swal from '../../../utils/swal';
+import { getErrorMessage } from '../../../utils/errorHandler';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -253,7 +255,7 @@ export function OfferActions({
     try {
       await downloadJobOfferAsPdf(offer, lang);
     } catch (error) {
-      console.error('Failed to generate PDF:', error);
+      Swal.fire({ title: t('error', 'common'), text: getErrorMessage(error), icon: 'error' });
     }
   };
 

@@ -788,7 +788,6 @@ export default function JobOfferModal({
       } else if (form.isBulk && form.applicantIds?.length) {
         await bulkMutation.mutateAsync({
           ...base,
-          // In handleSubmit, change the applicantIds map:
           applicantIds: applicantObjects!.map((a) => {
             const override = form.bulkOverrideMap[a._id];
             const resolvedSalary = override
@@ -823,13 +822,6 @@ export default function JobOfferModal({
         const resolvedCompanyId =
           form.selectedApplicantObject?.jobPositionId?.companyId._id ??
           (Array.isArray(companyId) ? companyId[0] : companyId); // ← fallback to prop
-        console.log({
-          ...base,
-          companyId: resolvedCompanyId!,
-          ...(mode === 'offer' && singleApplicantId
-            ? { applicantId: singleApplicantId }
-            : {}),
-        });
         await createMutation.mutateAsync({
           ...base,
           companyId: resolvedCompanyId!,

@@ -918,7 +918,6 @@ export default function InterviewCompanySettingsPage() {
     enabled: !!effectiveCompanyId && !isSuperAdmin,
   });
 
-  // Fixed: Use correct precedence with parentheses
   const derivedInterviewSettings = isSuperAdmin
     ? ((selectedCompany as any)?.settings?.interviewSettings ??
       (selectedCompany as any)?.interviewSettings ??

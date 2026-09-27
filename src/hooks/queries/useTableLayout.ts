@@ -54,8 +54,8 @@ export const useTableLayout = (
       } else {
         setLayout(defaultLayout);
       }
-    } catch (e) {
-      console.error('Failed to load table layout', e);
+    } catch {
+      // Unreadable saved layout: keep the default.
     } finally {
       setIsLoaded(true);
     }
@@ -85,7 +85,7 @@ export const useTableLayout = (
         if (!pendingLayout.current) return;
         axiosInstance
           .patch(`/users/preferences/${tableKey}`, pendingLayout.current)
-          .catch((e) => console.error('Failed to save layout', e));
+          .catch(() => {}); // a failed layout save isn't worth interrupting the user
       }, 2000);
     },
     [user?._id, tableKey]

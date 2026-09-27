@@ -1,7 +1,5 @@
 import type { MailAttachment } from './mail';
 // ─── Applicant Types (from types/applicants.ts) ───────────────────────────────
-// NOTE: In the actual project these types already live in types/applicants.ts
-// and are not redeclared here. This file shows what was added there.
 
 import type { ComponentType } from 'react';
 

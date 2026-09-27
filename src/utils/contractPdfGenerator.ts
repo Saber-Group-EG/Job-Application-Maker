@@ -76,7 +76,7 @@ export const generateContractPDF = async ({ contract, lang = 'en', companyName =
 
   const sortedSections = [...(contract.sections || [])].sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
 
-  // Build benefits HTML - Fix table headers for RTL
+  // Build benefits HTML (RTL-aware table headers)
   let benefitsHTML = '';
   if (contract.benefits && contract.benefits.length > 0) {
     benefitsHTML = '<table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 9pt;"><thead><tr>';

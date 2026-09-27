@@ -1,4 +1,3 @@
-// pages/Settings/EmailTemplates.tsx
 import React, { useState } from "react";
 import DOMPurify from 'dompurify';
 import { Copy, Edit, Eye, Mail, PlusCircle, Save, Trash2 } from "lucide-react";
@@ -11,7 +10,7 @@ import {
   useUpdateMailTemplate,
   useDeleteMailTemplate,
   useDuplicateMailTemplate,
-  previewEmailTemplate // ✅ Changed from usePreviewMailTemplate to previewEmailTemplate
+  previewEmailTemplate
 } from "../../../hooks/queries/useCompanies";
 import {
   Badge,
@@ -66,7 +65,6 @@ function TemplateFormModal({
   const { t } = useLocale();
   const createMutation = useCreateMailTemplate();
   const updateMutation = useUpdateMailTemplate();
-  // ✅ No more usePreviewMailTemplate - using direct function import
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,7 +95,6 @@ function TemplateFormModal({
       }
       onClose();
     } catch (error) {
-      console.error(error);
       Swal.fire(t('mailTemplates.error', 'settings'), t('mailTemplates.errorSaveFailed', 'settings'), "error");
     }
   };

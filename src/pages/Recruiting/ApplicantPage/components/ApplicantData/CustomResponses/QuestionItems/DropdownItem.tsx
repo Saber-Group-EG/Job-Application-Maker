@@ -1,4 +1,3 @@
-// Components/QuestionItems/DropdownItem.tsx
 import React from 'react';
 import { ChevronDown, Check } from 'lucide-react';
 import { useLocale } from '../../../../../../../context/LocaleContext';

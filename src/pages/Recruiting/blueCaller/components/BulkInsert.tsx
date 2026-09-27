@@ -1379,7 +1379,6 @@ export default function BulkInsert({
         showConfirmButton: false,
       });
     } catch (err) {
-      console.error('Template download error:', err);
       Swal.fire({
         title: t('downloadFailed', 'common'),
         text: err instanceof Error ? err.message : t('couldNotGenerateTemplate', 'applicants'),

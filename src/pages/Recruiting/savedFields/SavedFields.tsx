@@ -17,7 +17,7 @@ export default function SavedFields() {
   const qc = useQueryClient();
   const [deletingIds, setDeletingIds] = useState<Record<string, boolean>>({});
 
-  // ✅ Fixed: data is already the array, no need for .data
+  // data is already the array
   const fields = useMemo(() => {
     if (!data) return [];
     if (Array.isArray(data)) return data;
@@ -62,7 +62,7 @@ export default function SavedFields() {
     });
   };
 
-  // ✅ Fixed: filter out fields that are currently being deleted
+  // Hide fields that are being deleted
   const activeFields = fields.filter((f: any) => !deletingIds[f.fieldId]);
 
   return (

@@ -284,8 +284,6 @@ export interface PlanFeatures {
   };
   departments: PlanLimitFeature;
   emails: {
-    // Schema-only for now — no custom-domain/Gmail-connector infrastructure
-    // exists yet, so these two are display-only in the admin UI.
     emailType: 'personalGmail' | 'customDomain';
     sendReceive: 'sendOnly' | 'sendReceive';
     sendLimit: PlanLimitFeature;
@@ -299,7 +297,6 @@ export interface PlanFeatures {
   };
   users: {
     total: PlanLimitFeature;
-    // Entitlement flag only — no enforcement exists yet, display-only.
     departmentLevelAccess: PlanBooleanFeature;
   };
   ai: {

@@ -591,11 +591,8 @@ const BulkMessageModal = ({
                 content: contentWithSubject,
               },
             });
-          } catch (err) {
-            console.error(
-              `Failed to save message for applicant ${email.applicant}:`,
-              err
-            );
+          } catch {
+            // The email went out; a missing entry in the applicant's message history isn't worth failing the batch.
           }
         }
       });
@@ -612,7 +609,6 @@ const BulkMessageModal = ({
       onClose();
       if (onSuccess) onSuccess();
     } catch (err: any) {
-      console.error('Bulk send error', err);
       setError(getErrorMessage(err));
     } finally {
       setIsSubmitting(false);

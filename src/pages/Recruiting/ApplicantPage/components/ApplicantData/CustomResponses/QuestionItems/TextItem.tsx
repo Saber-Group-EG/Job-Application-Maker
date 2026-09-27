@@ -1,4 +1,3 @@
-// Components/QuestionItems/TextItem.tsx
 import React from 'react';
 import type { TextQuestion } from '../../../../../../../types/applicants';
 import type { QuestionHandlers } from './types';

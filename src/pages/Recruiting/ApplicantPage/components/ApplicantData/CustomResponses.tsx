@@ -1,4 +1,3 @@
-// ApplicantData/CustomResponses.tsx
 import React from 'react';
 import { CustomResponsesContainer } from './CustomResponses/CustomResponsesContainer';
 import type { CustomResponsesProps } from '../../../../../types/applicants';
