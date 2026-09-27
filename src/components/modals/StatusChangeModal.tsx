@@ -278,15 +278,15 @@ export default function StatusChangeModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div
         ref={modalRef}
-        className="relative bg-white dark:bg-gray-900 rounded-2xl shadow-xl max-w-2xl w-full mx-4"
+        className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-2xl w-full mx-4"
         style={{ maxHeight: 'none', height: 'auto', overflow: 'visible' }}
       >
         <div className="p-6" style={{ maxHeight: 'none', height: 'auto', overflow: 'visible' }}>
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Header */}
-            <div className="flex items-center justify-between pb-4 border-b border-gray-200 dark:border-gray-700">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t('changeStatus', 'modals')}</h2>
-              <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-700">
+              <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{t('changeStatus', 'modals')}</h2>
+              <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
                 ✕
               </button>
             </div>
@@ -319,7 +319,7 @@ export default function StatusChangeModal({
                 onChange={handleStatusSelect}
               />
               {selectedStatusDescription && (
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                   {selectedStatusDescription}
                 </p>
               )}
@@ -333,7 +333,7 @@ export default function StatusChangeModal({
                 onChange={(e) => setStatusForm({ ...statusForm, notes: e.target.value })}
                 placeholder={t('notesPlaceholderStatus', 'modals')}
                 rows={3}
-                className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+                className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
               />
             </div>
 
@@ -343,9 +343,9 @@ export default function StatusChangeModal({
                 <Label>{t('reasonsForRejection', 'modals')}</Label>
 
                 {/* Selected chips */}
-                <div className="flex flex-wrap gap-2 mt-2 mb-3 p-2 border border-gray-300 dark:border-gray-600 rounded-lg min-h-[42px] bg-white dark:bg-gray-800">
+                <div className="flex flex-wrap gap-2 mt-2 mb-3 p-2 border border-slate-300 dark:border-slate-600 rounded-lg min-h-[42px] bg-white dark:bg-slate-800">
                   {selectedValues.length === 0 ? (
-                    <span className="text-gray-400 text-sm">{t('noReasonsSelected', 'modals')}</span>
+                    <span className="text-slate-400 text-sm">{t('noReasonsSelected', 'modals')}</span>
                   ) : (
                     selectedValues.map((reason, idx) => (
                       <span
@@ -375,18 +375,18 @@ export default function StatusChangeModal({
                     onClick={() => setIsDropdownOpen(true)}
                     onFocus={() => setIsDropdownOpen(true)}
                     placeholder={t('searchAddReason', 'modals')}
-                    className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 cursor-pointer"
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 cursor-pointer"
                     disabled={isSubmittingStatus}
                   />
 
                   {isDropdownOpen && (reasonOptions.length > 0 || (searchQuery.trim() && !hasExactMatch)) && (
-                    <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    <div className="absolute z-50 w-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg max-h-48 overflow-y-auto">
                       {filteredReasonOptions.map((option, idx) => (
                         <button
                           key={idx}
                           type="button"
                           onClick={() => handleSelect(option.value)}
-                          className={`w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm transition-colors ${
+                          className={`w-full text-left px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm transition-colors ${
                             selectedValues.includes(option.value)
                               ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
                               : ''
@@ -403,7 +403,7 @@ export default function StatusChangeModal({
                         <button
                           type="button"
                           onClick={() => handleCustomReasonAdd(searchQuery.trim())}
-                          className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm text-blue-600 dark:text-blue-400 border-t border-gray-200 dark:border-gray-700"
+                          className="w-full text-left px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-blue-600 dark:text-blue-400 border-t border-slate-200 dark:border-slate-700"
                         >
                           {t('addAsNewReason', 'modals', { reason: searchQuery.trim() })}
                         </button>
@@ -412,11 +412,11 @@ export default function StatusChangeModal({
                   )}
                 </div>
 
-                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
                   {t('totalReasons', 'modals', { count: reasonOptions.length })}
                 </p>
                 {selectedValues.length > 0 && (
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                     {t('reasonsSelected', 'modals', { count: selectedValues.length })}
                   </p>
                 )}
@@ -424,12 +424,12 @@ export default function StatusChangeModal({
             )}
 
             {/* Actions */}
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
               <button
                 type="button"
                 onClick={onClose}
                 disabled={isSubmittingStatus}
-                className="rounded-lg border border-stroke px-6 py-2 hover:bg-gray-100 dark:border-strokedark dark:hover:bg-gray-800"
+                className="rounded-lg border border-stroke px-6 py-2 hover:bg-slate-100 dark:border-strokedark dark:hover:bg-slate-800"
               >
                 {t('cancel', 'modals')}
               </button>

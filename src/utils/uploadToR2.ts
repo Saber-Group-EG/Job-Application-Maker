@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { errorText, rememberError } from '../lib/userErrors';
 
 const BACKEND_URL =
   import.meta.env.VITE_FORM_URL || 'https://application-maker.onrender.com/api';
@@ -79,12 +80,13 @@ export async function uploadToR2(file: File, folder = 'JobApplications'): Promis
       lastError = error;
       attempt++;
       if (attempt >= maxRetries) {
-        throw new Error(
-          `Upload failed after ${maxRetries} attempts. Last error: ${lastError.message}`
-        );
+        // The detail is for us (console + popup reference), not the user.
+        console.error(`Upload failed after ${maxRetries} attempts:`, lastError);
+        rememberError({ message: '', ref: `UPLOAD · ${new Date().toLocaleTimeString('en-GB')} · ${String(lastError?.message ?? '').slice(0, 120)}` });
+        throw new Error(errorText('errUpload'));
       }
       await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt - 1)));
     }
   }
-  throw new Error(`Upload failed after ${maxRetries} attempts`);
+  throw new Error(errorText('errUpload'));
 }

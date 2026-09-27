@@ -3,7 +3,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import {
   FileSpreadsheet,
-  Sparkles,
   UserPlus,
   Building2,
 } from 'lucide-react';
@@ -16,6 +15,7 @@ import { getErrorMessage } from '../../../utils/errorHandler';
 import type { Applicant } from '../../../types/applicants';
 import type { JobPosition } from '../../../types/jobPositions';
 import ManualInsert from './components/ManualInsert';
+import { Card, EmptyState, PageShell, Segmented } from '../../../components/ui/kit';
 import BulkInsert from './components/BulkInsert';
 import { useLocale } from '../../../context/LocaleContext';
 import { useCompanyFilter } from '../../../context/CompanyFilterContext';
@@ -44,11 +44,11 @@ function getTailwindColorClass(_company?: Company | null): {
 } {
   return {
     bgPrimary: 'bg-brand-500',
-    borderPrimary: 'border-brand-100',
-    textPrimary: 'text-brand-700',
-    bgLight: 'bg-gray-100',
-    borderLight: 'border-brand-100',
-    focusRing: 'focus:border-brand-500 focus:ring-brand-100',
+    borderPrimary: 'border-slate-200 dark:border-slate-800',
+    textPrimary: 'text-brand-600 dark:text-brand-400',
+    bgLight: 'bg-slate-50 dark:bg-slate-800/50',
+    borderLight: 'border-slate-300 dark:border-slate-700',
+    focusRing: 'focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20',
     hoverBg: 'hover:bg-brand-600',
     gradientFrom: '#e42e2b',
     gradientTo: '#bf1916',
@@ -225,81 +225,32 @@ export default function BlueCallerApplicants() {
   }, [selectedCompanyId]);
 
   return (
-    <div
-      className={`min-h-screen bg-gray-100 px-4 py-6 text-gray-900 sm:px-6 lg:px-8 dark:bg-gray-900 dark:text-gray-100`}
-    >
+    <PageShell title={t('heading', 'blueCaller')} subtitle={t('description', 'blueCaller')}>
       <PageMeta
         title={t('pageMetaTitle', 'blueCaller')}
         description={t('pageMetaDesc', 'blueCaller')}
       />
 
-      <div className="mx-auto max-w-7xl space-y-6">
-        {/* Company Selector Header */}
-        <section
-          className="overflow-hidden rounded-3xl border shadow-2xl p-6 sm:p-8 text-white"
-          style={{
-            background: `linear-gradient(135deg, ${themeColors.gradientFrom} 0%, ${themeColors.gradientTo} 100%)`,
-            borderColor: 'rgba(255, 255, 255, 0.2)',
-          }}
-        >
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-            <div className="max-w-3xl space-y-3">
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-medium backdrop-blur">
-                <Sparkles className="h-4 w-4" />
-                {t('badgeText', 'blueCaller')}
-              </div>
-              <h1 className="text-3xl font-bold tracking-tight sm:text-4xl text-white">
-                {t('heading', 'blueCaller')}
-              </h1>
-              <p className="max-w-2xl text-sm text-white/90 sm:text-base">
-                {t('description', 'blueCaller')}
-              </p>
-            </div>
-
-          </div>
-        </section>
-
-        {/* Tab switcher */}
-        <div
-          className={`rounded-2xl border ${themeColors.borderPrimary} bg-white p-2 shadow-sm dark:bg-gray-800`}
-        >
-          <div className="grid grid-cols-2 gap-2 sm:w-fit">
-            {(
-              [
-                { key: 'manual', icon: UserPlus, label: t('tabManualInsert', 'blueCaller') },
-                { key: 'bulk', icon: FileSpreadsheet, label: t('tabBulkInsert', 'blueCaller') },
-              ] as const
-            ).map(({ key, icon: Icon, label }) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setActiveTab(key)}
-                className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition ${
-                  activeTab === key
-                    ? `${themeColors.bgPrimary} text-white shadow-lg`
-                    : `${themeColors.bgLight} dark:bg-gray-700 ${themeColors.textPrimary} dark:text-brand-300 hover:bg-gray-200 dark:hover:bg-gray-600`
-                }`}
-              >
-                <Icon className="h-4 w-4" />
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
+        <Segmented
+          role="tablist"
+          ariaLabel={t('heading', 'blueCaller')}
+          value={activeTab}
+          onChange={setActiveTab}
+          options={[
+            { value: 'manual' as const, icon: <UserPlus className="size-4" />, label: t('tabManualInsert', 'blueCaller') },
+            { value: 'bulk' as const, icon: <FileSpreadsheet className="size-4" />, label: t('tabBulkInsert', 'blueCaller') },
+          ]}
+        />
 
         {/* No company selected guard */}
         {!selectedCompanyId ? (
-          <div
-            className={`rounded-3xl border ${themeColors.borderPrimary} bg-white p-8 text-center shadow-xl dark:bg-gray-800`}
-          >
-            <Building2 className="mx-auto h-12 w-12 text-gray-300 dark:text-gray-500" />
-            <p className="mt-4 text-lg font-semibold text-gray-700 dark:text-gray-200">
-              {t('noCompanySelectedHeading', 'blueCaller')}
-            </p>
-            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-              {t('noCompanySelectedDesc', 'blueCaller')}
-            </p>
-          </div>
+          <Card>
+            <EmptyState
+              icon={<Building2 className="size-6" />}
+              title={t('noCompanySelectedHeading', 'blueCaller')}
+              text={t('noCompanySelectedDesc', 'blueCaller')}
+            />
+          </Card>
         ) : activeTab === 'manual' ? (
           <ManualInsert
             companyId={selectedCompanyId}
@@ -340,7 +291,6 @@ export default function BlueCallerApplicants() {
             }}
           />
         )}
-      </div>
-    </div>
+    </PageShell>
   );
 }

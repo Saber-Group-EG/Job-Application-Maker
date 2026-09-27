@@ -1,3 +1,4 @@
+import { describeError } from '../../lib/userErrors';
 // hooks/queries/useUsers.ts
 import { useQuery, useMutation, useQueryClient, UseQueryResult } from "@tanstack/react-query";
 import { usersService, savedFieldsService, savedQuestionGroupsService } from "../../services/usersService";
@@ -129,38 +130,7 @@ export function useUser(id: string, options?: { enabled?: boolean }) {
 
 
 
-const getDetailedErrorMessage = (error: any): string => {
-  if (!error) return "An unknown error occurred";
-  
-  // Extract from response data
-  const responseData = error.response?.data;
-  
-  if (typeof responseData === 'string' && responseData.trim()) {
-    return responseData;
-  }
-  
-  if (typeof responseData?.message === 'string' && responseData.message.trim()) {
-    return responseData.message;
-  }
-  
-  if (Array.isArray(responseData?.errors) && responseData.errors.length > 0) {
-    const firstError = responseData.errors[0];
-    if (typeof firstError === 'string' && firstError.trim()) return firstError;
-    if (typeof firstError?.message === 'string' && firstError.message.trim()) return firstError.message;
-    if (typeof firstError?.msg === 'string' && firstError.msg.trim()) return firstError.msg;
-  }
-  
-  if (typeof responseData?.error?.message === 'string' && responseData.error.message.trim()) {
-    return responseData.error.message;
-  }
-  
-  // Fallback to error.message
-  if (typeof error.message === 'string' && error.message.trim()) {
-    return error.message;
-  }
-  
-  return "Failed to create user";
-};
+const getDetailedErrorMessage = (error: unknown): string => describeError(error).message;
 
 
 

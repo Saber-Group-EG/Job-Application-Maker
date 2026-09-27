@@ -36,5 +36,7 @@
   "tableActions": "الإجراءات",
   "selectedCount": "{count} محدد",
   "changeStatusTo": "تغيير الحالة إلى...",
-  "systemInquiry": "النظام"
+  "systemInquiry": "النظام",
+  "commentPlaceholder": "أضف تعليقًا…",
+  "noComment": "لا يوجد تعليق"
 }

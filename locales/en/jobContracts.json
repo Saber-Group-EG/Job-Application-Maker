@@ -51,5 +51,8 @@
   "paginationInfo": "{page} of {totalPages} · {total} total",
   "deleteTitle": "Delete Contract?",
   "deleteText": "This action cannot be undone.",
-  "deleteConfirm": "Delete"
+  "deleteConfirm": "Delete",
+  "salary": "Salary",
+  "status": "Status",
+  "email": "Email"
 }

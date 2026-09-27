@@ -36,6 +36,7 @@ import {
   ToggleChip,
   focusRing,
   inputClass,
+  ErrorState,
 } from "../../../components/ui/kit";
 
 export default function PreviewRole() {
@@ -54,7 +55,7 @@ export default function PreviewRole() {
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
   const [permissionAccess, setPermissionAccess] = useState<Record<string, string[]>>({});
 
-  const { data: roles = [], isLoading: rolesLoading, isFetching: rolesFetching, error: rolesError } = useRoles();
+  const { data: roles = [], isLoading: rolesLoading, isFetching: rolesFetching, error: rolesError, refetch: refetchRoles } = useRoles();
   const role = roles.find((r) => r._id === id);
   const { data: permissions = [], isLoading: permissionsLoading } = usePermissions();
   const { data: usersData, isLoading: usersLoading } = useUsers();
@@ -202,7 +203,14 @@ export default function PreviewRole() {
   );
 
   if (rolesLoading || permissionsLoading || usersLoading || (!role && rolesFetching)) return <LoadingSpinner fullPage />;
-  if (rolesError || !role) return (
+  if (rolesError && !role) return (
+    <PageShell back={back} title={t('loadFailedTitle', 'common')}>
+      <Card>
+        <ErrorState error={rolesError} onRetry={() => refetchRoles()} />
+      </Card>
+    </PageShell>
+  );
+  if (!role) return (
     <PageShell back={back} title={t('previewNotFoundTitle', 'roles')}>
       <Card>
         <EmptyState

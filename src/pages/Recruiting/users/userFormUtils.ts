@@ -1,3 +1,4 @@
+import { describeError } from '../../../lib/userErrors';
 // Helpers shared by the Create and Edit user pages.
 
 export type UserPermission = {
@@ -50,35 +51,7 @@ export function normalizePermissionRefs(
   }));
 }
 
-type ApiErrorBody =
-  | string
-  | {
-      message?: string;
-      error?: { message?: string };
-      errors?: Array<{ message?: string } | string>;
-      details?: Array<{ message?: string } | string>;
-    };
-
-type ErrorLike = {
-  message?: string;
-  response?: { data?: ApiErrorBody };
-};
-
-const firstMessage = (item: { message?: string } | string) =>
-  typeof item === "string" ? item : item.message || String(item);
-
-// The most specific message an API error carries, or undefined when the
-// response has a body we don't recognize (callers show their own fallback).
+// The message to show for a failed user request (see lib/userErrors).
 export function readApiErrorMessage(err: unknown): string | undefined {
-  const e = (err ?? {}) as ErrorLike;
-  const data = e.response?.data;
-  if (data) {
-    if (typeof data === "string") return data;
-    if (data.message) return data.message;
-    if (data.error?.message) return data.error.message;
-    if (Array.isArray(data.errors) && data.errors.length > 0) return firstMessage(data.errors[0]);
-    if (Array.isArray(data.details) && data.details.length > 0) return firstMessage(data.details[0]);
-    return undefined;
-  }
-  return e.message || undefined;
+  return describeError(err).message;
 }

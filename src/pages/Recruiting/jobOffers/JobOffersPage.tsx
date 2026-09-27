@@ -4,9 +4,6 @@ import {
   PlusCircle,
   FileText,
   DollarSign,
-  ChevronLeft,
-  ChevronRight,
-  Search,
   Briefcase,
   Copy,
   Trash2,
@@ -32,7 +29,8 @@ import type { JobOffer, OfferStatus } from '../../../services/jobOffersService';
 import Swal from '../../../utils/swal';
 import JobOfferModal from '../../../components/modals/JobOffersModal/JobOffersModal';
 import { useDebounce } from '../../../hooks/useDebounce';
-import { SidebarNavItem } from '../../../components/common/SidebarNavItem';
+import { Badge, Button, Card, EmptyState, IconButton, PageShell, Pagination, SearchInput, StatStrip, TabBar, focusRing, ErrorState } from '../../../components/ui/kit';
+import { OFFER_STATUS_TONE, WORK_TYPE_TONE, offerStatusKey, workTypeKey } from './offerMeta';
 import { useLocale } from '../../../context/LocaleContext';
 import PageMeta from '../../../components/common/PageMeta';
 import { OfferDetail } from './OfferDetail';
@@ -57,48 +55,6 @@ const STATUS_OPTIONS: Array<{
   { key: 'rejected', label: 'statusRejected', icon: XCircle },
   { key: 'expired', label: 'statusExpired', icon: AlertCircle },
 ];
-
-export const STATUS_CHIP: Record<
-  OfferStatus,
-  { bg: string; text: string; dot: string }
-> = {
-  draft: {
-    bg: 'bg-slate-100 dark:bg-slate-700',
-    text: 'text-slate-600 dark:text-slate-300',
-    dot: 'bg-slate-400',
-  },
-  sent: {
-    bg: 'bg-blue-50 dark:bg-blue-500/10',
-    text: 'text-blue-600 dark:text-blue-400',
-    dot: 'bg-blue-400',
-  },
-  accepted: {
-    bg: 'bg-emerald-50 dark:bg-emerald-500/10',
-    text: 'text-emerald-600 dark:text-emerald-400',
-    dot: 'bg-emerald-400',
-  },
-  rejected: {
-    bg: 'bg-red-50 dark:bg-red-500/10',
-    text: 'text-red-600 dark:text-red-400',
-    dot: 'bg-red-400',
-  },
-  expired: {
-    bg: 'bg-amber-50 dark:bg-amber-500/10',
-    text: 'text-amber-600 dark:text-amber-400',
-    dot: 'bg-amber-400',
-  },
-};
-
-export const WORK_TYPE_COLORS: Record<string, string> = {
-  'full-time':
-    'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400',
-  'part-time':
-    'bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400',
-  contract:
-    'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400',
-  internship:
-    'bg-violet-100 text-violet-700 dark:bg-violet-500/10 dark:text-violet-400',
-};
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
@@ -147,7 +103,7 @@ export default function JobOffersPage() {
   };
 
   // ── Data ───────────────────────────────────────────────────────────────
-  const { data: offersData, isLoading, isFetching, isPlaceholderData } = useJobOffers(queryParams);
+  const { data: offersData, isLoading, isFetching, isPlaceholderData, isError, error, refetch } = useJobOffers(queryParams);
 
   const offers = offersData?.data ?? [];
   const total = offersData?.totalCount ?? 0;
@@ -269,274 +225,158 @@ export default function JobOffersPage() {
     />
   );
 
+  const openNew = () => {
+    setEditingOffer(null);
+    setModalOpen(true);
+  };
+
+  const pickText = (v?: { en?: string | null; ar?: string | null } | null) =>
+    (locale === 'ar' ? v?.ar || v?.en : v?.en || v?.ar) || '';
+
   // ── List View ──────────────────────────────────────────────────────────
   if (view === 'list') {
     return (
-      <>
+      <PageShell
+        title={t('sidebarTitle', 'jobOffers')}
+        subtitle={t('pageMetaDescription', 'jobOffers')}
+        actions={
+          canWrite && (
+            <Button variant="primary" icon={<PlusCircle className="size-4" />} onClick={openNew}>
+              {t('newOffer', 'jobOffers')}
+            </Button>
+          )
+        }
+      >
         <PageMeta title={t('pageMetaTitle', 'jobOffers')} description={t('pageMetaDescription', 'jobOffers')} />
-        <div className="mx-auto flex h-full flex-col bg-slate-50 dark:bg-slate-950">
-        <div className="flex h-full flex-1">
-          {/* Sidebar */}
-          <aside className="hidden w-72 flex-shrink-0 overflow-y-auto border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 lg:block">
-            <div className="sticky top-0 p-4">
-              <div className="mb-6 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Briefcase className="h-6 w-6 text-brand-600" />
-                  <span className="text-lg font-bold text-slate-800 dark:text-white">
-                    {t('sidebarTitle', 'jobOffers')}
+
+        <Card>
+          <StatStrip
+            stats={[
+              { label: t('totalOffers', 'jobOffers'), value: getStatusCount('all') },
+              { label: t('accepted', 'jobOffers'), value: getStatusCount('accepted'), tone: 'success' },
+              { label: t('pending', 'jobOffers'), value: getStatusCount('draft') + getStatusCount('sent'), tone: 'info' },
+              { label: t('rejected', 'jobOffers'), value: getStatusCount('rejected'), tone: 'danger' },
+              { label: t('statusExpired', 'jobOffers'), value: getStatusCount('expired'), tone: 'warning' },
+            ]}
+          />
+        </Card>
+
+        <Card>
+          <TabBar
+            ariaLabel={t('summaryTitle', 'jobOffers')}
+            value={statusFilter}
+            onChange={setStatusFilter}
+            tabs={STATUS_OPTIONS.map((opt) => ({
+              value: opt.key,
+              icon: <opt.icon className="size-4" />,
+              label: (
+                <>
+                  {t(opt.label, 'jobOffers')}
+                  <span className="rounded-full bg-slate-100 px-1.5 text-xs tabular-nums text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                    {getStatusCount(opt.key)}
                   </span>
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                {STATUS_OPTIONS.map((opt) => (
-                  <SidebarNavItem
-                    key={opt.key}
-                    icon={opt.icon}
-                    label={t(opt.label, 'jobOffers')}
-                    count={getStatusCount(opt.key)}
-                    active={statusFilter === opt.key}
-                    onClick={() => setStatusFilter(opt.key)}
-                  />
-                ))}
-              </div>
-
-              {/* Stats summary */}
-              <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/40">
-                <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
-                  {t('summaryTitle', 'jobOffers')}
-                </p>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-500">{t('totalOffers', 'jobOffers')}</span>
-                    <span className="font-semibold text-slate-700 dark:text-slate-300">
-                      {getStatusCount('all')}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-500">{t('accepted', 'jobOffers')}</span>
-                    <span className="font-semibold text-emerald-600">
-                      {getStatusCount('accepted')}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-500">{t('pending', 'jobOffers')}</span>
-                    <span className="font-semibold text-blue-600">
-                      {getStatusCount('draft') + getStatusCount('sent')}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-500">{t('rejected', 'jobOffers')}</span>
-                    <span className="font-semibold text-red-500">
-                      {getStatusCount('rejected')}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-500">{t('expired', 'jobOffers')}</span>
-                    <span className="font-semibold text-amber-600">
-                      {getStatusCount('expired')}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </aside>
-
-          {/* Main content */}
-          <div className="flex flex-1 flex-col">
-            {/* Top bar */}
-            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-6 py-3 dark:border-slate-800 dark:bg-slate-900">
-              <div className="relative max-w-sm flex-1">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder={t('searchPlaceholder', 'jobOffers')}
-                  className="w-full rounded-full border border-slate-200 bg-slate-50 py-2 pl-10 pr-4 text-sm focus:border-brand-300 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-slate-700 dark:bg-slate-800/50 dark:text-white"
-                />
-              </div>
-
-              {canWrite && (
-                <button
-                  onClick={() => {
-                    setEditingOffer(null);
-                    setModalOpen(true);
-                  }}
-                  className="inline-flex shrink-0 items-center gap-2 rounded-full bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700"
-                >
-                  <PlusCircle className="h-4 w-4" /> {t('newOffer', 'jobOffers')}
-                </button>
-              )}
-            </div>
-
-            {/* Offer list */}
-            <div className="flex-1 bg-white dark:bg-slate-900">
-              {isLoading ? (
-                <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {[...Array(LIMIT)].map((_, i) => (
-                    <div
-                      key={i}
-                      className="h-20 animate-pulse bg-slate-50 dark:bg-slate-800/30"
-                    />
-                  ))}
-                </div>
-              ) : offers.length === 0 ? (
-                <div className="flex h-full flex-col items-center justify-center py-20 text-center">
-                  <div className="rounded-full bg-slate-100 p-4 dark:bg-slate-800">
-                    <Briefcase className="h-8 w-8 text-slate-400" />
-                  </div>
-                  <h3 className="mt-4 text-lg font-medium text-slate-900 dark:text-white">
-                    {t('emptyTitle', 'jobOffers')}
-                  </h3>
-                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                    {search || statusFilter !== 'all'
-                      ? t('emptyDescFilter', 'jobOffers')
-                      : t('emptyDescCreate', 'jobOffers')}
-                  </p>
-                  {canWrite && !search && statusFilter === 'all' && (
-                    <button
-                      onClick={() => {
-                        setEditingOffer(null);
-                        setModalOpen(true);
-                      }}
-                      className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-600"
-                    >
-                      <PlusCircle className="size-4" /> {t('newOffer', 'jobOffers')}
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div
-                  className={`divide-y divide-slate-100 dark:divide-slate-800 ${isFetching ? 'opacity-60' : ''}`}
-                >
-                  {offers.map((offer) => {
-                    const chip = STATUS_CHIP[offer.status];
-                    const applicantName =
-                      typeof offer.applicantId === 'object' &&
-                      offer.applicantId !== null
-                        ? offer.applicantId.fullName
-                        : '—';
-
-                    return (
-                      <button
-                        key={offer._id}
-                        onClick={() => handleOfferClick(offer._id)}
-                        className="w-full px-6 py-4 text-left transition-all hover:bg-slate-50 dark:hover:bg-slate-800/50"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">
-                                {applicantName}
-                              </p>
-                              <div
-                                className={`h-1.5 w-1.5 shrink-0 rounded-full ${chip.dot}`}
-                              />
-                            </div>
-                            <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
-                              {locale === 'ar' ? (offer.position?.ar || offer.position?.en) : (offer.position?.en || offer.position?.ar)}
-                            </p>
-                            <div className="mt-1.5 flex items-center gap-3">
-                              <span
-                                className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${WORK_TYPE_COLORS[offer.workType]}`}
-                              >
-                              {t(offer.workType === 'full-time' ? 'fullTime' : offer.workType === 'part-time' ? 'partTime' : offer.workType || '', 'modals')}
-                            </span>
-                              {offer.salary.basic != null && (
-                                <span className="flex items-center gap-1 text-[11px] text-slate-400">
-                                  <DollarSign className="size-3" />
-                                  {offer.salary.basic.toLocaleString()}{' '}
-                                  {offer.salary.currency}
-                                </span>
-                              )}
-                              {companies.length !== 1 && (
-                                <span className="flex items-center gap-1 text-[11px] text-slate-400">
-                                  <Briefcase className="size-3" />
-                                  {offer.companyId.name.en}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex flex-col items-end gap-1.5">
-                            <span className="whitespace-nowrap text-[10px] font-medium text-slate-400">
-                              {new Date(offer.createdAt).toLocaleDateString(
-                                locale === 'ar' ? 'ar-EG' : 'en-US',
-                                { month: 'short', day: '2-digit' }
-                              )}
-                            </span>
-                            <span
-                              className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider ${chip.bg} ${chip.text}`}
-                            >
-                              {t(`status${offer.status.charAt(0).toUpperCase() + offer.status.slice(1)}` as const, 'jobOffers')}
-                            </span>
-                            {canWrite && (
-                              <div
-                                className="flex items-center gap-1"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <button
-                                  onClick={() => handleEdit(offer)}
-                                  className="flex size-6 items-center justify-center rounded text-slate-300 hover:text-brand-500"
-                                  title={t('edit', 'jobOffers')}
-                                >
-                                  <Pencil className="size-3" />
-                                </button>
-                                <button
-                                  onClick={() => handleClone(offer)}
-                                  className="flex size-6 items-center justify-center rounded text-slate-300 hover:text-emerald-500"
-                                  title={t('clone', 'jobOffers')}
-                                >
-                                  <Copy className="size-3" />
-                                </button>
-                                <button
-                                  onClick={() => handleDelete(offer._id)}
-                                  className="flex size-6 items-center justify-center rounded text-slate-300 hover:text-red-500"
-                                  title={t('delete', 'jobOffers')}
-                                >
-                                  <Trash2 className="size-3" />
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-between border-t border-slate-200 px-6 py-3 dark:border-slate-800">
-                  <button
-                    disabled={page === 1}
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    className="flex items-center gap-1 rounded-md px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-100 disabled:opacity-40 dark:text-slate-400 dark:hover:bg-slate-800"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                    {t('previous', 'jobOffers')}
-                  </button>
-                  <span className="text-sm text-slate-500 dark:text-slate-400">
-                    {t('paginationInfo', 'jobOffers', { page, totalPages, total })}
-                  </span>
-                  <button
-                    disabled={page === totalPages}
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    className="flex items-center gap-1 rounded-md px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-100 disabled:opacity-40 dark:text-slate-400 dark:hover:bg-slate-800"
-                  >
-                    {t('next', 'jobOffers')}
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
-                </div>
-              )}
-            </div>
+                </>
+              ),
+            }))}
+          />
+          <div className="border-b border-slate-200 p-4 dark:border-slate-800">
+            <SearchInput value={search} onChange={setSearch} placeholder={t('searchPlaceholder', 'jobOffers')} className="max-w-sm" />
           </div>
-        </div>
+
+          {isLoading ? (
+            <ul className="divide-y divide-slate-100 dark:divide-slate-800" aria-busy="true">
+              {[...Array(5)].map((_, i) => (
+                <li key={i} className="flex items-center gap-4 px-4 py-4">
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 w-40 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+                    <div className="h-3 w-56 animate-pulse rounded bg-slate-100 dark:bg-slate-800/60" />
+                  </div>
+                  <div className="h-5 w-16 animate-pulse rounded-full bg-slate-100 dark:bg-slate-800" />
+                </li>
+              ))}
+            </ul>
+          ) : isError && !offersData ? (
+            <ErrorState error={error} onRetry={() => refetch()} />
+          ) : offers.length === 0 ? (
+            <EmptyState
+              icon={<Briefcase className="size-6" />}
+              title={t('emptyTitle', 'jobOffers')}
+              text={search || statusFilter !== 'all' ? t('emptyDescFilter', 'jobOffers') : t('emptyDescCreate', 'jobOffers')}
+              action={
+                canWrite && !search && statusFilter === 'all' && (
+                  <Button variant="primary" icon={<PlusCircle className="size-4" />} onClick={openNew}>
+                    {t('newOffer', 'jobOffers')}
+                  </Button>
+                )
+              }
+            />
+          ) : (
+            <ul className={`divide-y divide-slate-100 transition-opacity dark:divide-slate-800 ${isFetching ? 'opacity-60' : ''}`}>
+              {offers.map((offer) => {
+                const applicantName =
+                  typeof offer.applicantId === 'object' && offer.applicantId !== null
+                    ? offer.applicantId.fullName
+                    : '—';
+                return (
+                  <li key={offer._id} className="relative flex items-center gap-4 px-4 py-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                    <div className="min-w-0 flex-1">
+                      <button
+                        type="button"
+                        onClick={() => handleOfferClick(offer._id)}
+                        className={`block max-w-full truncate rounded text-start text-sm font-semibold text-slate-900 after:absolute after:inset-0 hover:text-brand-600 dark:text-white ${focusRing}`}
+                      >
+                        {applicantName}
+                      </button>
+                      <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">{pickText(offer.position)}</p>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
+                        <Badge tone={WORK_TYPE_TONE[offer.workType] ?? 'slate'}>{t(workTypeKey(offer.workType), 'modals')}</Badge>
+                        {offer.salary.basic != null && (
+                          <span className="inline-flex items-center gap-1 tabular-nums">
+                            <DollarSign className="size-3.5" />
+                            {offer.salary.basic.toLocaleString()} {offer.salary.currency}
+                          </span>
+                        )}
+                        {companies.length !== 1 && (
+                          <span className="inline-flex items-center gap-1">
+                            <Briefcase className="size-3.5" />
+                            {pickText(offer.companyId?.name)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 flex-col items-end gap-1.5">
+                      <Badge tone={OFFER_STATUS_TONE[offer.status]}>{t(offerStatusKey(offer.status), 'jobOffers')}</Badge>
+                      <span className="text-xs text-slate-400">
+                        {new Date(offer.createdAt).toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', { month: 'short', day: '2-digit' })}
+                      </span>
+                    </div>
+                    {canWrite && (
+                      <div className="relative z-10 flex shrink-0">
+                        <IconButton label={t('edit', 'jobOffers')} onClick={() => handleEdit(offer)}>
+                          <Pencil className="size-4" />
+                        </IconButton>
+                        <IconButton label={t('clone', 'jobOffers')} onClick={() => handleClone(offer)}>
+                          <Copy className="size-4" />
+                        </IconButton>
+                        <IconButton tone="danger" label={t('delete', 'jobOffers')} onClick={() => handleDelete(offer._id)}>
+                          <Trash2 className="size-4" />
+                        </IconButton>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
+          {totalPages > 1 && (
+            <Pagination page={page} totalPages={totalPages} totalCount={total} onChange={setPage} busy={isFetching} />
+          )}
+        </Card>
 
         {sharedModal}
         {contractModal}
-      </div>
-    </>
+      </PageShell>
     );
   }
 
@@ -545,35 +385,6 @@ export default function JobOffersPage() {
     return (
       <>
         <PageMeta title={t('pageMetaTitle', 'jobOffers')} description={t('pageMetaDescription', 'jobOffers')} />
-        <div className="flex h-full overflow-hidden bg-slate-50 dark:bg-slate-950">
-        {/* Sidebar */}
-        <aside className="hidden w-72 flex-shrink-0 overflow-y-auto border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 lg:block">
-          <div className="sticky top-0 p-4">
-            <div className="mb-6 flex items-center gap-2">
-              <Briefcase className="h-6 w-6 text-brand-600" />
-              <span className="text-lg font-bold text-slate-800 dark:text-white">
-                {t('sidebarTitle', 'jobOffers')}
-              </span>
-            </div>
-            <div className="space-y-1">
-              {STATUS_OPTIONS.map((opt) => (
-                <SidebarNavItem
-                  key={opt.key}
-                  icon={opt.icon}
-                  label={t(opt.label, 'jobOffers')}
-                  count={getStatusCount(opt.key)}
-                  active={statusFilter === opt.key}
-                  onClick={() => {
-                    setStatusFilter(opt.key);
-                    handleBackToList();
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-        </aside>
-
-        {/* Detail panel — now receives full company objects */}
         <OfferDetail
           offer={selectedOffer}
           canWrite={canWrite}
@@ -586,23 +397,16 @@ export default function JobOffersPage() {
           showCompany={showCompany}
           onDelete={handleDelete}
           onClone={handleClone}
-          onStatusChange={(id, status) =>
-            updateStatusMutation.mutate({ id, status })
-          }
+          onStatusChange={(id, status) => updateStatusMutation.mutate({ id, status })}
           onConvertToContract={handleConvertToContract}
           canCreateContract={canCreateContract}
         />
         {resendOpen && (
-          <ResendModal
-            offer={selectedOffer}
-            companies={companies}
-            onClose={() => setResendOpen(false)}
-          />
+          <ResendModal offer={selectedOffer} companies={companies} onClose={() => setResendOpen(false)} />
         )}
         {sharedModal}
         {contractModal}
-      </div>
-    </>
+      </>
     );
   }
 

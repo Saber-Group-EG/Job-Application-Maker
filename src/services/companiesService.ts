@@ -36,10 +36,13 @@ export type {
   ChoiceItem,
   AiFeatureToggle,
 } from '../types/companies';
+import { recentErrorRef } from '../lib/userErrors';
 export { normalizeChoices, normalizeChoicesToServer } from '../types/companies';
 
 // ===== Custom Error =====
 export class ApiError extends Error {
+  ref?: string;
+
   constructor(
     message: string,
     public statusCode?: number,
@@ -49,6 +52,8 @@ export class ApiError extends Error {
   ) {
     super(message);
     this.name = 'ApiError';
+    // Keep the failed request's reference (status, endpoint, time) for error screens.
+    this.ref = recentErrorRef(2000);
   }
 }
 

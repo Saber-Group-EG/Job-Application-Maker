@@ -469,5 +469,6 @@
   "interviewCompany.aiJobSearchLoading": "جارٍ تحميل الوظائف…",
   "subscription.promoActive": "كود الخصم مفعّل:",
   "subscription.cyclesRemaining": "دورة متبقية",
-  "subscription.revertsOn": "يرجع للسعر الأساسي بعد"
+  "subscription.revertsOn": "يرجع للسعر الأساسي بعد",
+  "mailTemplates.previewTitle": "معاينة البريد"
 }

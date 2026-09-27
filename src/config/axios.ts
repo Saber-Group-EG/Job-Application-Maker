@@ -4,6 +4,7 @@ import { refreshAccessToken } from './tokenRefresh';
 import { paths } from '../router/Paths';
 import { emitQuotaEvent } from '../lib/quotaEvents';
 import { emitAuthEvent } from '../lib/authEvents';
+import { describeError, rememberError } from '../lib/userErrors';
 
 const axiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
@@ -96,36 +97,16 @@ axiosInstance.interceptors.response.use(
           data.message ?? 'Signed in on another device'
         );
       }
-      // Create a user-friendly error message
-      let errorMessage = 'An error occurred';
+    }
 
-      // Check for Joi validation errors (details array)
-      if (data?.details && Array.isArray(data.details)) {
-        errorMessage = data.details
-          .map((detail: any) => {
-            const field = detail.path?.join('.') || detail.context?.key || '';
-            const message = detail.message || '';
-            return field ? `${field}: ${message}` : message;
-          })
-          .join('\n');
-      }
-      // Check for express-validator errors
-      else if (data?.errors && Array.isArray(data.errors)) {
-        errorMessage = data.errors
-          .map((e: any) => {
-            const field = e.param || e.path || '';
-            const message = e.msg || e.message || '';
-            return field ? `${field}: ${message}` : message;
-          })
-          .join('\n');
-      }
-      // Standard error message
-      else if (data?.message) {
-        errorMessage = data.message;
-      }
-
-      // Attach enhanced message to error
-      error.message = errorMessage;
+    // Replace the raw server/transport text with something a user can act
+    // on. Cancelled requests are ours, not failures, so leave them alone.
+    if (error.code !== 'ERR_CANCELED') {
+      const userError = describeError(error);
+      error.message = userError.message;
+      (error as any).__userError = userError;
+      // A 401 is usually refreshed and retried below, so it isn't a failure yet.
+      if (error.response?.status !== 401) rememberError(userError);
     }
 
     // ===== Auto-refresh expired access token on 401 and retry once =====

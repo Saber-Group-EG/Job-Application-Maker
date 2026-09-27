@@ -1,7 +1,7 @@
 // components/settings/ApplicantPagesSettings.tsx
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { PlusCircle, Save, Trash2, ArrowRight, Layout, ChevronDown, ChevronRight, GripVertical } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronRight, GripVertical, Layout, PlusCircle, Save, Trash2 } from 'lucide-react';
 import Swal from '../../../utils/swal';
 import { useLocale } from '../../../context/LocaleContext';
 import { useAuth } from '../../../context/AuthContext';
@@ -11,8 +11,8 @@ import {
   companiesKeys,
 } from '../../../hooks/queries/useCompanies';
 import { useJobPositions } from '../../../hooks/queries/useJobPositions';
-import PageMeta from '../../../components/common/PageMeta';
-import PageBreadCrumb from '../../../components/common/PageBreadCrumb';
+import { Badge, Button, Card, EmptyState, IconButton, ToggleChip, focusRing, inputClass } from '../../../components/ui/kit';
+import SettingsSection from './components/SettingsSection';
 import {
   DndContext,
   closestCenter,
@@ -103,7 +103,7 @@ function SortablePageItem({
     Array.from({ length: count }, (_, i) => (
       <div
         key={i}
-        className="h-7 w-20 animate-pulse rounded-full bg-slate-200 dark:bg-slate-700"
+        className="h-6 w-20 animate-pulse rounded-md bg-slate-200 dark:bg-slate-700"
       />
     ));
 
@@ -128,35 +128,28 @@ function SortablePageItem({
     <div
       ref={setNodeRef}
       style={style}
-      className={`rounded-xl border transition-all duration-200 ${
-        isDragging ? 'shadow-lg ring-2 ring-brand-500 bg-white dark:bg-slate-800' : 'border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/60'
+      className={`rounded-xl border bg-white transition-shadow duration-200 dark:bg-slate-900 ${
+        isDragging ? 'border-brand-400 shadow-lg ring-2 ring-brand-500' : 'border-slate-200 dark:border-slate-700'
       }`}
     >
-      <div className="flex w-full items-center gap-3 px-4 py-3">
-        <button
-          type="button"
+      <div className="flex w-full items-center gap-2 px-3 py-2.5">
+        <IconButton
+          label={isCollapsed ? t('expand', 'common') : t('collapse', 'common')}
+          aria-expanded={!isCollapsed}
           onClick={onToggleCollapse}
-          className="flex shrink-0 items-center justify-center rounded-lg p-2 text-slate-400 transition hover:bg-slate-200 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-300"
         >
-          {isCollapsed ? (
-            <ChevronRight className="size-4" />
-          ) : (
-            <ChevronDown className="size-4" />
-          )}
-        </button>
+          {isCollapsed ? <ChevronRight className="size-4 rtl:rotate-180" /> : <ChevronDown className="size-4" />}
+        </IconButton>
         <div
           {...attributes}
           {...listeners}
-          className={`flex cursor-grab items-center justify-center rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-600 active:cursor-grabbing dark:hover:bg-slate-700 dark:hover:text-slate-300 ${
+          className={`flex cursor-grab touch-none items-center justify-center rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 active:cursor-grabbing dark:hover:bg-slate-800 dark:hover:text-slate-300 ${focusRing} ${
             !canEdit ? "cursor-not-allowed opacity-50" : ""
           }`}
         >
-          <GripVertical className="size-5" />
+          <GripVertical className="size-4" />
         </div>
         <div className="min-w-0 flex-1">
-          <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
-            {t('applicantPages.pageName', 'settings')}
-          </label>
           {editingName ? (
             <input
               ref={nameInputRef}
@@ -164,31 +157,34 @@ function SortablePageItem({
               onChange={(e) => onNameChange(e.target.value)}
               onBlur={finishEditing}
               onKeyDown={handleNameKeyDown}
+              aria-label={t('applicantPages.pageName', 'settings')}
               placeholder={t('applicantPages.pageNamePlaceholder', 'settings')}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-900"
+              className={inputClass}
             />
           ) : (
             <div
+              role={canEdit ? 'button' : undefined}
+              tabIndex={canEdit ? 0 : undefined}
               onDoubleClick={() => canEdit && setEditingName(true)}
-              className={`w-full rounded-lg border border-transparent px-3 py-2 text-sm ${
-                canEdit ? 'cursor-default hover:border-slate-300 hover:bg-white dark:hover:border-slate-700 dark:hover:bg-slate-900' : 'cursor-not-allowed opacity-70'
-              } ${!page.name ? 'text-slate-400' : ''}`}
+              onKeyDown={(e) => {
+                if (canEdit && (e.key === 'Enter' || e.key === 'F2')) {
+                  e.preventDefault();
+                  setEditingName(true);
+                }
+              }}
+              title={canEdit ? t('applicantPages.doubleClickHint', 'settings') : undefined}
+              className={`truncate rounded-lg border border-transparent px-3 py-2 text-sm font-medium ${focusRing} ${
+                canEdit ? 'cursor-text hover:border-slate-200 dark:hover:border-slate-700' : 'cursor-not-allowed opacity-70'
+              } ${!page.name ? 'font-normal italic text-slate-400' : 'text-slate-900 dark:text-white'}`}
             >
               {page.name || t('applicantPages.doubleClickHint', 'settings')}
             </div>
           )}
         </div>
-        <span className="shrink-0 text-xs text-slate-400">
-          {t('applicantPages.statusCount', 'settings', { count: page.statuses.length })}
-        </span>
-        <button
-          type="button"
-          onClick={onRemove}
-          disabled={!canEdit}
-          className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300 lg:gap-2 lg:px-3 lg:py-2 lg:text-sm"
-        >
-            <Trash2 className="size-3.5 lg:size-4" /> {t('applicantPages.remove', 'settings')}
-        </button>
+        <Badge tone="slate">{t('applicantPages.statusCount', 'settings', { count: page.statuses.length })}</Badge>
+        <IconButton tone="danger" label={t('applicantPages.remove', 'settings')} onClick={onRemove} disabled={!canEdit}>
+          <Trash2 className="size-4" />
+        </IconButton>
       </div>
 
       <div
@@ -199,13 +195,14 @@ function SortablePageItem({
           transition: 'max-height 0.3s cubic-bezier(0.2, 0, 0, 1), opacity 0.25s cubic-bezier(0.2, 0, 0, 1)',
         }}
       >
-        <div ref={contentRef} className="border-t border-slate-200 p-4 dark:border-slate-700">
+        <div ref={contentRef} className="space-y-4 border-t border-slate-100 p-4 dark:border-slate-800">
           {(availableJobPositions.length > 0 || jobsLoading) && (
             <>
-              <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <div>
+              <p className="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400">
                 {t('applicantPages.jobPositionsIncluded', 'settings')}
-              </label>
-              <div className="flex flex-wrap gap-2">
+              </p>
+              <div className="flex flex-wrap gap-1.5">
                 {jobsLoading ? (
                   skeletonPills(5)
                 ) : (
@@ -214,19 +211,14 @@ function SortablePageItem({
                     const jpTitle = jp.title?.en || jp.title?.ar || jp.title || '';
                     const selected = (page.jobPositions ?? []).includes(jpId);
                     return (
-                      <button
+                      <ToggleChip
                         key={jpId}
-                        type="button"
+                        selected={selected}
                         onClick={() => canEdit && onToggleJobPosition(jpId)}
                         disabled={!canEdit}
-                        className={`rounded-full px-3 py-1 text-sm font-medium transition ${
-                          selected
-                            ? 'bg-brand-500 text-white'
-                            : 'border border-slate-300 bg-white text-slate-600 hover:border-brand-300 hover:text-brand-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
-                        } disabled:cursor-not-allowed disabled:opacity-60`}
                       >
                         {jpTitle}
-                      </button>
+                      </ToggleChip>
                     );
                   })
                 )}
@@ -236,20 +228,21 @@ function SortablePageItem({
                   {t('applicantPages.jobPositionsCount', 'settings', { count: (page.jobPositions ?? []).length })}
                 </p>
               )}
-              <div className="my-3 border-t border-dashed border-slate-200 dark:border-slate-700" />
+              </div>
             </>
           )}
 
-          <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <div>
+          <p className="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400">
             {t('applicantPages.statusesIncluded', 'settings')}
-          </label>
-          <div className="flex flex-wrap gap-2">
+          </p>
+          <div className="flex flex-wrap gap-1.5">
             {(() => {
               const selectedJobIds = page.jobPositions ?? [];
               const hasJobsSelected = selectedJobIds.length > 0;
               if (!hasJobsSelected) {
                 return (
-                  <p className="text-sm text-slate-400 italic">
+                  <p className="text-sm italic text-slate-400">
                     {t('applicantPages.selectJobFirst', 'settings')}
                   </p>
                 );
@@ -271,19 +264,14 @@ function SortablePageItem({
               return statusesToShow.map((statusName) => {
                 const selected = page.statuses.includes(statusName);
                 return (
-                  <button
+                  <ToggleChip
                     key={statusName}
-                    type="button"
+                    selected={selected}
                     onClick={() => canEdit && onToggleStatus(statusName)}
                     disabled={!canEdit}
-                    className={`rounded-full px-3 py-1 text-sm font-medium transition ${
-                      selected
-                        ? 'bg-brand-500 text-white'
-                        : 'border border-slate-300 bg-white text-slate-600 hover:border-brand-300 hover:text-brand-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
-                    } disabled:cursor-not-allowed disabled:opacity-60`}
                   >
                     {statusName}
-                  </button>
+                  </ToggleChip>
                 );
               });
             })()}
@@ -293,6 +281,7 @@ function SortablePageItem({
               {t('applicantPages.statusCountSelected', 'settings', { count: page.statuses.length, list: page.statuses.join(', ') })}
             </p>
           )}
+          </div>
         </div>
       </div>
     </div>
@@ -599,119 +588,72 @@ export default function ApplicantPagesSettings({
   };
 
   return (
-    <div
-      className={
-        embedded
-          ? 'space-y-6'
-          : 'min-h-screen bg-slate-50 p-4 text-slate-900 dark:bg-slate-950 dark:text-slate-100 sm:p-8'
+    <SettingsSection
+      embedded={embedded}
+      metaTitle={t('applicantPages.pageMetaTitle', 'settings')}
+      metaDescription={t('applicantPages.pageMetaDesc', 'settings')}
+      icon={<Layout className="size-4" />}
+      title={t('applicantPages.title', 'settings')}
+      description={t('applicantPages.description', 'settings')}
+      actions={
+        <>
+          <Button icon={<PlusCircle className="size-4" />} onClick={addPage} disabled={!canEdit}>
+            {t('applicantPages.addPage', 'settings')}
+          </Button>
+          <Button
+            variant="primary"
+            icon={<Save className="size-4" />}
+            loading={isSaving}
+            disabled={!canEdit || !hasChanges}
+            onClick={handleSave}
+          >
+            {t('applicantPages.saveChanges', 'settings')}
+          </Button>
+        </>
       }
     >
-      {!embedded && (
-        <>
-          <PageMeta
-            title={t('applicantPages.pageMetaTitle', 'settings')}
-            description={t('applicantPages.pageMetaDesc', 'settings')}
-          />
-        </>
-      )}
+      <Card className="p-4">
+        {availableStatuses.length === 0 && (
+          <p className="mb-4 flex gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+            {t('applicantPages.noStatusesWarning', 'settings')}
+          </p>
+        )}
 
-      <div className={embedded ? 'space-y-6' : 'mx-auto max-w-7xl space-y-6'}>
-        {!embedded && <PageBreadCrumb pageTitle={t('applicantPages.title', 'settings')} />}
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          {/* Header */}
-          <div className="flex flex-col gap-5 border-b border-slate-200 px-6 py-6 dark:border-slate-800 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-start gap-4">
-              <div className="flex size-12 items-center justify-center rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400">
-                <Layout className="size-6" />
+        {pages.length === 0 ? (
+          <EmptyState icon={<Layout className="size-6" />} title={t('applicantPages.emptyState', 'settings')} />
+        ) : (
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={pageIds} strategy={verticalListSortingStrategy}>
+              <div ref={listRef} className="space-y-2">
+                {pages.map((page, index) => {
+                  const pageId = pageIds[index];
+                  const isCollapsed = collapsedPages.has(pageId);
+                  return (
+                    <SortablePageItem
+                      key={pageId}
+                      id={pageId}
+                      page={page}
+                      index={index}
+                      isCollapsed={isCollapsed}
+                      onToggleCollapse={() => toggleCollapse(pageId)}
+                      onNameChange={(value) => handleNameChange(index, value)}
+                      onToggleStatus={(statusName) => toggleStatus(index, statusName)}
+                      onToggleJobPosition={(jobId) => toggleJobPosition(index, jobId)}
+                      onRemove={() => removePage(index)}
+                      availableStatuses={availableStatuses}
+                      availableJobPositions={jobPositions}
+                      statusById={statusById}
+                      canEdit={canEdit}
+                      jobsLoading={jobsFetching}
+                    />
+                  );
+                })}
               </div>
-              <div>
-                <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
-                  {t('applicantPages.title', 'settings')}
-                </h1>
-                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                  {t('applicantPages.description', 'settings')}
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-row gap-3">
-              <button
-                onClick={addPage}
-                disabled={!canEdit}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-4 py-1.5 text-xs font-semibold text-slate-700 whitespace-nowrap transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <PlusCircle className="size-4" /> {t('applicantPages.addPage', 'settings')}
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={!canEdit || !hasChanges || isSaving}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {isSaving ? (
-                  <div className="size-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                ) : (
-                  <Save className="size-3.5" />
-                )}
-                {t('applicantPages.saveChanges', 'settings')}
-                <ArrowRight className="size-3.5" />
-              </button>
-            </div>
-          </div>
-
-          <div className="p-6">
-            {availableStatuses.length === 0 && (
-              <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-800/30 dark:bg-amber-950/20 dark:text-amber-400">
-                {t('applicantPages.noStatusesWarning', 'settings')}
-              </div>
-            )}
-
-            {pages.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-slate-300 px-6 py-10 text-center dark:border-slate-700">
-                <Layout className="mx-auto mb-3 size-10 text-slate-300 dark:text-slate-600" />
-                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                  {t('applicantPages.emptyState', 'settings')}
-                </p>
-              </div>
-            ) : (
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
-              >
-                <SortableContext
-                  items={pageIds}
-                  strategy={verticalListSortingStrategy}
-                >
-                  <div ref={listRef} className="space-y-4">
-                    {pages.map((page, index) => {
-                      const pageId = pageIds[index];
-                      const isCollapsed = collapsedPages.has(pageId);
-                      return (
-                        <SortablePageItem
-                          key={pageId}
-                          id={pageId}
-                          page={page}
-                          index={index}
-                          isCollapsed={isCollapsed}
-                          onToggleCollapse={() => toggleCollapse(pageId)}
-                          onNameChange={(value) => handleNameChange(index, value)}
-                          onToggleStatus={(statusName) => toggleStatus(index, statusName)}
-                          onToggleJobPosition={(jobId) => toggleJobPosition(index, jobId)}
-                          onRemove={() => removePage(index)}
-                          availableStatuses={availableStatuses}
-                          availableJobPositions={jobPositions}
-                          statusById={statusById}
-                          canEdit={canEdit}
-                          jobsLoading={jobsFetching}
-                        />
-                      );
-                    })}
-                  </div>
-                </SortableContext>
-              </DndContext>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
+            </SortableContext>
+          </DndContext>
+        )}
+      </Card>
+    </SettingsSection>
   );
 }

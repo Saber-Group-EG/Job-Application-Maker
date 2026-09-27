@@ -1,3 +1,4 @@
+import { recentErrorRef } from "../lib/userErrors";
 // types/auth.ts
 
 export interface LoginRequest {
@@ -132,6 +133,8 @@ export type LoginResult =
 
 // API Error class
 export class ApiError extends Error {
+  ref?: string;
+
   constructor(
     message: string,
     public statusCode?: number,
@@ -141,5 +144,8 @@ export class ApiError extends Error {
   ) {
     super(message);
     this.name = "ApiError";
+    // Services re-throw axios failures as ApiError; keep the failed request's
+    // reference (status, endpoint, time) so error screens can still show it.
+    this.ref = recentErrorRef(2000);
   }
 }

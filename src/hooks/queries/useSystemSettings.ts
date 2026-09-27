@@ -200,6 +200,7 @@ export const useTableLayout = (
     error,
   } = useQuery({
     queryKey: systemSettingsKeys.tableLayout(tableKey),
+    meta: { silentError: true }, // optional extra; the page works without it
     queryFn: () => systemSettingsService.getTableLayout(tableKey),
     enabled: !!userId,
     staleTime: 10 * 60 * 1000,

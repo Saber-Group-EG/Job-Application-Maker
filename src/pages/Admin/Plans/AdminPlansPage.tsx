@@ -1,7 +1,5 @@
 import { useState } from 'react';
-import { Check } from 'lucide-react';
-import Switch from '../../../components/form/switch/Switch';
-import PageBreadCrumb from '../../../components/common/PageBreadCrumb';
+import { Badge, Card, PageShell, Switch, filterSelectClass, ErrorState } from '../../../components/ui/kit';
 import { useLocale } from '../../../context/LocaleContext';
 import { useAdminPlans, useUpdatePlanFeature } from '../../../hooks/queries/usePlansAdmin';
 import type { Plan, PlanBooleanFeature, PlanLimitFeature } from '../../../types/companies';
@@ -35,11 +33,13 @@ function formatMoney(cents: number, currency: string) {
 
 function LimitCell({
   node,
+  label,
   disabled,
   onChangeAllowed,
   onChangeLimit,
 }: {
   node: PlanLimitFeature;
+  label: string;
   disabled: boolean;
   onChangeAllowed: (allowed: boolean) => void;
   onChangeLimit: (limit: number | null) => void;
@@ -66,17 +66,13 @@ function LimitCell({
 
   return (
     <div className="flex flex-col items-center gap-1.5">
-      <Switch
-        label=""
-        checked={node.allowed}
-        disabled={disabled}
-        onChange={onChangeAllowed}
-      />
+      <Switch label={label} checked={node.allowed} disabled={disabled} onChange={onChangeAllowed} />
       {node.allowed && (
         <div className="flex items-center gap-1.5">
-          <label className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400">
+          <label className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
             <input
               type="checkbox"
+              className="size-3.5 accent-brand-500"
               checked={node.limit == null}
               disabled={disabled}
               onChange={(e) => onChangeLimit(e.target.checked ? null : 0)}
@@ -91,7 +87,8 @@ function LimitCell({
               disabled={disabled}
               onChange={(e) => setLimitText(e.target.value)}
               onBlur={commitLimit}
-              className="w-16 rounded-lg border border-slate-200 bg-white px-2 py-1 text-center text-xs text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              aria-label={label}
+              className="w-16 rounded-md border border-slate-300 bg-white px-2 py-1 text-center text-xs tabular-nums text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
             />
           )}
         </div>
@@ -102,7 +99,7 @@ function LimitCell({
 
 export default function AdminPlansPage() {
   const { t } = useLocale();
-  const { data: plans = [], isLoading } = useAdminPlans();
+  const { data: plans = [], isLoading, isError, error, refetch } = useAdminPlans();
   const updateFeature = useUpdatePlanFeature();
   const mutating = updateFeature.isPending;
 
@@ -238,8 +235,7 @@ export default function AdminPlansPage() {
   ];
 
   return (
-    <div className="space-y-6 p-6">
-      <PageBreadCrumb pageTitle={t('listPageTitle', 'adminPlans')} />
+    <PageShell title={t('listPageTitle', 'adminPlans')}>
 
       {isLoading ? (
         <div className="space-y-3">
@@ -250,8 +246,12 @@ export default function AdminPlansPage() {
             />
           ))}
         </div>
+      ) : isError && plans.length === 0 ? (
+        <Card>
+          <ErrorState error={error} onRetry={() => refetch()} />
+        </Card>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <Card className="overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-start">
               <thead>
@@ -261,21 +261,14 @@ export default function AdminPlansPage() {
                     <th key={p._id} className="min-w-[220px] p-4 text-center">
                       <div className="flex flex-col items-center">
                         <div className="flex items-center gap-2">
-                          <span className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                          <span className="text-base font-semibold text-slate-900 dark:text-white">
                             {p.name}
                           </span>
-                          {p.isActive ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
-                              <Check className="size-3" />
-                              {t('activeYes', 'adminPlans')}
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
-                              {t('activeNo', 'adminPlans')}
-                            </span>
-                          )}
+                          <Badge tone={p.isActive ? 'green' : 'slate'}>
+                            {p.isActive ? t('activeYes', 'adminPlans') : t('activeNo', 'adminPlans')}
+                          </Badge>
                         </div>
-                        <div className="mt-2 text-xl font-bold text-slate-900 dark:text-slate-100">
+                        <div className="mt-2 text-xl font-semibold tabular-nums text-slate-900 dark:text-white">
                           {formatMoney(p.priceCents, p.currency)}
                         </div>
                         <div className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
@@ -293,7 +286,7 @@ export default function AdminPlansPage() {
                       <tr key={`section-${idx}`} className="border-t border-slate-200 dark:border-slate-800">
                         <td
                           colSpan={plans.length + 1}
-                          className="sticky start-0 bg-slate-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-800/60 dark:text-slate-400"
+                          className="sticky start-0 bg-slate-50 px-4 py-2 text-xs font-semibold text-slate-600 dark:bg-slate-800/60 dark:text-slate-300"
                         >
                           {row.label}
                         </td>
@@ -322,7 +315,7 @@ export default function AdminPlansPage() {
                                   disabled={mutating}
                                   onChange={(e) => setEmailMode(p, e.target.value)}
                                   aria-label={`${row.label} — ${p.name}`}
-                                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-800 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                                  className={`${filterSelectClass} py-1.5 text-xs disabled:opacity-60`}
                                 >
                                   {emailModeOptions.map((o) => (
                                     <option key={o.value} value={o.value}>
@@ -345,7 +338,7 @@ export default function AdminPlansPage() {
                                   disabled={mutating}
                                   onChange={(e) => setValue(p._id, row.path, e.target.value)}
                                   aria-label={`${row.label} — ${p.name}`}
-                                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-800 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                                  className={`${filterSelectClass} py-1.5 text-xs disabled:opacity-60`}
                                 >
                                   {row.options.map((o) => (
                                     <option key={o.value} value={o.value}>
@@ -364,7 +357,7 @@ export default function AdminPlansPage() {
                             <td key={p._id} className="min-h-[64px] p-4">
                               <div className="flex min-h-[36px] items-center justify-center">
                                 <Switch
-                                  label=""
+                                  label={`${row.label} — ${p.name}`}
                                   checked={node.allowed}
                                   disabled={mutating}
                                   onChange={(v) => setAllowed(p._id, row.path, v)}
@@ -380,6 +373,7 @@ export default function AdminPlansPage() {
                             <div className="flex min-h-[36px] items-center justify-center">
                               <LimitCell
                                 node={node}
+                                label={`${row.label} — ${p.name}`}
                                 disabled={mutating}
                                 onChangeAllowed={(v) => setAllowed(p._id, row.path, v)}
                                 onChangeLimit={(v) => setLimit(p._id, row.path, v)}
@@ -394,8 +388,8 @@ export default function AdminPlansPage() {
               </tbody>
             </table>
           </div>
-        </div>
+        </Card>
       )}
-    </div>
+    </PageShell>
   );
 }

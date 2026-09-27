@@ -1,3 +1,4 @@
+import { describeError } from '../../../lib/userErrors';
 import { useMemo, useState, useEffect } from "react";
 import { useLocale } from '../../../context/LocaleContext';
 import Swal from '../../../utils/swal';
@@ -30,6 +31,7 @@ import {
   Th,
   focusRing,
   rowClass,
+  ErrorState,
 } from "../../../components/ui/kit";
 import type { BadgeTone } from "../../../components/ui/kit";
 import {
@@ -62,7 +64,8 @@ export default function PreviewJob() {
     isPending: isLoadingJob,
     isFetching: isJobFetching,
     isFetched: isJobFetched,
-    refetch: refetchJob
+    refetch: refetchJob,
+    error: jobError,
   } = useJobPosition(jobId || "", { enabled: !jobFromState && !!jobId });
   
   // Use data from state if available, otherwise use fetched data
@@ -158,22 +161,7 @@ export default function PreviewJob() {
     return () => clearInterval(id);
   }, [lastRefetch]);
 
-  // Helper function to extract detailed error messages
-  const getErrorMessage = (err: any): string => {
-    if (err.response?.data?.details && Array.isArray(err.response.data.details)) {
-      return err.response.data.details.map((detail: any) => {
-        const field = detail.path?.[0] || "";
-        const message = detail.message || "";
-        return field ? `${field}: ${message}` : message;
-      }).join(", ");
-    }
-    if (err.response?.data?.errors) {
-      const errors = err.response.data.errors;
-      if (Array.isArray(errors)) return errors.map((e: any) => e.msg || e.message).join(", ");
-      if (typeof errors === "object") return Object.entries(errors).map(([field, msg]: [string, any]) => `${field}: ${msg}`).join(", ");
-    }
-    return err.response?.data?.message || err.message || t('previewErrorFallback', 'jobs');
-  };
+  const getErrorMessage = (err: unknown): string => describeError(err).message;
 
   const handleEdit = () => {
     navigate(`/create-job?id=${jobId}`, { state: { job } });
@@ -281,6 +269,16 @@ export default function PreviewJob() {
         <PageMeta title={t('previewLoadingTitle', 'jobs')} description={t('previewLoadingDesc', 'jobs')} />
         <LoadingSpinner fullPage message={t('previewLoadingMsg', 'jobs')} />
       </>
+    );
+  }
+
+  if (!job && jobError) {
+    return (
+      <PageShell back={back} title={t('loadFailedTitle', 'common')}>
+        <Card>
+          <ErrorState error={jobError} onRetry={() => refetchJob()} />
+        </Card>
+      </PageShell>
     );
   }
 

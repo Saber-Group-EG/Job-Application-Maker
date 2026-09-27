@@ -51,5 +51,8 @@
   "paginationInfo": "{page} من {totalPages} · {total} إجمالي",
   "deleteTitle": "حذف العقد؟",
   "deleteText": "لا يمكن التراجع عن هذا الإجراء.",
-  "deleteConfirm": "حذف"
+  "deleteConfirm": "حذف",
+  "salary": "الراتب",
+  "status": "الحالة",
+  "email": "البريد الإلكتروني"
 }

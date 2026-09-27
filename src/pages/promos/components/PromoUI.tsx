@@ -6,14 +6,21 @@ import { useEffect, useRef, useState } from 'react';
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import {
   AlertTriangle,
+  ArrowLeft,
+  ArrowRight,
   Check,
   ChevronLeft,
   ChevronRight,
   Copy,
   Loader2,
   RotateCcw,
+  Search,
+  ShieldAlert,
+  X,
 } from 'lucide-react';
 import { useLocale } from '../../../context/LocaleContext';
+import { useMarkInlineError } from '../../../context/InlineErrorContext';
+import { describeError } from '../../../lib/userErrors';
 
 export const focusRing =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-slate-900';
@@ -384,24 +391,35 @@ export function EmptyState({
 export function ErrorState({
   title,
   text,
+  error,
   onRetry,
 }: {
-  title: ReactNode;
+  title?: ReactNode;
   text?: ReactNode;
+  /** The failed query's error: shown as a readable reason plus a reference line. */
+  error?: unknown;
   onRetry?: () => void;
 }) {
   const { t } = useLocale();
+  useMarkInlineError();
+  const described = error ? describeError(error) : undefined;
+  const body = text ?? described?.message;
   return (
     <div className="flex flex-col items-center px-6 py-14 text-center" role="alert">
       <div className="flex size-12 items-center justify-center rounded-full bg-rose-50 text-rose-500 dark:bg-rose-500/10">
         <AlertTriangle className="size-6" />
       </div>
-      <h3 className="mt-4 text-sm font-semibold text-slate-900 dark:text-white">{title}</h3>
-      {text && <p className="mt-1 max-w-sm text-sm text-slate-500 dark:text-slate-400">{text}</p>}
+      <h3 className="mt-4 text-sm font-semibold text-slate-900 dark:text-white">{title ?? t('loadFailedTitle', 'common')}</h3>
+      {body && <p className="mt-1 max-w-sm text-sm text-slate-500 dark:text-slate-400">{body}</p>}
       {onRetry && (
         <Button className="mt-5" icon={<RotateCcw className="size-4" />} onClick={onRetry}>
-          {t('retry', 'promos')}
+          {t('tryAgain', 'common')}
         </Button>
+      )}
+      {described && (
+        <p className="mt-4 text-xs text-slate-400 dark:text-slate-500">
+          {t('errReference', 'common')}: <span dir="ltr">{described.ref}</span>
+        </p>
       )}
     </div>
   );
@@ -576,11 +594,13 @@ export function Switch({
   onChange,
   id,
   label,
+  disabled,
 }: {
   checked: boolean;
   onChange: (next: boolean) => void;
   id?: string;
   label: string;
+  disabled?: boolean;
 }) {
   return (
     <button
@@ -589,8 +609,9 @@ export function Switch({
       role="switch"
       aria-checked={checked}
       aria-label={label}
+      disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition ${focusRing} ${
+      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-50 ${focusRing} ${
         checked ? 'bg-brand-500' : 'bg-slate-300 dark:bg-slate-700'
       }`}
     >
@@ -600,5 +621,262 @@ export function Switch({
         }`}
       />
     </button>
+  );
+}
+
+// Page-level tabs: underlined, scrolls sideways when there are many.
+export function TabBar<T extends string>({
+  tabs,
+  value,
+  onChange,
+  ariaLabel,
+}: {
+  tabs: Array<{ value: T; label: ReactNode; icon?: ReactNode }>;
+  value: T;
+  onChange: (value: T) => void;
+  ariaLabel: string;
+}) {
+  return (
+    <div role="tablist" aria-label={ariaLabel} className="flex gap-1 overflow-x-auto border-b border-slate-200 px-2 dark:border-slate-800">
+      {tabs.map((tab) => {
+        const selected = tab.value === value;
+        return (
+          <button
+            key={tab.value}
+            type="button"
+            role="tab"
+            aria-selected={selected}
+            onClick={() => onChange(tab.value)}
+            className={`-mb-px inline-flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-3 py-3 text-sm font-medium transition ${focusRing} ${
+              selected
+                ? 'border-brand-500 text-brand-600 dark:text-brand-400'
+                : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+            }`}
+          >
+            {tab.icon}
+            {tab.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// Full-card notice for pages the user can't open.
+export function NoAccess({ title, text }: { title: ReactNode; text?: ReactNode }) {
+  return (
+    <div className="min-h-screen bg-slate-50 px-4 py-10 dark:bg-slate-950">
+      <Card className="mx-auto max-w-lg">
+        <div className="flex flex-col items-center px-6 py-12 text-center">
+          <div className="flex size-12 items-center justify-center rounded-full bg-rose-50 text-rose-500 dark:bg-rose-500/10">
+            <ShieldAlert className="size-6" />
+          </div>
+          <h2 className="mt-4 text-base font-semibold text-slate-900 dark:text-white">{title}</h2>
+          {text && <p className="mt-1 max-w-sm text-sm text-slate-500 dark:text-slate-400">{text}</p>}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+export const textareaClass = `${inputClass} min-h-[5rem] resize-y`;
+
+// Modal dialog in the kit style: title bar with a close button, scrolling
+// body, optional footer for actions. Escape and the backdrop close it.
+export function Dialog({
+  open,
+  onClose,
+  title,
+  description,
+  footer,
+  size = 'md',
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: ReactNode;
+  description?: ReactNode;
+  footer?: ReactNode;
+  size?: 'sm' | 'md' | 'lg' | 'xl';
+  children: ReactNode;
+}) {
+  const { t } = useLocale();
+  const titleId = useRef(`dlg-${Math.random().toString(36).slice(2, 9)}`).current;
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCloseRef.current();
+    };
+    document.addEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [open]);
+
+  if (!open) return null;
+  const widths = { sm: 'max-w-md', md: 'max-w-xl', lg: 'max-w-3xl', xl: 'max-w-5xl' };
+  return (
+    <div className="fixed inset-0 z-99999 flex items-center justify-center p-4">
+      <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm dark:bg-black/60" onClick={onClose} aria-hidden="true" />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className={`relative flex max-h-[90vh] w-full ${widths[size]} flex-col rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-xl dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100`}
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4 dark:border-slate-800">
+          <div className="min-w-0">
+            <h2 id={titleId} className="text-base font-semibold text-slate-900 dark:text-white">{title}</h2>
+            {description && <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{description}</p>}
+          </div>
+          <IconButton label={t('close', 'common')} onClick={onClose} className="-me-1.5 -mt-1">
+            <X className="size-4" />
+          </IconButton>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        {footer && (
+          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 px-5 py-3 dark:border-slate-800">
+            {footer}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Search box with a leading icon, for list toolbars.
+export function SearchInput({
+  value,
+  onChange,
+  placeholder,
+  className = '',
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  className?: string;
+}) {
+  return (
+    <div className={`relative ${className}`}>
+      <Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+      <input
+        type="search"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        aria-label={placeholder}
+        className={`${inputClass} ps-9`}
+      />
+    </div>
+  );
+}
+
+export type StatItem = { label: ReactNode; value: ReactNode; tone?: 'default' | 'success' | 'danger' | 'warning' | 'info' };
+
+const STAT_TONES = {
+  default: 'text-slate-900 dark:text-white',
+  success: 'text-emerald-600 dark:text-emerald-400',
+  danger: 'text-rose-600 dark:text-rose-400',
+  warning: 'text-amber-600 dark:text-amber-400',
+  info: 'text-sky-600 dark:text-sky-400',
+};
+
+// A row of small figures inside a card.
+export function StatStrip({ stats }: { stats: StatItem[] }) {
+  const cols = stats.length >= 5 ? 'md:grid-cols-5' : stats.length === 4 ? 'md:grid-cols-4' : 'md:grid-cols-3';
+  return (
+    <div className={`grid grid-cols-2 gap-3 p-4 ${cols}`}>
+      {stats.map((stat, i) => (
+        <div key={i} className="min-w-0 rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-800">
+          <p className="truncate text-xs font-medium text-slate-500 dark:text-slate-400">{stat.label}</p>
+          <p className={`mt-1 flex items-center gap-1.5 truncate text-sm font-semibold tabular-nums ${STAT_TONES[stat.tone ?? 'default']}`}>
+            {stat.value}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// "← Back to …" link above a page title; the arrow follows the text direction.
+export function BackLink({ onClick, children }: { onClick: () => void; children: ReactNode }) {
+  const { locale } = useLocale();
+  const Arrow = locale === 'ar' ? ArrowRight : ArrowLeft;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex items-center gap-1.5 rounded-md text-sm font-medium text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white ${focusRing}`}
+    >
+      <Arrow className="size-4" />
+      {children}
+    </button>
+  );
+}
+
+// Side panel that slides over the page from the end edge.
+export function Sheet({
+  open,
+  onClose,
+  title,
+  description,
+  footer,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: ReactNode;
+  description?: ReactNode;
+  footer?: ReactNode;
+  children: ReactNode;
+}) {
+  const { t } = useLocale();
+  const titleId = useRef(`sheet-${Math.random().toString(36).slice(2, 9)}`).current;
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCloseRef.current();
+    };
+    document.addEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [open]);
+
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-99999">
+      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm dark:bg-black/60" onClick={onClose} aria-hidden="true" />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="absolute inset-y-0 end-0 flex w-full max-w-md flex-col border-s border-slate-200 bg-white text-slate-900 shadow-xl dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4 dark:border-slate-800">
+          <div className="min-w-0">
+            <h2 id={titleId} className="truncate text-base font-semibold text-slate-900 dark:text-white">{title}</h2>
+            {description && <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{description}</p>}
+          </div>
+          <IconButton label={t('close', 'common')} onClick={onClose} className="-me-1.5 -mt-1">
+            <X className="size-4" />
+          </IconButton>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        {footer && <div className="flex items-center justify-end gap-2 border-t border-slate-200 px-5 py-3 dark:border-slate-800">{footer}</div>}
+      </div>
+    </div>
   );
 }

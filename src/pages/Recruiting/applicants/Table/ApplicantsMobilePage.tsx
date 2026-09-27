@@ -1,3 +1,4 @@
+import { describeError } from '../../../../lib/userErrors';
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router";
 import { useApplicantsTable } from "../../../../hooks/queries/useApplicantsTable";
@@ -137,7 +138,7 @@ export default function ApplicantsMobilePage({
 
     if (!src || error) {
       return (
-        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 text-gray-400">
+        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 text-slate-400 dark:from-slate-800 dark:to-slate-700">
           <span className="text-2xl font-bold">{fallback || '?'}</span>
         </div>
       );
@@ -604,84 +605,84 @@ export default function ApplicantsMobilePage({
     const statusConfig: Record<string, { color: string; bg: string; icon: JSX.Element }> = {
       pending: { 
         color: 'text-yellow-700', 
-        bg: 'bg-yellow-50 border-yellow-200',
+        bg: 'bg-yellow-50 border-yellow-200 dark:bg-amber-500/10',
         icon: <Clock size={12} className="text-yellow-600" />
       },
       interview: { 
-        color: 'text-blue-700', 
-        bg: 'bg-blue-50 border-blue-200',
-        icon: <Users size={12} className="text-blue-600" />
+        color: 'text-blue-700 dark:text-sky-300', 
+        bg: 'bg-blue-50 border-blue-200 dark:bg-sky-500/10 dark:border-sky-500/20',
+        icon: <Users size={12} className="text-blue-600 dark:text-sky-400" />
       },
       interviewed: { 
-        color: 'text-purple-700', 
-        bg: 'bg-purple-50 border-purple-200',
+        color: 'text-purple-700 dark:text-violet-300', 
+        bg: 'bg-purple-50 border-purple-200 dark:bg-violet-500/10',
         icon: <CheckCircle2 size={12} className="text-purple-600" />
       },
       approved: { 
-        color: 'text-green-700', 
-        bg: 'bg-green-50 border-green-200',
+        color: 'text-green-700 dark:text-emerald-300', 
+        bg: 'bg-green-50 border-green-200 dark:bg-emerald-500/10 dark:border-emerald-500/20',
         icon: <CheckCircle2 size={12} className="text-green-600" />
       },
       rejected: { 
-        color: 'text-red-700', 
-        bg: 'bg-red-50 border-red-200',
-        icon: <XCircle size={12} className="text-red-600" />
+        color: 'text-red-700 dark:text-rose-300', 
+        bg: 'bg-red-50 border-red-200 dark:bg-rose-500/10 dark:border-rose-500/20',
+        icon: <XCircle size={12} className="text-red-600 dark:text-rose-400" />
       },
       trashed: { 
-        color: 'text-gray-700', 
-        bg: 'bg-gray-50 border-gray-200',
-        icon: <Trash2 size={12} className="text-gray-600" />
+        color: 'text-slate-700 dark:text-slate-200', 
+        bg: 'bg-slate-50 border-slate-200 dark:bg-slate-800/50 dark:border-slate-800',
+        icon: <Trash2 size={12} className="text-slate-600 dark:text-slate-300" />
       },
     };
     return statusConfig[status] || statusConfig.pending;
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-950">
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-lg border-b border-gray-200/60 shadow-sm">
+      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-lg border-b border-slate-200/60 shadow-sm dark:bg-slate-900/80 dark:border-slate-800">
         <div className="px-4 py-3">
           <div className="flex items-center justify-between mb-2">
             <div>
-              <h1 className="text-xl font-bold bg-gradient-to-r from-brand-600 to-brand-700 bg-clip-text text-transparent">
+              <h1 className="text-xl font-semibold text-slate-900 dark:text-white">
                 {t('pageTitle', 'applicants')}
               </h1>
-              <p className="text-xs text-gray-500 mt-0.5">
+              <p className="text-xs text-slate-500 mt-0.5 dark:text-slate-400">
                 {totalRows}
               </p>
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setFilterDrawerOpen(true)}
-                className="p-2 rounded-xl bg-white border border-gray-200 shadow-sm hover:bg-gray-50 active:scale-95 transition-all"
+                className="p-2 rounded-xl bg-white border border-slate-200 shadow-sm hover:bg-slate-50 active:scale-95 transition-all dark:bg-slate-900 dark:border-slate-800 dark:hover:bg-slate-800"
               >
-                <SlidersHorizontal size={18} className="text-gray-600" />
+                <SlidersHorizontal size={18} className="text-slate-600 dark:text-slate-300" />
               </button>
               <button
                 onClick={handleRefresh}
                 disabled={updating}
-                className="p-2 rounded-xl bg-white border border-gray-200 shadow-sm hover:bg-gray-50 active:scale-95 transition-all disabled:opacity-50"
+                className="p-2 rounded-xl bg-white border border-slate-200 shadow-sm hover:bg-slate-50 active:scale-95 transition-all disabled:opacity-50 dark:bg-slate-900 dark:border-slate-800 dark:hover:bg-slate-800"
               >
-                <RefreshCw size={18} className={`text-gray-600 ${refreshing ? 'animate-spin' : ''}`} />
+                <RefreshCw size={18} className={`text-slate-600 dark:text-slate-300 ${refreshing ? 'animate-spin' : ''}`} />
               </button>
             </div>
           </div>
 
           {/* Search Bar */}
           <div className="relative">
-            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={t('searchPlaceholder', 'applicants')}
-              className="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all"
+              className="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all dark:bg-slate-900 dark:border-slate-800"
             />
             {query && (
               <button
                 onClick={() => setQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-gray-100"
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800"
               >
-                <XCircle size={14} className="text-gray-400" />
+                <XCircle size={14} className="text-slate-400" />
               </button>
             )}
           </div>
@@ -693,26 +694,26 @@ export default function ApplicantsMobilePage({
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-16">
             <LoadingSpinner />
-            <p className="text-sm text-gray-500 mt-4">{t('loadingApplicants', 'applicants')}</p>
+            <p className="text-sm text-slate-500 mt-4 dark:text-slate-400">{t('loadingApplicants', 'applicants')}</p>
           </div>
         ) : error ? (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center">
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center dark:bg-rose-500/10 dark:border-rose-500/20">
             <AlertCircle size={32} className="text-red-500 mx-auto mb-2" />
-            <p className="text-red-700 text-sm">{String(error)}</p>
+            <p className="text-red-700 text-sm dark:text-rose-300">{describeError(error).message}</p>
             <button
               onClick={handleRefresh}
-              className="mt-3 px-4 py-2 bg-white border border-red-200 rounded-lg text-sm text-red-600 hover:bg-red-50"
+              className="mt-3 px-4 py-2 bg-white border border-red-200 rounded-lg text-sm text-red-600 hover:bg-red-50 dark:bg-slate-900 dark:border-rose-500/20 dark:text-rose-400 dark:hover:bg-rose-500/10"
             >
               {t('tryAgain', 'applicants')}
             </button>
           </div>
         ) : totalRows === 0 ? (
           <div className="flex flex-col items-center justify-center py-16">
-            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-              <Users size={32} className="text-gray-400" />
+            <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4 dark:bg-slate-800">
+              <Users size={32} className="text-slate-400" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-700 mb-1">{t('noApplicantsFound', 'applicants')}</h3>
-            <p className="text-sm text-gray-500 text-center max-w-xs">
+            <h3 className="text-lg font-semibold text-slate-700 mb-1 dark:text-slate-200">{t('noApplicantsFound', 'applicants')}</h3>
+            <p className="text-sm text-slate-500 text-center max-w-xs dark:text-slate-400">
               {t('noApplicantsFoundDesc', 'applicants')}
             </p>
           </div>
@@ -721,14 +722,14 @@ export default function ApplicantsMobilePage({
             {/* Selection Bar */}
             {selectedApplicantIds.length > 0 && (
               <div className="fixed bottom-20 left-4 right-4 z-30 animate-slide-up">
-                <div className="bg-white rounded-2xl shadow-lg border border-blue-100 p-3">
+                <div className="bg-white rounded-2xl shadow-lg border border-blue-100 p-3 dark:bg-slate-900 dark:border-sky-500/20">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-blue-600">
+                    <span className="text-sm font-medium text-blue-600 dark:text-sky-400">
                       {t('selected', 'applicants', { count: selectedApplicantIds.length })}
                     </span>
                     <button
                       onClick={clearSelection}
-                      className="text-xs text-gray-500 hover:text-gray-700"
+                      className="text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400"
                     >
                       {t('clear', 'applicants')}
                     </button>
@@ -736,7 +737,7 @@ export default function ApplicantsMobilePage({
                   <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
                     <button
                       onClick={() => setShowBulkModal(true)}
-                      className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 rounded-xl text-blue-700 text-sm whitespace-nowrap"
+                      className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 rounded-xl text-blue-700 text-sm whitespace-nowrap dark:bg-sky-500/10 dark:text-sky-300"
                     >
                       <Send size={16} />
                       <span>{t('sendMail', 'applicants')}</span>
@@ -771,7 +772,7 @@ export default function ApplicantsMobilePage({
                           Swal.fire(t('error', 'applicants'), t('statusUpdateFailed', 'applicants'), 'error');
                         }
                       }}
-                      className="flex items-center gap-1.5 px-3 py-2 bg-purple-50 rounded-xl text-purple-700 text-sm whitespace-nowrap"
+                      className="flex items-center gap-1.5 px-3 py-2 bg-purple-50 rounded-xl text-purple-700 text-sm whitespace-nowrap dark:bg-violet-500/10 dark:text-violet-300"
                     >
                       <RefreshCw size={16} />
                       <span>{t('changeStatus', 'applicants')}</span>
@@ -798,7 +799,7 @@ export default function ApplicantsMobilePage({
                           Swal.fire(t('error', 'applicants'), t('deleteFailed', 'applicants'), 'error');
                         }
                       }}
-                      className="flex items-center gap-1.5 px-3 py-2 bg-red-50 rounded-xl text-red-700 text-sm whitespace-nowrap"
+                      className="flex items-center gap-1.5 px-3 py-2 bg-red-50 rounded-xl text-red-700 text-sm whitespace-nowrap dark:bg-rose-500/10 dark:text-rose-300"
                     >
                       <Trash2 size={16} />
                       <span>{t('delete', 'applicants')}</span>
@@ -825,10 +826,10 @@ export default function ApplicantsMobilePage({
                 return (
                   <div
                     key={id || index}
-                    className={`bg-white rounded-2xl border-2 transition-all duration-200 hover:shadow-md active:scale-[0.98] ${
-                      isSelected 
-                        ? 'border-brand-500 shadow-lg shadow-blue-100' 
-                        : 'border-gray-100 hover:border-gray-200'
+                    className={`rounded-2xl border bg-white shadow-sm transition-all duration-200 active:scale-[0.99] dark:bg-slate-900 ${
+                      isSelected
+                        ? 'border-brand-500 ring-1 ring-brand-500'
+                        : 'border-slate-200 hover:border-slate-300 dark:border-slate-800 dark:hover:border-slate-700'
                     }`}
                     onClick={(e) => {
                       if (a && (a._id || (a as any).id)) {
@@ -861,11 +862,11 @@ export default function ApplicantsMobilePage({
                           checked={isSelected}
                           onChange={(e) => { e.stopPropagation(); toggleSelect(id); }}
                           onClick={(e) => e.stopPropagation()}
-                          className="w-5 h-5 mt-1 rounded-lg border-2 border-gray-300 text-blue-600 focus:ring-brand-500 focus:ring-offset-0"
+                          className="mt-1 size-5 rounded accent-brand-500"
                         />
                         
                         <div 
-                          className="relative w-14 h-14 rounded-2xl overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 ring-2 ring-white shadow-md cursor-pointer flex-shrink-0"
+                          className="relative w-14 h-14 rounded-2xl overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200 ring-2 ring-white shadow-md cursor-pointer flex-shrink-0 dark:ring-slate-800 dark:from-slate-800 dark:to-slate-700"
                           onClick={(e) => { e.stopPropagation(); if (a.profilePhoto) setPreviewPhoto(a.profilePhoto); }}
                         >
                           {a.profilePhoto ? (
@@ -876,36 +877,36 @@ export default function ApplicantsMobilePage({
                               fallback={(a.fullName || '').charAt(0).toUpperCase()}
                             />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center text-xl font-bold text-gray-500">
+                            <div className="w-full h-full flex items-center justify-center text-xl font-bold text-slate-500 dark:text-slate-400">
                               {(a.fullName || '').charAt(0).toUpperCase()}
                             </div>
                           )}
                           
                           {/* Seen indicator */}
                           {isSeen && (
-                            <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
+                            <div className="absolute bottom-0 end-0 size-3 rounded-full border-2 border-white bg-emerald-500 dark:border-slate-900" />
                           )}
                         </div>
 
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2">
-                            <h3 className={`text-base font-semibold truncate ${isSeen ? 'text-gray-500' : 'text-gray-900'}`}>
+                            <h3 className={`text-base font-semibold truncate ${isSeen ? 'text-slate-500 dark:text-slate-400' : 'text-slate-900 dark:text-white'}`}>
                               {a.fullName}
                             </h3>
-                            <div className={`px-2 py-1 rounded-full text-xs font-medium border flex items-center gap-1 ${statusBadge.bg} ${statusBadge.color}`}>
+                            <div className={`px-2 py-1 rounded-full text-xs font-medium border flex items-center gap-1 ${statusBadge.bg}    ${statusBadge.color}`}>
                               {statusBadge.icon}
                               <span>{a.status?.replace('_', ' ') || ''}</span>
                             </div>
                           </div>
 
-                          <p className="text-sm text-gray-600 mt-1 flex items-center gap-2">
-                            <Mail size={14} className="text-gray-400 flex-shrink-0" />
+                          <p className="text-sm text-slate-600 mt-1 flex items-center gap-2 dark:text-slate-300">
+                            <Mail size={14} className="text-slate-400 flex-shrink-0" />
                             <span className="truncate">{a.email || t('noEmail', 'applicants')}</span>
                           </p>
                           
                           {a.phone && (
-                            <p className="text-sm text-gray-600 flex items-center gap-2 mt-1">
-                              <Phone size={14} className="text-gray-400 flex-shrink-0" />
+                            <p className="text-sm text-slate-600 flex items-center gap-2 mt-1 dark:text-slate-300">
+                              <Phone size={14} className="text-slate-400 flex-shrink-0" />
                               <span className="truncate">{a.phone}</span>
                             </p>
                           )}
@@ -930,16 +931,16 @@ export default function ApplicantsMobilePage({
                         if (!displayCompany && !displayJob) return null;
                         
                         return (
-                          <div className="bg-gray-50 rounded-xl p-3 mb-3 border border-gray-100">
+                          <div className="bg-slate-50 rounded-xl p-3 mb-3 border border-slate-100 dark:bg-slate-800/50 dark:border-slate-800">
                             {displayCompany && (
-                              <div className="flex items-center gap-2 text-sm text-gray-700">
-                                <Building2 size={14} className="text-gray-400 flex-shrink-0" />
+                              <div className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                                <Building2 size={14} className="text-slate-400 flex-shrink-0" />
                                 <span className="truncate">{displayCompany}</span>
                               </div>
                             )}
                             {displayJob && (
-                              <div className="flex items-center gap-2 text-sm text-gray-700 mt-1">
-                                <Briefcase size={14} className="text-gray-400 flex-shrink-0" />
+                              <div className="flex items-center gap-2 text-sm text-slate-700 mt-1 dark:text-slate-200">
+                                <Briefcase size={14} className="text-slate-400 flex-shrink-0" />
                                 <span className="truncate">{displayJob}</span>
                               </div>
                             )}
@@ -962,7 +963,7 @@ export default function ApplicantsMobilePage({
                               // ignore
                             }
                           }}
-                          className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-50 rounded-xl text-blue-700 text-sm font-medium hover:bg-blue-100 transition-colors"
+                          className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-50 rounded-xl text-blue-700 text-sm font-medium hover:bg-blue-100 transition-colors dark:bg-sky-500/10 dark:text-sky-300 dark:hover:bg-sky-500/20"
                         >
                           <ExternalLink size={16} />
                           <span>{t('openInNewTab', 'applicants')}</span>
@@ -970,7 +971,7 @@ export default function ApplicantsMobilePage({
                         {/* <a
                           href={`mailto:${a.email}`}
                           onClick={(e) => e.stopPropagation()}
-                          className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-50 rounded-xl text-blue-700 text-sm font-medium hover:bg-blue-100 transition-colors"
+                          className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-50 rounded-xl text-blue-700 text-sm font-medium hover:bg-blue-100 transition-colors dark:bg-sky-500/10 dark:text-sky-300 dark:hover:bg-sky-500/20"
                         >
                           <Mail size={16} />
                           <span>Email</span>
@@ -978,7 +979,7 @@ export default function ApplicantsMobilePage({
                         {a.cvFilePath && (
                           <button
                             onClick={(e) => { e.stopPropagation(); void downloadCvForApplicant(a); }}
-                            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-brand-50 rounded-xl text-brand-700 text-sm font-medium hover:bg-green-100 transition-colors"
+                            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-brand-50 rounded-xl text-brand-700 text-sm font-medium hover:bg-green-100 transition-colors dark:bg-brand-500/10 dark:text-brand-300 dark:hover:bg-emerald-500/15"
                           >
                             <Download size={16} />
                             <span>{t('downloadCv', 'applicants')}</span>
@@ -988,7 +989,7 @@ export default function ApplicantsMobilePage({
 
                       {/* Submitted Date */}
                       {a.submittedAt && (
-                        <div className="mt-2 flex items-center justify-end gap-1 text-xs text-gray-400">
+                        <div className="mt-2 flex items-center justify-end gap-1 text-xs text-slate-400">
                           <Calendar size={12} />
                           <span>{t('applied', 'applicants', { date: new Date(a.submittedAt).toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', { month: 'short', day: 'numeric', year: 'numeric' }) })}</span>
                         </div>
@@ -1000,15 +1001,15 @@ export default function ApplicantsMobilePage({
             </div>
 
             {/* Pagination */}
-            <div className="mt-6 bg-white rounded-2xl border border-gray-200 p-4">
+            <div className="mt-6 bg-white rounded-2xl border border-slate-200 p-4 dark:bg-slate-900 dark:border-slate-800">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-sm text-gray-600">
+                <span className="text-sm text-slate-600 dark:text-slate-300">
                   {t('showing', 'applicants', { start: totalRows === 0 ? 0 : (pageIndex * pageSize) + 1, end: Math.min((pageIndex + 1) * pageSize, totalRows), total: totalRows })}
                 </span>
                 <select
                   value={pageSize}
                   onChange={(e) => { setPageSize(Number(e.target.value)); setPageIndex(0); }}
-                  className="px-3 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                  className="px-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:bg-slate-800/50 dark:border-slate-800"
                 >
                   <option value={10}>{t('itemsPerPage', 'applicants', { count: 10 })}</option>
                   <option value={25}>{t('itemsPerPage', 'applicants', { count: 25 })}</option>
@@ -1021,18 +1022,18 @@ export default function ApplicantsMobilePage({
                 <button
                   disabled={pageIndex <= 0}
                   onClick={() => setPageIndex((p) => Math.max(0, p - 1))}
-                  className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-gray-50 rounded-xl text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
+                  className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-slate-50 rounded-xl text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-100 transition-colors dark:bg-slate-800/50 dark:hover:bg-slate-800"
                 >
                   <ChevronLeft size={16} />
                   <span>{t('previous', 'applicants')}</span>
                 </button>
-                <span className="text-sm font-medium text-gray-700">
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
                   {t('page', 'applicants', { current: pageIndex + 1, total: totalPages })}
                 </span>
                 <button
                   disabled={pageIndex >= totalPages - 1}
                   onClick={() => setPageIndex((p) => Math.min(totalPages - 1, p + 1))}
-                  className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-gray-50 rounded-xl text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
+                  className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-slate-50 rounded-xl text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-100 transition-colors dark:bg-slate-800/50 dark:hover:bg-slate-800"
                 >
                   <span>{t('next', 'applicants')}</span>
                   <ChevronRight size={16} />
@@ -1044,7 +1045,7 @@ export default function ApplicantsMobilePage({
             <div className="fixed bottom-4 left-4 right-4 z-20">
               <button
                 onClick={() => setSubmittedDesc((s) => !s)}
-                className="w-full bg-white rounded-2xl shadow-lg border border-gray-200 px-4 py-3 flex items-center justify-between text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                className="w-full bg-white rounded-2xl shadow-lg border border-slate-200 px-4 py-3 flex items-center justify-between text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors dark:bg-slate-900 dark:border-slate-800 dark:text-slate-200 dark:hover:bg-slate-800"
               >
                 <span className="flex items-center gap-2">
                   <ArrowUpDown size={16} className="text-brand-500" />
@@ -1076,18 +1077,18 @@ export default function ApplicantsMobilePage({
         
         {/* Drawer */}
         <div
-          className={`absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl transition-transform duration-300 transform ${
+          className={`absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl transition-transform duration-300 transform dark:bg-slate-900 ${
             filterDrawerOpen ? 'translate-y-0' : 'translate-y-full'
           }`}
         >
-          <div className="p-4 border-b border-gray-200">
+          <div className="p-4 border-b border-slate-200 dark:border-slate-800">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">{t('filters', 'applicants')}</h3>
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{t('filters', 'applicants')}</h3>
               <button
                 onClick={() => setFilterDrawerOpen(false)}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                className="p-2 hover:bg-slate-100 rounded-full transition-colors dark:hover:bg-slate-800"
               >
-                <X size={20} className="text-gray-500" />
+                <X size={20} className="text-slate-500 dark:text-slate-400" />
               </button>
             </div>
           </div>
@@ -1096,14 +1097,14 @@ export default function ApplicantsMobilePage({
 
             {/* Job Filter */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">{t('jobPosition', 'applicants')}</label>
+              <label className="block text-sm font-medium text-slate-700 mb-2 dark:text-slate-200">{t('jobPosition', 'applicants')}</label>
               {companyFilters.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-3 text-xs text-gray-500">
+                <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-400">
                   {t('selectCompaniesFirst', 'applicants')}
                 </div>
               ) : (
-                <div className="rounded-xl border border-gray-200 bg-gray-50 p-2">
-                  <p className="mb-2 text-xs text-gray-500">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-800/50">
+                  <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">
                     {jobFilters.length ? t('selected', 'applicants', { count: jobFilters.length }) : t('allJobs', 'applicants')}
                   </p>
                   <div className="flex flex-wrap gap-2">
@@ -1122,8 +1123,8 @@ export default function ApplicantsMobilePage({
                           }}
                           className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
                             selected
-                              ? 'border-brand-500 bg-brand-50 text-brand-700'
-                              : 'border-gray-300 bg-white text-gray-700'
+                              ? 'border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-300'
+                              : 'border-slate-300 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200'
                           }`}
                         >
                           {jobMap[j._id || j.id] || ''}
@@ -1138,9 +1139,9 @@ export default function ApplicantsMobilePage({
             {/* Status Filter (a saved page fixes the status) */}
             {!hasPageStatus && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">{t('status', 'applicants')}</label>
-              <div className="rounded-xl border border-gray-200 bg-gray-50 p-2">
-                <p className="mb-2 text-xs text-gray-500">
+              <label className="block text-sm font-medium text-slate-700 mb-2 dark:text-slate-200">{t('status', 'applicants')}</label>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-800/50">
+                <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">
                   {statusFilters.length ? t('selected', 'applicants', { count: statusFilters.length }) : t('allStatuses', 'applicants')}
                 </p>
                 <div className="flex flex-wrap gap-2">
@@ -1165,8 +1166,8 @@ export default function ApplicantsMobilePage({
                         }}
                         className={`rounded-full border px-3 py-1 text-xs font-medium capitalize transition-colors ${
                           selected
-                            ? 'border-brand-500 bg-brand-50 text-brand-700'
-                            : 'border-gray-300 bg-white text-gray-700'
+                            ? 'border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-300'
+                            : 'border-slate-300 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200'
                         }`}
                       >
                         {status.replace('_', ' ')}
@@ -1180,9 +1181,9 @@ export default function ApplicantsMobilePage({
 
             {/* Gender Filter */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">{t('gender', 'applicants')}</label>
-              <div className="rounded-xl border border-gray-200 bg-gray-50 p-2">
-                <p className="mb-2 text-xs text-gray-500">
+              <label className="block text-sm font-medium text-slate-700 mb-2 dark:text-slate-200">{t('gender', 'applicants')}</label>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-800/50">
+                <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">
                   {genderFilters.length ? t('selected', 'applicants', { count: genderFilters.length }) : t('allGenders', 'applicants')}
                 </p>
                 <div className="flex flex-wrap gap-2">
@@ -1200,8 +1201,8 @@ export default function ApplicantsMobilePage({
                         }}
                         className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
                           selected
-                            ? 'border-brand-500 bg-brand-50 text-brand-700'
-                            : 'border-gray-300 bg-white text-gray-700'
+                            ? 'border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-300'
+                            : 'border-slate-300 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200'
                         }`}
                       >
                         {['Male', 'Female'].includes(g.title) ? t(g.title.toLowerCase(), 'personalInfo') : g.title}
@@ -1222,7 +1223,7 @@ export default function ApplicantsMobilePage({
                 setCustomFilters([]);
                 setFilterDrawerOpen(false);
               }}
-              className="w-full px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-red-700 font-medium hover:bg-red-100 transition-colors"
+              className="w-full px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-red-700 font-medium hover:bg-red-100 transition-colors dark:bg-rose-500/10 dark:border-rose-500/20 dark:text-rose-300"
             >
               {t('clearAllFilters', 'applicants')}
             </button>
@@ -1233,7 +1234,7 @@ export default function ApplicantsMobilePage({
                 setFilterDrawerOpen(false);
                 setCustomFilterOpen(true);
               }}
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-700 font-medium hover:bg-gray-100 transition-colors flex items-center justify-center gap-2"
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 font-medium hover:bg-slate-100 transition-colors flex items-center justify-center gap-2 dark:bg-slate-800/50 dark:border-slate-800 dark:text-slate-200 dark:hover:bg-slate-800"
             >
               <SlidersHorizontal size={16} />
               <span>{t('customFilterSettings', 'applicants')}</span>

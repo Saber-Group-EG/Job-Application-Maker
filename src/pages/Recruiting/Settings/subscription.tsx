@@ -8,11 +8,9 @@ import {
   AlertTriangle,
   ArrowUpCircle,
   ArrowDownCircle,
-  X,
-  Check,
+  Loader2,
+  Plus,
   Receipt,
-  ChevronLeft,
-  ChevronRight,
   Gauge,
   Zap,
   Rocket,
@@ -20,7 +18,27 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useLocale } from '../../../context/LocaleContext';
-import PageBreadCrumb from '../../../components/common/PageBreadCrumb';
+import {
+  Badge,
+  Button,
+  Card,
+  CardToolbar,
+  Dialog,
+  EmptyState,
+  ErrorState,
+  IconButton,
+  PageShell,
+  Pagination,
+  SectionTitle,
+  SkeletonRows,
+  Table,
+  Td,
+  Th,
+  filterSelectClass,
+  focusRing,
+  rowClass,
+} from '../../../components/ui/kit';
+import type { BadgeTone } from '../../../components/ui/kit';
 import {
   useSubscription,
   useCancelSubscription,
@@ -81,22 +99,18 @@ function getPeriodEndDate(lastPaymentAt: string, frequencyDays: number) {
   return d;
 }
 
-const STATUS_STYLES: Record<string, string> = {
-  active:
-    'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400',
-  past_due:
-    'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400',
-  cancelled:
-    'bg-slate-100 text-slate-600 dark:bg-slate-500/10 dark:text-slate-400',
-  expired: 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400',
-  suspended: 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400',
+const STATUS_TONES: Record<string, BadgeTone> = {
+  active: 'green',
+  past_due: 'amber',
+  cancelled: 'slate',
+  expired: 'red',
+  suspended: 'red',
 };
 
-const TRANSACTION_STATUS_STYLES: Record<string, string> = {
-  paid: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400',
-  failed: 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400',
-  pending:
-    'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400',
+const TRANSACTION_STATUS_TONES: Record<string, BadgeTone> = {
+  paid: 'green',
+  failed: 'red',
+  pending: 'amber',
 };
 
 const TRANSACTION_TYPE_ICONS: Record<
@@ -117,7 +131,7 @@ const TOP_UP_ICONS: Record<string, typeof Zap> = {
 };
 
 export default function SubscriptionPage() {
-  const { t, locale, dir } = useLocale();
+  const { t, locale } = useLocale();
   const { hasPermission } = useAuth();
   const canEdit = hasPermission('Billing Management', 'write');
   const navigate = useNavigate();
@@ -158,32 +172,38 @@ export default function SubscriptionPage() {
   const transactions = transactionsData?.data ?? [];
   const totalPages = transactionsData?.totalPages ?? 1;
 
+  const pageTitle = t('subscription.pageBreadcrumb', 'settings');
+
   if (!companyId) {
     return (
-      <div className="p-6 text-sm text-slate-500 dark:text-slate-400">
-        {t('subscription.noCompany', 'settings')}
-      </div>
+      <PageShell title={pageTitle}>
+        <Card>
+          <EmptyState icon={<CreditCard className="size-6" />} title={t('subscription.noCompany', 'settings')} />
+        </Card>
+      </PageShell>
     );
   }
 
   if (isLoading) {
     return (
-      <div className="space-y-6 p-6">
+      <PageShell title={pageTitle}>
         {[...Array(3)].map((_, i) => (
           <div
             key={i}
-            className="h-32 animate-pulse rounded-2xl border border-slate-200 bg-slate-100 dark:border-slate-800 dark:bg-slate-800"
+            className="h-32 animate-pulse rounded-2xl border border-slate-200 bg-white motion-reduce:animate-none dark:border-slate-800 dark:bg-slate-900"
           />
         ))}
-      </div>
+      </PageShell>
     );
   }
 
   if (isError || !data) {
     return (
-      <div className="p-6 text-sm text-red-500">
-        {t('subscription.loadFailed', 'settings')}
-      </div>
+      <PageShell title={pageTitle}>
+        <Card>
+          <ErrorState title={t('subscription.loadFailed', 'settings')} />
+        </Card>
+      </PageShell>
     );
   }
 
@@ -277,301 +297,165 @@ export default function SubscriptionPage() {
     window.location.href = redirectUrl;
   };
 
+  const overLimit = data.usage.used >= data.usage.effectiveLimit;
+  const usageTone: BadgeTone = overLimit ? 'red' : data.usage.nearLimit ? 'amber' : 'green';
+
   return (
-    <div className="space-y-6 p-6">
-      <PageBreadCrumb
-        pageTitle={t('subscription.pageBreadcrumb', 'settings')}
-      />
-
-      {/* ── Usage this cycle ──────────────────────────────────────────── */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex flex-col gap-4 border-b border-slate-200 px-6 py-6 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex size-11 items-center justify-center rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400">
-              <Gauge className="size-6" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-                {t('subscription.usageThisCycle', 'settings')}
-              </h2>
-              <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-                {t('subscription.used', 'settings')}{' '}
-                {requestsToCredits(data.usage.used)}{' '}
-                {t('subscription.of', 'settings')}{' '}
-                {requestsToCredits(data.usage.effectiveLimit)}{' '}
-                {t('subscription.credits', 'settings')}
-              </p>
-            </div>
+    <PageShell
+      title={pageTitle}
+      subtitle={plan.name}
+      actions={
+        canEdit && (
+          <>
+            <Button icon={<CardIcon className="size-4" />} onClick={() => setIsCardsOpen(true)}>
+              {t('subscription.manageCards', 'settings')}
+            </Button>
+            <Button variant="primary" onClick={openPicker}>
+              {t('subscription.changePlan', 'settings')}
+            </Button>
+          </>
+        )
+      }
+    >
+      {/* Usage this cycle */}
+      <Card>
+        <CardToolbar>
+          <div>
+            <SectionTitle icon={<Gauge className="size-4" />}>{t('subscription.usageThisCycle', 'settings')}</SectionTitle>
+            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+              {t('subscription.used', 'settings')} {requestsToCredits(data.usage.used)} {t('subscription.of', 'settings')}{' '}
+              {requestsToCredits(data.usage.effectiveLimit)} {t('subscription.credits', 'settings')}
+            </p>
           </div>
-
-          <div
-            className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${
-              data.usage.used >= data.usage.effectiveLimit
-                ? 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400'
-                : data.usage.nearLimit
-                  ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400'
-                  : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400'
-            }`}
-          >
-            {data.usage.used >= data.usage.effectiveLimit ? (
-              <XCircle className="size-3.5" />
-            ) : data.usage.nearLimit ? (
-              <AlertTriangle className="size-3.5" />
-            ) : (
-              <Check className="size-3.5" />
-            )}
-            {data.usage.used >= data.usage.effectiveLimit
+          <Badge tone={usageTone}>
+            {overLimit
               ? t('subscription.limitReached', 'settings')
               : data.usage.nearLimit
                 ? t('subscription.nearLimitWarning', 'settings')
                 : t('subscription.usageOk', 'settings')}
-          </div>
-        </div>
-
-        <div className="px-6 pb-6">
-          <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+          </Badge>
+        </CardToolbar>
+        <div className="space-y-4 p-4">
+          <div
+            className="h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.min(100, Math.round(data.usage.percentUsed))}
+            aria-label={t('subscription.usageThisCycle', 'settings')}
+          >
             <div
-              className={`h-full rounded-full transition-all duration-500 ${
-                data.usage.used >= data.usage.effectiveLimit
-                  ? 'bg-red-500'
-                  : data.usage.nearLimit
-                    ? 'bg-amber-500'
-                    : 'bg-emerald-500'
-              }`}
-              style={{
-                width: `${Math.min(100, Math.round(data.usage.percentUsed))}%`,
-              }}
+              className={`h-full rounded-full transition-all duration-500 ${overLimit ? 'bg-rose-500' : data.usage.nearLimit ? 'bg-amber-500' : 'bg-emerald-500'}`}
+              style={{ width: `${Math.min(100, Math.round(data.usage.percentUsed))}%` }}
             />
           </div>
-
-          <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                {t('subscription.used', 'settings')}
-              </p>
-              <p className="mt-1 text-xl font-bold text-slate-900 dark:text-slate-100">
-                {requestsToCredits(data.usage.used)}{' '}
-                <span className="text-sm font-medium text-slate-400">
-                  {t('subscription.credits', 'settings')}
-                </span>
-              </p>
-            </div>
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                {t('subscription.remaining', 'settings')}
-              </p>
-              <p className="mt-1 text-xl font-bold text-slate-900 dark:text-slate-100">
-                {requestsToCredits(data.usage.remaining)}{' '}
-                <span className="text-sm font-medium text-slate-400">
-                  {t('subscription.credits', 'settings')}
-                </span>
-              </p>
-            </div>
-            <div className="hidden sm:block">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                {t('subscription.billingCycle', 'settings')}
-              </p>
-              <p className="mt-1 text-xl font-bold text-slate-900 dark:text-slate-100">
-                {Math.round(data.usage.percentUsed)}%
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Current Plan card ─────────────────────────────────────────── */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex flex-col gap-4 border-b border-slate-200 px-6 py-6 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex size-11 items-center justify-center rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400">
-              <CreditCard className="size-6" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-                {t('subscription.currentPlan', 'settings')}
-              </h2>
-              <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-                {plan.name}
-              </p>
-            </div>
-          </div>
-
-          <span
-            className={`inline-flex w-fit items-center rounded-full px-3 py-1 text-xs font-semibold ${STATUS_STYLES[subscription.status] ?? STATUS_STYLES.cancelled}`}
-          >
-            {t(`subscription.status_${subscription.status}`, 'settings')}
-          </span>
-        </div>
-
-        <div
-          className={`grid grid-cols-2 divide-x sm:grid-cols-3 ${
-            dir === 'rtl' ? 'divide-x-reverse' : ''
-          } divide-slate-200 dark:divide-slate-800`}
-        >
-          <div className="px-6 py-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-              {t('subscription.price', 'settings')}
-            </p>
-            {activePromo ? (
-              <div className="mt-1">
-                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-                  {formatMoney(
-                    subscription.currentCycleAmountCents,
-                    plan.currency
-                  )}
-                </p>
-                <p className="text-xs text-slate-400 line-through">
-                  {formatMoney(plan.priceCents, plan.currency)}
-                </p>
+          <dl className="grid grid-cols-3 gap-4">
+            {[
+              { label: t('subscription.used', 'settings'), value: `${requestsToCredits(data.usage.used)} ${t('subscription.credits', 'settings')}` },
+              { label: t('subscription.remaining', 'settings'), value: `${requestsToCredits(data.usage.remaining)} ${t('subscription.credits', 'settings')}` },
+              { label: t('subscription.billingCycle', 'settings'), value: `${Math.round(data.usage.percentUsed)}%` },
+            ].map((item) => (
+              <div key={item.label}>
+                <dt className="text-xs font-medium text-slate-500 dark:text-slate-400">{item.label}</dt>
+                <dd className="mt-0.5 text-lg font-semibold tabular-nums text-slate-900 dark:text-white">{item.value}</dd>
               </div>
-            ) : (
-              <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100">
-                {formatMoney(plan.priceCents, plan.currency)}
-              </p>
-            )}
+            ))}
+          </dl>
+        </div>
+      </Card>
+
+      {/* Current plan */}
+      <Card>
+        <CardToolbar>
+          <div>
+            <SectionTitle icon={<CreditCard className="size-4" />}>{t('subscription.currentPlan', 'settings')}</SectionTitle>
+            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{plan.name}</p>
           </div>
-          <div className="px-6 py-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-              {t('subscription.billingCycle', 'settings')}
-            </p>
-            <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100">
+          <Badge tone={STATUS_TONES[subscription.status] ?? 'slate'}>{t(`subscription.status_${subscription.status}`, 'settings')}</Badge>
+        </CardToolbar>
+
+        <dl className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-3">
+          <div>
+            <dt className="text-xs font-medium text-slate-500 dark:text-slate-400">{t('subscription.price', 'settings')}</dt>
+            <dd className="mt-0.5 text-lg font-semibold tabular-nums text-slate-900 dark:text-white">
+              {activePromo ? formatMoney(subscription.currentCycleAmountCents, plan.currency) : formatMoney(plan.priceCents, plan.currency)}
+              {activePromo && (
+                <span className="ms-2 text-xs font-normal text-slate-400 line-through">{formatMoney(plan.priceCents, plan.currency)}</span>
+              )}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs font-medium text-slate-500 dark:text-slate-400">{t('subscription.billingCycle', 'settings')}</dt>
+            <dd className="mt-0.5 text-lg font-semibold tabular-nums text-slate-900 dark:text-white">
               {plan.frequency} {t('subscription.days', 'settings')}
-            </p>
+            </dd>
           </div>
-          <div className="hidden px-6 py-4 sm:block">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-              {t('subscription.nextRenewal', 'settings')}
-            </p>
-            <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100">
+          <div>
+            <dt className="text-xs font-medium text-slate-500 dark:text-slate-400">{t('subscription.nextRenewal', 'settings')}</dt>
+            <dd className="mt-0.5 text-lg font-semibold text-slate-900 dark:text-white">{formatDate(periodEndDate.toISOString(), locale)}</dd>
+          </div>
+        </dl>
+
+        <div className="space-y-3 px-4 pb-4 empty:hidden">
+          {subscription.cancelAtPeriodEnd && (
+            <Notice tone="amber" icon={<AlertTriangle className="size-4" />}
+              action={canEdit && (
+                <Button size="sm" icon={<RotateCcw className="size-4" />} onClick={handleResume} loading={resumeMutation.isPending}>
+                  {t('subscription.keepSubscription', 'settings')}
+                </Button>
+              )}
+            >
+              {t('subscription.willCancelOn', 'settings')} {formatDate(periodEndDate.toISOString(), locale)}
+            </Notice>
+          )}
+
+          {pendingPlan && (
+            <Notice tone="blue" icon={<ArrowDownCircle className="size-4" />}
+              action={canEdit && (
+                <Button size="sm" icon={<RotateCcw className="size-4" />} onClick={handleCancelPlanChange} loading={cancelPlanChangeMutation.isPending}>
+                  {t('subscription.undoSwitch', 'settings')}
+                </Button>
+              )}
+            >
+              {t('subscription.switchingTo', 'settings')} <strong>{pendingPlan.name}</strong> {t('subscription.effectiveOn', 'settings')}{' '}
               {formatDate(periodEndDate.toISOString(), locale)}
-            </p>
-          </div>
+            </Notice>
+          )}
+
+          {upgradeInProgressPlan && (
+            <Notice tone="amber" icon={<ArrowUpCircle className="size-4" />}>
+              {t('subscription.upgradeInProgress', 'settings')} <strong>{upgradeInProgressPlan.name}</strong>
+            </Notice>
+          )}
+
+          {activePromo && (
+            <Notice tone="green" icon={<Receipt className="size-4" />}>
+              {t('subscription.promoActive', 'settings')} <strong>{activePromo.code}</strong> —{' '}
+              {activePromo.discountCyclesTotal - activePromo.discountCyclesUsed} {t('subscription.cyclesRemaining', 'settings')},{' '}
+              {t('subscription.revertsOn', 'settings')} {formatDate(activePromo.revertsAt, locale)}
+            </Notice>
+          )}
         </div>
 
-        {subscription.cancelAtPeriodEnd && (
-          <div className="mx-6 mb-6 flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-500/20 dark:bg-amber-500/10 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2 text-sm text-amber-800 dark:text-amber-300">
-              <AlertTriangle className="size-4 shrink-0" />
-              <span>
-                {t('subscription.willCancelOn', 'settings')}{' '}
-                {formatDate(periodEndDate.toISOString(), locale)}
-              </span>
-            </div>
-            {canEdit && (
-              <button
-                type="button"
-                onClick={handleResume}
-                disabled={resumeMutation.isPending}
-                className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-100 dark:border-amber-500/30 dark:bg-transparent dark:text-amber-300 dark:hover:bg-amber-500/10"
-              >
-                <RotateCcw className="size-3.5" />
-                {t('subscription.keepSubscription', 'settings')}
-              </button>
-            )}
+        {canEdit && !subscription.cancelAtPeriodEnd && (
+          <div className="flex justify-end border-t border-slate-200 px-4 py-3 dark:border-slate-800">
+            <Button variant="danger" icon={<XCircle className="size-4" />} onClick={handleCancel} loading={cancelMutation.isPending}>
+              {t('subscription.cancelSubscription', 'settings')}
+            </Button>
           </div>
         )}
+      </Card>
 
-        {/* ── Pending downgrade banner ─────────────────────────────────── */}
-        {pendingPlan && (
-          <div className="mx-6 mb-6 flex flex-col gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 dark:border-blue-500/20 dark:bg-blue-500/10 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2 text-sm text-blue-800 dark:text-blue-300">
-              <ArrowDownCircle className="size-4 shrink-0" />
-              <span>
-                {t('subscription.switchingTo', 'settings')}{' '}
-                <strong>{pendingPlan.name}</strong>{' '}
-                {t('subscription.effectiveOn', 'settings')}{' '}
-                {formatDate(periodEndDate.toISOString(), locale)}
-              </span>
-            </div>
-            {canEdit && (
-              <button
-                type="button"
-                onClick={handleCancelPlanChange}
-                disabled={cancelPlanChangeMutation.isPending}
-                className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-blue-300 bg-white px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 dark:border-blue-500/30 dark:bg-transparent dark:text-blue-300 dark:hover:bg-blue-500/10"
-              >
-                <RotateCcw className="size-3.5" />
-                {t('subscription.undoSwitch', 'settings')}
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* ── Upgrade-in-progress banner ───────────────────────────────── */}
-        {upgradeInProgressPlan && (
-          <div className="mx-6 mb-6 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300">
-            <ArrowUpCircle className="size-4 shrink-0" />
-            <span>
-              {t('subscription.upgradeInProgress', 'settings')}{' '}
-              <strong>{upgradeInProgressPlan.name}</strong>
-            </span>
-          </div>
-        )}
-
-        {activePromo && (
-          <div className="mx-6 mb-6 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300">
-            <Receipt className="size-4 shrink-0" />
-            <span>
-              {t('subscription.promoActive', 'settings')}{' '}
-              <strong>{activePromo.code}</strong> —{' '}
-              {activePromo.discountCyclesTotal - activePromo.discountCyclesUsed}{' '}
-              {t('subscription.cyclesRemaining', 'settings')},{' '}
-              {t('subscription.revertsOn', 'settings')}{' '}
-              {formatDate(activePromo.revertsAt, locale)}
-            </span>
-          </div>
-        )}
-        
-        {canEdit && (
-          <div className="flex flex-wrap gap-3 border-t border-slate-200 px-6 py-4 dark:border-slate-800">
-            <button
-              type="button"
-              onClick={openPicker}
-              className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-600"
-            >
-              {t('subscription.changePlan', 'settings')}
-            </button>
-            {!subscription.cancelAtPeriodEnd && (
-              <button
-                type="button"
-                onClick={handleCancel}
-                disabled={cancelMutation.isPending}
-                className="inline-flex items-center gap-2 rounded-xl border border-red-200 px-4 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-50 dark:border-red-500/20 dark:text-red-400 dark:hover:bg-red-500/10"
-              >
-                <XCircle className="size-4" />
-                {t('subscription.cancelSubscription', 'settings')}
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => setIsCardsOpen(true)}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-            >
-              <CardIcon className="size-4" />
-              {t('subscription.manageCards', 'settings')}
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* ── Top-up packs card ────────────────────────────────────────── */}
+      {/* Top-up packs */}
       {canEdit && (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <div className="flex items-center gap-3 border-b border-slate-200 px-6 py-6 dark:border-slate-800">
-            <div className="flex size-11 items-center justify-center rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400">
-              <Package className="size-6" />
-            </div>
+        <Card>
+          <CardToolbar>
             <div>
-              <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-                {t('subscription.buyAdditionalQuota', 'settings')}
-              </h2>
-              <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-                {t('subscription.topUpDescription', 'settings')}
-              </p>
+              <SectionTitle icon={<Package className="size-4" />}>{t('subscription.buyAdditionalQuota', 'settings')}</SectionTitle>
+              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{t('subscription.topUpDescription', 'settings')}</p>
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 p-6 sm:grid-cols-3">
+          </CardToolbar>
+          <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-3">
             {topUpPacks.map((pack) => {
               const PackIcon = TOP_UP_ICONS[pack.id] ?? Package;
               return (
@@ -579,315 +463,183 @@ export default function SubscriptionPage() {
                   key={pack.id}
                   type="button"
                   onClick={() => handleBuyTopUp(pack.id)}
-                  className="group flex flex-col items-center gap-1 rounded-xl border border-slate-200 px-4 py-5 text-center transition hover:border-brand-300 hover:bg-brand-50 dark:border-slate-700 dark:hover:border-brand-500/40 dark:hover:bg-brand-500/10"
+                  className={`flex flex-col items-start gap-1 rounded-xl border border-slate-200 p-4 text-start transition hover:border-brand-300 hover:bg-brand-50/50 dark:border-slate-800 dark:hover:border-brand-500/40 dark:hover:bg-brand-500/5 ${focusRing}`}
                 >
-                  <span className="flex size-10 items-center justify-center rounded-full bg-brand-500/10 text-brand-600 transition group-hover:scale-110 dark:text-brand-400">
-                    <PackIcon className="size-5" />
+                  <span className="flex size-9 items-center justify-center rounded-lg bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                    <PackIcon className="size-4" />
                   </span>
-                  <span className="mt-1 text-sm font-bold uppercase tracking-wide text-slate-900 dark:text-slate-100">
-                    {t(`subscription.topUp_${pack.id}`, 'settings')}
+                  <span className="mt-2 text-sm font-medium text-slate-900 dark:text-white">{t(`subscription.topUp_${pack.id}`, 'settings')}</span>
+                  <span className="text-lg font-semibold tabular-nums text-slate-900 dark:text-white">
+                    +{requestsToCredits(pack.amount)} {t('subscription.credits', 'settings')}
                   </span>
-                  <span className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                    +{requestsToCredits(pack.amount)}{' '}
-                    {t('subscription.credits', 'settings')}
-                  </span>
-                  <span className="text-xs text-slate-500 dark:text-slate-400">
-                    {t(`subscription.topUp_${pack.id}_desc`, 'settings')}
-                  </span>
-                  <span className="mt-2 rounded-full bg-brand-500/10 px-3 py-1 text-sm font-semibold text-brand-600 dark:text-brand-400">
-                    {formatMoney(pack.priceCents, plan.currency)}
-                  </span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">{t(`subscription.topUp_${pack.id}_desc`, 'settings')}</span>
+                  <span className="mt-2 text-sm font-semibold text-brand-600 dark:text-brand-400">{formatMoney(pack.priceCents, plan.currency)}</span>
                 </button>
               );
             })}
           </div>
-        </div>
+        </Card>
       )}
-      {/* ── Transaction history card ────────────────────────────────────── */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex flex-col gap-4 border-b border-slate-200 px-6 py-6 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex size-11 items-center justify-center rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400">
-              <Receipt className="size-6" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-                {t('subscription.transactionHistory', 'settings')}
-              </h2>
-              <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-                {t('subscription.transactionHistoryDescription', 'settings')}
-              </p>
-            </div>
-          </div>
 
+      {/* Transaction history */}
+      <Card>
+        <CardToolbar>
+          <div>
+            <SectionTitle icon={<Receipt className="size-4" />}>{t('subscription.transactionHistory', 'settings')}</SectionTitle>
+            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{t('subscription.transactionHistoryDescription', 'settings')}</p>
+          </div>
           <select
             value={transactionType}
-            onChange={(e) =>
-              handleTypeFilterChange(
-                e.target.value as TransactionRecord['type'] | ''
-              )
-            }
-            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+            aria-label={t('subscription.type', 'settings')}
+            onChange={(e) => handleTypeFilterChange(e.target.value as TransactionRecord['type'] | '')}
+            className={filterSelectClass}
           >
             <option value="">{t('subscription.allTypes', 'settings')}</option>
-            <option value="signup">
-              {t('subscription.type_signup', 'settings')}
-            </option>
-            <option value="renewal">
-              {t('subscription.type_renewal', 'settings')}
-            </option>
-            <option value="upgrade">
-              {t('subscription.type_upgrade', 'settings')}
-            </option>
-            <option value="downgrade">
-              {t('subscription.type_downgrade', 'settings')}
-            </option>
-            <option value="topup">
-              {t('subscription.type_topup', 'settings')}
-            </option>
+            <option value="signup">{t('subscription.type_signup', 'settings')}</option>
+            <option value="renewal">{t('subscription.type_renewal', 'settings')}</option>
+            <option value="upgrade">{t('subscription.type_upgrade', 'settings')}</option>
+            <option value="downgrade">{t('subscription.type_downgrade', 'settings')}</option>
+            <option value="topup">{t('subscription.type_topup', 'settings')}</option>
           </select>
-        </div>
+        </CardToolbar>
 
-        {transactionsLoading && (
-          <div className="space-y-3 p-6">
-            {[...Array(4)].map((_, i) => (
-              <div
-                key={i}
-                className="h-10 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800"
-              />
-            ))}
-          </div>
-        )}
-
-        {!transactionsLoading && transactions.length === 0 && (
-          <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
-            <span className="flex size-12 items-center justify-center rounded-full bg-slate-100 text-slate-400 dark:bg-slate-800">
-              <Receipt className="size-6" />
-            </span>
-            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-              {t('subscription.noTransactions', 'settings')}
-            </p>
-          </div>
-        )}
-
-        {!transactionsLoading && transactions.length > 0 && (
+        {!transactionsLoading && transactions.length === 0 ? (
+          <EmptyState icon={<Receipt className="size-6" />} title={t('subscription.noTransactions', 'settings')} />
+        ) : (
           <>
-            <div className="overflow-x-auto">
-              <table className="w-full text-start text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:border-slate-800">
-                    <th className="px-6 py-3">
-                      {t('subscription.date', 'settings')}
-                    </th>
-                    <th className="px-6 py-3">
-                      {t('subscription.type', 'settings')}
-                    </th>
-                    <th className="px-6 py-3">
-                      {t('subscription.amount', 'settings')}
-                    </th>
-                    <th className="px-6 py-3">
-                      {t('subscription.txnStatus', 'settings')}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {transactions.map((txn) => {
-                    const TypeIcon =
-                      TRANSACTION_TYPE_ICONS[txn.type] ?? Package;
+            <Table minWidth={560} busy={transactionsLoading}>
+              <thead>
+                <tr>
+                  <Th>{t('subscription.date', 'settings')}</Th>
+                  <Th>{t('subscription.type', 'settings')}</Th>
+                  <Th>{t('subscription.amount', 'settings')}</Th>
+                  <Th>{t('subscription.txnStatus', 'settings')}</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {transactionsLoading ? (
+                  <SkeletonRows rows={4} cols={4} />
+                ) : (
+                  transactions.map((txn) => {
+                    const TypeIcon = TRANSACTION_TYPE_ICONS[txn.type] ?? Package;
                     return (
-                      <tr key={txn._id}>
-                        <td className="px-6 py-3 text-slate-700 dark:text-slate-300">
-                          {formatDate(txn.createdAt, locale)}
-                        </td>
-                        <td className="px-6 py-3">
-                          <span className="inline-flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                      <tr key={txn._id} className={rowClass}>
+                        <Td>{formatDate(txn.createdAt, locale)}</Td>
+                        <Td>
+                          <span className="inline-flex items-center gap-2">
                             <TypeIcon className="size-4 text-slate-400" />
                             {t(`subscription.type_${txn.type}`, 'settings')}
                           </span>
-                        </td>
-                        <td className="px-6 py-3 font-semibold text-slate-900 dark:text-slate-100">
-                          {formatMoney(txn.amountCents, txn.currency)}
-                        </td>
-                        <td className="px-6 py-3">
-                          <span
-                            className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
-                              TRANSACTION_STATUS_STYLES[txn.status] ??
-                              TRANSACTION_STATUS_STYLES.pending
-                            }`}
-                          >
-                            {t(
-                              `subscription.txnStatus_${txn.status}`,
-                              'settings'
-                            )}
-                          </span>
-                        </td>
+                        </Td>
+                        <Td className="font-medium tabular-nums text-slate-900 dark:text-white">{formatMoney(txn.amountCents, txn.currency)}</Td>
+                        <Td>
+                          <Badge tone={TRANSACTION_STATUS_TONES[txn.status] ?? 'amber'}>{t(`subscription.txnStatus_${txn.status}`, 'settings')}</Badge>
+                        </Td>
                       </tr>
                     );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="flex items-center justify-between border-t border-slate-200 px-6 py-4 dark:border-slate-800">
-              <span className="text-xs text-slate-500 dark:text-slate-400">
-                {t('subscription.page', 'settings')} {transactionsData?.page} /{' '}
-                {totalPages}
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setTransactionPage((p) => Math.max(1, p - 1))}
-                  disabled={transactionPage <= 1}
-                  aria-label={t('subscription.previousPage', 'settings')}
-                  className="rounded-lg border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:hover:bg-slate-800"
-                >
-                  {dir === 'rtl' ? (
-                    <ChevronRight className="size-4" />
-                  ) : (
-                    <ChevronLeft className="size-4" />
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setTransactionPage((p) => Math.min(totalPages, p + 1))
-                  }
-                  disabled={transactionPage >= totalPages}
-                  aria-label={t('subscription.nextPage', 'settings')}
-                  className="rounded-lg border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:hover:bg-slate-800"
-                >
-                  {dir === 'rtl' ? (
-                    <ChevronLeft className="size-4" />
-                  ) : (
-                    <ChevronRight className="size-4" />
-                  )}
-                </button>
-              </div>
-            </div>
+                  })
+                )}
+              </tbody>
+            </Table>
+            {!transactionsLoading && totalPages > 1 && (
+              <Pagination page={transactionsData?.page ?? transactionPage} totalPages={totalPages} onChange={setTransactionPage} />
+            )}
           </>
         )}
-      </div>
+      </Card>
 
-      {/* ── Cards modal ──────────────────────────────────────────────── */}
-      {isCardsOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) setIsCardsOpen(false);
-          }}
-        >
-          <div className="w-full max-w-md rounded-2xl bg-white shadow-xl dark:bg-slate-900">
-            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-800">
-              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                {t('subscription.manageCards', 'settings')}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setIsCardsOpen(false)}
-                className="rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200"
-              >
-                <X className="size-5" />
-              </button>
-            </div>
-
-            <div className="space-y-3 p-6">
-              {addCardSession ? (
-                <>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">
-                    {t('subscription.addCardDetails', 'settings')}
-                  </p>
-                  <PaymobCardForm
-                    publicKey={addCardSession.publicKey}
-                    clientSecret={addCardSession.clientSecret}
-                    checkoutUrl={addCardSession.checkoutUrl}
-                    payButtonLabel={t('subscription.saveCard', 'settings')}
-                    saveCard
-                    onSuccess={handleAddCardComplete}
-                    onPending={handleAddCardPending}
-                    onRetry={handleAddCard}
-                    onCancel={() => setAddCardSession(null)}
-                  />
-                </>
-              ) : (
-                <>
-                  {cardsLoading && (
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                      {t('subscription.loadingCards', 'settings')}
-                    </p>
-                  )}
-
-                  {!cardsLoading && cards.length === 0 && (
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                      {t('subscription.noCards', 'settings')}
-                    </p>
-                  )}
-
-                  {cards.map((card) => (
-                    <div
-                      key={card.id}
-                      className={`flex items-center justify-between rounded-xl border px-4 py-3 ${
-                        card.isPrimary
-                          ? 'border-brand-300 bg-brand-50 dark:border-brand-500/40 dark:bg-brand-500/10'
-                          : 'border-slate-200 dark:border-slate-700'
-                      }`}
-                    >
-                      <div>
-                        <p className="flex items-center gap-2 font-semibold text-slate-900 dark:text-slate-100">
-                          {card.maskedPan}
-                          {card.isPrimary && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-brand-500/10 px-2 py-0.5 text-[10px] font-semibold text-brand-600 dark:text-brand-400">
-                              <Star className="size-3" />
-                              {t('subscription.primaryCard', 'settings')}
-                            </span>
-                          )}
-                        </p>
-                        {card.failedAttempts > 0 && (
-                          <p className="text-xs text-amber-600 dark:text-amber-400">
-                            {card.failedAttempts}{' '}
-                            {t('subscription.failedAttempts', 'settings')}
-                          </p>
-                        )}
-                      </div>
-                      {!card.isPrimary && (
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleMakePrimary(card)}
-                            disabled={changePrimaryMutation.isPending}
-                            title={t('subscription.makePrimary', 'settings')}
-                            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-brand-600 dark:hover:bg-slate-800"
-                          >
-                            <Star className="size-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteCard(card)}
-                            disabled={deleteCardMutation.isPending}
-                            title={t('subscription.deleteCard', 'settings')}
-                            className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10"
-                          >
-                            <Trash2 className="size-4" />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={handleAddCard}
-                    disabled={startAddCardMutation.isPending}
-                    className="w-full rounded-xl border border-dashed border-slate-300 px-4 py-3 text-sm font-semibold text-slate-500 transition hover:border-brand-300 hover:bg-brand-50 hover:text-brand-600 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-400 dark:hover:border-brand-500/40 dark:hover:bg-brand-500/10"
-                  >
-                    {startAddCardMutation.isPending
-                      ? t('addingCard', 'common')
-                      : t('addCard', 'common')}
-                  </button>
-                </>
-              )}
-            </div>
+      {/* Cards */}
+      <Dialog open={isCardsOpen} onClose={() => setIsCardsOpen(false)} size="sm" title={t('subscription.manageCards', 'settings')}>
+        {addCardSession ? (
+          <div className="space-y-3">
+            <p className="text-sm text-slate-500 dark:text-slate-400">{t('subscription.addCardDetails', 'settings')}</p>
+            <PaymobCardForm
+              publicKey={addCardSession.publicKey}
+              clientSecret={addCardSession.clientSecret}
+              checkoutUrl={addCardSession.checkoutUrl}
+              payButtonLabel={t('subscription.saveCard', 'settings')}
+              saveCard
+              onSuccess={handleAddCardComplete}
+              onPending={handleAddCardPending}
+              onRetry={handleAddCard}
+              onCancel={() => setAddCardSession(null)}
+            />
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="space-y-2">
+            {cardsLoading && (
+              <p className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400" role="status">
+                <Loader2 className="size-4 animate-spin" />
+                {t('subscription.loadingCards', 'settings')}
+              </p>
+            )}
+            {!cardsLoading && cards.length === 0 && (
+              <p className="text-sm text-slate-500 dark:text-slate-400">{t('subscription.noCards', 'settings')}</p>
+            )}
+            {cards.map((card) => (
+              <div
+                key={card.id}
+                className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 ${
+                  card.isPrimary ? 'border-brand-300 bg-brand-50/60 dark:border-brand-500/40 dark:bg-brand-500/10' : 'border-slate-200 dark:border-slate-700'
+                }`}
+              >
+                <div className="min-w-0">
+                  <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-slate-900 dark:text-white">
+                    <CardIcon className="size-4 text-slate-400" />
+                    <span dir="ltr" className="font-mono">{card.maskedPan}</span>
+                    {card.isPrimary && <Badge tone="blue">{t('subscription.primaryCard', 'settings')}</Badge>}
+                  </p>
+                  {card.failedAttempts > 0 && (
+                    <p className="mt-0.5 text-xs text-amber-600 dark:text-amber-400">
+                      {card.failedAttempts} {t('subscription.failedAttempts', 'settings')}
+                    </p>
+                  )}
+                </div>
+                {!card.isPrimary && (
+                  <div className="flex shrink-0">
+                    <IconButton label={t('subscription.makePrimary', 'settings')} onClick={() => handleMakePrimary(card)} disabled={changePrimaryMutation.isPending}>
+                      <Star className="size-4" />
+                    </IconButton>
+                    <IconButton tone="danger" label={t('subscription.deleteCard', 'settings')} onClick={() => handleDeleteCard(card)} disabled={deleteCardMutation.isPending}>
+                      <Trash2 className="size-4" />
+                    </IconButton>
+                  </div>
+                )}
+              </div>
+            ))}
+            <Button className="w-full" icon={<Plus className="size-4" />} onClick={handleAddCard} loading={startAddCardMutation.isPending}>
+              {startAddCardMutation.isPending ? t('addingCard', 'common') : t('addCard', 'common')}
+            </Button>
+          </div>
+        )}
+      </Dialog>
+    </PageShell>
+  );
+}
+
+function Notice({
+  tone,
+  icon,
+  action,
+  children,
+}: {
+  tone: 'amber' | 'blue' | 'green';
+  icon: React.ReactNode;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  const tones = {
+    amber: 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300',
+    blue: 'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-300',
+    green: 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300',
+  };
+  return (
+    <div className={`flex flex-col gap-3 rounded-xl border px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between ${tones[tone]}`}>
+      <p className="flex items-start gap-2">
+        <span className="mt-0.5 shrink-0">{icon}</span>
+        <span>{children}</span>
+      </p>
+      {action}
     </div>
   );
 }

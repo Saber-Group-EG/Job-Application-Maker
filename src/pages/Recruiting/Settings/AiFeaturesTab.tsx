@@ -11,17 +11,17 @@ import {
   ListChecks,
   ClipboardCheck,
   FileText,
+  Loader2,
 } from 'lucide-react';
 import Swal from '../../../utils/swal';
-import PageMeta from '../../../components/common/PageMeta';
-import PageBreadCrumb from '../../../components/common/PageBreadCrumb';
+import { Card, CardToolbar, EmptyState, NoAccess, SectionTitle, Switch } from '../../../components/ui/kit';
+import SettingsSection from './components/SettingsSection';
 import { useAuth } from '../../../context/AuthContext';
 import { useLocale } from '../../../context/LocaleContext';
 import {
   useCompanies,
   useUpdateCompanyAiFeatures,
 } from '../../../hooks/queries/useCompanies';
-import Switch from '../../../components/form/switch/Switch';
 import { useCompanyFilter } from '../../../context/CompanyFilterContext';
 import type { AiFeature, AiFeatureToggle } from '../../../types/companies';
 
@@ -210,172 +210,89 @@ export default function AiFeaturesTab({
   };
 
   if (!canRead) {
-    return (
-      <div
-        className={
-          embedded ? '' : 'min-h-screen bg-slate-50 px-4 py-10 dark:bg-slate-950'
-        }
-      >
-        <div
-          className={`${
-            embedded ? '' : 'mx-auto max-w-lg'
-          } rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900`}
-        >
-          <div className="mx-auto mb-5 flex size-16 items-center justify-center rounded-2xl bg-red-500/10 text-red-500">
-            <ShieldCheck className="size-8" />
-          </div>
-          <h2 className="text-2xl font-bold tracking-tight">
-            {t('aiFeatures.noPermissionTitle', 'settings')}
-          </h2>
-          <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-slate-500 dark:text-slate-400">
-            {t('aiFeatures.noPermissionDesc', 'settings')}
-          </p>
-        </div>
-      </div>
-    );
+    if (embedded) {
+      return (
+        <Card>
+          <EmptyState
+            icon={<ShieldCheck className="size-6" />}
+            title={t('aiFeatures.noPermissionTitle', 'settings')}
+            text={t('aiFeatures.noPermissionDesc', 'settings')}
+          />
+        </Card>
+      );
+    }
+    return <NoAccess title={t('aiFeatures.noPermissionTitle', 'settings')} text={t('aiFeatures.noPermissionDesc', 'settings')} />;
   }
 
   return (
-    <div
-      className={
-        embedded
-          ? 'space-y-6'
-          : 'min-h-screen bg-slate-50 p-4 text-slate-900 dark:bg-slate-950 dark:text-slate-100 sm:p-8'
-      }
+    <SettingsSection
+      embedded={embedded}
+      metaTitle={t('aiFeatures.pageMetaTitle', 'settings')}
+      metaDescription={t('aiFeatures.pageMetaDesc', 'settings')}
+      icon={<Sparkles className="size-4" />}
+      title={t('aiFeatures.title', 'settings')}
+      description={t('aiFeatures.description', 'settings')}
+      stats={[
+        { label: t('aiFeatures.statCompany', 'settings'), value: getCompanyName(selectedCompany, t, locale) },
+        { label: t('aiFeatures.statEnabled', 'settings'), value: `${enabledCount} / ${featureToggles.length}` },
+        {
+          label: t('aiFeatures.statSaveStatus', 'settings'),
+          value: (
+            <>
+              <CircleCheckBig className="size-4" /> {t('aiFeatures.statReady', 'settings')}
+            </>
+          ),
+          tone: 'success',
+        },
+      ]}
     >
-      {!embedded && (
-        <PageMeta
-          title={t('aiFeatures.pageMetaTitle', 'settings')}
-          description={t('aiFeatures.pageMetaDesc', 'settings')}
-        />
-      )}
-
-      <div className={embedded ? 'space-y-6' : 'mx-auto max-w-7xl space-y-6'}>
-        {!embedded && (
-          <PageBreadCrumb pageTitle={t('aiFeatures.pageBreadcrumb', 'settings')} />
-        )}
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <div className="flex flex-col gap-5 border-b border-slate-200 px-6 py-6 dark:border-slate-800 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-start gap-4">
-              <div className="flex size-12 items-center justify-center rounded-xl bg-violet-500/10 text-violet-600 dark:text-violet-400">
-                <Sparkles className="size-6" />
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-600/80 dark:text-violet-300">
-                  {t('aiFeatures.sectionSubtitle', 'settings')}
-                </p>
-                <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
-                  {t('aiFeatures.title', 'settings')}
-                </h1>
-                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                  {t('aiFeatures.description', 'settings')}
-                </p>
-              </div>
-            </div>
+      <Card>
+        <CardToolbar>
+          <div>
+            <SectionTitle icon={<Sparkles className="size-4" />}>{t('aiFeatures.featuresTitle', 'settings')}</SectionTitle>
+            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{t('aiFeatures.featuresDesc', 'settings')}</p>
           </div>
+        </CardToolbar>
 
-          <div className="grid grid-cols-1 gap-4 p-6 md:grid-cols-3">
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/60">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                {t('aiFeatures.statCompany', 'settings')}
-              </p>
-              <p className="mt-1 truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
-                {getCompanyName(selectedCompany, t, locale)}
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/60">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                {t('aiFeatures.statEnabled', 'settings')}
-              </p>
-              <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
-                {enabledCount} / {featureToggles.length}
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/60">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                {t('aiFeatures.statSaveStatus', 'settings')}
-              </p>
-              <p className="mt-1 inline-flex items-center gap-2 text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-                <CircleCheckBig className="size-4" /> {t('aiFeatures.statReady', 'settings')}
-              </p>
-            </div>
+        {isLoading ? (
+          <div className="flex items-center gap-2 p-4 text-sm text-slate-500 dark:text-slate-400" role="status">
+            <Loader2 className="size-4 animate-spin" />
+            {t('aiFeatures.loading', 'settings')}
           </div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
-          <div className="xl:col-span-12">
-            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-              <div className="flex flex-col gap-3 border-b border-slate-200 p-6 dark:border-slate-800 sm:flex-row sm:items-start sm:justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="flex size-11 items-center justify-center rounded-xl bg-violet-500/10 text-violet-600 dark:text-violet-400">
-                    <Sparkles className="size-6" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-semibold tracking-tight">
-                      {t('aiFeatures.featuresTitle', 'settings')}
-                    </h2>
-                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                      {t('aiFeatures.featuresDesc', 'settings')}
+        ) : (
+          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+            {featureToggles.map((item) => {
+              const Icon = FEATURE_ICONS[item.feature];
+              const title = t(`aiFeatures.${item.feature}.title`, 'settings');
+              return (
+                <li key={item.feature} className="flex items-center gap-4 px-4 py-4">
+                  <span
+                    className={`flex size-9 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                      item.enabled
+                        ? 'bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400'
+                        : 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500'
+                    }`}
+                  >
+                    <Icon className="size-4" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-slate-900 dark:text-white">{title}</p>
+                    <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
+                      {t(`aiFeatures.${item.feature}.desc`, 'settings')}
                     </p>
                   </div>
-                </div>
-              </div>
-
-              <div className="space-y-4 p-6">
-                {isLoading && (
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
-                    {t('aiFeatures.loading', 'settings')}
-                  </div>
-                )}
-
-                {!isLoading &&
-                  featureToggles.map((item) => {
-                    const Icon = FEATURE_ICONS[item.feature];
-                    return (
-                      <div
-                        key={item.feature}
-                        className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-slate-50 p-5 transition-all duration-200 hover:border-violet-200 dark:border-slate-700 dark:bg-slate-800/60 dark:hover:border-violet-700 sm:flex-row sm:items-center sm:justify-between"
-                      >
-                        <div className="flex items-start gap-3">
-                          <div
-                            className={`flex size-10 shrink-0 items-center justify-center rounded-lg transition-colors ${
-                              item.enabled
-                                ? 'bg-violet-500/15 text-violet-600 dark:text-violet-400'
-                                : 'bg-slate-200 text-slate-400 dark:bg-slate-700 dark:text-slate-500'
-                            }`}
-                          >
-                            <Icon className="size-5" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                              {t(`aiFeatures.${item.feature}.title`, 'settings')}
-                            </p>
-                            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                              {t(`aiFeatures.${item.feature}.desc`, 'settings')}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="shrink-0">
-                          <Switch
-                            label=""
-                            checked={item.enabled}
-                            disabled={!TOGGLEABLE_FEATURES.includes(item.feature)}
-                            onChange={(checked) =>
-                              toggleFeature(item.feature, checked)
-                            }
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+                  <Switch
+                    label={title}
+                    checked={item.enabled}
+                    disabled={!TOGGLEABLE_FEATURES.includes(item.feature)}
+                    onChange={(checked) => toggleFeature(item.feature, checked)}
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Card>
+    </SettingsSection>
   );
 }

@@ -1,4 +1,5 @@
 import { useRef, useEffect } from "react";
+import { useLocale } from "../../../context/LocaleContext";
 
 interface ModalProps {
   isOpen: boolean;
@@ -20,6 +21,7 @@ export const Modal: React.FC<ModalProps> = ({
   closeOnBackdrop = true, // Default to true for backwards compatibility
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
+  const { t } = useLocale();
 
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
@@ -53,13 +55,13 @@ export const Modal: React.FC<ModalProps> = ({
 
   const contentClasses = isFullscreen
     ? "w-full h-full"
-    : "relative w-full rounded-3xl bg-white/95 dark:bg-gray-900/95 shadow-2xl flex flex-col";
+    : "relative w-full rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-xl flex flex-col dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100";
 
   return (
     <div className="fixed inset-0 flex items-center justify-center overflow-y-auto modal z-99999">
       {!isFullscreen && (
         <div
-          className="fixed inset-0 h-full w-full bg-black/20 backdrop-blur-md"
+          className="fixed inset-0 h-full w-full bg-slate-900/40 backdrop-blur-sm dark:bg-black/60"
           onClick={closeOnBackdrop ? onClose : undefined}
         ></div>
       )}
@@ -71,11 +73,13 @@ export const Modal: React.FC<ModalProps> = ({
         {showCloseButton && (
           <button
             onClick={onClose}
-            className="absolute top-3 z-999 flex h-9.5 w-9.5 items-center justify-center rounded-full bg-gray-100 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white sm:top-6 sm:h-11 sm:w-11 ltr:right-3 rtl:left-3 sm:ltr:right-6 sm:rtl:left-6"
+            type="button"
+            aria-label={t("close", "common")}
+            className="absolute top-3 z-999 flex size-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 dark:hover:bg-slate-800 dark:hover:text-white ltr:right-3 rtl:left-3 sm:top-4 sm:ltr:right-4 sm:rtl:left-4"
           >
             <svg
-              width="24"
-              height="24"
+              width="18"
+              height="18"
               viewBox="0 0 24 24"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"

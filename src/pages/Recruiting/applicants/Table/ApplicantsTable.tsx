@@ -1,3 +1,4 @@
+import { describeError } from '../../../../lib/userErrors';
 // Applicants.tsx - Optimized version with improved photo loading
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
@@ -17,17 +18,14 @@ import { thumbnailCache } from '../../../../utils/persistentThumbnailCache';
 import { paths } from '../../../../router/Paths';
 
 // Components
-import PageBreadcrumb from '../../../../components/common/PageBreadCrumb';
 import PageMeta from '../../../../components/common/PageMeta';
-import ComponentCard from '../../../../components/common/ComponentCard';
-import { Modal } from '../../../../components/ui/modal';
 import BulkMessageModal from '../../../../components/modals/BulkMessageModal';
 import InterviewScheduleModal from '../../../../components/modals/InterviewScheduleModal';
 import StatusChangeModal from '../../../../components/modals/StatusChangeModal';
 import CustomFilterModal from '../../../../components/modals/CustomFilterModal';
 import { FilterHeaderCell } from './components/FilterHeaderCell';
 import { StatusCell } from './components/StatusCell';
-import { TrashBinIcon, ChatIcon, AlertIcon } from '../../../../icons';
+import { ChatIcon, AlertIcon } from '../../../../icons';
 
 // Hooks
 import { useTableState } from './hooks/useTableState';
@@ -55,7 +53,16 @@ import {
 } from 'material-react-table';
 import { ThemeProvider, createTheme } from '@mui/material';
 import { Skeleton } from '@mui/material';
-import { FileSignature, FileText } from 'lucide-react';
+import { Copy, Download, FileSignature, FileText, Mail, CalendarClock, RefreshCw, RotateCcw, Search, SlidersHorizontal, Trash2, X, ArrowRightLeft } from 'lucide-react';
+import { Button, Card, Dialog, IconButton, PageShell, focusRing, inputClass } from '../../../../components/ui/kit';
+
+// Table surface colours, matching the kit's slate palette.
+const SURFACE = {
+  head: '#f8fafc',
+  headDark: '#1e293b',
+  border: '#f1f5f9',
+  borderDark: '#1e293b',
+};
 import JobOfferModal from '../../../../components/modals/JobOffersModal/JobOffersModal';
 import JobContractModal from '../../../../components/modals/ContractModal/ContractModal';
 import { useApplicantMailCounts } from '../../../../hooks/queries/useMail';
@@ -327,8 +334,8 @@ function ProgressiveImage({
       onClick={onClick}
     >
       {isLoading && !thumb && (
-        <div className="absolute inset-0 flex h-full w-full items-center justify-center bg-gray-100 dark:bg-gray-800 animate-pulse rounded-full">
-          <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">
+        <div className="absolute inset-0 flex h-full w-full items-center justify-center bg-slate-100 dark:bg-slate-800 animate-pulse rounded-full">
+          <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">
             {getInitials()}
           </span>
         </div>
@@ -361,7 +368,7 @@ function ImageThumbnailComponent({
   if (!src) {
     return (
       <div
-        className="flex h-full w-full items-center justify-center text-sm font-semibold text-gray-500 dark:text-gray-400 cursor-pointer bg-gray-100 dark:bg-gray-800 rounded-full"
+        className="flex h-full w-full items-center justify-center text-sm font-semibold text-slate-500 dark:text-slate-400 cursor-pointer bg-slate-100 dark:bg-slate-800 rounded-full"
         onClick={onClick}
       >
         {alt && alt.charAt(0) ? alt.charAt(0).toUpperCase() : '-'}
@@ -426,7 +433,7 @@ function PhotoPreviewImage({
 
   if (isLoading) {
     return (
-      <div className="flex h-[60vh] w-full items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg">
+      <div className="flex h-[60vh] w-full items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-lg">
         <div className="animate-spin rounded-full h-12 w-12 border-4 border-brand-500 border-t-transparent" />
       </div>
     );
@@ -434,7 +441,7 @@ function PhotoPreviewImage({
 
   if (error) {
     return (
-      <div className="flex h-[60vh] w-full items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg text-gray-500">
+      <div className="flex h-[60vh] w-full items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-500">
         Failed to load image
       </div>
     );
@@ -2055,7 +2062,7 @@ export default function Applicants({
                 }
               }}
             >
-              <div className="h-10 w-10 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700 transition hover:ring-2 hover:ring-brand-500">
+              <div className="h-10 w-10 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700 transition hover:ring-2 hover:ring-brand-500">
                 <ImageThumbnailComponent
                   src={row.original.profilePhoto}
                   alt={row.original.fullName}
@@ -2142,8 +2149,8 @@ export default function Applicants({
           const count = mailCountByApplicantId.get(id) ?? 0;
           if (count === 0) return <div />;
           return (
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <ChatIcon className="w-4 h-4 text-gray-500" />
+            <div className="flex items-center gap-2 text-sm text-slate-600">
+              <ChatIcon className="w-4 h-4 text-slate-500" />
               <span className="whitespace-nowrap">{count}</span>
             </div>
           );
@@ -2550,7 +2557,7 @@ export default function Applicants({
           const reasons: string[] = a.rejectionReasons ?? [];
 
           if (!reasons || reasons.length === 0) {
-            return <span className="text-sm text-gray-500">-</span>;
+            return <span className="text-sm text-slate-500">-</span>;
           }
 
           return (
@@ -2578,14 +2585,14 @@ export default function Applicants({
           if (isTableLoading) return renderCellSkeleton('text');
           const commentText = row.original?.lastComment?.comment ?? '';
           const commentedByName = row.original?.lastComment?.commentedByName ?? '';
-          if (!commentText) return <span className="text-gray-400">-</span>;
+          if (!commentText) return <span className="text-slate-400">-</span>;
           return (
             <div className="flex flex-col gap-0.5 min-w-0 max-w-[280px]">
-              <span className="truncate text-sm text-gray-700 dark:text-gray-300">
+              <span className="truncate text-sm text-slate-700 dark:text-slate-300">
                 {commentText}
               </span>
               {commentedByName && (
-                <span className="truncate text-xs text-gray-400 dark:text-gray-500">
+                <span className="truncate text-xs text-slate-400 dark:text-slate-500">
                   {commentedByName}
                 </span>
               )}
@@ -2812,17 +2819,17 @@ export default function Applicants({
           mode: isDarkMode ? 'dark' : 'light',
         },
         typography: {
-          fontFamily: "'Montserrat', sans-serif",
+          fontFamily: 'inherit',
         },
         components: {
           MuiCheckbox: {
-            defaultProps: { size: 'large' },
+            defaultProps: { size: 'medium' },
             styleOverrides: {
               root: {
-                color: isDarkMode ? '#667085' : '#98A2B3',
+                color: isDarkMode ? '#475569' : '#cbd5e1',
                 padding: '2px',
-                '& .MuiSvgIcon-root': { fontSize: '2rem' },
-                '&.Mui-checked': { color: '#e42e2b' },
+                '& .MuiSvgIcon-root': { fontSize: '1.35rem' },
+                '&.Mui-checked, &.MuiCheckbox-indeterminate': { color: '#e42e2b' },
               },
             },
           },
@@ -2879,6 +2886,22 @@ export default function Applicants({
 
   const table = useMaterialReactTable({
     localization: mrtLocalization,
+    mrtTheme: {
+      baseBackgroundColor: isDarkMode ? '#0f172a' : '#ffffff',
+      menuBackgroundColor: isDarkMode ? '#0f172a' : '#ffffff',
+      pinnedRowBackgroundColor: isDarkMode ? '#1e293b' : '#f8fafc',
+      selectedRowBackgroundColor: isDarkMode ? '#3b1d22' : '#fdf1f1',
+      matchHighlightColor: isDarkMode ? '#78350f' : '#fef3c7',
+    },
+    muiToolbarAlertBannerProps: {
+      sx: {
+        backgroundColor: 'transparent',
+        color: isDarkMode ? '#cbd5e1' : '#475569',
+        fontSize: '0.875rem',
+        borderBottom: `1px solid ${isDarkMode ? SURFACE.borderDark : SURFACE.border}`,
+        '& button': { color: '#e42e2b', textTransform: 'none', fontWeight: 500 },
+      },
+    },
     columns,
     enableSorting: true,
     data: isTableLoading ? skeletonData : pageRows,
@@ -2893,22 +2916,17 @@ export default function Applicants({
             width: `${selectColumnWidth}px`,
             minWidth: `${selectColumnWidth}px`,
             maxWidth: `${selectColumnWidth}px`,
-            backgroundColor: isDarkMode ? '#374151' : undefined,
-            color: isDarkMode ? '#e5e7eb' : undefined,
+            backgroundColor: isDarkMode ? SURFACE.headDark : SURFACE.head,
+            color: isDarkMode ? '#94a3b8' : '#64748b',
           },
         },
-        muiTableBodyCellProps: ({ row }: any) => ({
+        muiTableBodyCellProps: () => ({
           align: 'center',
           sx: {
             padding: 0,
             width: `${selectColumnWidth}px`,
             minWidth: `${selectColumnWidth}px`,
             maxWidth: `${selectColumnWidth}px`,
-            backgroundColor: isDarkMode
-              ? row.index % 2 === 0
-                ? '#374151'
-                : '#1f2937'
-              : undefined,
           },
         }),
         Cell: ({ row, table }: any) => {
@@ -3010,159 +3028,107 @@ export default function Applicants({
     onColumnOrderChange: (updater) =>
       handleColumnOrderChange(updater, handleSaveLayout),
     renderTopToolbarCustomActions: () => (
-      <div className="flex items-center p-2 w-full justify-between">
-        <div className="flex items-center gap-2">
-          <div className="relative flex items-center">
-            <svg
-              className="absolute left-2.5 h-4 w-4 text-gray-400 pointer-events-none"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+      <div className="flex w-full flex-wrap items-center gap-2 p-2">
+        <div className="relative">
+          <Search className="pointer-events-none absolute start-2.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+          <input
+            type="search"
+            value={globalFilter}
+            onChange={(e) => setGlobalFilter(e.target.value)}
+            placeholder={t('search', 'applicants')}
+            aria-label={t('search', 'applicants')}
+            className={`${inputClass} w-44 py-1.5 pe-8 ps-8 lg:w-60`}
+          />
+          {globalFilter && (
+            <button
+              type="button"
+              aria-label={t('clearSearch', 'applicants')}
+              onClick={() => setGlobalFilter('')}
+              className={`absolute end-1.5 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 ${focusRing}`}
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
-            <input
-              type="text"
-              value={globalFilter}
-              onChange={(e) => setGlobalFilter(e.target.value)}
-              placeholder={t('search', 'applicants')}
-              className="w-40 lg:w-56 rounded-lg border border-gray-300 bg-white py-1.5 pl-8 pr-3 text-sm text-gray-700 placeholder-gray-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:placeholder-gray-500"
-            />
-            {globalFilter && (
-              <button
-                type="button"
-                onClick={() => setGlobalFilter('')}
-                className="absolute right-1.5 flex h-5 w-5 items-center justify-center rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-              >
-                <svg
-                  className="h-3.5 w-3.5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              const currentFilter = customFilters.find(
-                (f: any) => f?.fieldId === '__duplicates_only'
-              );
-              if (currentFilter) {
-                setCustomFilters((prev: any) =>
-                  prev.filter((f: any) => f?.fieldId !== '__duplicates_only')
-                );
-              } else {
-                setCustomFilters((prev: any) => [
-                  ...prev,
-                  {
-                    fieldId: '__duplicates_only',
-                    value: true,
-                    type: 'boolean',
-                    label: t('showDuplicatesOnly', 'applicants'),
-                  },
-                ]);
-              }
-            }}
-            className={`inline-flex items-center gap-2 rounded-lg px-3 py-1 text-sm font-semibold transition-all duration-200 ${duplicatesOnlyEnabled ? 'bg-amber-500 text-white shadow-md ring-2 ring-amber-300' : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200'}`}
-          >
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"
-              />
-            </svg>
-            {duplicatesOnlyEnabled
-              ? t('duplicatesOnly', 'applicants')
-              : t('showDuplicates', 'applicants')}
-          </button>
-          {duplicatesOnlyEnabled && (
-            <span className="text-xs text-amber-600 dark:text-amber-400">
-              {t('duplicateCount', 'applicants', {
-                count: tableData?.duplicateCount ?? 0,
-              })}
-            </span>
+              <X className="size-3.5" />
+            </button>
           )}
         </div>
+        <button
+          type="button"
+          aria-pressed={duplicatesOnlyEnabled}
+          onClick={() => {
+            const currentFilter = customFilters.find(
+              (f: any) => f?.fieldId === '__duplicates_only'
+            );
+            if (currentFilter) {
+              setCustomFilters((prev: any) =>
+                prev.filter((f: any) => f?.fieldId !== '__duplicates_only')
+              );
+            } else {
+              setCustomFilters((prev: any) => [
+                ...prev,
+                {
+                  fieldId: '__duplicates_only',
+                  value: true,
+                  type: 'boolean',
+                  label: t('showDuplicatesOnly', 'applicants'),
+                },
+              ]);
+            }
+          }}
+          className={`inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-sm font-medium transition ${focusRing} ${
+            duplicatesOnlyEnabled
+              ? 'border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300'
+              : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800'
+          }`}
+        >
+          <Copy className="size-4" />
+          {duplicatesOnlyEnabled ? t('duplicatesOnly', 'applicants') : t('showDuplicates', 'applicants')}
+        </button>
+        {duplicatesOnlyEnabled && (
+          <span className="text-xs text-amber-700 dark:text-amber-400">
+            {t('duplicateCount', 'applicants', { count: tableData?.duplicateCount ?? 0 })}
+          </span>
+        )}
         <div className="flex-1" />
-        <div className="flex items-center gap-3 self-start">
-          <button
-            type="button"
-            onClick={() => setCustomFilterOpen(true)}
-            className={`inline-flex items-center gap-2 rounded-lg px-3 py-1 text-sm font-semibold shadow-sm transition-all duration-200 ${
-              customFilters.length > 0
-                ? 'bg-amber-500 text-white hover:bg-amber-600 ring-2 ring-amber-300'
-                : 'bg-brand-500 text-white hover:bg-brand-600'
-            }`}
-          >
-            <span className="relative">
-              {t('filterSettings', 'applicants')}
-              {customFilters.length > 0 && (
-                <span className="absolute -top-2 -right-3 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
-                  {customFilters.length}
-                </span>
-              )}
-            </span>
-          </button>
-        </div>
+        <Button
+          variant={customFilters.length > 0 ? 'secondary' : 'primary'}
+          size="sm"
+          icon={<SlidersHorizontal className="size-4" />}
+          onClick={() => setCustomFilterOpen(true)}
+          className="h-9"
+        >
+          {t('filterSettings', 'applicants')}
+          {customFilters.length > 0 && (
+            <span className="rounded-full bg-brand-500 px-1.5 text-[11px] font-semibold tabular-nums text-white">{customFilters.length}</span>
+          )}
+        </Button>
       </div>
     ),
     muiTopToolbarProps: {
       sx: {
-        backgroundColor: isDarkMode ? '#1f2937' : undefined,
-        color: isDarkMode ? '#e5e7eb' : undefined,
-        '& .MuiInputBase-root': {
-          color: isDarkMode ? '#e5e7eb' : undefined,
-        },
-        '& .MuiInputBase-input': {
-          color: isDarkMode ? '#e5e7eb' : undefined,
-        },
-        '& .MuiSvgIcon-root': {
-          color: isDarkMode ? '#9ca3af' : undefined,
-        },
+        backgroundColor: 'transparent',
+        color: isDarkMode ? '#e2e8f0' : undefined,
+        '& .MuiSvgIcon-root': { color: isDarkMode ? '#94a3b8' : '#64748b' },
       },
     },
     muiBottomToolbarProps: {
       sx: {
-        backgroundColor: isDarkMode ? '#1f2937' : undefined,
-        color: isDarkMode ? '#e5e7eb' : undefined,
-        '& .MuiSvgIcon-root': {
-          color: isDarkMode ? '#9ca3af' : undefined,
-        },
-        '& .MuiTablePagination-toolbar': {
-          color: isDarkMode ? '#e5e7eb' : undefined,
-        },
+        backgroundColor: 'transparent',
+        color: isDarkMode ? '#e2e8f0' : '#334155',
+        borderTop: `1px solid ${isDarkMode ? SURFACE.borderDark : SURFACE.border}`,
+        '& .MuiSvgIcon-root': { color: isDarkMode ? '#94a3b8' : '#64748b' },
+        '& .MuiTablePagination-toolbar': { color: isDarkMode ? '#e2e8f0' : '#334155' },
       },
     },
     muiTablePaperProps: {
       elevation: 0,
       sx: {
-        backgroundColor: isDarkMode ? '#1f2937' : undefined,
+        backgroundColor: 'transparent',
+        backgroundImage: 'none',
+        boxShadow: 'none',
       },
     },
     muiTableProps: {
       sx: {
-        backgroundColor: isDarkMode ? '#1f2937' : undefined,
+        backgroundColor: 'transparent',
       },
     },
     muiTableContainerProps: {
@@ -3172,10 +3138,10 @@ export default function Applicants({
           height: '6px',
         },
         '&::-webkit-scrollbar-track': {
-          backgroundColor: isDarkMode ? '#1f2937' : undefined,
+          backgroundColor: 'transparent',
         },
         '&::-webkit-scrollbar-thumb': {
-          backgroundColor: isDarkMode ? '#4b5563' : undefined,
+          backgroundColor: isDarkMode ? '#334155' : '#cbd5e1',
           borderRadius: '3px',
         },
       },
@@ -3187,20 +3153,22 @@ export default function Applicants({
         whiteSpace: 'nowrap',
         overflow: 'hidden',
         textOverflow: 'ellipsis',
-        color: isDarkMode ? '#e5e7eb' : '#282828',
-        borderBottom: isDarkMode ? '1px solid #374151' : undefined,
+        fontSize: '0.875rem',
+        color: isDarkMode ? '#e2e8f0' : '#334155',
+        borderBottom: `1px solid ${isDarkMode ? SURFACE.borderDark : SURFACE.border}`,
       },
     }),
     muiTableHeadCellProps: ({ column }) => ({
       'data-column-id': column.id,
       'data-flip-key': `head:${column.id}`,
       sx: {
-        height: '50px',
-        fontWeight: 'bold',
+        height: '44px',
+        fontSize: '0.75rem',
+        fontWeight: 500,
         position: 'relative',
-        color: isDarkMode ? '#e5e7eb' : undefined,
-        backgroundColor: isDarkMode ? '#374151' : undefined,
-        borderBottom: isDarkMode ? '1px solid #4b5563' : undefined,
+        color: isDarkMode ? '#94a3b8' : '#64748b',
+        backgroundColor: isDarkMode ? SURFACE.headDark : SURFACE.head,
+        borderBottom: `1px solid ${isDarkMode ? SURFACE.borderDark : SURFACE.border}`,
         userSelect: 'none',
         transition: 'background-color 0.2s ease',
         '& .MuiTableSortLabel-icon': { display: 'none' },
@@ -3250,15 +3218,11 @@ export default function Applicants({
           ? undefined
           : (e) => onHeaderMouseDown(e, () => column.toggleSorting()),
     }),
-    muiTableBodyRowProps: ({ row, table }) => ({
+    muiTableBodyRowProps: () => ({
       sx: {
-        backgroundColor: isDarkMode
-          ? table.getRowModel().rows.indexOf(row) % 2 === 0
-            ? '#374151'
-            : '#1f2937'
-          : table.getRowModel().rows.indexOf(row) % 2 === 0
-            ? 'rgba(240, 240, 240, 1)'
-            : 'white',
+        '&:hover td:after': {
+          backgroundColor: isDarkMode ? 'rgba(148, 163, 184, 0.06)' : 'rgba(15, 23, 42, 0.03)',
+        },
         '& .MuiTableRow-root': {
           overflow: 'hidden',
           width: '100%',
@@ -3272,94 +3236,57 @@ export default function Applicants({
     getRowId: (row) => row._id,
   });
 
+  const isRefreshing = isJobPositionsFetching || isApplicantsFetching || isCompaniesFetching;
+  const refreshAll = async () => {
+    const promises: Promise<any>[] = [];
+    if (isJobPositionsFetched) promises.push(refetchJobPositions());
+    if (isApplicantsFetched) promises.push(refetchApplicants());
+    if (isCompaniesFetched) promises.push(refetchCompanies());
+    if (promises.length === 0) return;
+    await Promise.all(promises);
+    if (mountedRef.current) setLastRefetch(new Date());
+  };
+
   return (
     <ThemeProvider theme={muiTheme} key={isDarkMode ? 'dark' : 'light'}>
-      <div className="w-full min-w-0">
+      <PageShell
+        title={t('pageTitle', 'applicants')}
+        subtitle={elapsed ? t('lastUpdate', 'applicants', { time: elapsed }) : t('notUpdatedYet', 'applicants')}
+        actions={
+          <Button icon={<RefreshCw className={`size-4 ${isRefreshing ? 'animate-spin' : ''}`} />} onClick={refreshAll} disabled={isRefreshing}>
+            {isRefreshing ? t('updatingData', 'applicants') : t('updateData', 'applicants')}
+          </Button>
+        }
+      >
         <PageMeta
           title={t('pageTitle', 'applicants')}
           description={t('pageDescription', 'applicants')}
         />
-        <PageBreadcrumb
-          pageTitle={t('pageTitle', 'applicants')}
-          actions={
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={async () => {
-                  const promises: Promise<any>[] = [];
-                  if (isJobPositionsFetched)
-                    promises.push(refetchJobPositions());
-                  if (isApplicantsFetched) promises.push(refetchApplicants());
-                  if (isCompaniesFetched) promises.push(refetchCompanies());
-                  if (promises.length === 0) return;
-                  await Promise.all(promises);
-                  if (mountedRef.current) setLastRefetch(new Date());
-                }}
-                disabled={
-                  isJobPositionsFetching ||
-                  isApplicantsFetching ||
-                  isCompaniesFetching
-                }
-                className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-3 py-1 text-sm font-semibold text-white shadow-sm hover:bg-brand-600 disabled:opacity-50"
-              >
-                {isJobPositionsFetching ||
-                isApplicantsFetching ||
-                isCompaniesFetching
-                  ? t('updatingData', 'applicants')
-                  : t('updateData', 'applicants')}
-              </button>
-              <div className="text-sm text-gray-500">
-                {elapsed
-                  ? t('lastUpdate', 'applicants', { time: elapsed })
-                  : t('notUpdatedYet', 'applicants')}
-              </div>
-            </div>
-          }
-        />
-        <div className="w-full min-w-0">
-          <div className="grid gap-6 min-w-0">
-            <ComponentCard
-              title={t('componentTitle', 'applicants')}
-              desc={t('componentDesc', 'applicants')}
-              className="overflow-hidden"
-            >
+        <Card className="min-w-0 overflow-hidden">
               <>
                 {error && (
-                  <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg">
-                    {String(error)}
+                  <div className="m-4 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300" role="alert">
+                    {describeError(error).message}
                   </div>
                 )}
 
                 {selectedApplicantCount > 0 && (
-                  <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-lg bg-brand-50 px-4 py-3 dark:bg-brand-900/20">
+                  <div className="flex flex-col gap-3 border-b border-brand-100 bg-brand-50/60 px-4 py-3 dark:border-brand-500/20 dark:bg-brand-500/10 lg:flex-row lg:items-center lg:justify-between">
                     <span className="text-sm font-medium text-brand-700 dark:text-brand-300">
                       {t('selectedCount', 'applicants', {
                         count: selectedApplicantCount,
                       })}
                     </span>
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
-                      <button
-                        onClick={() => {
-                          setOfferModalOpen(true);
-                        }}
-                        disabled={selectedApplicantCount === 0}
-                        className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
-                      >
-                        <FileText className="h-4 w-4" />
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button size="sm" icon={<FileText className="size-4" />} onClick={() => setOfferModalOpen(true)} disabled={selectedApplicantCount === 0}>
                         {`${t('sendOffer', 'applicants')} (${selectedApplicantCount})`}
-                      </button>
-                      <button
-                        onClick={() => {
-                          setContractModalOpen(true);
-                        }}
-                        disabled={selectedApplicantCount === 0}
-                        className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-50"
-                      >
-                        <FileSignature className="h-4 w-4" />
+                      </Button>
+                      <Button size="sm" icon={<FileSignature className="size-4" />} onClick={() => setContractModalOpen(true)} disabled={selectedApplicantCount === 0}>
                         {`${t('sendContract', 'applicants')} (${selectedApplicantCount})`}
-                      </button>
-                      <button
-                        type="button"
+                      </Button>
+                      <Button
+                        size="sm"
+                        icon={<ArrowRightLeft className="size-4" />}
                         onClick={() => {
                           setBulkStatusForm({
                             status: '',
@@ -3370,100 +3297,46 @@ export default function Applicants({
                           setShowBulkStatusModal(true);
                         }}
                         disabled={isProcessing || selectedApplicantCount === 0}
-                        className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:opacity-50"
                       >
-                        {isProcessing
-                          ? t('changing', 'applicants')
-                          : t('changeStatus', 'applicants')}
-                      </button>
-                      <button
-                        onClick={handleExportToExcel}
-                        disabled={isExporting || selectedApplicantCount === 0}
-                        className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-50"
-                      >
-                        <svg
-                          className="h-4 w-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"
-                          />
-                        </svg>
-                        {isExporting
-                          ? t('exporting', 'applicants')
-                          : `${t('export', 'applicants')} (${selectedApplicantCount})`}
-                      </button>
-                      <button
-                        onClick={() => setShowBulkModal(true)}
-                        disabled={
-                          isProcessing ||
-                          selectedApplicantRecipients.length === 0
-                        }
-                        className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
-                      >
+                        {isProcessing ? t('changing', 'applicants') : t('changeStatus', 'applicants')}
+                      </Button>
+                      <Button size="sm" icon={<Download className="size-4" />} onClick={handleExportToExcel} loading={isExporting} disabled={selectedApplicantCount === 0}>
+                        {isExporting ? t('exporting', 'applicants') : `${t('export', 'applicants')} (${selectedApplicantCount})`}
+                      </Button>
+                      <Button size="sm" icon={<Mail className="size-4" />} onClick={() => setShowBulkModal(true)} disabled={isProcessing || selectedApplicantRecipients.length === 0}>
                         {`${t('sendMail', 'applicants')} (${selectedApplicantRecipients.length})`}
-                      </button>
-                      <button
+                      </Button>
+                      <Button
+                        size="sm"
+                        icon={<CalendarClock className="size-4" />}
                         onClick={openBulkInterviewModal}
-                        disabled={
-                          isSubmittingBulkInterview ||
-                          selectedApplicantsForInterview.length === 0
-                        }
-                        className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-700 disabled:opacity-50"
+                        loading={isSubmittingBulkInterview}
+                        disabled={selectedApplicantsForInterview.length === 0}
                       >
                         {isSubmittingBulkInterview
                           ? t('scheduling', 'applicants')
                           : `${t('scheduleInterviews', 'applicants')} (${selectedApplicantsForInterview.length})`}
-                      </button>
+                      </Button>
                       {selectedTrashedApplicants.length > 0 && (
-                        <button
-                          onClick={handleBulkRestore}
-                          className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700"
-                        >
-                          <svg
-                            className="h-4 w-4"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                            />
-                          </svg>
-                          {t('restore', 'applicants')} (
-                          {selectedTrashedApplicants.length})
-                        </button>
+                        <Button size="sm" variant="success" icon={<RotateCcw className="size-4" />} onClick={handleBulkRestore}>
+                          {t('restore', 'applicants')} ({selectedTrashedApplicants.length})
+                        </Button>
                       )}
-                      <button
-                        onClick={handleBulkDelete}
-                        disabled={isDeleting}
-                        className="inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-600 disabled:opacity-50"
-                      >
-                        <TrashBinIcon className="h-4 w-4" />
-                        {isDeleting
-                          ? t('deleting', 'applicants')
-                          : t('delete', 'applicants')}
-                      </button>
+                      <Button size="sm" variant="danger" icon={<Trash2 className="size-4" />} onClick={handleBulkDelete} loading={isDeleting}>
+                        {isDeleting ? t('deleting', 'applicants') : t('delete', 'applicants')}
+                      </Button>
                     </div>
                   </div>
                 )}
 
                 {!isLayoutLoaded ? (
-                  <div className="flex items-center justify-center py-20">
-                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-brand-500 border-t-transparent" />
+                  <div className="flex items-center justify-center py-20" role="status">
+                    <div className="size-10 animate-spin rounded-full border-4 border-brand-500 border-t-transparent" />
                   </div>
                 ) : (
                   <div
                     ref={tableContainerRef}
-                    className="w-full overflow-x-auto custom-scrollbar"
+                    className="custom-scrollbar w-full overflow-x-auto"
                   >
                     <MaterialReactTable table={table} />
                   </div>
@@ -3572,84 +3445,43 @@ export default function Applicants({
                   jobTitleById={jobPositionMap}
                 />
 
-                <Modal
-                  isOpen={showBulkInterviewPreviewModal}
+                <Dialog
+                  open={showBulkInterviewPreviewModal}
                   onClose={() => setShowBulkInterviewPreviewModal(false)}
-                  className="max-w-5xl p-6"
+                  size="xl"
+                  title={t('interviewEmailPreview', 'applicants', { count: bulkInterviewPreviewItems.length })}
+                  footer={<Button onClick={() => setShowBulkInterviewPreviewModal(false)}>{t('close', 'applicants')}</Button>}
                 >
                   <div className="space-y-4">
-                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                      {t('interviewEmailPreview', 'applicants', {
-                        count: bulkInterviewPreviewItems.length,
-                      })}
-                    </h2>
-                    <div className="max-h-[70vh] space-y-4 overflow-auto pr-1">
-                      {bulkInterviewPreviewItems.map((item, index) => (
-                        <div
-                          key={`${item.applicantId}-${index}`}
-                          className="rounded-lg border border-gray-200 p-3 dark:border-gray-700"
-                        >
-                          <div className="mb-2 text-sm font-semibold text-gray-800 dark:text-white/90">
-                            {t('applicantItem', 'applicants', {
-                              no: item.applicantNo,
-                              name: item.applicantName,
-                            })}
-                          </div>
-                          <div className="mb-3 text-xs text-gray-600 dark:text-gray-300">
-                            <span className="mr-4">
-                              {t('to', 'applicants')}{' '}
-                              {item.to || t('noEmail', 'applicants')}
-                            </span>
-                            <span>
-                              {t('scheduled', 'applicants')}{' '}
-                              {item.scheduledLabel}
-                            </span>
-                          </div>
-                          <iframe
-                            srcDoc={item.html}
-                            title={`Interview Preview ${item.applicantId}`}
-                            className="min-h-[360px] w-full rounded border-none bg-white"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                    <div className="flex justify-end">
-                      <button
-                        type="button"
-                        onClick={() => setShowBulkInterviewPreviewModal(false)}
-                        className="rounded-lg border border-stroke px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700"
-                      >
-                        {t('close', 'applicants')}
-                      </button>
-                    </div>
+                    {bulkInterviewPreviewItems.map((item, index) => (
+                      <div key={`${item.applicantId}-${index}`} className="rounded-xl border border-slate-200 p-3 dark:border-slate-700">
+                        <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                          {t('applicantItem', 'applicants', { no: item.applicantNo, name: item.applicantName })}
+                        </p>
+                        <p className="mb-3 mt-0.5 flex flex-wrap gap-x-4 text-xs text-slate-500 dark:text-slate-400">
+                          <span>
+                            {t('to', 'applicants')} {item.to || t('noEmail', 'applicants')}
+                          </span>
+                          <span>
+                            {t('scheduled', 'applicants')} {item.scheduledLabel}
+                          </span>
+                        </p>
+                        <iframe srcDoc={item.html} title={`Interview Preview ${item.applicantId}`} className="min-h-[360px] w-full rounded-lg border-none bg-white" />
+                      </div>
+                    ))}
                   </div>
-                </Modal>
+                </Dialog>
 
-                <Modal
-                  isOpen={showBulkPreviewFallbackModal}
+                <Dialog
+                  open={showBulkPreviewFallbackModal}
                   onClose={() => setShowBulkPreviewFallbackModal(false)}
-                  className="max-w-3xl p-6"
+                  size="lg"
+                  title={t('preview', 'applicants')}
                 >
-                  <div className="space-y-3">
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                      {t('preview', 'applicants')}
-                    </h2>
-                    <div
-                      className="border rounded p-2 bg-white dark:bg-gray-800"
-                      style={{ maxHeight: '70vh', overflow: 'auto' }}
-                    >
-                      <iframe
-                        srcDoc={bulkPreviewHtml}
-                        title="Bulk Interview Preview"
-                        className="w-full min-h-[480px] rounded border-none"
-                      />
-                    </div>
-                  </div>
-                </Modal>
+                  <iframe srcDoc={bulkPreviewHtml} title="Bulk Interview Preview" className="min-h-[480px] w-full rounded-lg border border-slate-200 bg-white dark:border-slate-700" />
+                </Dialog>
               </>
-            </ComponentCard>
-          </div>
-        </div>
+        </Card>
 
         {previewPhotoUrl && (
           <div
@@ -3657,12 +3489,13 @@ export default function Applicants({
             onClick={() => setPreviewPhotoUrl(null)}
           >
             <div className="relative max-h-[90vh] max-w-[90vw] p-4">
-              <button
+              <IconButton
+                label={t('close', 'applicants')}
                 onClick={() => setPreviewPhotoUrl(null)}
-                className="absolute -top-2 -right-2 flex h-8 w-8 items-center justify-center rounded-full bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 shadow-lg hover:bg-gray-100 dark:hover:bg-gray-600"
+                className="absolute -end-2 -top-2 rounded-full bg-white shadow-lg dark:bg-slate-800"
               >
-                ✕
-              </button>
+                <X className="size-4" />
+              </IconButton>
               <PhotoPreviewImage src={previewPhotoUrl} />
             </div>
           </div>
@@ -3682,7 +3515,7 @@ export default function Applicants({
           setColumnFilters={setColumnFilters}
           genderOptions={genderOptions}
         />
-      </div>
+      </PageShell>
     </ThemeProvider>
   );
 }

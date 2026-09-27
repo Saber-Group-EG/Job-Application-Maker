@@ -1,6 +1,7 @@
+import { describeError } from '../../lib/userErrors';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import axiosInstance from '../../config/axios';
-import Swal from 'sweetalert2';
+import Swal from '../../utils/swal';
 import { useLocale } from '../../context/LocaleContext';
 
 type ApplicantRef = { _id?: string } | string;
@@ -52,11 +53,7 @@ const normalizeEmail = (email: EmailPayload) => {
 
 // The backend's validation middleware returns a generic message plus the
 // specific reasons in `details`; show the reasons.
-const serverErrorText = (error: MailError): string | undefined => {
-  const data = error?.response?.data;
-  const details = data?.details?.map((d) => d.message).filter(Boolean);
-  return details?.length ? details.join(' ') : data?.message || data?.error;
-};
+const serverErrorText = (error: MailError): string | undefined => describeError(error).message;
 
 export function useSendEmail() {
   const { t } = useLocale();

@@ -8,8 +8,8 @@
  * Install once:  npm install jspdf
  */
 
-import { useState, useEffect, useRef } from 'react';
-import { Mail, FileDown, X, Send, Loader2 } from 'lucide-react';
+import { useState } from 'react';
+import { Mail, Send } from 'lucide-react';
 import { JobOffer } from '../../../services/jobOffersService';
 import { Company } from '../../../types';
 import {
@@ -22,6 +22,8 @@ import { useUpdateJobOffer } from '../../../hooks/queries/useJobOffers';
 import { useAuth } from '../../../context/AuthContext';
 import { useLocale } from '../../../context/LocaleContext';
 import { downloadJobOfferAsPdf } from '../../../utils/jobOfferPdfGenerator';
+import { Button, Dialog, Field, IconButton, Segmented, selectClass } from '../../../components/ui/kit';
+import { PdfDownloadButton } from '../../../components/documents/DocumentUi';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -69,11 +71,6 @@ function offerToFormLike(offer: JobOffer) {
   } as any;
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
-
-const selectCls =
-  'w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100';
-
 // ─── Resend Modal ─────────────────────────────────────────────────────────────
 
 export function ResendModal({
@@ -108,15 +105,6 @@ export function ResendModal({
 
   const [selectedSender, setSelectedSender] = useState('');
   const resolvedSender = selectedSender || availableSenders[0] || '';
-
-  // Close on Escape
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
 
   const handleSend = async () => {
     if (!applicant?.email || !resolvedSender) return;
@@ -159,163 +147,92 @@ export function ResendModal({
     onClose();
   };
 
+  const positionLabel = locale === 'ar' ? (offer.position?.ar || offer.position?.en) : (offer.position?.en || offer.position?.ar);
+
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm h-screen w-full"
-        onClick={onClose}
-        aria-hidden="true"
-      />
-
-      {/* Dialog */}
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={t('resendModalLabel', 'jobOffers')}
-        className="fixed inset-0 z-60 flex items-center justify-center p-4 h-screen w-full"
-        onClick={onClose}
-      >
-        <div
-          onClick={(e) => e.stopPropagation()}
-          className="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900"
-        >
-          {/* Header */}
-          <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5 dark:border-slate-800">
-            <div className="flex items-center gap-3">
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400">
-                <Mail className="size-4" />
-              </div>
-              <div>
-                <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">
-                  {t('resendModalTitle', 'jobOffers')}
-                </h2>
-                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                  {locale === 'ar' ? (offer.position?.ar || offer.position?.en) : (offer.position?.en || offer.position?.ar)}
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex size-7 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:border-slate-700 dark:hover:bg-slate-800"
-            >
-              <X className="size-3.5" />
-            </button>
-          </div>
-
-          {/* Body */}
-          <div className="space-y-4 px-6 py-5">
-            {/* Recipient */}
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.13em] text-slate-500 dark:text-slate-400">
-                {t('to', 'jobOffers')}
-              </label>
-              {applicant?.email ? (
-                <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-800">
-                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-brand-500/10 text-[10px] font-bold text-brand-600 dark:text-brand-400">
-                    {applicant.fullName?.[0]?.toUpperCase() ?? '?'}
-                  </span>
-                  <div>
-                    <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
-                      {applicant.fullName}
-                    </p>
-                    <p className="text-xs text-slate-500">{applicant.email}</p>
-                  </div>
-                </div>
-              ) : (
-                <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-700 dark:border-amber-800/40 dark:bg-amber-900/10 dark:text-amber-400">
-                  {t('noEmailWarning', 'jobOffers')}
-                </p>
-              )}
-            </div>
-            {/* Language */}
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.13em] text-slate-500 dark:text-slate-400">
-                {t('emailLanguage', 'jobOffers')}
-              </label>
-              <div className="flex gap-2">
-                {(['en', 'ar'] as const).map((lang) => (
-                  <button
-                    key={lang}
-                    type="button"
-                    onClick={() => setEmailLang(lang)}
-                    className={`flex-1 rounded-lg border py-2 text-sm font-semibold transition
-          ${
-            emailLang === lang
-              ? 'border-brand-500 bg-brand-500 text-white'
-              : 'border-slate-200 bg-white text-slate-600 hover:border-brand-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
-          }`}
-                  >
-                    {lang === 'en' ? t('english', 'jobOffers') : t('arabic', 'jobOffers')}
-                  </button>
-                ))}
+    <Dialog
+      open
+      onClose={onClose}
+      size="sm"
+      title={t('resendModalTitle', 'jobOffers')}
+      description={positionLabel}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            {t('cancel', 'jobOffers')}
+          </Button>
+          <Button
+            variant="primary"
+            icon={<Send className="size-4" />}
+            loading={isSending}
+            disabled={!applicant?.email || !resolvedSender}
+            onClick={handleSend}
+          >
+            {isSending ? t('sending', 'jobOffers') : t('send', 'jobOffers')}
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <Field label={t('to', 'jobOffers')}>
+          {applicant?.email ? (
+            <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800/60">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-50 text-xs font-semibold text-brand-600 dark:bg-brand-500/15 dark:text-brand-300">
+                {applicant.fullName?.[0]?.toUpperCase() ?? '?'}
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-slate-900 dark:text-white">{applicant.fullName}</p>
+                <p dir="ltr" className="truncate text-start text-xs text-slate-500 dark:text-slate-400">{applicant.email}</p>
               </div>
             </div>
-            {/* Sender */}
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.13em] text-slate-500 dark:text-slate-400">
-                {t('from', 'jobOffers')}
-              </label>
-              {availableSenders.length > 0 ? (
-                <div className="relative">
-                  <select
-                    className={selectCls}
-                    value={resolvedSender}
-                    onChange={(e) => setSelectedSender(e.target.value)}
-                  >
-                    {availableSenders.map((addr) => (
-                      <option key={addr} value={addr}>
-                        {addr}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ) : (
-                <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-700 dark:border-amber-800/40 dark:bg-amber-900/10 dark:text-amber-400">
-                  {t('noSenderWarning', 'jobOffers')}
-                </p>
-              )}
-            </div>
+          ) : (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300">
+              {t('noEmailWarning', 'jobOffers')}
+            </p>
+          )}
+        </Field>
 
-            {/* Last sent note */}
-            {(offer as any).lastEmailSentAt && (
-              <p className="text-xs text-slate-400 dark:text-slate-500">
-                {t('previouslySentOn', 'jobOffers')}{' '}
-                {new Date((offer as any).lastEmailSentAt).toLocaleDateString(
-                  undefined,
-                  { day: 'numeric', month: 'short', year: 'numeric' }
-                )}
-              </p>
-            )}
-          </div>
+        <Field label={t('emailLanguage', 'jobOffers')}>
+          <Segmented
+            ariaLabel={t('emailLanguage', 'jobOffers')}
+            value={emailLang}
+            onChange={setEmailLang}
+            options={[
+              { value: 'en', label: t('english', 'jobOffers') },
+              { value: 'ar', label: t('arabic', 'jobOffers') },
+            ]}
+          />
+        </Field>
 
-          {/* Footer */}
-          <div className="flex items-center justify-end gap-3 border-t border-slate-200 px-6 py-4 dark:border-slate-800">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+        <Field label={t('from', 'jobOffers')} htmlFor="resend-from">
+          {availableSenders.length > 0 ? (
+            <select
+              id="resend-from"
+              className={selectClass}
+              value={resolvedSender}
+              onChange={(e) => setSelectedSender(e.target.value)}
             >
-              {t('cancel', 'jobOffers')}
-            </button>
-            <button
-              type="button"
-              onClick={handleSend}
-              disabled={isSending || !applicant?.email || !resolvedSender}
-              className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-2 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isSending ? (
-                <div className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-              ) : (
-                <Send className="size-4" />
-              )}
-              {isSending ? t('sending', 'jobOffers') : t('send', 'jobOffers')}
-            </button>
-          </div>
-        </div>
+              {availableSenders.map((addr) => (
+                <option key={addr} value={addr}>
+                  {addr}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300">
+              {t('noSenderWarning', 'jobOffers')}
+            </p>
+          )}
+        </Field>
+
+        {(offer as any).lastEmailSentAt && (
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            {t('previouslySentOn', 'jobOffers')}{' '}
+            {new Date((offer as any).lastEmailSentAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
+          </p>
+        )}
       </div>
-    </>
+    </Dialog>
   );
 }
 
@@ -328,83 +245,32 @@ export function OfferActions({
   offer: JobOffer;
   setResendOpen: (open: boolean) => void;
 }) {
-  const [pdfLoading, setPdfLoading] = useState(false);
-  const [pdfPopoverOpen, setPdfPopoverOpen] = useState(false);
-  const popoverRef = useRef<HTMLDivElement>(null);
   const { t } = useLocale();
   const { hasPermission } = useAuth();
   const canSendEmail = hasPermission('Mail Management', 'create');
-  
-  // Close popover on outside click:
-  useEffect(() => {
-    if (!pdfPopoverOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (!popoverRef.current?.contains(e.target as Node)) {
-        setPdfPopoverOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [pdfPopoverOpen]);
 
   const handleDownloadPdf = async (lang: 'en' | 'ar') => {
-    setPdfLoading(true);
     try {
       await downloadJobOfferAsPdf(offer, lang);
     } catch (error) {
       console.error('Failed to generate PDF:', error);
-    } finally {
-      setPdfLoading(false);
-      setPdfPopoverOpen(false);
     }
   };
 
   return (
     <>
-      {/* Resend email */}
       {canSendEmail && (
-        <button
-          onClick={() => setResendOpen(true)}
-          className="flex size-8 items-center justify-center rounded-lg border border-slate-200 text-slate-400 transition hover:border-brand-300 hover:bg-brand-50 hover:text-brand-600 dark:border-slate-700 dark:hover:border-brand-700 dark:hover:bg-brand-500/10 dark:hover:text-brand-400"
-          title={t('resendBtnTitle', 'jobOffers')}
-        >
-          <Mail className="size-3.5" />
-        </button>
+        <IconButton label={t('resendBtnTitle', 'jobOffers')} onClick={() => setResendOpen(true)}>
+          <Mail className="size-4" />
+        </IconButton>
       )}
-
-      {/* Download PDF with language popover */}
-      <div className="relative" ref={popoverRef}>
-        <button
-          onClick={() => setPdfPopoverOpen((v) => !v)}
-          disabled={pdfLoading}
-          className="flex size-8 items-center justify-center rounded-lg border border-slate-200 text-slate-400 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-600 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:hover:border-emerald-700 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-400"
-          title={t('downloadPdf', 'jobOffers')}
-        >
-          {pdfLoading ? (
-            <Loader2 className="size-3.5 animate-spin" />
-          ) : (
-            <FileDown className="size-3.5" />
-          )}
-        </button>
-
-        {pdfPopoverOpen && (
-          <div className="absolute right-0 top-full z-50 mt-2 min-w-max w-44 rounded-xl border border-slate-200 bg-white p-2 shadow-lg dark:border-slate-700 dark:bg-slate-900">
-            <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
-              {t('pdfLanguage', 'jobOffers')}
-            </p>
-            {(['en', 'ar'] as const).map((lang) => (
-              <button
-                key={lang}
-                type="button"
-                onClick={() => handleDownloadPdf(lang)}
-                className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
-              >
-                <span>{lang === 'en' ? t('english', 'jobOffers') : t('arabic', 'jobOffers')}</span>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+      <PdfDownloadButton
+        label={t('downloadPdf', 'jobOffers')}
+        languageLabel={t('pdfLanguage', 'jobOffers')}
+        englishLabel={t('english', 'jobOffers')}
+        arabicLabel={t('arabic', 'jobOffers')}
+        onDownload={handleDownloadPdf}
+      />
     </>
   );
 }

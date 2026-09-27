@@ -8,6 +8,9 @@ import { CompanyFilterProvider } from '../context/CompanyFilterContext';
 import { QuotaProvider, useQuota } from '../context/QuotaContext';
 import QuotaBanner from './QuotaBanner';
 import QuotaBlockedScreen from './QuotaBlockedScreen';
+import { ErrorBoundary } from '../components/common/ErrorBoundary';
+import LoadErrorBanner from './LoadErrorBanner';
+import { InlineErrorProvider } from '../context/InlineErrorContext';
 
 const RENEW_PATH = '/recruiting/subscription';
 
@@ -42,8 +45,12 @@ const LayoutContent: React.FC = () => {
       >
         <AppHeader />
         <QuotaBanner />
+        <LoadErrorBanner />
         <div className="mx-auto flex-1 min-w-0 w-full max-w-full p-3 sm:p-4 md:p-5 xl:max-w-[1760px]">
-          <Outlet />
+          {/* A crash in one page keeps the sidebar; navigating away clears it. */}
+          <ErrorBoundary resetKey={pathname}>
+            <Outlet />
+          </ErrorBoundary>
         </div>
       </div>
     </div>
@@ -54,7 +61,9 @@ const LayoutContainer: React.FC = () => {
   return (
     <CompanyFilterProvider>
       <QuotaProvider>
-        <LayoutContent />
+        <InlineErrorProvider>
+          <LayoutContent />
+        </InlineErrorProvider>
       </QuotaProvider>
     </CompanyFilterProvider>
   );

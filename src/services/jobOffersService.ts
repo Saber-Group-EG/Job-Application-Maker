@@ -1,5 +1,6 @@
 import axios from '../config/axios';
 import { getErrorMessage } from '../utils/errorHandler';
+import { recentErrorRef } from '../lib/userErrors';
 
 // ===== Types =====
 export interface JobOfferStatusCounts {
@@ -135,6 +136,8 @@ export type UpdateJobOfferPayload = Partial<CreateJobOfferPayload> & {
 };
 
 export class ApiError extends Error {
+  ref?: string;
+
   constructor(
     message: string,
     public statusCode?: number,
@@ -144,6 +147,8 @@ export class ApiError extends Error {
   ) {
     super(message);
     this.name = 'ApiError';
+    // Keep the failed request's reference (status, endpoint, time) for error screens.
+    this.ref = recentErrorRef(2000);
   }
 }
 

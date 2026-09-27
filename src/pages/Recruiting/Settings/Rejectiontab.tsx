@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-	ArrowRight,
 	Ban,
+	Loader2,
 	CircleCheckBig,
 	PlusCircle,
 	Save,
@@ -10,8 +10,18 @@ import {
 	GripVertical,
 } from "lucide-react";
 import Swal from "../../../utils/swal";
-import PageMeta from "../../../components/common/PageMeta";
-import PageBreadCrumb from "../../../components/common/PageBreadCrumb";
+import {
+	Button,
+	Card,
+	CardToolbar,
+	EmptyState,
+	IconButton,
+	NoAccess,
+	SectionTitle,
+	focusRing,
+	inputClass,
+} from "../../../components/ui/kit";
+import SettingsSection from "./components/SettingsSection";
 import { useAuth } from "../../../context/AuthContext";
 import { useLocale } from "../../../context/LocaleContext";
 import {
@@ -126,41 +136,34 @@ function SortableReasonItem({
 					: "hover:shadow-md hover:border-brand-200 dark:hover:border-brand-700"
 			}`}
 		>
-			<div className="flex items-center justify-center">
-				<div
-					{...attributes}
-					{...listeners}
-					className={`flex cursor-grab items-center justify-center rounded-lg p-2 text-slate-400 transition-all duration-200 hover:bg-slate-200 hover:text-slate-600 active:cursor-grabbing active:scale-95 dark:hover:bg-slate-700 dark:hover:text-slate-300 ${
-						!canEdit ? "cursor-not-allowed opacity-50 hover:bg-transparent" : ""
-					}`}
-				>
-					<GripVertical className="size-5" />
-				</div>
+			<div
+				{...attributes}
+				{...listeners}
+				className={`flex cursor-grab touch-none items-center justify-center rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 active:cursor-grabbing dark:hover:bg-slate-800 dark:hover:text-slate-300 ${focusRing} ${
+					!canEdit ? "cursor-not-allowed opacity-50 hover:bg-transparent" : ""
+				}`}
+			>
+				<GripVertical className="size-4" />
 			</div>
-
-			<div>
-				<label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-					{t('rejectionTab.reasonLabel', 'settings', { number: index + 1 })}
-				</label>
-				<input
-					value={reason}
-					onChange={(e) => onUpdateReason(id, e.target.value)}
-					disabled={!canEdit}
-					placeholder={t('rejectionTab.reasonPlaceholder', 'settings')}
-					className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition-all focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900"
-				/>
-			</div>
-
-			<div className="flex items-end">
-				<button
-					type="button"
-					onClick={() => onRemoveReason(id)}
-					disabled={!canEdit}
-					className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-600 transition-all duration-200 hover:bg-red-100 hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300 dark:hover:bg-red-500/20"
-				>
-					<Trash2 className="size-4" />
-				</button>
-			</div>
+			<span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-slate-100 text-xs font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+				{index + 1}
+			</span>
+			<input
+				value={reason}
+				onChange={(e) => onUpdateReason(id, e.target.value)}
+				disabled={!canEdit}
+				aria-label={t('rejectionTab.reasonLabel', 'settings', { number: index + 1 })}
+				placeholder={t('rejectionTab.reasonPlaceholder', 'settings')}
+				className={inputClass}
+			/>
+			<IconButton
+				tone="danger"
+				label={t('delete', 'common')}
+				onClick={() => onRemoveReason(id)}
+				disabled={!canEdit}
+			>
+				<Trash2 className="size-4" />
+			</IconButton>
 		</div>
 	);
 }
@@ -169,24 +172,15 @@ function SortableReasonItem({
 function DragOverlayItem({ reason, index }: { reason: string; index: number }) {
 	const { t } = useLocale();
 	return (
-		<div className="grid grid-cols-1 gap-3 rounded-lg border border-brand-300 bg-brand-50 p-3 shadow-xl dark:border-brand-700 dark:bg-brand-900/90 md:grid-cols-[auto_1fr_auto]">
-			<div className="flex items-center justify-center">
-				<div className="flex cursor-grabbing items-center justify-center rounded-lg p-2 text-brand-600 dark:text-brand-400">
-					<GripVertical className="size-5" />
-				</div>
+		<div className="flex items-center gap-2 rounded-xl border border-brand-400 bg-white p-2 shadow-xl dark:bg-slate-900">
+			<div className="flex cursor-grabbing items-center justify-center rounded-lg p-1.5 text-brand-500">
+				<GripVertical className="size-4" />
 			</div>
-			<div>
-			<label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-brand-600 dark:text-brand-400">
-				{t('rejectionTab.dragOverlayLabel', 'settings', { number: index + 1 })}
-			</label>
-				<div className="w-full rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm text-slate-700 dark:border-brand-700 dark:bg-brand-900/50 dark:text-slate-300">
-					{reason || t('rejectionTab.dragOverlayEmpty', 'settings')}
-				</div>
-			</div>
-			<div className="flex items-end">
-				<div className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-red-100 text-red-400 opacity-50 dark:bg-red-500/10">
-					<Trash2 className="size-4" />
-				</div>
+			<span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-brand-50 text-xs font-semibold text-brand-600 dark:bg-brand-500/15 dark:text-brand-300">
+				{index + 1}
+			</span>
+			<div className="min-w-0 flex-1 truncate px-3 py-2 text-sm text-slate-700 dark:text-slate-300">
+				{reason || t('rejectionTab.dragOverlayEmpty', 'settings')}
 			</div>
 		</div>
 	);
@@ -340,187 +334,119 @@ export default function RejectionTab({
 	);
 
 	if (!canRead) {
-		return (
-			<div className={embedded ? "" : "min-h-screen bg-slate-50 px-4 py-10 dark:bg-slate-950"}>
-				<div className={`${embedded ? "" : "mx-auto max-w-lg"} rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900`}>
-					<div className="mx-auto mb-5 flex size-16 items-center justify-center rounded-2xl bg-red-500/10 text-red-500">
-						<ShieldCheck className="size-8" />
-					</div>
-				<h2 className="text-2xl font-bold tracking-tight">{t('rejectionTab.noPermissionTitle', 'settings')}</h2>
-				<p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-slate-500 dark:text-slate-400">
-					{t('rejectionTab.noPermissionDesc', 'settings')}
-				</p>
-				</div>
-			</div>
-		);
+		if (embedded) {
+			return (
+				<Card>
+					<EmptyState
+						icon={<ShieldCheck className="size-6" />}
+						title={t('rejectionTab.noPermissionTitle', 'settings')}
+						text={t('rejectionTab.noPermissionDesc', 'settings')}
+					/>
+				</Card>
+			);
+		}
+		return <NoAccess title={t('rejectionTab.noPermissionTitle', 'settings')} text={t('rejectionTab.noPermissionDesc', 'settings')} />;
 	}
 
 	return (
-		<div className={embedded ? "space-y-6" : "min-h-screen bg-slate-50 p-4 text-slate-900 dark:bg-slate-950 dark:text-slate-100 sm:p-8"}>
-			{!embedded && (
-				<>
-				<PageMeta
-					title={t('rejectionTab.pageMetaTitle', 'settings')}
-					description={t('rejectionTab.pageMetaDesc', 'settings')}
-				/>
-				</>
-			)}
+		<SettingsSection
+			embedded={embedded}
+			metaTitle={t('rejectionTab.pageMetaTitle', 'settings')}
+			metaDescription={t('rejectionTab.pageMetaDesc', 'settings')}
+			icon={<Ban className="size-4" />}
+			title={t('rejectionTab.title', 'settings')}
+			description={t('rejectionTab.description', 'settings')}
+			actions={
+				<Button
+					variant="primary"
+					icon={<Save className="size-4" />}
+					loading={isSaving}
+					disabled={isLoading || !canEdit}
+					onClick={handleSave}
+				>
+					{t('rejectionTab.saveReasons', 'settings')}
+				</Button>
+			}
+			stats={[
+				{ label: t('rejectionTab.statCompany', 'settings'), value: getCompanyName(selectedCompany, t, locale) },
+				{ label: t('rejectionTab.statTotalReasons', 'settings'), value: rejectReasons.length },
+				{
+					label: t('rejectionTab.statSaveStatus', 'settings'),
+					value: (
+						<>
+							<CircleCheckBig className="size-4" /> {t('rejectionTab.statReady', 'settings')}
+						</>
+					),
+					tone: 'success',
+				},
+			]}
+		>
+			<Card>
+				<CardToolbar>
+					<div>
+						<SectionTitle icon={<Ban className="size-4" />}>{t('rejectionTab.reasonLibraryTitle', 'settings')}</SectionTitle>
+						<p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{t('rejectionTab.reasonLibraryDesc', 'settings')}</p>
+					</div>
+					<Button icon={<PlusCircle className="size-4" />} onClick={addReason} disabled={!canEdit}>
+						{t('rejectionTab.addReason', 'settings')}
+					</Button>
+				</CardToolbar>
 
-			<div className={embedded ? "space-y-6" : "mx-auto max-w-7xl space-y-6"}>
-				{!embedded && <PageBreadCrumb pageTitle={t('rejectionTab.pageBreadcrumb', 'settings')} />}
-				<div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-					<div className="flex flex-col gap-5 border-b border-slate-200 px-6 py-6 dark:border-slate-800 md:flex-row md:items-center md:justify-between">
-						<div className="flex items-start gap-4">
-							<div className="flex size-12 items-center justify-center rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400">
-								<Ban className="size-6" />
-							</div>
-							<div>
-							<p className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-600/80 dark:text-rose-300">
-								{t('rejectionTab.sectionSubtitle', 'settings')}
-							</p>
-							<h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
-								{t('rejectionTab.title', 'settings')}
-							</h1>
-							<p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-								{t('rejectionTab.description', 'settings')}
-							</p>
-							</div>
+				<div className="p-4">
+					{isLoading && (
+						<div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400" role="status">
+							<Loader2 className="size-4 animate-spin" />
+							{t('rejectionTab.loading', 'settings')}
 						</div>
+					)}
 
-						<button
-							onClick={handleSave}
-							disabled={isSaving || isLoading || !canEdit}
-							className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
+					{!isLoading && rejectReasons.length === 0 && (
+						<EmptyState icon={<Ban className="size-6" />} title={t('rejectionTab.emptyState', 'settings')} />
+					)}
+
+					{!isLoading && rejectReasons.length > 0 && (
+						<DndContext
+							sensors={sensors}
+							collisionDetection={closestCenter}
+							onDragStart={handleDragStart}
+							onDragEnd={handleDragEnd}
+							onDragCancel={handleDragCancel}
 						>
-							{isSaving ? (
-								<div className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-							) : (
-								<Save className="size-4" />
-							)}
-							{t('rejectionTab.saveReasons', 'settings')}
-							<ArrowRight className="size-4" />
-						</button>
-					</div>
-
-					<div className="grid grid-cols-1 gap-4 p-6 md:grid-cols-3">
-						<div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/60">
-							<p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-								{t('rejectionTab.statCompany', 'settings')}
-							</p>
-							<p className="mt-1 truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
-								{getCompanyName(selectedCompany, t, locale)}
-							</p>
-						</div>
-
-						<div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/60">
-							<p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-								{t('rejectionTab.statTotalReasons', 'settings')}
-							</p>
-							<p className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
-								{rejectReasons.length}
-							</p>
-						</div>
-
-						<div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/60">
-							<p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-								{t('rejectionTab.statSaveStatus', 'settings')}
-							</p>
-							<p className="mt-1 inline-flex items-center gap-2 text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-								<CircleCheckBig className="size-4" /> {t('rejectionTab.statReady', 'settings')}
-							</p>
-						</div>
-					</div>
-				</div>
-
-				<div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
-						<div className="xl:col-span-12">
-						<div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-							<div className="flex flex-col gap-3 border-b border-slate-200 p-6 dark:border-slate-800 sm:flex-row sm:items-start sm:justify-between">
-								<div className="flex items-center gap-3">
-									<div className="flex size-11 items-center justify-center rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400">
-										<Ban className="size-6" />
-									</div>
-									<div>
-								<h2 className="text-xl font-semibold tracking-tight">{t('rejectionTab.reasonLibraryTitle', 'settings')}</h2>
-								<p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-									{t('rejectionTab.reasonLibraryDesc', 'settings')}
-								</p>
-									</div>
+							<SortableContext
+								items={rejectReasons.map((item) => item.id)}
+								strategy={verticalListSortingStrategy}
+							>
+								<div className="space-y-2">
+									{rejectReasons.map((item, index) => (
+										<SortableReasonItem
+											key={item.id}
+											id={item.id}
+											index={index}
+											reason={item.value}
+											canEdit={canEdit}
+											onUpdateReason={updateReason}
+											onRemoveReason={removeReason}
+											isDragging={activeId === item.id}
+										/>
+									))}
 								</div>
+							</SortableContext>
 
-								<button
-									type="button"
-									onClick={addReason}
-									disabled={!canEdit}
-									className="inline-flex items-center gap-2 self-start rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
-								>
-									<PlusCircle className="size-4" /> {t('rejectionTab.addReason', 'settings')}
-								</button>
-							</div>
-
-							<div className="space-y-4 p-6">
-								{isLoading && (
-									<div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
-										{t('rejectionTab.loading', 'settings')}
-									</div>
-								)}
-
-								{!isLoading && rejectReasons.length === 0 && (
-									<div className="rounded-xl border border-dashed border-slate-300 px-6 py-10 text-center dark:border-slate-700">
-										<Ban className="mx-auto mb-3 size-10 text-slate-300 dark:text-slate-600" />
-										<p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-											{t('rejectionTab.emptyState', 'settings')}
-										</p>
-									</div>
-								)}
-
-								{!isLoading && rejectReasons.length > 0 && (
-									<DndContext
-										sensors={sensors}
-										collisionDetection={closestCenter}
-										onDragStart={handleDragStart}
-										onDragEnd={handleDragEnd}
-										onDragCancel={handleDragCancel}
-									>
-										<SortableContext
-											items={rejectReasons.map((item) => item.id)}
-											strategy={verticalListSortingStrategy}
-										>
-											<div className="space-y-3">
-												{rejectReasons.map((item, index) => (
-													<SortableReasonItem
-														key={item.id}
-														id={item.id}
-														index={index}
-														reason={item.value}
-														canEdit={canEdit}
-														onUpdateReason={updateReason}
-														onRemoveReason={removeReason}
-														isDragging={activeId === item.id}
-													/>
-												))}
-											</div>
-										</SortableContext>
-										
-										{/* Drag overlay for smooth dragging */}
-										{createPortal(
-											<DragOverlay>
-												{activeId && activeItem ? (
-													<DragOverlayItem
-														reason={activeItem.value}
-														index={rejectReasons.findIndex((item) => item.id === activeId)}
-													/>
-												) : null}
-											</DragOverlay>,
-											document.body
-										)}
-									</DndContext>
-								)}
-							</div>
-						</div>
-					</div>
+							{createPortal(
+								<DragOverlay>
+									{activeId && activeItem ? (
+										<DragOverlayItem
+											reason={activeItem.value}
+											index={rejectReasons.findIndex((item) => item.id === activeId)}
+										/>
+									) : null}
+								</DragOverlay>,
+								document.body
+							)}
+						</DndContext>
+					)}
 				</div>
-			</div>
-		</div>
+			</Card>
+		</SettingsSection>
 	);
 }

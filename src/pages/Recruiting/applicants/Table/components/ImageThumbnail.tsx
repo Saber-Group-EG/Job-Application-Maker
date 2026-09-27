@@ -205,7 +205,7 @@ export function ImageThumbnail({
   if (isLoading) {
     return (
       <div
-        className={`${sizeClasses.container} animate-pulse rounded-full bg-gray-200 dark:bg-gray-700 ${className}`}
+        className={`${sizeClasses.container} animate-pulse rounded-full bg-slate-200 dark:bg-slate-700 ${className}`}
       />
     );
   }
@@ -217,7 +217,7 @@ export function ImageThumbnail({
     if (fallbackIcon) {
       return (
         <div
-          className={`flex ${sizeClasses.container} items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 ${className}`}
+          className={`flex ${sizeClasses.container} items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 ${className}`}
         >
           {fallbackIcon}
         </div>
@@ -226,7 +226,7 @@ export function ImageThumbnail({
     
     return (
       <div
-        className={`flex ${sizeClasses.container} items-center justify-center rounded-full bg-gray-100 text-sm font-semibold text-gray-500 dark:bg-gray-800 dark:text-gray-400 ${className}`}
+        className={`flex ${sizeClasses.container} items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400 ${className}`}
         style={{ fontSize: sizeClasses.fontSize }}
       >
         {getFallbackChar()}

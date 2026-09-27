@@ -28,7 +28,7 @@ export default function InterviewSettingsModal({
   return (
     <Modal isOpen={isOpen} onClose={() => { onClose(); setSelectedInterview(null); }} className="max-w-md p-6" closeOnBackdrop={false}>
       <div className="space-y-6">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t('interviewSettings', 'modals')}</h2>
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{t('interviewSettings', 'modals')}</h2>
 
         {applicant?.interviews && applicant.interviews.length > 0 && (
           <div>
@@ -50,12 +50,12 @@ export default function InterviewSettingsModal({
 
         {selectedInterview && (
           <div className="space-y-4">
-            <div className="rounded-lg bg-gray-50 dark:bg-gray-800 p-4">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">{t('currentInterview', 'modals')}</h3>
+            <div className="rounded-lg bg-slate-50 dark:bg-slate-800 p-4">
+              <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">{t('currentInterview', 'modals')}</h3>
               <div className="space-y-1 text-sm">
-                <p className="text-gray-600 dark:text-gray-400"><span className="font-medium">{t('date', 'modals')}</span>{' '}{selectedInterview.scheduledAt ? new Date(selectedInterview.scheduledAt).toLocaleString(locale) : t('notScheduled', 'modals')}</p>
-                <p className="text-gray-600 dark:text-gray-400"><span className="font-medium">{t('type', 'modals')}</span>{' '}{selectedInterview.type ? t(selectedInterview.type.replace(/-([a-z])/g, (_: string, c: string) => c.toUpperCase()), 'modals') : t('notScheduled', 'modals')}</p>
-                <p className="text-gray-600 dark:text-gray-400"><span className="font-medium">{t('status', 'modals')}</span>{' '}
+                <p className="text-slate-600 dark:text-slate-400"><span className="font-medium">{t('date', 'modals')}</span>{' '}{selectedInterview.scheduledAt ? new Date(selectedInterview.scheduledAt).toLocaleString(locale) : t('notScheduled', 'modals')}</p>
+                <p className="text-slate-600 dark:text-slate-400"><span className="font-medium">{t('type', 'modals')}</span>{' '}{selectedInterview.type ? t(selectedInterview.type.replace(/-([a-z])/g, (_: string, c: string) => c.toUpperCase()), 'modals') : t('notScheduled', 'modals')}</p>
+                <p className="text-slate-600 dark:text-slate-400"><span className="font-medium">{t('status', 'modals')}</span>{' '}
                   <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize ${selectedInterview.status === 'completed' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : selectedInterview.status === 'cancelled' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'}`}>
                     {t((selectedInterview.status || 'scheduled').replace(/_([a-z])/g, (_: string, c: string) => c.toUpperCase()), 'modals')}
                   </span>
@@ -64,7 +64,7 @@ export default function InterviewSettingsModal({
             </div>
 
             <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t('updateStatus', 'modals')}</h3>
+              <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">{t('updateStatus', 'modals')}</h3>
               <div className="grid grid-cols-2 gap-2">
                 {(!selectedInterview.status || selectedInterview.status !== 'scheduled') && (
                       <button
@@ -139,7 +139,7 @@ export default function InterviewSettingsModal({
               setShowInterviewSettingsModal(false);
               setSelectedInterview(null);
             }}
-            className="rounded-lg bg-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+            className="rounded-lg bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
           >
             {t('close', 'modals')}
           </button>
