@@ -21,8 +21,8 @@ import {
 	focusRing,
 	inputClass,
 	selectClass,
+	StatStrip,
 } from "../../../components/ui/kit";
-import { StatStrip } from "./components/SettingsSection";
 import {
 	useDeleteSavedQuestionGroup,
 	useSavedQuestionGroups,

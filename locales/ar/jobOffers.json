@@ -58,5 +58,10 @@
   "cancel": "إلغاء",
   "send": "إرسال",
   "sending": "جارٍ الإرسال…",
-  "resendBtnTitle": "إعادة إرسال عرض العمل"
+  "resendBtnTitle": "إعادة إرسال عرض العمل",
+  "salary": "الراتب",
+  "workHours": "ساعات العمل",
+  "status": "الحالة",
+  "overview": "نظرة عامة",
+  "summaryPending": "قيد الانتظار"
 }
