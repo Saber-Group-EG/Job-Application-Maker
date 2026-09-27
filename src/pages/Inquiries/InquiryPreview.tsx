@@ -3,7 +3,6 @@ import { useParams, useNavigate } from "react-router";
 import { useAuth } from "../../context/AuthContext";
 import { useLocale } from "../../context/LocaleContext";
 import PageMeta from "../../components/common/PageMeta";
-import LoadingSpinner from "../../components/common/LoadingSpinner";
 import {
   useInquiry,
   useUpdateInquiry,
@@ -13,22 +12,29 @@ import { toPlainString } from "../../utils/strings";
 import Swal from "../../utils/swal";
 import type { InquiryStatus } from "../../services/inquiriesService";
 import MessageModal from "../../components/modals/MessageModal";
+import { Download, FileText, Info, Mail, MessageCircle, MessageSquareText, Paperclip, Save, Trash2 } from "lucide-react";
 import {
-  ChevronLeftIcon,
-  TrashBinIcon,
-  MailIcon,
-  UserIcon,
-  CalenderIcon,
-  ChatIcon,
-  TimeIcon,
-  DownloadIcon,
-} from "../../icons";
+  BackLink,
+  Badge,
+  Button,
+  Card,
+  CardToolbar,
+  EmptyState,
+  Field,
+  PageShell,
+  SectionTitle,
+  focusRing,
+  selectClass,
+  textareaClass,
+} from "../../components/ui/kit";
+import type { BadgeTone } from "../../components/ui/kit";
+import { DocCard, Meta } from "../../components/documents/DocumentUi";
 
-const statusStyles: Record<InquiryStatus, { dot: string; label: string }> = {
-  new: { dot: "bg-blue-500", label: "statusNew" },
-  in_progress: { dot: "bg-amber-500", label: "statusInProgress" },
-  resolved: { dot: "bg-green-500", label: "statusResolved" },
-  closed: { dot: "bg-gray-400", label: "statusClosed" },
+const STATUS_META: Record<InquiryStatus, { tone: BadgeTone; label: string }> = {
+  new: { tone: "blue", label: "statusNew" },
+  in_progress: { tone: "amber", label: "statusInProgress" },
+  resolved: { tone: "green", label: "statusResolved" },
+  closed: { tone: "slate", label: "statusClosed" },
 };
 
 function formatFileSize(bytes?: number) {
@@ -42,30 +48,6 @@ function formatDate(dateStr: string, locale: string) {
   return new Date(dateStr).toLocaleDateString(
     locale === "ar" ? "ar-EG" : "en-US",
     { month: "long", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" }
-  );
-}
-
-function IconMessageSquareText({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /><path d="M7 8h10" /><path d="M7 12h8" />
-    </svg>
-  );
-}
-
-function IconSave({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" />
-    </svg>
-  );
-}
-
-function IconFileText({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><path d="M16 13H8" /><path d="M16 17H8" /><path d="M10 9H8" />
-    </svg>
   );
 }
 
@@ -117,291 +99,148 @@ export default function InquiryPreview() {
     }
   };
 
-  if (isLoading) return <LoadingSpinner fullPage />;
+  const back = <BackLink onClick={() => navigate("/inquiries")}>{t("backToInquiries", "inquiries")}</BackLink>;
 
-  if (!inquiry) {
+  if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-100 dark:bg-gray-950 flex items-center justify-center p-8">
-        <div className="text-center max-w-lg">
-          <div className="size-16 bg-white dark:bg-gray-900 rounded-full shadow-sm border border-gray-200 dark:border-gray-800 flex items-center justify-center mx-auto mb-6">
-            <IconMessageSquareText className="size-8 text-gray-400" />
-          </div>
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
-            {t("inquiryNotFound", "inquiries")}
-          </h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-8">
-            {t("inquiryNotFoundText", "inquiries")}
-          </p>
-          <button
-            onClick={() => navigate("/inquiries")}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-sm font-medium rounded-lg hover:opacity-90 transition-all"
-          >
-            <ChevronLeftIcon className="size-4" />
-            {t("backToInquiries", "inquiries")}
-          </button>
-        </div>
-      </div>
+      <PageShell title={t("inquiryPreviewTitle", "inquiries")} back={back}>
+        <div className="h-64 animate-pulse rounded-2xl border border-slate-200 bg-white motion-reduce:animate-none dark:border-slate-800 dark:bg-slate-900" />
+      </PageShell>
     );
   }
 
-  const status = statusStyles[inquiry.status as InquiryStatus] || statusStyles.new;
+  if (!inquiry) {
+    return (
+      <PageShell title={t("inquiryPreviewTitle", "inquiries")} back={back}>
+        <Card>
+          <EmptyState
+            icon={<MessageSquareText className="size-6" />}
+            title={t("inquiryNotFound", "inquiries")}
+            text={t("inquiryNotFoundText", "inquiries")}
+          />
+        </Card>
+      </PageShell>
+    );
+  }
+
+  const status = STATUS_META[inquiry.status as InquiryStatus] || STATUS_META.new;
   const subjectText = toPlainString(inquiry.subject);
-  const respondentName = inquiry.respondedBy
-    ? toPlainString(inquiry.respondedBy.fullName)
-    : null;
+  const respondentName = inquiry.respondedBy ? toPlainString(inquiry.respondedBy.fullName) : null;
+  const unchanged = selectedStatus === inquiry.status && comment === (inquiry.comment || "");
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-950">
-      <PageMeta
-        title={t("inquiryPreviewTitle", "inquiries")}
-        description={t("inquiryPreviewDesc", "inquiries")}
-      />
-
-      <div className="px-6 sm:px-10 lg:px-16 py-6 sm:py-10 max-w-[1600px] mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <button
-            onClick={() => navigate("/inquiries")}
-            className="inline-flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
-          >
-            <ChevronLeftIcon className="size-4" />
-            {t("backToInquiries", "inquiries")}
-          </button>
-
+    <PageShell
+      back={back}
+      title={subjectText}
+      subtitle={
+        <span dir="ltr" className="inline-block">
+          {inquiry.name} &lt;{inquiry.email}&gt;
+        </span>
+      }
+      actions={
+        <>
+          <Button variant="primary" icon={<Mail className="size-4" />} onClick={() => setIsMessageModalOpen(true)}>
+            {t("reply", "inquiries")}
+          </Button>
           {canWrite && (
-            <button
-              onClick={handleDelete}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 bg-white dark:bg-gray-900 border border-red-200 dark:border-red-900/50 rounded-lg hover:bg-red-50 dark:hover:bg-red-950 transition-colors"
-            >
-              <TrashBinIcon className="size-4" />
+            <Button variant="danger" icon={<Trash2 className="size-4" />} onClick={handleDelete}>
               {t("delete", "common")}
-            </button>
+            </Button>
+          )}
+        </>
+      }
+    >
+      <PageMeta title={t("inquiryPreviewTitle", "inquiries")} description={t("inquiryPreviewDesc", "inquiries")} />
+
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
+        <div className="space-y-6 lg:col-span-2">
+          <Card>
+            <CardToolbar>
+              <SectionTitle icon={<Info className="size-4" />}>{t("inquiryDetails", "inquiries")}</SectionTitle>
+              <Badge tone={status.tone}>{t(status.label, "inquiries")}</Badge>
+            </CardToolbar>
+            <dl className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 xl:grid-cols-3">
+              <Meta label={t("name", "common")}>{inquiry.name}</Meta>
+              <Meta label={t("email", "common")}>
+                <a href={`mailto:${inquiry.email}`} dir="ltr" className={`rounded text-brand-600 hover:underline dark:text-brand-400 ${focusRing}`}>
+                  {inquiry.email}
+                </a>
+              </Meta>
+              <Meta label={t("date", "inquiries")}>{formatDate(inquiry.createdAt, locale)}</Meta>
+              {respondentName && <Meta label={t("respondedBy", "inquiries")}>{respondentName}</Meta>}
+            </dl>
+          </Card>
+
+          <DocCard icon={<MessageSquareText className="size-4" />} title={t("message", "common")}>
+            <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700 dark:text-slate-300">{inquiry.message}</p>
+          </DocCard>
+
+          {inquiry.attachments && inquiry.attachments.length > 0 && (
+            <DocCard icon={<Paperclip className="size-4" />} title={`${t("attachments", "common")} (${inquiry.attachments.length})`}>
+              <ul className="space-y-2">
+                {inquiry.attachments.map((att: any, idx: number) => (
+                  <li key={idx}>
+                    <a
+                      href={att.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`group flex items-center gap-3 rounded-xl border border-slate-200 p-3 transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-800 dark:hover:border-slate-700 dark:hover:bg-slate-800/40 ${focusRing}`}
+                    >
+                      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                        <FileText className="size-4" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium text-slate-900 group-hover:text-brand-600 dark:text-white">
+                          {att.filename || "Attachment"}
+                        </span>
+                        {att.size && <span className="block text-xs text-slate-500 dark:text-slate-400">{formatFileSize(att.size)}</span>}
+                      </span>
+                      <Download className="size-4 shrink-0 text-slate-400 group-hover:text-brand-500" />
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </DocCard>
           )}
         </div>
 
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden mb-8">
-          <div className="px-8 py-6 border-b border-gray-100 dark:border-gray-800">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-              <div className="flex items-center gap-5">
-                <div className="size-14 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center">
-                  <span className="text-xl font-bold text-gray-600 dark:text-gray-300">
-                    {inquiry.name?.charAt(0) || "?"}
-                  </span>
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                    {subjectText}
-                  </h1>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-                    {inquiry.name} &lt;{inquiry.email}&gt;
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                  <span className={`size-2 rounded-full ${status.dot}`} />
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {t(status.label, "inquiries")}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-400">
-                  <TimeIcon className="size-4" />
-                  {formatDate(inquiry.createdAt, locale)}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-0 lg:divide-x lg:divide-y-0 divide-y divide-gray-100 dark:divide-gray-800">
-            <div className="lg:col-span-3 p-8 space-y-8">
-              <section>
-                <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">
-                  {t("inquiryDetails", "inquiries")}
-                </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-8 gap-y-5">
-                  <div>
-                    <dt className="text-xs text-gray-400 mb-1">{t("name", "common")}</dt>
-                    <dd className="text-sm font-medium text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                      <UserIcon className="size-3.5 text-gray-300 dark:text-gray-600" />
-                      {inquiry.name}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs text-gray-400 mb-1">{t("email", "common")}</dt>
-                    <dd>
-                      <a
-                        href={`mailto:${inquiry.email}`}
-                        className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1.5"
-                      >
-                        <MailIcon className="size-3.5" />
-                        {inquiry.email}
-                      </a>
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs text-gray-400 mb-1">{t("date", "inquiries")}</dt>
-                    <dd className="text-sm font-medium text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                      <CalenderIcon className="size-3.5 text-gray-300 dark:text-gray-600" />
-                      {formatDate(inquiry.createdAt, locale)}
-                    </dd>
-                  </div>
-                  {respondentName && (
-                    <div>
-                      <dt className="text-xs text-gray-400 mb-1">{t("respondedBy", "inquiries")}</dt>
-                      <dd className="text-sm font-medium text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                        <UserIcon className="size-3.5 text-gray-300 dark:text-gray-600" />
-                        {respondentName}
-                      </dd>
-                    </div>
-                  )}
-                  <div>
-                    <dt className="text-xs text-gray-400 mb-1">{t("status", "inquiries")}</dt>
-                    <dd className="flex items-center gap-2">
-                      <span className={`size-2 rounded-full ${status.dot}`} />
-                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {t(status.label, "inquiries")}
-                      </span>
-                    </dd>
-                  </div>
-                </div>
-              </section>
-
-              <section className="border-t border-gray-100 dark:border-gray-800 pt-8">
-                <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">
-                  {t("message", "common")}
-                </h2>
-                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800 p-5">
-                  <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
-                    {inquiry.message}
-                  </p>
-                </div>
-              </section>
-
-              <section className="border-t border-gray-100 dark:border-gray-800 pt-8">
-                <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-                  <ChatIcon className="size-4" />
-                  {t("comment", "inquiries") || "Comment"}
-                </h2>
-                {canWrite ? (
-                  <textarea
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                    placeholder="Add a comment..."
-                    rows={4}
-                    className="w-full bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800 p-4 text-sm text-gray-700 dark:text-gray-300 outline-none focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 resize-none transition-all placeholder:text-gray-400"
-                  />
-                ) : inquiry.comment ? (
-                  <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800 p-4">
-                    <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{inquiry.comment}</p>
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-400 italic">No comment</p>
-                )}
-              </section>
-
-              {inquiry.attachments && inquiry.attachments.length > 0 && (
-                <section className="border-t border-gray-100 dark:border-gray-800 pt-8">
-                  <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">
-                    {t("attachments", "common")} ({inquiry.attachments.length})
-                  </h2>
-                  <div className="space-y-2">
-                    {inquiry.attachments.map((att: any, idx: number) => (
-                      <a
-                        key={idx}
-                        href={att.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 transition-colors group"
-                      >
-                        <div className="size-10 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center shrink-0">
-                          <IconFileText className="size-5 text-gray-400" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                            {att.filename || "Attachment"}
-                          </p>
-                          {att.size && (
-                            <p className="text-xs text-gray-400 mt-0.5">{formatFileSize(att.size)}</p>
-                          )}
-                        </div>
-                        <DownloadIcon className="size-4 text-gray-300 dark:text-gray-600 group-hover:text-blue-500 transition-colors shrink-0" />
-                      </a>
-                    ))}
-                  </div>
-                </section>
-              )}
-            </div>
-
-            <div className="lg:col-span-1 p-8 space-y-8">
-              {canWrite && (
-                <section>
-                  <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">
-                    {t("status", "inquiries")}
-                  </h2>
-                  <div className="space-y-3">
-                    <select
-                      value={selectedStatus}
-                      onChange={(e) => setSelectedStatus(e.target.value as InquiryStatus)}
-                      className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 transition-all cursor-pointer"
-                    >
+        <div className="space-y-6">
+          <Card>
+            <CardToolbar>
+              <SectionTitle icon={<MessageCircle className="size-4" />}>{t("comment", "inquiries")}</SectionTitle>
+            </CardToolbar>
+            <div className="space-y-3 p-4">
+              {canWrite ? (
+                <>
+                  <Field label={t("status", "inquiries")} htmlFor="inq-status">
+                    <select id="inq-status" value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value as InquiryStatus)} className={selectClass}>
                       <option value="new">{t("statusNew", "inquiries")}</option>
                       <option value="in_progress">{t("statusInProgress", "inquiries")}</option>
                       <option value="resolved">{t("statusResolved", "inquiries")}</option>
                       <option value="closed">{t("statusClosed", "inquiries")}</option>
                     </select>
-
-                    <button
-                      onClick={handleStatusUpdate}
-                      disabled={(selectedStatus === inquiry.status && comment === (inquiry.comment || "")) || updateMutation.isPending}
-                      className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-brand-500 dark:bg-white text-white dark:text-gray-900 text-sm font-medium rounded-lg hover:opacity-90 transition-all disabled:opacity-40"
-                    >
-                      <IconSave className="size-4" />
-                      {t("save", "inquiries")}
-                    </button>
-                  </div>
-                </section>
+                  </Field>
+                  <Field label={t("comment", "inquiries")} htmlFor="inq-comment">
+                    <textarea
+                      id="inq-comment"
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                      placeholder={t("commentPlaceholder", "inquiries")}
+                      rows={4}
+                      className={textareaClass}
+                    />
+                  </Field>
+                  <Button variant="primary" className="w-full" icon={<Save className="size-4" />} onClick={handleStatusUpdate} disabled={unchanged} loading={updateMutation.isPending}>
+                    {t("save", "inquiries")}
+                  </Button>
+                </>
+              ) : inquiry.comment ? (
+                <p className="whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-300">{inquiry.comment}</p>
+              ) : (
+                <p className="text-sm italic text-slate-400">{t("noComment", "inquiries")}</p>
               )}
-
-              <section>
-                <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">
-                  {t("inquiryDetails", "inquiries")}
-                </h2>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between py-2 px-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                    <span className="text-xs text-gray-400">{t("status", "inquiries")}</span>
-                    <span className="flex items-center gap-1.5 text-sm font-medium text-gray-900 dark:text-gray-100">
-                      <span className={`size-1.5 rounded-full ${status.dot}`} />
-                      {t(status.label, "inquiries")}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between py-2 px-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                    <span className="text-xs text-gray-400">{t("submittedBy", "inquiries")}</span>
-                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate ml-2">
-                      {inquiry.name}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between py-2 px-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                    <span className="text-xs text-gray-400">{t("date", "inquiries")}</span>
-                    <span className="text-sm text-gray-900 dark:text-gray-100">
-                      {new Date(inquiry.createdAt).toLocaleDateString(
-                        locale === "ar" ? "ar-EG" : "en-US"
-                      )}
-                    </span>
-                  </div>
-                </div>
-              </section>
-
-              <section>
-                <button
-                  onClick={() => setIsMessageModalOpen(true)}
-                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-all"
-                >
-                  <MailIcon className="size-4" />
-                  {t("reply", "inquiries")}
-                </button>
-              </section>
             </div>
-          </div>
+          </Card>
         </div>
       </div>
 
@@ -414,6 +253,6 @@ export default function InquiryPreview() {
         defaultFrom={!inquiry.companyId ? "noreply@sabergroup-eg.com" : undefined}
         isInquiry
       />
-    </div>
+    </PageShell>
   );
 }

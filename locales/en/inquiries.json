@@ -36,5 +36,7 @@
   "tableActions": "Actions",
   "selectedCount": "{count} selected",
   "changeStatusTo": "Change status to...",
-  "systemInquiry": "System"
+  "systemInquiry": "System",
+  "commentPlaceholder": "Add a comment…",
+  "noComment": "No comment"
 }

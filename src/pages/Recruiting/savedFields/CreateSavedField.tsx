@@ -243,7 +243,7 @@ export default function CreateSavedField() {
   return (
     <PageShell
       title={pageTitle}
-      back={<BackLink onClick={() => navigate(-1)}>{t('cancelButton', 'savedFields')}</BackLink>}
+      back={<BackLink onClick={() => navigate(-1)}>{t('back', 'common')}</BackLink>}
     >
       <PageMeta title={pageTitle} description={t('createMetaDescription', 'savedFields')} />
 

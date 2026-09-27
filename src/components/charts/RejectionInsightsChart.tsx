@@ -248,13 +248,13 @@ export default function RejectionInsightsChart({
   // Loading skeleton
   if (isLoading) {
     return (
-      <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-white/[0.03] sm:p-6">
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6">
         <div className="animate-pulse">
-          <div className="h-7 w-48 bg-gray-200 rounded dark:bg-gray-700" />
-          <div className="mt-2 h-4 w-96 bg-gray-200 rounded dark:bg-gray-700" />
+          <div className="h-7 w-48 bg-slate-200 rounded dark:bg-slate-700" />
+          <div className="mt-2 h-4 w-96 bg-slate-200 rounded dark:bg-slate-700" />
           <div className="mt-6 grid gap-6 xl:grid-cols-[220px_1fr]">
-            <div className="h-96 bg-gray-100 rounded-2xl dark:bg-gray-800" />
-            <div className="h-96 bg-gray-100 rounded-2xl dark:bg-gray-800" />
+            <div className="h-96 bg-slate-100 rounded-2xl dark:bg-slate-800" />
+            <div className="h-96 bg-slate-100 rounded-2xl dark:bg-slate-800" />
           </div>
         </div>
       </section>
@@ -287,17 +287,17 @@ export default function RejectionInsightsChart({
   // Empty state
   if (!rows.length) {
     return (
-      <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-white/[0.03] sm:p-6">
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6">
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <div className="text-5xl mb-4">📊</div>
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
+          <h3 className="text-lg font-semibold text-slate-800 dark:text-white">
             {t('noData', 'rejection')}
           </h3>
-          <p className="mt-2 max-w-md text-sm text-gray-500 dark:text-gray-400">
+          <p className="mt-2 max-w-md text-sm text-slate-500 dark:text-slate-400">
             {t('noDataDesc', 'rejection')}
           </p>
-          <div className="mt-6 rounded-lg bg-gray-50 p-4 dark:bg-gray-800/50">
-            <p className="text-xs text-gray-600 dark:text-gray-400">
+          <div className="mt-6 rounded-lg bg-slate-50 p-4 dark:bg-slate-800/50">
+            <p className="text-xs text-slate-600 dark:text-slate-400">
               {t('tip', 'rejection')}
             </p>
           </div>
@@ -308,15 +308,15 @@ export default function RejectionInsightsChart({
 
   return (
     <section 
-      className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-white/[0.03] sm:p-6"
+      className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6"
       aria-label="Rejection reasons analytics"
     >
       <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
+          <h3 className="text-lg font-semibold text-slate-800 dark:text-white">
             {t('title', 'rejection')}
           </h3>
-          <p className="mt-1 max-w-2xl text-sm text-gray-500 dark:text-gray-400">
+          <p className="mt-1 max-w-2xl text-sm text-slate-500 dark:text-slate-400">
             {t('description', 'rejection')}
           </p>
         </div>
@@ -324,12 +324,12 @@ export default function RejectionInsightsChart({
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[280px_1fr]" dir={dir}>
         {/* Sidebar with insights summary */}
-        <div dir={dir} className="rounded-2xl border border-gray-200 bg-gradient-to-br from-gray-50 via-white to-brand-50/50 p-5 shadow-sm dark:border-gray-800 dark:from-gray-900 dark:via-gray-900 dark:to-brand-500/10">
-          <div className="mt-2 text-xl font-semibold text-gray-900 dark:text-white/90 break-words">
+        <div dir={dir} className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-brand-50/50 p-5 shadow-sm dark:border-slate-800 dark:from-slate-900 dark:via-slate-900 dark:to-brand-500/10">
+          <div className="mt-2 text-xl font-semibold text-slate-900 dark:text-white break-words">
             {topReason?.reason ?? t('noDataYet', 'rejection')}
           </div>
           <div className="mt-3 space-y-2">
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
               {topReason
                 ? t('rejectionCount' + (topReason.count !== 1 ? '_plural' : ''), 'rejection', { count: formatNumber(topReason.count), share: topReasonShare })
                 : t('waitingInsights', 'rejection')}
@@ -338,7 +338,7 @@ export default function RejectionInsightsChart({
 
           {/* Top reasons list with improved UX */}
           <div className="mt-5">
-            <div className="mb-3 text-xs font-medium text-gray-500 dark:text-gray-400">
+            <div className="mb-3 text-xs font-medium text-slate-500 dark:text-slate-400">
               {showAllReasons ? t('allReasons', 'rejection', { count: allRows.length }) : t('topReasons', 'rejection', { count: Math.min(rows.length, 8) })}
             </div>
             <div className="max-h-[500px] space-y-2 overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin' }}>
@@ -347,25 +347,25 @@ export default function RejectionInsightsChart({
                 return (
                   <div 
                     key={item.reason} 
-                    className="group rounded-xl bg-white/80 p-3 shadow-sm transition-all hover:shadow-md dark:bg-gray-900/70"
+                    className="group rounded-xl bg-white/80 p-3 shadow-sm transition-all hover:shadow-md dark:bg-slate-900/70"
                     style={{ borderLeft: `3px solid ${getReasonColor(index)}` }}
                   >
                     <div className="flex items-center justify-between gap-2 text-sm">
-                      <span className="flex items-center gap-2 truncate font-medium text-gray-700 dark:text-gray-300">
-                        <span className="text-xs text-gray-400">{index + 1}.</span>
+                      <span className="flex items-center gap-2 truncate font-medium text-slate-700 dark:text-slate-300">
+                        <span className="text-xs text-slate-400">{index + 1}.</span>
                         <span className="truncate" title={item.reason}>
                           {formatReason(item.reason)}
                         </span>
                       </span>
                       <div className="flex items-center gap-2">
-                        <span className="text-gray-500 dark:text-gray-400">{share}%</span>
-                        <span className="text-xs text-gray-400">
+                        <span className="text-slate-500 dark:text-slate-400">{share}%</span>
+                        <span className="text-xs text-slate-400">
                           ({formatNumber(item.count)})
                         </span>
                       </div>
                     </div>
                     {/* Progress bar for visual representation */}
-                    <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+                    <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
                       <div 
                         className="h-full rounded-full transition-all duration-500"
                         style={{ 
@@ -380,9 +380,9 @@ export default function RejectionInsightsChart({
               {!showAllReasons && rows.length > 8 && (
                 <button
                   onClick={() => setShowAllReasons(true)}
-                  className="w-full rounded-xl bg-gray-100/50 p-3 text-center transition-colors hover:bg-gray-200/70 dark:bg-gray-800/50 dark:hover:bg-gray-700/50"
+                  className="w-full rounded-xl bg-slate-100/50 p-3 text-center transition-colors hover:bg-slate-200/70 dark:bg-slate-800/50 dark:hover:bg-slate-700/50"
                 >
-                  <div className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                  <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
                     {t('moreReasons' + (allRows.length - 8 !== 1 ? '_plural' : ''), 'rejection', { count: allRows.length - 8 })}
                   </div>
                 </button>
@@ -390,9 +390,9 @@ export default function RejectionInsightsChart({
               {showAllReasons && allRows.length > 8 && (
                 <button
                   onClick={() => setShowAllReasons(false)}
-                  className="w-full rounded-xl bg-gray-100/50 p-3 text-center transition-colors hover:bg-gray-200/70 dark:bg-gray-800/50 dark:hover:bg-gray-700/50"
+                  className="w-full rounded-xl bg-slate-100/50 p-3 text-center transition-colors hover:bg-slate-200/70 dark:bg-slate-800/50 dark:hover:bg-slate-700/50"
                 >
-                  <div className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                  <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
                     Show less
                   </div>
                 </button>
@@ -402,9 +402,9 @@ export default function RejectionInsightsChart({
         </div>
 
         {/* Chart container */}
-        <div dir={dir} className="min-h-[330px] rounded-2xl border border-gray-200 bg-white p-3 shadow-sm transition-all dark:border-gray-800 dark:bg-gray-900/50 sm:p-4">
+        <div dir={dir} className="min-h-[330px] rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition-all dark:border-slate-800 dark:bg-slate-900/50 sm:p-4">
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-slate-400">
               {showAllReasons ? t('allReasons', 'rejection', { count: chartRows.length }) : t('topReasonsShort', 'rejection', { count: Math.min(chartRows.length, maxReasons) })}
             </span>
             {allRows.length > maxReasons && (
@@ -421,7 +421,7 @@ export default function RejectionInsightsChart({
               fallback={
                 <div 
                   style={{ height: `${chartHeight}px` }} 
-                  className="flex items-center justify-center rounded-xl bg-gray-50 dark:bg-gray-800/60"
+                  className="flex items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-800/60"
                 >
                   <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-200 border-t-brand-500" />
                 </div>
@@ -440,8 +440,8 @@ export default function RejectionInsightsChart({
           {/* Refresh indicator */}
           {isFetching && !isLoading && (
             <div className="mt-2 text-right">
-              <span className="inline-flex items-center gap-1 text-xs text-gray-400">
-                <div className="h-2 w-2 animate-spin rounded-full border border-gray-400 border-t-transparent" />
+              <span className="inline-flex items-center gap-1 text-xs text-slate-400">
+                <div className="h-2 w-2 animate-spin rounded-full border border-slate-400 border-t-transparent" />
                 {t('updating', 'rejection')}
               </span>
             </div>

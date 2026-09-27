@@ -404,5 +404,9 @@
   "off": "غير مفعّل",
   "duplicate": "تكرار",
   "expand": "توسيع",
-  "collapse": "طي"
+  "collapse": "طي",
+  "supportTo": "إلى",
+  "supportSystem": "النظام",
+  "dropHint": "اضغط لاختيار الملفات",
+  "filesSelected": "تم اختيار {count} ملف"
 }
