@@ -398,7 +398,9 @@ export default function InterviewScheduleModal(props: Props) {
   });
 
   const generateMessageTemplate = (
-    channels: typeof notificationChannels = notificationChannels
+    channels: typeof notificationChannels = notificationChannels,
+    // Receives the email's "Label: value" detail lines (value as HTML).
+    detailsOut?: [string, string][]
   ) => {
     if (!applicant) return '';
 
@@ -501,25 +503,20 @@ export default function InterviewScheduleModal(props: Props) {
       const esc = escapeHtml;
       const { addressValue, locationUrl } = resolveAddressAndUrl();
       const locationHtml = locationUrl ? makeLocationHtml(locationUrl) : '';
-      const detailLines = [
-        `${t('interviewDate', 'modals')}: ${esc(interviewDate)}`,
-        `${t('interviewTime', 'modals')}: ${esc(interviewTime)}`,
-        `${t('interviewType', 'modals')}: ${esc(typeLabel)}`,
-        `${t('addressOptional', 'modals')}: ${esc(addressValue)}`,
+      const details: [string, string][] = [
+        [t('interviewDate', 'modals'), esc(interviewDate)],
+        [t('interviewTime', 'modals'), esc(interviewTime)],
+        [t('interviewType', 'modals'), esc(typeLabel)],
+        [t('addressOptional', 'modals'), esc(addressValue)],
       ];
-      if (locationHtml)
-        detailLines.push(`${t('openLocation', 'modals')}: ${locationHtml}`);
-      if (link)
-        detailLines.push(
-          `${t('videoLinkOptional', 'modals')}: ${makeLinkHtml(link)}`
-        );
+      if (locationHtml) details.push([t('openLocation', 'modals'), locationHtml]);
+      if (link) details.push([t('videoLinkOptional', 'modals'), makeLinkHtml(link)]);
       if (interviewDescription)
-        detailLines.push(
-          `${t('description', 'modals')}: ${esc(interviewDescription)}`
-        );
+        details.push([t('description', 'modals'), esc(interviewDescription)]);
       if (interviewComment)
-        detailLines.push(`${t('comment', 'modals')}: ${esc(interviewComment)}`);
-      const detailsBlock = detailLines.map((line) => `<p>${line}</p>`).join('');
+        details.push([t('comment', 'modals'), esc(interviewComment)]);
+      detailsOut?.push(...details);
+      const detailsBlock = details.map(([label, value]) => `<p>${label}: ${value}</p>`).join('');
 
       return (
         `<p>Dear ${esc(applicantName)},</p>` +
@@ -574,6 +571,46 @@ export default function InterviewScheduleModal(props: Props) {
   // once edited, only swap the old date/time text for the new one.
   const lastGeneratedRef = useRef('');
   const lastLabelsRef = useRef<{ date: string; time: string } | null>(null);
+  const lastDetailsRef = useRef<[string, string][]>([]);
+  const currentDetails = () => {
+    const out: [string, string][] = [];
+    generateMessageTemplate({ email: true, sms: false, whatsapp: false }, out);
+    return out;
+  };
+
+  // Edited email: update the "Label: value" lines whose field changed,
+  // drop ones whose field was cleared, and add new ones after the previous
+  // detail line. Matching is by the paragraph's text, since the editor may
+  // rewrite its HTML.
+  const syncDetailLines = (html: string, prev: [string, string][], next: [string, string][]) => {
+    let out = html;
+    const findLine = (label: string) =>
+      (out.match(/<p\b[^>]*>[\s\S]*?<\/p>/gi) ?? []).find((p) => plainText(p).startsWith(`${label}:`));
+    const prevMap = new Map(prev);
+    const nextMap = new Map(next);
+    for (const [label, oldValue] of prev) {
+      const newValue = nextMap.get(label);
+      if (newValue === oldValue) continue;
+      const line = findLine(label);
+      if (!line) continue;
+      // Swap just the value when it's still there, so anything the user
+      // added to the line stays; otherwise rewrite the whole line.
+      const updated =
+        newValue === undefined
+          ? ''
+          : oldValue && line.includes(oldValue)
+            ? line.replace(oldValue, newValue)
+            : `<p>${label}: ${newValue}</p>`;
+      out = out.replace(line, updated);
+    }
+    next.forEach(([label, value], index) => {
+      if (prevMap.has(label) || findLine(label)) return;
+      const before = next.slice(0, index).reverse().map(([l]) => findLine(l)).find(Boolean);
+      const para = `<p>${label}: ${value}</p>`;
+      if (before && out.includes(before)) out = out.replace(before, before + para);
+    });
+    return out;
+  };
   const plainText = (html: string) =>
     html.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
 
@@ -581,6 +618,7 @@ export default function InterviewScheduleModal(props: Props) {
     const next = generateMessageTemplate(channels);
     lastGeneratedRef.current = next;
     lastLabelsRef.current = scheduleLabels();
+    lastDetailsRef.current = currentDetails();
     setMessageTemplate(next);
   };
 
@@ -589,13 +627,18 @@ export default function InterviewScheduleModal(props: Props) {
     const labels = scheduleLabels();
     const prev = lastLabelsRef.current;
     lastLabelsRef.current = labels;
+    const prevDetails = lastDetailsRef.current;
+    const details = currentDetails();
+    lastDetailsRef.current = details;
     if (!lastGeneratedRef.current) return;
     if (plainText(messageTemplate || '') === plainText(lastGeneratedRef.current)) {
       applyGeneratedTemplate();
       return;
     }
     if (!prev || !messageTemplate) return;
-    let next = messageTemplate;
+    let next = notificationChannels.email
+      ? syncDetailLines(messageTemplate, prevDetails, details)
+      : messageTemplate;
     if (prev.date !== labels.date && !prev.date.startsWith('{{')) next = next.split(prev.date).join(labels.date);
     if (prev.time !== labels.time && !prev.time.startsWith('{{') && !prev.time.startsWith('[')) next = next.split(prev.time).join(labels.time);
     if (next !== messageTemplate) setMessageTemplate(next);
