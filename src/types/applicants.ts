@@ -684,6 +684,23 @@ export const INITIAL_SECTIONS: ResponseSection[] = [
     ],
   },
 ];
+// GET /applicants/status-insights: applicant count per status name, plus
+// `total`. Every company status is present (0 when unused).
+export type StatusInsights = Record<string, number>;
+
+// PUT /applicants/batch-status
+export type BatchStatusResult = {
+  matched: number;
+  modified: number;
+  rejected: Array<{ applicantId: string; message?: string }>;
+};
+
+// POST /applicants/interviews (201 all ok, 207 partial, 400 none)
+export type BulkScheduleResult = {
+  succeeded: Array<{ applicantId: string; interviews: Interview[] }>;
+  failed: Array<{ applicantId: string; message: string }>;
+};
+
 export type RejectionInsights = {
   reason: string;
   count: number;

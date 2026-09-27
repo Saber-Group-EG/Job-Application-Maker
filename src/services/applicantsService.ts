@@ -17,6 +17,9 @@ import type {
   InterviewAnswer,
   RejectionInsights,
   CandidateSummaryResult,
+  StatusInsights,
+  BatchStatusResult,
+  BulkScheduleResult,
 } from '../types/applicants';
 import { ApiError } from './companiesService';
 
@@ -37,10 +40,37 @@ export type {
 } from '../types/applicants';
 
 // ===== Helper Functions =====
-function normalizeInterviewQuestions(questions: any): InterviewAnswer[] {
+type RawQuestion = {
+  question?: unknown;
+  score?: unknown;
+  achievedScore?: unknown;
+  notes?: string | null;
+  answerType?: InterviewAnswer['answerType'];
+  choices?: unknown[];
+  tags?: unknown[];
+};
+
+type Params = Record<string, unknown>;
+
+// Serializes arrays as repeated keys (a=1&a=2), which the API expects.
+const repeatKeySerializer = {
+  serialize: (p: Params) => {
+    const parts: string[] = [];
+    for (const [key, value] of Object.entries(p)) {
+      if (Array.isArray(value)) {
+        for (const v of value) parts.push(`${key}=${encodeURIComponent(String(v))}`);
+      } else if (value !== undefined && value !== null) {
+        parts.push(`${key}=${encodeURIComponent(String(value))}`);
+      }
+    }
+    return parts.join('&');
+  },
+};
+
+function normalizeInterviewQuestions(questions: unknown): InterviewAnswer[] {
   if (!Array.isArray(questions)) return [];
 
-  return questions.map((q: any) => ({
+  return (questions as RawQuestion[]).map((q) => ({
     question: String(q?.question || '').trim(),
     score: Number(q?.score ?? 0),
     achievedScore: Math.max(
@@ -52,22 +82,26 @@ function normalizeInterviewQuestions(questions: any): InterviewAnswer[] {
     choices: Array.isArray(q?.choices)
       ? (normalizeChoicesToServer(q.choices) as unknown as InterviewAnswer['choices'])
       : undefined,
-    tags: Array.isArray(q?.tags) ? (q.tags as any[]).map((tag) => String(tag ?? '')).filter(Boolean) : undefined,
+    tags: Array.isArray(q?.tags) ? q.tags.map((tag) => String(tag ?? '')).filter(Boolean) : undefined,
   }));
 }
 
-function extractApplicantFromPayload(payload: any, applicantId: string): any {
-  const targetId = String(applicantId || '');
-  const queue: any[] = [];
+type Candidate = { _id?: string; id?: string; applicant?: Candidate; interviews?: unknown[] };
 
-  const pushCandidate = (value: any) => {
+// Find the applicant (or the { applicantId, interviews } result) for
+// `applicantId` anywhere in a schedule-interview response.
+function extractApplicantFromPayload(payload: unknown, applicantId: string): Candidate | undefined {
+  const targetId = String(applicantId || '');
+  const queue: Candidate[] = [];
+
+  const pushCandidate = (value: unknown) => {
     if (!value) return;
     if (Array.isArray(value)) {
       value.forEach(pushCandidate);
       return;
     }
     if (typeof value === 'object') {
-      queue.push(value);
+      queue.push(value as Candidate);
     }
   };
 
@@ -89,7 +123,7 @@ function extractApplicantFromPayload(payload: any, applicantId: string): any {
     }
   }
 
-  return queue.find((value: any) => Array.isArray(value?.interviews));
+  return queue.find((value) => Array.isArray(value?.interviews));
 }
 
 // ===== Applicants Service =====
@@ -97,12 +131,12 @@ class ApplicantsService {
   public async request<T>(
     method: 'get' | 'post' | 'put' | 'delete' | 'patch',
     url: string,
-    data?: any,
-    params?: any,
-    extraConfig?: Record<string, any>
+    data?: unknown,
+    params?: Params,
+    extraConfig?: Record<string, unknown>
   ): Promise<T> {
     try {
-      const config: Record<string, any> = { params, ...extraConfig };
+      const config: Record<string, unknown> = { params, ...extraConfig };
       let response;
 
       if (method === 'get' || method === 'delete') {
@@ -114,7 +148,8 @@ class ApplicantsService {
       }
 
       return response.data?.data ?? response.data;
-    } catch (error: any) {
+    } catch (err) {
+      const error = err as { response?: { status?: number; data?: { details?: unknown; code?: string; featurePath?: string } } };
       throw new ApiError(
         getErrorMessage(error),
         error.response?.status,
@@ -125,13 +160,13 @@ class ApplicantsService {
     }
   }
 
-  private extractApplicants(payload: any): Applicant[] {
+  // List endpoints return an array, { data: [] }, or a paginated envelope.
+  private extractApplicants(payload: unknown): Applicant[] {
     if (Array.isArray(payload)) return payload;
-    if (payload && Array.isArray(payload.data)) return payload.data;
-    if (payload?.data && Array.isArray(payload.data.data))
-      return payload.data.data;
-    if (payload?.data && Array.isArray(payload.data.docs))
-      return payload.data.docs;
+    const p = payload as { data?: Applicant[] | { data?: Applicant[]; docs?: Applicant[] } } | null;
+    if (Array.isArray(p?.data)) return p.data;
+    if (p?.data && Array.isArray(p.data.data)) return p.data.data;
+    if (p?.data && Array.isArray(p.data.docs)) return p.data.docs;
     return [];
   }
 
@@ -145,7 +180,7 @@ class ApplicantsService {
   }
 
   private toScheduleInterviewItem(
-    applicantId: any,
+    applicantId: string | { _id?: string; id?: string } | undefined,
     data: ScheduleInterviewRequest
   ): BulkScheduleInterviewItem {
     const rawApplicantId =
@@ -153,7 +188,7 @@ class ApplicantsService {
         ? applicantId?._id || applicantId?.id || ''
         : applicantId;
 
-    const item: any = { applicantId: String(rawApplicantId || '').trim() };
+    const item: Record<string, unknown> = { applicantId: String(rawApplicantId || '').trim() };
 
     const allowedKeys: Array<keyof ScheduleInterviewRequest> = [
       'scheduledAt',
@@ -169,11 +204,11 @@ class ApplicantsService {
     ];
 
     allowedKeys.forEach((key) => {
-      const value = (data as any)?.[key];
+      const value = data?.[key];
       if (value !== undefined) item[key] = value;
     });
 
-    item.questions = normalizeInterviewQuestions((data as any)?.questions);
+    item.questions = normalizeInterviewQuestions(data?.questions);
     return item as BulkScheduleInterviewItem;
   }
 
@@ -193,7 +228,7 @@ class ApplicantsService {
       companyId?: string;
       jobPositionId?: string;
     }) => {
-      const queryParams: any = { deleted: false, PageCount: 'all' };
+      const queryParams: Params = { deleted: false, PageCount: 'all' };
 
       if (params?.status) {
         queryParams.status = Array.isArray(params.status)
@@ -220,29 +255,9 @@ class ApplicantsService {
       jobPositionId?: string;
     }): Promise<Applicant[]> => {
       const queryParams = buildQueryParams(options);
-      const response = await this.request<any>(
-        'get',
-        '/applicants',
-        undefined,
-        queryParams,
-        {
-          paramsSerializer: {
-            serialize: (p: Record<string, any>) => {
-              const parts: string[] = [];
-              for (const [key, value] of Object.entries(p)) {
-                if (Array.isArray(value)) {
-                  for (const v of value) {
-                    parts.push(`${key}=${encodeURIComponent(v)}`);
-                  }
-                } else if (value !== undefined && value !== null) {
-                  parts.push(`${key}=${encodeURIComponent(value)}`);
-                }
-              }
-              return parts.join('&');
-            },
-          },
-        }
-      );
+      const response = await this.request<unknown>('get', '/applicants', undefined, queryParams, {
+        paramsSerializer: repeatKeySerializer,
+      });
       return this.extractApplicants(response);
     };
 
@@ -300,9 +315,23 @@ class ApplicantsService {
   }
 
   async getApplicantById(id: string, fields?: string): Promise<Applicant> {
-    const response = await this.request<any>('get', `/applicants/${id}`, undefined, fields ? { fields } : undefined);
+    const response = await this.request<Applicant | { applicant: Applicant }>(
+      'get',
+      `/applicants/${id}`,
+      undefined,
+      fields ? { fields } : undefined
+    );
 
-    const applicant = (response?.applicant ?? response) as any;
+    // The job ref is populated with its specs; merge them in when the
+    // applicant itself came without spec details. Mutates in place.
+    const applicant = ('applicant' in response ? response.applicant : response) as Omit<
+      Applicant,
+      'jobPositionId' | 'jobSpecsResponses'
+    > & {
+      jobPositionId?: string | (Record<string, unknown> & { jobSpecsWithDetails?: unknown[]; jobSpecsResponses?: unknown[] });
+      jobSpecsResponses?: unknown[];
+      jobSpecs?: unknown[];
+    };
 
     try {
       if (
@@ -331,13 +360,13 @@ class ApplicantsService {
         applicant.jobSpecs ||
         applicant.jobSpecsWithDetails
       ) {
-        jobPositionsService.normalizeJobPosition(applicant);
+        jobPositionsService.normalizeJobPosition(applicant as unknown as Record<string, unknown>);
       }
     } catch {
       // Ignore normalization errors
     }
 
-    return applicant as Applicant;
+    return applicant as unknown as Applicant;
   }
 
   async createApplicant(data: CreateApplicantRequest): Promise<Applicant> {
@@ -364,20 +393,21 @@ class ApplicantsService {
   ): Promise<Applicant> {
     const normalizedData = {
       ...data,
-      questions: normalizeInterviewQuestions((data as any)?.questions),
+      questions: normalizeInterviewQuestions(data?.questions),
     };
 
     const item = this.toScheduleInterviewItem(applicantId, normalizedData);
-    let response: any;
+    let response: unknown;
 
     try {
-      response = await this.request<any>('post', `/applicants/interviews`, [
+      response = await this.request<BulkScheduleResult>('post', `/applicants/interviews`, [
         item,
       ]);
-    } catch (error: any) {
-      const status = Number(error?.response?.status || 0);
+    } catch (error) {
+      // Fall back to the per-applicant route on validation/routing errors.
+      const status = Number((error as { response?: { status?: number }; statusCode?: number })?.response?.status || 0);
       if (![400, 404, 405, 422].includes(status)) throw error;
-      response = await this.request<any>(
+      response = await this.request<unknown>(
         'post',
         `/applicants/${applicantId}/interviews`,
         normalizedData
@@ -389,7 +419,7 @@ class ApplicantsService {
       applicantId
     );
     if (extractedApplicant && typeof extractedApplicant === 'object')
-      return extractedApplicant as Applicant;
+      return extractedApplicant as unknown as Applicant;
     if (Array.isArray(response) && response.length > 0)
       return response[0] as Applicant;
     if (response && typeof response === 'object') return response as Applicant;
@@ -399,8 +429,8 @@ class ApplicantsService {
 
   async scheduleBulkInterviews(
     payload: BulkScheduleInterviewRequest | BulkScheduleInterviewItem[]
-  ): Promise<any> {
-    const sourceItems: any[] = Array.isArray(payload)
+  ): Promise<BulkScheduleResult> {
+    const sourceItems: BulkScheduleInterviewItem[] = Array.isArray(payload)
       ? payload
       : Array.isArray(payload?.interviews)
         ? payload.interviews
@@ -416,7 +446,7 @@ class ApplicantsService {
       throw new ApiError('At least one interview payload is required.');
     }
 
-    return this.request<any>('post', '/applicants/interviews', interviews);
+    return this.request<BulkScheduleResult>('post', '/applicants/interviews', interviews);
   }
 
   async updateInterviewStatus(
@@ -424,7 +454,7 @@ class ApplicantsService {
     interviewId: string,
     data: UpdateInterviewStatusRequest
   ): Promise<Applicant> {
-    const payload: any = {};
+    const payload: Record<string, unknown> = {};
     const allowedKeys: Array<keyof UpdateInterviewStatusRequest> = [
       'scheduledAt',
       'scheduledBy',
@@ -474,8 +504,8 @@ class ApplicantsService {
       notes?: string;
       reasons?: string[];
     }>
-  ): Promise<any> {
-    return this.request<any>('put', '/applicants/batch-status', {
+  ): Promise<BatchStatusResult> {
+    return this.request<BatchStatusResult>('put', '/applicants/batch-status', {
       items: updates,
     });
   }
@@ -509,14 +539,14 @@ class ApplicantsService {
   async getApplicantStatuses(params?: {
     companyId?: string[];
     status?: string | string[];
-  }): Promise<any> {
+  }): Promise<StatusInsights> {
     const companyIds = this.normalizeCompanyIds(params?.companyId);
 
-    const fetchOne = async (singleCompanyId?: string): Promise<any> => {
-      const queryParams: any = {};
+    const fetchOne = async (singleCompanyId?: string): Promise<StatusInsights> => {
+      const queryParams: Params = {};
       if (singleCompanyId) queryParams.companyId = singleCompanyId;
       if (params?.status) queryParams.status = params.status;
-      return this.request<any>(
+      return this.request<StatusInsights>(
         'get',
         '/applicants/status-insights',
         undefined,
@@ -529,14 +559,6 @@ class ApplicantsService {
     }
 
     const results = await Promise.all(companyIds.map((id) => fetchOne(id)));
-
-    if (results.every((r) => Array.isArray(r))) {
-      const unique = new Map<string, any>();
-      results.flat().forEach((item) => {
-        if (item?._id) unique.set(item._id, item);
-      });
-      return Array.from(unique.values());
-    }
 
     const aggregate: Record<string, number> = {};
     results.forEach((obj) => {
@@ -559,7 +581,7 @@ class ApplicantsService {
     const companyIds = this.normalizeCompanyIds(params?.companyId);
 
     const fetchOne = async (companyId?: string): Promise<RejectionInsights> => {
-      const queryParams: any = {};
+      const queryParams: Params = {};
       if (companyId) queryParams.companyId = companyId;
       return this.request<RejectionInsights>(
         'get',
@@ -579,11 +601,11 @@ class ApplicantsService {
     const countsByReason = new Map<string, number>();
 
     responses.forEach((response) => {
-      const items = Array.isArray(response)
+      const items: RejectionInsights = Array.isArray(response)
         ? response
-        : ((response as any)?.data ?? []);
+        : ((response as { data?: RejectionInsights })?.data ?? []);
 
-      items.forEach((item: any) => {
+      items.forEach((item) => {
         const reason = String(item?.reason ?? '').trim() || 'Unknown';
         const count = Number(item?.count ?? 0);
         countsByReason.set(reason, (countsByReason.get(reason) ?? 0) + count);
@@ -602,33 +624,13 @@ class ApplicantsService {
     page?: number;
     limit?: number;
   }): Promise<Applicant[]> {
-    const queryParams: Record<string, any> = { q: params.q };
+    const queryParams: Params = { q: params.q };
     if (params.companyId) queryParams.companyId = params.companyId;
     if (params.page) queryParams.page = params.page;
     if (params.limit) queryParams.limit = params.limit;
-    return this.request<any>(
-      'get',
-      '/applicants/search',
-      undefined,
-      queryParams,
-      {
-        paramsSerializer: {
-          serialize: (p: Record<string, any>) => {
-            const parts: string[] = [];
-            for (const [key, value] of Object.entries(p)) {
-              if (Array.isArray(value)) {
-                for (const v of value) {
-                  parts.push(`${key}=${encodeURIComponent(v)}`);
-                }
-              } else if (value !== undefined && value !== null) {
-                parts.push(`${key}=${encodeURIComponent(value)}`);
-              }
-            }
-            return parts.join('&');
-          },
-        },
-      }
-    );
+    return this.request<Applicant[]>('get', '/applicants/search', undefined, queryParams, {
+      paramsSerializer: repeatKeySerializer,
+    });
   }
 
   async getApplicantsByPhone(
@@ -641,12 +643,7 @@ class ApplicantsService {
       PageCount: 'all',
     };
     if (companyId) queryParams.companyId = companyId;
-    const response = await this.request<any>(
-      'get',
-      '/applicants',
-      undefined,
-      queryParams
-    );
+    const response = await this.request<unknown>('get', '/applicants', undefined, queryParams);
     return this.extractApplicants(response);
   }
 
