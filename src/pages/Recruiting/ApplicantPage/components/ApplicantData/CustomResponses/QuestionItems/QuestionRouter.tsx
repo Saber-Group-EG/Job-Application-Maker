@@ -1,4 +1,3 @@
-// ApplicantData/CustomResponse/QuestionItems/QuestionRouter.tsx
 import React from 'react';
 import type { QuestionRouterProps } from '../../../../../../../types/applicants';
 import { TextItem } from './TextItem';
@@ -35,7 +34,6 @@ export const QuestionRouter: React.FC<QuestionRouterProps> = ({
   const Component = componentMap[question.type];
   
   if (!Component) {
-    console.warn(`Unknown question type: ${question.type}`);
     return null;
   }
 

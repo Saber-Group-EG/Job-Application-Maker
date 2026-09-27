@@ -1,4 +1,3 @@
-// Components/QuestionItems/EmailItem.tsx
 import React from 'react';
 import type { EmailQuestion } from '../../../../../../../types/applicants';
 import type { QuestionHandlers } from './types';

@@ -1,4 +1,3 @@
-// Components/QuestionItems/NumberItem.tsx
 import React from 'react';
 import type { NumberQuestion } from '../../../../../../../types/applicants';
 import type { QuestionHandlers } from './types';

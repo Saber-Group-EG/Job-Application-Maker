@@ -1,4 +1,3 @@
-// Components/QuestionItems/UrlItem.tsx
 import React from 'react';
 import { ExternalLink } from 'lucide-react';
 import type { UrlQuestion } from '../../../../../../../types/applicants';

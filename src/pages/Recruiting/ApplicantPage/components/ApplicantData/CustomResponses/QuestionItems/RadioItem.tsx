@@ -1,4 +1,3 @@
-// Components/QuestionItems/RadioItem.tsx
 import React from 'react';
 import type { RadioQuestion } from '../../../../../../../types/applicants';
 import type { QuestionHandlers } from './types';
