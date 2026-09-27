@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Modal } from '../ui/modal';
 import DatePicker from '../form/date-picker';
 import Label from '../form/Label';
@@ -373,6 +373,30 @@ export default function InterviewScheduleModal(props: Props) {
     }
   };
 
+  // The date and time as the generated message writes them.
+  const scheduleLabels = () => ({
+    date: interviewForm.date
+      ? (() => {
+          const [year, month, day] = interviewForm.date.split('-');
+          const date = new Date(
+            Date.UTC(parseInt(year), parseInt(month) - 1, parseInt(day))
+          );
+          return date.toLocaleDateString(locale, {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            timeZone: 'UTC',
+          });
+        })()
+      : '{{InterviewDate}}',
+    time: bulkMode
+      ? '{{interviewTime}}'
+      : formatTime12Hour(
+          interviewForm.time || '[' + t('interviewTime', 'modals') + ']'
+        ),
+  });
+
   const generateMessageTemplate = (
     channels: typeof notificationChannels = notificationChannels
   ) => {
@@ -395,26 +419,7 @@ export default function InterviewScheduleModal(props: Props) {
         return '{{jobTitle}}';
       }
     })();
-    const interviewDate = interviewForm.date
-      ? (() => {
-          const [year, month, day] = interviewForm.date.split('-');
-          const date = new Date(
-            Date.UTC(parseInt(year), parseInt(month) - 1, parseInt(day))
-          );
-          return date.toLocaleDateString(locale, {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            timeZone: 'UTC',
-          });
-        })()
-      : '{{InterviewDate}}';
-    const interviewTime = bulkMode
-      ? '{{interviewTime}}'
-      : formatTime12Hour(
-          interviewForm.time || '[' + t('interviewTime', 'modals') + ']'
-        );
+    const { date: interviewDate, time: interviewTime } = scheduleLabels();
     const interviewType = interviewForm.type || 'phone';
     const typeLabel = t(interviewType, 'modals');
     const location =
@@ -564,8 +569,50 @@ export default function InterviewScheduleModal(props: Props) {
     return '';
   };
 
+  // The generated message spells out the date, time, place, etc. Keep it in
+  // step with the form: while the user hasn't edited it, regenerate it;
+  // once edited, only swap the old date/time text for the new one.
+  const lastGeneratedRef = useRef('');
+  const lastLabelsRef = useRef<{ date: string; time: string } | null>(null);
+  const plainText = (html: string) =>
+    html.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+
+  const applyGeneratedTemplate = (channels?: typeof notificationChannels) => {
+    const next = generateMessageTemplate(channels);
+    lastGeneratedRef.current = next;
+    lastLabelsRef.current = scheduleLabels();
+    setMessageTemplate(next);
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const labels = scheduleLabels();
+    const prev = lastLabelsRef.current;
+    lastLabelsRef.current = labels;
+    if (!lastGeneratedRef.current) return;
+    if (plainText(messageTemplate || '') === plainText(lastGeneratedRef.current)) {
+      applyGeneratedTemplate();
+      return;
+    }
+    if (!prev || !messageTemplate) return;
+    let next = messageTemplate;
+    if (prev.date !== labels.date && !prev.date.startsWith('{{')) next = next.split(prev.date).join(labels.date);
+    if (prev.time !== labels.time && !prev.time.startsWith('{{') && !prev.time.startsWith('[')) next = next.split(prev.time).join(labels.time);
+    if (next !== messageTemplate) setMessageTemplate(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    isOpen,
+    interviewForm.date,
+    interviewForm.time,
+    interviewForm.type,
+    interviewForm.location,
+    interviewForm.link,
+    interviewForm.description,
+    interviewForm.comment,
+  ]);
+
   const handleRegenerateTemplate = () => {
-    setMessageTemplate(generateMessageTemplate());
+    applyGeneratedTemplate();
   };
 
   const getAddressLabelFromLocation = (locationUrl: string): string => {
@@ -1470,7 +1517,7 @@ export default function InterviewScheduleModal(props: Props) {
                       setNotificationChannels(next);
                       if (!notificationChannels.email)
                         setEmailOption('company');
-                      setMessageTemplate(generateMessageTemplate(next));
+                      applyGeneratedTemplate(next);
                       setSelectedTemplateId('');
                     }}
                     className="peer sr-only"
@@ -1505,7 +1552,7 @@ export default function InterviewScheduleModal(props: Props) {
                       };
                       setNotificationChannels(next);
                       if (!notificationChannels.sms) setPhoneOption('company');
-                      setMessageTemplate(generateMessageTemplate(next));
+                      applyGeneratedTemplate(next);
                       setSelectedTemplateId('');
                     }}
                     className="peer sr-only"
@@ -1541,7 +1588,7 @@ export default function InterviewScheduleModal(props: Props) {
                       setNotificationChannels(next);
                       if (!notificationChannels.whatsapp)
                         setPhoneOption('whatsapp');
-                      setMessageTemplate(generateMessageTemplate(next));
+                      applyGeneratedTemplate(next);
                       setSelectedTemplateId('');
                     }}
                     className="peer sr-only"
