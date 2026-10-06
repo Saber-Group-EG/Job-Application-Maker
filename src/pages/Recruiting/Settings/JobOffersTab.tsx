@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import {
   FileText,
   PlusCircle,
@@ -15,7 +15,7 @@ import {
   useDeleteJobOffer,
 } from '../../../hooks/queries/useJobOffers';
 import type { JobOffer, WorkType } from '../../../services/jobOffersService';
-import JobOfferModal from '../../../components/modals/JobOffersModal/JobOffersModal';
+import { useOpenOfferEditor } from '../documentEditor/editorNavigation';
 import { Button } from '../../../components/ui/kit';
 import type { BadgeTone } from '../../../components/ui/kit';
 import SettingsSection from './components/SettingsSection';
@@ -128,16 +128,14 @@ export default function OfferTemplatesTab({
   const deleteMutation = useDeleteJobOffer();
   const updateOfferSections = useUpdateOfferSectionTemplates();
 
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [editingOffer, setEditingOffer] = useState<JobOffer | null>(null);
+  const openOfferEditor = useOpenOfferEditor();
 
   const openCreate = () => {
-    setEditingOffer(null);
-    setDrawerOpen(true);
+    if (companyId) openOfferEditor({ mode: 'template', companyId });
   };
   const openEdit = (offer: JobOffer) => {
-    setEditingOffer(offer);
-    setDrawerOpen(true);
+    if (companyId)
+      openOfferEditor({ mode: 'template', companyId, editing: offer });
   };
 
   const handleClone = async (id: string) => {
@@ -210,16 +208,6 @@ export default function OfferTemplatesTab({
         onSave={handleSaveSections}
         isSaving={updateOfferSections.isPending}
       />
-
-      {companyId && (
-        <JobOfferModal
-          isOpen={drawerOpen}
-          onClose={() => setDrawerOpen(false)}
-          mode="template"
-          companyId={companyId}
-          editing={editingOffer}
-        />
-      )}
     </SettingsSection>
   );
 }

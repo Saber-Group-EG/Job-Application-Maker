@@ -27,17 +27,16 @@ import {
 import { jobOffersService } from '../../../services/jobOffersService';
 import type { JobOffer, OfferStatus } from '../../../services/jobOffersService';
 import Swal from '../../../utils/swal';
-import JobOfferModal from '../../../components/modals/JobOffersModal/JobOffersModal';
+import { useOpenContractEditor, useOpenOfferEditor } from '../documentEditor/editorNavigation';
 import { useDebounce } from '../../../hooks/useDebounce';
 import { Badge, Button, Card, EmptyState, IconButton, PageShell, Pagination, SearchInput, StatStrip, TabBar, focusRing, ErrorState } from '../../../components/ui/kit';
 import { OFFER_STATUS_TONE, WORK_TYPE_TONE, offerStatusKey, workTypeKey } from './offerMeta';
 import { useLocale } from '../../../context/LocaleContext';
 import PageMeta from '../../../components/common/PageMeta';
 import { OfferDetail } from './OfferDetail';
+import JobOffersTab from '../Settings/JobOffersTab';
 import { ResendModal } from './OffersActions';
-import { CreateJobContractPayload } from '../../../services/contractsService';
 import { offerToContractDefaults } from '../../../utils/OfferToContract';
-import JobContractModal from '../../../components/modals/ContractModal/ContractModal';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -68,23 +67,27 @@ export default function JobOffersPage() {
     hasPermission('Offer Management', 'write')
   const canCreateContract = hasPermission('Contract Management', 'write');
 
+  const navigateToOfferEditor = useOpenOfferEditor();
+  const openContractEditor = useOpenContractEditor();
+
   const { selectedCompanyId } = useCompanyFilter();
   const companyId: string[] = companies.map((c) => c._id);
+  // Nothing to write an offer for until the companies have loaded.
+  const openOfferEditor = (state: Parameters<typeof navigateToOfferEditor>[0]) => {
+    if (companyId.length > 0) navigateToOfferEditor(state);
+  };
 
   // ── View state ─────────────────────────────────────────────────────────
+  const [section, setSection] = useState<'main' | 'templates'>('main');
+  // Templates are per company: the one picked in the top bar, else the first.
+  const templatesCompanyId = selectedCompanyId ?? companies[0]?._id;
   const [view, setView] = useState<'list' | 'detail'>('list');
   const [selectedOfferId, setSelectedOfferId] = useState<string | null>(null);
-  const [cloneSource, setCloneSource] = useState<JobOffer | null>(null);
   const [resendOpen, setResendOpen] = useState(false);
 
   // ── Filters ────────────────────────────────────────────────────────────
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<'all' | OfferStatus>('all');
-  const [modalOpen, setModalOpen] = useState(false);
-  const [contractModalOpen, setContractModalOpen] = useState(false);
-  const [contractDefaults, setContractDefaults] =
-    useState<Partial<CreateJobContractPayload> | null>(null);
-  const [editingOffer, setEditingOffer] = useState<JobOffer | null>(null);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 500);
 
@@ -139,9 +142,16 @@ export default function JobOffersPage() {
   const updateStatusMutation = useUpdateOfferStatus();
 
   const handleConvertToContract = async (offer: JobOffer) => {
-    // Pre-fill the contract modal with offer data
-    setContractDefaults(offerToContractDefaults(offer));
-    setContractModalOpen(true);
+    // Pre-fill the contract editor with offer data
+    const defaults = offerToContractDefaults(offer);
+    openContractEditor({
+      mode: 'contract',
+      companyId: defaults.companyId!,
+      applicantId: defaults.applicantId,
+      jobPositionId: defaults.jobPositionId,
+      offerId: defaults.offerId,
+      defaults,
+    });
   };
   const handleDelete = async (id: string) => {
     const result = await Swal.fire({
@@ -177,58 +187,20 @@ export default function JobOffersPage() {
     setView('detail');
   };
 
-  const handleClone = (offer: JobOffer) => {
-    setEditingOffer(null);
-    setCloneSource(offer);
-    setModalOpen(true);
-  };
+  const handleClone = (offer: JobOffer) =>
+    openOfferEditor({ mode: 'offer', companyId, cloneFrom: offer });
 
   const handleBackToList = () => {
     setView('list');
     setSelectedOfferId(null);
   };
 
-  const handleEdit = (offer: JobOffer) => {
-    setEditingOffer(offer);
-    setModalOpen(true);
-  };
+  const handleEdit = (offer: JobOffer) =>
+    openOfferEditor({ mode: 'offer', companyId, editing: offer });
 
   const showCompany = companies.length !== 1;
 
-  // ── Shared modal (used in both list & detail views) ────────────────────
-  const sharedModal = companyId.length > 0 && (
-    <JobOfferModal
-      isOpen={modalOpen}
-      onClose={() => {
-        setModalOpen(false);
-        setCloneSource(null);
-      }}
-      mode="offer"
-      companyId={companyId}
-      editing={editingOffer}
-      cloneFrom={cloneSource}
-    />
-  );
-  const contractModal = contractDefaults && (
-    <JobContractModal
-      isOpen={contractModalOpen}
-      onClose={() => {
-        setContractModalOpen(false);
-        setContractDefaults(null);
-      }}
-      mode="contract"
-      companyId={contractDefaults.companyId!}
-      applicantId={contractDefaults.applicantId}
-      jobPositionId={contractDefaults.jobPositionId}
-      offerId={contractDefaults.offerId}
-      defaults={contractDefaults} // ← new prop, see step 5
-    />
-  );
-
-  const openNew = () => {
-    setEditingOffer(null);
-    setModalOpen(true);
-  };
+  const openNew = () => openOfferEditor({ mode: 'offer', companyId });
 
   const pickText = (v?: { en?: string | null; ar?: string | null } | null) =>
     (locale === 'ar' ? v?.ar || v?.en : v?.en || v?.ar) || '';
@@ -240,7 +212,7 @@ export default function JobOffersPage() {
         title={t('sidebarTitle', 'jobOffers')}
         subtitle={t('pageMetaDescription', 'jobOffers')}
         actions={
-          canWrite && (
+          canWrite && section === 'main' && (
             <Button variant="primary" icon={<PlusCircle className="size-4" />} onClick={openNew}>
               {t('newOffer', 'jobOffers')}
             </Button>
@@ -248,6 +220,29 @@ export default function JobOffersPage() {
         }
       >
         <PageMeta title={t('pageMetaTitle', 'jobOffers')} description={t('pageMetaDescription', 'jobOffers')} />
+
+        <Card>
+          <TabBar
+            ariaLabel={t('jobOffersSections', 'jobOffers')}
+            value={section}
+            onChange={setSection}
+            tabs={[
+              { value: 'main' as const, label: t('tabOffers', 'jobOffers'), icon: <Briefcase className="size-4" /> },
+              { value: 'templates' as const, label: t('tabTemplates', 'jobOffers'), icon: <FileText className="size-4" /> },
+            ]}
+          />
+        </Card>
+
+        {section === 'templates' ? (
+          templatesCompanyId ? (
+            <JobOffersTab companyId={templatesCompanyId} hideCompanySelector embedded />
+          ) : (
+            <Card>
+              <EmptyState icon={<FileText className="size-6" />} title={t('selectCompanyForTemplates', 'jobOffers')} />
+            </Card>
+          )
+        ) : (
+          <>
 
         <Card>
           <StatStrip
@@ -373,9 +368,9 @@ export default function JobOffersPage() {
             <Pagination page={page} totalPages={totalPages} totalCount={total} onChange={setPage} busy={isFetching} />
           )}
         </Card>
+          </>
+        )}
 
-        {sharedModal}
-        {contractModal}
       </PageShell>
     );
   }
@@ -389,10 +384,7 @@ export default function JobOffersPage() {
           offer={selectedOffer}
           canWrite={canWrite}
           onBack={handleBackToList}
-          onEdit={(o) => {
-            setEditingOffer(o);
-            setModalOpen(true);
-          }}
+          onEdit={handleEdit}
           setResendOpen={setResendOpen}
           showCompany={showCompany}
           onDelete={handleDelete}
@@ -404,8 +396,6 @@ export default function JobOffersPage() {
         {resendOpen && (
           <ResendModal offer={selectedOffer} companies={companies} onClose={() => setResendOpen(false)} />
         )}
-        {sharedModal}
-        {contractModal}
       </>
     );
   }

@@ -62,8 +62,7 @@ const SURFACE = {
   border: '#f1f5f9',
   borderDark: '#1e293b',
 };
-import JobOfferModal from '../../../../components/modals/JobOffersModal/JobOffersModal';
-import JobContractModal from '../../../../components/modals/ContractModal/ContractModal';
+import { useOpenContractEditor, useOpenOfferEditor } from '../../documentEditor/editorNavigation';
 import { useApplicantMailCounts } from '../../../../hooks/queries/useMail';
 
 
@@ -598,8 +597,8 @@ export default function Applicants({
   }, [companyIdOverride, user]);
   const [excludeModes] = useState<Record<string, boolean>>({});
 
-  const [offerModalOpen, setOfferModalOpen] = useState(false);
-  const [contractModalOpen, setContractModalOpen] = useState(false);
+  const openOfferEditor = useOpenOfferEditor();
+  const openContractEditor = useOpenContractEditor();
 
   const showCompanyColumn = useMemo(() => {
     if (!apiCompanyId) return true;
@@ -3278,10 +3277,10 @@ export default function Applicants({
                       })}
                     </span>
                     <div className="flex flex-wrap items-center gap-2">
-                      <Button size="sm" icon={<FileText className="size-4" />} onClick={() => setOfferModalOpen(true)} disabled={selectedApplicantCount === 0}>
+                      <Button size="sm" icon={<FileText className="size-4" />} onClick={() => openOfferEditor({ mode: 'offer', applicantObjects: selectedApplicants, companyId: selectedApplicantCompanyId! })} disabled={selectedApplicantCount === 0}>
                         {`${t('sendOffer', 'applicants')} (${selectedApplicantCount})`}
                       </Button>
-                      <Button size="sm" icon={<FileSignature className="size-4" />} onClick={() => setContractModalOpen(true)} disabled={selectedApplicantCount === 0}>
+                      <Button size="sm" icon={<FileSignature className="size-4" />} onClick={() => openContractEditor({ mode: 'contract', applicantObjects: selectedApplicants, companyId: selectedApplicantCompanyId! })} disabled={selectedApplicantCount === 0}>
                         {`${t('sendContract', 'applicants')} (${selectedApplicantCount})`}
                       </Button>
                       <Button
@@ -3342,21 +3341,6 @@ export default function Applicants({
                   </div>
                 )}
 
-                <JobContractModal
-                  isOpen={contractModalOpen}
-                  onClose={() => setContractModalOpen(false)}
-                  mode="contract"
-                  applicantObjects={selectedApplicants}
-                  companyId={selectedApplicantCompanyId!}
-                />
-
-                <JobOfferModal
-                  isOpen={offerModalOpen}
-                  onClose={() => setOfferModalOpen(false)}
-                  mode="offer"
-                  applicantObjects={selectedApplicants}
-                  companyId={selectedApplicantCompanyId!}
-                />
                 <BulkMessageModal
                   isOpen={showBulkModal}
                   onClose={() => setShowBulkModal(false)}

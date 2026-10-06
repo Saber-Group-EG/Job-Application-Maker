@@ -216,5 +216,8 @@
   "locationNumber": "Location {n}",
   "openInMaps": "Open in Google Maps",
   "companyDescAr": "Description (Arabic)",
-  "companyDescArPlaceholder": "نبذة قصيرة عن الشركة"
+  "companyDescArPlaceholder": "نبذة قصيرة عن الشركة",
+  "tabSendersDomain": "Senders & Domain",
+  "tabEmailTemplates": "Email Templates",
+  "mailSettingsSections": "Mail settings sections"
 }

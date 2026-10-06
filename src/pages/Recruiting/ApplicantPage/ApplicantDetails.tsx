@@ -46,8 +46,7 @@ import CommentModal from '../../../components/modals/commentmodal';
 import MessageModal from '../../../components/modals/MessageModal';
 import InterviewSettingsModal from '../../../components/modals/InterviewSettingsModal';
 import InterviewScheduleModal from '../../../components/modals/InterviewScheduleModal';
-import JobOfferModal from '../../../components/modals/JobOffersModal/JobOffersModal';
-import JobContractModal from '../../../components/modals/ContractModal/ContractModal';
+import { useOpenContractEditor, useOpenOfferEditor } from '../documentEditor/editorNavigation';
 import { Modal } from '../../../components/ui/modal';
 import { useLocale } from '../../../context/LocaleContext';
 import { paths } from '../../../router/Paths';
@@ -391,8 +390,22 @@ const ApplicantDetails: React.FC = () => {
   );
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
-  const [showJobOfferModal, setShowJobOfferModal] = useState(false);
-  const [showContractModal, setShowContractModal] = useState(false);
+  const openOfferEditor = useOpenOfferEditor();
+  const openContractEditor = useOpenContractEditor();
+  const openJobOffer = () =>
+    openOfferEditor({
+      mode: 'offer',
+      companyId: applicantCompanyId || jobPosCompanyId || '',
+      applicantId: id || null,
+      jobPositionId: applicantJobPositionId || null,
+    });
+  const openContract = () =>
+    openContractEditor({
+      mode: 'contract',
+      companyId: applicantCompanyId || jobPosCompanyId || '',
+      applicantId: id || null,
+      jobPositionId: applicantJobPositionId || null,
+    });
 
   useEffect(() => {
     if (showStatusModal && applicant) {
@@ -1220,8 +1233,8 @@ const ApplicantDetails: React.FC = () => {
         onSendMessage={() => setShowMessageModal(true)}
         onPrint={handlePrint}
         onRestore={handleRestore}
-        onCreateJobOffer={() => setShowJobOfferModal(true)}
-        onCreateContract={() => setShowContractModal(true)}
+        onCreateJobOffer={openJobOffer}
+        onCreateContract={openContract}
       />
     </Stickysidebar>
   );
@@ -1297,8 +1310,8 @@ const ApplicantDetails: React.FC = () => {
                 onSendMessage={() => setShowMessageModal(true)}
                 onPrint={handlePrint}
                 onRestore={handleRestore}
-                onCreateJobOffer={() => setShowJobOfferModal(true)}
-                onCreateContract={() => setShowContractModal(true)}
+                onCreateJobOffer={openJobOffer}
+                onCreateContract={openContract}
               />
             </Stickysidebar>
 
@@ -1591,22 +1604,6 @@ const ApplicantDetails: React.FC = () => {
         setSelectedInterview={setSelectedInterview}
         setShowInterviewSettingsModal={setShowInterviewSettingsModal}
         updateInterviewMutation={updateInterviewStatusMutation}
-      />
-      <JobOfferModal
-        isOpen={showJobOfferModal}
-        onClose={() => setShowJobOfferModal(false)}
-        mode="offer"
-        companyId={applicantCompanyId || jobPosCompanyId || ''}
-        applicantId={id || null}
-        jobPositionId={applicantJobPositionId || null}
-      />
-      <JobContractModal
-        isOpen={showContractModal}
-        onClose={() => setShowContractModal(false)}
-        mode="contract"
-        companyId={applicantCompanyId || jobPosCompanyId || ''}
-        applicantId={id || null}
-        jobPositionId={applicantJobPositionId || null}
       />
     </div>
   );

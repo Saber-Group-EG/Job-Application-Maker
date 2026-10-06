@@ -6,6 +6,7 @@ import { useLocale } from "../../../context/LocaleContext";
 import PageMeta from "../../../components/common/PageMeta";
 import { useCompanies, useUpdateMailSettings } from "../../../hooks/queries/useCompanies";
 import GmailConnectionCard from "./components/GmailConnectionCard";
+import EmailTemplates from "../Settings/MailTemplate";
 import { AlertTriangle, Building2, CheckCircle, Globe, Mail, PlusCircle, Save, ShieldCheck, Trash2 } from "lucide-react";
 import {
   Badge,
@@ -18,6 +19,7 @@ import {
   PageShell,
   SectionTitle,
   StatCard,
+  TabBar,
   focusRing,
   inputClass,
 } from "../../../components/ui/kit";
@@ -47,6 +49,7 @@ export default function CompanySettingsPage({ companyId: _companyId, onSaved, on
   const [receivingDomain, setReceivingDomain] = useState<string>("");
   const [isSaving, setIsSaving] = useState(false);
   const [newMail, setNewMail] = useState("");
+  const [section, setSection] = useState<'senders' | 'templates'>('senders');
 
   const canViewMailManagement = !!hasPermission && hasPermission('Mail Management', 'read');
   const canEdit = !!hasPermission && (hasPermission('Mail Management', 'write') && hasPermission('Mail Management', 'create'));
@@ -147,6 +150,7 @@ export default function CompanySettingsPage({ companyId: _companyId, onSaved, on
       title={t('companyCommSettings', 'companies')}
       subtitle={t('companyCommSettingsDesc', 'companies')}
       actions={
+        section === 'senders' && (
         <Button
           variant="primary"
           icon={<Save className="size-4" />}
@@ -156,9 +160,27 @@ export default function CompanySettingsPage({ companyId: _companyId, onSaved, on
         >
           {t('saveChangesBtn', 'companies')}
         </Button>
+        )
       }
     >
       <PageMeta title={t('settingsPageTitle', 'companies')} description={t('settingsPageDesc', 'companies')} />
+
+      <Card>
+        <TabBar
+          ariaLabel={t('mailSettingsSections', 'companies')}
+          value={section}
+          onChange={setSection}
+          tabs={[
+            { value: 'senders' as const, label: t('tabSendersDomain', 'companies'), icon: <Globe className="size-4" /> },
+            { value: 'templates' as const, label: t('tabEmailTemplates', 'companies'), icon: <Mail className="size-4" /> },
+          ]}
+        />
+      </Card>
+
+      {section === 'templates' ? (
+        <EmailTemplates embedded />
+      ) : (
+        <>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <StatCard label={t('selectedCompany', 'companies')} value={<span className="text-base">{selectedCompanyName}</span>} icon={<Building2 className="size-4" />} />
@@ -297,6 +319,8 @@ export default function CompanySettingsPage({ companyId: _companyId, onSaved, on
           </div>
         </Card>
       </div>
+        </>
+      )}
     </PageShell>
   );
 }
