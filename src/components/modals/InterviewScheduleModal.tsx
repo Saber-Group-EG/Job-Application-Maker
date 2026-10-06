@@ -76,7 +76,10 @@ export default function InterviewScheduleModal(props: Props) {
   } = props;
 
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
+  // Listing users needs User Management read; without it the interview is
+  // simply assigned to the current user.
+  const canPickInterviewer = hasPermission('User Management', 'read');
   const { t, locale } = useLocale();
   const draftTemplateMutation = useDraftEmailTemplateWithAi();
   const [aiPromptOpen, setAiPromptOpen] = useState(false);
@@ -175,8 +178,13 @@ export default function InterviewScheduleModal(props: Props) {
   }, [companyData, companyFromList]);
 
   // Fetch users for the company
+  // Only while open and permitted: the table keeps this modal mounted, and
+  // the request 403s for accounts without User Management.
+  const usersEnabled = isOpen && canPickInterviewer;
   const { data: usersData = [], isLoading: isLoadingUsers } = useUsers(
-    companyId ? { companies: [companyId] } : {}
+    companyId
+      ? { companies: [companyId], enabled: usersEnabled }
+      : { enabled: usersEnabled }
   );
   // Extract users array from response
   const companyUsers = useMemo(() => {
@@ -1547,6 +1555,7 @@ export default function InterviewScheduleModal(props: Props) {
                 </div>
               </div>
             )}
+            {canPickInterviewer ? (
             <div>
               <Label htmlFor="interview-conducted-by">
                 {t('conductedBy', 'modals')}
@@ -1587,6 +1596,14 @@ export default function InterviewScheduleModal(props: Props) {
                 </p>
               )}
             </div>
+            ) : (
+              <div>
+                <Label>{t('conductedBy', 'modals')}</Label>
+                <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                  {toPlainString(user?.fullName || user?.name || user?.email || '')}
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
