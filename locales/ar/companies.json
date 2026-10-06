@@ -222,5 +222,8 @@
   "deptSearchPlaceholder": "ابحث في الأقسام...",
   "deptCompany": "الشركة",
   "deptAllCompanies": "جميع الشركات",
-  "deptSelectCompany": "اختر شركة"
+  "deptSelectCompany": "اختر شركة",
+  "tabSendersDomain": "المرسلون والنطاق",
+  "tabEmailTemplates": "قوالب البريد",
+  "mailSettingsSections": "أقسام إعدادات البريد"
 }

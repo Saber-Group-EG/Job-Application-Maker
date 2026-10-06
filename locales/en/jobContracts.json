@@ -54,5 +54,9 @@
   "deleteConfirm": "Delete",
   "salary": "Salary",
   "status": "Status",
-  "email": "Email"
+  "email": "Email",
+  "tabContracts": "Contracts",
+  "tabTemplates": "Templates",
+  "selectCompanyForTemplates": "Select a company in the top bar to manage its templates.",
+  "jobContractsSections": "Contracts sections"
 }

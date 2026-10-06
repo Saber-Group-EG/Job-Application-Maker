@@ -39,6 +39,8 @@ import {
   ErrorState,
 } from "../../../components/ui/kit";
 
+const ROLE_ACCESS = ["read", "write", "create"];
+
 export default function PreviewRole() {
   const { t, locale } = useLocale();
   const { id } = useParams();
@@ -133,11 +135,14 @@ export default function PreviewRole() {
 
   const handleSave = async () => {
     const payload = {
+      // The roles API has no description field and rejects unknown keys, so
+      // only name + permissions are sent. Only read/write/create exist there.
       name: formData.name,
-      description: formData.description,
       permissions: selectedPermissions.map((permId) => ({
         permission: permId,
-        access: permissionAccess[permId] || [],
+        access: (permissionAccess[permId] || []).filter((a) =>
+          ROLE_ACCESS.includes(a)
+        ),
       })),
     };
 
@@ -274,17 +279,6 @@ export default function PreviewRole() {
                   placeholder={t('previewRoleNamePlaceholder', 'roles')}
                 />
               </Field>
-              <Field label={t('previewRoleDescLabel', 'roles')} htmlFor="pr-desc" optional>
-                <textarea
-                  id="pr-desc"
-                  name="description"
-                  rows={2}
-                  value={formData.description}
-                  onChange={handleInputChange}
-                  className={`${inputClass} resize-y`}
-                  placeholder={t('previewRoleDescPlaceholder', 'roles')}
-                />
-              </Field>
             </div>
           </Card>
         )}
@@ -335,7 +329,7 @@ export default function PreviewRole() {
                     </label>
                     {isSelected ? (
                       <div className="flex flex-wrap gap-1.5 sm:justify-end">
-                        {(perm.actions || ["read", "write", "create", "delete", "update"]).map((action) => (
+                        {(perm.actions || ROLE_ACCESS).map((action) => (
                           <ToggleChip
                             key={action}
                             selected={Boolean(permissionAccess[perm._id]?.includes(action))}

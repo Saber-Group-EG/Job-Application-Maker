@@ -1,5 +1,6 @@
 // jobOfferPdfGenerator.ts
 import { JobOffer } from '../services/jobOffersService';
+import { workTypeLabel } from './documentLabels';
 
 interface JobOfferPDFOptions {
   offer: JobOffer;
@@ -53,7 +54,7 @@ export const generateJobOfferPDF = async ({ offer, lang = 'en', companyName = ''
   const generatedDate = formatDateLocale(new Date().toISOString(), lang);
 
   const position = renderText(offer.position, lang);
-  const workType = renderText(offer.workType, lang);
+  const workType = workTypeLabel(offer.workType, lang);
   const workHours = renderText(offer.workHours, lang);
   const notes = renderText(offer.notes, lang);
 
@@ -92,35 +93,25 @@ export const generateJobOfferPDF = async ({ offer, lang = 'en', companyName = ''
   // Build commissions HTML with RTL support
   let commissionsHTML = '';
   if (offer.commissions.length > 0) {
+    const th = (label: string, align: string) => `<th style="background: #242B32; color: white; padding: 10px 8px; font-weight: 700; font-size: 10pt; border: 1px solid #1a1f24; text-align: ${align};">${label}</th>`;
     commissionsHTML = '<table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 9pt;"><thead><tr>';
-    if (isRTL) {
-      commissionsHTML += `<th style="background: #242B32; color: white; padding: 10px 8px; font-weight: 700; font-size: 10pt; border: 1px solid #1a1f24; text-align: center;">${lang === 'ar' ? 'القيمة' : 'Value'}</th>`;
-      commissionsHTML += `<th style="background: #242B32; color: white; padding: 10px 8px; font-weight: 700; font-size: 10pt; border: 1px solid #1a1f24; text-align: center;">${lang === 'ar' ? 'العمولة' : 'Commission'}</th>`;
-    } 
-    commissionsHTML += '<tr></thead><tbody>';
-    
+    commissionsHTML += th(lang === 'ar' ? 'العمولة' : 'Commission', 'start');
+    commissionsHTML += th(lang === 'ar' ? 'القيمة' : 'Value', 'end');
+    commissionsHTML += '</tr></thead><tbody>';
+
     for (const commission of offer.commissions) {
       const label = renderText(commission.label, lang);
       const condition = renderText(commission.condition, lang);
       const commissionValue = commission.value;
       const commissionType = commission.type;
-      
+
       commissionsHTML += '<tr>';
-      if (isRTL) {
-        commissionsHTML += `<td style="padding: 10px 8px; border-bottom: 1px solid #e0e0e0; text-align: center; font-weight: 700; color: #059669;">${commissionValue}${commissionType === 'percentage' ? '%' : ` ${offer.salary.currency}`}</td>`;
-        commissionsHTML += `<td style="padding: 10px 8px; border-bottom: 1px solid #e0e0e0; text-align: center;"><strong>${escapeHtml(label)}</strong>`;
-        if (condition && condition !== '—') {
-          commissionsHTML += `<div style="font-size: 8pt; color: #666; margin-top: 4px;">📌 ${escapeHtml(condition)}</div>`;
-        }
-        commissionsHTML += `</td>`;
-      } else {
-        commissionsHTML += `<td style="padding: 10px 8px; border-bottom: 1px solid #e0e0e0;"><strong>${escapeHtml(label)}</strong>`;
-        if (condition && condition !== '—') {
-          commissionsHTML += `<div style="font-size: 8pt; color: #666; margin-top: 4px;">📌 ${escapeHtml(condition)}</div>`;
-        }
-        commissionsHTML += `</td>`;
-        commissionsHTML += `<td style="padding: 10px 8px; text-align: right; border-bottom: 1px solid #e0e0e0; font-weight: 700; color: #059669;">${commissionValue}${commissionType === 'percentage' ? '%' : ` ${offer.salary.currency}`}</td>`;
+      commissionsHTML += `<td style="padding: 10px 8px; border-bottom: 1px solid #e0e0e0; text-align: start;"><strong>${escapeHtml(label)}</strong>`;
+      if (condition && condition !== '—') {
+        commissionsHTML += `<div style="font-size: 8pt; color: #666; margin-top: 4px;">📌 ${escapeHtml(condition)}</div>`;
       }
+      commissionsHTML += `</td>`;
+      commissionsHTML += `<td style="padding: 10px 8px; text-align: end; border-bottom: 1px solid #e0e0e0; font-weight: 700; color: #059669;">${commissionValue}${commissionType === 'percentage' ? '%' : ` ${offer.salary.currency}`}</td>`;
       commissionsHTML += '</tr>';
     }
     commissionsHTML += '</tbody></table>';

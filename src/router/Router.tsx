@@ -94,6 +94,12 @@ const JobOffersPage = lazy(
 const ContractPage = lazy(
   () => import('../pages/Recruiting/jobContracts/ContractsPage')
 );
+const JobOfferEditorPage = lazy(
+  () => import('../pages/Recruiting/documentEditor/JobOfferEditorPage')
+);
+const ContractEditorPage = lazy(
+  () => import('../pages/Recruiting/documentEditor/ContractEditorPage')
+);
 
 // Saved Fields
 const SavedFields = lazy(
@@ -271,6 +277,14 @@ export default function App() {
 
               {/* Jobs */}
               <Route path={paths.jobs.root} element={<Jobs />} />
+              <Route
+                path={paths.jobs.offerEditor}
+                element={<JobOfferEditorPage />}
+              />
+              <Route
+                path={paths.jobs.contractEditor}
+                element={<ContractEditorPage />}
+              />
               <Route path={paths.jobs.create} element={<CreateJob />} />
               <Route path={patterns.jobs.preview} element={<PreviewJob />} />
 

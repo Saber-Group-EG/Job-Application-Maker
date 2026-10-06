@@ -222,5 +222,8 @@
   "deptSearchPlaceholder": "Search departments...",
   "deptCompany": "Company",
   "deptAllCompanies": "All companies",
-  "deptSelectCompany": "Select a company"
+  "deptSelectCompany": "Select a company",
+  "tabSendersDomain": "Senders & Domain",
+  "tabEmailTemplates": "Email Templates",
+  "mailSettingsSections": "Mail settings sections"
 }

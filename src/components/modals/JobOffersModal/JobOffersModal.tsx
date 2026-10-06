@@ -1,41 +1,12 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
-  X,
   FileText,
-  Briefcase,
-  Clock,
-  DollarSign,
-  Percent,
-  Plus,
-  StickyNote,
-  Hash,
   Mail,
   Send,
   ChevronDown,
-  Layers,
-  GripVertical,
-  Languages,
   Sparkles,
+  Users,
 } from 'lucide-react';
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-  DragStartEvent,
-  DragOverlay,
-  defaultDropAnimationSideEffects,
-} from '@dnd-kit/core';
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
-import { createPortal } from 'react-dom';
 import {
   CommissionType,
   DraftOfferResult,
@@ -49,17 +20,16 @@ import {
   useUpdateJobOffer,
   useDraftOfferWithAi,
 } from '../../../hooks/queries/useJobOffers';
+import { useApplicant } from '../../../hooks/queries/useApplicants';
+import { useCompanies } from '../../../hooks/queries';
 import Swal from '../../../utils/swal';
 import { ApplicantSelect } from '../../form/ApplicantSelection';
 import { TemplateSelector } from './TemplateSelector';
-import { SectionBlock } from '../../form/SectionBlock';
-import { CommissionRow } from './CommissionRow';
 import {
   useJobOfferEmail,
   EmailSettingsPanel,
   type ApplicantObject,
 } from './EmailModule';
-import { SectionDivider } from '../../form/SectionDivider';
 import { ModalLabel } from '../../form/ModalLabel';
 import {
   BulkOverrideMap,
@@ -68,18 +38,42 @@ import {
   resolveApplicantPosition,
   seedBulkOverrideMap,
 } from './BulkSalaryReview';
-import SectionTemplatePicker from '../../form/SectionTemplatePicker';
 import { translateText } from '../../../utils/translate';
 import { useLocale } from '../../../context/LocaleContext';
+import {
+  AddButton,
+  BiField,
+  DetailRow,
+  DetailsGrid,
+  DocLang,
+  EditorShell,
+  InlineField,
+  InlineSelect,
+  Paper,
+  PaperBox,
+  PaperFooter,
+  PaperHeader,
+  PaperHeading,
+  PaperNotes,
+  PaperTitle,
+  SectionsEditor,
+  SideCard,
+  SortableList,
+  SortableRow,
+  TableHead,
+} from '../../documentEditor/Paper';
+import {
+  WORK_TYPE_VALUES,
+  workTypeLabel,
+} from '../../../utils/documentLabels';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type ModalMode = 'template' | 'offer';
+type EditorMode = 'template' | 'offer';
 
-export type JobOfferModalProps = {
-  isOpen: boolean;
+export type JobOfferEditorProps = {
   onClose: () => void;
-  mode: ModalMode;
+  mode: EditorMode;
   companyId: string | string[];
   company?: string;
   editing?: JobOffer | null;
@@ -234,13 +228,37 @@ const offerToForm = (offer: JobOffer): FormState => ({
 const inputCls =
   'w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-brand-400';
 
-const selectCls =
-  'w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100';
+const STATUS_BADGE: Record<
+  string,
+  { en: string; ar: string; color: string; bg: string }
+> = {
+  draft: { en: 'Draft', ar: 'مسودة', color: '#64748b', bg: '#f1f5f9' },
+  sent: { en: 'Sent', ar: 'مرسل', color: '#3b82f6', bg: '#eff6ff' },
+  accepted: { en: 'Accepted', ar: 'مقبول', color: '#10b981', bg: '#f0fdf4' },
+  rejected: { en: 'Rejected', ar: 'مرفوض', color: '#ef4444', bg: '#fef2f2' },
+  expired: { en: 'Expired', ar: 'منتهي', color: '#f59e0b', bg: '#fffbeb' },
+};
 
-// ─── Main Modal ───────────────────────────────────────────────────────────────
+const bilingualName = (
+  name: string | { en?: string; ar?: string } | undefined,
+  lang: DocLang
+) =>
+  typeof name === 'string'
+    ? name
+    : ((lang === 'ar' ? name?.ar || name?.en : name?.en || name?.ar) ?? '');
 
-export default function JobOfferModal({
-  isOpen,
+const formatDocDate = (date: Date | string, lang: DocLang) =>
+  new Date(date).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+// ─── Editor page ──────────────────────────────────────────────────────────────
+
+export default function JobOfferEditor({
   onClose,
   mode,
   company: propCompany,
@@ -250,39 +268,16 @@ export default function JobOfferModal({
   jobPositionId,
   cloneFrom,
   applicantObjects,
-}: JobOfferModalProps) {
+}: JobOfferEditorProps) {
   const { t, locale } = useLocale();
 
-  const WORK_TYPES: { value: WorkType; label: string }[] = [
-    { value: 'full-time', label: t('fullTime', 'modals') },
-    { value: 'part-time', label: t('partTime', 'modals') },
-    { value: 'contract', label: t('contract', 'modals') },
-    { value: 'internship', label: t('internship', 'modals') },
-  ];
-
   const [form, setForm] = useState<FormState>(emptyForm);
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const [docLang, setDocLang] = useState<DocLang>(locale === 'ar' ? 'ar' : 'en');
   const [showSalaryReview, setShowSalaryReview] = useState(false);
-  const [activeCommissionId, setActiveCommissionId] = useState<string | null>(
-    null
-  );
-  const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
   const [translatingAll, setTranslatingAll] = useState(false);
 
   const firstInputRef = useRef<HTMLInputElement>(null);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  );
-
-  const dropAnimation = {
-    sideEffects: defaultDropAnimationSideEffects({
-      styles: { active: { opacity: '0.4' } },
-    }),
-    duration: 200,
-    easing: 'cubic-bezier(0.2, 0, 0, 1)',
-  };
   // ── Mutations ──────────────────────────────────────────────────────────────
   const createMutation = useCreateJobOffer();
   const bulkMutation = useBulkCreateJobOffers();
@@ -309,60 +304,7 @@ export default function JobOfferModal({
     bulkMutation.isPending ||
     isEmailPending;
 
-  // ── Drag handlers ──────────────────────────────────────────────────────────
-
-  const handleCommissionDragStart = useCallback((event: DragStartEvent) => {
-    setActiveCommissionId(event.active.id as string);
-  }, []);
-
-  const handleCommissionDragEnd = useCallback((event: DragEndEvent) => {
-    const { active, over } = event;
-    setActiveCommissionId(null);
-    if (over && active.id !== over.id) {
-      setForm((prev) => {
-        const oldIndex = prev.commissions.findIndex((c) => c._id === active.id);
-        const newIndex = prev.commissions.findIndex((c) => c._id === over.id);
-        if (oldIndex !== -1 && newIndex !== -1) {
-          return {
-            ...prev,
-            commissions: arrayMove(prev.commissions, oldIndex, newIndex),
-          };
-        }
-        return prev;
-      });
-    }
-  }, []);
-
-  const handleCommissionDragCancel = useCallback(() => {
-    setActiveCommissionId(null);
-  }, []);
-
-  const handleSectionDragStart = useCallback((event: DragStartEvent) => {
-    setActiveSectionId(event.active.id as string);
-  }, []);
-
-  const handleSectionDragEnd = useCallback((event: DragEndEvent) => {
-    const { active, over } = event;
-    setActiveSectionId(null);
-    if (over && active.id !== over.id) {
-      setForm((prev) => {
-        const oldIndex = prev.sections.findIndex((s) => s._id === active.id);
-        const newIndex = prev.sections.findIndex((s) => s._id === over.id);
-        if (oldIndex !== -1 && newIndex !== -1) {
-          return {
-            ...prev,
-            sections: arrayMove(prev.sections, oldIndex, newIndex),
-          };
-        }
-        return prev;
-      });
-    }
-  }, []);
-
-  const handleSectionDragCancel = useCallback(() => {
-    setActiveSectionId(null);
-  }, []);
-
+  // ── AI draft ───────────────────────────────────────────────────────────────
   const [aiPanelOpen, setAiPanelOpen] = useState(false);
   const [aiJobTitle, setAiJobTitle] = useState('');
   const [aiJobDescription, setAiJobDescription] = useState('');
@@ -395,10 +337,6 @@ export default function JobOfferModal({
     setAiJobTitle('');
     setAiJobDescription('');
     setAiPrompt('');
-  };
-
-  const handleGenerateWithAi = () => {
-    setAiPanelOpen(true);
   };
 
   const handleAiPanelSubmit = async () => {
@@ -434,55 +372,54 @@ export default function JobOfferModal({
     }));
   };
 
-  // ── Keyboard + scroll lock ─────────────────────────────────────────────────
+  // ── Init form ──────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!isOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [isOpen, onClose]);
+    const ids = applicantObjects?.map((a) => a._id) ?? [];
+    const bulk = ids.length > 0;
 
-  useEffect(() => {
-    document.body.style.overflow = isOpen ? 'hidden' : '';
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [isOpen]);
-
-  // ── Init form on open ──────────────────────────────────────────────────────
-  useEffect(() => {
-    if (isOpen) {
-      const ids = applicantObjects?.map((a) => a._id) ?? [];
-      const bulk = ids.length > 0;
-
-      if (editing) {
-        setForm({ ...offerToForm(editing), senderByCompany: {} });
-      } else if (cloneFrom) {
-        setForm({
-          ...offerToForm(cloneFrom),
-          applicantId: null,
-          applicantIds: [],
-          isBulk: bulk,
-          sendAsEmail: false,
-          senderByCompany: {},
-        });
-      } else {
-        setForm({
-          ...emptyForm(),
-          applicantIds: ids,
-          isBulk: bulk,
-          bulkOverrideMap: bulk
-            ? seedBulkOverrideMap(applicantObjects ?? [])
-            : {},
-        });
-      }
-      setTimeout(() => firstInputRef.current?.focus(), 80);
+    if (editing) {
+      setForm({ ...offerToForm(editing), senderByCompany: {} });
+    } else if (cloneFrom) {
+      setForm({
+        ...offerToForm(cloneFrom),
+        applicantId: null,
+        applicantIds: [],
+        isBulk: bulk,
+        sendAsEmail: false,
+        senderByCompany: {},
+      });
+    } else {
+      setForm({
+        ...emptyForm(),
+        applicantIds: ids,
+        isBulk: bulk,
+        bulkOverrideMap: bulk
+          ? seedBulkOverrideMap(applicantObjects ?? [])
+          : {},
+      });
     }
-  }, [isOpen, editing, cloneFrom]);
+    setTimeout(() => firstInputRef.current?.focus(), 80);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing, cloneFrom]);
 
-  if (!isOpen) return null;
+  // ── Company + fixed applicant shown on the sheet ───────────────────────────
+  const { data: companies = [] } = useCompanies();
+  const sheetCompanyId =
+    form.selectedApplicantObject?.jobPositionId?.companyId?._id ??
+    (Array.isArray(companyId) ? companyId[0] : companyId);
+  const sheetCompanyName =
+    propCompany ||
+    bilingualName(
+      companies.find((c) => c._id === sheetCompanyId)?.name as
+        | string
+        | { en?: string; ar?: string }
+        | undefined,
+      docLang
+    );
+
+  const { data: fixedApplicant } = useApplicant(applicantId ?? '', {
+    enabled: !!applicantId,
+  });
 
   // ── Patch helpers ──────────────────────────────────────────────────────────
 
@@ -513,29 +450,6 @@ export default function JobOfferModal({
       },
     ]);
 
-  const patchSection = (id: string, patch: Partial<FormSection>) =>
-    set(
-      'sections',
-      form.sections.map((s) => (s._id === id ? { ...s, ...patch } : s))
-    );
-
-  const removeSection = (id: string) =>
-    set(
-      'sections',
-      form.sections.filter((s) => s._id !== id)
-    );
-
-  const addSection = () =>
-    set('sections', [
-      ...form.sections,
-      {
-        _id: uid(),
-        title: { en: '', ar: '' },
-        items: [],
-        displayOrder: form.sections.length,
-      },
-    ]);
-
   const duplicateCommission = (id: string) => {
     const target = form.commissions.find((c) => c._id === id);
     if (!target) return;
@@ -545,19 +459,6 @@ export default function JobOfferModal({
       _id: uid(),
     });
     set('commissions', next);
-  };
-
-  const duplicateSection = (id: string) => {
-    const target = form.sections.find((s) => s._id === id);
-    if (!target) return;
-    const clone = {
-      ...target,
-      _id: uid(),
-      items: target.items.map((i) => ({ ...i, _id: uid() })),
-    };
-    const next = [...form.sections];
-    next.splice(next.findIndex((s) => s._id === id) + 1, 0, clone);
-    set('sections', next);
   };
 
   const handlePrefillFromApplicant = (applicant: ApplicantObject) => {
@@ -859,721 +760,244 @@ export default function JobOfferModal({
         : t('createOffer', 'modals');
 
   // ── Render ─────────────────────────────────────────────────────────────────
-  return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm h-screen"
-        onClick={onClose}
-        aria-hidden="true"
-      />
+  const L = (en: string, ar: string) => (docLang === 'ar' ? ar : en);
+  const rtl = docLang === 'ar';
+  const status = STATUS_BADGE[editing?.status ?? 'draft'] ?? STATUS_BADGE.draft;
+  const cur = form.salaryCurrency;
 
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        onClick={onClose}
-        className="fixed inset-0 z-60 flex items-center justify-center p-4"
-      >
-        <div
-          onClick={(e) => e.stopPropagation()}
-          className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900"
-        >
-          {/* ── Header ── */}
-          <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 px-6 py-5 dark:border-slate-800">
-            <div className="flex items-center gap-3">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400">
-                <FileText className="size-5" />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold leading-tight text-slate-900 dark:text-slate-100">
-                  {title}
-                </h2>
-                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                  {isTemplate
-                    ? t('templateOfferDesc', 'modals')
-                    : t('offerDesc', 'modals')}
-                </p>
-              </div>
+  const candidate = (() => {
+    if (mode !== 'offer') return null;
+    if (editing) {
+      const a = form.selectedApplicantObject;
+      return a ? (
+        <>
+          <div style={{ fontSize: '11pt', fontWeight: 500 }}>{a.fullName}</div>
+          {a.email && (
+            <div style={{ fontSize: '9pt', color: '#666', marginTop: 4 }}>
+              {a.email}
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={translateAll}
-                disabled={translatingAll}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-brand-50 hover:text-brand-600 disabled:opacity-50 dark:border-slate-700 dark:hover:bg-brand-500/10 dark:hover:text-brand-400"
-                title={t('translateAll', 'modals')}
-              >
-                {translatingAll ? (
-                  <div className="size-3.5 animate-spin rounded-full border-2 border-slate-400/30 border-t-slate-400" />
-                ) : (
-                  <Languages className="size-3.5" />
-                )}
-                {t('translateAll', 'modals')}
-              </button>
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:border-slate-700 dark:hover:bg-slate-800"
-              >
-                <X className="size-4" />
-              </button>
-            </div>
+          )}
+        </>
+      ) : null;
+    }
+    if (form.isBulk) {
+      return (
+        <div style={{ fontSize: '10pt', color: '#555' }}>
+          {(applicantObjects ?? []).map((a) => a.fullName).join(L(', ', '، '))}
+        </div>
+      );
+    }
+    if (applicantId) {
+      return fixedApplicant ? (
+        <>
+          <div style={{ fontSize: '11pt', fontWeight: 500 }}>
+            {fixedApplicant.fullName}
           </div>
+          {fixedApplicant.email && (
+            <div style={{ fontSize: '9pt', color: '#666', marginTop: 4 }}>
+              {fixedApplicant.email}
+            </div>
+          )}
+        </>
+      ) : null;
+    }
+    return (
+      <div dir={locale === 'ar' ? 'rtl' : 'ltr'} style={{ fontSize: '10pt' }}>
+        <ApplicantSelect
+          value={form.applicantId}
+          onChange={(id, applicant) => {
+            set('applicantId', id);
+            set('selectedApplicantObject', applicant ?? null);
+          }}
+          onPrefill={handlePrefillFromApplicant}
+          inputCls={inputCls}
+        />
+      </div>
+    );
+  })();
 
-          {/* ── Scrollable body ── */}
-          <div className="flex-1 space-y-6 overflow-y-auto px-6 py-6">
-            {mode === 'offer' && <TemplateSelector onSelect={applyTemplate} />}
-            {mode === 'offer' && (
+  const side = (
+    <>
+      <p className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs leading-relaxed text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
+        {t('documentEditorHint', 'modals')}
+      </p>
+
+      {mode === 'offer' && <TemplateSelector onSelect={applyTemplate} />}
+
+      {mode === 'offer' && (
+        <SideCard
+          icon={<Sparkles className="size-4 text-indigo-500" />}
+          title={t('generateOfferWithAi', 'modals')}
+        >
+          {!aiPanelOpen ? (
+            <button
+              type="button"
+              onClick={() => setAiPanelOpen(true)}
+              disabled={draftOfferMutation.isPending}
+              className="inline-flex items-center gap-2 rounded-lg border border-dashed border-indigo-300 px-3 py-2 text-sm font-semibold text-indigo-500 transition hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-600 disabled:opacity-50 dark:border-indigo-500/40 dark:text-indigo-400 dark:hover:bg-indigo-500/10"
+            >
+              <Sparkles className="size-3.5" />
+              {t('generateOfferWithAi', 'modals')}
+            </button>
+          ) : (
+            <div className="space-y-3">
+              {jobPositionId ? (
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {t('aiOfferUsingJobPosition', 'modals')}
+                </p>
+              ) : (
+                <>
+                  <div>
+                    <ModalLabel required>
+                      {t('positionTitleEn', 'modals')}
+                    </ModalLabel>
+                    <input
+                      className={inputCls}
+                      value={aiJobTitle}
+                      onChange={(e) => {
+                        setAiJobTitle(e.target.value);
+                        if (aiTitleError) setAiTitleError(false);
+                      }}
+                      placeholder={t('aiOfferJobTitlePlaceholder', 'modals')}
+                    />
+                    {aiTitleError && (
+                      <p className="mt-1 text-xs text-red-500">
+                        {t('aiOfferValidationTitleRequired', 'modals')}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <ModalLabel>{t('jobDescription', 'modals')}</ModalLabel>
+                    <textarea
+                      className={`${inputCls} resize-none`}
+                      rows={3}
+                      value={aiJobDescription}
+                      onChange={(e) => setAiJobDescription(e.target.value)}
+                      placeholder={t('aiOfferJobDescriptionPlaceholder', 'modals')}
+                    />
+                  </div>
+                </>
+              )}
               <div>
+                <ModalLabel>{t('additionalInstructions', 'modals')}</ModalLabel>
+                <textarea
+                  className={`${inputCls} resize-none`}
+                  rows={2}
+                  value={aiPrompt}
+                  onChange={(e) => setAiPrompt(e.target.value)}
+                  placeholder={t('aiOfferPromptPlaceholder', 'modals')}
+                />
+              </div>
+              <div className="flex justify-end gap-2">
                 <button
                   type="button"
-                  onClick={handleGenerateWithAi}
+                  onClick={() => setAiPanelOpen(false)}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                >
+                  {t('cancel', 'modals')}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAiPanelSubmit}
                   disabled={draftOfferMutation.isPending}
-                  className="inline-flex items-center gap-2 rounded-lg border border-dashed border-indigo-300 px-3 py-2 text-sm font-semibold text-indigo-500 transition hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-600 disabled:opacity-50 dark:border-indigo-500/40 dark:text-indigo-400 dark:hover:border-indigo-400 dark:hover:bg-indigo-500/10"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-600 disabled:opacity-50"
                 >
-                  {draftOfferMutation.isPending ? (
-                    <div className="size-3.5 animate-spin rounded-full border-2 border-indigo-400/30 border-t-indigo-400" />
-                  ) : (
-                    <Sparkles className="size-3.5" />
+                  {draftOfferMutation.isPending && (
+                    <div className="size-3 animate-spin rounded-full border-2 border-white/30 border-t-white" />
                   )}
-                  {t('generateOfferWithAi', 'modals')}
-                </button>
-
-                {aiPanelOpen && (
-                  <div className="mt-3 space-y-3 rounded-lg border border-indigo-200 bg-indigo-50/50 p-4 dark:border-indigo-500/30 dark:bg-indigo-500/5">
-                    {jobPositionId ? (
-                      <p className="text-xs text-slate-500 dark:text-slate-400">
-                        {t('aiOfferUsingJobPosition', 'modals')}
-                      </p>
-                    ) : (
-                      <>
-                        <div>
-                          <ModalLabel required>
-                            {t('positionTitleEn', 'modals')}
-                          </ModalLabel>
-                          <input
-                            className={inputCls}
-                            value={aiJobTitle}
-                            onChange={(e) => {
-                              setAiJobTitle(e.target.value);
-                              if (aiTitleError) setAiTitleError(false);
-                            }}
-                            placeholder={t(
-                              'aiOfferJobTitlePlaceholder',
-                              'modals'
-                            )}
-                          />
-                          {aiTitleError && (
-                            <p className="mt-1 text-xs text-red-500">
-                              {t('aiOfferValidationTitleRequired', 'modals')}
-                            </p>
-                          )}
-                        </div>
-                        <div>
-                          <ModalLabel>
-                            {t('jobDescription', 'modals')}
-                          </ModalLabel>
-                          <textarea
-                            className={`${inputCls} resize-none`}
-                            rows={3}
-                            value={aiJobDescription}
-                            onChange={(e) =>
-                              setAiJobDescription(e.target.value)
-                            }
-                            placeholder={t(
-                              'aiOfferJobDescriptionPlaceholder',
-                              'modals'
-                            )}
-                          />
-                        </div>
-                      </>
-                    )}
-                    <div>
-                      <ModalLabel>
-                        {t('additionalInstructions', 'modals')}
-                      </ModalLabel>
-                      <textarea
-                        className={`${inputCls} resize-none`}
-                        rows={2}
-                        value={aiPrompt}
-                        onChange={(e) => setAiPrompt(e.target.value)}
-                        placeholder={t('aiOfferPromptPlaceholder', 'modals')}
-                      />
-                    </div>
-                    <div className="flex justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setAiPanelOpen(false)}
-                        className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
-                      >
-                        {t('cancel', 'modals')}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleAiPanelSubmit}
-                        disabled={draftOfferMutation.isPending}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-600 disabled:opacity-50"
-                      >
-                        {draftOfferMutation.isPending && (
-                          <div className="size-3 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                        )}
-                        {t('generate', 'modals')}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-            {/* Applicant selector */}
-            {mode === 'offer' && !applicantId && !editing && (
-              <div>
-                <ModalLabel>
-                  {t('applicant', 'modals')}
-                  {form.isBulk
-                    ? t('applicantsSelected', 'modals', {
-                        count: form.applicantIds?.length ?? 0,
-                      })
-                    : ''}
-                </ModalLabel>
-                {form.isBulk ? (
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800">
-                    {/* Header */}
-                    <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2 dark:border-slate-700">
-                      <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                        {t('applicantCount', 'modals', {
-                          count: form.applicantIds?.length ?? 0,
-                        })}
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setForm((prev) => ({
-                            ...prev,
-                            isBulk: false,
-                            applicantIds: [],
-                          }))
-                        }
-                        className="text-xs text-brand-600 hover:underline dark:text-brand-400"
-                      >
-                        {t('switchToSingle', 'modals')}
-                      </button>
-                    </div>
-
-                    {/* Applicant list */}
-                    <ul className="max-h-36 divide-y divide-slate-100 overflow-y-auto dark:divide-slate-700/60">
-                      {(applicantObjects ?? []).map((a) => (
-                        <li
-                          key={a._id}
-                          className="flex items-center gap-2 px-3 py-2"
-                        >
-                          <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-brand-500/10 text-[10px] font-bold text-brand-600 dark:text-brand-400">
-                            {a.fullName?.[0]?.toUpperCase() ?? '?'}
-                          </span>
-                          <span className="text-sm text-slate-700 dark:text-slate-300">
-                            {a.fullName}
-                          </span>
-                          {a.email && (
-                            <span className="ml-auto text-xs text-slate-400">
-                              {a.email}
-                            </span>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-
-                    {/* Salary review toggle */}
-                    <div className="border-t border-slate-200 px-3 py-2 dark:border-slate-700">
-                      <button
-                        type="button"
-                        onClick={() => setShowSalaryReview((v) => !v)}
-                        className="flex w-full items-center justify-between text-xs font-semibold text-brand-600 hover:text-brand-700 dark:text-brand-400"
-                      >
-                        <span>{t('configureSalariesOffer', 'modals')}</span>
-                        <ChevronDown
-                          className={`size-3.5 transition-transform ${showSalaryReview ? 'rotate-180' : ''}`}
-                        />
-                      </button>
-                    </div>
-
-                    {/* Review panel */}
-                    {showSalaryReview && (
-                      <div className="border-t border-slate-200 p-3 dark:border-slate-700 max-h-96 overflow-y-auto">
-                        <BulkSalaryReview
-                          applicants={applicantObjects ?? []}
-                          overrideMap={form.bulkOverrideMap}
-                          currency={form.salaryCurrency}
-                          formPosition={form.position}
-                          onChange={(map) => set('bulkOverrideMap', map)}
-                          formSalary={form.salaryBasic}
-                        />
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <ApplicantSelect
-                    value={form.applicantId}
-                    onChange={(id, applicant) => {
-                      set('applicantId', id);
-                      set('selectedApplicantObject', applicant ?? null);
-                    }}
-                    onPrefill={handlePrefillFromApplicant}
-                    inputCls={inputCls}
-                  />
-                )}
-              </div>
-            )}
-
-            {/* ── Core Info ── */}
-            <SectionDivider
-              icon={Briefcase}
-              title={t('coreInformation', 'modals')}
-              description="Position title, type, and working hours"
-            />
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <ModalLabel required>
-                  {t('positionTitleEn', 'modals')}
-                </ModalLabel>
-
-                <input
-                  ref={firstInputRef}
-                  className={inputCls}
-                  value={form.position.en}
-                  onChange={(e) =>
-                    set('position', {
-                      ...form.position,
-                      en: e.target.value,
-                    })
-                  }
-                  placeholder={t('positionEnPlaceholder', 'modals')}
-                />
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between">
-                  <ModalLabel required>
-                    {t('positionTitleAr', 'modals')}
-                  </ModalLabel>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (form.position.en.trim()) {
-                        const t = await translateText(
-                          form.position.en,
-                          'en',
-                          'ar'
-                        );
-                        if (t) set('position', { ...form.position, ar: t });
-                      } else if (form.position.ar.trim()) {
-                        const t = await translateText(
-                          form.position.ar,
-                          'ar',
-                          'en'
-                        );
-                        if (t) set('position', { ...form.position, en: t });
-                      }
-                    }}
-                    disabled={
-                      !form.position.en.trim() && !form.position.ar.trim()
-                    }
-                    className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
-                    title={
-                      form.position.en.trim()
-                        ? t('translateEnToAr', 'modals')
-                        : t('translateArToEn', 'modals')
-                    }
-                  >
-                    <Languages className="size-3" />
-                  </button>
-                </div>
-
-                <input
-                  className={inputCls}
-                  dir="rtl"
-                  value={form.position.ar}
-                  onChange={(e) =>
-                    set('position', {
-                      ...form.position,
-                      ar: e.target.value,
-                    })
-                  }
-                  placeholder={t('positionArPlaceholder', 'modals')}
-                />
-              </div>
-            </div>
-
-            <div>
-              <ModalLabel>{t('workType', 'modals')}</ModalLabel>
-              <select
-                className={selectCls}
-                value={form.workType}
-                onChange={(e) => set('workType', e.target.value as WorkType)}
-              >
-                {WORK_TYPES.map((w) => (
-                  <option key={w.value} value={w.value}>
-                    {w.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <ModalLabel>{t('workHours', 'modals')}</ModalLabel>
-                <div className="relative">
-                  <Clock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-                  <input
-                    className={`${inputCls} pl-9`}
-                    value={form.workHours.en}
-                    onChange={(e) =>
-                      set('workHours', {
-                        ...form.workHours,
-                        en: e.target.value,
-                      })
-                    }
-                    placeholder={t('workHoursEnPlaceholder', 'modals')}
-                  />
-                </div>
-              </div>
-              <div>
-                <div className="flex items-center justify-between">
-                  <ModalLabel>{t('workHours', 'modals')} (AR)</ModalLabel>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (form.workHours.en.trim()) {
-                        const t = await translateText(
-                          form.workHours.en,
-                          'en',
-                          'ar'
-                        );
-                        if (t) set('workHours', { ...form.workHours, ar: t });
-                      } else if (form.workHours.ar.trim()) {
-                        const t = await translateText(
-                          form.workHours.ar,
-                          'ar',
-                          'en'
-                        );
-                        if (t) set('workHours', { ...form.workHours, en: t });
-                      }
-                    }}
-                    disabled={
-                      !form.workHours.en.trim() && !form.workHours.ar.trim()
-                    }
-                    className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
-                    title={
-                      form.workHours.en.trim()
-                        ? t('translateEnToAr', 'modals')
-                        : t('translateArToEn', 'modals')
-                    }
-                  >
-                    <Languages className="size-3" />
-                  </button>
-                </div>
-                <div className="relative">
-                  <Clock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-                  <input
-                    className={`${inputCls} pl-9`}
-                    dir="rtl"
-                    value={form.workHours.ar}
-                    onChange={(e) =>
-                      set('workHours', {
-                        ...form.workHours,
-                        ar: e.target.value,
-                      })
-                    }
-                    placeholder={t('workHoursArPlaceholder', 'modals')}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* ── Salary ── */}
-            <SectionDivider
-              icon={DollarSign}
-              title={t('basicSalary', 'modals')}
-              description={t('salaryDesc', 'modals')}
-            />
-
-            <div className="grid grid-cols-[1fr_120px] gap-4">
-              <div>
-                <ModalLabel>{t('basicSalary', 'modals')}</ModalLabel>
-                <div className="relative">
-                  <DollarSign className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-                  <input
-                    className={`${inputCls} pl-9`}
-                    type="number"
-                    min={0}
-                    value={form.salaryBasic}
-                    onChange={(e) =>
-                      set(
-                        'salaryBasic',
-                        e.target.value === ''
-                          ? ''
-                          : Math.round(Number(e.target.value))
-                      )
-                    }
-                    placeholder="0"
-                  />
-                </div>
-              </div>
-              <div>
-                <ModalLabel>{t('currency', 'modals')}</ModalLabel>
-                <select
-                  className={selectCls}
-                  value={form.salaryCurrency}
-                  onChange={(e) => set('salaryCurrency', e.target.value)}
-                >
-                  {CURRENCIES.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* ── Commissions ── */}
-            <SectionDivider
-              icon={Percent}
-              title={t('commissionTiers', 'modals')}
-              description={t('commissionTiersDesc', 'modals')}
-            />
-
-            <div className="space-y-3">
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragStart={handleCommissionDragStart}
-                onDragEnd={handleCommissionDragEnd}
-                onDragCancel={handleCommissionDragCancel}
-              >
-                <SortableContext
-                  items={form.commissions.map((c) => c._id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  {form.commissions.map((c, idx) => (
-                    <CommissionRow
-                      key={c._id}
-                      comm={c}
-                      index={idx}
-                      onChange={(patch) => patchCommission(c._id, patch)}
-                      onRemove={() => removeCommission(c._id)}
-                      onDuplicate={() => duplicateCommission(c._id)}
-                    />
-                  ))}
-                </SortableContext>
-                {createPortal(
-                  <DragOverlay dropAnimation={dropAnimation}>
-                    {activeCommissionId
-                      ? (() => {
-                          const c = form.commissions.find(
-                            (x) => x._id === activeCommissionId
-                          );
-                          if (!c) return null;
-                          return (
-                            <div className="rounded-xl border border-brand-400 bg-white p-4 shadow-xl dark:bg-slate-800">
-                              <div className="flex items-center gap-2">
-                                <GripVertical className="size-4 text-brand-500" />
-                                <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                                  {t('tier', 'modals', {
-                                    index: form.commissions.indexOf(c) + 1,
-                                  })}
-                                </span>
-                              </div>
-                              <div className="mt-2 text-sm font-medium text-slate-700 dark:text-slate-200">
-                                {locale === 'ar'
-                                  ? c.label.ar ||
-                                    c.label.en ||
-                                    t('untitledOffer', 'modals')
-                                  : c.label.en ||
-                                    c.label.ar ||
-                                    t('untitledOffer', 'modals')}
-                              </div>
-                            </div>
-                          );
-                        })()
-                      : null}
-                  </DragOverlay>,
-                  document.body
-                )}
-              </DndContext>
-              <button
-                type="button"
-                onClick={addCommission}
-                className="inline-flex items-center gap-2 rounded-lg border border-dashed border-slate-300 px-3 py-2 text-sm font-semibold text-slate-500 transition hover:border-brand-400 hover:text-brand-600 dark:border-slate-600 dark:text-slate-400 dark:hover:border-brand-500 dark:hover:text-brand-300"
-              >
-                <Plus className="size-4" />
-                {t('addCommissionTier', 'modals')}
-              </button>
-            </div>
-
-            {/* ── Offer Sections ── */}
-            <SectionDivider
-              icon={Hash}
-              title={t('offerSections', 'modals')}
-              description={t('offerSectionsDesc', 'modals')}
-            />
-
-            <div className="space-y-3">
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragStart={handleSectionDragStart}
-                onDragEnd={handleSectionDragEnd}
-                onDragCancel={handleSectionDragCancel}
-              >
-                <SortableContext
-                  items={form.sections.map((s) => s._id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  {form.sections.map((s, idx) => (
-                    <SectionBlock
-                      key={s._id}
-                      section={s}
-                      index={idx}
-                      onChange={(patch) => patchSection(s._id, patch)}
-                      onRemove={() => removeSection(s._id)}
-                      onDuplicate={() => duplicateSection(s._id)}
-                    />
-                  ))}
-                </SortableContext>
-                {createPortal(
-                  <DragOverlay dropAnimation={dropAnimation}>
-                    {activeSectionId
-                      ? (() => {
-                          const s = form.sections.find(
-                            (x) => x._id === activeSectionId
-                          );
-                          if (!s) return null;
-                          return (
-                            <div className="rounded-xl border border-brand-400 bg-white p-4 shadow-xl dark:bg-slate-800">
-                              <div className="flex items-center gap-2">
-                                <GripVertical className="size-4 text-brand-500" />
-                                <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                                  {locale === 'ar'
-                                    ? s.title.ar ||
-                                      s.title.en ||
-                                      `Section ${form.sections.indexOf(s) + 1}`
-                                    : s.title.en ||
-                                      s.title.ar ||
-                                      `Section ${form.sections.indexOf(s) + 1}`}
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })()
-                      : null}
-                  </DragOverlay>,
-                  document.body
-                )}
-              </DndContext>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={addSection}
-                  className="inline-flex items-center gap-2 rounded-lg border border-dashed border-slate-300 px-3 py-2 text-sm font-semibold text-slate-500 transition hover:border-brand-400 hover:text-brand-600 dark:border-slate-600 dark:text-slate-400 dark:hover:border-brand-500 dark:hover:text-brand-300"
-                >
-                  <Plus className="size-4" />
-                  {t('addSection', 'modals')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPickerOpen(true)}
-                  className="inline-flex items-center gap-2 rounded-lg border border-dashed border-indigo-300 px-3 py-2 text-sm font-semibold text-indigo-500 transition hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-600 dark:border-indigo-500/40 dark:text-indigo-400 dark:hover:border-indigo-400 dark:hover:bg-indigo-500/10"
-                >
-                  <Layers className="size-4" />
-                  {t('fromTemplates', 'modals')}
+                  {t('generate', 'modals')}
                 </button>
               </div>
-              <SectionTemplatePicker
-                isOpen={pickerOpen}
-                onClose={() => setPickerOpen(false)}
-                docType={'offer'}
-                onInsert={(section) =>
-                  set('sections', [...form.sections, section])
-                }
+            </div>
+          )}
+        </SideCard>
+      )}
+
+      {mode === 'offer' && !editing && form.isBulk && (
+        <SideCard
+          icon={<Users className="size-4 text-brand-500" />}
+          title={t('applicantCount', 'modals', {
+            count: form.applicantIds?.length ?? 0,
+          })}
+        >
+          <ul className="max-h-40 divide-y divide-slate-100 overflow-y-auto rounded-lg border border-slate-200 dark:divide-slate-700/60 dark:border-slate-700">
+            {(applicantObjects ?? []).map((a) => (
+              <li key={a._id} className="flex items-center gap-2 px-3 py-2">
+                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-brand-500/10 text-[10px] font-bold text-brand-600 dark:text-brand-400">
+                  {a.fullName?.[0]?.toUpperCase() ?? '?'}
+                </span>
+                <span className="truncate text-sm text-slate-700 dark:text-slate-300">
+                  {a.fullName}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            onClick={() => setShowSalaryReview((v) => !v)}
+            className="mt-3 flex w-full items-center justify-between text-xs font-semibold text-brand-600 hover:text-brand-700 dark:text-brand-400"
+          >
+            <span>{t('configureSalariesOffer', 'modals')}</span>
+            <ChevronDown
+              className={`size-3.5 transition-transform ${showSalaryReview ? 'rotate-180' : ''}`}
+            />
+          </button>
+          {showSalaryReview && (
+            <div className="mt-3 max-h-96 overflow-y-auto border-t border-slate-200 pt-3 dark:border-slate-700">
+              <BulkSalaryReview
+                applicants={applicantObjects ?? []}
+                overrideMap={form.bulkOverrideMap}
+                currency={form.salaryCurrency}
+                formPosition={form.position}
+                onChange={(map) => set('bulkOverrideMap', map)}
+                formSalary={form.salaryBasic}
               />
             </div>
+          )}
+          <button
+            type="button"
+            onClick={() =>
+              setForm((prev) => ({ ...prev, isBulk: false, applicantIds: [] }))
+            }
+            className="mt-3 text-xs text-brand-600 hover:underline dark:text-brand-400"
+          >
+            {t('switchToSingle', 'modals')}
+          </button>
+        </SideCard>
+      )}
 
-            {/* ── Internal Notes ── */}
-            <SectionDivider
-              icon={StickyNote}
-              title={t('internalNotes', 'modals')}
-              description={t('internalNotesDesc', 'modals')}
-            />
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <ModalLabel>{t('notesEn', 'modals')}</ModalLabel>
-
-                <textarea
-                  className={`${inputCls} resize-none`}
-                  rows={4}
-                  value={form.notes.en}
-                  onChange={(e) =>
-                    set('notes', {
-                      ...form.notes,
-                      en: e.target.value,
-                    })
-                  }
-                  placeholder={t('notesEnPlaceholder', 'modals')}
-                />
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between">
-                  <ModalLabel>{t('notesAr', 'modals')}</ModalLabel>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (form.notes.en.trim()) {
-                        const t = await translateText(
-                          form.notes.en,
-                          'en',
-                          'ar'
-                        );
-                        if (t) set('notes', { ...form.notes, ar: t });
-                      } else if (form.notes.ar.trim()) {
-                        const t = await translateText(
-                          form.notes.ar,
-                          'ar',
-                          'en'
-                        );
-                        if (t) set('notes', { ...form.notes, en: t });
-                      }
-                    }}
-                    disabled={!form.notes.en.trim() && !form.notes.ar.trim()}
-                    className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
-                    title={
-                      form.notes.en.trim()
-                        ? t('translateEnToAr', 'modals')
-                        : t('translateArToEn', 'modals')
-                    }
-                  >
-                    <Languages className="size-3" />
-                  </button>
-                </div>
-
-                <textarea
-                  className={`${inputCls} resize-none`}
-                  dir="rtl"
-                  rows={4}
-                  value={form.notes.ar}
-                  onChange={(e) =>
-                    set('notes', {
-                      ...form.notes,
-                      ar: e.target.value,
-                    })
-                  }
-                  placeholder={t('notesArPlaceholder', 'modals')}
-                />
-              </div>
+      {mode === 'offer' && (
+        <SideCard
+          icon={<Mail className="size-4 text-brand-500" />}
+          title={t('sendAsEmail', 'modals')}
+        >
+          <label className="flex cursor-pointer select-none items-center gap-2.5">
+            <div className="relative">
+              <input
+                type="checkbox"
+                className="peer sr-only"
+                checked={form.sendAsEmail}
+                onChange={(e) => set('sendAsEmail', e.target.checked)}
+              />
+              <div className="h-5 w-9 rounded-full bg-slate-200 transition peer-checked:bg-brand-500 dark:bg-slate-700 peer-checked:dark:bg-brand-500" />
+              <div className="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition peer-checked:translate-x-4" />
             </div>
-
-            {/* ── Email Settings ── */}
-            {mode === 'offer' && form.sendAsEmail && (
+            <span className="text-sm font-medium text-slate-600 dark:text-slate-400">
+              {t('sendAsEmail', 'modals')}
+            </span>
+            {editing && editing.lastEmailSentAt && (
+              <span className="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                {t('lastSent', 'modals', {
+                  date: new Date(editing.lastEmailSentAt).toLocaleDateString(
+                    undefined,
+                    { day: 'numeric', month: 'short', year: 'numeric' }
+                  ),
+                })}
+              </span>
+            )}
+          </label>
+          {form.sendAsEmail && (
+            <div className="mt-3">
               <EmailSettingsPanel
                 form={form}
                 isBulk={!!form.isBulk}
@@ -1582,76 +1006,273 @@ export default function JobOfferModal({
                 onSenderChange={(senderByCompany) =>
                   set('senderByCompany', senderByCompany)
                 }
-                onLangChange={(lang) => set('emailLang', lang)} // ← add this
+                onLangChange={(lang) => set('emailLang', lang)}
               />
-            )}
-
-            <div className="h-2" />
-          </div>
-
-          {/* ── Footer ── */}
-          <div className="flex shrink-0 items-center justify-between gap-3 border-t border-slate-200 bg-slate-50/80 px-6 py-4 dark:border-slate-800 dark:bg-slate-900/80">
-            {mode === 'offer' ? (
-              <label className="flex cursor-pointer select-none items-center gap-2.5">
-                <div className="relative">
-                  <input
-                    type="checkbox"
-                    className="peer sr-only"
-                    checked={form.sendAsEmail}
-                    onChange={(e) => set('sendAsEmail', e.target.checked)}
-                  />
-                  <div className="h-5 w-9 rounded-full bg-slate-200 transition peer-checked:bg-brand-500 dark:bg-slate-700 peer-checked:dark:bg-brand-500" />
-                  <div className="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition peer-checked:translate-x-4" />
-                </div>
-                <Mail className="size-3.5 text-slate-400" />
-                <span className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                  {t('sendAsEmail', 'modals')}
-                </span>
-                {editing && editing.lastEmailSentAt && (
-                  <span className="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
-                    {t('lastSent', 'modals', {
-                      date: new Date(
-                        editing.lastEmailSentAt
-                      ).toLocaleDateString(undefined, {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                      }),
-                    })}
-                  </span>
-                )}
-              </label>
-            ) : (
-              <div />
-            )}
-
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-              >
-                {t('cancel', 'modals')}
-              </button>
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={isSaving}
-                className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-2 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isSaving ? (
-                  <div className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                ) : form.sendAsEmail && mode === 'offer' ? (
-                  <Send className="size-4" />
-                ) : (
-                  <FileText className="size-4" />
-                )}
-                {submitLabel}
-              </button>
             </div>
-          </div>
-        </div>
-      </div>
+          )}
+        </SideCard>
+      )}
     </>
+  );
+
+  return (
+    <EditorShell
+      icon={<FileText className="size-5" />}
+      title={title}
+      subtitle={
+        isTemplate ? t('templateOfferDesc', 'modals') : t('offerDesc', 'modals')
+      }
+      onBack={onClose}
+      lang={docLang}
+      onLangChange={setDocLang}
+      onTranslateAll={translateAll}
+      translating={translatingAll}
+      onSave={handleSubmit}
+      saving={isSaving}
+      saveLabel={submitLabel}
+      saveIcon={
+        form.sendAsEmail && mode === 'offer' ? (
+          <Send className="size-4" />
+        ) : (
+          <FileText className="size-4" />
+        )
+      }
+      side={side}
+    >
+      <Paper lang={docLang}>
+        <PaperHeader
+          lang={docLang}
+          company={sheetCompanyName}
+          title={L('JOB OFFER', 'عرض وظيفي')}
+          date={formatDocDate(new Date(), docLang)}
+        />
+
+        <PaperTitle>
+          <div className="flex items-center justify-center gap-3">
+            <div className="min-w-0 max-w-[75%] flex-1">
+              <BiField
+                value={form.position}
+                lang={docLang}
+                onChange={(position) => set('position', position)}
+                placeholder={t('positionPlaceholder', 'modals')}
+                inputRef={firstInputRef}
+                style={{ textAlign: 'center' }}
+              />
+            </div>
+            <span
+              style={{
+                display: 'inline-block',
+                padding: '4px 12px',
+                borderRadius: 20,
+                fontSize: '9pt',
+                fontWeight: 600,
+                background: status.bg,
+                color: status.color,
+              }}
+            >
+              {status[docLang]}
+            </span>
+          </div>
+        </PaperTitle>
+
+        {candidate && (
+          <PaperBox label={L('Candidate', 'المرشح')} lang={docLang}>
+            {candidate}
+          </PaperBox>
+        )}
+
+        <DetailsGrid>
+          <DetailRow label={L('Work Type', 'نوع العمل')} lang={docLang}>
+            <InlineSelect
+              value={form.workType}
+              onChange={(v) => set('workType', v as WorkType)}
+              options={WORK_TYPE_VALUES.map((v) => ({
+                value: v,
+                label: workTypeLabel(v, docLang),
+              }))}
+              style={{ textAlign: rtl ? 'left' : 'right' }}
+            />
+          </DetailRow>
+          <DetailRow label={L('Work Hours', 'ساعات العمل')} lang={docLang}>
+            <BiField
+              value={form.workHours}
+              lang={docLang}
+              onChange={(workHours) => set('workHours', workHours)}
+              placeholder={t('workHoursEnPlaceholder', 'modals')}
+              style={{ textAlign: rtl ? 'left' : 'right' }}
+            />
+          </DetailRow>
+          <DetailRow label={L('Basic Salary', 'الراتب الأساسي')} lang={docLang}>
+            <InlineSelect
+              value={cur}
+              onChange={(v) => set('salaryCurrency', v)}
+              options={CURRENCIES.map((c) => ({ value: c, label: c }))}
+              style={{ fontSize: '11pt', fontWeight: 700, color: '#059669' }}
+            />
+            <InlineField
+              type="number"
+              min={0}
+              value={form.salaryBasic}
+              placeholder="0"
+              onChange={(v) =>
+                set('salaryBasic', v === '' ? '' : Math.max(0, Math.round(Number(v))))
+              }
+              className="!w-28"
+              style={{
+                fontSize: '11pt',
+                fontWeight: 700,
+                color: '#059669',
+                textAlign: rtl ? 'left' : 'right',
+              }}
+            />
+          </DetailRow>
+          <DetailRow label={L('Date Created', 'تاريخ الإنشاء')} lang={docLang}>
+            <span>{formatDocDate(editing?.createdAt ?? new Date(), docLang)}</span>
+          </DetailRow>
+          {editing?.sentAt && (
+            <DetailRow label={L('Date Sent', 'تاريخ الإرسال')} lang={docLang}>
+              <span>{formatDocDate(editing.sentAt, docLang)}</span>
+            </DetailRow>
+          )}
+        </DetailsGrid>
+
+        {/* Commission structure */}
+        <div style={{ margin: '20px 0' }}>
+          <PaperHeading>{L('Commission Structure', 'هيكل العمولات')}</PaperHeading>
+          {form.commissions.length > 0 && (
+            <div style={{ margin: '20px 0 12px', fontSize: '9pt' }}>
+              <TableHead
+                cols={[L('Commission', 'العمولة'), L('Value', 'القيمة')]}
+              />
+              <SortableList
+                items={form.commissions}
+                onReorder={(next) => set('commissions', next)}
+              >
+                {form.commissions.map((c) => (
+                  <SortableRow
+                    key={c._id}
+                    id={c._id}
+                    onDuplicate={() => duplicateCommission(c._id)}
+                    onRemove={() => removeCommission(c._id)}
+                  >
+                    <div
+                      className="grid grid-cols-[1fr_auto]"
+                      style={{ borderBottom: '1px solid #e0e0e0' }}
+                    >
+                      <div style={{ padding: '10px 8px' }}>
+                        <BiField
+                          value={c.label}
+                          lang={docLang}
+                          onChange={(label) => patchCommission(c._id, { label })}
+                          placeholder={t('commissionLabelPlaceholder', 'modals')}
+                          style={{ fontWeight: 700 }}
+                        />
+                        <div
+                          className="flex items-start gap-1"
+                          style={{ fontSize: '8pt', color: '#666', marginTop: 4 }}
+                        >
+                          <span>📌</span>
+                          <BiField
+                            value={c.condition}
+                            lang={docLang}
+                            onChange={(condition) =>
+                              patchCommission(c._id, { condition })
+                            }
+                            placeholder={t('conditionPlaceholder', 'modals')}
+                          />
+                        </div>
+                      </div>
+                      <div
+                        className="flex items-start justify-end gap-1"
+                        style={{
+                          padding: '10px 8px',
+                          minWidth: 130,
+                          fontWeight: 700,
+                          color: '#059669',
+                        }}
+                      >
+                        <InlineField
+                          type="number"
+                          min={0}
+                          value={c.value}
+                          placeholder="0"
+                          onChange={(v) =>
+                            patchCommission(c._id, {
+                              value: v === '' ? '' : Number(v),
+                            })
+                          }
+                          className="!w-16"
+                          style={{ textAlign: 'end' }}
+                        />
+                        <InlineSelect
+                          value={c.type}
+                          onChange={(v) =>
+                            patchCommission(c._id, { type: v as CommissionType })
+                          }
+                          options={[
+                            { value: 'percentage', label: '%' },
+                            { value: 'fixed', label: cur },
+                          ]}
+                        />
+                      </div>
+                    </div>
+                  </SortableRow>
+                ))}
+              </SortableList>
+            </div>
+          )}
+          <AddButton onClick={addCommission}>
+            {t('addCommissionTier', 'modals')}
+          </AddButton>
+        </div>
+
+        {/* Additional sections */}
+        <div style={{ margin: '20px 0' }}>
+          {form.sections.length > 0 && (
+            <PaperHeading>{L('Additional Details', 'تفاصيل إضافية')}</PaperHeading>
+          )}
+          <SectionsEditor
+            sections={form.sections}
+            onChange={(sections) => set('sections', sections)}
+            lang={docLang}
+            docType="offer"
+            variant="offer"
+          />
+        </div>
+
+        {editing?.expiresAt && (
+          <div
+            style={{
+              margin: '20px 0',
+              padding: '10px 15px',
+              background: '#fff3e0',
+              borderRadius: 4,
+              textAlign: 'center',
+              fontSize: '9pt',
+              border: '1px solid #ffe0b2',
+            }}
+          >
+            <strong style={{ color: '#e65100' }}>
+              {L('Valid Until:', 'صالح حتى:')}
+            </strong>{' '}
+            {formatDocDate(editing.expiresAt, docLang)}
+          </div>
+        )}
+
+        <PaperNotes lang={docLang} label={L('Notes:', 'ملاحظات:')}>
+          <BiField
+            multiline
+            value={form.notes}
+            lang={docLang}
+            onChange={(notes) => set('notes', notes)}
+            placeholder={t('notesPlaceholderDoc', 'modals')}
+          />
+        </PaperNotes>
+
+        <PaperFooter>
+          {L('Thank you for your business', 'شكراً لثقتكم بنا')}
+        </PaperFooter>
+      </Paper>
+    </EditorShell>
   );
 }

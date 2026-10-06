@@ -395,5 +395,12 @@
   "whatsappNoPhone": "لا يوجد رقم هاتف صالح",
   "whatsappDone": "تم",
   "whatsappOpened": "تم فتح واتساب برسالتك. اضغط إرسال هناك.",
-  "whatsappNeedsPhone": "لا يوجد لهذا المتقدم رقم هاتف صالح لواتساب."
+  "whatsappNeedsPhone": "لا يوجد لهذا المتقدم رقم هاتف صالح لواتساب.",
+  "documentEditorHint": "اكتب مباشرة على الصفحة. هكذا سيُطبع المستند تماماً. بدّل بين EN / عربي لكتابة كل لغة.",
+  "positionPlaceholder": "المسمى الوظيفي",
+  "sectionTitlePlaceholder": "عنوان القسم",
+  "itemPlaceholder": "اكتب سطراً…",
+  "commissionLabelPlaceholder": "اسم العمولة",
+  "conditionPlaceholder": "الشرط (اختياري)",
+  "notesPlaceholderDoc": "أضف ملاحظات…"
 }

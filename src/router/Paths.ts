@@ -49,6 +49,8 @@ export const paths = {
     preview: (jobId: string) => `/job/${jobId}`,
     offers: '/job-offers',
     contracts: '/job-contracts',
+    offerEditor: '/job-offers/editor',
+    contractEditor: '/job-contracts/editor',
   },
 
   applicants: {

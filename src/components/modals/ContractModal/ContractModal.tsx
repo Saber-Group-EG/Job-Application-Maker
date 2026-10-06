@@ -1,38 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import {
-  X,
-  FileSignature,
-  Briefcase,
-  Clock,
-  DollarSign,
-  Plus,
-  StickyNote,
-  Gift,
-  Calendar,
-  Layers,
-  GripVertical,
-  Languages,
-  Sparkles,
-} from 'lucide-react';
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-  DragStartEvent,
-  DragOverlay,
-  defaultDropAnimationSideEffects,
-} from '@dnd-kit/core';
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
-import { createPortal } from 'react-dom';
+import { useState, useEffect, useRef } from 'react';
+import { FileSignature, ChevronDown, Sparkles, Users } from 'lucide-react';
 import {
   ContractType,
   CreateJobContractPayload,
@@ -45,13 +12,12 @@ import {
   useBulkCreateJobContracts,
   useDraftContractWithAi,
 } from '../../../hooks/queries/useContracts';
+import { useApplicant } from '../../../hooks/queries/useApplicants';
+import { useCompanies } from '../../../hooks/queries';
 import Swal from '../../../utils/swal';
 import { ApplicantSelect } from '../../form/ApplicantSelection';
 import { ContractTemplateSelector } from './ContractTemplateSelector';
 import { ApplicantObject } from '../JobOffersModal/EmailModule';
-import { SectionBlock } from '../../form/SectionBlock';
-import { BenefitRow } from './BenefitRow';
-import { SectionDivider } from '../../form/SectionDivider';
 import { ModalLabel } from '../../form/ModalLabel';
 import {
   BulkOverrideMap,
@@ -60,15 +26,38 @@ import {
   resolveApplicantPosition,
   seedBulkOverrideMap,
 } from '../JobOffersModal/BulkSalaryReview';
-import { ChevronDown } from 'lucide-react';
-import SectionTemplatePicker from '../../form/SectionTemplatePicker';
 import { translateText } from '../../../utils/translate';
 import { useLocale } from '../../../context/LocaleContext';
+import {
+  AddButton,
+  BiField,
+  DetailRow,
+  DetailsGrid,
+  DocLang,
+  EditorShell,
+  InlineField,
+  InlineSelect,
+  Paper,
+  PaperBox,
+  PaperFooter,
+  PaperHeader,
+  PaperHeading,
+  PaperNotes,
+  PaperTitle,
+  SectionsEditor,
+  SideCard,
+  SortableList,
+  SortableRow,
+  TableHead,
+} from '../../documentEditor/Paper';
+import {
+  CONTRACT_TYPE_VALUES,
+  contractTypeLabel,
+} from '../../../utils/documentLabels';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type JobContractModalProps = {
-  isOpen: boolean;
+export type JobContractEditorProps = {
   onClose: () => void;
   mode: 'template' | 'contract';
   companyId?: string;
@@ -139,8 +128,6 @@ export type FormState = {
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-const CURRENCIES = ['EGP', 'USD', 'EUR', 'SAR', 'AED'];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -269,18 +256,28 @@ function defaultsToForm(
     ...(defaults.applicantId ? { applicantId: defaults.applicantId } : {}),
   };
 }
-// ─── Shared style constants ───────────────────────────────────────────────────
 
 const inputCls =
   'w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-brand-400';
 
-const selectCls =
-  'w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100';
+const bilingualName = (
+  name: string | { en?: string; ar?: string } | undefined,
+  lang: DocLang
+) =>
+  typeof name === 'string'
+    ? name
+    : ((lang === 'ar' ? name?.ar || name?.en : name?.en || name?.ar) ?? '');
 
-// ─── Main Modal ───────────────────────────────────────────────────────────────
+const formatDocDate = (date: Date | string, lang: DocLang) =>
+  new Date(date).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
 
-export default function JobContractModal({
-  isOpen,
+// ─── Editor page ──────────────────────────────────────────────────────────────
+
+export default function JobContractEditor({
   onClose,
   mode,
   companyId: propCompanyId,
@@ -291,13 +288,11 @@ export default function JobContractModal({
   cloneFrom,
   applicantObjects,
   defaults,
-}: JobContractModalProps) {
+}: JobContractEditorProps) {
   const { t, locale } = useLocale();
   const [form, setForm] = useState<FormState>(emptyForm);
+  const [docLang, setDocLang] = useState<DocLang>(locale === 'ar' ? 'ar' : 'en');
   const [showSalaryReview, setShowSalaryReview] = useState(false);
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const [activeBenefitId, setActiveBenefitId] = useState<string | null>(null);
-  const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
   const [translatingAll, setTranslatingAll] = useState(false);
   const [aiPanelOpen, setAiPanelOpen] = useState(false);
   const [aiJobTitle, setAiJobTitle] = useState('');
@@ -341,10 +336,6 @@ export default function JobContractModal({
     setAiPrompt('');
   };
 
-  const handleGenerateWithAi = () => {
-    setAiPanelOpen(true);
-  };
-
   const handleAiPanelSubmit = async () => {
     if (!aiHasKnownSource && !aiJobTitle.trim()) {
       setAiTitleError(true);
@@ -368,26 +359,6 @@ export default function JobContractModal({
   };
   const firstInputRef = useRef<HTMLInputElement>(null);
 
-  const CONTRACT_TYPES: { value: ContractType; label: string }[] = [
-    { value: 'permanent', label: t('permanent', 'modals') },
-    { value: 'fixed-term', label: t('fixedTerm', 'modals') },
-    { value: 'freelance', label: t('freelance', 'modals') },
-    { value: 'probation', label: t('probation', 'modals') },
-  ];
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  );
-
-  const dropAnimation = {
-    sideEffects: defaultDropAnimationSideEffects({
-      styles: { active: { opacity: '0.4' } },
-    }),
-    duration: 200,
-    easing: 'cubic-bezier(0.2, 0, 0, 1)',
-  };
-
   const createMutation = useCreateJobContract();
   const updateMutation = useUpdateJobContract();
   const bulkMutation = useBulkCreateJobContracts();
@@ -396,60 +367,6 @@ export default function JobContractModal({
     createMutation.isPending ||
     updateMutation.isPending ||
     bulkMutation.isPending;
-
-  // ── Drag handlers ──────────────────────────────────────────────────────────
-
-  const handleBenefitDragStart = useCallback((event: DragStartEvent) => {
-    setActiveBenefitId(event.active.id as string);
-  }, []);
-
-  const handleBenefitDragEnd = useCallback((event: DragEndEvent) => {
-    const { active, over } = event;
-    setActiveBenefitId(null);
-    if (over && active.id !== over.id) {
-      setForm((prev) => {
-        const oldIndex = prev.benefits.findIndex((b) => b._id === active.id);
-        const newIndex = prev.benefits.findIndex((b) => b._id === over.id);
-        if (oldIndex !== -1 && newIndex !== -1) {
-          return {
-            ...prev,
-            benefits: arrayMove(prev.benefits, oldIndex, newIndex),
-          };
-        }
-        return prev;
-      });
-    }
-  }, []);
-
-  const handleBenefitDragCancel = useCallback(() => {
-    setActiveBenefitId(null);
-  }, []);
-
-  const handleSectionDragStart = useCallback((event: DragStartEvent) => {
-    setActiveSectionId(event.active.id as string);
-  }, []);
-
-  const handleSectionDragEnd = useCallback((event: DragEndEvent) => {
-    const { active, over } = event;
-    setActiveSectionId(null);
-    if (over && active.id !== over.id) {
-      setForm((prev) => {
-        const oldIndex = prev.sections.findIndex((s) => s._id === active.id);
-        const newIndex = prev.sections.findIndex((s) => s._id === over.id);
-        if (oldIndex !== -1 && newIndex !== -1) {
-          return {
-            ...prev,
-            sections: arrayMove(prev.sections, oldIndex, newIndex),
-          };
-        }
-        return prev;
-      });
-    }
-  }, []);
-
-  const handleSectionDragCancel = useCallback(() => {
-    setActiveSectionId(null);
-  }, []);
 
   // Template apply
   const applyTemplate = (template: JobContract) => {
@@ -463,58 +380,37 @@ export default function JobContractModal({
     }));
   };
 
-  // Keyboard + scroll lock
   useEffect(() => {
-    if (!isOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [isOpen, onClose]);
+    const ids = applicantObjects?.map((a) => a._id) ?? [];
+    const bulk = ids.length > 0 && mode === 'contract' && !editing && !cloneFrom;
 
-  useEffect(() => {
-    document.body.style.overflow = isOpen ? 'hidden' : '';
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (isOpen) {
-      const ids = applicantObjects?.map((a) => a._id) ?? [];
-      const bulk =
-        ids.length > 0 && mode === 'contract' && !editing && !cloneFrom;
-
-      if (editing) {
-        setForm({ ...contractToForm(editing), senderByCompany: {} });
-      } else if (cloneFrom) {
-        setForm({
-          ...contractToForm(cloneFrom),
-          applicantId: null,
-          applicantIds: [],
-          isBulk: bulk,
-          senderByCompany: {},
-          startDate: '',
-          endDate: '',
-        });
-      } else if (defaults) {
-        setForm({ ...emptyForm(), ...defaultsToForm(defaults) });
-      } else {
-        setForm({
-          ...emptyForm(),
-          applicantIds: ids,
-          isBulk: bulk,
-          bulkOverrideMap: bulk
-            ? seedBulkOverrideMap(applicantObjects ?? [])
-            : {},
-          ...(propApplicantId ? { applicantId: propApplicantId } : {}),
-        });
-      }
-      setTimeout(() => firstInputRef.current?.focus(), 80);
+    if (editing) {
+      setForm({ ...contractToForm(editing), senderByCompany: {} });
+    } else if (cloneFrom) {
+      setForm({
+        ...contractToForm(cloneFrom),
+        applicantId: null,
+        applicantIds: [],
+        isBulk: bulk,
+        senderByCompany: {},
+        startDate: '',
+        endDate: '',
+      });
+    } else if (defaults) {
+      setForm({ ...emptyForm(), ...defaultsToForm(defaults) });
+    } else {
+      setForm({
+        ...emptyForm(),
+        applicantIds: ids,
+        isBulk: bulk,
+        bulkOverrideMap: bulk
+          ? seedBulkOverrideMap(applicantObjects ?? [])
+          : {},
+        ...(propApplicantId ? { applicantId: propApplicantId } : {}),
+      });
     }
+    setTimeout(() => firstInputRef.current?.focus(), 80);
   }, [
-    isOpen,
     editing,
     cloneFrom,
     defaults,
@@ -523,7 +419,20 @@ export default function JobContractModal({
     propApplicantId,
   ]);
 
-  if (!isOpen) return null;
+  // Company + fixed applicant shown on the sheet
+  const { data: companies = [] } = useCompanies();
+  const sheetCompanyId =
+    propCompanyId || form.selectedApplicantObject?.jobPositionId?.companyId?._id;
+  const sheetCompanyName = bilingualName(
+    companies.find((c) => c._id === sheetCompanyId)?.name as
+      | string
+      | { en?: string; ar?: string }
+      | undefined,
+    docLang
+  );
+  const { data: fixedApplicant } = useApplicant(propApplicantId ?? '', {
+    enabled: !!propApplicantId,
+  });
 
   // Patch helpers
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
@@ -564,42 +473,6 @@ export default function JobContractModal({
       _id: uid(),
     });
     set('benefits', next);
-  };
-
-  const patchSection = (id: string, patch: Partial<FormSection>) =>
-    set(
-      'sections',
-      form.sections.map((s) => (s._id === id ? { ...s, ...patch } : s))
-    );
-
-  const removeSection = (id: string) =>
-    set(
-      'sections',
-      form.sections.filter((s) => s._id !== id)
-    );
-
-  const addSection = () =>
-    set('sections', [
-      ...form.sections,
-      {
-        _id: uid(),
-        title: { en: '', ar: '' },
-        items: [],
-        displayOrder: form.sections.length,
-      },
-    ]);
-
-  const duplicateSection = (id: string) => {
-    const target = form.sections.find((s) => s._id === id);
-    if (!target) return;
-    const clone = {
-      ...target,
-      _id: uid(),
-      items: target.items.map((i) => ({ ...i, _id: uid() })),
-    };
-    const next = [...form.sections];
-    next.splice(next.findIndex((s) => s._id === id) + 1, 0, clone);
-    set('sections', next);
   };
 
   const handlePrefillFromApplicant = (applicant: ApplicantObject) => {
@@ -845,738 +718,416 @@ export default function JobContractModal({
       ? t('createTemplate', 'modals')
       : t('createContract', 'modals');
 
-  return (
+  // ── Render ─────────────────────────────────────────────────────────────────
+  const L = (en: string, ar: string) => (docLang === 'ar' ? ar : en);
+  const rtl = docLang === 'ar';
+  const cur = form.salaryCurrency;
+  const align = { textAlign: rtl ? 'left' : 'right' } as const;
+
+  const candidate = (() => {
+    if (mode !== 'contract') return null;
+    const person = (name?: string, email?: string) =>
+      name ? (
+        <>
+          <div style={{ fontSize: '11pt', fontWeight: 500 }}>{name}</div>
+          {email && (
+            <div style={{ fontSize: '9pt', color: '#666', marginTop: 4 }}>
+              {email}
+            </div>
+          )}
+        </>
+      ) : null;
+    if (editing) {
+      return person(
+        form.selectedApplicantObject?.fullName,
+        form.selectedApplicantObject?.email
+      );
+    }
+    if (form.isBulk) {
+      return (
+        <div style={{ fontSize: '10pt', color: '#555' }}>
+          {(applicantObjects ?? []).map((a) => a.fullName).join(L(', ', '، '))}
+        </div>
+      );
+    }
+    if (propApplicantId) {
+      return person(fixedApplicant?.fullName, fixedApplicant?.email);
+    }
+    return (
+      <div dir={locale === 'ar' ? 'rtl' : 'ltr'} style={{ fontSize: '10pt' }}>
+        <ApplicantSelect
+          value={form.applicantId}
+          onChange={(id, applicant) => {
+            set('applicantId', id);
+            set('selectedApplicantObject', applicant ?? null);
+          }}
+          onPrefill={handlePrefillFromApplicant}
+          inputCls={inputCls}
+        />
+      </div>
+    );
+  })();
+
+  const side = (
     <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-        aria-hidden="true"
-      />
+      <p className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs leading-relaxed text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
+        {t('documentEditorHint', 'modals')}
+      </p>
 
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        onClick={onClose}
-        className="fixed inset-0 z-60 flex items-center justify-center p-4"
-      >
-        <div
-          onClick={(e) => e.stopPropagation()}
-          className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900"
+      {mode === 'contract' && <ContractTemplateSelector onSelect={applyTemplate} />}
+
+      {mode === 'contract' && (
+        <SideCard
+          icon={<Sparkles className="size-4 text-indigo-500" />}
+          title={t('generateContractWithAi', 'modals')}
         >
-          {/* Header */}
-          <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 px-6 py-5 dark:border-slate-800">
-            <div className="flex items-center gap-3">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400">
-                <FileSignature className="size-5" />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold leading-tight text-slate-900 dark:text-slate-100">
-                  {title}
-                </h2>
-                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                  {isTemplate
-                    ? t('templateDesc', 'modals')
-                    : t('contractDesc', 'modals')}
+          {!aiPanelOpen ? (
+            <button
+              type="button"
+              onClick={() => setAiPanelOpen(true)}
+              disabled={draftContractMutation.isPending}
+              className="inline-flex items-center gap-2 rounded-lg border border-dashed border-indigo-300 px-3 py-2 text-sm font-semibold text-indigo-500 transition hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-600 disabled:opacity-50 dark:border-indigo-500/40 dark:text-indigo-400 dark:hover:bg-indigo-500/10"
+            >
+              <Sparkles className="size-3.5" />
+              {t('generateContractWithAi', 'modals')}
+            </button>
+          ) : (
+            <div className="space-y-3">
+              {offerId ? (
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {t('aiContractUsingOffer', 'modals')}
                 </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={translateAll}
-                disabled={translatingAll}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-brand-50 hover:text-brand-600 disabled:opacity-50 dark:border-slate-700 dark:hover:bg-brand-500/10 dark:hover:text-brand-400"
-                title={t('translateAllFields', 'modals')}
-              >
-                {translatingAll ? (
-                  <div className="size-3.5 animate-spin rounded-full border-2 border-slate-400/30 border-t-slate-400" />
-                ) : (
-                  <Languages className="size-3.5" />
-                )}
-                {t('translateAll', 'modals')}
-              </button>
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:border-slate-700 dark:hover:bg-slate-800"
-              >
-                <X className="size-4" />
-              </button>
-            </div>
-          </div>
-
-          {/* Scrollable body */}
-          <div className="flex-1 space-y-6 overflow-y-auto px-6 py-6">
-            {/* Template Selector */}
-            {mode === 'contract' && (
-              <ContractTemplateSelector onSelect={applyTemplate} />
-            )}
-            {mode === 'contract' && (
+              ) : jobPositionId ? (
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {t('aiContractUsingJobPosition', 'modals')}
+                </p>
+              ) : (
+                <>
+                  <div>
+                    <ModalLabel required>
+                      {t('positionTitleEn', 'modals')}
+                    </ModalLabel>
+                    <input
+                      className={inputCls}
+                      value={aiJobTitle}
+                      onChange={(e) => {
+                        setAiJobTitle(e.target.value);
+                        if (aiTitleError) setAiTitleError(false);
+                      }}
+                      placeholder={t('aiContractJobTitlePlaceholder', 'modals')}
+                    />
+                    {aiTitleError && (
+                      <p className="mt-1 text-xs text-red-500">
+                        {t('aiContractValidationTitleRequired', 'modals')}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <ModalLabel>{t('jobDescription', 'modals')}</ModalLabel>
+                    <textarea
+                      className={`${inputCls} resize-none`}
+                      rows={3}
+                      value={aiJobDescription}
+                      onChange={(e) => setAiJobDescription(e.target.value)}
+                      placeholder={t(
+                        'aiContractJobDescriptionPlaceholder',
+                        'modals'
+                      )}
+                    />
+                  </div>
+                </>
+              )}
               <div>
+                <ModalLabel>{t('additionalInstructions', 'modals')}</ModalLabel>
+                <textarea
+                  className={`${inputCls} resize-none`}
+                  rows={2}
+                  value={aiPrompt}
+                  onChange={(e) => setAiPrompt(e.target.value)}
+                  placeholder={t('aiContractPromptPlaceholder', 'modals')}
+                />
+              </div>
+              <div className="flex justify-end gap-2">
                 <button
                   type="button"
-                  onClick={handleGenerateWithAi}
+                  onClick={() => setAiPanelOpen(false)}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                >
+                  {t('cancel', 'modals')}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAiPanelSubmit}
                   disabled={draftContractMutation.isPending}
-                  className="inline-flex items-center gap-2 rounded-lg border border-dashed border-indigo-300 px-3 py-2 text-sm font-semibold text-indigo-500 transition hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-600 disabled:opacity-50 dark:border-indigo-500/40 dark:text-indigo-400 dark:hover:border-indigo-400 dark:hover:bg-indigo-500/10"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-600 disabled:opacity-50"
                 >
-                  {draftContractMutation.isPending ? (
-                    <div className="size-3.5 animate-spin rounded-full border-2 border-indigo-400/30 border-t-indigo-400" />
-                  ) : (
-                    <Sparkles className="size-3.5" />
+                  {draftContractMutation.isPending && (
+                    <div className="size-3 animate-spin rounded-full border-2 border-white/30 border-t-white" />
                   )}
-                  {t('generateContractWithAi', 'modals')}
-                </button>
-
-                {aiPanelOpen && (
-                  <div className="mt-3 space-y-3 rounded-lg border border-indigo-200 bg-indigo-50/50 p-4 dark:border-indigo-500/30 dark:bg-indigo-500/5">
-                    {offerId ? (
-                      <p className="text-xs text-slate-500 dark:text-slate-400">
-                        {t('aiContractUsingOffer', 'modals')}
-                      </p>
-                    ) : jobPositionId ? (
-                      <p className="text-xs text-slate-500 dark:text-slate-400">
-                        {t('aiContractUsingJobPosition', 'modals')}
-                      </p>
-                    ) : (
-                      <>
-                        <div>
-                          <ModalLabel required>
-                            {t('positionTitleEn', 'modals')}
-                          </ModalLabel>
-                          <input
-                            className={inputCls}
-                            value={aiJobTitle}
-                            onChange={(e) => {
-                              setAiJobTitle(e.target.value);
-                              if (aiTitleError) setAiTitleError(false);
-                            }}
-                            placeholder={t(
-                              'aiContractJobTitlePlaceholder',
-                              'modals'
-                            )}
-                          />
-                          {aiTitleError && (
-                            <p className="mt-1 text-xs text-red-500">
-                              {t('aiContractValidationTitleRequired', 'modals')}
-                            </p>
-                          )}
-                        </div>
-                        <div>
-                          <ModalLabel>
-                            {t('jobDescription', 'modals')}
-                          </ModalLabel>
-                          <textarea
-                            className={`${inputCls} resize-none`}
-                            rows={3}
-                            value={aiJobDescription}
-                            onChange={(e) =>
-                              setAiJobDescription(e.target.value)
-                            }
-                            placeholder={t(
-                              'aiContractJobDescriptionPlaceholder',
-                              'modals'
-                            )}
-                          />
-                        </div>
-                      </>
-                    )}
-                    <div>
-                      <ModalLabel>
-                        {t('additionalInstructions', 'modals')}
-                      </ModalLabel>
-                      <textarea
-                        className={`${inputCls} resize-none`}
-                        rows={2}
-                        value={aiPrompt}
-                        onChange={(e) => setAiPrompt(e.target.value)}
-                        placeholder={t('aiContractPromptPlaceholder', 'modals')}
-                      />
-                    </div>
-                    <div className="flex justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setAiPanelOpen(false)}
-                        className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
-                      >
-                        {t('cancel', 'modals')}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleAiPanelSubmit}
-                        disabled={draftContractMutation.isPending}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-600 disabled:opacity-50"
-                      >
-                        {draftContractMutation.isPending && (
-                          <div className="size-3 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                        )}
-                        {t('generate', 'modals')}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-            {/* Applicant selector */}
-            {mode === 'contract' && !propApplicantId && !editing && (
-              <div>
-                <ModalLabel>
-                  {form.isBulk
-                    ? t('applicantCount', 'modals', {
-                        count: form.applicantIds?.length ?? 0,
-                      })
-                    : t('applicant', 'modals')}
-                </ModalLabel>
-                {form.isBulk ? (
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800">
-                    <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2 dark:border-slate-700">
-                      <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                        {t('applicantCount', 'modals', {
-                          count: form.applicantIds?.length ?? 0,
-                        })}
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setForm((prev) => ({
-                            ...prev,
-                            isBulk: false,
-                            applicantIds: [],
-                          }))
-                        }
-                        className="text-xs text-brand-600 hover:underline dark:text-brand-400"
-                      >
-                        {t('switchToSingle', 'modals')}
-                      </button>
-                    </div>
-
-                    <ul className="max-h-36 divide-y divide-slate-100 overflow-y-auto dark:divide-slate-700/60">
-                      {(applicantObjects ?? []).map((a) => (
-                        <li
-                          key={a._id}
-                          className="flex items-center gap-2 px-3 py-2"
-                        >
-                          <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-brand-500/10 text-[10px] font-bold text-brand-600 dark:text-brand-400">
-                            {a.fullName?.[0]?.toUpperCase() ?? '?'}
-                          </span>
-                          <span className="text-sm text-slate-700 dark:text-slate-300">
-                            {a.fullName}
-                          </span>
-                          {a.email && (
-                            <span className="ml-auto text-xs text-slate-400">
-                              {a.email}
-                            </span>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-
-                    {/* Salary review toggle */}
-                    <div className="border-t border-slate-200 px-3 py-2 dark:border-slate-700">
-                      <button
-                        type="button"
-                        onClick={() => setShowSalaryReview((v) => !v)}
-                        className="flex w-full items-center justify-between text-xs font-semibold text-brand-600 hover:text-brand-700 dark:text-brand-400"
-                      >
-                        <span>{t('configureSalaries', 'modals')}</span>
-                        <ChevronDown
-                          className={`size-3.5 transition-transform ${showSalaryReview ? 'rotate-180' : ''}`}
-                        />
-                      </button>
-                    </div>
-
-                    {showSalaryReview && (
-                      <div className="border-t border-slate-200 p-3 dark:border-slate-700 max-h-96 overflow-y-auto">
-                        <BulkSalaryReview
-                          applicants={applicantObjects ?? []}
-                          overrideMap={form.bulkOverrideMap}
-                          currency={form.salaryCurrency}
-                          formPosition={form.position}
-                          formSalary={form.salaryBasic}
-                          onChange={(map) => set('bulkOverrideMap', map)}
-                        />
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <ApplicantSelect
-                    value={form.applicantId}
-                    onChange={(id, applicant) => {
-                      set('applicantId', id);
-                      set('selectedApplicantObject', applicant ?? null);
-                    }}
-                    onPrefill={handlePrefillFromApplicant}
-                    inputCls={inputCls}
-                  />
-                )}
-              </div>
-            )}
-
-            {/* Core Info */}
-            <SectionDivider
-              icon={Briefcase}
-              title={t('coreInformation', 'modals')}
-              description={t('coreInfoDesc', 'modals')}
-            />
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <ModalLabel required>
-                  {t('positionTitleEn', 'modals')}
-                </ModalLabel>
-
-                <input
-                  ref={firstInputRef}
-                  className={inputCls}
-                  value={form.position.en}
-                  onChange={(e) =>
-                    set('position', {
-                      ...form.position,
-                      en: e.target.value,
-                    })
-                  }
-                  placeholder={t('positionEnPlaceholder', 'modals')}
-                />
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between">
-                  <ModalLabel required>
-                    {t('positionTitleAr', 'modals')}
-                  </ModalLabel>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (form.position.en.trim()) {
-                        const t = await translateText(
-                          form.position.en,
-                          'en',
-                          'ar'
-                        );
-                        if (t) set('position', { ...form.position, ar: t });
-                      } else if (form.position.ar.trim()) {
-                        const t = await translateText(
-                          form.position.ar,
-                          'ar',
-                          'en'
-                        );
-                        if (t) set('position', { ...form.position, en: t });
-                      }
-                    }}
-                    disabled={
-                      !form.position.en.trim() && !form.position.ar.trim()
-                    }
-                    className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
-                    title={
-                      form.position.en.trim()
-                        ? t('translateEnToAr', 'modals')
-                        : t('translateArToEn', 'modals')
-                    }
-                  >
-                    <Languages className="size-3" />
-                  </button>
-                </div>
-
-                <input
-                  className={inputCls}
-                  dir="rtl"
-                  value={form.position.ar}
-                  onChange={(e) =>
-                    set('position', {
-                      ...form.position,
-                      ar: e.target.value,
-                    })
-                  }
-                  placeholder={t('positionArPlaceholder', 'modals')}
-                />
-              </div>
-            </div>
-            <div>
-              <ModalLabel required>{t('contractType', 'modals')}</ModalLabel>
-              <select
-                className={selectCls}
-                value={form.contractType}
-                onChange={(e) =>
-                  set('contractType', e.target.value as ContractType)
-                }
-              >
-                {CONTRACT_TYPES.map((ct) => (
-                  <option key={ct.value} value={ct.value}>
-                    {ct.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Dates */}
-            <SectionDivider
-              icon={Calendar}
-              title={t('contractDates', 'modals')}
-              description={t('contractDatesDesc', 'modals')}
-            />
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <ModalLabel required={mode === 'contract' && !form.isBulk}>
-                  {t('startDate', 'modals')}
-                </ModalLabel>
-                <input
-                  className={inputCls}
-                  type="date"
-                  value={form.startDate}
-                  onChange={(e) => set('startDate', e.target.value)}
-                />
-              </div>
-              <div>
-                <ModalLabel>{t('endDate', 'modals')}</ModalLabel>
-                <input
-                  className={inputCls}
-                  type="date"
-                  value={form.endDate}
-                  onChange={(e) => set('endDate', e.target.value)}
-                  min={form.startDate || undefined}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <ModalLabel>{t('probationPeriod', 'modals')}</ModalLabel>
-                <div className="relative">
-                  <Clock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-                  <input
-                    className={`${inputCls} pl-9`}
-                    type="number"
-                    min={0}
-                    value={form.probationPeriod}
-                    onChange={(e) =>
-                      set(
-                        'probationPeriod',
-                        e.target.value === '' ? '' : Number(e.target.value)
-                      )
-                    }
-                    placeholder={t('months', 'modals')}
-                  />
-                </div>
-              </div>
-              <div className="flex items-end">
-                {form.probationPeriod !== '' &&
-                  Number(form.probationPeriod) > 0 && (
-                    <p className="mb-2.5 text-xs text-slate-500 dark:text-slate-400">
-                      {t('monthProbation', 'modals', {
-                        count: Number(form.probationPeriod),
-                      })}
-                    </p>
-                  )}
-              </div>
-            </div>
-
-            {/* Salary */}
-            <SectionDivider
-              icon={DollarSign}
-              title={t('basicSalary', 'modals')}
-              description={t('salaryDesc', 'modals')}
-            />
-
-            <div className="grid grid-cols-[1fr_120px] gap-4">
-              <div>
-                <ModalLabel>{t('basicSalary', 'modals')}</ModalLabel>
-                <div className="relative">
-                  <DollarSign className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-                  <input
-                    className={`${inputCls} pl-9`}
-                    type="number"
-                    min={0}
-                    value={form.salaryBasic}
-                    onChange={(e) => {
-                      const val =
-                        e.target.value === '' ? '' : Number(e.target.value);
-                      if (val !== '' && val < 0) return;
-                      set('salaryBasic', val);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === '-' || e.key === 'e') e.preventDefault();
-                    }}
-                    placeholder="0"
-                  />
-                </div>
-              </div>
-              <div>
-                <ModalLabel>{t('currency', 'modals')}</ModalLabel>
-                <select
-                  className={selectCls}
-                  value={form.salaryCurrency}
-                  onChange={(e) => set('salaryCurrency', e.target.value)}
-                >
-                  {CURRENCIES.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Benefits */}
-            <SectionDivider
-              icon={Gift}
-              title={t('benefits', 'modals')}
-              description={t('benefitsDesc', 'modals')}
-            />
-
-            <div className="space-y-3">
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragStart={handleBenefitDragStart}
-                onDragEnd={handleBenefitDragEnd}
-                onDragCancel={handleBenefitDragCancel}
-              >
-                <SortableContext
-                  items={form.benefits.map((b) => b._id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  {form.benefits.map((b, idx) => (
-                    <BenefitRow
-                      key={b._id}
-                      benefit={b}
-                      index={idx}
-                      onChange={(patch) => patchBenefit(b._id, patch)}
-                      onRemove={() => removeBenefit(b._id)}
-                      onDuplicate={() => duplicateBenefit(b._id)}
-                    />
-                  ))}
-                </SortableContext>
-                {createPortal(
-                  <DragOverlay dropAnimation={dropAnimation}>
-                    {activeBenefitId
-                      ? (() => {
-                          const b = form.benefits.find(
-                            (x) => x._id === activeBenefitId
-                          );
-                          if (!b) return null;
-                          return (
-                            <div className="rounded-xl border border-brand-400 bg-white p-4 shadow-xl dark:bg-slate-800">
-                              <div className="flex items-center gap-2">
-                                <GripVertical className="size-4 text-brand-500" />
-                                <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                                  Benefit {form.benefits.indexOf(b) + 1}
-                                </span>
-                              </div>
-                              <div className="mt-1 text-sm font-medium text-slate-700 dark:text-slate-200">
-                                {b.labelEn || b.labelAr || 'Untitled'}
-                              </div>
-                            </div>
-                          );
-                        })()
-                      : null}
-                  </DragOverlay>,
-                  document.body
-                )}
-              </DndContext>
-              <button
-                type="button"
-                onClick={addBenefit}
-                className="inline-flex items-center gap-2 rounded-lg border border-dashed border-slate-300 px-3 py-2 text-sm font-semibold text-slate-500 transition hover:border-brand-400 hover:text-brand-600 dark:border-slate-600 dark:text-slate-400 dark:hover:border-brand-500 dark:hover:text-brand-300"
-              >
-                <Plus className="size-4" />
-                {t('addBenefit', 'modals')}
-              </button>
-            </div>
-
-            {/* Contract Sections */}
-            <SectionDivider
-              icon={Layers}
-              title={t('contractSections', 'modals')}
-              description={t('contractSectionsDesc', 'modals')}
-            />
-
-            <div className="space-y-3">
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragStart={handleSectionDragStart}
-                onDragEnd={handleSectionDragEnd}
-                onDragCancel={handleSectionDragCancel}
-              >
-                <SortableContext
-                  items={form.sections.map((s) => s._id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  {form.sections.map((s, idx) => (
-                    <SectionBlock
-                      key={s._id}
-                      section={s}
-                      index={idx}
-                      onChange={(patch) => patchSection(s._id, patch)}
-                      onRemove={() => removeSection(s._id)}
-                      onDuplicate={() => duplicateSection(s._id)}
-                    />
-                  ))}
-                </SortableContext>
-                {createPortal(
-                  <DragOverlay dropAnimation={dropAnimation}>
-                    {activeSectionId
-                      ? (() => {
-                          const s = form.sections.find(
-                            (x) => x._id === activeSectionId
-                          );
-                          if (!s) return null;
-                          return (
-                            <div className="rounded-xl border border-brand-400 bg-white p-4 shadow-xl dark:bg-slate-800">
-                              <div className="flex items-center gap-2">
-                                <GripVertical className="size-4 text-brand-500" />
-                                <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                                  {locale === 'ar'
-                                    ? s.title.ar ||
-                                      s.title.en ||
-                                      `Section ${form.sections.indexOf(s) + 1}`
-                                    : s.title.en ||
-                                      s.title.ar ||
-                                      `Section ${form.sections.indexOf(s) + 1}`}
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })()
-                      : null}
-                  </DragOverlay>,
-                  document.body
-                )}
-              </DndContext>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={addSection}
-                  className="inline-flex items-center gap-2 rounded-lg border border-dashed border-slate-300 px-3 py-2 text-sm font-semibold text-slate-500 transition hover:border-brand-400 hover:text-brand-600 dark:border-slate-600 dark:text-slate-400 dark:hover:border-brand-500 dark:hover:text-brand-300"
-                >
-                  <Plus className="size-4" />
-                  {t('addSection', 'modals')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPickerOpen(true)}
-                  className="inline-flex items-center gap-2 rounded-lg border border-dashed border-indigo-300 px-3 py-2 text-sm font-semibold text-indigo-500 transition hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-600 dark:border-indigo-500/40 dark:text-indigo-400 dark:hover:border-indigo-400 dark:hover:bg-indigo-500/10"
-                >
-                  <Layers className="size-4" />
-                  {t('fromTemplates', 'modals')}
+                  {t('generate', 'modals')}
                 </button>
               </div>
-              <SectionTemplatePicker
-                isOpen={pickerOpen}
-                onClose={() => setPickerOpen(false)}
-                docType={'contract'}
-                onInsert={(section) =>
-                  set('sections', [...form.sections, section])
-                }
+            </div>
+          )}
+        </SideCard>
+      )}
+
+      {mode === 'contract' && !propApplicantId && !editing && form.isBulk && (
+        <SideCard
+          icon={<Users className="size-4 text-brand-500" />}
+          title={t('applicantCount', 'modals', {
+            count: form.applicantIds?.length ?? 0,
+          })}
+        >
+          <ul className="max-h-40 divide-y divide-slate-100 overflow-y-auto rounded-lg border border-slate-200 dark:divide-slate-700/60 dark:border-slate-700">
+            {(applicantObjects ?? []).map((a) => (
+              <li key={a._id} className="flex items-center gap-2 px-3 py-2">
+                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-brand-500/10 text-[10px] font-bold text-brand-600 dark:text-brand-400">
+                  {a.fullName?.[0]?.toUpperCase() ?? '?'}
+                </span>
+                <span className="truncate text-sm text-slate-700 dark:text-slate-300">
+                  {a.fullName}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            onClick={() => setShowSalaryReview((v) => !v)}
+            className="mt-3 flex w-full items-center justify-between text-xs font-semibold text-brand-600 hover:text-brand-700 dark:text-brand-400"
+          >
+            <span>{t('configureSalaries', 'modals')}</span>
+            <ChevronDown
+              className={`size-3.5 transition-transform ${showSalaryReview ? 'rotate-180' : ''}`}
+            />
+          </button>
+          {showSalaryReview && (
+            <div className="mt-3 max-h-96 overflow-y-auto border-t border-slate-200 pt-3 dark:border-slate-700">
+              <BulkSalaryReview
+                applicants={applicantObjects ?? []}
+                overrideMap={form.bulkOverrideMap}
+                currency={form.salaryCurrency}
+                formPosition={form.position}
+                formSalary={form.salaryBasic}
+                onChange={(map) => set('bulkOverrideMap', map)}
               />
             </div>
-
-            {/* Internal Notes */}
-            <SectionDivider
-              icon={StickyNote}
-              title={t('internalNotes', 'modals')}
-              description={t('internalNotesDesc', 'modals')}
-            />
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <ModalLabel>{t('notesEn', 'modals')}</ModalLabel>
-
-                <textarea
-                  className={`${inputCls} resize-none`}
-                  rows={4}
-                  value={form.notes.en}
-                  onChange={(e) =>
-                    set('notes', {
-                      ...form.notes,
-                      en: e.target.value,
-                    })
-                  }
-                  placeholder={t('notesEnPlaceholder', 'modals')}
-                />
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between">
-                  <ModalLabel>{t('notesAr', 'modals')}</ModalLabel>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (form.notes.en.trim()) {
-                        const t = await translateText(
-                          form.notes.en,
-                          'en',
-                          'ar'
-                        );
-                        if (t) set('notes', { ...form.notes, ar: t });
-                      } else if (form.notes.ar.trim()) {
-                        const t = await translateText(
-                          form.notes.ar,
-                          'ar',
-                          'en'
-                        );
-                        if (t) set('notes', { ...form.notes, en: t });
-                      }
-                    }}
-                    disabled={!form.notes.en.trim() && !form.notes.ar.trim()}
-                    className="flex size-5 items-center justify-center rounded text-slate-400 transition hover:text-brand-600 disabled:opacity-30"
-                    title={
-                      form.notes.en.trim()
-                        ? t('translateEnToAr', 'modals')
-                        : t('translateArToEn', 'modals')
-                    }
-                  >
-                    <Languages className="size-3" />
-                  </button>
-                </div>
-
-                <textarea
-                  className={`${inputCls} resize-none`}
-                  dir="rtl"
-                  rows={4}
-                  value={form.notes.ar}
-                  onChange={(e) =>
-                    set('notes', {
-                      ...form.notes,
-                      ar: e.target.value,
-                    })
-                  }
-                  placeholder={t('notesArPlaceholder', 'modals')}
-                />
-              </div>
-            </div>
-            <div className="h-2" />
-          </div>
-
-          {/* Footer */}
-          <div className="flex shrink-0 items-center justify-between gap-3 border-t border-slate-200 bg-slate-50/80 px-6 py-4 dark:border-slate-800 dark:bg-slate-900/80">
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-              >
-                {t('cancel', 'modals')}
-              </button>
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={isSaving}
-                className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-2 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isSaving ? (
-                  <div className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                ) : (
-                  <FileSignature className="size-4" />
-                )}
-                {submitLabel}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+          )}
+          <button
+            type="button"
+            onClick={() =>
+              setForm((prev) => ({ ...prev, isBulk: false, applicantIds: [] }))
+            }
+            className="mt-3 text-xs text-brand-600 hover:underline dark:text-brand-400"
+          >
+            {t('switchToSingle', 'modals')}
+          </button>
+        </SideCard>
+      )}
     </>
+  );
+
+  return (
+    <EditorShell
+      icon={<FileSignature className="size-5" />}
+      title={title}
+      subtitle={
+        isTemplate ? t('templateDesc', 'modals') : t('contractDesc', 'modals')
+      }
+      onBack={onClose}
+      lang={docLang}
+      onLangChange={setDocLang}
+      onTranslateAll={translateAll}
+      translating={translatingAll}
+      onSave={handleSubmit}
+      saving={isSaving}
+      saveLabel={submitLabel}
+      saveIcon={<FileSignature className="size-4" />}
+      side={side}
+    >
+      <Paper lang={docLang}>
+        <PaperHeader
+          lang={docLang}
+          company={sheetCompanyName}
+          title={L('JOB CONTRACT', 'عقد عمل')}
+          date={formatDocDate(new Date(), docLang)}
+        />
+
+        <PaperTitle>
+          <BiField
+            value={form.position}
+            lang={docLang}
+            onChange={(position) => set('position', position)}
+            placeholder={t('positionPlaceholder', 'modals')}
+            inputRef={firstInputRef}
+            style={{ textAlign: 'center' }}
+          />
+        </PaperTitle>
+
+        {candidate && (
+          <PaperBox label={L('Candidate', 'المرشح')} lang={docLang}>
+            {candidate}
+          </PaperBox>
+        )}
+
+        <DetailsGrid>
+          <DetailRow label={L('Contract Type', 'نوع العقد')} lang={docLang}>
+            <InlineSelect
+              value={form.contractType}
+              onChange={(v) => set('contractType', v as ContractType)}
+              options={CONTRACT_TYPE_VALUES.map((v) => ({
+                value: v,
+                label: contractTypeLabel(v, docLang),
+              }))}
+              style={align}
+            />
+          </DetailRow>
+          <DetailRow label={L('Start Date', 'تاريخ البدء')} lang={docLang}>
+            <InlineField
+              type="date"
+              value={form.startDate}
+              onChange={(v) => set('startDate', v)}
+              className="!w-40"
+              style={align}
+            />
+          </DetailRow>
+          <DetailRow label={L('End Date', 'تاريخ الانتهاء')} lang={docLang}>
+            <InlineField
+              type="date"
+              value={form.endDate}
+              min={form.startDate || undefined}
+              onChange={(v) => set('endDate', v)}
+              className="!w-40"
+              style={align}
+            />
+          </DetailRow>
+          <DetailRow label={L('Probation Period', 'فترة التجربة')} lang={docLang}>
+            <InlineField
+              type="number"
+              min={0}
+              value={form.probationPeriod}
+              placeholder="0"
+              onChange={(v) =>
+                set('probationPeriod', v === '' ? '' : Math.max(0, Number(v)))
+              }
+              className="!w-14"
+              style={align}
+            />
+            <span>{L('month(s)', 'شهر')}</span>
+          </DetailRow>
+          <DetailRow label={L('Basic Salary', 'الراتب الأساسي')} lang={docLang}>
+            <InlineSelect
+              value={cur}
+              onChange={(v) => set('salaryCurrency', v)}
+              options={['EGP', 'USD', 'EUR', 'SAR', 'AED'].map((c) => ({
+                value: c,
+                label: c,
+              }))}
+              style={{ fontSize: '11pt', fontWeight: 700, color: '#059669' }}
+            />
+            <InlineField
+              type="number"
+              min={0}
+              value={form.salaryBasic}
+              placeholder="0"
+              onChange={(v) =>
+                set('salaryBasic', v === '' ? '' : Math.max(0, Number(v)))
+              }
+              className="!w-28"
+              style={{
+                fontSize: '11pt',
+                fontWeight: 700,
+                color: '#059669',
+                ...align,
+              }}
+            />
+          </DetailRow>
+        </DetailsGrid>
+
+        {/* Benefits */}
+        <div style={{ margin: '20px 0' }}>
+          <PaperHeading>{L('Benefits', 'المزايا')}</PaperHeading>
+          {form.benefits.length > 0 && (
+            <div style={{ margin: '20px 0 12px', fontSize: '9pt' }}>
+              <TableHead cols={[L('Benefit', 'الميزة'), L('Value', 'القيمة')]} />
+              <SortableList
+                items={form.benefits}
+                onReorder={(next) => set('benefits', next)}
+              >
+                {form.benefits.map((b) => (
+                  <SortableRow
+                    key={b._id}
+                    id={b._id}
+                    onDuplicate={() => duplicateBenefit(b._id)}
+                    onRemove={() => removeBenefit(b._id)}
+                  >
+                    <div
+                      className="grid grid-cols-[1fr_auto]"
+                      style={{ borderBottom: '1px solid #e0e0e0' }}
+                    >
+                      <div style={{ padding: '10px 8px' }}>
+                        <BiField
+                          value={{ en: b.labelEn, ar: b.labelAr }}
+                          lang={docLang}
+                          onChange={(label) =>
+                            patchBenefit(b._id, {
+                              labelEn: label.en,
+                              labelAr: label.ar,
+                            })
+                          }
+                          placeholder={t('benefitLabelPlaceholder', 'modals')}
+                          style={{ fontWeight: 700 }}
+                        />
+                      </div>
+                      <div
+                        style={{
+                          padding: '10px 8px',
+                          minWidth: 130,
+                          fontWeight: 500,
+                        }}
+                      >
+                        <BiField
+                          value={b.value}
+                          lang={docLang}
+                          onChange={(value) => patchBenefit(b._id, { value })}
+                          placeholder={t('benefitValuePlaceholder', 'modals')}
+                          style={{ textAlign: 'end' }}
+                        />
+                      </div>
+                    </div>
+                  </SortableRow>
+                ))}
+              </SortableList>
+            </div>
+          )}
+          <AddButton onClick={addBenefit}>{t('addBenefit', 'modals')}</AddButton>
+        </div>
+
+        {/* Terms */}
+        <div style={{ margin: '20px 0' }}>
+          <SectionsEditor
+            sections={form.sections}
+            onChange={(sections) => set('sections', sections)}
+            lang={docLang}
+            docType="contract"
+            variant="contract"
+          />
+        </div>
+
+        <PaperNotes lang={docLang} label={L('Notes:', 'ملاحظات:')}>
+          <BiField
+            multiline
+            value={form.notes}
+            lang={docLang}
+            onChange={(notes) => set('notes', notes)}
+            placeholder={t('notesPlaceholderDoc', 'modals')}
+          />
+        </PaperNotes>
+
+        <PaperFooter>
+          {L('Thank you for your business', 'شكراً لثقتكم بنا')}
+        </PaperFooter>
+      </Paper>
+    </EditorShell>
   );
 }

@@ -63,5 +63,9 @@
   "workHours": "Work hours",
   "status": "Status",
   "overview": "Overview",
-  "summaryPending": "Pending"
+  "summaryPending": "Pending",
+  "tabOffers": "Offers",
+  "tabTemplates": "Templates",
+  "selectCompanyForTemplates": "Select a company in the top bar to manage its templates.",
+  "jobOffersSections": "Offers sections"
 }

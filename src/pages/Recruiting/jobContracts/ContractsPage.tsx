@@ -24,9 +24,10 @@ import type {
   ContractStatus,
 } from '../../../services/contractsService';
 import Swal from '../../../utils/swal';
-import JobContractModal from '../../../components/modals/ContractModal/ContractModal';
+import { useOpenContractEditor } from '../documentEditor/editorNavigation';
 import { useDebounce } from '../../../hooks/useDebounce';
 import { Badge, Button, Card, EmptyState, IconButton, PageShell, Pagination, SearchInput, StatStrip, TabBar, focusRing, ErrorState } from '../../../components/ui/kit';
+import ContractsTab from '../Settings/ContractsTab';
 import { CONTRACT_STATUS_TONE, CONTRACT_TYPE_TONE, contractStatusKey, contractTypeKey } from './contractMeta';
 import { useLocale } from '../../../context/LocaleContext';
 import PageMeta from '../../../components/common/PageMeta';
@@ -72,21 +73,20 @@ export default function JobContractsPage() {
   const companyId: string[] = companies.map((c) => c._id);
 
   // ── View state ─────────────────────────────────────────────────────────
+  const [section, setSection] = useState<'main' | 'templates'>('main');
+  // Templates are per company: the one picked in the top bar, else the first.
+  const templatesCompanyId = selectedCompanyId ?? companies[0]?._id;
   const [view, setView] = useState<'list' | 'detail'>('list');
   const [selectedContractId, setSelectedContractId] = useState<string | null>(
     null
   );
-  const [cloneSource, setCloneSource] = useState<JobContract | null>(null);
 
   // ── Filters ────────────────────────────────────────────────────────────
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<'all' | ContractStatus>(
     'all'
   );
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingContract, setEditingContract] = useState<JobContract | null>(
-    null
-  );
+  const navigateToContractEditor = useOpenContractEditor();
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 500);
 
@@ -182,42 +182,34 @@ export default function JobContractsPage() {
     setView('detail');
   };
 
-  const handleClone = (contract: JobContract) => {
-    setEditingContract(null);
-    setCloneSource(contract);
-    setModalOpen(true);
+  // Nothing to write a contract for until the companies have loaded.
+  const openContractEditor = (
+    state: Parameters<typeof navigateToContractEditor>[0]
+  ) => {
+    if (companyId.length > 0) navigateToContractEditor(state);
   };
+
+  const handleClone = (contract: JobContract) =>
+    openContractEditor({
+      mode: 'contract',
+      companyId: companyId[0],
+      cloneFrom: contract,
+    });
 
   const handleBackToList = () => {
     setView('list');
     setSelectedContractId(null);
   };
 
-  const handleEdit = (contract: JobContract) => {
-    setEditingContract(contract);
-    setModalOpen(true);
-  };
+  const handleEdit = (contract: JobContract) =>
+    openContractEditor({
+      mode: 'contract',
+      companyId: companyId[0],
+      editing: contract,
+    });
 
-  // ── Shared modal ───────────────────────────────────────────────────────
-  const sharedModal = companyId.length > 0 && (
-    <JobContractModal
-      isOpen={modalOpen}
-      onClose={() => {
-        setModalOpen(false);
-        setCloneSource(null);
-        setEditingContract(null);
-      }}
-      mode="contract"
-      companyId={companyId[0]}
-      editing={editingContract}
-      cloneFrom={cloneSource}
-    />
-  );
-
-  const openNew = () => {
-    setEditingContract(null);
-    setModalOpen(true);
-  };
+  const openNew = () =>
+    openContractEditor({ mode: 'contract', companyId: companyId[0] });
 
   const pickText = (v?: { en?: string | null; ar?: string | null } | null) =>
     (locale === 'ar' ? v?.ar || v?.en : v?.en || v?.ar) || '';
@@ -230,7 +222,7 @@ export default function JobContractsPage() {
         title={t('sidebarTitle', 'jobContracts')}
         subtitle={t('pageMetaDescription', 'jobContracts')}
         actions={
-          canWrite && (
+          canWrite && section === 'main' && (
             <Button variant="primary" icon={<PlusCircle className="size-4" />} onClick={openNew}>
               {t('newContract', 'jobContracts')}
             </Button>
@@ -238,6 +230,29 @@ export default function JobContractsPage() {
         }
       >
         <PageMeta title={t('pageMetaTitle', 'jobContracts')} description={t('pageMetaDescription', 'jobContracts')} />
+
+        <Card>
+          <TabBar
+            ariaLabel={t('jobContractsSections', 'jobContracts')}
+            value={section}
+            onChange={setSection}
+            tabs={[
+              { value: 'main' as const, label: t('tabContracts', 'jobContracts'), icon: <FileSignature className="size-4" /> },
+              { value: 'templates' as const, label: t('tabTemplates', 'jobContracts'), icon: <FileText className="size-4" /> },
+            ]}
+          />
+        </Card>
+
+        {section === 'templates' ? (
+          templatesCompanyId ? (
+            <ContractsTab companyId={templatesCompanyId} hideCompanySelector embedded />
+          ) : (
+            <Card>
+              <EmptyState icon={<FileText className="size-6" />} title={t('selectCompanyForTemplates', 'jobContracts')} />
+            </Card>
+          )
+        ) : (
+          <>
 
         <Card>
           <StatStrip
@@ -363,8 +378,9 @@ export default function JobContractsPage() {
             <Pagination page={page} totalPages={totalPages} totalCount={total} onChange={setPage} busy={isFetching} />
           )}
         </Card>
+          </>
+        )}
 
-        {sharedModal}
       </PageShell>
     );
   }
@@ -383,7 +399,6 @@ export default function JobContractsPage() {
           onClone={handleClone}
           onStatusChange={(id, status) => updateStatusMutation.mutate({ id, status })}
         />
-        {sharedModal}
       </>
     );
   }
