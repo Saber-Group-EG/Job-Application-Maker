@@ -624,7 +624,9 @@ export function Switch({
   );
 }
 
-// Page-level tabs: underlined, scrolls sideways when there are many.
+// Page-level tabs: underlined. When there are more than fit, the list scrolls
+// sideways with no scrollbar: a fade plus an arrow appears on the side that
+// still has tabs, and the selected tab is kept in view.
 export function TabBar<T extends string>({
   tabs,
   value,
@@ -636,28 +638,100 @@ export function TabBar<T extends string>({
   onChange: (value: T) => void;
   ariaLabel: string;
 }) {
+  const listRef = useRef<HTMLDivElement>(null);
+  const [more, setMore] = useState({ left: false, right: false });
+
+  const measure = () => {
+    const el = listRef.current;
+    if (!el) return;
+    const max = el.scrollWidth - el.clientWidth;
+    const pos = el.scrollLeft; // negative in RTL
+    const rtl = getComputedStyle(el).direction === 'rtl';
+    setMore({
+      left: rtl ? pos > -max + 1 : pos > 1,
+      right: rtl ? pos < -1 : pos < max - 1,
+    });
+  };
+
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    measure();
+    el.addEventListener('scroll', measure, { passive: true });
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener('scroll', measure);
+      ro.disconnect();
+    };
+  }, [tabs.length]);
+
+  useEffect(() => {
+    listRef.current
+      ?.querySelector<HTMLElement>('[aria-selected="true"]')
+      ?.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+  }, [value]);
+
+  const nudge = (dir: -1 | 1) =>
+    listRef.current?.scrollBy({
+      left: dir * Math.max(160, listRef.current.clientWidth * 0.6),
+      behavior: 'smooth',
+    });
+
+  const arrow =
+    'absolute top-0 bottom-px z-10 flex w-12 items-center from-white via-white/90 to-transparent text-slate-500 hover:text-slate-900 dark:from-slate-900 dark:via-slate-900/90 dark:hover:text-white';
+
   return (
-    <div role="tablist" aria-label={ariaLabel} className="flex gap-1 overflow-x-auto border-b border-slate-200 px-2 dark:border-slate-800">
-      {tabs.map((tab) => {
-        const selected = tab.value === value;
-        return (
-          <button
-            key={tab.value}
-            type="button"
-            role="tab"
-            aria-selected={selected}
-            onClick={() => onChange(tab.value)}
-            className={`-mb-px inline-flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-3 py-3 text-sm font-medium transition ${focusRing} ${
-              selected
-                ? 'border-brand-500 text-brand-600 dark:text-brand-400'
-                : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
-            }`}
-          >
-            {tab.icon}
-            {tab.label}
-          </button>
-        );
-      })}
+    <div className="relative border-b border-slate-200 dark:border-slate-800">
+      <div
+        ref={listRef}
+        role="tablist"
+        aria-label={ariaLabel}
+        className="no-scrollbar flex gap-1 overflow-x-auto px-2"
+      >
+        {tabs.map((tab) => {
+          const selected = tab.value === value;
+          return (
+            <button
+              key={tab.value}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              onClick={() => onChange(tab.value)}
+              className={`-mb-px inline-flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-3 py-3 text-sm font-medium transition ${focusRing} ${
+                selected
+                  ? 'border-brand-500 text-brand-600 dark:text-brand-400'
+                  : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+              }`}
+            >
+              {tab.icon}
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+      {more.left && (
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-hidden="true"
+          onClick={() => nudge(-1)}
+          className={`${arrow} left-0 justify-start bg-gradient-to-r pl-1.5`}
+        >
+          <ChevronLeft className="size-4" />
+        </button>
+      )}
+      {more.right && (
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-hidden="true"
+          onClick={() => nudge(1)}
+          className={`${arrow} right-0 justify-end bg-gradient-to-l pr-1.5`}
+        >
+          <ChevronRight className="size-4" />
+        </button>
+      )}
     </div>
   );
 }
