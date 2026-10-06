@@ -216,5 +216,11 @@
   "locationNumber": "Location {n}",
   "openInMaps": "Open in Google Maps",
   "companyDescAr": "Description (Arabic)",
-  "companyDescArPlaceholder": "نبذة قصيرة عن الشركة"
+  "companyDescArPlaceholder": "نبذة قصيرة عن الشركة",
+  "deptPageTitle": "Departments",
+  "deptPageSubtitle": "All departments across your companies.",
+  "deptSearchPlaceholder": "Search departments...",
+  "deptCompany": "Company",
+  "deptAllCompanies": "All companies",
+  "deptSelectCompany": "Select a company"
 }

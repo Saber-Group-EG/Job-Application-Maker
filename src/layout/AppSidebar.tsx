@@ -1,50 +1,47 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router';
 
-import { ChevronDownIcon, GridIcon, HorizontaLDots, TaskIcon } from '../icons';
+import {
+  Briefcase,
+  Building2,
+  CreditCard,
+  Home,
+  Inbox,
+  ShieldCheck,
+  SlidersHorizontal,
+  UsersRound,
+} from 'lucide-react';
+import { ChevronDownIcon, HorizontaLDots } from '../icons';
 import { useSidebar } from '../context/SidebarContext';
 import { useAuth } from '../context/AuthContext';
 import { useCompanies } from '../hooks/queries/useCompanies';
 import { useLocale } from '../context/LocaleContext';
+
+type SubItem = {
+  name: string;
+  tKey?: string;
+  path: string;
+  pro?: boolean;
+  new?: boolean;
+  show?: boolean;
+};
 
 type NavItem = {
   name: string;
   tKey?: string;
   icon: React.ReactNode;
   path?: string;
-  subItems?: {
-    name: string;
-    tKey?: string;
-    path: string;
-    pro?: boolean;
-    new?: boolean;
-  }[];
+  subItems?: SubItem[];
+  show?: boolean;
+};
+
+type NavSection = {
+  key: string;
+  tKey?: string;
+  items: NavItem[];
 };
 
 const EMPTY_COMPANIES: never[] = [];
-
-const adminItems: NavItem[] = [
-  {
-    icon: <TaskIcon />,
-    name: 'User Management',
-    tKey: 'userManagement',
-    subItems: [
-      { name: 'Users', tKey: 'users', path: '/users', pro: false },
-      {
-        name: 'Permissions & Roles',
-        tKey: 'permissionsRoles',
-        path: '/permissions',
-        pro: false,
-      },
-      {
-        name: 'Recommended Fields',
-        tKey: 'recommendedFields',
-        path: '/recommended-fields',
-        pro: false,
-      },
-    ],
-  },
-];
 
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
@@ -120,22 +117,8 @@ const AppSidebar: React.FC = () => {
     return mergedIds.length === 1;
   }, [user]);
 
-  // Check if user has read access to admin features
-  const hasUserManagementRead = hasPermission('User Management', 'read');
-  const hasRoleManagementRead = hasPermission('Role Management', 'read');
-  const hasSettingsManagementRead = hasPermission(
-    'Settings Management',
-    'read'
-  );
-
-  // Show admin section if user has read access to any admin feature
-  const hasAdminPermissions =
-    hasUserManagementRead || hasRoleManagementRead || hasSettingsManagementRead;
-
-  const [openSubmenu, setOpenSubmenu] = useState<{
-    type: 'main' | 'admin';
-    index: number;
-  } | null>(null);
+  type OpenSubmenu = { section: string; index: number } | null;
+  const [openSubmenu, setOpenSubmenu] = useState<OpenSubmenu>(null);
   const [subMenuHeight, setSubMenuHeight] = useState<Record<string, number>>(
     {}
   );
@@ -146,15 +129,18 @@ const AppSidebar: React.FC = () => {
     [location.pathname]
   );
 
-  const navItems: NavItem[] = [
+  const can = hasPermission;
+  const canSeeInterviewSettings =
+    can('Interview Settings Management', 'read') ||
+    can('Company Management', 'read') ||
+    can('Settings Management', 'read');
+
+  // One collapsible group per area of the product. A group left with a single
+  // visible child is shown as a plain link instead of a one-item submenu.
+  const rawItems: NavItem[] = [
+    { icon: <Home />, name: 'Home', tKey: 'home', path: '/home' },
     {
-      icon: <GridIcon />,
-      name: 'Home',
-      tKey: 'home',
-      path: '/home',
-    },
-    {
-      icon: <GridIcon />,
+      icon: <UsersRound />,
       name: 'Applicants',
       tKey: 'applicants',
       subItems: [
@@ -162,232 +148,245 @@ const AppSidebar: React.FC = () => {
           name: 'All Applicants',
           tKey: 'allApplicants',
           path: '/applicants',
-          pro: false,
+          show: can('Applicant Management', 'read'),
         },
         {
-          name: 'Add Applicants',
-          tKey: 'blueCallerApplicants',
+          name: 'Import Applicants',
+          tKey: 'importApplicants',
           path: '/applicants/blue-caller',
-          pro: false,
+          show: can('Applicant Management', 'create'),
         },
         ...applicantPageSubItems,
       ],
     },
     {
-      icon: <TaskIcon />,
-      name: 'Mail Preview',
-      tKey: 'mailPreview',
-      path: '/applicants/mail-preview',
-    },
-    ...(hasPermission('Offer Management', 'read')
-      ? [
-          {
-            icon: <TaskIcon />,
-            name: 'Job Offers',
-            tKey: 'jobOffers',
-            path: '/job-offers',
-          },
-        ]
-      : []),
-    ...(hasPermission('Contract Management', 'read')
-      ? [
-          {
-            icon: <TaskIcon />,
-            name: 'Job Contracts',
-            tKey: 'jobContracts',
-            path: '/job-contracts',
-          },
-        ]
-      : []),
-    ...(hasPermission('Inquiry Management', 'read')
-      ? [
-          {
-            icon: <TaskIcon />,
-            name: 'Support Inbox',
-            tKey: 'inquiryPreview',
-            path: '/inquiries',
-          },
-        ]
-      : []),
-    {
-      icon: <TaskIcon />,
-      name: 'Company Settings',
-      tKey: 'companySettings',
+      icon: <Briefcase />,
+      name: 'Jobs & Hiring',
+      tKey: 'jobsHiring',
       subItems: [
         {
-          name: 'Create Company',
-          tKey: 'createCompany',
-          path: '/recruiting',
-          pro: false,
+          name: 'Jobs',
+          tKey: 'jobs',
+          path: '/jobs',
+          show: can('Job Position Management', 'read'),
         },
         {
-          name: 'Companies',
-          tKey: 'companies',
-          path: '/companies',
-          pro: false,
+          name: 'Job Offers',
+          tKey: 'jobOffers',
+          path: '/job-offers',
+          show: can('Offer Management', 'read'),
         },
         {
-          name: 'Subscription',
-          tKey: 'subscription',
-          path: '/recruiting/subscription',
-          pro: false,
+          name: 'Job Contracts',
+          tKey: 'jobContracts',
+          path: '/job-contracts',
+          show: can('Contract Management', 'read'),
+        },
+      ],
+    },
+    {
+      icon: <Inbox />,
+      name: 'Communication',
+      tKey: 'sectionCommunication',
+      subItems: [
+        {
+          name: 'Mail Inbox',
+          tKey: 'mailPreview',
+          path: '/applicants/mail-preview',
+          show: can('Mail Management', 'read'),
+        },
+        {
+          name: 'Support Inbox',
+          tKey: 'inquiryPreview',
+          path: '/inquiries',
+          show: can('Inquiry Management', 'read'),
         },
         {
           name: 'Mail Settings',
           tKey: 'mailSettings',
           path: '/recruiting/company-settings',
-          pro: false,
-        },
-        {
-          name: 'General Settings',
-          tKey: 'generalSettings',
-          path: '/recruiting/interview-settings',
-          pro: false,
+          show: can('Mail Management', 'read'),
         },
       ],
     },
     {
-      icon: <GridIcon />,
-      name: 'Jobs Management',
-      tKey: 'jobsManagement',
+      icon: <Building2 />,
+      name: 'Organization',
+      tKey: 'sectionOrganization',
       subItems: [
         {
-          name: 'Create Job',
-          tKey: 'createJob',
-          path: '/create-job',
-          pro: false,
+          name: 'Companies',
+          tKey: hasSingleAssignedCompany ? 'companyData' : 'companies',
+          path: '/companies',
+          show: can('Company Management', 'read'),
         },
-        { name: 'Jobs', tKey: 'jobs', path: '/jobs', pro: false },
+        {
+          name: 'Departments',
+          tKey: 'departments',
+          path: '/departments',
+          show: can('Company Management', 'read'),
+        },
+        {
+          name: 'Users',
+          tKey: 'users',
+          path: '/users',
+          show: can('User Management', 'read'),
+        },
+        {
+          name: 'Permissions & Roles',
+          tKey: 'permissionsRoles',
+          path: '/permissions',
+          show: can('Role Management', 'read'),
+        },
       ],
     },
     {
-      icon: <GridIcon />,
-      name: 'User Settings',
-      tKey: 'userSettings',
+      icon: <SlidersHorizontal />,
+      name: 'Configuration',
+      tKey: 'sectionConfiguration',
       subItems: [
         {
           name: 'Saved Fields',
           tKey: 'savedFields',
           path: '/recruiting/saved-fields',
-          pro: false,
         },
         {
           name: 'Saved Questions',
           tKey: 'savedQuestions',
           path: '/recruiting/saved-questions',
-          pro: false,
+        },
+        {
+          name: 'Recommended Fields',
+          tKey: 'recommendedFields',
+          path: '/recommended-fields',
+          show:
+            can('Settings Management', 'create') &&
+            can('Settings Management', 'write'),
+        },
+        {
+          name: 'General Settings',
+          tKey: 'generalSettings',
+          path: '/recruiting/interview-settings',
+          show: canSeeInterviewSettings,
         },
       ],
     },
-        ...(hasAdminUsageAccess
-      ? [
-          {
-            icon: <TaskIcon />,
-            name: 'Company Usage',
-            tKey: 'companyUsage',
-            path: '/admin-settings',
-          },
-        ]
-      : []),
-    ...(hasAdminUsageAccess
-      ? [
-          {
-            icon: <TaskIcon />,
-            name: 'Promo & Commissions',
-            tKey: 'promoManagement',
-            subItems: [
-              {
-                name: 'Promo Codes',
-                tKey: 'promoCodes',
-                path: '/promos',
-                pro: false,
-              },
-              {
-                name: 'Commissions',
-                tKey: 'Commissions',
-                path: '/promos/commissions',
-                pro: false,
-              },
-              {
-                name: 'Redemptions',
-                tKey: 'redemptions',
-                path: '/promos/redemptions',
-                pro: false,
-              },
-            ],
-          },
-        ]
-      : []),
-    ...(isHrManager
-      ? [
-          {
-            icon: <TaskIcon />,
-            name: 'My Promo Codes',
-            tKey: 'myPromos',
-            subItems: [
-              {
-                name: 'My Promo Codes',
-                tKey: 'myPromos',
-                path: '/my/promos',
-                pro: false,
-              },
-              {
-                name: 'My Commissions',
-                tKey: 'myCommissions',
-                path: '/my/commissions',
-                pro: false,
-              },
-              {
-                name: 'My Redemptions',
-                tKey: 'myRedemptions',
-                path: '/my/redemptions',
-                pro: false,
-              },
-            ],
-          },
-        ]
-      : []),
-    ...(hasPermission('Subscription Plan Management', 'read')
-      ? [
-          {
-            icon: <TaskIcon />,
-            name: 'Plans',
-            tKey: 'adminPlans',
-            path: '/admin-plans',
-          },
-        ]
-      : []),
+    {
+      icon: <CreditCard />,
+      name: 'Billing & Growth',
+      tKey: 'sectionBilling',
+      subItems: [
+        {
+          name: 'Subscription',
+          tKey: 'subscription',
+          path: '/recruiting/subscription',
+          show: can('Billing Management', 'write'),
+        },
+        {
+          name: 'My Promo Codes',
+          tKey: 'myPromos',
+          path: '/my/promos',
+          show: isHrManager,
+        },
+        {
+          name: 'My Commissions',
+          tKey: 'myCommissions',
+          path: '/my/commissions',
+          show: isHrManager,
+        },
+        {
+          name: 'My Redemptions',
+          tKey: 'myRedemptions',
+          path: '/my/redemptions',
+          show: isHrManager,
+        },
+      ],
+    },
+    {
+      icon: <ShieldCheck />,
+      name: 'Platform Admin',
+      tKey: 'sectionPlatform',
+      subItems: [
+        {
+          name: 'Company Usage',
+          tKey: 'companyUsage',
+          path: '/admin-settings',
+          show: hasAdminUsageAccess,
+        },
+        {
+          name: 'Plans',
+          tKey: 'adminPlans',
+          path: '/admin-plans',
+          show: can('Subscription Plan Management', 'read'),
+        },
+        {
+          name: 'Promo Codes',
+          tKey: 'promoCodes',
+          path: '/promos',
+          show: hasAdminUsageAccess,
+        },
+        {
+          name: 'Commissions',
+          tKey: 'Commissions',
+          path: '/promos/commissions',
+          show: hasAdminUsageAccess,
+        },
+        {
+          name: 'Redemptions',
+          tKey: 'redemptions',
+          path: '/promos/redemptions',
+          show: hasAdminUsageAccess,
+        },
+      ],
+    },
   ];
 
+  const navItems: NavItem[] = rawItems.flatMap((item) => {
+    if (!item.subItems) return [item];
+    const visible = item.subItems.filter((s) => s.show !== false);
+    if (visible.length === 0) return [];
+    if (visible.length === 1) {
+      const [only] = visible;
+      return [
+        { icon: item.icon, name: only.name, tKey: only.tKey, path: only.path },
+      ];
+    }
+    return [{ ...item, subItems: visible }];
+  });
+  const sections: NavSection[] = [{ key: 'main', items: navItems }];
+
   useEffect(() => {
-    let matched: { type: 'main' | 'admin'; index: number } | null = null;
-    ['main', 'admin'].forEach((menuType) => {
-      const items = menuType === 'main' ? navItems : adminItems;
-      items.forEach((nav, index) => {
-        if (nav.subItems) {
-          nav.subItems.forEach((subItem) => {
-            if (isActive(subItem.path)) {
-              matched = { type: menuType as 'main' | 'admin', index };
-            }
-          });
-        }
+    let matched: OpenSubmenu = null;
+    sections.forEach((section) => {
+      section.items.forEach((nav, index) => {
+        nav.subItems?.forEach((subItem) => {
+          if (isActive(subItem.path)) {
+            matched = { section: section.key, index };
+          }
+        });
       });
     });
 
     // Keep the previous object when nothing changed so this doesn't trigger
     // a re-render on every run.
     setOpenSubmenu((prev) => {
-      const next = matched as { type: 'main' | 'admin'; index: number } | null;
+      const next = matched as OpenSubmenu;
       if (prev === next) return prev;
-      if (prev && next && prev.type === next.type && prev.index === next.index)
+      if (
+        prev &&
+        next &&
+        prev.section === next.section &&
+        prev.index === next.index
+      )
         return prev;
       return next;
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname, location.search, isActive, applicantPageSubItems]);
 
   useEffect(() => {
     if (openSubmenu !== null) {
-      const key = `${openSubmenu.type}-${openSubmenu.index}`;
+      const key = `${openSubmenu.section}-${openSubmenu.index}`;
       if (subMenuRefs.current[key]) {
         setSubMenuHeight((prevHeights) => ({
           ...prevHeights,
@@ -397,81 +396,24 @@ const AppSidebar: React.FC = () => {
     }
   }, [openSubmenu]);
 
-  const handleSubmenuToggle = (index: number, menuType: 'main' | 'admin') => {
+  const handleSubmenuToggle = (index: number, menuType: string) => {
     setOpenSubmenu((prevOpenSubmenu) => {
       if (
         prevOpenSubmenu &&
-        prevOpenSubmenu.type === menuType &&
+        prevOpenSubmenu.section === menuType &&
         prevOpenSubmenu.index === index
       ) {
         return null;
       }
-      return { type: menuType, index };
+      return { section: menuType, index };
     });
   };
 
-  const renderMenuItems = (items: NavItem[], menuType: 'main' | 'admin') => {
-    const filterSubItems = (
-      subItems: {
-        name: string;
-        tKey?: string;
-        path: string;
-        pro?: boolean;
-        new?: boolean;
-      }[]
-    ) => {
-      return subItems.filter((subItem) => {
-        if (subItem.path === '/applicants')
-          return hasPermission('Applicant Management', 'read');
-        if (subItem.path === '/applicants/blue-caller')
-          return hasPermission('Applicant Management', 'create');
-        if (subItem.path === '/applicants/mail-preview')
-          return hasPermission('Mail Management', 'read');
-        if (subItem.path === '/recruiting')
-          return hasPermission('Company Management', 'create');
-        if (subItem.path === '/companies')
-          return hasPermission('Company Management', 'read');
-        if (subItem.path === '/recruiting/subscription')
-          return hasPermission('Billing Management', 'write');
-        if (subItem.path === '/recruiting/company-settings')
-          return hasPermission('Mail Management', 'read');
-        if (subItem.path === '/recruiting/interview-settings')
-          return (
-            hasPermission('Interview Settings Management', 'read') ||
-            hasPermission('Company Management', 'read') ||
-            hasPermission('Settings Management', 'read')
-          );
-        if (subItem.path === '/create-job')
-          return hasPermission('Job Position Management', 'create');
-        if (subItem.path === '/jobs')
-          return hasPermission('Job Position Management', 'read');
-        if (subItem.path === '/users')
-          return hasPermission('User Management', 'read');
-        if (subItem.path === '/permissions')
-          return hasPermission('Role Management', 'read');
-        if (subItem.path === '/recommended-fields')
-          return (
-            hasPermission('Settings Management', 'create') &&
-            hasPermission('Settings Management', 'write')
-          );
-        if (subItem.path === '/recruiting/saved-fields') return true;
-        if (subItem.path === '/recruiting/saved-questions') return true;
-        return true;
-      });
-    };
-
-    const filteredItems = items;
-
+  const renderMenuItems = (items: NavItem[], menuType: string) => {
     return (
       <ul className="flex flex-col gap-4">
-        {filteredItems.map((nav, index) => {
-          const visibleSubItems = nav.subItems
-            ? filterSubItems(nav.subItems)
-            : undefined;
-
-          if (nav.subItems && visibleSubItems && visibleSubItems.length === 0) {
-            return null;
-          }
+        {items.map((nav, index) => {
+          const visibleSubItems = nav.subItems;
 
           return (
             <li key={nav.name}>
@@ -480,7 +422,7 @@ const AppSidebar: React.FC = () => {
                   <button
                     onClick={() => handleSubmenuToggle(index, menuType)}
                     className={`menu-item group ${
-                      openSubmenu?.type === menuType &&
+                      openSubmenu?.section === menuType &&
                       openSubmenu?.index === index
                         ? 'menu-item-active'
                         : 'menu-item-inactive'
@@ -492,7 +434,7 @@ const AppSidebar: React.FC = () => {
                   >
                     <span
                       className={`menu-item-icon-size  ${
-                        openSubmenu?.type === menuType &&
+                        openSubmenu?.section === menuType &&
                         openSubmenu?.index === index
                           ? 'menu-item-icon-active'
                           : 'menu-item-icon-inactive'
@@ -508,7 +450,7 @@ const AppSidebar: React.FC = () => {
                     {(isExpanded || isHovered || isMobileOpen) && (
                       <ChevronDownIcon
                         className={`${dir === 'ltr' ? 'ml-auto' : 'mr-auto'} w-5 h-5 transition-transform duration-200 ${
-                          openSubmenu?.type === menuType &&
+                          openSubmenu?.section === menuType &&
                           openSubmenu?.index === index
                             ? 'rotate-180 text-brand-500'
                             : ''
@@ -524,7 +466,7 @@ const AppSidebar: React.FC = () => {
                       className="overflow-hidden transition-all duration-300"
                       style={{
                         height:
-                          openSubmenu?.type === menuType &&
+                          openSubmenu?.section === menuType &&
                           openSubmenu?.index === index
                             ? `${subMenuHeight[`${menuType}-${index}`]}px`
                             : '0px',
@@ -543,10 +485,7 @@ const AppSidebar: React.FC = () => {
                                   : 'menu-dropdown-item-inactive'
                               }`}
                             >
-                              {hasSingleAssignedCompany &&
-                              subItem.path === '/companies'
-                                ? t('companyData')
-                                : t(subItem.tKey ?? subItem.name)}
+                              {t(subItem.tKey ?? subItem.name)}
                               <span
                                 className={`flex items-center gap-1 ${dir === 'ltr' ? 'ml-auto' : 'mr-auto'}`}
                               >
@@ -665,36 +604,24 @@ const AppSidebar: React.FC = () => {
       <div className="flex flex-col overflow-y-auto duration-300 ease-linear no-scrollbar">
         <nav className="mb-6">
           <div className="flex flex-col gap-4">
-            <div>
-              <h2
-                className={`mb-4 text-xs uppercase flex leading-[20px] text-gray-400 ${
-                  !isExpanded && !isHovered
-                    ? 'lg:justify-center'
-                    : 'justify-start'
-                }`}
-              >
-                {isExpanded || isHovered || isMobileOpen ? null : (
-                  <HorizontaLDots className="size-6" />
-                )}
-              </h2>
-              {renderMenuItems(navItems, 'main')}
-            </div>
-            {hasAdminPermissions && (
-              <div className="">
+            {sections.map((section) => (
+              <div key={section.key}>
                 <h2
-                  className={`mb-4 text-xs uppercase flex leading-[20px] text-gray-400 ${
-                    !isExpanded && !isHovered
+                  className={`mb-3 text-xs uppercase flex leading-[20px] text-gray-400 ${
+                    !isExpanded && !isHovered && !isMobileOpen
                       ? 'lg:justify-center'
                       : 'justify-start'
                   }`}
                 >
-                  {isExpanded || isHovered || isMobileOpen ? null : (
-                    <HorizontaLDots />
-                  )}
+                  {isExpanded || isHovered || isMobileOpen ? (
+                    section.tKey ? t(section.tKey) : null
+                  ) : section.tKey ? (
+                    <HorizontaLDots className="size-6" />
+                  ) : null}
                 </h2>
-                {renderMenuItems(adminItems, 'admin')}
+                {renderMenuItems(section.items, section.key)}
               </div>
-            )}
+            ))}
           </div>
         </nav>
       </div>

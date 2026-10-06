@@ -36,6 +36,9 @@ const Home = lazy(() => import('../pages/Dashboard/Home'));
 const CreateCompany = lazy(
   () => import('../pages/Recruiting/companies/createCompany')
 );
+const Departments = lazy(
+  () => import('../pages/Recruiting/departments/Departments')
+);
 const Companies = lazy(() => import('../pages/Recruiting/companies/Companies'));
 const PreviewCompany = lazy(
   () => import('../pages/Recruiting/companies/PreviewCompany')
@@ -256,6 +259,7 @@ export default function App() {
               </Route>
               {/* Companies */}
               <Route path={paths.companies.root} element={<Companies />} />
+              <Route path={paths.companies.departments} element={<Departments />} />
               <Route
                 path={patterns.companies.preview}
                 element={<PreviewCompany />}

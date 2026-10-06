@@ -3,9 +3,9 @@
   "applicants": "Applicants",
   "allApplicants": "All Applicants",
   "blueCallerApplicants": "Add Applicants",
-  "mailPreview": "Mail Preview",
-  "jobOffers": "Job Offers",
-  "jobContracts": "Job Contracts",
+  "mailPreview": "Mail Inbox",
+  "jobOffers": "Offers",
+  "jobContracts": "Contracts",
   "companySettings": "Company Settings",
   "createCompany": "Create Company",
   "companies": "Companies",
@@ -35,5 +35,14 @@
   "myCommissions": "My Commissions",
   "myRedemptions": "My Redemptions",
   "new": "new",
-  "pro": "pro"
+  "pro": "pro",
+  "importApplicants": "Import Applicants",
+  "departments": "Departments",
+  "sectionRecruiting": "Recruiting",
+  "sectionCommunication": "Communication",
+  "sectionOrganization": "Organization",
+  "sectionConfiguration": "Configuration",
+  "sectionBilling": "Billing & Growth",
+  "sectionPlatform": "Platform Admin",
+  "jobsHiring": "Jobs & Hiring"
 }

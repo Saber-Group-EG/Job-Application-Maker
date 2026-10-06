@@ -3,9 +3,9 @@
   "applicants": "المتقدمون",
   "allApplicants": "جميع المتقدمين",
   "blueCallerApplicants": "إضافة متقدمين",
-  "mailPreview": "معاينة البريد",
-  "jobOffers": "عروض العمل",
-  "jobContracts": "عقود العمل",
+  "mailPreview": "صندوق البريد",
+  "jobOffers": "العروض",
+  "jobContracts": "العقود",
   "companySettings": "إعدادات الشركة",
   "companyUsage": "استخدام الشركة",
   "createCompany": "إنشاء شركة",
@@ -35,5 +35,14 @@
   "myCommissions": "عمولاتي",
   "myRedemptions": "استخدامات رموزي",
   "new": "جديد",
-  "pro": "احترافي"
+  "pro": "احترافي",
+  "importApplicants": "استيراد المتقدمين",
+  "departments": "الأقسام",
+  "sectionRecruiting": "التوظيف",
+  "sectionCommunication": "التواصل",
+  "sectionOrganization": "المؤسسة",
+  "sectionConfiguration": "الإعدادات",
+  "sectionBilling": "الفوترة والنمو",
+  "sectionPlatform": "إدارة المنصة",
+  "jobsHiring": "التوظيف والوظائف"
 }
