@@ -63,5 +63,9 @@
   "workHours": "ساعات العمل",
   "status": "الحالة",
   "overview": "نظرة عامة",
-  "summaryPending": "قيد الانتظار"
+  "summaryPending": "قيد الانتظار",
+  "tabOffers": "العروض",
+  "tabTemplates": "القوالب",
+  "selectCompanyForTemplates": "اختر شركة من الشريط العلوي لإدارة قوالبها.",
+  "jobOffersSections": "أقسام العروض"
 }

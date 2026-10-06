@@ -216,5 +216,8 @@
   "locationNumber": "الموقع {n}",
   "openInMaps": "فتح في خرائط Google",
   "companyDescAr": "الوصف (بالعربية)",
-  "companyDescArPlaceholder": "نبذة قصيرة عن الشركة"
+  "companyDescArPlaceholder": "نبذة قصيرة عن الشركة",
+  "tabSendersDomain": "المرسلون والنطاق",
+  "tabEmailTemplates": "قوالب البريد",
+  "mailSettingsSections": "أقسام إعدادات البريد"
 }

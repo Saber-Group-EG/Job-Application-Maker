@@ -395,5 +395,12 @@
   "whatsappNoPhone": "No valid phone number",
   "whatsappDone": "Done",
   "whatsappOpened": "WhatsApp opened with your message. Press send there.",
-  "whatsappNeedsPhone": "This applicant has no valid phone number for WhatsApp."
+  "whatsappNeedsPhone": "This applicant has no valid phone number for WhatsApp.",
+  "documentEditorHint": "Type directly on the page. This is exactly how the document will print. Switch EN / عربي to write each language.",
+  "positionPlaceholder": "Position title",
+  "sectionTitlePlaceholder": "Section title",
+  "itemPlaceholder": "Type a line…",
+  "commissionLabelPlaceholder": "Commission name",
+  "conditionPlaceholder": "Condition (optional)",
+  "notesPlaceholderDoc": "Add notes…"
 }

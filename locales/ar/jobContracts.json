@@ -54,5 +54,9 @@
   "deleteConfirm": "حذف",
   "salary": "الراتب",
   "status": "الحالة",
-  "email": "البريد الإلكتروني"
+  "email": "البريد الإلكتروني",
+  "tabContracts": "العقود",
+  "tabTemplates": "القوالب",
+  "selectCompanyForTemplates": "اختر شركة من الشريط العلوي لإدارة قوالبها.",
+  "jobContractsSections": "أقسام العقود"
 }

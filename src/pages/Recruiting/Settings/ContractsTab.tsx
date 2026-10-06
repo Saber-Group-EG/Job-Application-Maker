@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import {
   FileSignature,
   PlusCircle,
@@ -19,7 +19,7 @@ import type {
   JobContract,
   ContractType,
 } from '../../../services/contractsService';
-import JobContractModal from '../../../components/modals/ContractModal/ContractModal';
+import { useOpenContractEditor } from '../documentEditor/editorNavigation';
 import { Button } from '../../../components/ui/kit';
 import type { BadgeTone } from '../../../components/ui/kit';
 import SettingsSection from './components/SettingsSection';
@@ -137,18 +137,14 @@ export default function ContractTemplatesTab({
   const deleteMutation = useDeleteJobContract();
   const updateContractSections = useUpdateContractSectionTemplates();
 
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [editingContract, setEditingContract] = useState<JobContract | null>(
-    null
-  );
+  const openContractEditor = useOpenContractEditor();
 
   const openCreate = () => {
-    setEditingContract(null);
-    setDrawerOpen(true);
+    if (companyId) openContractEditor({ mode: 'template', companyId });
   };
   const openEdit = (contract: JobContract) => {
-    setEditingContract(contract);
-    setDrawerOpen(true);
+    if (companyId)
+      openContractEditor({ mode: 'template', companyId, editing: contract });
   };
   const handleClone = async (id: string) => {
     await cloneMutation.mutateAsync(id);
@@ -226,16 +222,6 @@ export default function ContractTemplatesTab({
         onSave={handleSaveSections}
         isSaving={updateContractSections.isPending}
       />
-
-      {companyId && (
-        <JobContractModal
-          isOpen={drawerOpen}
-          onClose={() => setDrawerOpen(false)}
-          mode="template"
-          companyId={companyId}
-          editing={editingContract}
-        />
-      )}
     </SettingsSection>
   );
 }

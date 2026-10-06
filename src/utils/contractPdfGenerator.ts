@@ -1,5 +1,6 @@
 // contractPdfGenerator.ts
 import { JobContract, BilingualField } from '../services/contractsService';
+import { contractTypeLabel } from './documentLabels';
 
 interface ContractPDFOptions {
   contract: JobContract;
@@ -68,7 +69,7 @@ export const generateContractPDF = async ({ contract, lang = 'en', companyName =
     : null;
 
   const position = pick(contract.position, lang);
-  const contractType = contract.contractType?.replace(/-/g, ' ') || '—';
+  const contractType = contractTypeLabel(contract.contractType, lang);
   const startDate = formatDateLocale(contract.startDate, lang);
   const endDate = formatDateLocale(contract.endDate, lang);
   const probationPeriod = contract.probationPeriod;
@@ -79,27 +80,18 @@ export const generateContractPDF = async ({ contract, lang = 'en', companyName =
   // Build benefits HTML (RTL-aware table headers)
   let benefitsHTML = '';
   if (contract.benefits && contract.benefits.length > 0) {
+    const th = (label: string, align: string) => `<th style="background: #242B32; color: white; padding: 10px 8px; font-weight: 700; font-size: 10pt; border: 1px solid #1a1f24; text-align: ${align};">${label}</th>`;
     benefitsHTML = '<table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 9pt;"><thead><tr>';
-    if (isRTL) {
-      // For RTL: Value column first (right), then Benefit column (left)
-      benefitsHTML += `<th style="background: #242B32; color: white; padding: 10px 8px; font-weight: 700; font-size: 10pt; border: 1px solid #1a1f24; text-align: center;">${lang === 'ar' ? 'القيمة' : 'Value'}</th>`;
-      benefitsHTML += `<th style="background: #242B32; color: white; padding: 10px 8px; font-weight: 700; font-size: 10pt; border: 1px solid #1a1f24; text-align: center;">${lang === 'ar' ? 'الميزة' : 'Benefit'}</th>`;
-    } 
+    benefitsHTML += th(lang === 'ar' ? 'الميزة' : 'Benefit', 'start');
+    benefitsHTML += th(lang === 'ar' ? 'القيمة' : 'Value', 'end');
     benefitsHTML += '</tr></thead><tbody>';
-    
+
     for (const benefit of contract.benefits) {
       const label = pick(benefit.label, lang);
       const value = pick(benefit.value, lang);
       benefitsHTML += '<tr>';
-      if (isRTL) {
-        // For RTL: Value first, then Benefit
-        benefitsHTML += `<td style="padding: 10px 8px; border-bottom: 1px solid #e0e0e0; text-align: center; font-weight: 500;">${escapeHtml(value)}</td>`;
-        benefitsHTML += `<td style="padding: 10px 8px; border-bottom: 1px solid #e0e0e0; text-align: center;"><strong>${escapeHtml(label)}</strong></td>`;
-      } else {
-        // For LTR: Benefit first, then Value
-        benefitsHTML += `<td style="padding: 10px 8px; border-bottom: 1px solid #e0e0e0;"><strong>${escapeHtml(label)}</strong></td>`;
-        benefitsHTML += `<td style="padding: 10px 8px; text-align: right; border-bottom: 1px solid #e0e0e0; font-weight: 500;">${escapeHtml(value)}</td>`;
-      }
+      benefitsHTML += `<td style="padding: 10px 8px; border-bottom: 1px solid #e0e0e0; text-align: start;"><strong>${escapeHtml(label)}</strong></td>`;
+      benefitsHTML += `<td style="padding: 10px 8px; text-align: end; border-bottom: 1px solid #e0e0e0; font-weight: 500;">${escapeHtml(value)}</td>`;
       benefitsHTML += '</tr>';
     }
     benefitsHTML += '</tbody></table>';

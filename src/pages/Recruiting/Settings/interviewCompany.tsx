@@ -9,9 +9,7 @@ import {
   X,
   CircleCheckBig,
   Settings,
-  Mail,
   Layout,
-  FileText,
   Sparkles,
   ChevronDown,
   ChevronRight,
@@ -67,7 +65,6 @@ import {
 import { queryClient } from '../../../lib/queryClient';
 import RejectionTab from './Rejectiontab';
 import StatusSettings from './StatusSettings';
-import EmailTemplates from './MailTemplate';
 import type {
   InterviewAnswerType,
   InterviewGroup,
@@ -79,8 +76,6 @@ import {
   normalizeChoicesToServer,
 } from '../../../services/companiesService';
 import ApplicantPagesSettings from './ApplicantsPagesTab';
-import JobOffersTab from './JobOffersTab';
-import ContractsTab from './ContractsTab';
 import { useJobPositions } from '../../../hooks/queries';
 import AiFeaturesTab from './AiFeaturesTab';
 
@@ -892,20 +887,14 @@ export default function InterviewCompanySettingsPage() {
     | 'interview-groups'
     | 'rejection-reasons'
     | 'lead-statuses'
-    | 'email-templates'
     | 'applicant-pages'
-    | 'job-offers'
-    | 'contracts'
     | 'ai-features'
   >('interview-groups');
 
   const isInterviewGroupsTab = activeTab === 'interview-groups';
   const isRejectionTab = activeTab === 'rejection-reasons';
   const isApplicantStatusTab = activeTab === 'lead-statuses';
-  const isEmailTemplatesTab = activeTab === 'email-templates';
   const isApplicantPagesTab = activeTab === 'applicant-pages';
-  const isOffersTab = activeTab === 'job-offers';
-  const isContractsTab = activeTab === 'contracts';
   const isAiFeaturesTab = activeTab === 'ai-features';
 
   const updateInterviewMutation = useUpdateCompanyInterviewSettings();
@@ -1308,10 +1297,7 @@ export default function InterviewCompanySettingsPage() {
     { value: 'interview-groups' as const, label: t('interviewCompany.tabInterviewGroups', 'settings'), icon: <ClipboardList className="size-4" /> },
     { value: 'rejection-reasons' as const, label: t('interviewCompany.tabRejectionReasons', 'settings'), icon: <Ban className="size-4" /> },
     { value: 'lead-statuses' as const, label: t('interviewCompany.tabStatuses', 'settings'), icon: <Settings className="size-4" /> },
-    { value: 'email-templates' as const, label: t('interviewCompany.tabEmailTemplates', 'settings'), icon: <Mail className="size-4" /> },
     { value: 'applicant-pages' as const, label: t('interviewCompany.tabApplicantPages', 'settings'), icon: <Layout className="size-4" /> },
-    { value: 'job-offers' as const, label: t('interviewCompany.tabOfferTemplates', 'settings'), icon: <FileText className="size-4" /> },
-    { value: 'contracts' as const, label: t('interviewCompany.tabContractTemplates', 'settings'), icon: <FileText className="size-4" /> },
     { value: 'ai-features' as const, label: t('interviewCompany.tabAiFeatures', 'settings'), icon: <Sparkles className="size-4" /> },
   ];
 
@@ -1603,23 +1589,9 @@ export default function InterviewCompanySettingsPage() {
                 <RejectionTab embedded />
               ) : isApplicantStatusTab ? (
                 <StatusSettings embedded />
-              ) : isEmailTemplatesTab ? (
-                <EmailTemplates embedded />
               ) : isApplicantPagesTab ? (
                 <ApplicantPagesSettings
                   companyId={effectiveCompanyId}
-                  hideCompanySelector={true}
-                  embedded
-                />
-              ) : isContractsTab ? (
-                <ContractsTab
-                  companyId={effectiveCompanyId!}
-                  hideCompanySelector={true}
-                  embedded
-                />
-              ) : isOffersTab ? (
-                <JobOffersTab
-                  companyId={effectiveCompanyId!}
                   hideCompanySelector={true}
                   embedded
                 />
