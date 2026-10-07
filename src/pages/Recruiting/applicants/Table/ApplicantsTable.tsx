@@ -19,6 +19,7 @@ import { paths } from '../../../../router/Paths';
 // Components
 import PageMeta from '../../../../components/common/PageMeta';
 import BulkMessageModal from '../../../../components/modals/BulkMessageModal';
+import BulkWhatsAppModal from '../../../../components/modals/BulkWhatsAppModal';
 import InterviewScheduleModal from '../../../../components/modals/InterviewScheduleModal';
 import StatusChangeModal from '../../../../components/modals/StatusChangeModal';
 import CustomFilterModal from '../../../../components/modals/CustomFilterModal';
@@ -1316,6 +1317,7 @@ export default function Applicants({
 
   const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null);
   const [customFilterOpen, setCustomFilterOpen] = useState(false);
+  const [showBulkWhatsApp, setShowBulkWhatsApp] = useState(false);
   // const [isExporting, setIsExporting] = useState(false);  // Applicant export is disabled system-wide.
   const mountedRef = useRef(true);
 
@@ -3360,6 +3362,9 @@ export default function Applicants({
                       <Button size="sm" icon={<Mail className="size-4" />} onClick={() => setShowBulkModal(true)} disabled={isProcessing || selectedApplicantRecipients.length === 0}>
                         {`${t('sendMail', 'applicants')} (${selectedApplicantRecipients.length})`}
                       </Button>
+                      <Button size="sm" onClick={() => setShowBulkWhatsApp(true)} disabled={selectedApplicantCount === 0}>
+                        {`${t('whatsapp', 'modals')} (${selectedApplicantCount})`}
+                      </Button>
                       <Button
                         size="sm"
                         icon={<CalendarClock className="size-4" />}
@@ -3395,6 +3400,12 @@ export default function Applicants({
                     <MaterialReactTable table={table} />
                   </div>
                 )}
+
+                <BulkWhatsAppModal
+                  isOpen={showBulkWhatsApp}
+                  onClose={() => setShowBulkWhatsApp(false)}
+                  applicants={selectedApplicants}
+                />
 
                 <BulkMessageModal
                   isOpen={showBulkModal}

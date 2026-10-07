@@ -402,5 +402,14 @@
   "itemPlaceholder": "Type a line…",
   "commissionLabelPlaceholder": "Commission name",
   "conditionPlaceholder": "Condition (optional)",
-  "notesPlaceholderDoc": "Add notes…"
+  "notesPlaceholderDoc": "Add notes…",
+  "bulkWhatsappTitle": "WhatsApp to selected applicants",
+  "bulkWhatsappIntro": "Write one message, then press the button next to each person. It opens your WhatsApp with their personalised message typed in; you press send there. Each message is saved on the applicant.",
+  "bulkWhatsappMessage": "Message",
+  "bulkWhatsappPlaceholder": "Hello {name}, thank you for applying for {job}...",
+  "bulkWhatsappVariables": "Placeholders: {name} first name, {fullName} full name, {job} job title.",
+  "bulkWhatsappProgress": "Opened {sent} of {total}",
+  "bulkWhatsappNoPhone": "No valid phone number",
+  "bulkWhatsappOpen": "Open WhatsApp",
+  "bulkWhatsappSent": "Opened"
 }

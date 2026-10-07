@@ -402,5 +402,14 @@
   "itemPlaceholder": "اكتب سطراً…",
   "commissionLabelPlaceholder": "اسم العمولة",
   "conditionPlaceholder": "الشرط (اختياري)",
-  "notesPlaceholderDoc": "أضف ملاحظات…"
+  "notesPlaceholderDoc": "أضف ملاحظات…",
+  "bulkWhatsappTitle": "واتساب للمتقدمين المحددين",
+  "bulkWhatsappIntro": "اكتب رسالة واحدة ثم اضغط الزر بجانب كل شخص. يفتح واتساب لديك والرسالة المخصصة مكتوبة له، وتضغط إرسال هناك. تُحفظ كل رسالة في ملف المتقدم.",
+  "bulkWhatsappMessage": "الرسالة",
+  "bulkWhatsappPlaceholder": "مرحباً {name}، شكراً لتقديمك على وظيفة {job}...",
+  "bulkWhatsappVariables": "المتغيرات: {name} الاسم الأول، {fullName} الاسم الكامل، {job} المسمى الوظيفي.",
+  "bulkWhatsappProgress": "تم فتح {sent} من {total}",
+  "bulkWhatsappNoPhone": "لا يوجد رقم هاتف صالح",
+  "bulkWhatsappOpen": "فتح واتساب",
+  "bulkWhatsappSent": "تم الفتح"
 }
