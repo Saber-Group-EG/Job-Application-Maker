@@ -18,6 +18,8 @@
   "yesterday": "yesterday",
   "daysAgo": "{days} days ago",
   "selectCompany": "Select a company to view dashboard",
+  "sourcesTitle": "Where applicants come from",
+  "sourcesWindow": "Last {days} days · {total} applicants",
   "noData": "No data yet",
   "viewAll": "View all",
   "attentionTitle": "Needs attention",

@@ -14,6 +14,7 @@ export interface DashboardOverview {
     contractsAwaiting?: number;
   };
   trend: { days: number; series: { date: string; count: number }[]; current: number; previous: number } | null;
+  sources: { days: number; total: number; items: { channel: string; count: number }[] } | null;
   jobs:
     | {
         _id: string;

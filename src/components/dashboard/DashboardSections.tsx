@@ -14,6 +14,7 @@ import {
   FileSignature,
   FileText,
   Gauge,
+  Share2,
   Inbox,
   MessageSquare,
   Timer,
@@ -28,6 +29,7 @@ import { useDashboardOverview } from '../../hooks/queries/useDashboard';
 import type { DashboardOverview } from '../../services/dashboardService';
 import { paths } from '../../router/Paths';
 import { toPlainString } from '../../utils/strings';
+import { formatSourceLabel } from '../../utils/publicJobLinks';
 
 const Chart = lazy(() => import('react-apexcharts'));
 
@@ -209,6 +211,48 @@ function ApplicationsTrend({ data, loading, days, onDaysChange }: { data?: Dashb
 }
 
 // ─── Jobs pipeline ─────────────────────────────────────────────────────────
+
+function ApplicantSources({ data, loading, days }: { data?: DashboardOverview['sources']; loading: boolean; days: number }) {
+  const { t } = useLocale();
+  const items = data?.items ?? [];
+  const max = Math.max(1, ...items.map((i) => i.count));
+  const label = (channel: string) => (channel === '__none' ? t('sourceUnknown', 'applicants') : formatSourceLabel(channel));
+
+  return (
+    <Card title={t('sourcesTitle', 'home')} icon={<Share2 className="size-4" />}>
+      {loading && !data ? (
+        <Skeleton rows={4} />
+      ) : !data || data.total === 0 ? (
+        <Empty text={t('noData', 'home')} />
+      ) : (
+        <>
+          <ul className="space-y-3">
+            {items.map((item) => {
+              const share = Math.round((item.count / data.total) * 100);
+              return (
+                <li key={item.channel}>
+                  <div className="mb-1 flex items-center justify-between gap-3 text-sm">
+                    <span className="truncate font-medium text-slate-800 dark:text-slate-100">{label(item.channel)}</span>
+                    <span className="shrink-0 tabular-nums text-slate-500 dark:text-slate-400">
+                      {item.count} · {share}%
+                    </span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                    <div
+                      className="h-full rounded-full bg-brand-500"
+                      style={{ width: `${Math.max(2, (item.count / max) * 100)}%` }}
+                    />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">{t('sourcesWindow', 'home', { days, total: data.total })}</p>
+        </>
+      )}
+    </Card>
+  );
+}
 
 function JobsPipeline({ data, loading, showCompany, companyName }: { data?: DashboardOverview['jobs']; loading: boolean; showCompany: boolean; companyName: (id: string) => string }) {
   const { t, locale } = useLocale();
@@ -449,6 +493,7 @@ export default function DashboardSections({ companyIds, companies }: { companyId
         <NeedsAttention data={data?.attention} loading={isLoading} />
         <ApplicationsTrend data={data?.trend} loading={isLoading} days={days} onDaysChange={setDays} />
       </div>
+      {data?.sources !== null && <ApplicantSources data={data?.sources} loading={isLoading} days={days} />}
       {data?.jobs !== null && (
         <JobsPipeline data={data?.jobs} loading={isLoading} showCompany={showCompany} companyName={companyName} />
       )}

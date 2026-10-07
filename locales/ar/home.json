@@ -18,6 +18,8 @@
   "yesterday": "أمس",
   "daysAgo": "منذ {days} أيام",
   "selectCompany": "اختر شركة لعرض لوحة التحكم",
+  "sourcesTitle": "من أين يأتي المتقدمون",
+  "sourcesWindow": "آخر {days} يومًا · {total} متقدم",
   "noData": "لا توجد بيانات بعد",
   "viewAll": "عرض الكل",
   "attentionTitle": "يحتاج إلى متابعة",
