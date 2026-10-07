@@ -969,3 +969,8 @@ span.flatpickr-weekday,
 .dark .rich-text-editor .ql-editor.ql-blank::before {
   color: #6b7280;
 }
+
+/* Popups (SweetAlert) must appear above app modals, which sit at z-index 99999. */
+.swal2-container {
+  z-index: 100000 !important;
+}
