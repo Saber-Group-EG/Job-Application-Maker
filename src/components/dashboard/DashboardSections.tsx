@@ -89,7 +89,8 @@ function NeedsAttention({ data, loading }: { data?: DashboardOverview['attention
     { key: 'interviewsToday', icon: <CalendarClock className="size-4" />, label: t('attentionInterviewsToday', 'home'), to: '#my-interviews' },
     { key: 'unassignedReplies', icon: <Inbox className="size-4" />, label: t('attentionUnassigned', 'home'), to: `${paths.applicants.mailPreview}?folder=unassigned` },
     { key: 'offersAwaiting', icon: <FileText className="size-4" />, label: t('attentionOffers', 'home'), to: paths.jobs.offers },
-    { key: 'contractsAwaiting', icon: <FileSignature className="size-4" />, label: t('attentionContracts', 'home'), to: paths.jobs.contracts },
+    // Hidden: this system has no contract signatures to wait for.
+    // { key: 'contractsAwaiting', icon: <FileSignature className="size-4" />, label: t('attentionContracts', 'home'), to: paths.jobs.contracts },
   ].filter((item) => data?.[item.key as keyof typeof data] !== undefined);
   const allClear = items.length > 0 && items.every((item) => !data?.[item.key as keyof typeof data]);
 
