@@ -64,6 +64,7 @@ const SURFACE = {
 };
 import { useOpenContractEditor, useOpenOfferEditor } from '../../documentEditor/editorNavigation';
 import { useApplicantMailCounts } from '../../../../hooks/queries/useMail';
+import { formatSourceLabel } from '../../../../utils/publicJobLinks';
 
 
 const APPLICANTS_DEFAULT_COLUMN_ORDER = [
@@ -77,6 +78,7 @@ const APPLICANTS_DEFAULT_COLUMN_ORDER = [
   'gender',
   'companyId',
   'jobPositionId',
+  'source',
   'expectedSalary',
   'sscore',
   'aiMatchScore',
@@ -86,6 +88,14 @@ const APPLICANTS_DEFAULT_COLUMN_ORDER = [
   'submittedAt',
   'actions',
 ];
+
+// Saved layouts predate newer columns; slot any that are missing into place.
+const withNewColumns = (order: string[]): string[] => {
+  if (order.includes('source')) return order;
+  const afterJob = order.indexOf('jobPositionId');
+  if (afterJob === -1) return [...order, 'source'];
+  return [...order.slice(0, afterJob + 1), 'source', ...order.slice(afterJob + 1)];
+};
 
 const APPLICANTS_DEFAULT_LAYOUT = {
   columnVisibility: { lastComment: false },
@@ -506,7 +516,7 @@ export default function Applicants({
   } = useAnimatedColumnDrag({
     columnOrder:
       Array.isArray(layout.columnOrder) && layout.columnOrder.length
-        ? layout.columnOrder
+        ? withNewColumns(layout.columnOrder)
         : APPLICANTS_DEFAULT_COLUMN_ORDER,
     onReorder: (nextOrder) => handleSaveLayout({ columnOrder: nextOrder }),
   });
@@ -819,6 +829,15 @@ export default function Applicants({
     ];
     return ordered.map((g) => ({ id: g, title: g }));
   }, [tableData?.genderOptions]);
+
+  const sourceOptions = useMemo(
+    () =>
+      (tableData?.sourceOptions ?? []).map((value: string) => ({
+        label: value === '__none' ? t('sourceUnknown', 'applicants') : formatSourceLabel(value),
+        value,
+      })),
+    [tableData?.sourceOptions, t]
+  );
 
   const jobOptions = useMemo(() => {
     const getIdValue = (v: any) =>
@@ -1198,6 +1217,7 @@ export default function Applicants({
       email: isLaptopViewport ? 200 : 280,
       phone: isLaptopViewport ? 86 : 110,
       gender: isLaptopViewport ? 70 : 90,
+      source: isLaptopViewport ? 96 : 120,
       companyId: isLaptopViewport ? 150 : 200,
       jobPositionId: isLaptopViewport ? 180 : 240,
       expectedSalary: isLaptopViewport ? 104 : 140,
@@ -2240,6 +2260,35 @@ export default function Applicants({
           );
         },
       },
+      {
+        id: 'source',
+        header: t('source', 'applicants'),
+        size: columnSizeConfig.source,
+        enableSorting: true,
+        accessorFn: (row: any) => row.source || '__none',
+        ...makeExcludableColumnProps('source', sourceOptions, false, t('source', 'applicants')),
+        filterFn: (row: any, columnId: string, filterValue: any) => {
+          if (!filterValue) return true;
+          const vals = Array.isArray(filterValue) ? filterValue : [filterValue];
+          if (!vals.length) return true;
+          const matches = vals.includes(String(row.getValue(columnId) ?? ''));
+          const isExclude = (layout.excludeColumns ?? []).includes('source');
+          return isExclude ? !matches : matches;
+        },
+        Cell: ({ row }: { row: { original: any } }) => {
+          if (isTableLoading) return renderCellSkeleton('text');
+          return (
+            <a
+              href={getApplicantHref(row)}
+              className="text-inherit no-underline hover:no-underline"
+              onClick={(e) => handleApplicantLinkClick(e, row)}
+              onAuxClick={handleApplicantLinkAuxClick}
+            >
+              {formatSourceLabel(row.original.source) || '-'}
+            </a>
+          );
+        },
+      },
       ...(showCompanyColumn
         ? [
             {
@@ -3001,7 +3050,7 @@ export default function Applicants({
       columnSizing: mergedColumnSizing,
       columnOrder:
         Array.isArray(layout.columnOrder) && layout.columnOrder.length
-          ? layout.columnOrder
+          ? withNewColumns(layout.columnOrder)
           : APPLICANTS_DEFAULT_COLUMN_ORDER,
     },
     onSortingChange: setSorting,

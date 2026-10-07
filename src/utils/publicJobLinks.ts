@@ -32,3 +32,12 @@ export const buildJobLink = (job: any, source?: string): string => {
   const url = `${CAREERS_BASE_URL}/${companySlug}/${jobSlug}`;
   return source ? `${url}?source=${encodeURIComponent(source)}` : url;
 };
+
+/** Display name for a stored source channel, e.g. "linkedin" -> "LinkedIn". */
+export const formatSourceLabel = (channel?: string | null): string => {
+  const value = String(channel || '').trim().toLowerCase();
+  if (!value) return '';
+  const known = SHARE_SOURCES.find((source) => source.value === value);
+  if (known) return known.label;
+  return value.charAt(0).toUpperCase() + value.slice(1);
+};

@@ -13,6 +13,7 @@ export interface ApplicantTableRow {
   email: string;
   phone: string;
   gender: string;
+  source?: string;
   companyId: string;
   jobPositionId: {
     _id: string;
@@ -58,6 +59,7 @@ export interface ApplicantTableResponse {
   ids: string[];
   facets: Record<string, Record<string, number>>;
   genderOptions: string[];
+  sourceOptions?: string[];
   jobCounts: Record<string, number>;
   rejectionReasonOptions: string[];
   statusValues: string[];

@@ -11,6 +11,8 @@
   "messages": "الرسائل",
   "phone": "الهاتف",
   "gender": "الجنس",
+  "source": "المصدر",
+  "sourceUnknown": "غير مسجّل",
   "company": "الشركة",
   "job": "الوظيفة",
   "jobPosition": "المسمى الوظيفي",
