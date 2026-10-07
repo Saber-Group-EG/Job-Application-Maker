@@ -35,7 +35,7 @@ import { useDebounce } from '../../../../hooks/useDebounce';
 import { useAnimatedColumnDrag } from '../../../../hooks/useAnimatedColumnDrag';
 
 // Utils
-import { exportToExcel } from './utils/exportHelpers';
+// import { exportToExcel } from './utils/exportHelpers';  // Applicant export is disabled system-wide.
 import { normalizeGender } from './utils/filterHelpers';
 import { isTrashed } from '../../../../pages/Recruiting/ApplicantPage/utils/statusUtils';
 import {
@@ -52,7 +52,7 @@ import {
 } from 'material-react-table';
 import { ThemeProvider, createTheme } from '@mui/material';
 import { Skeleton } from '@mui/material';
-import { Copy, Download, FileSignature, FileText, Mail, CalendarClock, RefreshCw, RotateCcw, Search, SlidersHorizontal, Trash2, X, ArrowRightLeft } from 'lucide-react';
+import { Copy, FileSignature, FileText, Mail, CalendarClock, RefreshCw, RotateCcw, Search, SlidersHorizontal, Trash2, X, ArrowRightLeft } from 'lucide-react';
 import { Button, Card, Dialog, IconButton, PageShell, focusRing, inputClass } from '../../../../components/ui/kit';
 
 // Table surface colours, matching the kit's slate palette.
@@ -1316,7 +1316,7 @@ export default function Applicants({
 
   const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null);
   const [customFilterOpen, setCustomFilterOpen] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
+  // const [isExporting, setIsExporting] = useState(false);  // Applicant export is disabled system-wide.
   const mountedRef = useRef(true);
 
   const hasInitialStatusFilter = useMemo(() => {
@@ -1411,93 +1411,95 @@ export default function Applicants({
     return () => clearInterval(id);
   }, [lastRefetch, t]);
 
-  const getExpectedSalaryDisplay = useCallback((applicant: any): string => {
-    const toText = (value: any): string => {
-      if (value === null || value === undefined) return '';
-      if (typeof value === 'string' || typeof value === 'number')
-        return String(value).trim();
-      if (Array.isArray(value))
-        return value.map(toText).filter(Boolean).join(', ');
-      if (typeof value === 'object') {
-        const answerValue = (value as any)?.Answer ?? (value as any)?.answer;
-        if (answerValue !== undefined) {
-          const nested = toText(answerValue);
-          if (nested) return nested;
-        }
-        const candidateKeys = [
-          'expectedSalary',
-          'salary',
-          'amount',
-          'value',
-          'val',
-          'answer',
-          'Answer',
-          'label',
-          'name',
-          'title',
-          'en',
-          'ar',
-          'text',
-        ];
-        for (const key of candidateKeys) {
-          if (Object.prototype.hasOwnProperty.call(value, key)) {
-            const nested = toText((value as any)[key]);
-            if (nested) return nested;
-          }
-        }
-      }
-      return '';
-    };
-    const directCandidates = [
-      applicant?.expectedSalary,
-      applicant?.expected_salary,
-      applicant?.salaryExpectation,
-      applicant?.desiredSalary,
-    ];
-    for (const candidate of directCandidates) {
-      const text = toText(candidate);
-      if (text) return text;
-    }
-    const responses =
-      applicant?.customResponses || applicant?.customFieldResponses || {};
-    const normalizeKey = (key: any) =>
-      String(key || '')
-        .replace(/[\s_-]+/g, '')
-        .toLowerCase();
-    const expectedKeyMatchers = [
-      'expectedsalary',
-      'salary',
-      'salaryexpectation',
-      'desiredsalary',
-      'الراتب',
-      'راتب',
-      'الراتبالمتوقع',
-    ];
-    for (const [key, value] of Object.entries(responses || {})) {
-      const normalized = normalizeKey(key);
-      const isSalaryKey = expectedKeyMatchers.some((matcher) =>
-        normalized.includes(normalizeKey(matcher))
-      );
-      if (!isSalaryKey) continue;
-      const text = toText(value);
-      if (text) return text;
-    }
-    return '-';
-  }, []);
+  // Only the disabled applicant export used this (the table gets values from the server).
+  // const getExpectedSalaryDisplay = useCallback((applicant: any): string => {
+  //   const toText = (value: any): string => {
+  //     if (value === null || value === undefined) return '';
+  //     if (typeof value === 'string' || typeof value === 'number')
+  //       return String(value).trim();
+  //     if (Array.isArray(value))
+  //       return value.map(toText).filter(Boolean).join(', ');
+  //     if (typeof value === 'object') {
+  //       const answerValue = (value as any)?.Answer ?? (value as any)?.answer;
+  //       if (answerValue !== undefined) {
+  //         const nested = toText(answerValue);
+  //         if (nested) return nested;
+  //       }
+  //       const candidateKeys = [
+  //         'expectedSalary',
+  //         'salary',
+  //         'amount',
+  //         'value',
+  //         'val',
+  //         'answer',
+  //         'Answer',
+  //         'label',
+  //         'name',
+  //         'title',
+  //         'en',
+  //         'ar',
+  //         'text',
+  //       ];
+  //       for (const key of candidateKeys) {
+  //         if (Object.prototype.hasOwnProperty.call(value, key)) {
+  //           const nested = toText((value as any)[key]);
+  //           if (nested) return nested;
+  //         }
+  //       }
+  //     }
+  //     return '';
+  //   };
+  //   const directCandidates = [
+  //     applicant?.expectedSalary,
+  //     applicant?.expected_salary,
+  //     applicant?.salaryExpectation,
+  //     applicant?.desiredSalary,
+  //   ];
+  //   for (const candidate of directCandidates) {
+  //     const text = toText(candidate);
+  //     if (text) return text;
+  //   }
+  //   const responses =
+  //     applicant?.customResponses || applicant?.customFieldResponses || {};
+  //   const normalizeKey = (key: any) =>
+  //     String(key || '')
+  //       .replace(/[\s_-]+/g, '')
+  //       .toLowerCase();
+  //   const expectedKeyMatchers = [
+  //     'expectedsalary',
+  //     'salary',
+  //     'salaryexpectation',
+  //     'desiredsalary',
+  //     'الراتب',
+  //     'راتب',
+  //     'الراتبالمتوقع',
+  //   ];
+  //   for (const [key, value] of Object.entries(responses || {})) {
+  //     const normalized = normalizeKey(key);
+  //     const isSalaryKey = expectedKeyMatchers.some((matcher) =>
+  //       normalized.includes(normalizeKey(matcher))
+  //     );
+  //     if (!isSalaryKey) continue;
+  //     const text = toText(value);
+  //     if (text) return text;
+  //   }
+  //   return '-';
+  // }, []);
 
-  const resolveAnyId = useCallback((value: any): string => {
-    if (!value) return '';
-    if (typeof value === 'string' || typeof value === 'number')
-      return String(value);
-    if (typeof value === 'object') {
-      const nested = value._id ?? value.id ?? value.jobSpecId ?? value.specId;
-      if (nested === undefined || nested === null) return '';
-      if (typeof nested === 'string' || typeof nested === 'number')
-        return String(nested);
-      return String((nested as any)?._id ?? (nested as any)?.id ?? '');
-    }
-    return '';
-  }, []);
+  // Only the disabled applicant export used this (the table gets values from the server).
+  // const resolveAnyId = useCallback((value: any): string => {
+  //   if (!value) return '';
+  //   if (typeof value === 'string' || typeof value === 'number')
+  //     return String(value);
+  //   if (typeof value === 'object') {
+  //     const nested = value._id ?? value.id ?? value.jobSpecId ?? value.specId;
+  //     if (nested === undefined || nested === null) return '';
+  //     if (typeof nested === 'string' || typeof nested === 'number')
+  //       return String(nested);
+  //     return String((nested as any)?._id ?? (nested as any)?.id ?? '');
+  //   }
+  //   return '';
+  // }, []);
 
   const parseComparableNumber = useCallback((value: any): number | null => {
     if (value === null || value === undefined || value === '') return null;
@@ -1573,159 +1575,160 @@ export default function Applicants({
     return Math.max(...nums);
   }, []);
 
-  const getApplicantSScore = useCallback(
-    (applicant: any): number | null => {
-      const parseAnswer = (value: any): boolean => {
-        if (typeof value === 'boolean') return value;
-        if (typeof value === 'number') return value > 0;
-        if (typeof value === 'string') {
-          const normalized = value.trim().toLowerCase();
-          if (
-            [
-              'true',
-              '1',
-              'yes',
-              'y',
-              'accepted',
-              'met',
-              'pass',
-              'passed',
-            ].includes(normalized)
-          )
-            return true;
-          if (
-            ['false', '0', 'no', 'n', 'rejected', 'failed', 'not met'].includes(
-              normalized
-            )
-          )
-            return false;
-        }
-        return Boolean(value);
-      };
-      const getApplicantSpecResponses = (): any[] => {
-        if (
-          Array.isArray(applicant?.jobSpecsWithDetails) &&
-          applicant.jobSpecsWithDetails.length
-        )
-          return applicant.jobSpecsWithDetails;
-        if (
-          Array.isArray(applicant?.jobSpecsResponses) &&
-          applicant.jobSpecsResponses.length
-        )
-          return applicant.jobSpecsResponses;
-        if (Array.isArray(applicant?.jobSpecs) && applicant.jobSpecs.length)
-          return applicant.jobSpecs;
-        if (
-          typeof applicant?.jobPositionId === 'object' &&
-          applicant.jobPositionId
-        ) {
-          if (
-            Array.isArray(applicant.jobPositionId.jobSpecsWithDetails) &&
-            applicant.jobPositionId.jobSpecsWithDetails.length
-          )
-            return applicant.jobPositionId.jobSpecsWithDetails;
-          if (
-            Array.isArray(applicant.jobPositionId.jobSpecsResponses) &&
-            applicant.jobPositionId.jobSpecsResponses.length
-          )
-            return applicant.jobPositionId.jobSpecsResponses;
-          if (
-            Array.isArray(applicant.jobPositionId.jobSpecs) &&
-            applicant.jobPositionId.jobSpecs.length
-          )
-            return applicant.jobPositionId.jobSpecs;
-        }
-        return [];
-      };
-      const getJobSpecs = (): any[] => {
-        const rawJob = applicant?.jobPositionId;
-        const jobId = resolveAnyId(rawJob);
-        const mapped = jobId ? jobPositionMap[jobId] : undefined;
-        const source =
-          mapped ||
-          (typeof rawJob === 'object' ? rawJob : undefined) ||
-          applicant?.jobPosition;
-        if (
-          source &&
-          Array.isArray(source.jobSpecsWithDetails) &&
-          source.jobSpecsWithDetails.length
-        )
-          return source.jobSpecsWithDetails;
-        if (source && Array.isArray(source.jobSpecs) && source.jobSpecs.length)
-          return source.jobSpecs;
-        const fallbackSpecs = getApplicantSpecResponses();
-        return Array.isArray(fallbackSpecs) ? fallbackSpecs : [];
-      };
-      const specs = getJobSpecs();
-      if (!specs.length) return null;
-      const applicantResponses = getApplicantSpecResponses();
-      const answerById: Record<string, boolean> = {};
-      applicantResponses.forEach((entry: any) => {
-        if (!entry || typeof entry !== 'object') return;
-        const answerRaw =
-          entry.answer ??
-          entry.accepted ??
-          entry.isAccepted ??
-          entry.met ??
-          entry.match ??
-          entry.selected;
-        const answer = parseAnswer(answerRaw);
-        [entry.jobSpecId, entry.specId, entry._id, entry.id]
-          .map((id) => resolveAnyId(id))
-          .filter(Boolean)
-          .forEach((id) => {
-            answerById[id] = answer;
-          });
-      });
-      let totalWeight = 0,
-        acceptedWeight = 0,
-        totalCount = 0,
-        acceptedCount = 0;
-      specs.forEach((spec: any) => {
-        totalCount += 1;
-        const rawWeight = Number(spec?.weight ?? 0);
-        const weight =
-          Number.isFinite(rawWeight) && rawWeight > 0 ? rawWeight : 0;
-        totalWeight += weight;
-        const specIds = [spec?.jobSpecId, spec?.specId, spec?._id, spec?.id]
-          .map((id) => resolveAnyId(id))
-          .filter(Boolean);
-        let accepted: boolean | undefined;
-        for (const specId of specIds) {
-          if (answerById[specId] !== undefined) {
-            accepted = answerById[specId];
-            break;
-          }
-        }
-        if (accepted === undefined) {
-          const fallback = applicantResponses.find(
-            (_: any, idx: number) => idx === specs.indexOf(spec)
-          );
-          if (fallback !== undefined) {
-            const fallbackRaw =
-              fallback?.answer ??
-              fallback?.accepted ??
-              fallback?.isAccepted ??
-              fallback?.met ??
-              fallback?.match ??
-              fallback?.selected;
-            accepted = parseAnswer(fallbackRaw);
-          } else {
-            accepted = false;
-          }
-        }
-        if (accepted) {
-          acceptedCount += 1;
-          acceptedWeight += weight;
-        }
-      });
-      if (totalWeight > 0)
-        return Math.round((acceptedWeight / totalWeight) * 100);
-      if (totalCount > 0) return Math.round((acceptedCount / totalCount) * 100);
-      return null;
-    },
-    [jobPositionMap, resolveAnyId]
-  );
+  // Only the disabled applicant export used this (the table gets values from the server).
+  // const getApplicantSScore = useCallback(
+  //   (applicant: any): number | null => {
+  //     const parseAnswer = (value: any): boolean => {
+  //       if (typeof value === 'boolean') return value;
+  //       if (typeof value === 'number') return value > 0;
+  //       if (typeof value === 'string') {
+  //         const normalized = value.trim().toLowerCase();
+  //         if (
+  //           [
+  //             'true',
+  //             '1',
+  //             'yes',
+  //             'y',
+  //             'accepted',
+  //             'met',
+  //             'pass',
+  //             'passed',
+  //           ].includes(normalized)
+  //         )
+  //           return true;
+  //         if (
+  //           ['false', '0', 'no', 'n', 'rejected', 'failed', 'not met'].includes(
+  //             normalized
+  //           )
+  //         )
+  //           return false;
+  //       }
+  //       return Boolean(value);
+  //     };
+  //     const getApplicantSpecResponses = (): any[] => {
+  //       if (
+  //         Array.isArray(applicant?.jobSpecsWithDetails) &&
+  //         applicant.jobSpecsWithDetails.length
+  //       )
+  //         return applicant.jobSpecsWithDetails;
+  //       if (
+  //         Array.isArray(applicant?.jobSpecsResponses) &&
+  //         applicant.jobSpecsResponses.length
+  //       )
+  //         return applicant.jobSpecsResponses;
+  //       if (Array.isArray(applicant?.jobSpecs) && applicant.jobSpecs.length)
+  //         return applicant.jobSpecs;
+  //       if (
+  //         typeof applicant?.jobPositionId === 'object' &&
+  //         applicant.jobPositionId
+  //       ) {
+  //         if (
+  //           Array.isArray(applicant.jobPositionId.jobSpecsWithDetails) &&
+  //           applicant.jobPositionId.jobSpecsWithDetails.length
+  //         )
+  //           return applicant.jobPositionId.jobSpecsWithDetails;
+  //         if (
+  //           Array.isArray(applicant.jobPositionId.jobSpecsResponses) &&
+  //           applicant.jobPositionId.jobSpecsResponses.length
+  //         )
+  //           return applicant.jobPositionId.jobSpecsResponses;
+  //         if (
+  //           Array.isArray(applicant.jobPositionId.jobSpecs) &&
+  //           applicant.jobPositionId.jobSpecs.length
+  //         )
+  //           return applicant.jobPositionId.jobSpecs;
+  //       }
+  //       return [];
+  //     };
+  //     const getJobSpecs = (): any[] => {
+  //       const rawJob = applicant?.jobPositionId;
+  //       const jobId = resolveAnyId(rawJob);
+  //       const mapped = jobId ? jobPositionMap[jobId] : undefined;
+  //       const source =
+  //         mapped ||
+  //         (typeof rawJob === 'object' ? rawJob : undefined) ||
+  //         applicant?.jobPosition;
+  //       if (
+  //         source &&
+  //         Array.isArray(source.jobSpecsWithDetails) &&
+  //         source.jobSpecsWithDetails.length
+  //       )
+  //         return source.jobSpecsWithDetails;
+  //       if (source && Array.isArray(source.jobSpecs) && source.jobSpecs.length)
+  //         return source.jobSpecs;
+  //       const fallbackSpecs = getApplicantSpecResponses();
+  //       return Array.isArray(fallbackSpecs) ? fallbackSpecs : [];
+  //     };
+  //     const specs = getJobSpecs();
+  //     if (!specs.length) return null;
+  //     const applicantResponses = getApplicantSpecResponses();
+  //     const answerById: Record<string, boolean> = {};
+  //     applicantResponses.forEach((entry: any) => {
+  //       if (!entry || typeof entry !== 'object') return;
+  //       const answerRaw =
+  //         entry.answer ??
+  //         entry.accepted ??
+  //         entry.isAccepted ??
+  //         entry.met ??
+  //         entry.match ??
+  //         entry.selected;
+  //       const answer = parseAnswer(answerRaw);
+  //       [entry.jobSpecId, entry.specId, entry._id, entry.id]
+  //         .map((id) => resolveAnyId(id))
+  //         .filter(Boolean)
+  //         .forEach((id) => {
+  //           answerById[id] = answer;
+  //         });
+  //     });
+  //     let totalWeight = 0,
+  //       acceptedWeight = 0,
+  //       totalCount = 0,
+  //       acceptedCount = 0;
+  //     specs.forEach((spec: any) => {
+  //       totalCount += 1;
+  //       const rawWeight = Number(spec?.weight ?? 0);
+  //       const weight =
+  //         Number.isFinite(rawWeight) && rawWeight > 0 ? rawWeight : 0;
+  //       totalWeight += weight;
+  //       const specIds = [spec?.jobSpecId, spec?.specId, spec?._id, spec?.id]
+  //         .map((id) => resolveAnyId(id))
+  //         .filter(Boolean);
+  //       let accepted: boolean | undefined;
+  //       for (const specId of specIds) {
+  //         if (answerById[specId] !== undefined) {
+  //           accepted = answerById[specId];
+  //           break;
+  //         }
+  //       }
+  //       if (accepted === undefined) {
+  //         const fallback = applicantResponses.find(
+  //           (_: any, idx: number) => idx === specs.indexOf(spec)
+  //         );
+  //         if (fallback !== undefined) {
+  //           const fallbackRaw =
+  //             fallback?.answer ??
+  //             fallback?.accepted ??
+  //             fallback?.isAccepted ??
+  //             fallback?.met ??
+  //             fallback?.match ??
+  //             fallback?.selected;
+  //           accepted = parseAnswer(fallbackRaw);
+  //         } else {
+  //           accepted = false;
+  //         }
+  //       }
+  //       if (accepted) {
+  //         acceptedCount += 1;
+  //         acceptedWeight += weight;
+  //       }
+  //     });
+  //     if (totalWeight > 0)
+  //       return Math.round((acceptedWeight / totalWeight) * 100);
+  //     if (totalCount > 0) return Math.round((acceptedCount / totalCount) * 100);
+  //     return null;
+  //   },
+  //   [jobPositionMap, resolveAnyId]
+  // );
 
   const formatDate = useCallback(
     (dateString: string) => {
@@ -1812,61 +1815,62 @@ export default function Applicants({
     window.open(url || String(path), '_blank');
   }, []);
 
-  const handleExportToExcel = useCallback(async () => {
-    if (selectedApplicantIds.length === 0) {
-      await Swal.fire({
-        title: t('noSelection', 'applicants'),
-        text: t('noSelectionDesc', 'applicants'),
-        icon: 'warning',
-        timer: 2000,
-        showConfirmButton: false,
-      });
-      return;
-    }
-    setIsExporting(true);
-    try {
-      const fullRecords = await applicantsTableService.fullByIds(
-        selectedApplicantIds,
-        finalCompanyId as string[] | undefined,
-        effectiveSearch
-      );
-      const result = await exportToExcel(fullRecords, selectedApplicantIds, {
-        jobPositionMap,
-        companyMap,
-        getExpectedSalaryDisplay,
-        getApplicantSScore,
-        normalizeGender,
-        options: { includeCustomFields: true, includeJobSpecs: true },
-      });
-      if (result.success) {
-        await Swal.fire({
-          title: t('exportSuccessful', 'applicants'),
-          text: t('successfullyExported', 'applicants', {
-            count: selectedApplicantIds.length,
-          }),
-          icon: 'success',
-          timer: 2000,
-          showConfirmButton: false,
-        });
-      } else {
-        await Swal.fire({
-          title: t('exportFailed', 'applicants'),
-          text: t('failedToExport', 'applicants'),
-          icon: 'error',
-        });
-      }
-    } finally {
-      if (mountedRef.current) setIsExporting(false);
-    }
-  }, [
-    selectedApplicantIds,
-    finalCompanyId,
-    effectiveSearch,
-    jobPositionMap,
-    companyMap,
-    getExpectedSalaryDisplay,
-    getApplicantSScore,
-  ]);
+  // Applicant export is disabled system-wide. Handler kept below for reference.
+  //   const handleExportToExcel = useCallback(async () => {
+  //     if (selectedApplicantIds.length === 0) {
+  //       await Swal.fire({
+  //         title: t('noSelection', 'applicants'),
+  //         text: t('noSelectionDesc', 'applicants'),
+  //         icon: 'warning',
+  //         timer: 2000,
+  //         showConfirmButton: false,
+  //       });
+  //       return;
+  //     }
+  //     setIsExporting(true);
+  //     try {
+  //       const fullRecords = await applicantsTableService.fullByIds(
+  //         selectedApplicantIds,
+  //         finalCompanyId as string[] | undefined,
+  //         effectiveSearch
+  //       );
+  //       const result = await exportToExcel(fullRecords, selectedApplicantIds, {
+  //         jobPositionMap,
+  //         companyMap,
+  //         getExpectedSalaryDisplay,
+  //         getApplicantSScore,
+  //         normalizeGender,
+  //         options: { includeCustomFields: true, includeJobSpecs: true },
+  //       });
+  //       if (result.success) {
+  //         await Swal.fire({
+  //           title: t('exportSuccessful', 'applicants'),
+  //           text: t('successfullyExported', 'applicants', {
+  //             count: selectedApplicantIds.length,
+  //           }),
+  //           icon: 'success',
+  //           timer: 2000,
+  //           showConfirmButton: false,
+  //         });
+  //       } else {
+  //         await Swal.fire({
+  //           title: t('exportFailed', 'applicants'),
+  //           text: t('failedToExport', 'applicants'),
+  //           icon: 'error',
+  //         });
+  //       }
+  //     } finally {
+  //       if (mountedRef.current) setIsExporting(false);
+  //     }
+  //   }, [
+  //     selectedApplicantIds,
+  //     finalCompanyId,
+  //     effectiveSearch,
+  //     jobPositionMap,
+  //     companyMap,
+  //     getExpectedSalaryDisplay,
+  //     getApplicantSScore,
+  //   ]);
 
   // Skeleton only until the first page arrives; after that the previous page
   // stays on screen (with a progress bar) while the next one loads.
@@ -3348,9 +3352,11 @@ export default function Applicants({
                       >
                         {isProcessing ? t('changing', 'applicants') : t('changeStatus', 'applicants')}
                       </Button>
+                      {/* Applicant export is disabled system-wide.
                       <Button size="sm" icon={<Download className="size-4" />} onClick={handleExportToExcel} loading={isExporting} disabled={selectedApplicantCount === 0}>
                         {isExporting ? t('exporting', 'applicants') : `${t('export', 'applicants')} (${selectedApplicantCount})`}
                       </Button>
+                      */}
                       <Button size="sm" icon={<Mail className="size-4" />} onClick={() => setShowBulkModal(true)} disabled={isProcessing || selectedApplicantRecipients.length === 0}>
                         {`${t('sendMail', 'applicants')} (${selectedApplicantRecipients.length})`}
                       </Button>
