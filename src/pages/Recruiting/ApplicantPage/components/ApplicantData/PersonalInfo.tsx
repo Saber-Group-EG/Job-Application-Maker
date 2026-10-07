@@ -22,6 +22,13 @@ const formatDate = (value: string | undefined, locale: string): string => {
   return d.toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' });
 };
 
+const formatSourceChannel = (channel?: string | null): string => {
+  const value = String(channel || '').trim();
+  if (!value) return '-';
+  if (value === 'direct') return 'Direct';
+  return value.charAt(0).toUpperCase() + value.slice(1);
+};
+
 const getInitials = (name: string): string => {
   const parts = String(name || '?').trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return '?';
@@ -403,6 +410,18 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
           <div>
             <div className="text-sm font-semibold text-gray-800 -mb-1">{t('submittedAt', 'personalInfo')}</div>
             <div className="text-sm text-gray-600">{formatDate(submittedAt, locale)}</div>
+          </div>
+
+          <div>
+            <div className="text-sm font-semibold text-gray-800 -mb-1">{t('source', 'personalInfo')}</div>
+            <div className="text-sm text-gray-600" title={data.source?.referrer || undefined}>
+              {formatSourceChannel(data.source?.channel)}
+            </div>
+            {[data.source?.utmMedium, data.source?.utmCampaign].filter(Boolean).length > 0 && (
+              <div className="text-xs text-gray-400 break-all">
+                {[data.source?.utmMedium, data.source?.utmCampaign].filter(Boolean).join(' · ')}
+              </div>
+            )}
           </div>
         </div>
       </div>

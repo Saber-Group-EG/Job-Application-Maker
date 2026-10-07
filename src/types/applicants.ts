@@ -96,6 +96,15 @@ export type Applicant = {
   departmentId: string;
   status: string;
   submittedAt: string;
+  source?: {
+    channel?: string;
+    utmSource?: string;
+    utmMedium?: string;
+    utmCampaign?: string;
+    utmContent?: string;
+    utmTerm?: string;
+    referrer?: string;
+  };
   fullName: string;
   firstName?: string;
   lastName?: string;
@@ -108,7 +117,6 @@ export type Applicant = {
   profilePhoto?: string;
   cvFilePath?: string;
   resume?: string;
-  source?: string;
   customResponses?: Record<string, any>;
   jobSpecsResponses?: Array<{ jobSpecId: string; answer: boolean }>;
   jobSpecsWithDetails?: any[];

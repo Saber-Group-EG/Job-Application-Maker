@@ -64,7 +64,7 @@ const buildPage1Html = (
     [tOpt('address', 'personalInfo', t), applicant.address || '—'],
     [tOpt('gender', 'personalInfo', t), genderLabel],
     [tOpt('status', 'applicants', t), statusLabel],
-    [tOpt('source', 'personalInfo', t), applicant.source || '—'],
+    [tOpt('source', 'personalInfo', t), applicant.source?.channel || '—'],
     [tOpt('expectedSalary', 'personalInfo', t), applicant.expectedSalary || '—'],
     [tOpt('dateApplied', 'personalInfo', t), formatDate(applicant.submittedAt || applicant.createdAt, locale)],
   ];
