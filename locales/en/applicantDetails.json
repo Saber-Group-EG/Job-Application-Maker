@@ -14,5 +14,17 @@
   "save": "Save",
   "edit": "Edit",
   "writeCommentPlaceholder": "Write a thoughtful comment...",
-  "emailPreview": "Email Preview"
+  "emailPreview": "Email Preview",
+  "mergeDuplicates": "Merge duplicate applications",
+  "mergeTitle": "Merge duplicate applications",
+  "mergeIntro": "Other applications from the same person (same email or phone). The selected ones are merged into this applicant: their comments, interviews, messages, mail, offers and contracts move here, and they are archived.",
+  "mergeNone": "No other applications found for this person.",
+  "mergeMatchedBy": "Matched by",
+  "mergeButton": "Merge",
+  "mergeMerging": "Merging...",
+  "mergeConfirmTitle": "Merge {count} application(s) into this applicant?",
+  "mergeConfirmText": "The merged applications are archived. This cannot be undone from the screen.",
+  "mergeDone": "Merged",
+  "mergeDoneDesc": "{count} application(s) merged.",
+  "mergeFailed": "Merge failed"
 }

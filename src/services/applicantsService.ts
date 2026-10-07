@@ -532,6 +532,27 @@ class ApplicantsService {
     );
   }
 
+  async getDuplicates(applicantId: string): Promise<
+    {
+      _id: string;
+      applicantNo?: number;
+      fullName: string;
+      email: string;
+      phone: string;
+      status: string;
+      submittedAt?: string;
+      source?: string;
+      jobTitle?: { en?: string; ar?: string };
+      matchedBy: string[];
+    }[]
+  > {
+    return this.request('get', `/applicants/${applicantId}/duplicates`);
+  }
+
+  async mergeApplicants(applicantId: string, sourceIds: string[]): Promise<{ mergedCount: number; applicantId: string }> {
+    return this.request('post', `/applicants/${applicantId}/merge`, { sourceIds });
+  }
+
   async deleteApplicant(applicantId: string): Promise<void> {
     await this.request<void>('delete', `/applicants/${applicantId}`);
   }

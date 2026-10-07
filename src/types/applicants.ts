@@ -96,6 +96,7 @@ export type Applicant = {
   departmentId: string;
   status: string;
   submittedAt: string;
+  isDuplicated?: boolean;
   source?: {
     channel?: string;
     utmSource?: string;
@@ -364,6 +365,7 @@ export interface PersonalInfoProps {
   onRestore?: () => void;
   onCreateJobOffer?: () => void;
   onCreateContract?: () => void;
+  onMergeDuplicates?: () => void;
 }
 
 export type ApplicantView = Omit<Applicant, 'companyId' | 'jobPositionId'> & {

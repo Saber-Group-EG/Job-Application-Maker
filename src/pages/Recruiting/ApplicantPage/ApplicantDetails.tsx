@@ -42,6 +42,7 @@ import type {
   ScheduleInterviewRequest,
 } from '../../../types/applicants';
 import StatusChangeModal from '../../../components/modals/StatusChangeModal';
+import MergeDuplicatesModal from '../../../components/modals/MergeDuplicatesModal';
 import CommentModal from '../../../components/modals/commentmodal';
 import MessageModal from '../../../components/modals/MessageModal';
 import InterviewSettingsModal from '../../../components/modals/InterviewSettingsModal';
@@ -149,7 +150,8 @@ const ApplicantDetails: React.FC = () => {
     location.state as { applicant?: { fullName?: string } } | null
   )?.applicant;
   const { t, dir } = useLocale();
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
+  const canMergeDuplicates = hasPermission('Applicant Management', 'write');
   const { data: applicantName } = useApplicant(id || '', {
     fields: 'fullName',
   });
@@ -333,6 +335,7 @@ const ApplicantDetails: React.FC = () => {
     Record<string, boolean>
   >({});
   const [showStatusModal, setShowStatusModal] = useState(false);
+  const [showMergeModal, setShowMergeModal] = useState(false);
   const [statusForm, setStatusForm] = useState<{
     status: string;
     notes?: string;
@@ -1235,6 +1238,7 @@ const ApplicantDetails: React.FC = () => {
         onRestore={handleRestore}
         onCreateJobOffer={openJobOffer}
         onCreateContract={openContract}
+        onMergeDuplicates={canMergeDuplicates ? () => setShowMergeModal(true) : undefined}
       />
     </Stickysidebar>
   );
@@ -1312,6 +1316,7 @@ const ApplicantDetails: React.FC = () => {
                 onRestore={handleRestore}
                 onCreateJobOffer={openJobOffer}
                 onCreateContract={openContract}
+                onMergeDuplicates={canMergeDuplicates ? () => setShowMergeModal(true) : undefined}
               />
             </Stickysidebar>
 
@@ -1481,6 +1486,8 @@ const ApplicantDetails: React.FC = () => {
           </div>
         )}
       </div>
+
+      <MergeDuplicatesModal isOpen={showMergeModal} onClose={() => setShowMergeModal(false)} applicantId={id || ''} />
 
       <StatusChangeModal
         isOpen={showStatusModal}

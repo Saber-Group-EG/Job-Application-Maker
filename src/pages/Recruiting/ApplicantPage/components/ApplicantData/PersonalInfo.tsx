@@ -48,6 +48,7 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
   onRestore,
   onCreateJobOffer,
   onCreateContract,
+  onMergeDuplicates,
 }) => {
   const { t, locale } = useLocale();
   const [photoPreviewOpen, setPhotoPreviewOpen] = useState(false);
@@ -227,6 +228,16 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
             </button>
           </div>
         </div>
+
+        {onMergeDuplicates && data.isDuplicated && (
+          <button
+            type="button"
+            onClick={onMergeDuplicates}
+            className="mb-3 w-full rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800 hover:bg-amber-100 transition-colors"
+          >
+            {t('mergeDuplicates', 'applicantDetails')}
+          </button>
+        )}
 
         <div className="border-t border-gray-200 mb-5 mt-5" />
 
