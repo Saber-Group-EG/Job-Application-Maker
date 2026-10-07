@@ -11,6 +11,7 @@ import { useLocale } from "../../../../context/LocaleContext";
 import { useCompanyFilter } from "../../../../context/CompanyFilterContext";
 import LoadingSpinner from "../../../../components/common/LoadingSpinner";
 import { toPlainString } from "../../../../utils/strings";
+import { formatSourceLabel } from "../../../../utils/publicJobLinks";
 import { paths } from "../../../../router/Paths";
 import CustomFilterModal from "../../../../components/modals/CustomFilterModal";
 import Swal from '../../../../utils/swal';
@@ -66,6 +67,7 @@ const readPersistedMobileFilters = () => {
       jobFilters: toStringArray(parsed?.jobFilters),
       statusFilters: toStringArray(parsed?.statusFilters),
       genderFilters: toStringArray(parsed?.genderFilters),
+      sourceFilters: toStringArray(parsed?.sourceFilters),
       pageIndex:
         typeof parsed?.pageIndex === 'number' && parsed.pageIndex >= 0
           ? parsed.pageIndex
@@ -84,6 +86,7 @@ const readPersistedMobileFilters = () => {
       jobFilters: [] as string[],
       statusFilters: [] as string[],
       genderFilters: [] as string[],
+      sourceFilters: [] as string[],
       pageIndex: 0,
       pageSize: 10,
       submittedDesc: true,
@@ -169,6 +172,9 @@ export default function ApplicantsMobilePage({
   const [genderFilters, setGenderFilters] = useState<string[]>(
     initialMobileFilters.genderFilters
   );
+  const [sourceFilters, setSourceFilters] = useState<string[]>(
+    initialMobileFilters.sourceFilters
+  );
   const [customFilterOpen, setCustomFilterOpen] = useState(false);
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
   const [customFilters, setCustomFilters] = useState<Array<any>>(() => {
@@ -245,6 +251,7 @@ export default function ApplicantsMobilePage({
             ...(jobFilters.length ? [{ id: 'jobPositionId', value: jobFilters }] : []),
             ...(statusFilters.length ? [{ id: 'status', value: statusFilters }] : []),
             ...(genderFilters.length ? [{ id: 'gender', value: genderFilters }] : []),
+            ...(sourceFilters.length ? [{ id: 'source', value: sourceFilters }] : []),
           ],
       excludeColumns: [],
       customFilters: searching ? [] : customFilters,
@@ -255,7 +262,7 @@ export default function ApplicantsMobilePage({
       pageSize,
       locale,
     }),
-    [applicantsFetchParam, companyIdOverride, hasPageStatus, onlyStatus, onlyJobPositions, searching, jobFilters, statusFilters, genderFilters, customFilters, debouncedQuery, companyFilters, submittedDesc, pageIndex, pageSize, locale]
+    [applicantsFetchParam, companyIdOverride, hasPageStatus, onlyStatus, onlyJobPositions, searching, jobFilters, statusFilters, genderFilters, sourceFilters, customFilters, debouncedQuery, companyFilters, submittedDesc, pageIndex, pageSize, locale]
   );
   const {
     data: tableData,
@@ -268,7 +275,7 @@ export default function ApplicantsMobilePage({
   const totalRows = tableData?.total ?? 0;
 
   // Back to the first page when the result set changes.
-  const filterSignature = JSON.stringify([searching, debouncedQuery, jobFilters, statusFilters, genderFilters, customFilters, companyFilters, submittedDesc]);
+  const filterSignature = JSON.stringify([searching, debouncedQuery, jobFilters, statusFilters, genderFilters, sourceFilters, customFilters, companyFilters, submittedDesc]);
   const prevFilterSignature = useRef(filterSignature);
   useEffect(() => {
     if (prevFilterSignature.current === filterSignature) return;
@@ -353,6 +360,7 @@ export default function ApplicantsMobilePage({
         jobFilters,
         statusFilters,
         genderFilters,
+        sourceFilters,
         pageIndex,
         pageSize,
         submittedDesc,
@@ -374,6 +382,7 @@ export default function ApplicantsMobilePage({
     jobFilters,
     statusFilters,
     genderFilters,
+    sourceFilters,
     pageIndex,
     pageSize,
     submittedDesc,
@@ -576,6 +585,15 @@ export default function ApplicantsMobilePage({
       ...items.filter((g) => g !== 'Male' && g !== 'Female'),
     ].map((g) => ({ id: g, title: g }));
   }, [tableData?.genderOptions]);
+
+  const sourceOptions = useMemo(
+    () =>
+      (tableData?.sourceOptions ?? []).map((value: string) => ({
+        id: value,
+        title: value === '__none' ? t('sourceUnknown', 'applicants') : formatSourceLabel(value),
+      })),
+    [tableData?.sourceOptions, t]
+  );
 
   // Update Data button
   const updating = Boolean(isJobPositionsFetching || isCompaniesFetching || isLoading || isTableFetching || refreshing);
@@ -1205,12 +1223,48 @@ export default function ApplicantsMobilePage({
               </div>
             </div>
 
+            {/* Source Filter */}
+            {sourceOptions.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2 dark:text-slate-200">{t('source', 'applicants')}</label>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-800/50">
+                  <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">
+                    {sourceFilters.length ? t('selected', 'applicants', { count: sourceFilters.length }) : t('source', 'applicants')}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {sourceOptions.map((o) => {
+                      const selected = sourceFilters.includes(o.id);
+                      return (
+                        <button
+                          key={o.id}
+                          type="button"
+                          onClick={() => {
+                            setSourceFilters((prev) =>
+                              selected ? prev.filter((id) => id !== o.id) : [...prev, o.id]
+                            );
+                          }}
+                          className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                            selected
+                              ? 'border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-300'
+                              : 'border-slate-300 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200'
+                          }`}
+                        >
+                          {o.title}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Clear Filters Button */}
             <button
               onClick={() => {
                 setJobFilters([]);
                 setStatusFilters([]);
                 setGenderFilters([]);
+                setSourceFilters([]);
                 setQuery("");
                 setCustomFilters([]);
                 setFilterDrawerOpen(false);
