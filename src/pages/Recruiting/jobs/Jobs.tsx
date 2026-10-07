@@ -28,7 +28,9 @@ import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import { useAuth } from '../../../context/AuthContext';
 import { useLocale } from '../../../context/LocaleContext';
 import { useCompanyFilter } from '../../../context/CompanyFilterContext';
-import { toPlainString, toSlug } from '../../../utils/strings';
+import { toPlainString } from '../../../utils/strings';
+import { buildJobLink } from '../../../utils/publicJobLinks';
+import ShareJobMenu from '../../../components/jobs/ShareJobMenu';
 import { normalizeFieldConfig } from '../../../utils/jobUtils';
 import {
   Badge,
@@ -254,15 +256,12 @@ function SortableJobCard({
             label={t('jobsOpenForm', 'jobs')}
             onClick={(e) => {
               e.stopPropagation();
-              window.open(
-                `https://form.sabergroup-eg.com/${toSlug(job.companyId?.name, 'en')}/${toSlug(job.title, 'en')}`,
-                '_blank',
-                'noopener,noreferrer'
-              );
+              window.open(buildJobLink(job), '_blank', 'noopener,noreferrer');
             }}
           >
             <ExternalLinkIcon className="size-4" />
           </IconButton>
+          <ShareJobMenu job={job} />
           {canManageJobs && (
             <IconButton
               label={t('jobsEditJob', 'jobs')}
@@ -369,7 +368,10 @@ function SortableJobRow({
         <Badge tone={status.tone}>{t(status.key, 'jobs')}</Badge>
       </td>
       <td className="px-4 py-3 text-end">
-        <ChevronRightIcon className="ms-auto size-4 text-slate-300 rtl:rotate-180" aria-hidden="true" />
+        <div className="flex items-center justify-end gap-1">
+          <ShareJobMenu job={job} />
+          <ChevronRightIcon className="size-4 text-slate-300 rtl:rotate-180" aria-hidden="true" />
+        </div>
       </td>
     </tr>
   );
