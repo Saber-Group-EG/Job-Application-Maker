@@ -6,6 +6,7 @@ import { useLocale } from "../../../context/LocaleContext";
 import PageMeta from "../../../components/common/PageMeta";
 import { useCompanies, useUpdateMailSettings } from "../../../hooks/queries/useCompanies";
 import GmailConnectionCard from "./components/GmailConnectionCard";
+import WhatsAppConnectionCard from "./components/WhatsAppConnectionCard";
 import EmailTemplates from "../Settings/MailTemplate";
 import { AlertTriangle, Building2, CheckCircle, Globe, Mail, PlusCircle, Save, ShieldCheck, Trash2 } from "lucide-react";
 import {
@@ -198,6 +199,8 @@ export default function CompanySettingsPage({ companyId: _companyId, onSaved, on
         canEdit={canEdit}
         defaultSenderName={selectedCompanyName !== t('noCompanySelected', 'companies') ? selectedCompanyName : undefined}
       />
+
+      <WhatsAppConnectionCard settingsId={selectedCompany?.settings?._id} canEdit={canEdit} />
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
         <Card className="xl:col-span-4">

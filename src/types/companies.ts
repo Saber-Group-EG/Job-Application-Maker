@@ -138,6 +138,37 @@ export interface GmailStatus {
   lastErrorAt: string | null;
 }
 
+export interface WhatsAppSender {
+  phoneNumberId: string;
+  displayPhone: string;
+  verifiedName?: string;
+  label?: string;
+  qualityRating?: string | null;
+}
+
+export interface WhatsAppStatus {
+  // False when the server has no credentials encryption key.
+  configAvailable: boolean;
+  connected: boolean;
+  wabaId: string | null;
+  accountName: string | null;
+  senders: WhatsAppSender[];
+  defaultSenderId: string | null;
+  webhookUrl: string | null;
+  verifyToken: string | null;
+  connectedAt: string | null;
+  lastError: string | null;
+  lastErrorAt: string | null;
+}
+
+export interface WhatsAppTemplate {
+  name: string;
+  language: string;
+  category?: string;
+  body: string;
+  paramCount: number;
+}
+
 export type MailTemplateCategory =
   | 'general'
   | 'applicants'

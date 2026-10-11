@@ -19,7 +19,7 @@ import { paths } from '../../../../router/Paths';
 // Components
 import PageMeta from '../../../../components/common/PageMeta';
 import BulkMessageModal from '../../../../components/modals/BulkMessageModal';
-import BulkWhatsAppModal from '../../../../components/modals/BulkWhatsAppModal';
+// import BulkWhatsAppModal from '../../../../components/modals/BulkWhatsAppModal';  // Bulk WhatsApp is hidden until the WhatsApp Business API is in use.
 import InterviewScheduleModal from '../../../../components/modals/InterviewScheduleModal';
 import StatusChangeModal from '../../../../components/modals/StatusChangeModal';
 import CustomFilterModal from '../../../../components/modals/CustomFilterModal';
@@ -1317,7 +1317,7 @@ export default function Applicants({
 
   const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null);
   const [customFilterOpen, setCustomFilterOpen] = useState(false);
-  const [showBulkWhatsApp, setShowBulkWhatsApp] = useState(false);
+  // const [showBulkWhatsApp, setShowBulkWhatsApp] = useState(false);  // Bulk WhatsApp is hidden until the WhatsApp Business API is in use.
   // const [isExporting, setIsExporting] = useState(false);  // Applicant export is disabled system-wide.
   const mountedRef = useRef(true);
 
@@ -3362,9 +3362,11 @@ export default function Applicants({
                       <Button size="sm" icon={<Mail className="size-4" />} onClick={() => setShowBulkModal(true)} disabled={isProcessing || selectedApplicantRecipients.length === 0}>
                         {`${t('sendMail', 'applicants')} (${selectedApplicantRecipients.length})`}
                       </Button>
+                      {/* Bulk WhatsApp is hidden until the WhatsApp Business API is in use.
                       <Button size="sm" onClick={() => setShowBulkWhatsApp(true)} disabled={selectedApplicantCount === 0}>
                         {`${t('whatsapp', 'modals')} (${selectedApplicantCount})`}
                       </Button>
+                      */}
                       <Button
                         size="sm"
                         icon={<CalendarClock className="size-4" />}
@@ -3401,11 +3403,14 @@ export default function Applicants({
                   </div>
                 )}
 
+                {/* Bulk WhatsApp is hidden until the WhatsApp Business API is in use.
                 <BulkWhatsAppModal
                   isOpen={showBulkWhatsApp}
                   onClose={() => setShowBulkWhatsApp(false)}
                   applicants={selectedApplicants}
+                  settingsId={selectedApplicantCompany?.settings?._id}
                 />
+                */}
 
                 <BulkMessageModal
                   isOpen={showBulkModal}

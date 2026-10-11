@@ -7,6 +7,8 @@ import type {
   UpdateCompanyRequest,
   MailSettings,
   GmailStatus,
+  WhatsAppStatus,
+  WhatsAppTemplate,
   EmailTemplate,
   CompanySet,
   CompanyStatus,
@@ -286,6 +288,37 @@ class CompaniesService {
       'delete',
       `/companies/${settingsId}/settings/mail/gmail`
     );
+  }
+
+  // ===== WhatsApp Business =====
+  async getWhatsAppStatus(settingsId: string): Promise<WhatsAppStatus> {
+    return this.request<WhatsAppStatus>('get', `/companies/${settingsId}/settings/whatsapp`);
+  }
+
+  async connectWhatsApp(
+    settingsId: string,
+    body: { wabaId: string; accessToken: string; appSecret?: string }
+  ): Promise<WhatsAppStatus> {
+    return this.request<WhatsAppStatus>('post', `/companies/${settingsId}/settings/whatsapp`, body);
+  }
+
+  async updateWhatsAppOptions(
+    settingsId: string,
+    body: { defaultSenderId?: string; labels?: Record<string, string> }
+  ): Promise<WhatsAppStatus> {
+    return this.request<WhatsAppStatus>('patch', `/companies/${settingsId}/settings/whatsapp`, body);
+  }
+
+  async refreshWhatsAppNumbers(settingsId: string): Promise<WhatsAppStatus> {
+    return this.request<WhatsAppStatus>('post', `/companies/${settingsId}/settings/whatsapp/refresh`);
+  }
+
+  async getWhatsAppTemplates(settingsId: string): Promise<WhatsAppTemplate[]> {
+    return this.request<WhatsAppTemplate[]>('get', `/companies/${settingsId}/settings/whatsapp/templates`);
+  }
+
+  async disconnectWhatsApp(settingsId: string): Promise<WhatsAppStatus> {
+    return this.request<WhatsAppStatus>('delete', `/companies/${settingsId}/settings/whatsapp`);
   }
 
   async sendGmailTest(

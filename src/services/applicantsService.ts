@@ -532,6 +532,19 @@ class ApplicantsService {
     );
   }
 
+  // Sends through the company's WhatsApp Business account (not click-to-chat).
+  async sendWhatsApp(
+    applicantId: string,
+    body: {
+      senderId?: string;
+      template?: { name: string; language: string; params: string[] };
+      text?: string;
+      content?: string;
+    }
+  ): Promise<{ externalId: string | null; from: string }> {
+    return this.request('post', `/applicants/${applicantId}/whatsapp`, body);
+  }
+
   async getDuplicates(applicantId: string): Promise<
     {
       _id: string;

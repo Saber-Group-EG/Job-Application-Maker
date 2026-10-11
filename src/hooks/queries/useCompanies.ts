@@ -22,6 +22,7 @@ import type {
   SectionTemplate,
   AiFeatureToggle,
   GmailStatus,
+  WhatsAppStatus,
 } from '../../types/companies';
 import type { Applicant } from '../../types/applicants';
 import { useAuth } from '../../context/AuthContext';
@@ -44,6 +45,10 @@ export const companiesKeys = {
     [...companiesKeys.all, 'mailSettings', companyId] as const,
   gmailStatus: (settingsId: string) =>
     [...companiesKeys.all, 'gmailStatus', settingsId] as const,
+  whatsappStatus: (settingsId: string) =>
+    [...companiesKeys.all, 'whatsappStatus', settingsId] as const,
+  whatsappTemplates: (settingsId: string) =>
+    [...companiesKeys.all, 'whatsappTemplates', settingsId] as const,
   interviewSettings: (companyId: string) =>
     [...companiesKeys.settings(companyId), 'interview'] as const,
   statuses: (companyId: string) =>
@@ -1275,5 +1280,68 @@ function showErrorToast(
     title: t('error', 'common'),
     text: message || fallback,
     icon: 'error',
+  });
+}
+
+
+// ===== WhatsApp Business =====
+export function useWhatsAppStatus(settingsId?: string) {
+  return useQuery({
+    queryKey: companiesKeys.whatsappStatus(settingsId ?? ''),
+    queryFn: () => companiesService.getWhatsAppStatus(settingsId!),
+    enabled: !!settingsId,
+    staleTime: 30 * 1000,
+  });
+}
+
+// Approved templates are the only messages WhatsApp lets a company start a chat with.
+export function useWhatsAppTemplates(settingsId?: string, enabled = true) {
+  return useQuery({
+    queryKey: companiesKeys.whatsappTemplates(settingsId ?? ''),
+    queryFn: () => companiesService.getWhatsAppTemplates(settingsId!),
+    enabled: !!settingsId && enabled,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+function useWhatsAppStatusUpdater() {
+  const queryClient = useQueryClient();
+  return (settingsId: string, status?: WhatsAppStatus) => {
+    if (status) queryClient.setQueryData(companiesKeys.whatsappStatus(settingsId), status);
+    queryClient.invalidateQueries({ queryKey: companiesKeys.whatsappTemplates(settingsId) });
+  };
+}
+
+export function useConnectWhatsApp() {
+  const update = useWhatsAppStatusUpdater();
+  return useMutation({
+    mutationFn: ({ settingsId, ...body }: { settingsId: string; wabaId: string; accessToken: string; appSecret?: string }) =>
+      companiesService.connectWhatsApp(settingsId, body),
+    onSuccess: (status, { settingsId }) => update(settingsId, status),
+  });
+}
+
+export function useUpdateWhatsAppOptions() {
+  const update = useWhatsAppStatusUpdater();
+  return useMutation({
+    mutationFn: ({ settingsId, ...body }: { settingsId: string; defaultSenderId?: string; labels?: Record<string, string> }) =>
+      companiesService.updateWhatsAppOptions(settingsId, body),
+    onSuccess: (status, { settingsId }) => update(settingsId, status),
+  });
+}
+
+export function useRefreshWhatsAppNumbers() {
+  const update = useWhatsAppStatusUpdater();
+  return useMutation({
+    mutationFn: (settingsId: string) => companiesService.refreshWhatsAppNumbers(settingsId),
+    onSuccess: (status, settingsId) => update(settingsId, status),
+  });
+}
+
+export function useDisconnectWhatsApp() {
+  const update = useWhatsAppStatusUpdater();
+  return useMutation({
+    mutationFn: (settingsId: string) => companiesService.disconnectWhatsApp(settingsId),
+    onSuccess: (status, settingsId) => update(settingsId, status),
   });
 }
