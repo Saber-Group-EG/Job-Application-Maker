@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, type ReactNode } from 'react';
 import { Building2, Library, Plus } from 'lucide-react';
 import { QuestionGroupCard } from '../components/QuestionGroupCard';
 import { QuestionRow } from '../components/QuestionRow';
@@ -69,6 +69,8 @@ export type AssessmentViewProps = {
     patch: { percentage?: number; answer?: unknown; selectedTags?: string[] }
   ) => void;
   authUser?: { _id?: string; id?: string; fullName?: string; name?: string; email?: string } | null;
+  /** Shown in the interview header (the recorder while the interview runs). */
+  recorder?: ReactNode;
 };
 
 const CREATE_QUESTION_INITIAL: NewCustomQuestion = {
@@ -255,6 +257,7 @@ export const AssessmentView = ({
   onToggleGroup,
   onQuestionChange,
   authUser,
+  recorder,
 }: AssessmentViewProps) => {
   const { t } = useLocale();
   const questionsEditable = isStarted && !isEnded;
@@ -337,6 +340,7 @@ export const AssessmentView = ({
       onStart={onStart}
       onEnd={onEnd}
       onSaveProgress={onSaveProgress}
+      extra={recorder}
     />
     <div className="flex items-center justify-between px-5 py-4">
       <div>

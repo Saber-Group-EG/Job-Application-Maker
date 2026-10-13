@@ -22,6 +22,7 @@ import type {
   BulkScheduleResult,
 } from '../types/applicants';
 import { ApiError } from './companiesService';
+import type { ApplyReviewResult, InterviewRecording } from '../types/interviewRecording';
 
 // Re-export types
 export type {
@@ -530,6 +531,47 @@ class ApplicantsService {
       `/applicants/${applicantId}/messages`,
       data
     );
+  }
+
+  // ===== Interview recording → transcript → AI review =====
+  private recordingUrl(applicantId: string, interviewId: string) {
+    return `/applicants/${applicantId}/interviews/${interviewId}/recording`;
+  }
+
+  async getInterviewRecording(applicantId: string, interviewId: string): Promise<InterviewRecording> {
+    return this.request('get', this.recordingUrl(applicantId, interviewId));
+  }
+
+  // One recorded piece (raw audio). It is transcribed in the background.
+  async uploadRecordingPiece(
+    applicantId: string,
+    interviewId: string,
+    audio: Blob,
+    opts: { index: number; durationSec: number; consent: boolean }
+  ): Promise<void> {
+    await this.request(
+      'post',
+      `${this.recordingUrl(applicantId, interviewId)}/segments`,
+      audio,
+      { index: opts.index, durationSec: Math.round(opts.durationSec), consent: opts.consent ? 1 : 0 },
+      { headers: { 'Content-Type': audio.type || 'audio/webm' }, timeout: 120000 }
+    );
+  }
+
+  async saveRecordingTranscript(applicantId: string, interviewId: string, transcript: string): Promise<InterviewRecording> {
+    return this.request('put', `${this.recordingUrl(applicantId, interviewId)}/transcript`, { transcript });
+  }
+
+  async runInterviewReview(applicantId: string, interviewId: string): Promise<InterviewRecording> {
+    return this.request('post', `${this.recordingUrl(applicantId, interviewId)}/review`, {}, undefined, { timeout: 180000 });
+  }
+
+  async applyInterviewReview(applicantId: string, interviewId: string, questionIndexes: number[]): Promise<ApplyReviewResult> {
+    return this.request('post', `${this.recordingUrl(applicantId, interviewId)}/review/apply`, { questionIndexes });
+  }
+
+  async deleteInterviewRecording(applicantId: string, interviewId: string): Promise<InterviewRecording> {
+    return this.request('delete', this.recordingUrl(applicantId, interviewId));
   }
 
   // Sends through the company's WhatsApp Business account (not click-to-chat).

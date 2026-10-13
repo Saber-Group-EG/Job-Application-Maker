@@ -18,6 +18,7 @@ import {
 import Swal from '../../../../../utils/swal';
 import { getInterviewId } from './utils/interviewUtils';
 import { AssessmentView } from './views/AssessmentView';
+import { InterviewRecorder } from './components/InterviewRecorder';
 import type { NewCustomQuestion } from './views/AssessmentView';
 import { InterviewPickerView } from './views/InterviewPickerView';
 import { QuestionPickerView } from './views/QuestionPickerView';
@@ -578,6 +579,11 @@ const InterviewQuestions = ({
   if (state.view === 'assessment' && state.selectedInterview) {
     return (
       <AssessmentView
+        recorder={
+          isInteractive && applicantId && getInterviewId(state.selectedInterview)
+            ? <InterviewRecorder applicantId={applicantId} interviewId={getInterviewId(state.selectedInterview) as string} />
+            : undefined
+        }
         interview={state.selectedInterview}
         groupedQuestions={state.groupedQuestions}
         openGroups={state.openGroups}

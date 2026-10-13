@@ -33,6 +33,7 @@ import type {
 import { paths } from '../../../router/Paths';
 import { useQuestionPool } from './components/InterviewData/hooks/useQuestionPool';
 import { resolveApplicantCompanyId } from './components/InterviewData/hooks/useInterviewState';
+import { InterviewAiReviewCard } from './components/InterviewData/components/InterviewAiReviewCard';
 import {
   formatDate,
 } from './components/history/historyUtils';
@@ -945,6 +946,14 @@ const CompletedInterviewDetails: React.FC = () => {
             </p>
           </div>
         </section>
+
+        {!isEditing && applicantId && interviewId && (
+          <InterviewAiReviewCard
+            applicantId={applicantId}
+            interviewId={interviewId}
+            questions={flattenQuestions(interview?.questions)}
+          />
+        )}
 
         <section>
           <div className="mb-3 flex items-center justify-between">

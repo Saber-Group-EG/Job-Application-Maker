@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import {
   AlertCircle,
   ArrowLeft,
@@ -29,6 +29,8 @@ export type InterviewHeaderProps = {
   onStart: () => void;
   onEnd: () => void;
   onSaveProgress: () => void;
+  /** Extra controls shown next to the timer (e.g. the interview recorder). */
+  extra?: ReactNode;
 };
 
 export const InterviewHeader = ({
@@ -47,6 +49,7 @@ export const InterviewHeader = ({
   onStart,
   onEnd,
   onSaveProgress,
+  extra,
 }: InterviewHeaderProps) => {
   const { t } = useLocale();
   const statusBadge = useMemo(() => {
@@ -124,6 +127,7 @@ export const InterviewHeader = ({
               {t('saveProgress', 'interview')}
             </button>
           )}
+          {extra}
           {canStart && (
             <button
               type="button"
