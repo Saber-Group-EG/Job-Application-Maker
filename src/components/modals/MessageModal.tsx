@@ -17,6 +17,8 @@ import { filterTemplatesByCategory } from '../../utils/mailTemplateCategories';
 import RichTextEditor from '../form/RichTextEditor';
 import { useConnectedGmailSender } from '../../hooks/useConnectedGmailSender';
 import { whatsAppLink } from '../../utils/whatsapp';
+import { useWhatsAppStatus } from '../../hooks/queries/useCompanies';
+import WhatsAppBusinessForm from './WhatsAppBusinessForm';
 
 const MessageModal = ({
   isOpen,
@@ -49,6 +51,15 @@ const MessageModal = ({
   const [aiPrompt, setAiPrompt] = useState('');
   const { t } = useLocale();
   const draftEmailMutation = useDraftEmailTemplateWithAi();
+
+  // With the app's WhatsApp Business connected, WhatsApp messages are sent from
+  // the system; otherwise (or by choice) they open the user's own WhatsApp.
+  const [waMode, setWaMode] = useState<'business' | 'chat'>('business');
+  const { data: waStatus } = useWhatsAppStatus(
+    isOpen && messageForm.type === 'whatsapp' && !isInquiry
+  );
+  const useBusinessWhatsApp =
+    messageForm.type === 'whatsapp' && Boolean(waStatus?.connected) && waMode === 'business';
 
   // Sender selection states
   const [senderOption, setSenderOption] = useState<
@@ -958,6 +969,30 @@ const MessageModal = ({
             </div>
           )}
 
+          {messageForm.type === 'whatsapp' && waStatus?.connected && (
+            <div className="inline-flex rounded-lg border border-slate-200 p-0.5 text-sm dark:border-slate-700">
+              {(['business', 'chat'] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setWaMode(m)}
+                  className={`rounded-md px-3 py-1.5 ${waMode === m ? 'bg-brand-600 text-white' : 'text-slate-600 dark:text-slate-300'}`}
+                >
+                  {m === 'business' ? t('bulkWhatsappModeAuto', 'modals') : t('bulkWhatsappModeManual', 'modals')}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {useBusinessWhatsApp ? (
+            <WhatsAppBusinessForm
+              applicantId={id}
+              applicant={applicant}
+              onSent={handleCloseMessageModal}
+              onCancel={handleCloseMessageModal}
+            />
+          ) : (
+          <>
           <div>
             <Label htmlFor="message-body">{t('messageBody', 'modals')}</Label>
             {messageForm.type === 'email' ? (
@@ -1082,6 +1117,8 @@ const MessageModal = ({
               )}
             </button>
           </div>
+          </>
+          )}
         </form>
       </Modal>
 

@@ -432,5 +432,10 @@
   "bulkWhatsappFailed": "Failed",
   "bulkWhatsappSending": "Sending...",
   "bulkWhatsappWaiting": "Waiting",
-  "bulkWhatsappConnectHint": "WhatsApp Business is not set up yet, so messages cannot be sent from the system."
+  "bulkWhatsappConnectHint": "WhatsApp Business is not set up yet, so messages cannot be sent from the system.",
+  "waBizIntro": "Sent from the platform's WhatsApp Business number. Only an approved template can start a conversation.",
+  "waBizSend": "Send on WhatsApp",
+  "waBizSent": "WhatsApp message sent",
+  "waBizReply": "Reply",
+  "waBizReplyHint": "The applicant wrote to you in the last 24 hours, so you can reply with free text."
 }

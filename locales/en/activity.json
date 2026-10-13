@@ -33,5 +33,9 @@
   "applicant": "Applicant",
   "system": "System",
   "replyFromApplicant": "Reply from applicant",
-  "receivedFrom": "Received at {time} from {from}"
+  "receivedFrom": "Received at {time} from {from}",
+  "whatsappReply": "WhatsApp reply received",
+  "whatsappStatus_delivered": "Delivered",
+  "whatsappStatus_read": "Read",
+  "whatsappStatus_failed": "Failed"
 }

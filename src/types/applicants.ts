@@ -53,6 +53,9 @@ export type Message = {
   sentAt?: string;
   sentBy?: string;
   subject?: string;
+  // WhatsApp Business: 'inbound' = the applicant's reply; status follows delivery.
+  direction?: 'outbound' | 'inbound';
+  status?: string; // WhatsApp: sent | delivered | read | failed
 };
 
 export type Comment = {

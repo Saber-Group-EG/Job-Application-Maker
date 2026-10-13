@@ -108,7 +108,16 @@ const buildActivities = (
           : msgType === 'external'
             ? (t ? t('external', 'activity') : 'External')
             : msgType.charAt(0).toUpperCase() + msgType.slice(1);
-        return t ? t('messageTitle', 'activity', { type: typeLabel }) : `${typeLabel} message`;
+        if (msgType === 'whatsapp' && entry.direction === 'inbound') {
+          return t ? t('whatsappReply', 'activity') : 'WhatsApp reply received';
+        }
+        const base = t ? t('messageTitle', 'activity', { type: typeLabel }) : `${typeLabel} message`;
+        // Delivery state of WhatsApp messages sent from the system.
+        if (msgType === 'whatsapp' && entry.status && entry.status !== 'sent') {
+          const state = t ? t(`whatsappStatus_${entry.status}`, 'activity') : entry.status;
+          return `${base} · ${state}`;
+        }
+        return base;
       })(),
       messageChannel: entry.type,
       description: entry.content ?? entry.subject,
