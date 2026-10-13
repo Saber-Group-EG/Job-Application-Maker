@@ -158,6 +158,8 @@ export interface WhatsAppStatus {
   defaultSenderId: string | null;
   // True once the app secret and verify token are set, so replies/status can arrive.
   webhookReady: boolean;
+  // Platform admin: may assign numbers to companies.
+  canManage: boolean;
   error: string | null;
 }
 

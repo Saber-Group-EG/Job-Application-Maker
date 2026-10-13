@@ -1,6 +1,5 @@
 import { CheckCircle2, MessageCircle, TriangleAlert } from 'lucide-react';
 import Swal from '../../../../utils/swal';
-import { useAuth } from '../../../../context/AuthContext';
 import { useLocale } from '../../../../context/LocaleContext';
 import {
   useAssignWhatsAppNumber,
@@ -23,9 +22,8 @@ const errorMessage = (err: unknown) => (err as { message?: string })?.message ||
  */
 export default function WhatsAppConnectionCard({ companyId, companyName }: Props) {
   const { t } = useLocale();
-  const { user } = useAuth();
-  const isPlatformAdmin = (user as any)?.roleId?.isSystemRole === true;
   const { data: status, isLoading } = useWhatsAppStatus(companyId);
+  const isPlatformAdmin = status?.canManage === true;
   const { data: overview } = useWhatsAppNumbers(isPlatformAdmin && Boolean(status?.configured));
   const assign = useAssignWhatsAppNumber();
 
