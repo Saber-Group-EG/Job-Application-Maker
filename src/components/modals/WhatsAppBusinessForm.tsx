@@ -20,6 +20,7 @@ const selectClass =
 type Props = {
   applicantId: string;
   applicant: any;
+  companyId: string;
   onSent: () => void;
   onCancel: () => void;
 };
@@ -29,10 +30,10 @@ type Props = {
  * approved template can start a conversation; free text is allowed for 24 hours
  * after the applicant last wrote to us.
  */
-export default function WhatsAppBusinessForm({ applicantId, applicant, onSent, onCancel }: Props) {
+export default function WhatsAppBusinessForm({ applicantId, applicant, companyId, onSent, onCancel }: Props) {
   const { t, locale } = useLocale();
   const queryClient = useQueryClient();
-  const { data: status } = useWhatsAppStatus();
+  const { data: status } = useWhatsAppStatus(companyId);
   const { data: templates = [], isLoading: templatesLoading } = useWhatsAppTemplates(Boolean(status?.connected));
 
   const [senderId, setSenderId] = useState('');

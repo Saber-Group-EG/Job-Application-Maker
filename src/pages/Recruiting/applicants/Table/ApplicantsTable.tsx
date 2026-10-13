@@ -3408,6 +3408,7 @@ export default function Applicants({
                   isOpen={showBulkWhatsApp}
                   onClose={() => setShowBulkWhatsApp(false)}
                   applicants={selectedApplicants}
+                  companyId={selectedApplicantCompanyId ?? undefined}
                 />
                 */}
 

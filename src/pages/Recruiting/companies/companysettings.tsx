@@ -200,7 +200,7 @@ export default function CompanySettingsPage({ companyId: _companyId, onSaved, on
         defaultSenderName={selectedCompanyName !== t('noCompanySelected', 'companies') ? selectedCompanyName : undefined}
       />
 
-      <WhatsAppConnectionCard />
+      <WhatsAppConnectionCard companyId={selectedCompanyId ?? undefined} companyName={selectedCompanyName} />
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
         <Card className="xl:col-span-4">

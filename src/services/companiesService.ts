@@ -8,6 +8,7 @@ import type {
   MailSettings,
   GmailStatus,
   WhatsAppStatus,
+  WhatsAppNumbersOverview,
   WhatsAppTemplate,
   EmailTemplate,
   CompanySet,
@@ -290,9 +291,18 @@ class CompaniesService {
     );
   }
 
-  // ===== WhatsApp Business (one connection for the whole app) =====
-  async getWhatsAppStatus(refresh = false): Promise<WhatsAppStatus> {
-    return this.request<WhatsAppStatus>('get', `/whatsapp/status${refresh ? '?refresh=1' : ''}`);
+  // ===== WhatsApp Business (one account for the app; numbers belong to companies) =====
+  async getWhatsAppStatus(companyId: string): Promise<WhatsAppStatus> {
+    return this.request<WhatsAppStatus>('get', `/whatsapp/status?companyId=${encodeURIComponent(companyId)}`);
+  }
+
+  // Platform admin only.
+  async getWhatsAppNumbers(refresh = false): Promise<WhatsAppNumbersOverview> {
+    return this.request<WhatsAppNumbersOverview>('get', `/whatsapp/numbers${refresh ? '?refresh=1' : ''}`);
+  }
+
+  async assignWhatsAppNumber(phoneNumberId: string, companyId: string | null): Promise<void> {
+    await this.request('put', `/whatsapp/numbers/${encodeURIComponent(phoneNumberId)}`, { companyId });
   }
 
   async getWhatsAppTemplates(): Promise<WhatsAppTemplate[]> {

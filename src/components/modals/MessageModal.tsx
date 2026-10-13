@@ -52,14 +52,6 @@ const MessageModal = ({
   const { t } = useLocale();
   const draftEmailMutation = useDraftEmailTemplateWithAi();
 
-  // With the app's WhatsApp Business connected, WhatsApp messages are sent from
-  // the system; otherwise (or by choice) they open the user's own WhatsApp.
-  const [waMode, setWaMode] = useState<'business' | 'chat'>('business');
-  const { data: waStatus } = useWhatsAppStatus(
-    isOpen && messageForm.type === 'whatsapp' && !isInquiry
-  );
-  const useBusinessWhatsApp =
-    messageForm.type === 'whatsapp' && Boolean(waStatus?.connected) && waMode === 'business';
 
   // Sender selection states
   const [senderOption, setSenderOption] = useState<
@@ -82,6 +74,16 @@ const MessageModal = ({
     propCompany ||
     (applicant && (applicant.company || applicant.companyObj)) ||
     null;
+
+  // With the app's WhatsApp Business connected, WhatsApp messages are sent from
+  // the system; otherwise (or by choice) they open the user's own WhatsApp.
+  const [waMode, setWaMode] = useState<'business' | 'chat'>('business');
+  const { data: waStatus } = useWhatsAppStatus(
+    (company && (company._id || company.id)) || companyIdForQuery,
+    isOpen && messageForm.type === 'whatsapp' && !isInquiry
+  );
+  const useBusinessWhatsApp =
+    messageForm.type === 'whatsapp' && Boolean(waStatus?.connected) && waMode === 'business';
 
   // A connected Gmail is the only possible sender for this company (the
   // backend always sends as it), so it becomes the fixed, read-only sender.
@@ -988,6 +990,7 @@ const MessageModal = ({
             <WhatsAppBusinessForm
               applicantId={id}
               applicant={applicant}
+              companyId={(company && (company._id || company.id)) || companyIdForQuery}
               onSent={handleCloseMessageModal}
               onCancel={handleCloseMessageModal}
             />

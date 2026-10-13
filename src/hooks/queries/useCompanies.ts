@@ -44,7 +44,8 @@ export const companiesKeys = {
     [...companiesKeys.all, 'mailSettings', companyId] as const,
   gmailStatus: (settingsId: string) =>
     [...companiesKeys.all, 'gmailStatus', settingsId] as const,
-  whatsappStatus: () => [...companiesKeys.all, 'whatsappStatus'] as const,
+  whatsappStatus: (companyId: string) => [...companiesKeys.all, 'whatsappStatus', companyId] as const,
+  whatsappNumbers: () => [...companiesKeys.all, 'whatsappNumbers'] as const,
   whatsappTemplates: () => [...companiesKeys.all, 'whatsappTemplates'] as const,
   interviewSettings: (companyId: string) =>
     [...companiesKeys.settings(companyId), 'interview'] as const,
@@ -1281,12 +1282,13 @@ function showErrorToast(
 }
 
 
-// ===== WhatsApp Business (one connection for the whole app) =====
-export function useWhatsAppStatus(enabled = true) {
+// ===== WhatsApp Business (one account for the app; numbers belong to companies) =====
+// What this company can send from: only the numbers assigned to it.
+export function useWhatsAppStatus(companyId?: string, enabled = true) {
   return useQuery({
-    queryKey: companiesKeys.whatsappStatus(),
-    queryFn: () => companiesService.getWhatsAppStatus(),
-    enabled,
+    queryKey: companiesKeys.whatsappStatus(companyId ?? ''),
+    queryFn: () => companiesService.getWhatsAppStatus(companyId!),
+    enabled: enabled && !!companyId,
     staleTime: 60 * 1000,
   });
 }
@@ -1298,5 +1300,27 @@ export function useWhatsAppTemplates(enabled = true) {
     queryFn: () => companiesService.getWhatsAppTemplates(),
     enabled,
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+// Platform admin: every number on the account and which company owns it.
+export function useWhatsAppNumbers(enabled = true) {
+  return useQuery({
+    queryKey: companiesKeys.whatsappNumbers(),
+    queryFn: () => companiesService.getWhatsAppNumbers(),
+    enabled,
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useAssignWhatsAppNumber() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ phoneNumberId, companyId }: { phoneNumberId: string; companyId: string | null }) =>
+      companiesService.assignWhatsAppNumber(phoneNumberId, companyId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: companiesKeys.whatsappNumbers() });
+      queryClient.invalidateQueries({ queryKey: [...companiesKeys.all, 'whatsappStatus'] });
+    },
   });
 }

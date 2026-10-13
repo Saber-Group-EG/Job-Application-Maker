@@ -145,19 +145,32 @@ export interface WhatsAppSender {
   qualityRating?: string | null;
 }
 
-// The app's single WhatsApp Business connection, shared by every company.
-// It is configured on the server (environment variables), never in the UI.
+// The app's WhatsApp Business account has many numbers; each is assigned to one
+// company (it carries that company's display name). A company only sees its own.
+// Configured on the server (environment variables), never in the UI.
 export interface WhatsAppStatus {
   // False until the server has its WhatsApp credentials.
   configured: boolean;
+  // True when this company has at least one number it can send from.
   connected: boolean;
   accountName: string | null;
   senders: WhatsAppSender[];
   defaultSenderId: string | null;
-  webhookUrl: string;
   // True once the app secret and verify token are set, so replies/status can arrive.
   webhookReady: boolean;
   error: string | null;
+}
+
+// Platform admin view of every number on the account and who owns it.
+export interface WhatsAppNumber extends WhatsAppSender {
+  assignedTo: { companyId: string; companyName: string | null } | null;
+}
+
+export interface WhatsAppNumbersOverview {
+  configured: boolean;
+  accountName?: string;
+  webhook: { url: string; ready: boolean };
+  numbers: WhatsAppNumber[];
 }
 
 export interface WhatsAppTemplate {

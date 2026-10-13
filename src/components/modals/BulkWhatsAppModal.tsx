@@ -12,6 +12,8 @@ type Props = {
   isOpen: boolean;
   onClose: () => void;
   applicants: any[];
+  /** Company whose WhatsApp numbers are used (the selected applicants' company). */
+  companyId?: string;
 };
 
 type ParamSource = 'firstName' | 'fullName' | 'job' | 'custom';
@@ -42,9 +44,9 @@ const paramValue = (choice: ParamChoice, applicant: any, locale: string) =>
  * progress and a result per person. Without it, the old click-to-chat queue
  * (opens your own WhatsApp once per person) is offered.
  */
-export default function BulkWhatsAppModal({ isOpen, onClose, applicants }: Props) {
+export default function BulkWhatsAppModal({ isOpen, onClose, applicants, companyId }: Props) {
   const { t, locale } = useLocale();
-  const { data: status } = useWhatsAppStatus(isOpen);
+  const { data: status } = useWhatsAppStatus(companyId, isOpen);
   const connected = Boolean(status?.connected);
   const { data: templates = [], isLoading: templatesLoading } = useWhatsAppTemplates(isOpen && connected);
   const sendMessage = useSendMessage();
