@@ -16,15 +16,15 @@ const errorMessage = (err: unknown) => (err as { message?: string })?.message ||
 
 /**
  * WhatsApp Business for one company: the numbers it can send from. The account
- * itself is configured on the server. A platform admin (system role) also sees
- * every number on the account and can assign each to a company, since a number
- * carries one company's display name.
+ * itself is configured on the server. Users with the Mail Management permission
+ * can also assign an unused number to the company (a number carries one
+ * company's display name); moving a number between companies is for system roles.
  */
 export default function WhatsAppConnectionCard({ companyId, companyName }: Props) {
   const { t } = useLocale();
   const { data: status, isLoading } = useWhatsAppStatus(companyId);
-  const isPlatformAdmin = status?.canManage === true;
-  const { data: overview } = useWhatsAppNumbers(isPlatformAdmin && Boolean(status?.configured));
+  const canManage = status?.canManage === true;
+  const { data: overview } = useWhatsAppNumbers(canManage && Boolean(status?.configured));
   const assign = useAssignWhatsAppNumber();
 
   if (!companyId) return null;
@@ -110,7 +110,7 @@ export default function WhatsAppConnectionCard({ companyId, companyName }: Props
           <p className="text-xs text-amber-700">{t('waWebhookPending', 'companies')}</p>
         )}
 
-        {isPlatformAdmin && overview?.configured && (
+        {canManage && overview?.configured && (
           <div className="space-y-3 rounded-xl bg-slate-50 p-4 dark:bg-slate-800/50">
             <div>
               <h3 className="text-sm font-semibold">{t('waAdminTitle', 'companies')}</h3>
