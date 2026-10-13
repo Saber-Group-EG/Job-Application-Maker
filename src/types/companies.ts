@@ -142,23 +142,22 @@ export interface WhatsAppSender {
   phoneNumberId: string;
   displayPhone: string;
   verifiedName?: string;
-  label?: string;
   qualityRating?: string | null;
 }
 
+// The app's single WhatsApp Business connection, shared by every company.
+// It is configured on the server (environment variables), never in the UI.
 export interface WhatsAppStatus {
-  // False when the server has no credentials encryption key.
-  configAvailable: boolean;
+  // False until the server has its WhatsApp credentials.
+  configured: boolean;
   connected: boolean;
-  wabaId: string | null;
   accountName: string | null;
   senders: WhatsAppSender[];
   defaultSenderId: string | null;
-  webhookUrl: string | null;
-  verifyToken: string | null;
-  connectedAt: string | null;
-  lastError: string | null;
-  lastErrorAt: string | null;
+  webhookUrl: string;
+  // True once the app secret and verify token are set, so replies/status can arrive.
+  webhookReady: boolean;
+  error: string | null;
 }
 
 export interface WhatsAppTemplate {

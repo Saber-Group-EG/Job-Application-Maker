@@ -414,7 +414,7 @@
   "bulkWhatsappSent": "Opened",
   "bulkWhatsappModeAuto": "Send automatically",
   "bulkWhatsappModeManual": "Open my WhatsApp",
-  "bulkWhatsappAutoIntro": "Sends an approved WhatsApp template to everyone selected, from the company's WhatsApp Business number. No need to press send for each person.",
+  "bulkWhatsappAutoIntro": "Sends an approved WhatsApp template to everyone selected, from the platform's WhatsApp Business number. No need to press send for each person.",
   "bulkWhatsappFrom": "Send from",
   "bulkWhatsappTemplate": "Template",
   "bulkWhatsappPickTemplate": "Choose a template...",
@@ -432,5 +432,5 @@
   "bulkWhatsappFailed": "Failed",
   "bulkWhatsappSending": "Sending...",
   "bulkWhatsappWaiting": "Waiting",
-  "bulkWhatsappConnectHint": "Connect the company's WhatsApp Business account in Company Settings to send automatically."
+  "bulkWhatsappConnectHint": "WhatsApp Business is not set up yet, so messages cannot be sent from the system."
 }

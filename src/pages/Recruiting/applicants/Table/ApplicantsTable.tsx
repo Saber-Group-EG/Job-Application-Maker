@@ -3408,7 +3408,6 @@ export default function Applicants({
                   isOpen={showBulkWhatsApp}
                   onClose={() => setShowBulkWhatsApp(false)}
                   applicants={selectedApplicants}
-                  settingsId={selectedApplicantCompany?.settings?._id}
                 />
                 */}
 

@@ -12,8 +12,6 @@ type Props = {
   isOpen: boolean;
   onClose: () => void;
   applicants: any[];
-  /** CompanySettings id of the selected applicants' company (for WhatsApp Business). */
-  settingsId?: string;
 };
 
 type ParamSource = 'firstName' | 'fullName' | 'job' | 'custom';
@@ -39,16 +37,16 @@ const paramValue = (choice: ParamChoice, applicant: any, locale: string) =>
   );
 
 /**
- * Bulk WhatsApp. With the company's WhatsApp Business account connected, every
+ * Bulk WhatsApp. With the app's WhatsApp Business account connected, every
  * selected applicant gets an approved template sent by the system, with
  * progress and a result per person. Without it, the old click-to-chat queue
  * (opens your own WhatsApp once per person) is offered.
  */
-export default function BulkWhatsAppModal({ isOpen, onClose, applicants, settingsId }: Props) {
+export default function BulkWhatsAppModal({ isOpen, onClose, applicants }: Props) {
   const { t, locale } = useLocale();
-  const { data: status } = useWhatsAppStatus(isOpen ? settingsId : undefined);
+  const { data: status } = useWhatsAppStatus(isOpen);
   const connected = Boolean(status?.connected);
-  const { data: templates = [], isLoading: templatesLoading } = useWhatsAppTemplates(settingsId, isOpen && connected);
+  const { data: templates = [], isLoading: templatesLoading } = useWhatsAppTemplates(isOpen && connected);
   const sendMessage = useSendMessage();
 
   const [mode, setMode] = useState<'auto' | 'manual'>('auto');
@@ -198,7 +196,7 @@ export default function BulkWhatsAppModal({ isOpen, onClose, applicants, setting
                 <select value={senderId} onChange={(e) => setSenderId(e.target.value)} disabled={running} className={selectClass}>
                   {status!.senders.map((s) => (
                     <option key={s.phoneNumberId} value={s.phoneNumberId}>
-                      {s.label ? `${s.label} — ` : ''}{s.displayPhone}
+                      {s.displayPhone}{s.verifiedName ? ` — ${s.verifiedName}` : ''}
                     </option>
                   ))}
                 </select>

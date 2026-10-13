@@ -414,7 +414,7 @@
   "bulkWhatsappSent": "تم الفتح",
   "bulkWhatsappModeAuto": "إرسال تلقائي",
   "bulkWhatsappModeManual": "فتح واتساب الخاص بي",
-  "bulkWhatsappAutoIntro": "يرسل قالب واتساب معتمد لجميع المحددين من رقم واتساب للأعمال الخاص بالشركة، دون الحاجة للضغط على إرسال لكل شخص.",
+  "bulkWhatsappAutoIntro": "يرسل قالب واتساب معتمد لجميع المحددين من رقم واتساب للأعمال الخاص بالمنصة، دون الحاجة للضغط على إرسال لكل شخص.",
   "bulkWhatsappFrom": "الإرسال من",
   "bulkWhatsappTemplate": "القالب",
   "bulkWhatsappPickTemplate": "اختر قالباً...",
@@ -432,5 +432,5 @@
   "bulkWhatsappFailed": "فشل",
   "bulkWhatsappSending": "جارٍ الإرسال...",
   "bulkWhatsappWaiting": "في الانتظار",
-  "bulkWhatsappConnectHint": "اربط حساب واتساب للأعمال الخاص بالشركة من إعدادات الشركة لتفعيل الإرسال التلقائي."
+  "bulkWhatsappConnectHint": "واتساب للأعمال غير مُعدّ بعد، لذلك لا يمكن الإرسال من داخل النظام."
 }
