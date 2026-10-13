@@ -77,10 +77,12 @@ const MessageModal = ({
 
   // With the app's WhatsApp Business connected, WhatsApp messages are sent from
   // the system; otherwise (or by choice) they open the user's own WhatsApp.
+  // WhatsApp Business is hidden until we decide how to use it. Flip this to bring back sending from the system.
+  const WHATSAPP_BUSINESS_ENABLED = false;
   const [waMode, setWaMode] = useState<'business' | 'chat'>('business');
   const { data: waStatus } = useWhatsAppStatus(
     (company && (company._id || company.id)) || companyIdForQuery,
-    isOpen && messageForm.type === 'whatsapp' && !isInquiry
+    WHATSAPP_BUSINESS_ENABLED && isOpen && messageForm.type === 'whatsapp' && !isInquiry
   );
   const useBusinessWhatsApp =
     messageForm.type === 'whatsapp' && Boolean(waStatus?.connected) && waMode === 'business';
