@@ -14,6 +14,10 @@ const RETRY_DELAYS_MS = [1000, 3000, 8000];
 
 type Piece = { blob: Blob; index: number; durationSec: number };
 
+// Explicit width: the popup is positioned inside the narrow button group, so without it
+// it shrinks to the button's width.
+const POPUP_STYLE = { width: '18rem', maxWidth: 'calc(100vw - 2rem)' } as const;
+
 const pickMimeType = (): string | undefined => {
   if (typeof MediaRecorder === 'undefined') return undefined;
   return ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'].find((m) =>
@@ -269,7 +273,10 @@ export const InterviewRecorder = ({ applicantId, interviewId }: Props) => {
       )}
 
       {showConsent && (
-        <div className="absolute end-0 top-full z-30 mt-2 w-72 rounded-xl border border-slate-200 bg-white p-4 text-slate-700 shadow-xl">
+        <div
+          className="absolute end-0 top-full z-30 mt-2 rounded-xl border border-slate-200 bg-white p-4 text-slate-700 shadow-xl"
+          style={POPUP_STYLE}
+        >
           <p className="text-sm font-semibold text-slate-900">{t('recConsentTitle', 'interview')}</p>
           <p className="mt-1 text-xs text-slate-500">{t('recConsentText', 'interview')}</p>
           <label className="mt-3 flex items-start gap-2 text-xs">
@@ -302,7 +309,10 @@ export const InterviewRecorder = ({ applicantId, interviewId }: Props) => {
       )}
 
       {error && (
-        <div className="absolute end-0 top-full z-30 mt-2 w-72 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700 shadow-lg">
+        <div
+          className="absolute end-0 top-full z-30 mt-2 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700 shadow-lg"
+          style={POPUP_STYLE}
+        >
           <div className="flex items-start justify-between gap-2">
             <span>{error}</span>
             <button type="button" onClick={() => setError('')} className="text-red-400 hover:text-red-600">
