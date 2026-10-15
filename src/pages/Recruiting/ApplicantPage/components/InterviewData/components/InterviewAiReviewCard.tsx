@@ -57,6 +57,39 @@ const fieldClass =
 const clampScore = (raw: string, max: number): number | undefined =>
   raw === '' ? undefined : Math.max(0, Math.min(max, Math.round(Number(raw)) || 0));
 
+/** Score slider, styled like the one on the running interview. */
+const ScoreSlider = ({
+  value, max, disabled, onChange, label,
+}: {
+  value: number | '';
+  max: number;
+  disabled?: boolean;
+  onChange: (score: number | undefined) => void;
+  label: string;
+}) => {
+  const current = value === '' ? 0 : Number(value);
+  const pct = max > 0 ? Math.round((current / max) * 100) : 0;
+  return (
+    <div className="flex min-w-[14rem] flex-1 items-center gap-3 text-xs text-gray-600">
+      <span className="shrink-0">{label}</span>
+      <input
+        type="range"
+        min={0}
+        max={max}
+        step={1}
+        value={current}
+        disabled={disabled}
+        onChange={(e) => onChange(clampScore(e.target.value, max))}
+        style={{ background: `linear-gradient(to right, #3b82f6 ${pct}%, #e5e7eb ${pct}%)` }}
+        className="h-1.5 w-full cursor-pointer rounded-lg accent-blue-600 disabled:cursor-not-allowed"
+      />
+      <span className="shrink-0 font-semibold tabular-nums text-gray-800">
+        {value === '' ? '—' : current} / {max}
+      </span>
+    </div>
+  );
+};
+
 /** A suggestion for one of the interview's own questions. Score and note are editable. */
 const SheetItemRow = ({
   item, question, checked, onToggle, edit, onEdit, t,
@@ -107,19 +140,12 @@ const SheetItemRow = ({
             />
           )}
           <div className="flex flex-wrap items-center gap-2 text-xs">
-            <label className="inline-flex items-center gap-1.5 text-gray-600">
-              {t('recYourScore', 'interview')}
-              <input
-                type="number"
-                min={0}
-                max={max}
-                step={1}
-                value={edit?.score ?? aiScore ?? ''}
-                onChange={(e) => onEdit({ score: clampScore(e.target.value, max) })}
-                className="w-16 rounded-md border border-gray-300 px-2 py-1 text-sm text-gray-800 focus:border-purple-500 focus:outline-none"
-              />
-              / {max}
-            </label>
+            <ScoreSlider
+              label={t('recYourScore', 'interview')}
+              value={edit?.score ?? aiScore ?? ''}
+              max={max}
+              onChange={(score) => onEdit({ score })}
+            />
             {item.covered && aiScore !== null && (
               <span className="rounded-full bg-purple-50 px-2 py-0.5 font-semibold text-purple-700">
                 {t('recAiSuggested', 'interview')}: {aiScore}
@@ -184,20 +210,13 @@ const ExtraItemRow = ({
           className={fieldClass}
         />
         <div className="flex flex-wrap items-center gap-2 text-xs">
-          <label className="inline-flex items-center gap-1.5 text-gray-600">
-            {t('recYourScore', 'interview')}
-            <input
-              type="number"
-              min={0}
-              max={extra.maxScore}
-              step={1}
-              disabled={added}
-              value={edit?.score ?? extra.suggestedScore}
-              onChange={(e) => onEdit({ score: clampScore(e.target.value, extra.maxScore) })}
-              className="w-16 rounded-md border border-gray-300 px-2 py-1 text-sm text-gray-800 focus:border-purple-500 focus:outline-none"
-            />
-            / {extra.maxScore}
-          </label>
+          <ScoreSlider
+            label={t('recYourScore', 'interview')}
+            value={edit?.score ?? extra.suggestedScore}
+            max={extra.maxScore}
+            disabled={added}
+            onChange={(score) => onEdit({ score })}
+          />
           <span className="rounded-full bg-purple-50 px-2 py-0.5 font-semibold text-purple-700">
             {t('recAiSuggested', 'interview')}: {extra.suggestedScore}
           </span>
