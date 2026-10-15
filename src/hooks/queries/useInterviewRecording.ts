@@ -15,6 +15,9 @@ export function useInterviewRecording(applicantId?: string, interviewId?: string
     queryFn: () => applicantsService.getInterviewRecording(applicantId!, interviewId!),
     enabled: enabled && !!applicantId && !!interviewId,
     staleTime: 15 * 1000,
+    // A cached "nothing recorded yet" from earlier in the interview must never be shown
+    // on the results page: always ask the server when the view opens.
+    refetchOnMount: 'always',
     refetchInterval: (query) => (query.state.data?.processing ? 3000 : false),
   });
 }

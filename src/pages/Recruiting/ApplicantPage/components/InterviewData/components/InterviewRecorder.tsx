@@ -2,7 +2,11 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useSta
 import { AlertCircle, CheckCircle2, Loader2, Mic, Square } from 'lucide-react';
 import { useLocale } from '../../../../../../context/LocaleContext';
 import { applicantsService } from '../../../../../../services/applicantsService';
-import { useInterviewRecording } from '../../../../../../hooks/queries/useInterviewRecording';
+import { useQueryClient } from '@tanstack/react-query';
+import {
+  interviewRecordingKeys,
+  useInterviewRecording,
+} from '../../../../../../hooks/queries/useInterviewRecording';
 import { getErrorMessage } from '../../../../../../utils/errorHandler';
 import { formatTimer } from '../utils/interviewUtils';
 
@@ -54,6 +58,7 @@ export const InterviewRecorder = forwardRef<InterviewRecorderHandle, Props>(func
   ref
 ) {
   const { t } = useLocale();
+  const queryClient = useQueryClient();
   const { data: recording } = useInterviewRecording(applicantId, interviewId);
 
   const [state, setState] = useState<'idle' | 'recording'>('idle');
@@ -246,10 +251,14 @@ export const InterviewRecorder = forwardRef<InterviewRecorderHandle, Props>(func
           await new Promise((r) => window.setTimeout(r, 100));
         }
         await queueRef.current;
+        // Pull the fresh state (the last piece is now on the server) before moving on.
+        await queryClient
+          .invalidateQueries({ queryKey: interviewRecordingKeys.detail(applicantId, interviewId) })
+          .catch(() => undefined);
         return recordedAnyRef.current || (recording?.segments?.length ?? 0) > 0;
       },
     }),
-    [stopRecording, recording?.segments?.length]
+    [stopRecording, recording?.segments?.length, queryClient, applicantId, interviewId]
   );
 
   // Leaving the page (or ending the interview) stops the recording; the last piece is still sent.
