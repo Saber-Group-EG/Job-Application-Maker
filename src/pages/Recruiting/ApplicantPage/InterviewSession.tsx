@@ -2,6 +2,7 @@ import { useParams } from 'react-router';
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import InterviewQuestions from './components/InterviewData/InterviewQuestions';
+import { useStartInterview } from './components/InterviewData/hooks/useStartInterview';
 import PersonalInfo from './components/ApplicantData/PersonalInfo';
 import { StickyTopBar, Stickysidebar } from './components/common/StickyLayout';
 import { paths } from '../../../router/Paths';
@@ -16,6 +17,7 @@ const InterviewSession = () => {
   const { t } = useLocale();
   const { user } = useAuth();
   const { data: applicant, isLoading } = useApplicant(id || '');
+  const { start: startInterview, isStarting } = useStartInterview(id, applicant);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -61,6 +63,12 @@ const InterviewSession = () => {
             <div className="flex-1 min-w-0">
               <InterviewQuestions
                 applicantId={id}
+                onRequestStartInterview={startInterview}
+                isStartingInterview={isStarting}
+                // Scheduling lives in the applicant page's dialog: go there and open it.
+                onRequestScheduleInterview={() =>
+                  navigate(paths.applicants.details(id || ''), { state: { openSchedule: true } })
+                }
                 autoSelectInterviewId={interviewId || null}
                 applicantData={applicant}
                 authUser={user}

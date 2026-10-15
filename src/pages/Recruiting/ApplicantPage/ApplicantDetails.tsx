@@ -14,6 +14,7 @@ import { useApplicantMails } from '../../../hooks/queries/useMail';
 import CustomResponses from './components/ApplicantData/CustomResponses';
 import JobSpec from './components/ApplicantData/JobSpec';
 import InterviewQuestions from './components/InterviewData/InterviewQuestions';
+import { useStartInterview } from './components/InterviewData/hooks/useStartInterview';
 import History from './components/history/History';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import Swal from '../../../utils/swal';
@@ -345,6 +346,16 @@ const ApplicantDetails: React.FC = () => {
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+
+  // Coming from the interview page's Schedule button: open the schedule dialog here.
+  useEffect(() => {
+    if ((location.state as { openSchedule?: boolean } | null)?.openSchedule) {
+      setActiveTab('interview');
+      setShowScheduleModal(true);
+      navigate(location.pathname, { replace: true, state: null });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state]);
   const [showInterviewSettingsModal, setShowInterviewSettingsModal] =
     useState(false);
   const [selectedInterview, setSelectedInterview] = useState<Interview | null>(
@@ -760,69 +771,8 @@ const ApplicantDetails: React.FC = () => {
     }
   };
 
-  // Start interview: creates the interview already running and opens it. One
-  // request, a loading state, and a guard so a double click cannot create two.
-  const [isStartingInterview, setIsStartingInterview] = useState(false);
-  const startingInterviewRef = useRef(false);
-
-  const handleStartInterview = async () => {
-    if (!id || !applicant || startingInterviewRef.current) return;
-    startingInterviewRef.current = true;
-    setIsStartingInterview(true);
-    try {
-      // An interview already running (started in the last 12 hours): open it
-      // instead of creating another one.
-      const TWELVE_HOURS = 12 * 60 * 60 * 1000;
-      const running = ((applicant.interviews ?? []) as Interview[]).find(
-        (iv) =>
-          iv.status === 'in_progress' &&
-          !iv.endedAt &&
-          Date.now() - new Date(iv.startedAt || iv.scheduledAt || 0).getTime() < TWELVE_HOURS
-      );
-      if (running) {
-        navigate(paths.applicants.interview(id, String(running._id || running.id)));
-        return;
-      }
-
-      const conductedById = user?._id ? String(user._id) : user?.id ? String(user.id) : '';
-      const now = new Date().toISOString();
-      const result = await scheduleInterviewMutation.mutateAsync({
-        id,
-        silent: true,
-        data: {
-          status: 'in_progress',
-          scheduledAt: now,
-          startedAt: now,
-          type: 'in-person',
-          ...(conductedById ? { conductedBy: conductedById } : {}),
-        },
-      });
-      const res = result as {
-        succeeded?: Array<{ applicantId?: string; interviews?: Interview[] }>;
-        interviews?: Interview[];
-      };
-      const interviews: Interview[] = res.succeeded?.[0]?.interviews ?? res.interviews ?? [];
-      const newest = interviews
-        .filter((iv) => iv.status === 'in_progress')
-        .sort(
-          (x, y) =>
-            new Date(y.createdAt || y.scheduledAt || 0).getTime() -
-            new Date(x.createdAt || x.scheduledAt || 0).getTime()
-        )[0];
-      const interviewId = String(newest?._id || newest?.id || '');
-      if (!interviewId) {
-        setInterviewError(t('startInterviewFailed', 'interview'));
-        return;
-      }
-      navigate(paths.applicants.interview(id, interviewId));
-    } catch (err) {
-      // The mutation already shows the server's error.
-      setInterviewError(getErrorMessage(err));
-    } finally {
-      startingInterviewRef.current = false;
-      setIsStartingInterview(false);
-    }
-  };
+  // Start interview (shared with the interview page): one request, a loading state, no duplicates.
+  const { start: handleStartInterview, isStarting: isStartingInterview } = useStartInterview(id, applicant);
 
   const handleStatusSubmit = async(e: React.FormEvent) => {
     e.preventDefault();
