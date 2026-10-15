@@ -180,5 +180,7 @@
   "recAddedToInterview": "Added to the interview",
   "recTranscriptionFailed": "Transcription failed",
   "recRetryPiece": "Try again",
-  "recFailedNoAudio": "The audio is not stored, so this part must be recorded again."
+  "recFailedNoAudio": "The audio is not stored, so this part must be recorded again.",
+  "recPasteTitle": "Or paste a transcript",
+  "recPasteHint": "If you already have the text of the interview (for example from ChatGPT or another tool), paste it here and let AI review it."
 }
