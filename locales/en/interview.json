@@ -185,5 +185,13 @@
   "recPasteHint": "If you already have the text of the interview (for example from ChatGPT or another tool), paste it here and let AI review it.",
   "startingInterview": "Starting...",
   "startInterviewFailed": "Could not start the interview. Please try again.",
-  "recFinishing": "Finishing the recording..."
+  "recFinishing": "Finishing the recording...",
+  "recYourScore": "Your score",
+  "recAiSuggested": "AI suggested",
+  "recYourNote": "Your note on this answer",
+  "recInterviewNote": "Your note on the interview",
+  "recUseSummary": "Use the AI summary",
+  "recInterviewNoteHint": "Optional. Saved as the interview's notes when you apply.",
+  "recNoteSaved": "Note saved",
+  "endingInterview": "Ending..."
 }

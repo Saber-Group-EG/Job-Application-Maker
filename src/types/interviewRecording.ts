@@ -58,4 +58,11 @@ export type InterviewRecording = {
   review: InterviewReview;
 };
 
-export type ApplyReviewResult = { applied: number; skipped: number; review: InterviewReview };
+// The interviewer's own changes, sent with Apply. Anything left out keeps the AI's suggestion.
+export type ApplyOverrides = {
+  questions?: Record<number, { score?: number; notes?: string }>;
+  extra?: Record<number, { question?: string; score?: number; notes?: string }>;
+  interviewNote?: string;
+};
+
+export type ApplyReviewResult = { applied: number; skipped: number; noteSaved: boolean; review: InterviewReview };

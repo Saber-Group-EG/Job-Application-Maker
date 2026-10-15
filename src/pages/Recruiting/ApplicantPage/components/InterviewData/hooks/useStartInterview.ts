@@ -1,9 +1,10 @@
 import { useCallback, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import Swal from '../../../../../../utils/swal';
 import { useAuth } from '../../../../../../context/AuthContext';
 import { useLocale } from '../../../../../../context/LocaleContext';
-import { useScheduleInterview } from '../../../../../../hooks/queries/useApplicants';
+import { applicantsKeys, useScheduleInterview } from '../../../../../../hooks/queries/useApplicants';
 import { paths } from '../../../../../../router/Paths';
 import type { Applicant, Interview } from '../../../../../../types/applicants';
 
@@ -16,6 +17,7 @@ const TWELVE_HOURS = 12 * 60 * 60 * 1000;
  */
 export const useStartInterview = (applicantId: string | undefined, applicant: Applicant | null | undefined) => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user } = useAuth();
   const { t } = useLocale();
   const scheduleInterview = useScheduleInterview();
@@ -70,6 +72,9 @@ export const useStartInterview = (applicantId: string | undefined, applicant: Ap
         await Swal.fire({ icon: 'error', title: t('startInterviewFailed', 'interview') });
         return;
       }
+      // The interview page looks the interview up in the applicant's data, so that data must
+      // contain the new interview before we go there.
+      await queryClient.invalidateQueries({ queryKey: applicantsKeys.detail(applicantId) });
       navigate(paths.applicants.interview(applicantId, interviewId));
     } catch {
       // The mutation already shows the server's error.
@@ -77,7 +82,7 @@ export const useStartInterview = (applicantId: string | undefined, applicant: Ap
       startingRef.current = false;
       setIsStarting(false);
     }
-  }, [applicantId, applicant, user, navigate, scheduleInterview, t]);
+  }, [applicantId, applicant, user, navigate, queryClient, scheduleInterview, t]);
 
   return { start, isStarting };
 };

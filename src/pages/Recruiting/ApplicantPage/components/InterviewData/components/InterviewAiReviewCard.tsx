@@ -14,6 +14,7 @@ import {
 } from '../../../../../../hooks/queries/useInterviewRecording';
 import { useQueryClient } from '@tanstack/react-query';
 import type { InterviewAnswer } from '../../../../../../types/applicants';
+import type { ApplyOverrides, ExtraQuestion, ReviewItem } from '../../../../../../types/interviewRecording';
 
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 
@@ -46,6 +47,188 @@ const confidenceClass: Record<string, string> = {
   low: 'bg-red-50 text-red-700',
 };
 
+type TFn = ReturnType<typeof useLocale>['t'];
+type ItemEdit = { score?: number; notes?: string };
+type ExtraEdit = { question?: string; score?: number; notes?: string };
+
+const fieldClass =
+  'w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500';
+
+const clampScore = (raw: string, max: number): number | undefined =>
+  raw === '' ? undefined : Math.max(0, Math.min(max, Math.round(Number(raw)) || 0));
+
+/** A suggestion for one of the interview's own questions. Score and note are editable. */
+const SheetItemRow = ({
+  item, question, checked, onToggle, edit, onEdit, t,
+}: {
+  item: ReviewItem;
+  question?: InterviewAnswer;
+  checked: boolean;
+  onToggle: () => void;
+  edit?: ItemEdit;
+  onEdit: (patch: ItemEdit) => void;
+  t: TFn;
+}) => {
+  const max = Number(question?.score || 0);
+  const type = question?.answerType || 'text';
+  // A typed note only fits free-text answers; choice answers keep the chosen choice.
+  const noteEditable = type === 'text' || type === 'number';
+  const aiScore = item.proposed.achievedScore ?? item.suggestedScore;
+  const hasEdit = edit?.score !== undefined || edit?.notes !== undefined;
+  const canApply = (item.covered && (item.proposed.notes !== null || item.proposed.achievedScore !== null)) || hasEdit;
+  const currentNotes = String(question?.notes ?? '').trim();
+  const noteValue = edit?.notes ?? (item.covered ? item.proposed.notes ?? item.answerSummary : '');
+  return (
+    <li className="rounded-lg border border-gray-100 p-3">
+      <div className="flex items-start gap-3">
+        <input
+          type="checkbox"
+          disabled={!canApply}
+          checked={checked}
+          onChange={onToggle}
+          className="mt-1 h-4 w-4 accent-purple-600"
+        />
+        <div className="min-w-0 flex-1 space-y-2">
+          <p className="text-sm font-medium text-gray-800" dir="auto">
+            {item.questionIndex + 1}. {item.questionText}
+          </p>
+          {!item.covered && <p className="text-xs italic text-gray-400">{t('recNotCovered', 'interview')}</p>}
+          {item.covered && !noteEditable && (
+            <p className="whitespace-pre-wrap text-sm text-gray-700" dir="auto">{item.answerSummary}</p>
+          )}
+          {noteEditable && (
+            <textarea
+              value={noteValue ?? ''}
+              onChange={(e) => onEdit({ notes: e.target.value })}
+              rows={2}
+              dir="auto"
+              placeholder={t('recYourNote', 'interview')}
+              className={fieldClass}
+            />
+          )}
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <label className="inline-flex items-center gap-1.5 text-gray-600">
+              {t('recYourScore', 'interview')}
+              <input
+                type="number"
+                min={0}
+                max={max}
+                step={1}
+                value={edit?.score ?? aiScore ?? ''}
+                onChange={(e) => onEdit({ score: clampScore(e.target.value, max) })}
+                className="w-16 rounded-md border border-gray-300 px-2 py-1 text-sm text-gray-800 focus:border-purple-500 focus:outline-none"
+              />
+              / {max}
+            </label>
+            {item.covered && aiScore !== null && (
+              <span className="rounded-full bg-purple-50 px-2 py-0.5 font-semibold text-purple-700">
+                {t('recAiSuggested', 'interview')}: {aiScore}
+              </span>
+            )}
+            {item.covered && (
+              <span className={`rounded-full px-2 py-0.5 font-medium ${confidenceClass[item.confidence]}`}>
+                {t(`recConfidence_${item.confidence}`, 'interview')}
+              </span>
+            )}
+          </div>
+          {item.covered && item.evidence && (
+            <p className="border-s-2 border-gray-200 ps-2 text-xs italic text-gray-500" dir="auto">{item.evidence}</p>
+          )}
+          {!isEmptyAnswer(question) && (
+            <p className="text-xs text-amber-700" dir="auto">
+              {t('recCurrent', 'interview')}: {currentNotes || '—'} ({Number(question?.achievedScore || 0)}/{max})
+            </p>
+          )}
+        </div>
+      </div>
+    </li>
+  );
+};
+
+/** A question found in the recording that is not on the sheet. Wording, note and score are editable. */
+const ExtraItemRow = ({
+  extra, added, checked, onToggle, edit, onEdit, t,
+}: {
+  extra: ExtraQuestion;
+  added: boolean;
+  checked: boolean;
+  onToggle: () => void;
+  edit?: ExtraEdit;
+  onEdit: (patch: ExtraEdit) => void;
+  t: TFn;
+}) => (
+  <li className="rounded-lg border border-gray-100 p-3">
+    <div className="flex items-start gap-3">
+      <input
+        type="checkbox"
+        disabled={added}
+        checked={checked}
+        onChange={onToggle}
+        className="mt-1 h-4 w-4 accent-purple-600"
+      />
+      <div className="min-w-0 flex-1 space-y-2">
+        <input
+          value={edit?.question ?? extra.question}
+          onChange={(e) => onEdit({ question: e.target.value })}
+          disabled={added}
+          dir="auto"
+          className={`${fieldClass} font-medium`}
+        />
+        <textarea
+          value={edit?.notes ?? extra.answerSummary}
+          onChange={(e) => onEdit({ notes: e.target.value })}
+          disabled={added}
+          rows={2}
+          dir="auto"
+          placeholder={t('recYourNote', 'interview')}
+          className={fieldClass}
+        />
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <label className="inline-flex items-center gap-1.5 text-gray-600">
+            {t('recYourScore', 'interview')}
+            <input
+              type="number"
+              min={0}
+              max={extra.maxScore}
+              step={1}
+              disabled={added}
+              value={edit?.score ?? extra.suggestedScore}
+              onChange={(e) => onEdit({ score: clampScore(e.target.value, extra.maxScore) })}
+              className="w-16 rounded-md border border-gray-300 px-2 py-1 text-sm text-gray-800 focus:border-purple-500 focus:outline-none"
+            />
+            / {extra.maxScore}
+          </label>
+          <span className="rounded-full bg-purple-50 px-2 py-0.5 font-semibold text-purple-700">
+            {t('recAiSuggested', 'interview')}: {extra.suggestedScore}
+          </span>
+          <span className={`rounded-full px-2 py-0.5 font-medium ${confidenceClass[extra.confidence]}`}>
+            {t(`recConfidence_${extra.confidence}`, 'interview')}
+          </span>
+          {added && (
+            <span className="inline-flex items-center gap-1 text-emerald-600">
+              <CheckCircle2 className="h-3 w-3" />
+              {t('recAddedToInterview', 'interview')}
+            </span>
+          )}
+        </div>
+        {extra.evidence && (
+          <p className="border-s-2 border-gray-200 ps-2 text-xs italic text-gray-500" dir="auto">{extra.evidence}</p>
+        )}
+      </div>
+    </div>
+  </li>
+);
+
+// Merge one field change into the per-question edits; an emptied edit is removed.
+function patchEdit<T extends object>(prev: Record<number, T>, index: number, patch: Partial<T>): Record<number, T> {
+  const merged = { ...(prev[index] ?? {}), ...patch } as Record<string, unknown>;
+  Object.keys(merged).forEach((k) => merged[k] === undefined && delete merged[k]);
+  const next = { ...prev };
+  if (Object.keys(merged).length) next[index] = merged as T;
+  else delete next[index];
+  return next;
+}
+
 type Props = {
   applicantId: string;
   interviewId: string;
@@ -75,6 +258,10 @@ export const InterviewAiReviewCard = ({ applicantId, interviewId, questions, aut
   const [error, setError] = useState('');
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [selectedExtra, setSelectedExtra] = useState<Set<number>>(new Set());
+  // The interviewer's own changes on top of the AI's suggestions (sent with Apply).
+  const [edits, setEdits] = useState<Record<number, ItemEdit>>({});
+  const [extraEdits, setExtraEdits] = useState<Record<number, ExtraEdit>>({});
+  const [interviewNote, setInterviewNote] = useState('');
   const fileInput = useRef<HTMLInputElement>(null);
 
   const transcript = rec?.transcript ?? '';
@@ -125,6 +312,13 @@ export const InterviewAiReviewCard = ({ applicantId, interviewId, questions, aut
     runReview.mutateAsync().catch((err) => setError(getErrorMessage(err)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoAnalyze, isLoading, rec?.processing, transcript, rec?.review.status]);
+
+  // A new analysis starts from the AI's suggestions again.
+  useEffect(() => {
+    setEdits({});
+    setExtraEdits({});
+    setInterviewNote('');
+  }, [review?.generatedAt]);
 
   const failedPieces = useMemo(() => rec?.segments.filter((s) => s.status === 'failed') ?? [], [rec?.segments]);
   const hasSegments = (rec?.segments.length ?? 0) > 0;
@@ -193,10 +387,18 @@ export const InterviewAiReviewCard = ({ applicantId, interviewId, questions, aut
   const handleApply = async () => {
     const indexes = [...selected];
     const extraIndexes = [...selectedExtra];
-    if (!indexes.length && !extraIndexes.length) return;
+    const note = interviewNote.trim();
+    if (!indexes.length && !extraIndexes.length && !note) return;
+    // Only what the interviewer changed is sent; the rest stays as the AI suggested.
+    const overrides: ApplyOverrides = {};
+    const own = Object.fromEntries(indexes.filter((i) => edits[i]).map((i) => [i, edits[i]]));
+    const ownExtra = Object.fromEntries(extraIndexes.filter((i) => extraEdits[i]).map((i) => [i, extraEdits[i]]));
+    if (Object.keys(own).length) overrides.questions = own;
+    if (Object.keys(ownExtra).length) overrides.extra = ownExtra;
+    if (note) overrides.interviewNote = note;
     const confirm = await Swal.fire({
       icon: 'question',
-      title: t('recApplyConfirmTitle', 'interview', { count: indexes.length + extraIndexes.length }),
+      title: t('recApplyConfirmTitle', 'interview', { count: indexes.length + extraIndexes.length + (note ? 1 : 0) }),
       text: t('recApplyConfirmText', 'interview'),
       showCancelButton: true,
       confirmButtonText: t('recApply', 'interview'),
@@ -204,10 +406,10 @@ export const InterviewAiReviewCard = ({ applicantId, interviewId, questions, aut
     });
     if (!confirm.isConfirmed) return;
     try {
-      const result = await applyReview.mutateAsync({ questionIndexes: indexes, extraIndexes });
+      const result = await applyReview.mutateAsync({ questionIndexes: indexes, extraIndexes, overrides });
       await Swal.fire({
         icon: result.applied ? 'success' : 'info',
-        title: t('recApplied', 'interview', { count: result.applied }),
+        title: result.applied || !result.noteSaved ? t('recApplied', 'interview', { count: result.applied }) : t('recNoteSaved', 'interview'),
         text: result.skipped ? t('recAppliedSkipped', 'interview', { count: result.skipped }) : undefined,
         timer: result.skipped ? undefined : 2000,
         showConfirmButton: Boolean(result.skipped),
@@ -215,6 +417,16 @@ export const InterviewAiReviewCard = ({ applicantId, interviewId, questions, aut
     } catch (err) {
       setError(getErrorMessage(err));
     }
+  };
+
+  // Changing a score or note ticks the item: the interviewer clearly wants it applied.
+  const editItem = (index: number, patch: ItemEdit) => {
+    setEdits((prev) => patchEdit(prev, index, patch));
+    if (Object.values(patch).some((v) => v !== undefined)) setSelected((prev) => new Set(prev).add(index));
+  };
+  const editExtra = (index: number, patch: ExtraEdit) => {
+    setExtraEdits((prev) => patchEdit(prev, index, patch));
+    if (Object.values(patch).some((v) => v !== undefined)) setSelectedExtra((prev) => new Set(prev).add(index));
   };
 
   const toggleExtra = (index: number) =>
@@ -264,11 +476,12 @@ export const InterviewAiReviewCard = ({ applicantId, interviewId, questions, aut
 
       {isLoading ? (
         <p className="text-sm text-gray-500">{t('loading', 'common')}</p>
-      ) : rec && !rec.transcriptionConfigured ? (
-        <p className="text-sm text-gray-500">{t('recNotConfigured', 'interview')}</p>
       ) : (
         <div className="space-y-4">
           <p className="text-sm text-gray-600">{t('recReviewIntro', 'interview')}</p>
+          {rec && !rec.transcriptionConfigured && (
+            <p className="text-xs text-amber-700">{t('recNotConfigured', 'interview')}</p>
+          )}
 
           {error && (
             <p className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
@@ -278,7 +491,7 @@ export const InterviewAiReviewCard = ({ applicantId, interviewId, questions, aut
           )}
 
           {/* Upload a recording made elsewhere (e.g. a Meet/Zoom recording) */}
-          {!hasSegments && (
+          {!hasSegments && rec?.transcriptionConfigured !== false && (
             <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50/60 p-4">
               <p className="flex items-center gap-2 text-sm font-medium text-gray-800">
                 <Mic className="h-4 w-4 text-gray-400" />
@@ -437,57 +650,18 @@ export const InterviewAiReviewCard = ({ applicantId, interviewId, questions, aut
               <div>
                 <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">{t('recSuggestions', 'interview')}</h3>
                 <ul className="space-y-2">
-                  {items.map((item) => {
-                    const q = questions[item.questionIndex];
-                    const canApply = item.covered && (item.proposed.notes !== null || item.proposed.achievedScore !== null);
-                    const max = Number(q?.score || 0);
-                    const currentNotes = String(q?.notes ?? '').trim();
-                    return (
-                      <li key={item.questionIndex} className="rounded-lg border border-gray-100 p-3">
-                        <div className="flex items-start gap-3">
-                          <input
-                            type="checkbox"
-                            disabled={!canApply}
-                            checked={selected.has(item.questionIndex)}
-                            onChange={() => toggle(item.questionIndex)}
-                            className="mt-1 h-4 w-4 accent-purple-600"
-                          />
-                          <div className="min-w-0 flex-1 space-y-1.5">
-                            <p className="text-sm font-medium text-gray-800" dir="auto">
-                              {item.questionIndex + 1}. {item.questionText}
-                            </p>
-                            {item.covered ? (
-                              <>
-                                <p className="whitespace-pre-wrap text-sm text-gray-700" dir="auto">{item.answerSummary}</p>
-                                <div className="flex flex-wrap items-center gap-2 text-xs">
-                                  {item.suggestedScore !== null && (
-                                    <span className="rounded-full bg-purple-50 px-2 py-0.5 font-semibold text-purple-700">
-                                      {t('recSuggestedScore', 'interview')}: {item.proposed.achievedScore ?? item.suggestedScore} / {max}
-                                    </span>
-                                  )}
-                                  <span className={`rounded-full px-2 py-0.5 font-medium ${confidenceClass[item.confidence]}`}>
-                                    {t(`recConfidence_${item.confidence}`, 'interview')}
-                                  </span>
-                                </div>
-                                {item.evidence && (
-                                  <p className="border-s-2 border-gray-200 ps-2 text-xs italic text-gray-500" dir="auto">
-                                    {item.evidence}
-                                  </p>
-                                )}
-                                {!isEmptyAnswer(q) && (
-                                  <p className="text-xs text-amber-700" dir="auto">
-                                    {t('recCurrent', 'interview')}: {currentNotes || '—'} ({Number(q?.achievedScore || 0)}/{max})
-                                  </p>
-                                )}
-                              </>
-                            ) : (
-                              <p className="text-xs italic text-gray-400">{t('recNotCovered', 'interview')}</p>
-                            )}
-                          </div>
-                        </div>
-                      </li>
-                    );
-                  })}
+                  {items.map((item) => (
+                    <SheetItemRow
+                      key={item.questionIndex}
+                      item={item}
+                      question={questions[item.questionIndex]}
+                      checked={selected.has(item.questionIndex)}
+                      onToggle={() => toggle(item.questionIndex)}
+                      edit={edits[item.questionIndex]}
+                      onEdit={(patch) => editItem(item.questionIndex, patch)}
+                      t={t}
+                    />
+                  ))}
                 </ul>
               </div>
               )}
@@ -501,46 +675,44 @@ export const InterviewAiReviewCard = ({ applicantId, interviewId, questions, aut
                     {t(questions.length === 0 ? 'recExtraAskedHint' : 'recExtraHint', 'interview')}
                   </p>
                   <ul className="space-y-2">
-                    {review.extraQuestions.map((e, i) => {
-                      const added = review.appliedExtra.includes(i);
-                      return (
-                        <li key={i} className="rounded-lg border border-gray-100 p-3">
-                          <div className="flex items-start gap-3">
-                            <input
-                              type="checkbox"
-                              disabled={added}
-                              checked={selectedExtra.has(i)}
-                              onChange={() => toggleExtra(i)}
-                              className="mt-1 h-4 w-4 accent-purple-600"
-                            />
-                            <div className="min-w-0 flex-1 space-y-1.5">
-                              <p className="text-sm font-medium text-gray-800" dir="auto">{e.question}</p>
-                              <p className="whitespace-pre-wrap text-sm text-gray-700" dir="auto">{e.answerSummary}</p>
-                              <div className="flex flex-wrap items-center gap-2 text-xs">
-                                <span className="rounded-full bg-purple-50 px-2 py-0.5 font-semibold text-purple-700">
-                                  {t('recSuggestedScore', 'interview')}: {e.suggestedScore} / {e.maxScore}
-                                </span>
-                                <span className={`rounded-full px-2 py-0.5 font-medium ${confidenceClass[e.confidence]}`}>
-                                  {t(`recConfidence_${e.confidence}`, 'interview')}
-                                </span>
-                                {added && (
-                                  <span className="inline-flex items-center gap-1 text-emerald-600">
-                                    <CheckCircle2 className="h-3 w-3" />
-                                    {t('recAddedToInterview', 'interview')}
-                                  </span>
-                                )}
-                              </div>
-                              {e.evidence && (
-                                <p className="border-s-2 border-gray-200 ps-2 text-xs italic text-gray-500" dir="auto">{e.evidence}</p>
-                              )}
-                            </div>
-                          </div>
-                        </li>
-                      );
-                    })}
+                    {review.extraQuestions.map((e, i) => (
+                      <ExtraItemRow
+                        key={i}
+                        extra={e}
+                        added={review.appliedExtra.includes(i)}
+                        checked={selectedExtra.has(i)}
+                        onToggle={() => toggleExtra(i)}
+                        edit={extraEdits[i]}
+                        onEdit={(patch) => editExtra(i, patch)}
+                        t={t}
+                      />
+                    ))}
                   </ul>
                 </div>
               )}
+
+              <div>
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400">{t('recInterviewNote', 'interview')}</h3>
+                  {review.summary && (
+                    <button
+                      type="button"
+                      onClick={() => setInterviewNote(review.summary)}
+                      className="text-xs font-medium text-purple-600 hover:underline"
+                    >
+                      {t('recUseSummary', 'interview')}
+                    </button>
+                  )}
+                </div>
+                <textarea
+                  value={interviewNote}
+                  onChange={(e) => setInterviewNote(e.target.value)}
+                  rows={3}
+                  dir="auto"
+                  placeholder={t('recInterviewNoteHint', 'interview')}
+                  className={fieldClass}
+                />
+              </div>
 
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-4">
                 <p className="text-xs text-gray-500">{t('recAiNote', 'interview')}</p>
@@ -554,11 +726,11 @@ export const InterviewAiReviewCard = ({ applicantId, interviewId, questions, aut
                   <button
                     type="button"
                     onClick={handleApply}
-                    disabled={(!selected.size && !selectedExtra.size) || applyReview.isPending}
+                    disabled={(!selected.size && !selectedExtra.size && !interviewNote.trim()) || applyReview.isPending}
                     className={`${button} bg-emerald-600 text-white hover:bg-emerald-700`}
                   >
                     {applyReview.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-                    {t('recApplySelected', 'interview', { count: selected.size + selectedExtra.size })}
+                    {t('recApplySelected', 'interview', { count: selected.size + selectedExtra.size + (interviewNote.trim() ? 1 : 0) })}
                   </button>
                 </div>
               </div>

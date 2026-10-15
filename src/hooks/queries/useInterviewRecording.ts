@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { applicantsService } from '../../services/applicantsService';
 import { applicantsKeys } from './useApplicants';
-import type { InterviewRecording } from '../../types/interviewRecording';
+import type { ApplyOverrides, InterviewRecording } from '../../types/interviewRecording';
 
 export const interviewRecordingKeys = {
   detail: (applicantId: string, interviewId: string) =>
@@ -47,8 +47,15 @@ export function useRunInterviewReview(applicantId: string, interviewId: string) 
 export function useApplyInterviewReview(applicantId: string, interviewId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ questionIndexes, extraIndexes }: { questionIndexes: number[]; extraIndexes: number[] }) =>
-      applicantsService.applyInterviewReview(applicantId, interviewId, questionIndexes, extraIndexes),
+    mutationFn: ({
+      questionIndexes,
+      extraIndexes,
+      overrides,
+    }: {
+      questionIndexes: number[];
+      extraIndexes: number[];
+      overrides?: ApplyOverrides;
+    }) => applicantsService.applyInterviewReview(applicantId, interviewId, questionIndexes, extraIndexes, overrides),
     onSuccess: () => {
       // The interview's questions changed: reload both the recording view and the applicant.
       queryClient.invalidateQueries({ queryKey: interviewRecordingKeys.detail(applicantId, interviewId) });

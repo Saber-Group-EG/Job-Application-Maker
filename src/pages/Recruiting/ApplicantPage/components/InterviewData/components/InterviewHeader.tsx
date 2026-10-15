@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   CheckCircle2,
   FileText,
+  Loader2,
   Play,
   Save,
   StopCircle,
@@ -136,8 +137,8 @@ export const InterviewHeader = ({
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500 text-white text-xs font-semibold hover:bg-emerald-600 transition-colors shadow-sm disabled:opacity-50"
               title={t('startTheInterviewTimer', 'interview')}
             >
-              <Play className="h-3.5 w-3.5" />
-              {t('startInterview', 'interview')}
+              {isMutating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+              {isMutating ? t('startingInterview', 'interview') : t('startInterview', 'interview')}
             </button>
           )}
           {canEnd && (
@@ -148,8 +149,8 @@ export const InterviewHeader = ({
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-500 text-white text-xs font-semibold hover:bg-red-600 transition-colors shadow-sm disabled:opacity-50"
               title={t('stopTheTimerAndSubmit', 'interview')}
             >
-              <StopCircle className="h-3.5 w-3.5" />
-              {t('endInterview', 'interview')}
+              {isMutating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <StopCircle className="h-3.5 w-3.5" />}
+              {isMutating ? t('endingInterview', 'interview') : t('endInterview', 'interview')}
             </button>
           )}
         </div>

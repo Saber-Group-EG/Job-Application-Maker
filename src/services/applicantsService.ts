@@ -22,7 +22,7 @@ import type {
   BulkScheduleResult,
 } from '../types/applicants';
 import { ApiError } from './companiesService';
-import type { ApplyReviewResult, InterviewRecording } from '../types/interviewRecording';
+import type { ApplyOverrides, ApplyReviewResult, InterviewRecording } from '../types/interviewRecording';
 
 // Re-export types
 export type {
@@ -571,9 +571,14 @@ class ApplicantsService {
     applicantId: string,
     interviewId: string,
     questionIndexes: number[],
-    extraIndexes: number[] = []
+    extraIndexes: number[] = [],
+    overrides?: ApplyOverrides
   ): Promise<ApplyReviewResult> {
-    return this.request('post', `${this.recordingUrl(applicantId, interviewId)}/review/apply`, { questionIndexes, extraIndexes });
+    return this.request('post', `${this.recordingUrl(applicantId, interviewId)}/review/apply`, {
+      questionIndexes,
+      extraIndexes,
+      overrides,
+    });
   }
 
   async deleteInterviewRecording(applicantId: string, interviewId: string): Promise<InterviewRecording> {

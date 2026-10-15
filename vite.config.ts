@@ -39,7 +39,33 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+        // The old setup pre-downloaded every built file (~250 files, ~5 MB) after every
+        // release, and kept serving the previous version until that finished (so users had
+        // to refresh several times). Now: only the tiny icons are pre-cached; pages are
+        // fetched network-first (always the newest version when online, last copy when
+        // offline) and the hashed build files are cached as they are first used.
+        globPatterns: ["pwa/*.png", "images/favicon.ico"],
+        navigateFallback: null,
+        cleanupOutdatedCaches: true,
+        skipWaiting: true,
+        clientsClaim: true,
+        runtimeCaching: [
+          {
+            urlPattern: ({ request }: { request: { mode: string } }) => request.mode === "navigate",
+            handler: "NetworkFirst",
+            options: { cacheName: "pages", networkTimeoutSeconds: 4 },
+          },
+          {
+            // File names carry a content hash, so a cached copy never goes stale.
+            urlPattern: /\/assets\//,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "build-assets",
+              expiration: { maxEntries: 400, maxAgeSeconds: 30 * 24 * 60 * 60 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+        ],
       },
     }),
     // include visualizer only when ANALYZE=1 to avoid generating on every build

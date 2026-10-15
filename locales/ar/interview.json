@@ -185,5 +185,13 @@
   "recPasteHint": "إذا كان لديك نص المقابلة بالفعل (مثلاً من ChatGPT أو أي أداة أخرى)، الصقه هنا ودع الذكاء الاصطناعي يراجعه.",
   "startingInterview": "جارٍ البدء...",
   "startInterviewFailed": "تعذّر بدء المقابلة. حاول مرة أخرى.",
-  "recFinishing": "جارٍ إنهاء التسجيل..."
+  "recFinishing": "جارٍ إنهاء التسجيل...",
+  "recYourScore": "درجتك",
+  "recAiSuggested": "اقتراح الذكاء الاصطناعي",
+  "recYourNote": "ملاحظتك على هذه الإجابة",
+  "recInterviewNote": "ملاحظتك على المقابلة",
+  "recUseSummary": "استخدم ملخص الذكاء الاصطناعي",
+  "recInterviewNoteHint": "اختياري. تُحفظ كملاحظات المقابلة عند التطبيق.",
+  "recNoteSaved": "تم حفظ الملاحظة",
+  "endingInterview": "جارٍ الإنهاء..."
 }
