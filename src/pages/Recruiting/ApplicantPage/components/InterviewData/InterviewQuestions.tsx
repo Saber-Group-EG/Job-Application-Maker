@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router';
+import { paths } from '../../../../../router/Paths';
 import { useLocale } from '../../../../../context/LocaleContext';
 import type {
   Interview,
@@ -18,7 +20,7 @@ import {
 import Swal from '../../../../../utils/swal';
 import { getInterviewId } from './utils/interviewUtils';
 import { AssessmentView } from './views/AssessmentView';
-import { InterviewRecorder } from './components/InterviewRecorder';
+import { InterviewRecorder, type InterviewRecorderHandle } from './components/InterviewRecorder';
 import type { NewCustomQuestion } from './views/AssessmentView';
 import { InterviewPickerView } from './views/InterviewPickerView';
 import { QuestionPickerView } from './views/QuestionPickerView';
@@ -45,11 +47,14 @@ const InterviewQuestions = ({
   applicantId = '',
   onRequestScheduleInterview,
   onRequestStartInterview,
+  isStartingInterview = false,
   autoSelectInterviewId = null,
   applicantData,
   authUser,
 }: InterviewQuestionsProps) => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const recorderRef = useRef<InterviewRecorderHandle>(null);
   const { t, locale } = useLocale();
   const currentUserId = authUser?._id || authUser?.id || '';
   const state = useInterviewState(applicantId, autoSelectInterviewId, applicantData ?? undefined, currentUserId);
@@ -444,15 +449,41 @@ const InterviewQuestions = ({
     pendingAutoSaveRef.current = false;
     const finalQuestions = state.buildQuestionsPayload();
     actions.clearDebounce();
+    const endedInterviewId = getInterviewId(state.selectedInterview);
+    let hadRecording = false;
     try {
-      const ok = await actions.endInterview(finalQuestions);
+      const ok = await actions.endInterview(finalQuestions, async () => {
+        // Finish the recording first (while the recorder is still on screen): the
+        // last piece must reach the server before we move to the results.
+        if (!recorderRef.current) return;
+        Swal.fire({
+          title: t('recFinishing', 'interview'),
+          allowOutsideClick: false,
+          allowEscapeKey: false,
+          showConfirmButton: false,
+          didOpen: () => Swal.showLoading(),
+        });
+        try {
+          hadRecording = await recorderRef.current.stopAndFlush();
+        } catch {
+          hadRecording = false;
+        } finally {
+          Swal.close();
+        }
+      });
       if (ok && applicantId) {
-        queryClient.invalidateQueries({ queryKey: applicantsKeys.detail(applicantId) });
+        await queryClient.invalidateQueries({ queryKey: applicantsKeys.detail(applicantId) });
+        // A recorded interview goes straight to its results (transcript, questions, scores).
+        if (hadRecording && endedInterviewId) {
+          navigate(paths.applicants.completedInterview(applicantId, endedInterviewId), {
+            state: { autoReview: true },
+          });
+        }
       }
     } finally {
       endInFlightRef.current = false;
     }
-  }, [state, actions, applicantId, queryClient]);
+  }, [state, actions, applicantId, queryClient, navigate, t]);
 
   const handleSaveProgress = useCallback(async () => {
     if (!state.selectedInterview) return;
@@ -528,6 +559,7 @@ const InterviewQuestions = ({
         interviewCount={state.scheduledInterviews.length}
         onSchedule={() => onRequestScheduleInterview?.()}
         onStart={() => { onRequestStartInterview?.(); }}
+        isStarting={isStartingInterview}
         onUseExisting={() => {
           if (state.scheduledInterviews.length === 1) {
             state.openInterview(state.scheduledInterviews[0]);
@@ -581,7 +613,7 @@ const InterviewQuestions = ({
       <AssessmentView
         recorder={
           isInteractive && applicantId && getInterviewId(state.selectedInterview)
-            ? <InterviewRecorder applicantId={applicantId} interviewId={getInterviewId(state.selectedInterview) as string} />
+            ? <InterviewRecorder ref={recorderRef} applicantId={applicantId} interviewId={getInterviewId(state.selectedInterview) as string} interviewElapsedMs={elapsedMs} />
             : undefined
         }
         interview={state.selectedInterview}
@@ -636,6 +668,7 @@ const InterviewQuestions = ({
       interviewCount={state.scheduledInterviews.length}
       onSchedule={() => onRequestScheduleInterview?.()}
       onStart={() => { onRequestStartInterview?.(); }}
+      isStarting={isStartingInterview}
       onUseExisting={() => {
         if (state.scheduledInterviews.length === 1) {
           state.openInterview(state.scheduledInterviews[0]);

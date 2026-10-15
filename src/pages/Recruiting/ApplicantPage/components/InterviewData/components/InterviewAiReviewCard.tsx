@@ -50,6 +50,8 @@ type Props = {
   applicantId: string;
   interviewId: string;
   questions: InterviewAnswer[];
+  /** Just ended a recorded interview: analyse as soon as the transcript is ready, without a click. */
+  autoAnalyze?: boolean;
 };
 
 /**
@@ -57,7 +59,7 @@ type Props = {
  * suggested answers/scores for the interview's own questions. Nothing is
  * written to the interview until the interviewer ticks suggestions and applies.
  */
-export const InterviewAiReviewCard = ({ applicantId, interviewId, questions }: Props) => {
+export const InterviewAiReviewCard = ({ applicantId, interviewId, questions, autoAnalyze = false }: Props) => {
   const { t } = useLocale();
   const queryClient = useQueryClient();
   const { data: rec, isLoading } = useInterviewRecording(applicantId, interviewId);
@@ -111,6 +113,18 @@ export const InterviewAiReviewCard = ({ applicantId, interviewId, questions }: P
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [review?.generatedAt]);
+
+  // After a recorded interview the results appear by themselves: wait for the
+  // transcription to finish, then analyse once.
+  const autoStartedRef = useRef(false);
+  useEffect(() => {
+    if (!autoAnalyze || autoStartedRef.current || isLoading || !rec) return;
+    if (rec.processing || !transcript) return;
+    autoStartedRef.current = true;
+    if (rec.review.status === 'ready') return;
+    runReview.mutateAsync().catch((err) => setError(getErrorMessage(err)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoAnalyze, isLoading, rec?.processing, transcript, rec?.review.status]);
 
   const failedPieces = useMemo(() => rec?.segments.filter((s) => s.status === 'failed') ?? [], [rec?.segments]);
   const hasSegments = (rec?.segments.length ?? 0) > 0;

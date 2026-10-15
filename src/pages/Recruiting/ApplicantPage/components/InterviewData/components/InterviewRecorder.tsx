@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { AlertCircle, CheckCircle2, Loader2, Mic, Square } from 'lucide-react';
 import { useLocale } from '../../../../../../context/LocaleContext';
 import { applicantsService } from '../../../../../../services/applicantsService';
 import { useInterviewRecording } from '../../../../../../hooks/queries/useInterviewRecording';
 import { getErrorMessage } from '../../../../../../utils/errorHandler';
+import { formatTimer } from '../utils/interviewUtils';
 
 // Pieces of 5 minutes keep every upload small and let transcription run while
 // the interview is still going. The next piece starts before the previous one
@@ -31,9 +32,16 @@ const formatClock = (sec: number) => {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 };
 
+export type InterviewRecorderHandle = {
+  /** Stops recording, sends the last piece and waits for uploads. Resolves true if this interview has a recording. */
+  stopAndFlush: () => Promise<boolean>;
+};
+
 type Props = {
   applicantId: string;
   interviewId: string;
+  /** The interview's own clock: the recorder shows the same time instead of its own. */
+  interviewElapsedMs?: number;
 };
 
 /**
@@ -41,7 +49,10 @@ type Props = {
  * it goes. Audio is never stored: only the transcript is kept (and can be
  * deleted). Lives in the interview header while the interview is running.
  */
-export const InterviewRecorder = ({ applicantId, interviewId }: Props) => {
+export const InterviewRecorder = forwardRef<InterviewRecorderHandle, Props>(function InterviewRecorder(
+  { applicantId, interviewId, interviewElapsedMs },
+  ref
+) {
   const { t } = useLocale();
   const { data: recording } = useInterviewRecording(applicantId, interviewId);
 
@@ -64,6 +75,7 @@ export const InterviewRecorder = ({ applicantId, interviewId }: Props) => {
   // Pieces the server accepted but has not transcribed yet: kept in this browser so a failed
   // transcription can be retried (the server does not store audio).
   const sentRef = useRef<Map<number, Piece>>(new Map());
+  const recordedAnyRef = useRef(false);
 
   const maxIndex = recording?.segments?.length ? Math.max(...recording.segments.map((s) => s.index)) : -1;
   const processing = recording?.segments?.filter((s) => s.status === 'processing').length ?? 0;
@@ -177,6 +189,7 @@ export const InterviewRecorder = ({ applicantId, interviewId }: Props) => {
       return;
     }
     stoppingRef.current = false;
+    recordedAnyRef.current = true;
     nextIndexRef.current = Math.max(nextIndexRef.current, maxIndex + 1);
     setShowConsent(false);
     setElapsed(0);
@@ -222,6 +235,23 @@ export const InterviewRecorder = ({ applicantId, interviewId }: Props) => {
     if (lost) setError(t('recFailedNoAudio', 'interview'));
   };
 
+  useImperativeHandle(
+    ref,
+    () => ({
+      stopAndFlush: async () => {
+        if (currentRef.current || activePiecesRef.current > 0) stopRecording();
+        // The last piece is handed over when the browser's recorder reports it has stopped.
+        const deadline = Date.now() + 15000;
+        while (activePiecesRef.current > 0 && Date.now() < deadline) {
+          await new Promise((r) => window.setTimeout(r, 100));
+        }
+        await queueRef.current;
+        return recordedAnyRef.current || (recording?.segments?.length ?? 0) > 0;
+      },
+    }),
+    [stopRecording, recording?.segments?.length]
+  );
+
   // Leaving the page (or ending the interview) stops the recording; the last piece is still sent.
   useEffect(
     () => () => {
@@ -262,7 +292,9 @@ export const InterviewRecorder = ({ applicantId, interviewId }: Props) => {
           title={t('recStop', 'interview')}
         >
           <span className="h-2 w-2 rounded-full bg-white animate-pulse" />
-          <span className="tabular-nums">{formatClock(elapsed)}</span>
+          <span className="tabular-nums">
+            {interviewElapsedMs !== undefined ? formatTimer(interviewElapsedMs) : formatClock(elapsed)}
+          </span>
           <Square className="h-3 w-3 fill-current" />
         </button>
       ) : (
@@ -363,6 +395,6 @@ export const InterviewRecorder = ({ applicantId, interviewId }: Props) => {
       )}
     </div>
   );
-};
+});
 
 export default InterviewRecorder;

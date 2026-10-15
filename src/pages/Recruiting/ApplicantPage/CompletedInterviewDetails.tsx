@@ -952,6 +952,7 @@ const CompletedInterviewDetails: React.FC = () => {
             applicantId={applicantId}
             interviewId={interviewId}
             questions={flattenQuestions(interview?.questions)}
+            autoAnalyze={(location.state as { autoReview?: boolean } | null)?.autoReview === true}
           />
         )}
 

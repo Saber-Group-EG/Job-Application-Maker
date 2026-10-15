@@ -193,6 +193,7 @@ class ApplicantsService {
 
     const allowedKeys: Array<keyof ScheduleInterviewRequest> = [
       'scheduledAt',
+      'startedAt',
       'conductedBy',
       'scheduledBy',
       'description',

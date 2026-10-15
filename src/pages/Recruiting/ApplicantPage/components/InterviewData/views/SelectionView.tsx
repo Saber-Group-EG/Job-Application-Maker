@@ -1,4 +1,4 @@
-import { History, MessageSquare, PlayCircle, Sparkles } from 'lucide-react';
+import { History, Loader2, MessageSquare, PlayCircle, Sparkles } from 'lucide-react';
 import type { InterviewViewName } from '../hooks/useInterviewState';
 import { useLocale } from '../../../../../../context/LocaleContext';
 
@@ -8,6 +8,8 @@ export type SelectionViewProps = {
   onSchedule: () => void;
   onUseExisting: () => void;
   onStart: () => void;
+  /** Start interview is creating and opening the interview. */
+  isStarting?: boolean;
   authUser?: { _id?: string; id?: string; fullName?: string; name?: string; email?: string } | null;
 };
 
@@ -17,6 +19,7 @@ export const SelectionView = ({
   onSchedule,
   onUseExisting,
   onStart,
+  isStarting = false,
   authUser,
 }: SelectionViewProps) => {
   const { t } = useLocale();
@@ -41,14 +44,20 @@ export const SelectionView = ({
           <button
             type="button"
             onClick={onStart}
-            className="group inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-lg font-medium hover:from-emerald-700 hover:to-emerald-800 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-sm"
+            disabled={isStarting}
+            className="group inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-lg font-medium hover:from-emerald-700 hover:to-emerald-800 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-sm disabled:opacity-70 disabled:cursor-wait disabled:transform-none"
           >
-            <PlayCircle className="h-3.5 w-3.5 group-hover:scale-110 transition-transform" />
-            {t('startInterview', 'interview')}
+            {isStarting ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <PlayCircle className="h-3.5 w-3.5 group-hover:scale-110 transition-transform" />
+            )}
+            {isStarting ? t('startingInterview', 'interview') : t('startInterview', 'interview')}
           </button>
           <button
             type="button"
             onClick={onSchedule}
+            disabled={isStarting}
             className="group inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg font-medium hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-sm"
           >
             <Sparkles className="h-3.5 w-3.5 group-hover:rotate-12 transition-transform" />
@@ -57,7 +66,7 @@ export const SelectionView = ({
           <button
             type="button"
             onClick={onUseExisting}
-            disabled={!hasExistingInterview}
+            disabled={!hasExistingInterview || isStarting}
             className="group inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg font-medium hover:border-blue-400 hover:bg-blue-50 transition-all duration-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <History className="h-3.5 w-3.5 group-hover:text-blue-600 transition-colors" />

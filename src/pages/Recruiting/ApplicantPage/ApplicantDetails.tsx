@@ -760,56 +760,67 @@ const ApplicantDetails: React.FC = () => {
     }
   };
 
+  // Start interview: creates the interview already running and opens it. One
+  // request, a loading state, and a guard so a double click cannot create two.
+  const [isStartingInterview, setIsStartingInterview] = useState(false);
+  const startingInterviewRef = useRef(false);
+
   const handleStartInterview = async () => {
-    if (!id || !applicant) return;
+    if (!id || !applicant || startingInterviewRef.current) return;
+    startingInterviewRef.current = true;
+    setIsStartingInterview(true);
     try {
-      const conductedById = user?._id
-        ? String(user._id)
-        : user?.id
-          ? String(user.id)
-          : '';
-      const interviewData: ScheduleInterviewRequest = {
-        status: 'in_progress',
-        scheduledAt: new Date().toISOString(),
-        type: 'in-person',
-        ...(conductedById ? { conductedBy: conductedById } : {}),
-      };
+      // An interview already running (started in the last 12 hours): open it
+      // instead of creating another one.
+      const TWELVE_HOURS = 12 * 60 * 60 * 1000;
+      const running = ((applicant.interviews ?? []) as Interview[]).find(
+        (iv) =>
+          iv.status === 'in_progress' &&
+          !iv.endedAt &&
+          Date.now() - new Date(iv.startedAt || iv.scheduledAt || 0).getTime() < TWELVE_HOURS
+      );
+      if (running) {
+        navigate(paths.applicants.interview(id, String(running._id || running.id)));
+        return;
+      }
+
+      const conductedById = user?._id ? String(user._id) : user?.id ? String(user.id) : '';
+      const now = new Date().toISOString();
       const result = await scheduleInterviewMutation.mutateAsync({
         id,
-        data: interviewData,
+        silent: true,
+        data: {
+          status: 'in_progress',
+          scheduledAt: now,
+          startedAt: now,
+          type: 'in-person',
+          ...(conductedById ? { conductedBy: conductedById } : {}),
+        },
       });
       const res = result as {
         succeeded?: Array<{ applicantId?: string; interviews?: Interview[] }>;
         interviews?: Interview[];
       };
-
-      const interviews: Interview[] =
-        res.succeeded?.[0]?.interviews ?? res.interviews ?? [];
-
-      let interviewId = '';
-
-      const inProgress = interviews.find((iv) => iv.status === 'in_progress');
-      if (inProgress) {
-        interviewId = String(inProgress._id || inProgress.id || '');
-      } else if (interviews.length) {
-        const sorted = interviews.slice().sort((a, b) => {
-          const aTime = new Date(a.createdAt || a.scheduledAt || 0).getTime();
-          const bTime = new Date(b.createdAt || b.scheduledAt || 0).getTime();
-          return bTime - aTime;
-        });
-        interviewId = String(sorted[0]?._id || sorted[0]?.id || '');
+      const interviews: Interview[] = res.succeeded?.[0]?.interviews ?? res.interviews ?? [];
+      const newest = interviews
+        .filter((iv) => iv.status === 'in_progress')
+        .sort(
+          (x, y) =>
+            new Date(y.createdAt || y.scheduledAt || 0).getTime() -
+            new Date(x.createdAt || x.scheduledAt || 0).getTime()
+        )[0];
+      const interviewId = String(newest?._id || newest?.id || '');
+      if (!interviewId) {
+        setInterviewError(t('startInterviewFailed', 'interview'));
+        return;
       }
-
-      if (interviewId) {
-        await updateInterviewStatusMutation.mutateAsync({
-          applicantId: id,
-          interviewId,
-          data: { startedAt: new Date().toISOString(), status: 'in_progress' },
-        });
-        navigate(paths.applicants.interview(id, interviewId));
-      }
+      navigate(paths.applicants.interview(id, interviewId));
     } catch (err) {
+      // The mutation already shows the server's error.
       setInterviewError(getErrorMessage(err));
+    } finally {
+      startingInterviewRef.current = false;
+      setIsStartingInterview(false);
     }
   };
 
@@ -1462,6 +1473,7 @@ const ApplicantDetails: React.FC = () => {
                   applicantId={id}
                   onRequestScheduleInterview={() => setShowScheduleModal(true)}
                   onRequestStartInterview={handleStartInterview}
+                  isStartingInterview={isStartingInterview}
                   autoSelectInterviewId={autoSelectInterviewId}
                   applicantData={applicant}
                   authUser={user}

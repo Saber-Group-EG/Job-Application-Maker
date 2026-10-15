@@ -806,15 +806,17 @@ export function useScheduleInterview() {
     }: {
       id: string;
       data: ScheduleInterviewRequest;
+      /** No success message: Start interview opens the interview instead. */
+      silent?: boolean;
     }) => applicantsService.scheduleInterview(id, data),
-    onSuccess: (response, { id }) => {
+    onSuccess: (response, { id, silent }) => {
       const res = response as Record<string, unknown>;
       const succeeded = res.succeeded as
         | Array<Record<string, unknown>>
         | undefined;
       const unwrapped = succeeded?.[0] ?? res;
       mergeApplicantResponseIntoCache(queryClient, id, unwrapped);
-      showSuccessToast(t('interviewScheduled', 'common'), t);
+      if (!silent) showSuccessToast(t('interviewScheduled', 'common'), t);
     },
     onError: (error: ApiError) => {
       showErrorToast(error.message, t('interviewScheduleFailed', 'common'), t);

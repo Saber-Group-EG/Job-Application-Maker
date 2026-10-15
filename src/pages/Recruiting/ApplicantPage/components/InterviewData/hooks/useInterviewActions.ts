@@ -151,16 +151,30 @@ void setFieldSaveStatusMap;
   );
 
   /**
-   * Start the interview timer. LOCAL-ONLY: no network request is sent.
-   * The orchestrator writes startedAt/status into the React Query cache
-   * optimistically. The server only learns about start/end when the user
-   * presses "End Interview" and endInterview() is called.
+   * Start a scheduled interview: stamps startedAt and moves it to in_progress.
+   * The mutation updates the cache optimistically, so the timer starts at once
+   * (and the interview survives a reload), and it rolls back with an error toast
+   * if the server refuses.
    */
   const startInterview = useCallback(async (): Promise<boolean> => {
     if (!applicantId || !interviewId) return false;
     if (interview?.startedAt) return true;
-    return true;
-  }, [applicantId, interviewId, interview?.startedAt]);
+    const conductedBy = currentUserId || (interview?.conductedBy ? resolveStringId(interview.conductedBy) : '');
+    try {
+      await mutation.mutateAsync({
+        applicantId,
+        interviewId,
+        data: {
+          startedAt: new Date().toISOString(),
+          status: 'in_progress',
+          ...(conductedBy ? { conductedBy } : {}),
+        } as UpdateInterviewStatusRequest,
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }, [applicantId, interviewId, interview?.startedAt, interview?.conductedBy, currentUserId, mutation]);
 
   /**
    * End the interview: set endedAt, status='completed', and persist the
@@ -168,7 +182,7 @@ void setFieldSaveStatusMap;
    * first.
    */
   const endInterview = useCallback(
-    async (finalQuestions: InterviewAnswer[]): Promise<boolean> => {
+    async (finalQuestions: InterviewAnswer[], beforeSubmit?: () => Promise<void>): Promise<boolean> => {
       if (!applicantId || !interviewId) return false;
       const confirm = await Swal.fire({
         icon: 'question',
@@ -180,6 +194,8 @@ void setFieldSaveStatusMap;
         confirmButtonColor: '#dc2626',
       });
       if (!confirm.isConfirmed) return false;
+      // Runs once the user has confirmed (e.g. finish and send the recording).
+      if (beforeSubmit) await beforeSubmit();
 
       const payload: Record<string, unknown> = {
         endedAt: new Date().toISOString(),

@@ -186,6 +186,8 @@ export type UpdateStatusRequest = {
 
 export type ScheduleInterviewRequest = {
   scheduledAt?: string;
+  // Set when an interview is created already running (Start interview).
+  startedAt?: string;
   conductedBy?: string;
   scheduledBy?: string;
   description?: string | null;
@@ -386,6 +388,8 @@ export interface InterviewQuestionsProps {
   applicantId?: string;
   onRequestScheduleInterview?: () => void;
   onRequestStartInterview?: () => void;
+  // True while Start interview is creating and opening the interview.
+  isStartingInterview?: boolean;
   autoSelectInterviewId?: string | null;
   applicantData?: Applicant | null;
   authUser?: { _id?: string; id?: string; fullName?: string; name?: string; email?: string } | null;
