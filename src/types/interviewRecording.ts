@@ -21,13 +21,26 @@ export type ReviewItem = {
   proposed: { notes: string | null; achievedScore: number | null };
 };
 
+// A question found in the recording that is not on the interview's sheet. When the
+// sheet is empty, these are all the questions asked in the interview.
+export type ExtraQuestion = {
+  question: string;
+  answerSummary: string;
+  suggestedScore: number;
+  maxScore: number;
+  confidence: 'high' | 'medium' | 'low';
+  evidence: string;
+};
+
 export type InterviewReview = {
   status: 'none' | 'running' | 'ready' | 'failed';
   summary: string;
   strengths: string[];
   concerns: string[];
   items: ReviewItem[];
-  extraQuestions: { question: string; answerSummary: string }[];
+  extraQuestions: ExtraQuestion[];
+  // Positions in extraQuestions already added to the interview.
+  appliedExtra: number[];
   generatedAt: string | null;
   appliedAt: string | null;
   error: string | null;

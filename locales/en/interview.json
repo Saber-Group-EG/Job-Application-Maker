@@ -139,7 +139,7 @@
   "recRetry": "Retry {count} upload(s)",
   "recReviewTitle": "AI review of the interview",
   "recBeta": "Beta",
-  "recReviewIntro": "Record the interview, or upload a recording, and AI will suggest answers and scores for your questions. Nothing changes until you apply the suggestions you choose.",
+  "recReviewIntro": "Record the interview, or upload a recording. You don't need to prepare questions: AI lists the questions that were asked, summarises each answer and suggests a score. Nothing is added until you choose and apply.",
   "recUploadTitle": "Upload a recording",
   "recUploadHint": "MP3, M4A, WAV or WebM, up to 25 MB. For a longer interview, record it from the interview screen instead.",
   "recUploadChoose": "Choose an audio file",
@@ -169,9 +169,16 @@
   "recApplySelected": "Apply selected ({count})",
   "recApply": "Apply",
   "recApplyConfirmTitle": "Apply {count} suggestion(s)?",
-  "recApplyConfirmText": "They replace the current answer and score of those questions.",
+  "recApplyConfirmText": "They are added to, or replace, the answers and scores in this interview.",
   "recApplied": "Applied {count} suggestion(s)",
   "recAppliedSkipped": "{count} could not be applied because the questions changed. Analyze again.",
   "recAppliedBefore": "Applied before",
-  "recAiNote": "AI suggestions can be wrong. Check each one before applying."
+  "recAiNote": "AI suggestions can be wrong. Check each one before applying.",
+  "recExtraAsked": "Questions asked in the interview",
+  "recExtraAskedHint": "Found in the recording. Tick the ones to add to this interview with their answers and scores.",
+  "recExtraHint": "These were asked but are not on your question sheet. Tick any you want added.",
+  "recAddedToInterview": "Added to the interview",
+  "recTranscriptionFailed": "Transcription failed",
+  "recRetryPiece": "Try again",
+  "recFailedNoAudio": "The audio is not stored, so this part must be recorded again."
 }

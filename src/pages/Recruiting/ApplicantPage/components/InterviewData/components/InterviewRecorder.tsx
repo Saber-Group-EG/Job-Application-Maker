@@ -61,10 +61,15 @@ export const InterviewRecorder = ({ applicantId, interviewId }: Props) => {
   const nextIndexRef = useRef(0);
   const stoppingRef = useRef(false);
   const queueRef = useRef<Promise<void>>(Promise.resolve());
+  // Pieces the server accepted but has not transcribed yet: kept in this browser so a failed
+  // transcription can be retried (the server does not store audio).
+  const sentRef = useRef<Map<number, Piece>>(new Map());
 
   const maxIndex = recording?.segments?.length ? Math.max(...recording.segments.map((s) => s.index)) : -1;
   const processing = recording?.segments?.filter((s) => s.status === 'processing').length ?? 0;
   const done = recording?.segments?.filter((s) => s.status === 'done').length ?? 0;
+  const failedSegs = recording?.segments?.filter((s) => s.status === 'failed') ?? [];
+  const failedKey = failedSegs.map((s) => s.index).join(',');
 
   const sendPiece = useCallback(
     async (piece: Piece): Promise<boolean> => {
@@ -75,6 +80,7 @@ export const InterviewRecorder = ({ applicantId, interviewId }: Props) => {
             durationSec: piece.durationSec,
             consent: true,
           });
+          sentRef.current.set(piece.index, piece);
           return true;
         } catch (err) {
           const status = (err as { statusCode?: number })?.statusCode;
@@ -194,6 +200,28 @@ export const InterviewRecorder = ({ applicantId, interviewId }: Props) => {
     pieces.forEach(enqueue);
   };
 
+  useEffect(() => {
+    recording?.segments?.forEach((seg) => {
+      if (seg.status === 'done') sentRef.current.delete(seg.index);
+    });
+  }, [recording?.segments]);
+
+  useEffect(() => {
+    if (failedSegs.length && failedSegs[0].error) setError(failedSegs[0].error);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [failedKey]);
+
+  const retryTranscription = () => {
+    setError('');
+    let lost = 0;
+    failedSegs.forEach((seg) => {
+      const piece = sentRef.current.get(seg.index);
+      if (piece) enqueue(piece);
+      else lost += 1;
+    });
+    if (lost) setError(t('recFailedNoAudio', 'interview'));
+  };
+
   // Leaving the page (or ending the interview) stops the recording; the last piece is still sent.
   useEffect(
     () => () => {
@@ -269,6 +297,18 @@ export const InterviewRecorder = ({ applicantId, interviewId }: Props) => {
         >
           <AlertCircle className="h-3 w-3" />
           {t('recRetry', 'interview', { count: failed.length })}
+        </button>
+      )}
+
+      {failedSegs.length > 0 && processing === 0 && pending === 0 && (
+        <button
+          type="button"
+          onClick={retryTranscription}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-400/25 text-red-50 text-[11px] font-semibold hover:bg-red-400/40"
+          title={failedSegs[0].error ?? undefined}
+        >
+          <AlertCircle className="h-3 w-3" />
+          {t('recTranscriptionFailed', 'interview')} · {t('recRetryPiece', 'interview')}
         </button>
       )}
 

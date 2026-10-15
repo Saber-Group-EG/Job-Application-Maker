@@ -44,8 +44,8 @@ export function useRunInterviewReview(applicantId: string, interviewId: string) 
 export function useApplyInterviewReview(applicantId: string, interviewId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (questionIndexes: number[]) =>
-      applicantsService.applyInterviewReview(applicantId, interviewId, questionIndexes),
+    mutationFn: ({ questionIndexes, extraIndexes }: { questionIndexes: number[]; extraIndexes: number[] }) =>
+      applicantsService.applyInterviewReview(applicantId, interviewId, questionIndexes, extraIndexes),
     onSuccess: () => {
       // The interview's questions changed: reload both the recording view and the applicant.
       queryClient.invalidateQueries({ queryKey: interviewRecordingKeys.detail(applicantId, interviewId) });

@@ -566,8 +566,13 @@ class ApplicantsService {
     return this.request('post', `${this.recordingUrl(applicantId, interviewId)}/review`, {}, undefined, { timeout: 180000 });
   }
 
-  async applyInterviewReview(applicantId: string, interviewId: string, questionIndexes: number[]): Promise<ApplyReviewResult> {
-    return this.request('post', `${this.recordingUrl(applicantId, interviewId)}/review/apply`, { questionIndexes });
+  async applyInterviewReview(
+    applicantId: string,
+    interviewId: string,
+    questionIndexes: number[],
+    extraIndexes: number[] = []
+  ): Promise<ApplyReviewResult> {
+    return this.request('post', `${this.recordingUrl(applicantId, interviewId)}/review/apply`, { questionIndexes, extraIndexes });
   }
 
   async deleteInterviewRecording(applicantId: string, interviewId: string): Promise<InterviewRecording> {

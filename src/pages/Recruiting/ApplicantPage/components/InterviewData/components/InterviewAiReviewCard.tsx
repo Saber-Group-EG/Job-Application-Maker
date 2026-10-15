@@ -72,6 +72,7 @@ export const InterviewAiReviewCard = ({ applicantId, interviewId, questions }: P
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [selectedExtra, setSelectedExtra] = useState<Set<number>>(new Set());
   const fileInput = useRef<HTMLInputElement>(null);
 
   const transcript = rec?.transcript ?? '';
@@ -92,6 +93,20 @@ export const InterviewAiReviewCard = ({ applicantId, interviewId, questions }: P
         items
           .filter((i) => i.covered && (i.proposed.notes !== null || i.proposed.achievedScore !== null) && isEmptyAnswer(questions[i.questionIndex]))
           .map((i) => i.questionIndex)
+      )
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [review?.generatedAt]);
+
+  // With no prepared sheet the recording IS the interview: tick every question found in it.
+  // With a sheet, extra questions are optional, so nothing is ticked by default.
+  useEffect(() => {
+    const applied = new Set(review?.appliedExtra ?? []);
+    setSelectedExtra(
+      new Set(
+        questions.length === 0
+          ? (review?.extraQuestions ?? []).map((_, i) => i).filter((i) => !applied.has(i))
+          : []
       )
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -163,10 +178,11 @@ export const InterviewAiReviewCard = ({ applicantId, interviewId, questions }: P
 
   const handleApply = async () => {
     const indexes = [...selected];
-    if (!indexes.length) return;
+    const extraIndexes = [...selectedExtra];
+    if (!indexes.length && !extraIndexes.length) return;
     const confirm = await Swal.fire({
       icon: 'question',
-      title: t('recApplyConfirmTitle', 'interview', { count: indexes.length }),
+      title: t('recApplyConfirmTitle', 'interview', { count: indexes.length + extraIndexes.length }),
       text: t('recApplyConfirmText', 'interview'),
       showCancelButton: true,
       confirmButtonText: t('recApply', 'interview'),
@@ -174,7 +190,7 @@ export const InterviewAiReviewCard = ({ applicantId, interviewId, questions }: P
     });
     if (!confirm.isConfirmed) return;
     try {
-      const result = await applyReview.mutateAsync(indexes);
+      const result = await applyReview.mutateAsync({ questionIndexes: indexes, extraIndexes });
       await Swal.fire({
         icon: result.applied ? 'success' : 'info',
         title: t('recApplied', 'interview', { count: result.applied }),
@@ -186,6 +202,14 @@ export const InterviewAiReviewCard = ({ applicantId, interviewId, questions }: P
       setError(getErrorMessage(err));
     }
   };
+
+  const toggleExtra = (index: number) =>
+    setSelectedExtra((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
 
   const toggle = (index: number) =>
     setSelected((prev) => {
@@ -372,6 +396,7 @@ export const InterviewAiReviewCard = ({ applicantId, interviewId, questions }: P
                 </div>
               )}
 
+              {items.length > 0 && (
               <div>
                 <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">{t('recSuggestions', 'interview')}</h3>
                 <ul className="space-y-2">
@@ -428,17 +453,54 @@ export const InterviewAiReviewCard = ({ applicantId, interviewId, questions }: P
                   })}
                 </ul>
               </div>
+              )}
 
               {review.extraQuestions.length > 0 && (
                 <div>
-                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">{t('recExtraQuestions', 'interview')}</h3>
-                  <ul className="space-y-1.5 text-sm text-gray-700" dir="auto">
-                    {review.extraQuestions.map((e, i) => (
-                      <li key={i}>
-                        <span className="font-medium">{e.question}</span>
-                        {e.answerSummary ? ` — ${e.answerSummary}` : ''}
-                      </li>
-                    ))}
+                  <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-gray-400">
+                    {t(questions.length === 0 ? 'recExtraAsked' : 'recExtraQuestions', 'interview')}
+                  </h3>
+                  <p className="mb-2 text-xs text-gray-500">
+                    {t(questions.length === 0 ? 'recExtraAskedHint' : 'recExtraHint', 'interview')}
+                  </p>
+                  <ul className="space-y-2">
+                    {review.extraQuestions.map((e, i) => {
+                      const added = review.appliedExtra.includes(i);
+                      return (
+                        <li key={i} className="rounded-lg border border-gray-100 p-3">
+                          <div className="flex items-start gap-3">
+                            <input
+                              type="checkbox"
+                              disabled={added}
+                              checked={selectedExtra.has(i)}
+                              onChange={() => toggleExtra(i)}
+                              className="mt-1 h-4 w-4 accent-purple-600"
+                            />
+                            <div className="min-w-0 flex-1 space-y-1.5">
+                              <p className="text-sm font-medium text-gray-800" dir="auto">{e.question}</p>
+                              <p className="whitespace-pre-wrap text-sm text-gray-700" dir="auto">{e.answerSummary}</p>
+                              <div className="flex flex-wrap items-center gap-2 text-xs">
+                                <span className="rounded-full bg-purple-50 px-2 py-0.5 font-semibold text-purple-700">
+                                  {t('recSuggestedScore', 'interview')}: {e.suggestedScore} / {e.maxScore}
+                                </span>
+                                <span className={`rounded-full px-2 py-0.5 font-medium ${confidenceClass[e.confidence]}`}>
+                                  {t(`recConfidence_${e.confidence}`, 'interview')}
+                                </span>
+                                {added && (
+                                  <span className="inline-flex items-center gap-1 text-emerald-600">
+                                    <CheckCircle2 className="h-3 w-3" />
+                                    {t('recAddedToInterview', 'interview')}
+                                  </span>
+                                )}
+                              </div>
+                              {e.evidence && (
+                                <p className="border-s-2 border-gray-200 ps-2 text-xs italic text-gray-500" dir="auto">{e.evidence}</p>
+                              )}
+                            </div>
+                          </div>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               )}
@@ -455,11 +517,11 @@ export const InterviewAiReviewCard = ({ applicantId, interviewId, questions }: P
                   <button
                     type="button"
                     onClick={handleApply}
-                    disabled={!selected.size || applyReview.isPending}
+                    disabled={(!selected.size && !selectedExtra.size) || applyReview.isPending}
                     className={`${button} bg-emerald-600 text-white hover:bg-emerald-700`}
                   >
                     {applyReview.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-                    {t('recApplySelected', 'interview', { count: selected.size })}
+                    {t('recApplySelected', 'interview', { count: selected.size + selectedExtra.size })}
                   </button>
                 </div>
               </div>
