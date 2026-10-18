@@ -193,5 +193,14 @@
   "recUseSummary": "Use the AI summary",
   "recInterviewNoteHint": "Optional. Saved as the interview's notes when you apply.",
   "recNoteSaved": "Note saved",
-  "endingInterview": "Ending..."
+  "endingInterview": "Ending...",
+  "interviewsTitle": "Interviews",
+  "interviewsSubtitle": "Start an interview now, or schedule one for later.",
+  "startInterviewNow": "Start interview now",
+  "noActiveInterviews": "No upcoming or running interviews",
+  "noActiveInterviewsHint": "Start one now, or schedule a time with the candidate.",
+  "continueInterview": "Continue",
+  "chooseQuestionsAndStart": "Choose questions & start",
+  "openInterview": "Open",
+  "completedInHistory": "Finished interviews are in the History tab."
 }

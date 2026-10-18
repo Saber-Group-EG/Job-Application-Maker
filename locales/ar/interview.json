@@ -193,5 +193,14 @@
   "recUseSummary": "استخدم ملخص الذكاء الاصطناعي",
   "recInterviewNoteHint": "اختياري. تُحفظ كملاحظات المقابلة عند التطبيق.",
   "recNoteSaved": "تم حفظ الملاحظة",
-  "endingInterview": "جارٍ الإنهاء..."
+  "endingInterview": "جارٍ الإنهاء...",
+  "interviewsTitle": "المقابلات",
+  "interviewsSubtitle": "ابدأ مقابلة الآن، أو حدد موعداً لمقابلة لاحقة.",
+  "startInterviewNow": "ابدأ المقابلة الآن",
+  "noActiveInterviews": "لا توجد مقابلات قادمة أو جارية",
+  "noActiveInterviewsHint": "ابدأ مقابلة الآن، أو حدد موعداً مع المرشح.",
+  "continueInterview": "متابعة",
+  "chooseQuestionsAndStart": "اختر الأسئلة وابدأ",
+  "openInterview": "فتح",
+  "completedInHistory": "المقابلات المنتهية موجودة في تبويب السجل."
 }

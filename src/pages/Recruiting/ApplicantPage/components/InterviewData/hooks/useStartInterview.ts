@@ -42,6 +42,9 @@ export const useStartInterview = (applicantId: string | undefined, applicant: Ap
         return;
       }
 
+      const knownIds = new Set(
+        ((applicant.interviews ?? []) as Interview[]).map((iv) => String(iv._id || iv.id || ''))
+      );
       const conductedById = user?._id ? String(user._id) : user?.id ? String(user.id) : '';
       const now = new Date().toISOString();
       const result = await scheduleInterview.mutateAsync({
@@ -59,14 +62,30 @@ export const useStartInterview = (applicantId: string | undefined, applicant: Ap
         succeeded?: Array<{ applicantId?: string; interviews?: Interview[] }>;
         interviews?: Interview[];
       };
-      const interviews: Interview[] = res.succeeded?.[0]?.interviews ?? res.interviews ?? [];
-      const newest = interviews
-        .filter((iv) => iv.status === 'in_progress')
-        .sort(
-          (x, y) =>
-            new Date(y.createdAt || y.scheduledAt || 0).getTime() -
-            new Date(x.createdAt || x.scheduledAt || 0).getTime()
-        )[0];
+      // Find the interview we just created: prefer one we did not know about, and
+      // fall back to a fresh read of the applicant when the response has no list.
+      const pickNew = (list: Interview[]): Interview | undefined => {
+        const running = list.filter((iv) => iv.status === 'in_progress' && !iv.endedAt);
+        const byTime = (x: Interview, y: Interview) =>
+          new Date(y.createdAt || y.scheduledAt || 0).getTime() -
+          new Date(x.createdAt || x.scheduledAt || 0).getTime();
+        return (
+          running.filter((iv) => !knownIds.has(String(iv._id || iv.id || ''))).sort(byTime)[0] ??
+          running.sort(byTime)[0]
+        );
+      };
+      let newest = pickNew(res.succeeded?.[0]?.interviews ?? res.interviews ?? []);
+      if (!newest) {
+        try {
+          const fresh = await queryClient.fetchQuery({
+            queryKey: applicantsKeys.detail(applicantId),
+            staleTime: 0,
+          });
+          newest = pickNew(((fresh as Applicant | undefined)?.interviews ?? []) as Interview[]);
+        } catch {
+          newest = undefined;
+        }
+      }
       const interviewId = String(newest?._id || newest?.id || '');
       if (!interviewId) {
         await Swal.fire({ icon: 'error', title: t('startInterviewFailed', 'interview') });

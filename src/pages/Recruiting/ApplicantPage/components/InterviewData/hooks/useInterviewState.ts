@@ -143,14 +143,7 @@ export const useInterviewState = (
         return;
       }
     }
-    if (initialLoadDoneRef.current) return;
-    if (allInterviews.length === 0) return;
-    initialLoadDoneRef.current = true;
-    if (allInterviews.length === 1) {
-      openInterview(allInterviews[0]);
-    } else {
-      setView('interview-picker');
-    }
+    // No auto-open otherwise: the tab always lands on the interviews list.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allInterviews, autoSelectInterviewId]);
 

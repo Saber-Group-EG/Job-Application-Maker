@@ -22,9 +22,8 @@ import { getInterviewId } from './utils/interviewUtils';
 import { AssessmentView } from './views/AssessmentView';
 import { InterviewRecorder, type InterviewRecorderHandle } from './components/InterviewRecorder';
 import type { NewCustomQuestion } from './views/AssessmentView';
-import { InterviewPickerView } from './views/InterviewPickerView';
+import { InterviewsHubView } from './views/InterviewsHubView';
 import { QuestionPickerView } from './views/QuestionPickerView';
-import { SelectionView } from './views/SelectionView';
 import type { PoolGroup } from './hooks/useQuestionPool';
 import type { FieldSaveStatus } from './hooks/useInterviewActions';
 
@@ -552,37 +551,19 @@ const InterviewQuestions = ({
   }, [pendingAddGroups, pendingRemoveGroups, pendingRemoveIds, newCustomQuestions, isEnded]);
 
   // ---- Render ----------------------------------------------------------
-  if (state.view === 'selection') {
-    return (
-      <SelectionView
-        hasExistingInterview={state.scheduledInterviews.length > 0}
-        interviewCount={state.scheduledInterviews.length}
-        onSchedule={() => onRequestScheduleInterview?.()}
-        onStart={() => { onRequestStartInterview?.(); }}
-        isStarting={isStartingInterview}
-        onUseExisting={() => {
-          if (state.scheduledInterviews.length === 1) {
-            state.openInterview(state.scheduledInterviews[0]);
-          } else {
-            state.setView('interview-picker');
-          }
-        }}
-        authUser={authUser}
-      />
-    );
-  }
+  const hub = (
+    <InterviewsHubView
+      interviews={state.scheduledInterviews as Interview[]}
+      onStart={() => { onRequestStartInterview?.(); }}
+      onSchedule={() => onRequestScheduleInterview?.()}
+      onOpen={(iv) => state.openInterview(iv)}
+      onDelete={handleDeleteInterview}
+      isStarting={isStartingInterview}
+      authUser={authUser}
+    />
+  );
 
-  if (state.view === 'interview-picker') {
-    return (
-      <InterviewPickerView
-        interviews={state.scheduledInterviews as Interview[]}
-        onBack={() => state.setView('selection')}
-        onPick={(iv) => state.openInterview(iv)}
-        onDelete={handleDeleteInterview}
-        authUser={authUser}
-      />
-    );
-  }
+  if (state.view === 'selection' || state.view === 'interview-picker') return hub;
 
   if (state.view === 'question-picker' && state.selectedInterview) {
     return (
@@ -592,13 +573,8 @@ const InterviewQuestions = ({
         selectedKeys={pickerSelectedKeys}
         onToggle={togglePickerKey}
         onBack={() => {
-          // Always go to the interview picker if there are multiple
-          // interviews, otherwise back to selection.
-          if (state.scheduledInterviews.length > 1) {
-            state.setView('interview-picker');
-          } else {
-            state.setView('selection');
-          }
+          state.setSelectedInterviewId(null);
+          state.setView('selection');
         }}
         onSaveOnly={handleSaveQuestions}
         onSaveAndStart={handleSaveAndStart}
@@ -643,13 +619,8 @@ const InterviewQuestions = ({
         onRemoveGroup={handleRemoveGroup}
         pendingRemoveGroups={pendingRemoveGroups}
         onBack={() => {
-          if (state.scheduledInterviews.length > 1) {
-            state.setSelectedInterviewId(null);
-            state.setView('interview-picker');
-          } else {
-            state.setSelectedInterviewId(null);
-            state.setView('selection');
-          }
+          state.setSelectedInterviewId(null);
+          state.setView('selection');
         }}
         onStart={handleStart}
         onEnd={handleEnd}
@@ -661,23 +632,8 @@ const InterviewQuestions = ({
     );
   }
 
-  // Fallback: selection view
-  return (
-    <SelectionView
-      hasExistingInterview={state.scheduledInterviews.length > 0}
-      interviewCount={state.scheduledInterviews.length}
-      onSchedule={() => onRequestScheduleInterview?.()}
-      onStart={() => { onRequestStartInterview?.(); }}
-      isStarting={isStartingInterview}
-      onUseExisting={() => {
-        if (state.scheduledInterviews.length === 1) {
-          state.openInterview(state.scheduledInterviews[0]);
-        } else {
-          state.setView('interview-picker');
-        }
-      }}
-    />
-  );
+  // Fallback: the interviews list
+  return hub;
 };
 
 export default InterviewQuestions;
