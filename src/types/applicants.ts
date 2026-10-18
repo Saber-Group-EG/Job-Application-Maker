@@ -387,7 +387,8 @@ export type ApplicantView = Omit<Applicant, 'companyId' | 'jobPositionId'> & {
 export interface InterviewQuestionsProps {
   applicantId?: string;
   onRequestScheduleInterview?: () => void;
-  onRequestStartInterview?: () => void;
+  // Resolves to the id of the running interview to open, or null when nothing was started.
+  onRequestStartInterview?: () => Promise<string | null> | void;
   // True while Start interview is creating and opening the interview.
   isStartingInterview?: boolean;
   autoSelectInterviewId?: string | null;

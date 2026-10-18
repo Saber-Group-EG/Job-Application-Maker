@@ -355,7 +355,9 @@ export const useInterviewState = (
     initialLoadDoneRef.current = true;
     setSelectedInterviewId(id);
     const questions = Array.isArray(interview.questions) ? interview.questions : [];
-    if (questions.length === 0) {
+    // A running interview with no questions goes straight to the assessment, where
+    // question groups can still be added; the picker is only for one not started yet.
+    if (questions.length === 0 && !interview.startedAt) {
       setView('question-picker');
     } else {
       setView('assessment');

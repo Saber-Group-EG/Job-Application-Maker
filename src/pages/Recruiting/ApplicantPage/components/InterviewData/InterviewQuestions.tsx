@@ -550,11 +550,19 @@ const InterviewQuestions = ({
     triggerSaveRef.current();
   }, [pendingAddGroups, pendingRemoveGroups, pendingRemoveIds, newCustomQuestions, isEnded]);
 
+  // "Start interview now": create (or find the running) interview, then open it in place.
+  const handleStartNow = useCallback(async () => {
+    const id = await onRequestStartInterview?.();
+    if (!id) return;
+    state.setSelectedInterviewId(id);
+    state.setView('assessment');
+  }, [onRequestStartInterview, state]);
+
   // ---- Render ----------------------------------------------------------
   const hub = (
     <InterviewsHubView
       interviews={state.scheduledInterviews as Interview[]}
-      onStart={() => { onRequestStartInterview?.(); }}
+      onStart={handleStartNow}
       onSchedule={() => onRequestScheduleInterview?.()}
       onOpen={(iv) => state.openInterview(iv)}
       onDelete={handleDeleteInterview}
