@@ -688,14 +688,15 @@ const ApplicantDetails: React.FC = () => {
       interviewAddress: interviewForm.location || '',
     };
     try {
+      // The picked date/time is the user's local time: send it as a real instant so the
+      // server (UTC) and every viewer show the same moment.
       let scheduledAt: string | undefined;
-      if (interviewForm.date && interviewForm.time) {
+      if (interviewForm.date) {
         const [year, month, day] = interviewForm.date.split('-').map(Number);
-        const [hours, minutes] = interviewForm.time.split(':').map(Number);
-        const pad = (n: number) => String(n).padStart(2, '0');
-        scheduledAt = `${year}-${pad(month)}-${pad(day)}T${pad(hours)}:${pad(minutes)}:00`;
-      } else if (interviewForm.date) {
-        scheduledAt = `${interviewForm.date}T00:00:00`;
+        const [hours, minutes] = interviewForm.time
+          ? interviewForm.time.split(':').map(Number)
+          : [0, 0];
+        scheduledAt = new Date(year, month - 1, day, hours, minutes).toISOString();
       }
       const interviewData: ScheduleInterviewRequest = {
         scheduledAt,

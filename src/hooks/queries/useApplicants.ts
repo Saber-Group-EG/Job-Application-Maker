@@ -816,6 +816,9 @@ export function useScheduleInterview() {
         | undefined;
       const unwrapped = succeeded?.[0] ?? res;
       mergeApplicantResponseIntoCache(queryClient, id, unwrapped);
+      // The response does not always carry the new interview: re-read the applicant so
+      // the interviews list shows it right away instead of after a page reload.
+      queryClient.invalidateQueries({ queryKey: applicantsKeys.detail(id) });
       if (!silent) showSuccessToast(t('interviewScheduled', 'common'), t);
     },
     onError: (error: ApiError) => {
