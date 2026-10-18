@@ -60,5 +60,6 @@
   "emailTypeCustomDomain": "دومين خاص + Gmail",
   "sendReceiveDisabled": "معطّل",
   "sendReceiveSendOnly": "إرسال فقط",
-  "sendReceiveSendReceive": "إرسال واستقبال الردود"
+  "sendReceiveSendReceive": "إرسال واستقبال الردود",
+  "featureInterviewReview": "تسجيل المقابلات ومراجعتها بالذكاء الاصطناعي"
 }

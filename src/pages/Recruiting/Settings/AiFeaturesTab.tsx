@@ -12,6 +12,7 @@ import {
   ClipboardCheck,
   FileText,
   Loader2,
+  Mic,
 } from 'lucide-react';
 import Swal from '../../../utils/swal';
 import { Card, CardToolbar, EmptyState, NoAccess, SectionTitle, Switch } from '../../../components/ui/kit';
@@ -53,13 +54,19 @@ const ALL_FEATURES: AiFeature[] = [
   'emailDrafting',
   'interviewQuestionGen',
   'interviewScoring',
+  'interviewReview',
 ];
 
 const TOGGLEABLE_FEATURES: AiFeature[] = [
   'matchScore',
   'nlFilters',
   'cvParse',
+  'interviewReview',
 ];
+
+// Features that are ON unless a company switched them off (same default as the server), so a
+// company saved before the feature existed does not appear switched off.
+const DEFAULT_ON_FEATURES: AiFeature[] = ['interviewReview'];
 
 const FEATURE_ICONS: Record<AiFeature, typeof Sparkles> = {
   jobFieldGenerator: Bot,
@@ -69,6 +76,7 @@ const FEATURE_ICONS: Record<AiFeature, typeof Sparkles> = {
   nlFilters: Filter,
   interviewQuestionGen: ListChecks,
   interviewScoring: ClipboardCheck,
+  interviewReview: Mic,
   cvParse: FileText,
 };
 
@@ -80,7 +88,7 @@ const normalizeFeatureToggles = (
   const fromMap = (map: Record<string, unknown>): AiFeatureToggle[] =>
     ALL_FEATURES.map((feature) => ({
       feature,
-      enabled: Boolean(map[feature]),
+      enabled: feature in map ? Boolean(map[feature]) : DEFAULT_ON_FEATURES.includes(feature),
     }));
 
   if (Array.isArray(toggles)) {
@@ -101,7 +109,7 @@ const normalizeFeatureToggles = (
     return [
       ...ALL_FEATURES.filter((f) => !enabled.has(f)).map((f) => ({
         feature: f,
-        enabled: false,
+        enabled: DEFAULT_ON_FEATURES.includes(f),
       })),
       ...normalized,
     ];

@@ -60,5 +60,6 @@
   "emailTypeCustomDomain": "Custom domain + Gmail",
   "sendReceiveDisabled": "Disabled",
   "sendReceiveSendOnly": "Send only",
-  "sendReceiveSendReceive": "Send & receive replies"
+  "sendReceiveSendReceive": "Send & receive replies",
+  "featureInterviewReview": "Interview Recording & AI Review"
 }

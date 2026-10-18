@@ -225,6 +225,7 @@ export default function AdminPlansPage() {
       'offerGenerator',
       'contractGenerator',
       'cvParse',
+      'interviewReview',
     ] as const).map(
       (key): Row => ({
         kind: 'boolean',

@@ -24,7 +24,6 @@
   "commonSaved": "تم الحفظ",
   "commonFailure": "فشل",
   "commonValidation": "تحقق",
-
   "contracts.permanent": "دائم",
   "contracts.fixedTerm": "محدد المدة",
   "contracts.freelance": "حر",
@@ -48,7 +47,6 @@
   "contracts.deleteTitle": "حذف القالب؟",
   "contracts.deleteText": "لا يمكن التراجع عن هذا الإجراء.",
   "contracts.deleteConfirm": "حذف",
-
   "interviewCompany.labelQuestion": "السؤال",
   "interviewCompany.questionPlaceholder": "أكتب سؤالك",
   "interviewCompany.labelAnswerType": "نوع الإجابة",
@@ -111,7 +109,6 @@
   "interviewCompany.validationDropdownScoreExceeded": "السؤال {qNumber} في المجموعة {gNumber}: درجة الخيار \"{choice}\" يجب ألا تتجاوز درجة السؤال.",
   "interviewCompany.swalSaveFailed": "فشل الحفظ",
   "interviewCompany.swalSaveFailedMsg": "فشل حفظ إعدادات المقابلة.",
-
   "interviewPerUser.labelQuestion": "السؤال",
   "interviewPerUser.labelAnswerType": "نوع الإجابة",
   "interviewPerUser.labelScore": "الدرجة",
@@ -157,7 +154,6 @@
   "interviewPerUser.validationRadioScoreExceeded": "السؤال {qNumber} في المجموعة {gNumber}: مجموع درجات الخيارات يجب ألا يتجاوز درجة السؤال.",
   "interviewPerUser.validationCheckboxScoreExceeded": "السؤال {qNumber} في المجموعة {gNumber}: مجموع نسب خيارات الاختيار المتعدد يجب ألا يتجاوز 100% من درجة السؤال.",
   "interviewPerUser.validationDropdownScoreExceeded": "السؤال {qNumber} في المجموعة {gNumber}: درجة الخيار \"{choice}\" يجب ألا تتجاوز درجة السؤال.",
-
   "jobOffers.fullTime": "دوام كامل",
   "jobOffers.partTime": "دوام جزئي",
   "jobOffers.contract": "عقد",
@@ -180,7 +176,6 @@
   "jobOffers.deleteTitle": "حذف القالب؟",
   "jobOffers.deleteText": "لا يمكن التراجع عن هذا الإجراء.",
   "jobOffers.deleteConfirm": "حذف",
-
   "mailTemplates.editTemplate": "تعديل القالب",
   "mailTemplates.createTemplate": "إنشاء قالب جديد",
   "mailTemplates.labelTemplateName": "اسم القالب *",
@@ -218,7 +213,6 @@
   "mailTemplates.category.applicants": "المتقدمون",
   "mailTemplates.category.interviews": "المقابلات",
   "mailTemplates.category.support": "الدعم",
-
   "rejectionTab.noCompany": "لم يتم تحديد شركة",
   "rejectionTab.unnamedCompany": "شركة بدون اسم",
   "rejectionTab.reasonLabel": "السبب {number}",
@@ -249,7 +243,6 @@
   "rejectionTab.swalSaved": "تم الحفظ",
   "rejectionTab.swalSaveFailed": "فشل الحفظ",
   "rejectionTab.swalSaveFailedMsg": "فشل حفظ أسباب الرفض.",
-
   "aiFeatures.noCompany": "لم يتم تحديد شركة",
   "aiFeatures.unnamedCompany": "شركة بدون اسم",
   "aiFeatures.sectionSubtitle": "الذكاء الاصطناعي",
@@ -288,7 +281,6 @@
   "aiFeatures.interviewScoring.desc": "تصحيح إجابات المقابلات تلقائياً مقابل الأسئلة المحددة.",
   "aiFeatures.cvParse.title": "تحليل السيرة الذاتية",
   "aiFeatures.cvParse.desc": "استخراج بيانات منظمة من السير الذاتية للمتقدمين تلقائياً.",
-
   "statusSettings.defaultDescPending": "عملاء متوقعون في انتظار الفرز.",
   "statusSettings.defaultDescApproved": "عملاء متوقعون معتمدون وجاهزون للخطوات التالية.",
   "statusSettings.defaultDescInterview": "مقرر لإجراء مقابلة.",
@@ -470,5 +462,7 @@
   "subscription.promoActive": "كود الخصم مفعّل:",
   "subscription.cyclesRemaining": "دورة متبقية",
   "subscription.revertsOn": "يرجع للسعر الأساسي بعد",
-  "mailTemplates.previewTitle": "معاينة البريد"
+  "mailTemplates.previewTitle": "معاينة البريد",
+  "aiFeatures.interviewReview.title": "تسجيل المقابلات ومراجعتها بالذكاء الاصطناعي",
+  "aiFeatures.interviewReview.desc": "سجّل المقابلات وفرّغها نصياً، ودع الذكاء الاصطناعي يستخرج الأسئلة التي طُرحت ويلخّص الإجابات ويقترح الدرجات. يُحتسب التفريغ الصوتي بالدقيقة."
 }

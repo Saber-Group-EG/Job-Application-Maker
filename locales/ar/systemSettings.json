@@ -103,5 +103,6 @@
   "featureInterviewQuestionGen": "توليد أسئلة المقابلة",
   "featureOfferGenerator": "مولّد العروض",
   "featureContractGenerator": "مولّد العقود",
-  "featureCvParse": "محلل السيرة الذاتية"
+  "featureCvParse": "محلل السيرة الذاتية",
+  "featureInterviewReview": "تسجيل المقابلات ومراجعتها بالذكاء الاصطناعي"
 }

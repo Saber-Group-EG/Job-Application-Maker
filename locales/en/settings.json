@@ -24,7 +24,6 @@
   "commonSaved": "Saved",
   "commonFailure": "Failure",
   "commonValidation": "Validation",
-
   "contracts.permanent": "Permanent",
   "contracts.fixedTerm": "Fixed-term",
   "contracts.freelance": "Freelance",
@@ -48,7 +47,6 @@
   "contracts.deleteTitle": "Delete Template?",
   "contracts.deleteText": "This action cannot be undone.",
   "contracts.deleteConfirm": "Delete",
-
   "interviewCompany.labelQuestion": "Question",
   "interviewCompany.questionPlaceholder": "Type your question",
   "interviewCompany.labelAnswerType": "Answer Type",
@@ -120,7 +118,6 @@
   "interviewCompany.swalSaveFailedMsg": "Failed to save interview settings.",
   "interviewCompany.aiJobSearchLoading": "Loading job positions…",
   "interviewCompany.aiJobSearchNoResults": "No matching job positions",
-
   "interviewPerUser.labelQuestion": "Question",
   "interviewPerUser.labelAnswerType": "Answer Type",
   "interviewPerUser.labelScore": "Score",
@@ -166,7 +163,6 @@
   "interviewPerUser.validationRadioScoreExceeded": "Question {qNumber} in group {gNumber}: The sum of all choice scores must not exceed the question score.",
   "interviewPerUser.validationCheckboxScoreExceeded": "Question {qNumber} in group {gNumber}: The sum of all checkbox choice percentages must not exceed 100% of the question score.",
   "interviewPerUser.validationDropdownScoreExceeded": "Question {qNumber} in group {gNumber}: The score for choice \"{choice}\" must not exceed the question score.",
-
   "jobOffers.fullTime": "Full-time",
   "jobOffers.partTime": "Part-time",
   "jobOffers.contract": "Contract",
@@ -189,7 +185,6 @@
   "jobOffers.deleteTitle": "Delete Template?",
   "jobOffers.deleteText": "This action cannot be undone.",
   "jobOffers.deleteConfirm": "Delete",
-
   "mailTemplates.editTemplate": "Edit Template",
   "mailTemplates.createTemplate": "Create New Template",
   "mailTemplates.labelTemplateName": "Template Name *",
@@ -227,7 +222,6 @@
   "mailTemplates.category.applicants": "Applicants",
   "mailTemplates.category.interviews": "Interviews",
   "mailTemplates.category.support": "Support",
-
   "rejectionTab.noCompany": "No company selected",
   "rejectionTab.unnamedCompany": "Unnamed Company",
   "rejectionTab.reasonLabel": "Reason {number}",
@@ -258,7 +252,6 @@
   "rejectionTab.swalSaved": "Saved",
   "rejectionTab.swalSaveFailed": "Save Failed",
   "rejectionTab.swalSaveFailedMsg": "Failed to save rejection reasons.",
-
   "aiFeatures.noCompany": "No company selected",
   "aiFeatures.unnamedCompany": "Unnamed Company",
   "aiFeatures.sectionSubtitle": "Artificial Intelligence",
@@ -297,7 +290,6 @@
   "aiFeatures.interviewScoring.desc": "Auto-score applicant interview answers against configured questions.",
   "aiFeatures.cvParse.title": "CV Parsing",
   "aiFeatures.cvParse.desc": "Automatically extract structured data from candidate CVs.",
-
   "statusSettings.defaultDescPending": "Pending leads awaiting triage.",
   "statusSettings.defaultDescApproved": "Approved leads ready for next steps.",
   "statusSettings.defaultDescInterview": "Scheduled for interview.",
@@ -472,5 +464,7 @@
   "subscription.promoActive": "Promo code active:",
   "subscription.cyclesRemaining": "cycles remaining",
   "subscription.revertsOn": "reverts to standard price after",
-  "mailTemplates.previewTitle": "Email preview"
+  "mailTemplates.previewTitle": "Email preview",
+  "aiFeatures.interviewReview.title": "Interview Recording & AI Review",
+  "aiFeatures.interviewReview.desc": "Record interviews, transcribe them, and let AI extract the questions asked, summarise the answers and suggest scores. Transcription is billed per minute of audio."
 }
