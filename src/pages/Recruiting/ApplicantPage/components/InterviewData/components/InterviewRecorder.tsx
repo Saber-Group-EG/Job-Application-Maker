@@ -279,6 +279,21 @@ export const InterviewRecorder = forwardRef<InterviewRecorderHandle, Props>(func
     return () => window.removeEventListener('beforeunload', warn);
   }, [state, pending]);
 
+  // Blocked by the plan or the company's AI settings: there is nothing to record, so hide the
+  // button. A used-up credit is temporary, so that one stays visible (disabled) with the reason.
+  if (recording?.access && !recording.access.available) {
+    if (recording.access.code !== 'AI_CREDIT_LIMIT') return null;
+    return (
+      <span
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 text-white/70 text-xs font-medium"
+        title={recording.access.reason ?? undefined}
+      >
+        <Mic className="h-3.5 w-3.5" />
+        {t('recRecord', 'interview')}
+      </span>
+    );
+  }
+
   if (recording && !recording.transcriptionConfigured) {
     return (
       <span

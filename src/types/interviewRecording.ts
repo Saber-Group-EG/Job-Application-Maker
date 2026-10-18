@@ -47,6 +47,8 @@ export type InterviewReview = {
 };
 
 export type InterviewRecording = {
+  // Whether the plan, the company's AI settings and its credit allow the feature right now.
+  access: { available: boolean; code: string | null; reason: string | null };
   // False until the server has its transcription key.
   transcriptionConfigured: boolean;
   exists: boolean;

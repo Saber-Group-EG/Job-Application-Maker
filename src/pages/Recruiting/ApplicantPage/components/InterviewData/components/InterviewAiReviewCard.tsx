@@ -342,6 +342,8 @@ export const InterviewAiReviewCard = ({ applicantId, interviewId, questions, aut
   const failedPieces = useMemo(() => rec?.segments.filter((s) => s.status === 'failed') ?? [], [rec?.segments]);
   const hasSegments = (rec?.segments.length ?? 0) > 0;
   const consentOk = Boolean(rec?.consent.given) || consent;
+  // Switched off for the company or not in its plan: no new recording, paste or analysis.
+  const blocked = Boolean(rec?.access && !rec.access.available);
 
   const handleFile = async (file?: File | null) => {
     if (!file) return;
@@ -498,6 +500,7 @@ export const InterviewAiReviewCard = ({ applicantId, interviewId, questions, aut
       ) : (
         <div className="space-y-4">
           <p className="text-sm text-gray-600">{t('recReviewIntro', 'interview')}</p>
+          {blocked && <p className="text-xs text-amber-700">{rec?.access.reason}</p>}
           {rec && !rec.transcriptionConfigured && (
             <p className="text-xs text-amber-700">{t('recNotConfigured', 'interview')}</p>
           )}
@@ -510,7 +513,7 @@ export const InterviewAiReviewCard = ({ applicantId, interviewId, questions, aut
           )}
 
           {/* Upload a recording made elsewhere (e.g. a Meet/Zoom recording) */}
-          {!hasSegments && rec?.transcriptionConfigured !== false && (
+          {!hasSegments && !blocked && rec?.transcriptionConfigured !== false && (
             <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50/60 p-4">
               <p className="flex items-center gap-2 text-sm font-medium text-gray-800">
                 <Mic className="h-4 w-4 text-gray-400" />
@@ -561,7 +564,7 @@ export const InterviewAiReviewCard = ({ applicantId, interviewId, questions, aut
           )}
 
           {/* No transcript yet (nothing recorded, or transcription failed): paste one made elsewhere */}
-          {!transcript && !rec?.processing && (
+          {!transcript && !rec?.processing && !blocked && (
             <div className="rounded-lg border border-gray-100 p-4">
               <p className="text-sm font-medium text-gray-800">{t('recPasteTitle', 'interview')}</p>
               <p className="mt-1 text-xs text-gray-500">{t('recPasteHint', 'interview')}</p>
@@ -616,7 +619,7 @@ export const InterviewAiReviewCard = ({ applicantId, interviewId, questions, aut
             </div>
           )}
 
-          {transcript && (
+          {transcript && !blocked && (
             <div className="flex flex-wrap items-center gap-3">
               <button
                 type="button"
