@@ -39,9 +39,9 @@
   "importApplicants": "Import Applicants",
   "departments": "Departments",
   "sectionRecruiting": "Recruiting",
-  "sectionCommunication": "Communication",
-  "sectionOrganization": "Organization",
-  "sectionConfiguration": "Configuration",
+  "sectionCommunication": "Mail & Support",
+  "sectionOrganization": "Companies & Users",
+  "sectionConfiguration": "Settings",
   "sectionBilling": "Billing & Growth",
   "sectionPlatform": "Platform Admin",
   "jobsHiring": "Jobs & Hiring"
