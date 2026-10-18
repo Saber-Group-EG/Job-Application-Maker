@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { ArrowLeft, Building2, CheckCircle2, Library, Play, Save } from 'lucide-react';
+import { ArrowLeft, Building2, CheckCircle2, Library, Loader2, Play, Save } from 'lucide-react';
 import type { PoolGroup } from '../hooks/useQuestionPool';
 import type { InterviewAnswer } from '../../../../../../types/applicants';
 import { useLocale } from '../../../../../../context/LocaleContext';
@@ -159,8 +159,8 @@ export const QuestionPickerView = ({
             disabled={isSaving || selectedCount === 0}
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Play className="h-3.5 w-3.5" />
-            {t('saveAndStartInterview', 'interview')}
+            {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+            {isSaving ? t('startingInterview', 'interview') : t('saveAndStartInterview', 'interview')}
           </button>
         </div>
       </div>

@@ -760,8 +760,6 @@ const ApplicantDetails: React.FC = () => {
       setFormResetKey((prev) => prev + 1);
       setShowScheduleModal(false);
       setActiveTab('interview');
-      if (created && (created._id || created.id))
-        setAutoSelectInterviewId(String(created._id || created.id));
       if (notificationChannels.email)
         await sendInterviewNotification(emailSnapshot);
     } catch (err) {

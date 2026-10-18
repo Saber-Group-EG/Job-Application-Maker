@@ -202,5 +202,7 @@
   "continueInterview": "متابعة",
   "chooseQuestionsAndStart": "اختر الأسئلة وابدأ",
   "openInterview": "فتح",
-  "completedInHistory": "المقابلات المنتهية موجودة في تبويب السجل."
+  "completedInHistory": "المقابلات المنتهية موجودة في تبويب السجل.",
+  "interviewerYou": "أنت",
+  "locked": "مقفلة"
 }

@@ -477,6 +477,10 @@ const InterviewQuestions = ({
           navigate(paths.applicants.completedInterview(applicantId, endedInterviewId), {
             state: { autoReview: true },
           });
+        } else {
+          // Nothing more to do on a finished interview: back to the list.
+          state.setSelectedInterviewId(null);
+          state.setView('selection');
         }
       }
     } finally {

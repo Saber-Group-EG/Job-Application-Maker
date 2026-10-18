@@ -202,5 +202,7 @@
   "continueInterview": "Continue",
   "chooseQuestionsAndStart": "Choose questions & start",
   "openInterview": "Open",
-  "completedInHistory": "Finished interviews are in the History tab."
+  "completedInHistory": "Finished interviews are in the History tab.",
+  "interviewerYou": "You",
+  "locked": "Locked"
 }
