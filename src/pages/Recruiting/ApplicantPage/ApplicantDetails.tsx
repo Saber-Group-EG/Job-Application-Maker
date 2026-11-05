@@ -15,6 +15,7 @@ import CustomResponses from './components/ApplicantData/CustomResponses';
 import JobSpec from './components/ApplicantData/JobSpec';
 import InterviewQuestions from './components/InterviewData/InterviewQuestions';
 import { useStartInterview } from './components/InterviewData/hooks/useStartInterview';
+import { getInterviewId } from './components/InterviewData/utils/interviewUtils';
 import History from './components/history/History';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import Swal from '../../../utils/swal';
@@ -735,6 +736,11 @@ const ApplicantDetails: React.FC = () => {
         const bTime = new Date(b.createdAt || b.scheduledAt || 0).getTime();
         return bTime - aTime;
       })[0];
+      // Open the interview that was just scheduled, once. The interview tab
+      // consumes this through useInterviewState (guarded by a ref), so later
+      // cache updates do not jump the user back to the picker.
+      const createdInterviewId = getInterviewId(created);
+      if (createdInterviewId) setAutoSelectInterviewId(createdInterviewId);
       if (applicant && (applicant as any).status !== 'interview') {
         updateStatus.mutate({
           id,
