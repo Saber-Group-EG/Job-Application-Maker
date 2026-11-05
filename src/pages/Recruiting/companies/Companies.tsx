@@ -3,6 +3,7 @@ import Swal from '../../../utils/swal';
 import PageMeta from "../../../components/common/PageMeta";
 import LoadingSpinner from "../../../components/common/LoadingSpinner";
 import { Navigate, useNavigate } from "react-router";
+import { paths } from "../../../router/Paths";
 import { useAuth } from "../../../context/AuthContext";
 import { useLocale } from "../../../context/LocaleContext";
 import {
@@ -146,7 +147,7 @@ export default function Companies() {
       subtitle={t('subtitle', 'companies')}
       actions={
         canManageCompanies && (
-          <Button variant="primary" icon={<Plus className="size-4" />} onClick={() => navigate("/company/add")}>
+          <Button variant="primary" icon={<Plus className="size-4" />} onClick={() => navigate(paths.companies.create)}>
             {t('createCompany', 'companies')}
           </Button>
         )

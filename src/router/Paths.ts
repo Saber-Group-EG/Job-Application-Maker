@@ -38,6 +38,7 @@ export const paths = {
 
   companies: {
     root: '/companies',
+    create: '/company/add',
     departments: '/departments',
     preview: (companyId: string) => `/company/${companyId}`,
     createJob: (companyId: string) => `/company/${companyId}/create-job`,

@@ -58,6 +58,8 @@
   "registrationFailedDesc": "فشل إنشاء الشركة",
   "previewPageTitle": "{name} | ملف الشركة",
   "previewPageDesc": "ملف الشركة وبيانات التواصل والأقسام",
+  "companyNotFound": "الشركة غير موجودة",
+  "companyNotFoundDesc": "هذه الشركة غير موجودة أو لم تعد لديك صلاحية الوصول إليها.",
   "active": "نشط",
   "disabled": "معطل",
   "activeDepartments": "{count} أقسام",

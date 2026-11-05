@@ -29,6 +29,7 @@ import {
   useUpdateDepartment,
   useDeleteDepartment,
 } from "../../../hooks/queries";
+import { uploadToCloudinary } from "../../../services/cloudinaryService";
 import { toPlainString } from "../../../utils/strings";
 import type { Company } from "../../../types/companies";
 import type { Department } from "../../../types/departments";
@@ -52,6 +53,8 @@ import {
   ErrorState,
 } from "../../../components/ui/kit";
 
+const OBJECT_ID_PATTERN = /^[0-9a-f]{24}$/i;
+
 type CompanyForm = {
   name: { en: string; ar: string; };
   description: { en: string; ar: string; };
@@ -69,8 +72,13 @@ export default function PreviewCompany() {
   const { t, locale } = useLocale();
   const canEdit = hasPermission("Company Management", "write");
 
-  const { data: companyData, isLoading: loading, error: companyError, refetch: refetchCompany } = useCompany(companyId || "");
-  const { data: departments = [] } = useDepartments(companyId);
+  // The route is `company/:companyId`, so anything can arrive here. Only ask
+  // the API for a real ObjectId; a stray segment (e.g. `/company/add`) must
+  // never become a 500 from the backend's Mongo casts.
+  const hasValidCompanyId = !!companyId && OBJECT_ID_PATTERN.test(companyId);
+
+  const { data: companyData, isLoading: loading, error: companyError, refetch: refetchCompany } = useCompany(companyId || "", { enabled: hasValidCompanyId });
+  const { data: departments = [] } = useDepartments(companyId, { enabled: hasValidCompanyId });
 
   const updateCompanyMutation = useUpdateCompany();
   const createDepartmentMutation = useCreateDepartment();
@@ -139,16 +147,10 @@ export default function PreviewCompany() {
     if (!file) return;
     setIsSaving(true);
     try {
-      const CLOUD_NAME = (import.meta.env.VITE_CLOUDINARY_CLOUD_NAME as string) || "";
-      const UPLOAD_PRESET = (import.meta.env.VITE_CLOUDINARY_PRESET as string) || "";
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("upload_preset", UPLOAD_PRESET);
-      const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: formData });
-      const result = await res.json();
-      setCompanyForm(prev => ({ ...prev, logoPath: result.secure_url }));
-    } catch {
-      Swal.fire(t('uploadFailed', 'companies'), t('uploadFailedText', 'companies'), "error");
+      const logoPath = await uploadToCloudinary(file);
+      setCompanyForm(prev => ({ ...prev, logoPath }));
+    } catch (err) {
+      Swal.fire(t('uploadFailed', 'companies'), (err as Error)?.message || t('uploadFailedText', 'companies'), "error");
     } finally {
       setIsSaving(false);
     }
@@ -255,6 +257,20 @@ export default function PreviewCompany() {
       )}
     </span>
   );
+
+  if (!hasValidCompanyId) {
+    return (
+      <PageShell back={back} title={t('companyNotFound', 'companies')}>
+        <Card>
+          <EmptyState
+            icon={<Building2 className="size-6" />}
+            title={t('companyNotFound', 'companies')}
+            text={t('companyNotFoundDesc', 'companies')}
+          />
+        </Card>
+      </PageShell>
+    );
+  }
 
   if (!companyData && companyError) {
     return (

@@ -265,6 +265,7 @@ export default function App() {
               </Route>
               {/* Companies */}
               <Route path={paths.companies.root} element={<Companies />} />
+              <Route path={paths.companies.create} element={<CreateCompany />} />
               <Route path={paths.companies.departments} element={<Departments />} />
               <Route
                 path={patterns.companies.preview}

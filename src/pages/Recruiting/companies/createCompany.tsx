@@ -7,6 +7,7 @@ import Swal from '../../../utils/swal';
 import { useLocale } from "../../../context/LocaleContext";
 import { useCreateCompany } from "../../../hooks/queries/useCompanies";
 import { companiesKeys } from "../../../hooks/queries/useCompanies";
+import { uploadToCloudinary } from "../../../services/cloudinaryService";
 import type { Company } from "../../../types/companies";
 import {
   ArrowLeft,
@@ -91,25 +92,13 @@ export default function CreateCompany() {
     }));
   };
 
-  const uploadToCloudinary = async (file: File) => {
-    const CLOUD_NAME = (import.meta.env.VITE_CLOUDINARY_CLOUD_NAME as string) || "";
-    const UPLOAD_PRESET = (import.meta.env.VITE_CLOUDINARY_PRESET as string) || "";
-    const url = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`;
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("upload_preset", UPLOAD_PRESET);
-    const res = await fetch(url, { method: "POST", body: formData });
-    if (!res.ok) throw new Error("Cloudinary upload failed");
-    return res.json();
-  };
-
   const handleLogoChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setIsUploadingLogo(true);
     try {
-      const result: { secure_url?: string } = await uploadToCloudinary(file);
-      setCompanyForm((prev) => ({ ...prev, logoPath: result.secure_url }));
+      const logoPath = await uploadToCloudinary(file);
+      setCompanyForm((prev) => ({ ...prev, logoPath }));
     } catch (err) {
       Swal.fire(t('uploadFailed', 'companies'), (err as Error)?.message || t('uploadFailedDesc', 'companies'), "error");
     } finally {

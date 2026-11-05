@@ -56,6 +56,8 @@
   "registrationFailedDesc": "Failed to create company",
   "previewPageTitle": "{name} | Company Profile",
   "previewPageDesc": "Company profile, contact details and departments",
+  "companyNotFound": "Company not found",
+  "companyNotFoundDesc": "This company doesn't exist or you no longer have access to it.",
   "active": "Active",
   "disabled": "Disabled",
   "activeDepartments": "{count} departments",
