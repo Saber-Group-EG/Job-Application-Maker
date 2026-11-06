@@ -61,6 +61,9 @@ export interface User {
   phone?: string;
   bio?: string;
   twoFactorEnabled?: boolean;
+  twoFactorChannel?: OtpChannel;
+  emailVerified?: boolean;
+  phoneVerified?: boolean;
   country?: string;
   city?: string;
   state?: string;
@@ -98,10 +101,41 @@ export interface ResetPasswordRequest {
   newPassword: string;
 }
 
+export type OtpChannel = 'email' | 'whatsapp';
+
+/** What the server says about a one-time code it just sent. */
+export interface OtpSent {
+  channel: OtpChannel;
+  /** Masked email or phone, e.g. "am***@x.com" or "+20 ••••5678". */
+  destination?: string;
+  /** Seconds until the code expires. */
+  expiresIn: number;
+  /** Seconds until another code can be requested. */
+  resendIn: number;
+}
+
+/** Password accepted; a two-step code was sent. */
+export interface TwoFactorChallenge extends OtpSent {
+  tempToken: string;
+  /** Channels the code can be re-sent on. */
+  channels: Record<OtpChannel, boolean>;
+  /** WhatsApp failed, so the code went by email instead. */
+  fellBack?: boolean;
+}
+
+export interface Setup2FARequest {
+  channel: OtpChannel;
+}
+
 export interface Setup2FAResponse {
   success: boolean;
   message: string;
+  data?: OtpSent;
 }
+
+export type LoginOtpTarget =
+  | { channel: 'email'; email: string }
+  | { channel: 'whatsapp'; phone: string };
 
 export interface Verify2FASetupRequest {
   code: string;
@@ -129,7 +163,7 @@ export interface LoginResponse {
 
 export type LoginResult =
   | { type: 'success'; user: User }
-  | { type: '2fa'; tempToken: string };
+  | { type: '2fa'; tempToken: string; challenge?: TwoFactorChallenge };
 
 // API Error class
 export class ApiError extends Error {

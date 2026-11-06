@@ -1,12 +1,16 @@
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import PageMeta from "../components/common/PageMeta";
 import { Modal } from "../components/ui/modal";
 import { useAuth } from "../context/AuthContext";
-import { useChangePasswordMutation, useSetup2FAMutation, useVerify2FASetupMutation, useDisable2FAMutation } from "../hooks/queries/useAuth";
+import { authKeys, useChangePasswordMutation, useDisable2FAMutation } from "../hooks/queries/useAuth";
+import { authService } from "../services/authService";
+import type { OtpChannel } from "../types/auth";
+import OtpDialog from "./profile/OtpDialog";
 import { useUpdateProfile } from "../hooks/queries/useUsers";
 import { useLocale } from "../context/LocaleContext";
 import Swal from "../utils/swal";
-import { KeyRound, Loader2, ShieldCheck, UserRound } from "lucide-react";
+import { KeyRound, ShieldCheck, UserRound } from "lucide-react";
 import {
   Badge,
   Button,
@@ -32,16 +36,13 @@ export default function ProfileEdit() {
     confirmPassword: "",
   });
   const [twoFAEnabled, setTwoFAEnabled] = useState(user?.twoFactorEnabled ?? false);
-  const [twoFAModalOpen, setTwoFAModalOpen] = useState(false);
-  const [twoFACode, setTwoFACode] = useState("");
-  const [twoFAError, setTwoFAError] = useState<string | null>(null);
-  const [codeSent, setCodeSent] = useState(false);
+  // Which code dialog is open: verifying an address, or setting up / moving 2FA.
+  const [otpDialog, setOtpDialog] = useState<null | "verifyEmail" | "verifyPhone" | "setup2fa" | "change2fa">(null);
+  const queryClient = useQueryClient();
   const [showDisableModal, setShowDisableModal] = useState(false);
   const [disablePassword, setDisablePassword] = useState("");
   const changePasswordMutation = useChangePasswordMutation();
   const updateProfileMutation = useUpdateProfile();
-  const setup2FAMutation = useSetup2FAMutation();
-  const verify2FASetupMutation = useVerify2FASetupMutation();
   const disable2FAMutation = useDisable2FAMutation();
   const { t } = useLocale();
 
@@ -94,65 +95,65 @@ export default function ProfileEdit() {
     );
   }
 
+  const refreshUser = () => queryClient.invalidateQueries({ queryKey: authKeys.currentUser() });
+  const channelName = (channel: OtpChannel) =>
+    channel === "whatsapp" ? t("otpChannelWhatsApp", "common") : t("otpChannelEmail", "common");
+  const twoFAChannel: OtpChannel = user?.twoFactorChannel === "whatsapp" ? "whatsapp" : "email";
+  // Verifying needs the saved address; unsaved edits would verify the old one.
+  const emailDirty = formData.email !== (user?.email || "");
+  const phoneDirty = formData.phone !== (user?.phone || "");
+  const twoFAChannelOptions = [
+    { value: "email" as OtpChannel, label: t("otpChannelEmail", "common"), hint: user?.email },
+    {
+      value: "whatsapp" as OtpChannel,
+      label: t("otpChannelWhatsApp", "common"),
+      disabled: !user?.phone,
+      hint: user?.phone || t("twoFactorNeedsPhone", "common"),
+    },
+  ];
+
   function handleTwoFAToggle(checked: boolean) {
-    if (checked) {
-      setTwoFAModalOpen(true);
-      setCodeSent(false);
-      setTwoFACode("");
-      setTwoFAError(null);
-      setup2FAMutation.mutate(undefined, {
-        onSuccess: () => {
-          // The dialog itself says the code was sent; a SweetAlert here
-          // would open underneath the modal and block nothing but the view.
-          setCodeSent(true);
-        },
-        onError: (err) => {
-          setTwoFAError(err.message);
-        },
-      });
-    } else {
-      setShowDisableModal(true);
-    }
+    if (checked) setOtpDialog("setup2fa");
+    else setShowDisableModal(true);
   }
 
-  function handleVerify2FASetup() {
-    if (!twoFACode || twoFACode.length < 6) {
-      setTwoFAError(t('fillAllFields', 'common'));
-      return;
-    }
-
-    verify2FASetupMutation.mutate(
-      { code: twoFACode },
-      {
-        onSuccess: () => {
-          setTwoFAEnabled(true);
-          setTwoFAModalOpen(false);
-          setTwoFACode("");
-          setTwoFAError(null);
-          Swal.fire({
-            title: t('success', 'common'),
-            text: t('2FASetupSuccess', 'common'),
-            icon: 'success',
-          });
-        },
-        onError: (err) => {
-          if ((err as { statusCode?: number })?.statusCode === 429) {
-            setTwoFAModalOpen(false);
-            setTwoFAEnabled(false);
-            setTwoFAError(null);
-            setTwoFACode("");
-            Swal.fire({
-              title: t('error', 'common'),
-              text: t('tooManyAttempts', 'common'),
-              icon: 'error',
-            });
-          } else {
-            setTwoFAError(t('invalidVerificationCode', 'common'));
-          }
-        },
-      }
-    );
+  function handleTwoFASetupDone(channel: OtpChannel) {
+    const changing = otpDialog === "change2fa";
+    setOtpDialog(null);
+    setTwoFAEnabled(true);
+    refreshUser();
+    Swal.fire({
+      title: t("success", "common"),
+      text: changing
+        ? t("twoFactorChannelSaved", "common", { channel: channelName(channel) })
+        : t("2FASetupSuccess", "common"),
+      icon: "success",
+    });
   }
+
+  function handleVerifiedDone(channel: OtpChannel) {
+    setOtpDialog(null);
+    refreshUser();
+    Swal.fire({
+      title: t("success", "common"),
+      text: channel === "email" ? t("verifyEmailSuccess", "common") : t("verifyPhoneSuccess", "common"),
+      icon: "success",
+    });
+  }
+
+  const verifyRow = (verified: boolean | undefined, dirty: boolean, onVerify: () => void) => (
+    <div className="flex flex-wrap items-center gap-2">
+      <Badge tone={verified && !dirty ? "green" : "amber"}>
+        {verified && !dirty ? t("verifiedBadge", "common") : t("notVerifiedBadge", "common")}
+      </Badge>
+      {!(verified && !dirty) && (
+        <Button size="sm" variant="ghost" onClick={onVerify} disabled={dirty} title={dirty ? t("verifySaveFirst", "common") : undefined}>
+          {t("verifyAction", "common")}
+        </Button>
+      )}
+      {dirty && <span className="text-xs text-slate-500 dark:text-slate-400">{t("verifySaveFirst", "common")}</span>}
+    </div>
+  );
 
   function handleDisable2FA() {
     if (!disablePassword) return;
@@ -163,6 +164,7 @@ export default function ProfileEdit() {
         onSuccess: () => {
           setTwoFAEnabled(false);
           setShowDisableModal(false);
+          refreshUser();
           setDisablePassword("");
           Swal.fire({
             title: t('success', 'common'),
@@ -236,6 +238,7 @@ export default function ProfileEdit() {
                     placeholder={t('editEmailPlaceholder', 'users')}
                     className={inputClass}
                   />
+                  {user?.email && verifyRow(user.emailVerified, emailDirty, () => setOtpDialog("verifyEmail"))}
                 </Field>
                 <Field label={t('editPhone', 'users')} htmlFor="phone" optional>
                   <input
@@ -249,6 +252,7 @@ export default function ProfileEdit() {
                     placeholder={t('editPhonePlaceholder', 'users')}
                     className={inputClass}
                   />
+                  {user?.phone && verifyRow(user.phoneVerified, phoneDirty, () => setOtpDialog("verifyPhone"))}
                 </Field>
               </div>
               <div className="flex flex-col-reverse gap-2 border-t border-slate-100 p-4 dark:border-slate-800 sm:flex-row sm:justify-end">
@@ -326,6 +330,17 @@ export default function ProfileEdit() {
                     </Badge>
                   </h2>
                   <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t('addExtraLayerSecurity', 'common')}</p>
+                  {twoFAEnabled && (
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                      <span>{t('twoFactorChannelCurrent', 'common', { channel: channelName(twoFAChannel) })}</span>
+                      <Button size="sm" variant="ghost" onClick={() => setOtpDialog("change2fa")}>
+                        {t('twoFactorChannelChange', 'common')}
+                      </Button>
+                    </div>
+                  )}
+                  {twoFAEnabled && twoFAChannel === "whatsapp" && !user?.phoneVerified && (
+                    <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">{t('twoFactorWhatsAppFallback', 'common')}</p>
+                  )}
                 </div>
               </div>
               <Switch
@@ -338,58 +353,30 @@ export default function ProfileEdit() {
         </div>
       </PageShell>
 
-      {/* 2FA setup */}
-      <Modal
-        isOpen={twoFAModalOpen}
-        onClose={() => setTwoFAModalOpen(false)}
-        className="mx-4 max-w-md overflow-hidden !rounded-2xl !bg-white dark:!bg-slate-900"
-      >
-        <div className="-m-4">
-          <div className="border-b border-slate-200 px-6 py-5 pe-16 dark:border-slate-800">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">{t('setupTwoFactorAuth', 'common')}</h2>
-            {codeSent && <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{t('checkYourEmailDesc', 'common')}</p>}
-          </div>
-          <div className="space-y-4 px-6 py-5">
-            {twoFAError && (
-              <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
-                {twoFAError}
-              </p>
-            )}
-            <Field label={t('enter6DigitCode', 'common')} htmlFor="otpCode">
-              <input
-                type="text"
-                id="otpCode"
-                name="otpCode"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                dir="ltr"
-                maxLength={6}
-                placeholder="000000"
-                value={twoFACode}
-                onChange={(e) => setTwoFACode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                className={`${inputClass} text-center font-mono text-lg tracking-[0.5em]`}
-              />
-            </Field>
-            {setup2FAMutation.isPending && (
-              <p className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-                <Loader2 className="size-4 animate-spin" />
-                {t('submitting', 'common')}
-              </p>
-            )}
-          </div>
-          <div className="flex flex-col-reverse gap-2 border-t border-slate-200 px-6 py-4 dark:border-slate-800 sm:flex-row sm:justify-end">
-            <Button onClick={() => setTwoFAModalOpen(false)}>{t('cancel', 'common')}</Button>
-            <Button
-              variant="primary"
-              onClick={handleVerify2FASetup}
-              loading={verify2FASetupMutation.isPending}
-              disabled={setup2FAMutation.isPending}
-            >
-              {t('verifyAndEnable', 'common')}
-            </Button>
-          </div>
-        </div>
-      </Modal>
+      {/* 2FA setup / change channel */}
+      <OtpDialog
+        isOpen={otpDialog === "setup2fa" || otpDialog === "change2fa"}
+        onClose={() => setOtpDialog(null)}
+        title={otpDialog === "change2fa" ? t('twoFactorChannelChangeTitle', 'common') : t('setupTwoFactorAuth', 'common')}
+        intro={t('twoFactorChannelHint', 'common')}
+        channels={twoFAChannelOptions}
+        initialChannel={otpDialog === "change2fa" && twoFAChannel === "email" && user?.phone ? "whatsapp" : "email"}
+        send={async (channel) => (await authService.setup2FA(channel)).data}
+        confirm={(_channel, code) => authService.verify2FASetup({ code })}
+        confirmLabel={t('verifyAndEnable', 'common')}
+        onDone={handleTwoFASetupDone}
+      />
+
+      {/* Verify email / WhatsApp number */}
+      <OtpDialog
+        isOpen={otpDialog === "verifyEmail" || otpDialog === "verifyPhone"}
+        onClose={() => setOtpDialog(null)}
+        title={otpDialog === "verifyPhone" ? t('verifyPhoneTitle', 'common') : t('verifyEmailTitle', 'common')}
+        initialChannel={otpDialog === "verifyPhone" ? "whatsapp" : "email"}
+        send={(channel) => authService.sendVerification(channel)}
+        confirm={(channel, code) => authService.confirmVerification(channel, code)}
+        onDone={handleVerifiedDone}
+      />
 
       {/* 2FA disable */}
       <Modal

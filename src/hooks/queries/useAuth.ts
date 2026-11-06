@@ -13,6 +13,7 @@ import type {
   User,
   ApiError,
   LoginResult,
+  OtpChannel,
 } from "../../types/auth";
 import { tokenStorage } from "../../config/api";
 import Swal from "../../utils/swal";
@@ -178,7 +179,7 @@ export function useResetPasswordMutation() {
 
 export function useSetup2FAMutation() {
   return useMutation({
-    mutationFn: () => authService.setup2FA(),
+    mutationFn: (channel: OtpChannel = 'email') => authService.setup2FA(channel),
   });
 }
 

@@ -15,6 +15,10 @@ import type {
   Disable2FARequest,
   Verify2FALoginRequest,
   LoginResult,
+  OtpChannel,
+  OtpSent,
+  TwoFactorChallenge,
+  LoginOtpTarget,
 } from "../types/auth";
 import { ApiError } from "../types/auth";
 import { describeError, rememberError } from "../lib/userErrors";
@@ -154,7 +158,7 @@ class AuthService {
       const deepBody = body.data || body;
 
       if (deepBody.twoFactorRequired) {
-        return { type: '2fa', tempToken: deepBody.tempToken };
+        return { type: '2fa', tempToken: deepBody.tempToken, challenge: deepBody as TwoFactorChallenge };
       }
 
       const { accessToken, refreshToken } = this.extractTokens(response);
@@ -212,8 +216,36 @@ class AuthService {
     await this.api.post("/auth/reset-password", data, false);
   }
 
-  async setup2FA(): Promise<Setup2FAResponse> {
-    return this.api.post<Setup2FAResponse>("/auth/2fa/setup", {}, true);
+  async setup2FA(channel: OtpChannel = 'email'): Promise<Setup2FAResponse> {
+    return this.api.post<Setup2FAResponse>("/auth/2fa/setup", { channel }, true);
+  }
+
+  /** Re-sends the two-step sign-in code, optionally on another channel. */
+  async resend2FALogin(tempToken: string, channel?: OtpChannel): Promise<TwoFactorChallenge> {
+    const response = await this.api.post<{ data: TwoFactorChallenge }>("/auth/2fa/resend", { tempToken, ...(channel ? { channel } : {}) }, false);
+    return response.data;
+  }
+
+  /** Sign in without a password: asks for a code by email or WhatsApp. */
+  async requestLoginOtp(target: LoginOtpTarget): Promise<OtpSent> {
+    const response = await this.api.post<{ data: OtpSent }>("/auth/otp/request", target, false);
+    return response.data;
+  }
+
+  async verifyLoginOtp(target: LoginOtpTarget, code: string): Promise<void> {
+    const response = await this.api.post<AuthResponse>("/auth/otp/verify", { ...target, code }, false);
+    const { accessToken, refreshToken } = this.extractTokens(response);
+    tokenStorage.setTokens(accessToken, refreshToken);
+  }
+
+  /** Sends a code proving the signed-in user's email or WhatsApp number. */
+  async sendVerification(channel: OtpChannel): Promise<OtpSent> {
+    const response = await this.api.post<{ data: OtpSent }>("/auth/verify/send", { channel }, true);
+    return response.data;
+  }
+
+  async confirmVerification(channel: OtpChannel, code: string): Promise<void> {
+    await this.api.post("/auth/verify/confirm", { channel, code }, true);
   }
 
   async verify2FASetup(data: Verify2FASetupRequest): Promise<void> {

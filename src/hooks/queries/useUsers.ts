@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient, UseQueryResult } from "@tanstack
 import { usersService, savedFieldsService, savedQuestionGroupsService } from "../../services/usersService";
 import { companiesService } from "../../services/companiesService";
 import { useAuth } from "../../context/AuthContext";
+import { authKeys } from "./useAuth";
 import type {
   CreateUserRequest,
   UpdateUserRequest,
@@ -182,6 +183,8 @@ export function useUpdateProfile() {
       usersService.updateProfile(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: usersKeys.all });
+      // The signed-in user too: changing email/phone resets their verification.
+      queryClient.invalidateQueries({ queryKey: authKeys.currentUser() });
       showSuccessToast(t('userUpdated', 'common'), t);
     },
     onError: (error: ApiError) => {
