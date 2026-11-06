@@ -22,6 +22,9 @@ export interface User {
   department?: string;
   isActive?: boolean;
   twoFactorEnabled?: boolean;
+  /** Added by an admin and hasn't chosen a password yet. */
+  invitePending?: boolean;
+  invitedAt?: string;
   permissions?: Array<string | { permission?: string | { _id?: string; name?: string } | null; access?: string[] }>;
   companies?: {
     companyId: UserCompanyRef;
@@ -35,7 +38,6 @@ export interface User {
 export interface CreateUserRequest {
   fullName: string;
   email: string;
-  password: string;
   roleId: string;
   phone?: string;
   department?: string;

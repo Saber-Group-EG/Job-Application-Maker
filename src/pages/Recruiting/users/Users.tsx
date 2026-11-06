@@ -10,6 +10,7 @@ import {
   useCompanies,
   useDeleteUser 
 } from "../../../hooks/queries";
+import { useResendInvite } from "../../../hooks/queries/useUsers";
 import { toPlainString } from "../../../utils/strings";
 import { 
   Search, 
@@ -23,7 +24,8 @@ import {
   UserMinus,
   ArrowRight,
   LayoutGrid,
-  List
+  List,
+  Send
 } from "lucide-react";
 import Swal from '../../../utils/swal';
 import type { User } from "../../../types/users";
@@ -207,6 +209,41 @@ export default function Users() {
   const totalPages = Math.ceil(filteredBySearchAndRole.length / pageSize);
   const paginatedUsers = filteredBySearchAndRole.slice((page - 1) * pageSize, page * pageSize);
 
+  const resendInviteMutation = useResendInvite();
+  const handleResendInvite = async (user: User) => {
+    try {
+      await resendInviteMutation.mutateAsync(user._id);
+      Swal.fire({
+        title: t('inviteResentTitle', 'users'),
+        text: t('inviteResentText', 'users', { email: user.email }),
+        icon: 'success',
+      });
+    } catch (err) {
+      Swal.fire({
+        title: t('error', 'common'),
+        text: (err as Error)?.message || t('inviteResendFailed', 'users'),
+        icon: 'error',
+      });
+    }
+  };
+
+  const statusBadge = (user: User) => {
+    if (user.invitePending) return <Badge tone="amber">{t('invitePending', 'users')}</Badge>;
+    const active = user.isActive !== false;
+    return <Badge tone={active ? 'green' : 'red'}>{active ? t('activeDuty', 'users') : t('revoked', 'users')}</Badge>;
+  };
+
+  const resendButton = (user: User) =>
+    user.invitePending ? (
+      <IconButton
+        label={t('resendInvite', 'users')}
+        onClick={(e) => { e.stopPropagation(); handleResendInvite(user); }}
+        disabled={resendInviteMutation.isPending}
+      >
+        <Send className="size-4 rtl:-scale-x-100" />
+      </IconButton>
+    ) : null;
+
   const handleDeleteUser = async (user: User) => {
     const result = await Swal.fire({
       title: t('deactivateConfirmTitle', 'users'),
@@ -324,7 +361,6 @@ export default function Users() {
             <tbody>
               {paginatedUsers.map((user) => {
                 const roleName = roleNameOf(user);
-                const isActive = user.isActive !== false;
                 const name = toPlainString(user.fullName || user.name || t('unknownUser', 'users'));
                 const names = companyNamesOf(user);
                 return (
@@ -347,10 +383,11 @@ export default function Users() {
                         {names.length ? names.join(', ') : <span className="text-slate-400">—</span>}
                       </span>
                     </Td>
-                    <Td><Badge tone={isActive ? 'green' : 'red'}>{isActive ? t('activeDuty', 'users') : t('revoked', 'users')}</Badge></Td>
+                    <Td>{statusBadge(user)}</Td>
                     {canWrite && (
                       <Td align="end">
                         <div className="flex items-center justify-end gap-1">
+                          {resendButton(user)}
                           <IconButton label={t('edit', 'common')} onClick={(e) => { e.stopPropagation(); navigate(`/user/${user._id}/edit`); }}>
                             <Pencil className="size-4" />
                           </IconButton>
@@ -369,7 +406,6 @@ export default function Users() {
           <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 xl:grid-cols-4">
             {paginatedUsers.map((user) => {
               const roleName = roleNameOf(user);
-              const isActive = user.isActive !== false;
               const name = toPlainString(user.fullName || user.name || t('unknownUser', 'users'));
 
               return (
@@ -394,7 +430,8 @@ export default function Users() {
                     </div>
                     {canWrite && (
                       <div className="-me-1 -mt-1 flex items-center transition sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
-                        <IconButton label={t('edit', 'common')} onClick={(e) => { e.stopPropagation(); navigate(`/user/${user._id}/edit`); }}>
+                        {resendButton(user)}
+                          <IconButton label={t('edit', 'common')} onClick={(e) => { e.stopPropagation(); navigate(`/user/${user._id}/edit`); }}>
                           <Pencil className="size-4" />
                         </IconButton>
                         <IconButton label={t('deactivateConfirmButton', 'users')} tone="danger" onClick={(e) => { e.stopPropagation(); handleDeleteUser(user); }}>
@@ -420,7 +457,7 @@ export default function Users() {
                   </div>
 
                   <div className="mt-4 flex items-center justify-between">
-                    <Badge tone={isActive ? 'green' : 'red'}>{isActive ? t('activeDuty', 'users') : t('revoked', 'users')}</Badge>
+                    {statusBadge(user)}
                     <span className="flex items-center gap-1 text-xs font-medium text-brand-600 dark:text-brand-400">
                       {t('detailsLabel', 'users')}
                       <ArrowRight className="size-3.5 rtl:rotate-180" />

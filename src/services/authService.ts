@@ -3,7 +3,6 @@ import { tokenStorage } from "../config/api";
 import { refreshAccessToken } from "../config/tokenRefresh";
 import type {
   LoginRequest,
-  RegisterRequest,
   User,
   AuthResponse,
   UserProfileResponse,
@@ -180,15 +179,6 @@ class AuthService {
     }
   }
 
-  async register(userData: RegisterRequest): Promise<User> {
-    const response = await this.api.post<AuthResponse>("/auth/register", userData, false);
-    const { accessToken, refreshToken } = this.extractTokens(response);
-    
-    tokenStorage.setTokens(accessToken, refreshToken);
-    
-    return response.data.user;
-  }
-
   async getCurrentUser(): Promise<User> {
     const response = await this.api.get<UserProfileResponse>(
       "/auth/me?populate=roleId.permissions.permission",
@@ -230,6 +220,22 @@ class AuthService {
   async requestLoginOtp(target: LoginOtpTarget): Promise<OtpSent> {
     const response = await this.api.post<{ data: OtpSent }>("/auth/otp/request", target, false);
     return response.data;
+  }
+
+  /** Who an invite link is for. Throws if the link is invalid or expired. */
+  async getInvite(token: string): Promise<{ fullName: string; email: string }> {
+    const response = await this.api.get<{ data: { fullName: string; email: string } }>(
+      `/auth/invite?token=${encodeURIComponent(token)}`,
+      false
+    );
+    return response.data;
+  }
+
+  /** Sets the invited user's password and signs them in. */
+  async acceptInvite(token: string, password: string): Promise<void> {
+    const response = await this.api.post<AuthResponse>("/auth/invite/accept", { token, password }, false);
+    const { accessToken, refreshToken } = this.extractTokens(response);
+    tokenStorage.setTokens(accessToken, refreshToken);
   }
 
   async verifyLoginOtp(target: LoginOtpTarget, code: string): Promise<void> {

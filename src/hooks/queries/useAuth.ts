@@ -3,14 +3,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { authService } from "../../services/authService";
 import type { 
   LoginRequest, 
-  RegisterRequest, 
   ChangePasswordRequest,
   ForgotPasswordRequest,
   ResetPasswordRequest,
   Verify2FASetupRequest,
   Disable2FARequest,
   Verify2FALoginRequest,
-  User,
   ApiError,
   LoginResult,
   OtpChannel,
@@ -60,23 +58,6 @@ export function useLoginMutation() {
     onError: (error: ApiError) => {
       queryClient.removeQueries({ queryKey: authKeys.currentUser() });
       showErrorToast(error.message, t('loginFailed', 'common'), t);
-    },
-  });
-}
-
-export function useRegisterMutation() {
-  const queryClient = useQueryClient();
-  const { t } = useLocale();
-
-  return useMutation({
-    mutationFn: (userData: RegisterRequest) => authService.register(userData),
-    onSuccess: async (user: User) => {
-      queryClient.setQueryData(authKeys.currentUser(), user);
-      await queryClient.invalidateQueries({ queryKey: authKeys.all });
-    },
-    onError: (error: ApiError) => {
-      queryClient.removeQueries({ queryKey: authKeys.currentUser() });
-      showErrorToast(error.message, t('registrationFailed', 'common'), t);
     },
   });
 }

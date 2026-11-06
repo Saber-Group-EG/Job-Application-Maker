@@ -1,18 +1,15 @@
 import PageMeta from "../../components/common/PageMeta";
 import AuthLayout from "./AuthPageLayout";
-import SignUpForm from "../../components/auth/SignUpForm";
+import AcceptInviteForm from "../../components/auth/AcceptInviteForm";
 import { useLocale } from "../../context/LocaleContext";
 
-export default function SignUp() {
+export default function AcceptInvite() {
   const { t } = useLocale();
   return (
     <>
-      <PageMeta
-        title={t('signUpPageTitle', 'common')}
-        description={t('signUpPageDesc', 'common')}
-      />
+      <PageMeta title={t('invitePageTitle', 'common')} description={t('invitePageDesc', 'common')} />
       <AuthLayout>
-        <SignUpForm />
+        <AcceptInviteForm />
       </AuthLayout>
     </>
   );

@@ -10,7 +10,6 @@ import type { User, LoginResult } from "../types/auth";
 import {
   useCurrentUser,
   useLoginMutation,
-  useRegisterMutation,
   useLogoutMutation,
   authKeys,
 } from "../hooks/queries/useAuth";
@@ -23,13 +22,6 @@ import { subscribeAuthEvent } from "../lib/authEvents";
 type AuthContextType = {
   user: User | null;
   login: (email: string, password: string) => Promise<LoginResult>;
-  register: (userData: {
-    email: string;
-    password: string;
-    firstName?: string;
-    lastName?: string;
-    name?: string;
-  }) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -47,14 +39,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { data: user, isLoading: isLoadingUser, error: userError, refetch } = useCurrentUser();
   
   const loginMutation = useLoginMutation();
-  const registerMutation = useRegisterMutation();
   const logoutMutation = useLogoutMutation();
 
-  const isLoading = isLoadingUser || loginMutation.isPending || registerMutation.isPending || logoutMutation.isPending;
+  const isLoading = isLoadingUser || loginMutation.isPending || logoutMutation.isPending;
 
   const error = 
     (loginMutation.error instanceof Error ? loginMutation.error.message : null) ||
-    (registerMutation.error instanceof Error ? registerMutation.error.message : null) ||
     (userError instanceof Error ? userError.message : null) ||
     null;
 
@@ -66,18 +56,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (result.type === '2fa') return result;
     await refetch();
     return result;
-  };
-
-  const register = async (userData: {
-    email: string;
-    password: string;
-    firstName?: string;
-    lastName?: string;
-    name?: string;
-  }) => {
-    await registerMutation.mutateAsync(userData);
-    // Force refetch after register to ensure fresh data
-    await refetch();
   };
 
   const logout = useCallback(() => {
@@ -224,7 +202,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user: user || null,
         login,
-        register,
         logout,
         isAuthenticated: !!user,
         isLoading,

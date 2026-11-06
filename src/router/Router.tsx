@@ -25,7 +25,7 @@ const LandingTerms = lazy(() => import('../pages/Landing/pages/TermsAndCondition
 const LandingAddress = lazy(() => import('../pages/Landing/pages/Address'));
 
 const SignIn = lazy(() => import('../pages/AuthPages/SignIn'));
-const SignUp = lazy(() => import('../pages/AuthPages/SignUp'));
+const AcceptInvite = lazy(() => import('../pages/AuthPages/AcceptInvite'));
 const ForgotPassword = lazy(() => import('../pages/AuthPages/ForgotPassword'));
 const ResetPassword = lazy(() => import('../pages/AuthPages/ResetPassword'));
 const NotFound = lazy(() => import('../pages/OtherPage/NotFound'));
@@ -196,7 +196,7 @@ export default function App() {
 
           {/* Auth Routes */}
           <Route path={paths.auth.signIn} element={<SignIn />} />
-          <Route path={paths.auth.signUp} element={<SignUp />} />
+          <Route path={paths.auth.acceptInvite} element={<AcceptInvite />} />
           <Route
             path={paths.auth.forgotPassword}
             element={<ForgotPassword />}

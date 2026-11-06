@@ -1,7 +1,7 @@
 export const paths = {
   auth: {
     signIn: '/signin',
-    signUp: '/signup',
+    acceptInvite: '/accept-invite',
     forgotPassword: '/forgot-password',
     resetPassword: '/reset-password',
   },

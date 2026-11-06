@@ -123,8 +123,6 @@
   "createFullNamePlaceholder": "John Doe",
   "createEmail": "البريد الإلكتروني",
   "createEmailPlaceholder": "j.doe@network.com",
-  "createPassword": "كلمة مرور مؤقتة",
-  "createPasswordPlaceholder": "********",
   "createPhone": "الهاتف",
   "createPhonePlaceholder": "+1 (555) 000-0000",
   "createAssignedRole": "الدور",
@@ -169,7 +167,6 @@
   "tableCompanies": "الشركات",
   "tableStatus": "الحالة",
   "tableActions": "الإجراءات",
-  "createPasswordHint": "شاركها مع المستخدم؛ يمكنه تغييرها بعد تسجيل الدخول.",
   "createSecurityAccess": "الدور والحالة",
   "createRoleHint": "اختيار الدور يحمّل صلاحياته في الأسفل.",
   "createCompanyAccessHint": "اختر الشركات التي يعمل بها هذا المستخدم، ويمكنك حصره في أقسام معينة.",
@@ -199,5 +196,12 @@
   "editCompanyAccessHint": "الشركات التي يعمل بها هذا المستخدم، مع إمكانية حصره في أقسام معينة.",
   "editAddCompanyButton": "إضافة",
   "editDepartmentHint": "اترك الكل دون تحديد لمنح الوصول لجميع الأقسام.",
-  "editRemoveCompany": "إزالة {name}"
+  "editRemoveCompany": "إزالة {name}",
+  "createSuccessInviteText": "أرسلنا إلى {email} رابطًا لاختيار كلمة المرور، تنتهي صلاحيته خلال 72 ساعة.",
+  "createInviteNote": "لا حاجة لكلمة مرور: سيصل المستخدم بريد إلكتروني لاختيار كلمة المرور بنفسه.",
+  "invitePending": "الدعوة معلّقة",
+  "resendInvite": "إعادة إرسال الدعوة",
+  "inviteResentTitle": "تم إرسال الدعوة",
+  "inviteResentText": "أرسلنا رابطًا جديدًا إلى {email}. الرابط السابق لم يعد يعمل.",
+  "inviteResendFailed": "تعذّر إرسال الدعوة. يرجى المحاولة مرة أخرى."
 }

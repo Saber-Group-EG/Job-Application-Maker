@@ -203,6 +203,11 @@ class UsersService extends BaseService {
     return this.request<User>('post', '/users', userData);
   }
 
+  /** Emails the user a fresh invite link (the previous one stops working). */
+  async resendInvite(userId: string): Promise<void> {
+    await this.request<void>('post', `/users/${userId}/resend-invite`);
+  }
+
   async updateUser(userId: string, userData: UpdateUserRequest): Promise<User> {
     return this.request<User>('put', `/users/${userId}`, userData);
   }

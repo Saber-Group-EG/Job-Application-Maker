@@ -477,5 +477,13 @@
   "twoFactorChannelChangeTitle": "Change where codes go",
   "twoFactorChannelSaved": "Sign-in codes will now go to your {channel}.",
   "twoFactorWhatsAppFallback": "Your WhatsApp number isn't verified, so codes go to your email for now.",
-  "twoFactorNeedsPhone": "Add your phone number to your profile and save it first."
+  "twoFactorNeedsPhone": "Add your phone number to your profile and save it first.",
+  "invitePageTitle": "Set up your account | Saber Group",
+  "invitePageDesc": "Choose a password to activate your account.",
+  "inviteWelcome": "Welcome, {name}",
+  "inviteSubtitle": "Choose a password for {email} to activate your account.",
+  "inviteSubmit": "Set password and sign in",
+  "inviteInvalidTitle": "This invite link doesn't work",
+  "inviteInvalidDesc": "It may have expired or already been used. Ask your admin to send a new invite, or sign in if you've already set your password.",
+  "inviteFailed": "We couldn't set up your account. Please try again."
 }

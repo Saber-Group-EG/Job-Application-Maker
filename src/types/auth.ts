@@ -6,14 +6,6 @@ export interface LoginRequest {
   password: string;
 }
 
-export interface RegisterRequest {
-  email: string;
-  password: string;
-  firstName?: string;
-  lastName?: string;
-  name?: string;
-}
-
 export interface TableLayout {
   columnVisibility: Record<string, boolean>;
   columnSizing: Record<string, number>;

@@ -174,6 +174,12 @@ export function useUpdateUser() {
   });
 }
 
+export function useResendInvite() {
+  return useMutation({
+    mutationFn: (userId: string) => usersService.resendInvite(userId),
+  });
+}
+
 export function useUpdateProfile() {
   const queryClient = useQueryClient();
   const { t } = useLocale();

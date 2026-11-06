@@ -477,5 +477,13 @@
   "twoFactorChannelChangeTitle": "تغيير وجهة الرموز",
   "twoFactorChannelSaved": "ستُرسل رموز تسجيل الدخول الآن إلى {channel}.",
   "twoFactorWhatsAppFallback": "رقم واتساب غير موثّق، لذلك تُرسل الرموز إلى بريدك الإلكتروني حاليًا.",
-  "twoFactorNeedsPhone": "أضف رقم هاتفك إلى ملفك الشخصي واحفظه أولاً."
+  "twoFactorNeedsPhone": "أضف رقم هاتفك إلى ملفك الشخصي واحفظه أولاً.",
+  "invitePageTitle": "إعداد حسابك | مجموعة صابر",
+  "invitePageDesc": "اختر كلمة مرور لتفعيل حسابك.",
+  "inviteWelcome": "مرحبًا، {name}",
+  "inviteSubtitle": "اختر كلمة مرور للحساب {email} لتفعيله.",
+  "inviteSubmit": "تعيين كلمة المرور وتسجيل الدخول",
+  "inviteInvalidTitle": "رابط الدعوة هذا لا يعمل",
+  "inviteInvalidDesc": "ربما انتهت صلاحيته أو تم استخدامه بالفعل. اطلب من المسؤول إرسال دعوة جديدة، أو سجّل الدخول إذا كنت قد عيّنت كلمة المرور بالفعل.",
+  "inviteFailed": "تعذّر إعداد حسابك. يرجى المحاولة مرة أخرى."
 }

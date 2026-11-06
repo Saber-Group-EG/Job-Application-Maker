@@ -52,7 +52,6 @@ export default function CreateUser() {
 
   const [formData, setFormData] = useState({
     email: "",
-    password: "",
     fullName: "",
     phone: "",
     roleId: "",
@@ -140,7 +139,7 @@ export default function CreateUser() {
   setIsSaving(true);
 
   try {
-    if (!formData.fullName || !formData.email || !formData.password || !formData.roleId) {
+    if (!formData.fullName || !formData.email || !formData.roleId) {
       throw new Error(t('createErrorRequired', 'users'));
     }
 
@@ -158,10 +157,9 @@ export default function CreateUser() {
         };
       });
 
-    await createUserMutation.mutateAsync({
+    const created = await createUserMutation.mutateAsync({
       fullName: formData.fullName,
       email: formData.email,
-      password: formData.password,
       phone: formData.phone,
       roleId: formData.roleId,
       isActive: formData.isActive,
@@ -174,7 +172,8 @@ export default function CreateUser() {
 
     await Swal.fire({
       title: t('createSuccessTitle', 'users'),
-      text: t('createSuccessText', 'users'),
+      // The new user chooses their own password from the invite email.
+      text: t('createSuccessInviteText', 'users', { email: created?.email || formData.email }),
       icon: "success",
       background: "rgba(255, 255, 255, 0.9)",
       backdrop: "rgba(0,0,0,0.4)",
@@ -252,18 +251,7 @@ export default function CreateUser() {
                     className={inputClass}
                     placeholder={t('createEmailPlaceholder', 'users')}
                   />
-                </Field>
-                <Field label={t('createPassword', 'users')} htmlFor="cu-password" hint={t('createPasswordHint', 'users')}>
-                  <input
-                    id="cu-password"
-                    type="password"
-                    required
-                    autoComplete="new-password"
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    className={inputClass}
-                    placeholder={t('createPasswordPlaceholder', 'users')}
-                  />
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{t('createInviteNote', 'users')}</p>
                 </Field>
                 <Field label={t('createCommLine', 'users')} htmlFor="cu-phone" optional>
                   <input

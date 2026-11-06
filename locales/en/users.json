@@ -123,8 +123,6 @@
   "createFullNamePlaceholder": "John Doe",
   "createEmail": "Email",
   "createEmailPlaceholder": "j.doe@network.com",
-  "createPassword": "Temporary password",
-  "createPasswordPlaceholder": "********",
   "createPhone": "Phone",
   "createPhonePlaceholder": "+1 (555) 000-0000",
   "createAssignedRole": "Role",
@@ -169,7 +167,6 @@
   "tableCompanies": "Companies",
   "tableStatus": "Status",
   "tableActions": "Actions",
-  "createPasswordHint": "Share it with the user; they can change it after signing in.",
   "createSecurityAccess": "Role & status",
   "createRoleHint": "Choosing a role loads its permissions below.",
   "createCompanyAccessHint": "Pick the companies this user works in and, optionally, limit them to certain departments.",
@@ -199,5 +196,12 @@
   "editCompanyAccessHint": "Companies this user works in, optionally limited to certain departments.",
   "editAddCompanyButton": "Add",
   "editDepartmentHint": "Leave all unselected to give access to every department.",
-  "editRemoveCompany": "Remove {name}"
+  "editRemoveCompany": "Remove {name}",
+  "createSuccessInviteText": "We emailed {email} a link to choose their password. It expires in 72 hours.",
+  "createInviteNote": "No password needed: the user gets an email to choose their own.",
+  "invitePending": "Invite pending",
+  "resendInvite": "Resend invite",
+  "inviteResentTitle": "Invite sent",
+  "inviteResentText": "We emailed {email} a new link. The previous one no longer works.",
+  "inviteResendFailed": "The invite couldn't be sent. Please try again."
 }
