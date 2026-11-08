@@ -18,8 +18,27 @@ import {
   selectClass,
 } from '../../../../components/ui/kit';
 import BilingualField from './BilingualField';
+import { arabicToPrimary, primaryToArabic, remapFormTexts } from './jobFormUtils';
 import { SwitchRow } from './FormBits';
 import type { CompanyStatusOption, JobForm, SetJobForm } from './types';
+
+// Turning bilingual on/off or changing the single language moves Arabic text
+// between the Arabic slots and the primary slots an Arabic-only job edits in.
+const setBilingual = (setForm: SetJobForm, bilingual: boolean) =>
+  setForm((prev) => {
+    if (prev.bilingual === bilingual) return prev;
+    if (prev.language !== 'ar') return { ...prev, bilingual };
+    return { ...remapFormTexts(prev, bilingual ? primaryToArabic : arabicToPrimary), bilingual };
+  });
+
+const setLanguage = (setForm: SetJobForm, language: JobForm['language']) =>
+  setForm((prev) => {
+    if (prev.language === language) return prev;
+    // Into Arabic: pick up any Arabic text already written. Out of Arabic:
+    // keep what was typed as the Arabic side so switching back restores it.
+    const next = language === 'ar' ? remapFormTexts(prev, arabicToPrimary) : remapFormTexts(prev, (en) => [en, en]);
+    return { ...next, language };
+  });
 
 const set = <K extends keyof JobForm>(setForm: SetJobForm, key: K, value: JobForm[K]) =>
   setForm((prev) => ({ ...prev, [key]: value }));
@@ -70,8 +89,21 @@ export function JobDetailsCard({
               {t('createTranslateAll', 'jobs')}
             </Button>
           )}
+          {!form.bilingual && (
+            <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
+              {t('createLanguage', 'jobs')}
+              <select
+                value={form.language}
+                onChange={(e) => setLanguage(setForm, e.target.value as JobForm['language'])}
+                className={`${selectClass} !w-auto !py-1.5 text-sm`}
+              >
+                <option value="en">{t('createLangEnglish', 'jobs')}</option>
+                <option value="ar">{t('createLangArabic', 'jobs')}</option>
+              </select>
+            </label>
+          )}
           <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
-            <Switch checked={form.bilingual} onChange={(v) => set(setForm, 'bilingual', v)} label={t('createBilingual', 'jobs')} />
+            <Switch checked={form.bilingual} onChange={(v) => setBilingual(setForm, v)} label={t('createBilingual', 'jobs')} />
             {t('createBilingual', 'jobs')}
           </label>
         </div>

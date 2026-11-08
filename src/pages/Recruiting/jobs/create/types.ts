@@ -53,6 +53,8 @@ export type JobForm = {
   salaryVisible: boolean;
   fieldConfig: JobFieldConfig;
   bilingual: boolean;
+  /** Used when not bilingual: the one language the job is written in. */
+  language: 'en' | 'ar';
   openPositions: number;
   registrationStart: string;
   registrationEnd: string;

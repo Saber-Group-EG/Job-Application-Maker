@@ -110,6 +110,8 @@ export type JobPosition = {
   title: LocalizedText;
   description?: LocalizedText;
   bilingual?: boolean;
+  /** The single language of a non-bilingual job. */
+  language?: JobLanguage;
   isActive?: boolean;
   employmentType: EmploymentType;
   workArrangement: WorkArrangement;
@@ -155,6 +157,8 @@ export type CreateJobPositionRequest = {
   title: LocalizedText;
   description?: LocalizedText;
   bilingual?: boolean;
+  /** The single language of a non-bilingual job. */
+  language?: JobLanguage;
   isActive?: boolean;
   employmentType: EmploymentType;
   workArrangement: WorkArrangement;
@@ -181,6 +185,8 @@ export type ReorderJobPositionsRequestItem = {
   id: string;
   order: number;
 };
+
+export type JobLanguage = 'en' | 'ar';
 
 // POST /job-positions/generate-fields (jobFieldGeneratorHandler): the AI
 // draft after the backend has validated and normalized it. Text is

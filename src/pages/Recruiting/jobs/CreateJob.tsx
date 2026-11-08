@@ -21,8 +21,10 @@ import { ApplicantFieldsCard, ApplicationWindowCard, CompensationCard, JobDetail
 import TermsCard from './create/TermsCard';
 import JobSpecsCard from './create/JobSpecsCard';
 import CustomFieldsCard from './create/CustomFieldsCard';
+import { SingleLanguageContext } from './create/BilingualField';
 import {
   appendLibraryFields,
+  arabicToPrimary,
   buildJobPayload,
   duplicateJobToForm,
   editJobToForm,
@@ -36,6 +38,7 @@ import {
   patchSpec,
   patchSubField,
   refId,
+  remapFormTexts,
 } from './create/jobFormUtils';
 import type { CompanyStatusOption, CustomFieldDraft, JobForm, LibraryField } from './create/types';
 
@@ -254,7 +257,12 @@ export default function CreateJob() {
     }
     if (!aiPrompt.trim()) return;
     generateFieldsMutation.mutate(
-      { companyId: jobForm.companyId, jobTitle: jobForm.title, prompt: aiPrompt },
+      {
+        companyId: jobForm.companyId,
+        jobTitle: jobForm.title,
+        prompt: aiPrompt,
+        language: jobForm.bilingual ? 'en' : jobForm.language,
+      },
       {
         onSuccess: (res) => {
           setJobForm((prev) => mergeGeneratedFields(prev, res));
@@ -284,7 +292,14 @@ export default function CreateJob() {
     const library = (source === 'saved' ? savedFields : recommendedFields) as LibraryField[];
     const before = new Set(jobForm.customFields.map((f) => f.fieldId));
     const next = appendLibraryFields(jobForm.customFields, library, ids, source);
-    setJobForm((prev) => ({ ...prev, customFields: appendLibraryFields(prev.customFields, library, ids, source) }));
+    setJobForm((prev) => {
+      const fields = appendLibraryFields(prev.customFields, library, ids, source);
+      if (prev.bilingual || prev.language !== 'ar') return { ...prev, customFields: fields };
+      // Arabic-only jobs take the template's Arabic labels and choices.
+      const existing = new Set(prev.customFields.map((f) => f.fieldId));
+      const added = remapFormTexts({ ...prev, customFields: fields.filter((f) => !existing.has(f.fieldId)) }, arabicToPrimary);
+      return { ...prev, customFields: [...prev.customFields, ...added.customFields] };
+    });
     // Newly added library fields start collapsed.
     setCollapsed((prev) => new Set([...prev, ...next.filter((f) => !before.has(f.fieldId)).map((f) => f.fieldId)]));
   };
@@ -457,6 +472,7 @@ export default function CreateJob() {
         title={isEditMode ? t('cjEditTitle', 'jobs') : t('cjNewTitle', 'jobs')}
         subtitle={isEditMode ? jobForm.title || undefined : t('cjNewSubtitle', 'jobs')}
       >
+        <SingleLanguageContext.Provider value={jobForm.bilingual ? 'en' : jobForm.language}>
         <form onSubmit={handleSubmit} className="mx-auto max-w-4xl space-y-6">
           {formError && <ValidationErrorAlert error={formError} onDismiss={() => setFormError('')} />}
 
@@ -531,6 +547,7 @@ export default function CreateJob() {
             </div>
           </div>
         </form>
+        </SingleLanguageContext.Provider>
       </PageShell>
     </>
   );

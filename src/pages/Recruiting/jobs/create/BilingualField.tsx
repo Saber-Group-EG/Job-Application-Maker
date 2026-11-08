@@ -1,12 +1,18 @@
 // An English input with an optional Arabic twin and a translate button. The
 // button fills the empty side: EN → AR when English is filled, otherwise
 // AR → EN.
-import { useId, useState } from 'react';
+import { createContext, useContext, useId, useState } from 'react';
 import type { KeyboardEvent, ReactNode } from 'react';
 import { Languages, Loader2 } from 'lucide-react';
 import { useLocale } from '../../../../context/LocaleContext';
 import { translatePair } from './jobFormUtils';
 import { focusRing, inputClass } from '../../../../components/ui/kit';
+
+/**
+ * The language of a single-language job. Its one input per field is the
+ * primary (en) slot; this only sets the text direction and placeholder.
+ */
+export const SingleLanguageContext = createContext<'en' | 'ar'>('en');
 
 type Props = {
   label?: ReactNode;
@@ -73,6 +79,7 @@ export default function BilingualField({
   hint,
 }: Props) {
   const id = useId();
+  const singleLang = useContext(SingleLanguageContext);
   const sizing = size === 'sm' ? '!py-1.5 text-sm' : '';
   const onKeyDown = onEnter
     ? (e: KeyboardEvent) => {
@@ -83,13 +90,15 @@ export default function BilingualField({
       }
     : undefined;
 
+  // An Arabic-only job types Arabic into the primary (en) slot.
+  const arabicSingle = !bilingual && singleLang === 'ar';
   const control = (lang: 'en' | 'ar') => {
     const common = {
       id: `${id}-${lang}`,
-      dir: lang === 'ar' ? 'rtl' : 'ltr',
+      dir: lang === 'ar' || arabicSingle ? 'rtl' : 'ltr',
       value: lang === 'en' ? en : ar,
       required,
-      placeholder: lang === 'en' ? placeholder : placeholderAr,
+      placeholder: lang === 'ar' || arabicSingle ? (placeholderAr ?? placeholder) : placeholder,
       autoFocus: lang === 'en' ? autoFocus : undefined,
       onKeyDown,
       className: `${inputClass} ${sizing} ${multiline ? 'resize-y' : ''}`,

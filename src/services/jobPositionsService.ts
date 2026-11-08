@@ -255,6 +255,7 @@ class JobPositionsService {
       'workArrangement',
       'status',
       'bilingual',
+      'language',
       'isActive',
       'createdBy',
     ];
@@ -407,6 +408,7 @@ class JobPositionsService {
     companyId: string;
     jobTitle?: string;
     prompt: string;
+    language?: 'en' | 'ar';
   }): Promise<GeneratedJobFields> {
     return this.request('post', '/job-positions/generate-fields', payload);
   }

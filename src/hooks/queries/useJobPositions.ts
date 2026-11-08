@@ -236,6 +236,7 @@ export function useGenerateJobFields() {
       companyId: string;
       jobTitle?: string;
       prompt: string;
+      language?: 'en' | 'ar';
     }) => jobPositionsService.generateFields(payload),
     onError: (error: ApiError) =>
       showErrorToast(error.message, t('aiGenerateFailed', 'common'), t),

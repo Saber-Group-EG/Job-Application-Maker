@@ -34,6 +34,7 @@ export const emptyJobForm = (companyId = ''): JobForm => ({
   salaryVisible: true,
   fieldConfig: getDefaultFieldConfig(),
   bilingual: false,
+  language: 'en',
   openPositions: 1,
   registrationStart: '',
   registrationEnd: '',
@@ -190,6 +191,7 @@ export function duplicateJobToForm(job: JobPosition): JobForm {
     salaryVisible: job.salaryVisible ?? true,
     fieldConfig: normalizeFieldConfig(job.fieldConfig, job.salaryFieldVisible),
     bilingual: job.bilingual ?? false,
+    language: job.language === 'ar' ? 'ar' : 'en',
     openPositions: job.openPositions || 1,
     registrationStart: toDateInput(job.registrationStart),
     registrationEnd: toDateInput(job.registrationEnd),
@@ -229,6 +231,7 @@ export function editJobToForm(job: JobPosition): JobForm {
     salaryVisible: job.salaryVisible ?? true,
     fieldConfig: normalizeFieldConfig(job.fieldConfig, job.salaryFieldVisible),
     bilingual: job.bilingual ?? false,
+    language: job.language === 'ar' ? 'ar' : 'en',
     openPositions: job.openPositions || 1,
     registrationStart: toDateInput(job.registrationStart),
     registrationEnd: toDateInput(job.registrationEnd),
@@ -297,6 +300,7 @@ const libraryGroupToDraft = (g: LibraryGroupField): SubFieldDraft => ({
   inputType: g.inputType as SubFieldDraft['inputType'],
   isRequired: g.isRequired || false,
   choices: Array.isArray(g.choices) ? libraryChoicesEn(g.choices) : [],
+  choicesAr: Array.isArray(g.choices) ? libraryChoicesAr(g.choices) : [],
 });
 
 /**
@@ -413,8 +417,15 @@ export function buildJobPayload(
 ): CreateJobPositionRequest {
   const salaryValue = Number(form.salary);
 
+  // A single-language Arabic job is edited in the primary (en) slots and
+  // stored in both, so every reader that falls back to .en still finds it.
+  const arabicOnly = !form.bilingual && form.language === 'ar';
   const makeBilingualObject = (en: string | undefined, ar?: string): BilingualOut =>
-    form.bilingual ? { en: en ?? '', ar: ar ?? en ?? '' } : { en: en ?? '' };
+    form.bilingual
+      ? { en: en ?? '', ar: ar ?? en ?? '' }
+      : arabicOnly
+        ? { en: en ?? '', ar: en ?? '' }
+        : { en: en ?? '' };
 
   const buildChoices = (choices: string[] | undefined, choicesAr?: string[]) => {
     const out: BilingualOut[] = [];
@@ -427,7 +438,7 @@ export function buildJobPayload(
         out.push({ en: enVal || arVal, ar: arVal || enVal });
       } else {
         if (!enVal) return;
-        out.push({ en: enVal });
+        out.push(arabicOnly ? { en: enVal, ar: enVal } : { en: enVal });
       }
     });
     return out;
@@ -483,6 +494,7 @@ export function buildJobPayload(
   payload.employmentType = form.employmentType;
   payload.workArrangement = form.workArrangement;
   payload.bilingual = form.bilingual;
+  payload.language = form.bilingual ? 'en' : form.language;
   if (!opts.isEditMode && opts.createdBy) payload.createdBy = opts.createdBy;
 
   return payload;
@@ -557,3 +569,54 @@ export function translatePair(
   if (ar.trim()) return translateText(ar, 'ar', 'en').then((v) => { if (v) set.en(v); });
   return Promise.resolve();
 }
+
+// ─── Language switches ───────────────────────────────────────────────────────
+
+type TextPair = [en: string, ar: string];
+
+/** Rewrite every EN/AR text pair in the form (title, description, terms, specs, fields, choices). */
+export function remapFormTexts(form: JobForm, fn: (en: string, ar: string) => TextPair): JobForm {
+  const pair = (en: string | undefined, ar: string | undefined) => fn(en ?? '', ar ?? '');
+  const list = (en: string[] | undefined, ar: string[] | undefined) => {
+    const out: TextPair[] = (en ?? []).map((v, i) => pair(v, ar?.[i]));
+    return { en: out.map((p) => p[0]), ar: out.map((p) => p[1]) };
+  };
+  const [title, titleAr] = pair(form.title, form.titleAr);
+  const [description, descriptionAr] = pair(form.description, form.descriptionAr);
+  const terms = list(form.termsAndConditions, form.termsAndConditionsAr);
+  return {
+    ...form,
+    title,
+    titleAr,
+    description,
+    descriptionAr,
+    termsAndConditions: terms.en,
+    termsAndConditionsAr: terms.ar,
+    jobSpecs: form.jobSpecs.map((s) => {
+      const [spec, specAr] = pair(s.spec, s.specAr);
+      return { ...s, spec, specAr };
+    }),
+    customFields: form.customFields.map((cf) => remapField(cf, pair, list)),
+  };
+}
+
+function remapField<T extends { label: string; labelAr?: string; choices?: string[]; choicesAr?: string[]; subFields?: SubFieldDraft[] }>(
+  field: T,
+  pair: (en: string | undefined, ar: string | undefined) => TextPair,
+  list: (en: string[] | undefined, ar: string[] | undefined) => { en: string[]; ar: string[] }
+): T {
+  const [label, labelAr] = pair(field.label, field.labelAr);
+  const out: T = { ...field, label, labelAr };
+  if (field.choices) {
+    const c = list(field.choices, field.choicesAr);
+    out.choices = c.en;
+    out.choicesAr = c.ar;
+  }
+  if (field.subFields) out.subFields = field.subFields.map((sf) => remapField(sf, pair, list));
+  return out;
+}
+
+/** Arabic text into the primary slots (Arabic-only jobs edit there). */
+export const arabicToPrimary = (en: string, ar: string): TextPair => [ar.trim() ? ar : en, ar];
+/** Primary-slot Arabic back to the Arabic side when the job turns bilingual. */
+export const primaryToArabic = (en: string, ar: string): TextPair => ['', en.trim() ? en : ar];
