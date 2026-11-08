@@ -1,4 +1,4 @@
-// Scoring criteria: weighted specs applicants are scored against. Weights
+// Job specifications: weighted specs applicants are scored against. Weights
 // should total 100%.
 import { useState } from 'react';
 import { AlertTriangle, Check, Pencil, Plus, Scale, Trash2 } from 'lucide-react';

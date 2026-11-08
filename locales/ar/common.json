@@ -444,7 +444,7 @@
   "draftDaysAgo": "منذ {count} يوم",
   "undoRemoved": "تم الحذف",
   "undoTermRemoved": "تم حذف الشرط",
-  "undoSpecRemoved": "تم حذف المتطلب",
+  "undoSpecRemoved": "تم حذف المواصفة",
   "undoQuestionRemoved": "تم حذف السؤال",
   "undoOptionRemoved": "تم حذف الخيار",
   "undoSectionRemoved": "تم حذف القسم",
