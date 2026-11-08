@@ -1,5 +1,5 @@
 import { getErrorMessage } from '../../../utils/errorHandler';
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Swal from '../../../utils/swal';
 import PageMeta from "../../../components/common/PageMeta";
 import { ChevronDown, ChevronRight, Inbox, Layers, ListChecks, Pencil, Plus, Save, SlidersHorizontal, Trash2, X } from "lucide-react";
@@ -27,6 +27,9 @@ import {
 } from "../../../hooks/queries";
 import type { FieldType } from "../../../types/fieldTypes";
 import { useLocale } from '../../../context/LocaleContext';
+import { useUndo } from '../../../context/UndoContext';
+import { useFormDraft } from '../../../hooks/useFormDraft';
+import DraftBanner from '../../../components/common/DraftBanner';
 
 type GroupField = {
   fieldId: string;
@@ -62,6 +65,21 @@ type FormField = {
   };
   groupFields?: GroupField[];
 };
+
+const emptyForm: FormField = {
+  label: "",
+  labelAr: "",
+  type: "text",
+  required: false,
+  options: [],
+  optionsAr: [],
+  validation: {},
+  groupFields: [],
+};
+
+// The open form, kept as one draft so an edit in progress also survives a refresh.
+type PresetDraft = { editFieldId: string | null; form: FormField; newChoice: string; newChoiceAr: string };
+const emptyDraft: PresetDraft = { editFieldId: null, form: emptyForm, newChoice: "", newChoiceAr: "" };
 
 const getInputTypeOptions = (t: any) => [
   { value: "text", label: t('typeText', 'systemSettings') },
@@ -102,43 +120,51 @@ const RecommendedFields = () => {
   const [showForm, setShowForm] = useState(false);
   const [newChoice, setNewChoice] = useState("");
   const [newChoiceAr, setNewChoiceAr] = useState("");
-  const [form, setForm] = useState<FormField>({
-    label: "",
-    labelAr: "",
-    type: "text",
-    required: false,
-    options: [],
-    optionsAr: [],
-    validation: {},
-    groupFields: [],
-  });
+  const [form, setForm] = useState<FormField>(emptyForm);
   const [editFieldId, setEditFieldId] = useState<string | null>(null);
   const [isDeletingField, setIsDeletingField] = useState<string | null>(null);
   const [collapsedSubFields, setCollapsedSubFields] = useState<Set<number>>(new Set());
+  const { offerUndo } = useUndo();
+
+  // The preset being edited, as loaded (what counts as "nothing changed").
+  const [editBaseline, setEditBaseline] = useState<PresetDraft>(emptyDraft);
+  const draftValue = useMemo<PresetDraft>(
+    () => ({ editFieldId, form, newChoice, newChoiceAr }),
+    [editFieldId, form, newChoice, newChoiceAr]
+  );
+  const presetDraft = useFormDraft({
+    key: "recommendedField:form",
+    value: draftValue,
+    baseline: editBaseline,
+    onRestore: (saved) => {
+      const restoredForm = { ...emptyForm, ...saved.form };
+      setEditFieldId(saved.editFieldId ?? null);
+      setForm(restoredForm);
+      setNewChoice(saved.newChoice || "");
+      setNewChoiceAr(saved.newChoiceAr || "");
+      setCollapsedSubFields(new Set((restoredForm.groupFields || []).map((_, i) => i)));
+      setShowForm(true);
+    },
+  });
 
   const handleInputChange = (field: string, value: any) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
+  // Closing the form (cancel or after saving) drops its draft.
   const resetForm = () => {
-    setForm({
-      label: "",
-      labelAr: "",
-      type: "text",
-      required: false,
-      options: [],
-      optionsAr: [],
-      validation: {},
-      groupFields: [],
-    });
+    presetDraft.discard();
+    setForm(emptyForm);
+    setNewChoice("");
+    setNewChoiceAr("");
     setEditFieldId(null);
+    setEditBaseline(emptyDraft);
     setShowForm(false);
     setCollapsedSubFields(new Set());
   };
 
   const handleEdit = (field: any) => {
-    setEditFieldId(field.fieldId);
-    setForm({
+    const loaded: FormField = {
       label: typeof field.label === "string" ? field.label : (field.label?.en || ""),
       labelAr: typeof field.label === "string" ? (field.labelAr || "") : (field.label?.ar || ""),
       type: field.inputType || "text",
@@ -150,7 +176,13 @@ const RecommendedFields = () => {
         max: field.maxValue,
       },
       groupFields: field.groupFields || [],
-    });
+    };
+    presetDraft.discard();
+    setEditFieldId(field.fieldId);
+    setForm(loaded);
+    setNewChoice("");
+    setNewChoiceAr("");
+    setEditBaseline({ editFieldId: field.fieldId, form: loaded, newChoice: "", newChoiceAr: "" });
     setCollapsedSubFields(new Set((field.groupFields || []).map((_: any, i: number) => i)));
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -262,9 +294,32 @@ const RecommendedFields = () => {
     handleInputChange("groupFields", next);
   };
 
-  const removeOption = (i: number) => {
+  const removeOption = (i: number, undoable = true) => {
+    const before = { options: form.options, optionsAr: form.optionsAr };
     handleInputChange("options", form.options?.filter((_, idx) => idx !== i));
     handleInputChange("optionsAr", form.optionsAr?.filter((_, idx) => idx !== i));
+    if (undoable) {
+      offerUndo(t('undoOptionRemoved', 'common'), () => setForm((prev) => ({ ...prev, ...before })));
+    }
+  };
+
+  const removeGroupField = (idx: number) => {
+    const before = form.groupFields;
+    const beforeCollapsed = collapsedSubFields;
+    handleInputChange("groupFields", form.groupFields?.filter((_, i) => i !== idx));
+    // Collapsed state is by index: shift the ones after the removed field.
+    setCollapsedSubFields((prev) => {
+      const next = new Set<number>();
+      prev.forEach((i) => {
+        if (i < idx) next.add(i);
+        else if (i > idx) next.add(i - 1);
+      });
+      return next;
+    });
+    offerUndo(t('undoFieldRemoved', 'common'), () => {
+      setForm((prev) => ({ ...prev, groupFields: before }));
+      setCollapsedSubFields(beforeCollapsed);
+    });
   };
 
   const visibleFields = recommendedFields.filter((f) => f.fieldId !== isDeletingField);
@@ -284,6 +339,16 @@ const RecommendedFields = () => {
 
       {showForm && (
         <form onSubmit={handleSave} className="space-y-6">
+          <DraftBanner
+            draft={presetDraft}
+            onDiscard={() => {
+              setEditFieldId(editBaseline.editFieldId);
+              setForm(editBaseline.form);
+              setNewChoice("");
+              setNewChoiceAr("");
+              if (!editBaseline.editFieldId) setShowForm(false);
+            }}
+          />
           <Card>
             <CardToolbar>
               <div>
@@ -379,7 +444,7 @@ const RecommendedFields = () => {
                             onClick={() => {
                               setNewChoice(en);
                               setNewChoiceAr(form.optionsAr?.[i] || '');
-                              removeOption(i);
+                              removeOption(i, false);
                             }}
                           >
                             <Pencil className="size-4" />
@@ -426,7 +491,7 @@ const RecommendedFields = () => {
                           </span>
                           <Badge tone="slate">{gf.inputType}</Badge>
                         </button>
-                        <IconButton tone="danger" label={t('delete', 'common')} onClick={() => handleInputChange("groupFields", form.groupFields?.filter((_, i) => i !== idx))}>
+                        <IconButton tone="danger" label={t('delete', 'common')} onClick={() => removeGroupField(idx)}>
                           <Trash2 className="size-4" />
                         </IconButton>
                       </div>

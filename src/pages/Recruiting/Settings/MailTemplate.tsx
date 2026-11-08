@@ -35,6 +35,8 @@ import {
 } from '../../../utils/mailTemplateCategories';
 import { MailTemplateCategory } from '../../../types/companies';
 import { decodeHtmlEntities } from '../../../utils/html';
+import { useFormDraft } from '../../../hooks/useFormDraft';
+import DraftBanner from '../../../components/common/DraftBanner';
 
 function stripHtml(html: string): string {
   return decodeHtmlEntities(html)
@@ -54,11 +56,30 @@ function TemplateFormModal({
   settingsId: string;
   existingTemplates: any[];
 }) {
-  const [formData, setFormData] = useState({
+  const [initialForm] = useState(() => ({
     name: template?.name ?? "",
     subject: template?.subject ?? "",
     html: template?.html ?? `<p>Hello {{candidateName}},</p>\n<p>We're excited to invite you for an interview for the position of {{jobTitle}}.</p>\n<p>Best regards,<br>HR Team</p>`,
     category: (template?.category as MailTemplateCategory) || "general",
+  }));
+  const [formData, setFormData] = useState(initialForm);
+  // The editor may re-emit the starting HTML in its own normalised form; that
+  // isn't an edit, so it becomes part of the "untouched" baseline.
+  const [baseline, setBaseline] = useState(initialForm);
+  const handleHtmlChange = (content: string, _delta?: unknown, source?: string) => {
+    setFormData((prev) => ({ ...prev, html: content }));
+    if (source && source !== 'user') {
+      setBaseline((b) => (b.html === formData.html ? { ...b, html: content } : b));
+    }
+  };
+
+  // The modal remounts on every open, so this checks for a draft each time.
+  const templateDraft = useFormDraft({
+    key: template?._id ? `mailTemplate:edit:${template._id}` : `mailTemplate:new:${settingsId}`,
+    value: formData,
+    baseline,
+    enabled: isOpen && !!settingsId,
+    onRestore: (saved) => setFormData({ ...initialForm, ...saved }),
   });
   const [showPreview, setShowPreview] = useState(false);
   const [previewContent, setPreviewContent] = useState('');
@@ -93,6 +114,7 @@ function TemplateFormModal({
           existingTemplates,
         });
       }
+      templateDraft.clear();
       onClose();
     } catch (error) {
       Swal.fire(t('mailTemplates.error', 'settings'), t('mailTemplates.errorSaveFailed', 'settings'), "error");
@@ -133,6 +155,7 @@ function TemplateFormModal({
         }
       >
         <form id="mail-template-form" onSubmit={handleSubmit} className="space-y-5">
+          <DraftBanner draft={templateDraft} onDiscard={() => setFormData(initialForm)} />
           <Field label={t('mailTemplates.labelTemplateName', 'settings')} htmlFor="mt-name">
             <input
               id="mt-name"
@@ -172,7 +195,7 @@ function TemplateFormModal({
           </div>
 
           <Field label={t('mailTemplates.labelEmailBody', 'settings')}>
-            <RichTextEditor value={formData.html} onChange={(content) => setFormData({ ...formData, html: content })} />
+            <RichTextEditor value={formData.html} onChange={handleHtmlChange} />
           </Field>
 
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-800/40">

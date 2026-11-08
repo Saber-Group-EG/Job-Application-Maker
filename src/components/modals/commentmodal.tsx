@@ -1,8 +1,11 @@
-import React from 'react';
+import React, { useEffect, useMemo } from 'react';
+import { useParams } from 'react-router';
 import { Modal } from '../ui/modal';
 import Label from '../form/Label';
 import TextArea from '../form/input/TextArea';
 import { useLocale } from '../../context/LocaleContext';
+import { useFormDraft } from '../../hooks/useFormDraft';
+import DraftBanner from '../common/DraftBanner';
 
 type Props = {
   isOpen: boolean;
@@ -26,10 +29,29 @@ export default function CommentModal({
   isSubmittingComment,
 }: Props) {
   const { t } = useLocale();
+  // The comment being written survives a refresh. The parent keeps the text
+  // while the modal is closed and empties it after a successful add, which
+  // also removes the draft. Only used on the applicant page (/:id).
+  const { id: applicantId } = useParams<{ id: string }>();
+  const draftValue = useMemo(() => ({ text: String(commentForm?.text ?? '') }), [commentForm?.text]);
+  const draft = useFormDraft({
+    key: applicantId ? `comment:${applicantId}` : null,
+    value: draftValue,
+    isEmpty: (v) => !v.text.trim(),
+    onRestore: (saved) => setCommentForm({ text: saved.text || '' }),
+  });
+  // Once the text is gone (added, or erased) there's no restored draft to talk about.
+  const hasRestored = !!draft.restoredAt;
+  const { discard } = draft;
+  useEffect(() => {
+    if (hasRestored && !draftValue.text.trim()) discard();
+  }, [hasRestored, draftValue.text, discard]);
   return (
     <Modal isOpen={isOpen} onClose={() => { onClose(); setCommentError(''); }} className="max-w-2xl p-6" closeOnBackdrop={false}>
       <form onSubmit={handleCommentSubmit} className="space-y-6">
         <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{t('addComment', 'modals')}</h2>
+
+        <DraftBanner draft={draft} onDiscard={() => { setCommentForm({ text: '' }); setCommentError(''); }} />
 
         {commentError && (
           <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">

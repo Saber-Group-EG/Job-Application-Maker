@@ -433,5 +433,22 @@
   "errUpload": "تعذر رفع الملف. تحقق من الاتصال وحاول مرة أخرى.",
   "loadFailedTitle": "تعذر تحميل هذه المعلومات",
   "loadFailedBanner": "تعذر تحميل بعض المعلومات في هذه الصفحة، لذا قد يكون ما تراه غير مكتمل.",
-  "tryAgain": "حاول مرة أخرى"
+  "tryAgain": "حاول مرة أخرى",
+  "undo": "تراجع",
+  "dismiss": "إغلاق",
+  "draftRestored": "تمت استعادة مسودتك غير المحفوظة من {when}.",
+  "draftDiscard": "تجاهل المسودة",
+  "draftJustNow": "الآن",
+  "draftMinutesAgo": "منذ {count} دقيقة",
+  "draftHoursAgo": "منذ {count} ساعة",
+  "draftDaysAgo": "منذ {count} يوم",
+  "undoRemoved": "تم الحذف",
+  "undoTermRemoved": "تم حذف الشرط",
+  "undoSpecRemoved": "تم حذف المتطلب",
+  "undoQuestionRemoved": "تم حذف السؤال",
+  "undoOptionRemoved": "تم حذف الخيار",
+  "undoSectionRemoved": "تم حذف القسم",
+  "undoItemRemoved": "تم حذف البند",
+  "undoFieldRemoved": "تم حذف الحقل",
+  "undoEntryRemoved": "تم حذف الإدخال"
 }

@@ -1,6 +1,10 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import type { SetStateAction } from "react";
 import { Link, useNavigate } from "react-router";
 import { useLocale } from "../../../context/LocaleContext";
+import { useUndo } from "../../../context/UndoContext";
+import { useFormDraft } from "../../../hooks/useFormDraft";
+import DraftBanner from "../../../components/common/DraftBanner";
 import Swal from '../../../utils/swal';
 import PageMeta from "../../../components/common/PageMeta";
 import { ValidationErrorAlert } from "../../../components/common/ValidationErrorAlert";
@@ -39,6 +43,23 @@ type CompanyAssignment = {
   isPrimary: boolean;
 };
 
+const emptyUserForm = {
+  email: "",
+  password: "",
+  fullName: "",
+  phone: "",
+  roleId: "",
+  isActive: true,
+  companies: [] as CompanyAssignment[],
+};
+
+type UserFormData = typeof emptyUserForm;
+// What the draft keeps: everything except the password.
+type CreateUserDraft = { form: Omit<UserFormData, "password">; permissions: UserPermission[] };
+
+const withoutPassword = ({ password: _password, ...rest }: UserFormData) => rest;
+const draftBaseline: CreateUserDraft = { form: withoutPassword(emptyUserForm), permissions: [] };
+
 export default function CreateUser() {
   const { t } = useLocale();
   const navigate = useNavigate();
@@ -50,19 +71,41 @@ export default function CreateUser() {
 
   const createUserMutation = useCreateUser();
 
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-    fullName: "",
-    phone: "",
-    roleId: "",
-    isActive: true,
-    companies: [] as CompanyAssignment[],
-  });
+  const [formData, setFormData] = useState<UserFormData>(emptyUserForm);
 
   const [formError, setFormError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [userPermissions, setUserPermissions] = useState<UserPermission[]>([]);
+  const { offerUndo } = useUndo();
+
+  // Unsaved work survives a refresh. The password is never stored.
+  const draftValue = useMemo<CreateUserDraft>(
+    () => ({ form: withoutPassword(formData), permissions: userPermissions }),
+    [formData, userPermissions]
+  );
+  const userDraft = useFormDraft({
+    key: "user:new",
+    value: draftValue,
+    baseline: draftBaseline,
+    onRestore: (saved) => {
+      setFormData((prev) => ({ ...emptyUserForm, ...saved.form, password: prev.password }));
+      setUserPermissions(Array.isArray(saved.permissions) ? saved.permissions : []);
+    },
+  });
+  const discardDraft = () => {
+    setFormData(emptyUserForm);
+    setUserPermissions([]);
+  };
+
+  // Removing a permission (from the list or the matrix) can be undone.
+  const setPermissionsWithUndo = (update: SetStateAction<UserPermission[]>) => {
+    const before = userPermissions;
+    const next = typeof update === "function" ? update(before) : update;
+    setUserPermissions(next);
+    if (next.length < before.length) {
+      offerUndo(t('undoRemoved', 'common'), () => setUserPermissions(before));
+    }
+  };
 
   const handleAddCompany = () => {
     setFormData((prev) => ({
@@ -75,10 +118,15 @@ export default function CreateUser() {
   };
 
   const handleRemoveCompany = (index: number) => {
-    setFormData((prev) => ({
-      ...prev,
-      companies: prev.companies.filter((_, i) => i !== index),
-    }));
+    let before: CompanyAssignment[] | null = null;
+    setFormData((prev) => {
+      before = prev.companies;
+      return { ...prev, companies: prev.companies.filter((_, i) => i !== index) };
+    });
+    offerUndo(t('undoEntryRemoved', 'common'), () => {
+      const snapshot = before;
+      if (snapshot) setFormData((prev) => ({ ...prev, companies: snapshot }));
+    });
   };
 
   const updateCompany = (
@@ -87,14 +135,12 @@ export default function CreateUser() {
     value: CompanyAssignment[keyof CompanyAssignment]
   ) => {
     setFormData((prev) => {
-      const nextCompanies = [...prev.companies];
-      nextCompanies[index] = { ...nextCompanies[index], [field]: value } as CompanyAssignment;
-
-      if (field === "isPrimary" && value === true) {
-        nextCompanies.forEach((company, i) => {
-          if (i !== index) company.isPrimary = false;
-        });
-      }
+      // New objects only: old ones may be held by an Undo snapshot.
+      const nextCompanies = prev.companies.map((company, i) => {
+        if (i === index) return { ...company, [field]: value } as CompanyAssignment;
+        if (field === "isPrimary" && value === true && company.isPrimary) return { ...company, isPrimary: false };
+        return company;
+      });
 
       return { ...prev, companies: nextCompanies };
     });
@@ -171,6 +217,7 @@ export default function CreateUser() {
         access: item.access,
       })),
     });
+    userDraft.clear();
 
     await Swal.fire({
       title: t('createSuccessTitle', 'users'),
@@ -220,6 +267,7 @@ export default function CreateUser() {
       />
       <PageShell back={back} title={t('createCredential', 'users')} subtitle={t('createAddPersonnel', 'users')}>
         <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+          <DraftBanner draft={userDraft} onDiscard={discardDraft} />
           {formError && <ValidationErrorAlert error={formError} onDismiss={() => setFormError("")} />}
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -320,7 +368,7 @@ export default function CreateUser() {
           <UserPermissionsEditor
             catalog={permissions}
             value={userPermissions}
-            onChange={setUserPermissions}
+            onChange={setPermissionsWithUndo}
             getDefaultAccess={getDefaultAccessForPermission}
           />
 

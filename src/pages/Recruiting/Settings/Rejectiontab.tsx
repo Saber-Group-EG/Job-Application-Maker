@@ -24,6 +24,7 @@ import {
 import SettingsSection from "./components/SettingsSection";
 import { useAuth } from "../../../context/AuthContext";
 import { useLocale } from "../../../context/LocaleContext";
+import { useUndo } from "../../../context/UndoContext";
 import {
 	useCompanies,
 	useUpdateCompanyRejectionReasons,
@@ -194,6 +195,7 @@ export default function RejectionTab({
 }: Props) {
 	const { hasPermission } = useAuth();
 	const { t, locale } = useLocale();
+	const { offerUndo } = useUndo();
 	const { data: companies = [], isLoading: isCompaniesLoading } = useCompanies();
 
 	const { selectedCompanyId } = useCompanyFilter();
@@ -251,7 +253,9 @@ export default function RejectionTab({
 	};
 
 	const removeReason = (id: string) => {
+		const before = rejectReasons;
 		setRejectReasons((prev) => prev.filter((reason) => reason.id !== id));
+		offerUndo(t('undoItemRemoved', 'common'), () => setRejectReasons(before));
 	};
 
 	const handleDragStart = (event: DragStartEvent) => {

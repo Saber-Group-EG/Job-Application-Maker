@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocale } from "../../../context/LocaleContext";
+import { useUndo } from "../../../context/UndoContext";
 import {
 	ClipboardList,
 	PlusCircle,
@@ -122,6 +123,7 @@ const normalizeGroups = (
 
 export default function SavedQuestionsPage() {
 	const { t } = useLocale();
+	const { offerUndo } = useUndo();
 	const {
 		data: groupsFromApi,
 		isLoading: isGroupsLoading,
@@ -161,9 +163,15 @@ export default function SavedQuestionsPage() {
 		const groupToRemove = groups[groupIndex];
 		if (!groupToRemove) return;
 
+		const before = groups;
 		setGroups((prev) => prev.filter((_, index) => index !== groupIndex));
 
-		if (!groupToRemove._id) return;
+		// A saved group is deleted on the server right away; only a new,
+		// unsaved group can be brought back.
+		if (!groupToRemove._id) {
+			offerUndo(t('undoSectionRemoved', 'common'), () => setGroups(before));
+			return;
+		}
 
 		try {
 			await deleteGroupMutation.mutateAsync(groupToRemove._id);
@@ -208,6 +216,14 @@ export default function SavedQuestionsPage() {
 	};
 
 	const removeQuestion = (groupIndex: number, questionIndex: number) => {
+		const beforeQuestions = groups[groupIndex]?.questions;
+		if (beforeQuestions) {
+			offerUndo(t('undoQuestionRemoved', 'common'), () =>
+				setGroups((prev) =>
+					prev.map((group, index) => (index === groupIndex ? { ...group, questions: beforeQuestions } : group))
+				)
+			);
+		}
 		setGroups((prev) =>
 			prev.map((group, index) => {
 				if (index !== groupIndex) return group;
@@ -533,6 +549,9 @@ export default function SavedQuestionsPage() {
 																			const existing = Array.isArray(question.choices) ? question.choices : [];
 																			const next = existing.filter((_: any, idx: number) => idx !== i);
 																			updateQuestion(groupIndex, questionIndex, { choices: next });
+																			offerUndo(t('undoOptionRemoved', 'common'), () =>
+																				updateQuestion(groupIndex, questionIndex, { choices: existing })
+																			);
 																		}}
 																		className={`rounded p-1 text-slate-400 transition hover:text-rose-500 ${focusRing}`}
 																		aria-label={t('interviewPerUser.removeChoice', 'settings', { value: label })}
@@ -616,6 +635,9 @@ export default function SavedQuestionsPage() {
 																	const existing = Array.isArray(question.tags) ? question.tags : [];
 																	const next = existing.filter((_: string, idx: number) => idx !== i);
 																	updateQuestion(groupIndex, questionIndex, { tags: next });
+																	offerUndo(t('undoItemRemoved', 'common'), () =>
+																		updateQuestion(groupIndex, questionIndex, { tags: existing })
+																	);
 																}}
 																className={`rounded text-brand-500 transition hover:text-rose-500 ${focusRing}`}
 																aria-label={t('interviewPerUser.removeTag', 'settings', { value: tag })}

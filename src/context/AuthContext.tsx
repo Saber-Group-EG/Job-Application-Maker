@@ -19,6 +19,7 @@ import { tokenStorage } from "../config/api";
 import { refreshAccessToken, getAccessTokenExpiry } from "../config/tokenRefresh";
 import { paths } from "../router/Paths";
 import { subscribeAuthEvent } from "../lib/authEvents";
+import { clearAllFormDrafts } from '../hooks/formDraftStorage';
 
 type AuthContextType = {
   user: User | null;
@@ -81,6 +82,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = useCallback(() => {
+    // Signing out on purpose drops unsaved form drafts (a session timeout
+    // doesn't, so work survives being sent back to sign in).
+    clearAllFormDrafts();
     logoutMutation.mutate(undefined, {
       onSuccess: () => {
         setTimeout(() => {

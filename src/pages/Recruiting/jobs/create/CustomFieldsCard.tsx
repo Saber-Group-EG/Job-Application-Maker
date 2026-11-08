@@ -10,6 +10,7 @@ import { useLocale } from '../../../../context/LocaleContext';
 import { Button, Card, CardToolbar, EmptyState, SectionTitle } from '../../../../components/ui/kit';
 import CustomFieldEditor from './CustomFieldEditor';
 import { convertToString, isLibraryFieldAdded, patchField } from './jobFormUtils';
+import { useRemoveWithUndo } from './useRemoveWithUndo';
 import type { CustomFieldDraft, JobForm, LibraryField, SetJobForm } from './types';
 
 function FieldLibraryMenu({
@@ -156,6 +157,7 @@ export default function CustomFieldsCard({
   onAddLibrary: (ids: string[], source: 'saved' | 'recommended') => void;
 }) {
   const { t } = useLocale();
+  const removeWithUndo = useRemoveWithUndo(setForm);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -224,7 +226,11 @@ export default function CustomFieldsCard({
                   bilingual={form.bilingual}
                   collapsed={collapsed.has(field.fieldId)}
                   onToggle={() => onToggleCollapse(field.fieldId)}
-                  onChange={(patch) => setForm((prev) => patchField(prev, index, patch))}
+                  onChange={(patch, undoMessage) =>
+                    undoMessage
+                      ? removeWithUndo(undoMessage, ['customFields'], (prev) => patchField(prev, index, patch))
+                      : setForm((prev) => patchField(prev, index, patch))
+                  }
                   onRemove={() => onRemove(index)}
                 />
               ))}

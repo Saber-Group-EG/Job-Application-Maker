@@ -1,6 +1,6 @@
 import Swal from '../../utils/swal';
 import { Modal } from '../ui/modal';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   useDraftEmailTemplateWithAi,
   useSendBatchEmail,
@@ -15,6 +15,16 @@ import { filterTemplatesByCategory } from '../../utils/mailTemplateCategories';
 import RichTextEditor from '../form/RichTextEditor';
 import TextArea from '../form/input/TextArea';
 import { useConnectedGmailSender } from '../../hooks/useConnectedGmailSender';
+import ModalDraft from './ModalDraft';
+import { htmlHasText } from './htmlHasText';
+import type { FormDraft } from '../../hooks/useFormDraft';
+
+type BulkMessageDraft = {
+  subject: string;
+  body: string;
+  templateId: string;
+  aiPrompt: string;
+};
 
 const BulkMessageModal = ({
   isOpen,
@@ -65,6 +75,27 @@ const BulkMessageModal = ({
   const draftTemplateMutation = useDraftEmailTemplateWithAi();
   const [aiPromptOpen, setAiPromptOpen] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
+
+  // Unsaved typing survives a refresh or closing the modal. One draft per
+  // company (templates and senders are per company), whatever the selection.
+  const draftRef = useRef<FormDraft | null>(null);
+  const bulkDraftKey = `bulkMessage:${companyId || company?._id || 'any'}`;
+  const bulkDraftValue = useMemo<BulkMessageDraft>(
+    () => ({ subject: form.subject, body: form.body, templateId: selectedTemplateId, aiPrompt }),
+    [form.subject, form.body, selectedTemplateId, aiPrompt]
+  );
+  const restoreBulkDraft = (saved: BulkMessageDraft) => {
+    setForm((prev) => ({ ...prev, subject: saved.subject || '', body: saved.body || '' }));
+    setSelectedTemplateId(saved.templateId || '');
+    setAiPrompt(saved.aiPrompt || '');
+    if (saved.aiPrompt) setAiPromptOpen(true);
+  };
+  const discardBulkDraft = () => {
+    setForm({ subject: '', body: '', type: 'email' });
+    setSelectedTemplateId('');
+    setAiPrompt('');
+    setError('');
+  };
 
   const handleDraftWithAi = async () => {
     if (!aiPrompt.trim()) return;
@@ -578,6 +609,8 @@ const BulkMessageModal = ({
       }
 
       await sendBatch.mutateAsync({ company: String(companyToSend), batch });
+      // Sent: the draft is done with, even if the history entries below fail.
+      draftRef.current?.clear();
 
       const messagePromises = batch.map(async (email) => {
         if (email.applicant) {
@@ -651,6 +684,15 @@ const BulkMessageModal = ({
           <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
             {t('bulkMessageTitle', 'modals', { count: recipients.length })}
           </h2>
+
+          <ModalDraft
+            draftKey={bulkDraftKey}
+            value={bulkDraftValue}
+            isEmpty={(v) => !v.subject.trim() && !htmlHasText(v.body) && !v.aiPrompt.trim()}
+            onRestore={restoreBulkDraft}
+            onDiscard={discardBulkDraft}
+            draftRef={draftRef}
+          />
 
           {error && (
             <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
@@ -805,7 +847,7 @@ const BulkMessageModal = ({
             <p className="mt-1 text-xs text-slate-500 mb-2 dark:text-slate-400">
               {t('availableVariables', 'modals')}
             </p>
-<RichTextEditor value={form.body} onChange={(v) => setForm({ ...form, body: v })} minHeight={120} />
+<RichTextEditor value={form.body} onChange={(v) => setForm((prev) => ({ ...prev, body: v }))} minHeight={120} />
             <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded text-xs">
               <strong>{t('quickInsert', 'modals')}</strong>{' '}
               <button

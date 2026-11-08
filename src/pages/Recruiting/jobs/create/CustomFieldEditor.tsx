@@ -38,6 +38,9 @@ const subFieldTypeOptions = (t: Translate): Array<{ value: GroupFieldInputType; 
   { value: 'tags', label: t('createInputTypeTags', 'jobs') },
 ];
 
+/** DOM id of a custom field's card, used to scroll a newly added field into view. */
+export const customFieldDomId = (fieldId: string) => `cj-question-card-${fieldId}`;
+
 function SubFieldEditor({
   sub,
   index,
@@ -48,7 +51,7 @@ function SubFieldEditor({
   sub: SubFieldDraft;
   index: number;
   bilingual: boolean;
-  onChange: (patch: Partial<SubFieldDraft>) => void;
+  onChange: (patch: Partial<SubFieldDraft>, undoMessage?: string) => void;
   onRemove: () => void;
 }) {
   const { t } = useLocale();
@@ -106,10 +109,13 @@ function SubFieldEditor({
               })
             }
             onRemove={(i) =>
-              onChange({
-                choices: sub.choices?.filter((_, ci) => ci !== i),
-                choicesAr: sub.choicesAr?.filter((_, ci) => ci !== i),
-              })
+              onChange(
+                {
+                  choices: sub.choices?.filter((_, ci) => ci !== i),
+                  choicesAr: sub.choicesAr?.filter((_, ci) => ci !== i),
+                },
+                t('undoOptionRemoved', 'common')
+              )
             }
           />
         </div>
@@ -132,7 +138,8 @@ export default function CustomFieldEditor({
   bilingual: boolean;
   collapsed: boolean;
   onToggle: () => void;
-  onChange: (patch: Partial<CustomFieldDraft>) => void;
+  /** undoMessage marks a removal: the change gets an Undo toast. */
+  onChange: (patch: Partial<CustomFieldDraft>, undoMessage?: string) => void;
   onRemove: () => void;
 }) {
   const { t } = useLocale();
@@ -140,14 +147,15 @@ export default function CustomFieldEditor({
   const typeLabel = fieldTypeOptions(t).find((o) => o.value === field.inputType)?.label || field.inputType;
   const bodyId = `cj-field-body-${index}`;
 
-  const patchSub = (subIndex: number, patch: Partial<SubFieldDraft>) =>
-    onChange({ subFields: field.subFields?.map((sf, si) => (si === subIndex ? { ...sf, ...patch } : sf)) });
+  const patchSub = (subIndex: number, patch: Partial<SubFieldDraft>, undoMessage?: string) =>
+    onChange({ subFields: field.subFields?.map((sf, si) => (si === subIndex ? { ...sf, ...patch } : sf)) }, undoMessage);
 
   return (
     <li
       ref={setNodeRef}
+      id={customFieldDomId(field.fieldId)}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`rounded-xl border bg-white dark:bg-slate-900 ${
+      className={`scroll-mt-24 rounded-xl border bg-white transition-shadow duration-700 dark:bg-slate-900 ${
         isDragging ? 'relative z-10 border-brand-300 shadow-lg' : 'border-slate-200 dark:border-slate-700'
       }`}
     >
@@ -266,10 +274,13 @@ export default function CustomFieldEditor({
                   })
                 }
                 onRemove={(i) =>
-                  onChange({
-                    choices: field.choices?.filter((_, ci) => ci !== i),
-                    choicesAr: field.choicesAr?.filter((_, ci) => ci !== i),
-                  })
+                  onChange(
+                    {
+                      choices: field.choices?.filter((_, ci) => ci !== i),
+                      choicesAr: field.choicesAr?.filter((_, ci) => ci !== i),
+                    },
+                    t('undoOptionRemoved', 'common')
+                  )
                 }
               />
             </div>
@@ -305,8 +316,10 @@ export default function CustomFieldEditor({
                       sub={sub}
                       index={si}
                       bilingual={bilingual}
-                      onChange={(patch) => patchSub(si, patch)}
-                      onRemove={() => onChange({ subFields: field.subFields?.filter((_, i) => i !== si) })}
+                      onChange={(patch, undoMessage) => patchSub(si, patch, undoMessage)}
+                      onRemove={() =>
+                        onChange({ subFields: field.subFields?.filter((_, i) => i !== si) }, t('undoFieldRemoved', 'common'))
+                      }
                     />
                   ))}
                 </ul>

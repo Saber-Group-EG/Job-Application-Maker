@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router";
 import PageMeta from "../../../components/common/PageMeta";
 import { Check, ChevronDown, ChevronRight, Layers, ListChecks, Pencil, Plus, Save, SlidersHorizontal, Trash2, X } from "lucide-react";
@@ -22,6 +22,60 @@ import { savedFieldsKeys } from "../../../hooks/queries/useUsers";
 import Swal from '../../../utils/swal';
 import { getErrorResponse} from "../../../utils/errorHandler";
 import { useLocale } from '../../../context/LocaleContext';
+import { useUndo } from '../../../context/UndoContext';
+import { useFormDraft } from '../../../hooks/useFormDraft';
+import DraftBanner from '../../../components/common/DraftBanner';
+
+type SavedFieldDraft = {
+  labelEn: string;
+  labelAr: string;
+  inputType: string;
+  isRequired: boolean;
+  defaultValue: string;
+  minValue?: number;
+  maxValue?: number;
+  choices: Array<{ en: string; ar?: string }>;
+  subFields: any[];
+  newChoiceEn: string;
+  newChoiceAr: string;
+};
+
+// The form's starting values: empty for a new field, the field's values when editing.
+const fieldToDraft = (field: any): SavedFieldDraft => {
+  const draft: SavedFieldDraft = {
+    labelEn: "",
+    labelAr: "",
+    inputType: "text",
+    isRequired: false,
+    defaultValue: "",
+    minValue: undefined,
+    maxValue: undefined,
+    choices: [],
+    subFields: [],
+    newChoiceEn: "",
+    newChoiceAr: "",
+  };
+  if (!field) return draft;
+  if (field.label && typeof field.label === "object") {
+    draft.labelEn = field.label.en || "";
+    draft.labelAr = field.label.ar || field.label.en || "";
+  } else {
+    draft.labelEn = field.label || "";
+    draft.labelAr = field.label || field.label?.en || "";
+  }
+  draft.inputType = field.inputType || "text";
+  draft.isRequired = !!field.isRequired;
+  draft.defaultValue = field.defaultValue || "";
+  draft.minValue = field.minValue ?? undefined;
+  draft.maxValue = field.maxValue ?? undefined;
+  if (Array.isArray(field.choices)) {
+    draft.choices = field.choices.map((c: any) =>
+      typeof c === "string" ? { en: c, ar: c } : { en: c.en || "", ar: c.ar || c.en || "" }
+    );
+  }
+  if (Array.isArray(field.groupFields)) draft.subFields = field.groupFields;
+  return draft;
+};
 
 export default function CreateSavedField() {
   const { t } = useLocale();
@@ -51,34 +105,43 @@ export default function CreateSavedField() {
   const updateMutation = useUpdateSavedField();
   const qc = useQueryClient();
 
+  const { offerUndo } = useUndo();
+  const baseline = useMemo(() => fieldToDraft(editingField), [editingField]);
+
+  const applyDraft = (d: SavedFieldDraft) => {
+    setLabelEn(d.labelEn || "");
+    setLabelAr(d.labelAr || "");
+    setInputType(d.inputType || "text");
+    setIsRequired(!!d.isRequired);
+    setDefaultValue(d.defaultValue || "");
+    setMinValue(d.minValue ?? undefined);
+    setMaxValue(d.maxValue ?? undefined);
+    setChoices(Array.isArray(d.choices) ? d.choices : []);
+    const subs = Array.isArray(d.subFields) ? d.subFields : [];
+    setSubFields(subs);
+    setCollapsedSubFields(new Set(subs.map((_: any, i: number) => i)));
+    setNewChoiceEn(d.newChoiceEn || "");
+    setNewChoiceAr(d.newChoiceAr || "");
+    setEditingChoiceIndex(null);
+  };
+
   useEffect(() => {
     if (!editingField) return;
-    if (editingField.label && typeof editingField.label === "object") {
-      setLabelEn(editingField.label.en || "");
-      setLabelAr(editingField.label.ar || editingField.label.en || "");
-    } else {
-      setLabelEn(editingField.label || "");
-      setLabelAr(editingField.label || editingField.label?.en || "");
-    }
-    setInputType(editingField.inputType || "text");
-    setIsRequired(!!editingField.isRequired);
-    setDefaultValue(editingField.defaultValue || "");
-    setMinValue(editingField.minValue ?? undefined);
-    setMaxValue(editingField.maxValue ?? undefined);
-    if (Array.isArray(editingField.choices)) {
-      setChoices(
-        editingField.choices.map((c: any) =>
-          typeof c === "string"
-            ? { en: c, ar: c }
-            : { en: c.en || "", ar: c.ar || c.en || "" }
-        )
-      );
-    }
-    if (Array.isArray(editingField.groupFields)) {
-      setSubFields(editingField.groupFields || []);
-      setCollapsedSubFields(new Set(editingField.groupFields.map((_: any, i: number) => i)));
-    }
+    applyDraft(baseline);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingField]);
+
+  // Unsaved work survives a refresh (the edited field travels in history state).
+  const draftValue = useMemo<SavedFieldDraft>(
+    () => ({ labelEn, labelAr, inputType, isRequired, defaultValue, minValue, maxValue, choices, subFields, newChoiceEn, newChoiceAr }),
+    [labelEn, labelAr, inputType, isRequired, defaultValue, minValue, maxValue, choices, subFields, newChoiceEn, newChoiceAr]
+  );
+  const fieldDraft = useFormDraft({
+    key: editingField ? `savedField:edit:${editingField.fieldId || editingField._id}` : "savedField:new",
+    value: draftValue,
+    baseline,
+    onRestore: applyDraft,
+  });
 
   const toggleSubFieldCollapse = (index: number) => {
     setCollapsedSubFields((prev) => {
@@ -133,7 +196,10 @@ export default function CreateSavedField() {
   };
 
   const removeChoice = (index: number) => {
+    const before = choices;
     setChoices((s) => s.filter((_, i) => i !== index));
+    setEditingChoiceIndex(null);
+    offerUndo(t('undoOptionRemoved', 'common'), () => setChoices(before));
   };
 
   const addSubField = () => {
@@ -153,7 +219,30 @@ export default function CreateSavedField() {
   };
 
   const removeSubField = (index: number) => {
+    const before = subFields;
+    const beforeCollapsed = collapsedSubFields;
     setSubFields((s) => s.filter((_, i) => i !== index));
+    // Collapsed state is by index: shift the ones after the removed field.
+    setCollapsedSubFields((prev) => {
+      const next = new Set<number>();
+      prev.forEach((i) => {
+        if (i < index) next.add(i);
+        else if (i > index) next.add(i - 1);
+      });
+      return next;
+    });
+    offerUndo(t('undoFieldRemoved', 'common'), () => {
+      setSubFields(before);
+      setCollapsedSubFields(beforeCollapsed);
+    });
+  };
+
+  const removeSubChoice = (idx: number, cidx: number) => {
+    const before = subFields;
+    setSubFields((s) =>
+      s.map((sf, i) => (i === idx ? { ...sf, choices: (sf.choices || []).filter((_: any, j: number) => j !== cidx) } : sf))
+    );
+    offerUndo(t('undoOptionRemoved', 'common'), () => setSubFields(before));
   };
 
   const handleSubmit = async (e: any) => { e.preventDefault();
@@ -202,11 +291,13 @@ export default function CreateSavedField() {
       if (editingField) {
         const updated = await updateMutation.mutateAsync({ fieldId: editingField.fieldId, data: payload });
         qc.setQueryData(savedFieldsKeys.list(), (old: any) => (old || []).map((f: any) => (f.fieldId === editingField.fieldId ? { ...f, ...updated } : f)));
+        fieldDraft.clear();
         Swal.fire({ title: t('updatedSuccess', 'savedFields'), icon: "success", timer: 1000, showConfirmButton: false });
         navigate(-1);
       } else {
         const created = await createMutation.mutateAsync(payload);
         qc.setQueryData(savedFieldsKeys.list(), (old: any) => [created, ...(old || [])]);
+        fieldDraft.clear();
         Swal.fire({ title: t('createdSuccess', 'savedFields'), icon: "success", timer: 1000, showConfirmButton: false });
         navigate(-1);
       }
@@ -248,6 +339,7 @@ export default function CreateSavedField() {
       <PageMeta title={pageTitle} description={t('createMetaDescription', 'savedFields')} />
 
       <form onSubmit={handleSubmit} className="mx-auto max-w-4xl space-y-6 pb-4">
+        <DraftBanner draft={fieldDraft} onDiscard={() => applyDraft(baseline)} />
         <Card>
           <CardToolbar>
             <div>
@@ -544,10 +636,7 @@ export default function CreateSavedField() {
                                       <button
                                         type="button"
                                         aria-label={`${t('delete', 'common')} ${label}`}
-                                        onClick={() => {
-                                          const next = sf.choices.filter((_: any, i: number) => i !== cidx);
-                                          updateSubField(idx, { choices: next });
-                                        }}
+                                        onClick={() => removeSubChoice(idx, cidx)}
                                         className={`rounded p-0.5 text-slate-400 hover:text-rose-500 ${focusRing}`}
                                       >
                                         <X className="size-3" />

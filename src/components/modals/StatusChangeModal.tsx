@@ -3,6 +3,12 @@ import Label from '../form/Label';
 import Select from '../form/Select';
 import { useStatusSettings } from '../../hooks/useStatusSettings';
 import { useLocale } from '../../context/LocaleContext';
+import { useMatch } from 'react-router';
+import { useUndo } from '../../context/UndoContext';
+import type { FormDraft } from '../../hooks/useFormDraft';
+import ModalDraft from './ModalDraft';
+
+type StatusDraft = { status: string; notes: string; reasons: string[] };
 
 type Props = {
   isOpen: boolean;
@@ -33,7 +39,42 @@ export default function StatusChangeModal({
   jobs = [],
 }: Props) {
   const { t } = useLocale();
+  const { offerUndo } = useUndo();
   const resolvedCompanySettings = companySettings;
+
+  // Notes and rejection reasons survive a refresh or closing the modal. Only on
+  // a single applicant's page: the bulk table's selection changes between
+  // opens, and a restored status there could hit the wrong applicants.
+  const applicantMatch = useMatch('/applicant-details/:id');
+  const applicantIdForDraft = applicantMatch?.params.id;
+  const draftRef = useRef<FormDraft | null>(null);
+  const startFormRef = useRef<StatusDraft | null>(null);
+  const isOpenRef = useRef(isOpen);
+  isOpenRef.current = isOpen;
+  const statusFormRef = useRef(statusForm);
+  statusFormRef.current = statusForm;
+  const statusDraftValue = useMemo<StatusDraft>(
+    () => ({
+      status: String(statusForm?.status || ''),
+      notes: String(statusForm?.notes || ''),
+      reasons: Array.isArray(statusForm?.reasons) ? statusForm.reasons : [],
+    }),
+    [statusForm?.status, statusForm?.notes, statusForm?.reasons]
+  );
+  const restoreStatusDraft = (saved: StatusDraft) => {
+    startFormRef.current = statusDraftValue;
+    setStatusForm({
+      ...statusForm,
+      status: saved.status || statusForm?.status || '',
+      notes: saved.notes || '',
+      reasons: Array.isArray(saved.reasons) ? saved.reasons : [],
+    });
+  };
+  const discardStatusDraft = () => {
+    const start = startFormRef.current;
+    setStatusForm({ ...statusForm, ...(start ?? { notes: '', reasons: [] }) });
+    setStatusError('');
+  };
 
   const { statusOptions: rawStatusOptions, getDescription } = useStatusSettings(
     resolvedCompanySettings
@@ -223,7 +264,17 @@ export default function StatusChangeModal({
       setStatusError(t('pleaseSelectStatus', 'modals'));
       return;
     }
-    handleStatusChange(e);
+    const result: unknown = handleStatusChange(e);
+    // The page closes the modal once the status is saved and keeps it open on
+    // failure; forget the draft only in the first case.
+    Promise.resolve(result)
+      .then(() => new Promise((resolve) => setTimeout(resolve, 100)))
+      .then(() => {
+        if (!isOpenRef.current) draftRef.current?.clear();
+      })
+      .catch(() => {
+        /* failed: keep the draft */
+      });
   };
 
   const handleSelect = (value: string) => {
@@ -240,13 +291,19 @@ export default function StatusChangeModal({
   };
 
   const handleRemove = (value: string) => {
-    const next = (statusForm.reasons || []).filter((v: string) => v !== value);
+    const before: string[] = statusForm.reasons || [];
+    const next = before.filter((v: string) => v !== value);
     handleReasonsChange(next);
+    offerUndo(t('undoItemRemoved', 'common'), () =>
+      setStatusForm({ ...statusFormRef.current, reasons: before })
+    );
   };
 
   // Close modal on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
+      // Clicks on the Undo toast (an aria-live region outside the modal) don't close it.
+      if ((e.target as Element | null)?.closest?.('[aria-live]')) return;
       if (modalRef.current && !modalRef.current.contains(e.target as Node)) onClose();
     };
     if (isOpen) {
@@ -290,6 +347,17 @@ export default function StatusChangeModal({
                 ✕
               </button>
             </div>
+
+            {applicantIdForDraft && (
+              <ModalDraft
+                draftKey={`status:${applicantIdForDraft}`}
+                value={statusDraftValue}
+                isEmpty={(v) => !v.notes.trim() && v.reasons.length === 0}
+                onRestore={restoreStatusDraft}
+                onDiscard={discardStatusDraft}
+                draftRef={draftRef}
+              />
+            )}
 
             {/* Error */}
             {statusError && (

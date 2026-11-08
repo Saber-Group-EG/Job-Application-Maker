@@ -113,7 +113,8 @@ export default function Departments() {
     setShowModal(true);
   };
 
-  const handleSubmit = async (e: FormEvent) => {
+  // Returns true when saved, so the modal drops its draft.
+  const handleSubmit = async (e: FormEvent): Promise<boolean> => {
     e.preventDefault();
     setSaving(true);
     try {
@@ -124,8 +125,10 @@ export default function Departments() {
       }
       setShowModal(false);
       setEditingId(null);
+      return true;
     } catch (err) {
       Swal.fire(t("error", "companies"), (err as Error)?.message, "error");
+      return false;
     } finally {
       setSaving(false);
     }
@@ -305,6 +308,7 @@ export default function Departments() {
           onCancel={() => setShowModal(false)}
           saving={saving}
           companies={companyOptions}
+          draftKey={editingId ? `department:edit:${editingId}` : "department:new"}
         />
       </Modal>
     </>

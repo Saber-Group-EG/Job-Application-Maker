@@ -64,6 +64,7 @@ import { buildJobSpecItems } from './utils/jobSpecUtils';
 import { getPreviousStatus } from './utils/statusUtils';
 import type { JobSpecItem } from '../../../types/applicants';
 import CandidateSummaryCard from './components/ApplicantData/AiInsightsCard';
+import { useFormDraft } from '../../../hooks/useFormDraft';
 
 const resolveId = (value: unknown): string | undefined => {
   if (!value) return undefined;
@@ -303,6 +304,13 @@ const ApplicantDetails: React.FC = () => {
   }, [fetchedCompany, companyFromList]);
 
   const [comment, setComment] = useState('');
+  // A half-written comment survives a refresh (it empties itself once posted).
+  useFormDraft({
+    key: id ? `comment:${id}` : null,
+    value: comment,
+    isEmpty: (v) => !v.trim(),
+    onRestore: setComment,
+  });
   const commentTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [commentForm, setCommentForm] = useState({ text: '' });
   const [commentError, setCommentError] = useState('');

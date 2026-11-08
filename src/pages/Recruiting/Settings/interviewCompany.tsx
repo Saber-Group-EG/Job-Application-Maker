@@ -55,6 +55,7 @@ import {
 } from '../../../components/ui/kit';
 import { useAuth } from '../../../context/AuthContext';
 import { useLocale } from '../../../context/LocaleContext';
+import { useUndo } from '../../../context/UndoContext';
 import {
   companiesKeys,
   useCompanies,
@@ -218,6 +219,7 @@ function SortableQuestionItem({
   onRemove: () => void;
 }) {
   const { t } = useLocale();
+  const { offerUndo } = useUndo();
   const [scoreStr, setScoreStr] = useState(() => String(question.score ?? 0));
   useEffect(() => {
     setScoreStr(String(question.score ?? 0));
@@ -424,6 +426,9 @@ function SortableQuestionItem({
                           (_: ChoiceItem, idx: number) => idx !== i
                         ),
                       });
+                      offerUndo(t('undoOptionRemoved', 'common'), () =>
+                        onUpdate({ choices: existing })
+                      );
                     }}
                     disabled={!canEdit}
                     className={`rounded p-1 text-slate-400 transition hover:text-rose-500 disabled:opacity-50 ${focusRing}`}
@@ -491,6 +496,9 @@ function SortableQuestionItem({
                         (_: string, idx: number) => idx !== i
                       ),
                     });
+                    offerUndo(t('undoItemRemoved', 'common'), () =>
+                      onUpdate({ tags: existing })
+                    );
                   }}
                   disabled={!canEdit}
                   className={`rounded text-brand-500 transition hover:text-rose-500 disabled:opacity-50 ${focusRing}`}
@@ -763,6 +771,7 @@ function SortableGroupItem({
 export default function InterviewCompanySettingsPage() {
   const { user, hasPermission } = useAuth();
   const { t, locale } = useLocale();
+  const { offerUndo } = useUndo();
   const { data: companies = [], isLoading: isCompaniesLoading } =
     useCompanies();
 
@@ -964,7 +973,9 @@ export default function InterviewCompanySettingsPage() {
   };
 
   const removeGroup = (groupIndex: number) => {
+    const before = groups;
     setGroups((prev) => prev.filter((_, index) => index !== groupIndex));
+    offerUndo(t('undoSectionRemoved', 'common'), () => setGroups(before));
   };
 
   const updateGroupName = (groupIndex: number, name: string) => {
@@ -988,6 +999,16 @@ export default function InterviewCompanySettingsPage() {
   };
 
   const removeQuestion = (groupIndex: number, questionIndex: number) => {
+    // Undo restores only this group's questions, found by id.
+    const group = groups[groupIndex];
+    if (group) {
+      const beforeQuestions = group.questions;
+      offerUndo(t('undoQuestionRemoved', 'common'), () =>
+        setGroups((prev) =>
+          prev.map((g) => (g._id === group._id ? { ...g, questions: beforeQuestions } : g))
+        )
+      );
+    }
     setGroups((prev) =>
       prev.map((group, index) => {
         if (index !== groupIndex) return group;

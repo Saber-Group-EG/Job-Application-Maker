@@ -1,8 +1,10 @@
-import { useState, useEffect, useId, useRef } from 'react';
+import { useState, useEffect, useId, useMemo, useRef } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import { Modal } from '../../../components/ui/modal';
 import { useLocale } from '../../../context/LocaleContext';
 import { ValidationErrorAlert } from '../../../components/common/ValidationErrorAlert';
+import DraftBanner from '../../../components/common/DraftBanner';
+import { useFormDraft } from '../../../hooks/useFormDraft';
 import { formatMoney, parseMoneyToCents } from '../../../utils/money';
 import {
   useCreatePromoCode,
@@ -166,6 +168,54 @@ function PromoCodeForm({ onClose, mode, code, hrUsers = [] }: PromoCodeFormModal
   const [isActive, setIsActive] = useState(code?.isActive ?? true);
   const [notes, setNotes] = useState(code?.notes ?? '');
 
+  // Unsaved input survives a refresh or a closed modal. This form mounts fresh
+  // on every open, so the values right now are the untouched starting point.
+  const draftValue = useMemo(
+    () => ({
+      formCode,
+      ownerUserId,
+      discountType,
+      discountPercent,
+      discountAmount,
+      discountCycles,
+      commissionPercentOn,
+      commissionPercent,
+      commissionFixedOn,
+      commissionAmount,
+      maxUses,
+      expiresAt,
+      isActive,
+      notes,
+    }),
+    [formCode, ownerUserId, discountType, discountPercent, discountAmount, discountCycles, commissionPercentOn,
+      commissionPercent, commissionFixedOn, commissionAmount, maxUses, expiresAt, isActive, notes]
+  );
+  type PromoDraft = typeof draftValue;
+  const [initialValues] = useState(draftValue);
+  const applyValues = (v: PromoDraft) => {
+    const d = { ...initialValues, ...v };
+    if (!isEdit) setFormCode(d.formCode);
+    setOwnerUserId(d.ownerUserId);
+    setDiscountType(d.discountType);
+    setDiscountPercent(d.discountPercent);
+    setDiscountAmount(d.discountAmount);
+    setDiscountCycles(d.discountCycles);
+    setCommissionPercentOn(d.commissionPercentOn);
+    setCommissionPercent(d.commissionPercent);
+    setCommissionFixedOn(d.commissionFixedOn);
+    setCommissionAmount(d.commissionAmount);
+    setMaxUses(d.maxUses);
+    setExpiresAt(d.expiresAt);
+    setIsActive(d.isActive);
+    setNotes(d.notes);
+  };
+  const promoDraft = useFormDraft({
+    key: code?._id ? `promo:edit:${code._id}` : `promo:new:${mode}`,
+    value: draftValue,
+    baseline: initialValues,
+    onRestore: applyValues,
+  });
+
   // Bring the error banner into view (the body scrolls).
   useEffect(() => {
     if (errorTick > 0) errorRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -254,6 +304,7 @@ function PromoCodeForm({ onClose, mode, code, hrUsers = [] }: PromoCodeFormModal
       } else {
         await createMy.mutateAsync(payload);
       }
+      promoDraft.clear();
       onClose();
     } catch {
       // error toast is handled by the mutation hook
@@ -304,6 +355,7 @@ function PromoCodeForm({ onClose, mode, code, hrUsers = [] }: PromoCodeFormModal
 
       {/* Body */}
       <div className="min-h-0 flex-1 space-y-7 overflow-y-auto px-6 py-6">
+        <DraftBanner draft={promoDraft} onDiscard={() => applyValues(initialValues)} />
         {formError && (
           <div ref={errorRef} role="alert">
             <ValidationErrorAlert error={formError} onDismiss={clearError} />

@@ -3,6 +3,7 @@ import { useCompanyFilter } from '../../../context/CompanyFilterContext';
 import Swal from '../../../utils/swal';
 import { useAuth } from "../../../context/AuthContext";
 import { useLocale } from "../../../context/LocaleContext";
+import { useUndo } from "../../../context/UndoContext";
 import PageMeta from "../../../components/common/PageMeta";
 import { useCompanies, useUpdateMailSettings } from "../../../hooks/queries/useCompanies";
 import GmailConnectionCard from "./components/GmailConnectionCard";
@@ -42,6 +43,7 @@ export default function CompanySettingsPage({ companyId: _companyId, onSaved, on
   const companies = companiesData ?? EMPTY_COMPANIES;
   const { hasPermission } = useAuth();
   const { t, locale } = useLocale();
+  const { offerUndo } = useUndo();
   const updateMailMutation = useUpdateMailSettings();
 
   const [availableMails, setAvailableMails] = useState<string[]>([]);
@@ -98,8 +100,13 @@ export default function CompanySettingsPage({ companyId: _companyId, onSaved, on
   };
 
   const handleRemoveMail = (mail: string) => {
+    const before = { mails: availableMails, defaultMail };
     setAvailableMails(availableMails.filter(m => m !== mail));
     if (defaultMail === mail) setDefaultMail("");
+    offerUndo(t('undoItemRemoved', 'common'), () => {
+      setAvailableMails(before.mails);
+      setDefaultMail(before.defaultMail);
+    });
   };
 
   const handleSave = async () => {

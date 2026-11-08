@@ -12,6 +12,10 @@ import { ThemeProvider } from './context/ThemeContext.tsx';
 import { AuthProvider } from './context/AuthContext.tsx';
 import { LocaleProvider } from './context/LocaleContext.tsx';
 import { ErrorBoundary, reloadOnceForNewVersion } from './components/common/ErrorBoundary.tsx';
+import { UndoProvider } from './context/UndoContext.tsx';
+import { pruneFormDrafts } from './hooks/formDraftStorage.ts';
+
+pruneFormDrafts();
 
 // Vite fires this when a page file from an older deploy is gone.
 window.addEventListener('vite:preloadError', (event) => {
@@ -25,9 +29,11 @@ createRoot(document.getElementById('root')!).render(
         <ErrorBoundary fullPage>
           <AuthProvider>
             <ThemeProvider>
-              <AppWrapper>
-                <App />
-              </AppWrapper>
+              <UndoProvider>
+                <AppWrapper>
+                  <App />
+                </AppWrapper>
+              </UndoProvider>
             </ThemeProvider>
           </AuthProvider>
         </ErrorBoundary>

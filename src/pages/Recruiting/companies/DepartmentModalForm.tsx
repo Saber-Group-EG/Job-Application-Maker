@@ -1,6 +1,8 @@
 import type { FormEvent } from "react";
-import { useId } from "react";
+import { useId, useState } from "react";
 import { useLocale } from "../../../context/LocaleContext";
+import { useFormDraft } from "../../../hooks/useFormDraft";
+import DraftBanner from "../../../components/common/DraftBanner";
 import { Button, Field, inputClass, selectClass } from "../../../components/ui/kit";
 
 export type DepartmentForm = {
@@ -17,22 +19,39 @@ export default function DepartmentModalForm({
   onCancel,
   saving,
   companies,
+  draftKey,
 }: {
   isEdit: boolean;
   form: DepartmentForm;
   setForm: React.Dispatch<React.SetStateAction<DepartmentForm>>;
-  onSubmit: (e: FormEvent) => void;
+  /** Resolve to true once saved, so the unsaved-work draft is dropped. */
+  onSubmit: (e: FormEvent) => void | Promise<boolean | void>;
   onCancel: () => void;
   saving: boolean;
   /** When given, shows a company picker (used by the Departments page). */
   companies?: Array<{ id: string; label: string }>;
+  /** e.g. `department:new:<companyId>` / `department:edit:<id>`; keeps unsaved input across a refresh. */
+  draftKey?: string | null;
 }) {
   const { t } = useLocale();
   const id = useId();
+  // The modal mounts this fresh on every open, so the form as it is now is the
+  // untouched starting point.
+  const [baseline] = useState(form);
+  const draft = useFormDraft({
+    key: draftKey ?? null,
+    value: form,
+    baseline,
+    onRestore: (saved) => setForm({ ...baseline, ...saved, companyId: baseline.companyId || saved.companyId }),
+  });
+  const handleSubmit = async (e: FormEvent) => {
+    const saved = await onSubmit(e);
+    if (saved === true) draft.clear();
+  };
   return (
     // The shared Modal pads its scroll box; -m-4 cancels that so the header
     // and footer sit flush.
-    <form onSubmit={onSubmit} className="-m-4 flex max-h-[85vh] flex-col">
+    <form onSubmit={handleSubmit} className="-m-4 flex max-h-[85vh] flex-col">
       <div className="border-b border-slate-200 px-6 py-5 pe-16 dark:border-slate-800">
         <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
           {isEdit ? t('editDepartment', 'companies') : t('createDepartmentTitle', 'companies')}
@@ -40,6 +59,7 @@ export default function DepartmentModalForm({
         <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{t('deptModalSubtitle', 'companies')}</p>
       </div>
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-y-auto px-6 py-5 sm:grid-cols-2">
+        <DraftBanner draft={draft} onDiscard={() => setForm(baseline)} className="sm:col-span-2" />
         {companies && (
           <div className="sm:col-span-2">
             <Field label={t('deptCompany', 'companies')} htmlFor={`${id}-company`}>

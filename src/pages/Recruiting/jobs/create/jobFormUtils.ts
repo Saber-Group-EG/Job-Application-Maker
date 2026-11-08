@@ -620,3 +620,18 @@ function remapField<T extends { label: string; labelAr?: string; choices?: strin
 export const arabicToPrimary = (en: string, ar: string): TextPair => [ar.trim() ? ar : en, ar];
 /** Primary-slot Arabic back to the Arabic side when the job turns bilingual. */
 export const primaryToArabic = (en: string, ar: string): TextPair => ['', en.trim() ? en : ar];
+
+/** True once the user has written something worth keeping as a draft. */
+export function jobFormHasContent(form: JobForm): boolean {
+  const filled = (v?: string) => !!v && v.trim() !== '';
+  return (
+    filled(form.title) ||
+    filled(form.titleAr) ||
+    filled(form.description) ||
+    filled(form.descriptionAr) ||
+    form.termsAndConditions.some(filled) ||
+    form.termsAndConditionsAr.some(filled) ||
+    form.jobSpecs.length > 0 ||
+    form.customFields.length > 0
+  );
+}

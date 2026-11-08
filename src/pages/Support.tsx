@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import PageMeta from "../components/common/PageMeta";
 import { Clock, Contact, FileText, Mail, MapPin, MessageSquare, Phone, Send, Upload, X } from "lucide-react";
 import {
@@ -15,9 +15,15 @@ import {
 } from "../components/ui/kit";
 import { useLocale } from "../context/LocaleContext";
 import { useAuth } from "../context/AuthContext";
+import { useUndo } from "../context/UndoContext";
+import { useFormDraft } from "../hooks/useFormDraft";
+import DraftBanner from "../components/common/DraftBanner";
 import { useCreateAuthenticatedInquiry, useCompanies } from "../hooks/queries";
 import { toPlainString } from "../utils/strings";
 import { uploadToR2 } from "../utils/uploadToR2";
+
+const emptyMessage = { name: "", email: "", subject: "", message: "" };
+const emptyDraft = { form: emptyMessage, companyId: "" };
 
 function ContactInfoRow({
   icon,
@@ -46,13 +52,21 @@ export default function Support() {
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [attachments, setAttachments] = useState<File[]>([]);
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    subject: "",
-    message: "",
-  });
+  const [formData, setFormData] = useState(emptyMessage);
   const [companyId, setCompanyId] = useState("");
+  const { offerUndo } = useUndo();
+
+  // The typed message survives a refresh; attached files can't be stored.
+  const draftValue = useMemo(() => ({ form: formData, companyId }), [formData, companyId]);
+  const messageDraft = useFormDraft({
+    key: "support:new",
+    value: draftValue,
+    baseline: emptyDraft,
+    onRestore: (saved) => {
+      setFormData({ ...emptyMessage, ...saved.form });
+      setCompanyId(saved.companyId || "");
+    },
+  });
 
   const roleName = (user as any)?.roleId?.name?.toLowerCase();
   const isSuperAdmin = roleName === "admin" || roleName === "super admin";
@@ -88,6 +102,8 @@ export default function Support() {
         attachments: attachmentPayload,
         ...(companyId ? { companyId } : {}),
       });
+      // discard (not clear): the page stays open, so the next message is kept as a draft too.
+      messageDraft.discard();
       setFormData({ name: "", email: "", subject: "", message: "" });
       setAttachments([]);
       setCompanyId("");
@@ -107,7 +123,9 @@ export default function Support() {
   }
 
   function removeAttachment(index: number) {
+    const before = attachments;
     setAttachments((prev) => prev.filter((_, i) => i !== index));
+    offerUndo(t('undoRemoved', 'common'), () => setAttachments(before));
   }
 
   const busy = createInquiryMutation.isPending || uploading;
@@ -122,6 +140,13 @@ export default function Support() {
             <SectionTitle icon={<MessageSquare className="size-4" />}>{t('sendUsMessage', 'common')}</SectionTitle>
           </CardToolbar>
           <form onSubmit={handleSubmit} className="space-y-4 p-4">
+            <DraftBanner
+              draft={messageDraft}
+              onDiscard={() => {
+                setFormData(emptyMessage);
+                setCompanyId("");
+              }}
+            />
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label={t('name', 'common')} htmlFor="name">
                 <input id="name" name="name" value={formData.name} onChange={(e) => handleChange("name", e.target.value)} placeholder={t('enterName', 'common')} required className={inputClass} />

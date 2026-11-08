@@ -433,5 +433,22 @@
   "errUpload": "The file couldn't be uploaded. Check your connection and try again.",
   "loadFailedTitle": "Couldn't load this information",
   "loadFailedBanner": "Some information on this page couldn't be loaded, so what you see may be incomplete.",
-  "tryAgain": "Try again"
+  "tryAgain": "Try again",
+  "undo": "Undo",
+  "dismiss": "Dismiss",
+  "draftRestored": "Restored your unsaved draft from {when}.",
+  "draftDiscard": "Discard draft",
+  "draftJustNow": "just now",
+  "draftMinutesAgo": "{count} min ago",
+  "draftHoursAgo": "{count} h ago",
+  "draftDaysAgo": "{count} days ago",
+  "undoRemoved": "Removed",
+  "undoTermRemoved": "Term removed",
+  "undoSpecRemoved": "Spec removed",
+  "undoQuestionRemoved": "Question removed",
+  "undoOptionRemoved": "Option removed",
+  "undoSectionRemoved": "Section removed",
+  "undoItemRemoved": "Item removed",
+  "undoFieldRemoved": "Field removed",
+  "undoEntryRemoved": "Entry removed"
 }

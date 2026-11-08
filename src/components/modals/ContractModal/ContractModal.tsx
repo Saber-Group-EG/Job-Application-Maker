@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
+import { useFormDraft } from '../../../hooks/useFormDraft';
+import DraftBanner from '../../common/DraftBanner';
 import { FileSignature, ChevronDown, Sparkles, Users } from 'lucide-react';
 import {
   ContractType,
@@ -54,6 +56,12 @@ import {
   CONTRACT_TYPE_VALUES,
   contractTypeLabel,
 } from '../../../utils/documentLabels';
+import {
+  allBlank,
+  detectSectionRemoval,
+  hasCustomBulkValues,
+  useRemoveWithUndo,
+} from '../JobOffersModal/documentDraft';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -291,6 +299,8 @@ export default function JobContractEditor({
 }: JobContractEditorProps) {
   const { t, locale } = useLocale();
   const [form, setForm] = useState<FormState>(emptyForm);
+  // The form as it was opened (set by the init effect); null until then.
+  const [startForm, setStartForm] = useState<FormState | null>(null);
   const [docLang, setDocLang] = useState<DocLang>(locale === 'ar' ? 'ar' : 'en');
   const [showSalaryReview, setShowSalaryReview] = useState(false);
   const [translatingAll, setTranslatingAll] = useState(false);
@@ -384,10 +394,11 @@ export default function JobContractEditor({
     const ids = applicantObjects?.map((a) => a._id) ?? [];
     const bulk = ids.length > 0 && mode === 'contract' && !editing && !cloneFrom;
 
+    let initial: FormState;
     if (editing) {
-      setForm({ ...contractToForm(editing), senderByCompany: {} });
+      initial = { ...contractToForm(editing), senderByCompany: {} };
     } else if (cloneFrom) {
-      setForm({
+      initial = {
         ...contractToForm(cloneFrom),
         applicantId: null,
         applicantIds: [],
@@ -395,11 +406,11 @@ export default function JobContractEditor({
         senderByCompany: {},
         startDate: '',
         endDate: '',
-      });
+      };
     } else if (defaults) {
-      setForm({ ...emptyForm(), ...defaultsToForm(defaults) });
+      initial = { ...emptyForm(), ...defaultsToForm(defaults) };
     } else {
-      setForm({
+      initial = {
         ...emptyForm(),
         applicantIds: ids,
         isBulk: bulk,
@@ -407,8 +418,10 @@ export default function JobContractEditor({
           ? seedBulkOverrideMap(applicantObjects ?? [])
           : {},
         ...(propApplicantId ? { applicantId: propApplicantId } : {}),
-      });
+      };
     }
+    setForm(initial);
+    setStartForm(initial);
     setTimeout(() => firstInputRef.current?.focus(), 80);
   }, [
     editing,
@@ -418,6 +431,42 @@ export default function JobContractEditor({
     mode,
     propApplicantId,
   ]);
+
+  // Unsaved-draft persistence, keyed per record so drafts don't collide.
+  const draftKey = (() => {
+    const kind = mode === 'template' ? 'contractTemplate' : 'contract';
+    if (editing) return `${kind}:edit:${editing._id}`;
+    if (cloneFrom) return `${kind}:clone:${cloneFrom._id}`;
+    if (offerId) return `${kind}:new:offer:${offerId}`;
+    const ids = (applicantObjects ?? []).map((a) => a._id).sort();
+    if (ids.length && mode === 'contract') return `${kind}:new:bulk:${ids.join(',')}`;
+    if (propApplicantId) return `${kind}:new:${propApplicantId}`;
+    return `${kind}:new:${jobPositionId || propCompanyId || 'blank'}`;
+  })();
+  const isBlankCreate = !editing && !cloneFrom && !defaults;
+  const contractDraft = useFormDraft<FormState>({
+    key: draftKey,
+    value: form,
+    baseline: startForm ?? undefined,
+    ready: startForm !== null,
+    isEmpty: isBlankCreate
+      ? (f) =>
+          allBlank(
+            f.position,
+            f.startDate,
+            f.endDate,
+            f.probationPeriod,
+            f.salaryBasic,
+            f.benefits,
+            f.sections,
+            f.notes
+          ) && !hasCustomBulkValues(f.bulkOverrideMap)
+      : undefined,
+    onRestore: (saved) => setForm(saved),
+  });
+  const discardDraft = () => {
+    if (startForm) setForm(startForm);
+  };
 
   // Company + fixed applicant shown on the sheet
   const { data: companies = [] } = useCompanies();
@@ -438,6 +487,18 @@ export default function JobContractEditor({
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
+  const removeWithUndo = useRemoveWithUndo(setForm);
+
+  const changeSections = (sections: FormSection[]) => {
+    const removed = detectSectionRemoval(form.sections, sections);
+    if (!removed) return set('sections', sections);
+    removeWithUndo(
+      t(removed === 'section' ? 'undoSectionRemoved' : 'undoItemRemoved', 'common'),
+      ['sections'],
+      (prev) => ({ ...prev, sections })
+    );
+  };
+
   const patchBenefit = (id: string, patch: Partial<FormBenefit>) =>
     set(
       'benefits',
@@ -445,10 +506,10 @@ export default function JobContractEditor({
     );
 
   const removeBenefit = (id: string) =>
-    set(
-      'benefits',
-      form.benefits.filter((b) => b._id !== id)
-    );
+    removeWithUndo(t('undoEntryRemoved', 'common'), ['benefits'], (prev) => ({
+      ...prev,
+      benefits: prev.benefits.filter((b) => b._id !== id),
+    }));
 
   const addBenefit = () =>
     set('benefits', [
@@ -694,6 +755,7 @@ export default function JobContractEditor({
           ...(mode === 'contract' && offerId ? { offerId } : {}),
         });
       }
+      contractDraft.clear();
       onClose();
     } catch {
       // errors handled inside individual mutation hooks
@@ -916,7 +978,11 @@ export default function JobContractEditor({
           <button
             type="button"
             onClick={() =>
-              setForm((prev) => ({ ...prev, isBulk: false, applicantIds: [] }))
+              removeWithUndo(
+                t('undoRemoved', 'common'),
+                ['isBulk', 'applicantIds'],
+                (prev) => ({ ...prev, isBulk: false, applicantIds: [] })
+              )
             }
             className="mt-3 text-xs text-brand-600 hover:underline dark:text-brand-400"
           >
@@ -945,6 +1011,11 @@ export default function JobContractEditor({
       saveIcon={<FileSignature className="size-4" />}
       side={side}
     >
+      <DraftBanner
+        draft={contractDraft}
+        onDiscard={discardDraft}
+        className="mx-auto mb-4 max-w-[210mm]"
+      />
       <Paper lang={docLang}>
         <PaperHeader
           lang={docLang}
@@ -1107,7 +1178,7 @@ export default function JobContractEditor({
         <div style={{ margin: '20px 0' }}>
           <SectionsEditor
             sections={form.sections}
-            onChange={(sections) => set('sections', sections)}
+            onChange={changeSections}
             lang={docLang}
             docType="contract"
             variant="contract"

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { Eye, GripVertical, Lock, PlusCircle, Save, Settings, Trash2 } from 'lucide-react';
 import Swal from '../../../utils/swal';
 import { useLocale } from '../../../context/LocaleContext';
+import { useUndo } from '../../../context/UndoContext';
 import { Button, Card, CardToolbar, IconButton, SectionTitle, focusRing } from '../../../components/ui/kit';
 import SettingsSection from './components/SettingsSection';
 import { useAuth } from '../../../context/AuthContext';
@@ -335,6 +336,7 @@ export default function StatusLabelsSettings({
 }: Props = {}) {
   const { hasPermission } = useAuth();
   const { t } = useLocale();
+  const { offerUndo } = useUndo();
   const { data: companies = [] } = useCompanies();
   const { selectedCompanyId } = useCompanyFilter();
   const queryClient = useQueryClient();
@@ -430,15 +432,30 @@ export default function StatusLabelsSettings({
   }, []);
 
   const removeStatus = useCallback((index: number) => {
+    let beforeStatuses: LeadStatus[] | null = null;
+    let beforeIds: string[] | null = null;
     setStatuses((prev) => {
+      beforeStatuses = prev;
       const next = prev.filter((_, i) => i !== index);
       if (next.length > 0 && !next.some((s) => s.isDefault)) {
-        next[0].isDefault = true;
+        // A copy, so the Undo snapshot keeps its own default flag.
+        next[0] = { ...next[0], isDefault: true };
       }
       return next;
     });
-    setStatusIds((prev) => prev.filter((_, i) => i !== index));
-  }, []);
+    setStatusIds((prev) => {
+      beforeIds = prev;
+      return prev.filter((_, i) => i !== index);
+    });
+    offerUndo(t('undoItemRemoved', 'common'), () => {
+      const statusesSnapshot = beforeStatuses;
+      const idsSnapshot = beforeIds;
+      if (statusesSnapshot && idsSnapshot) {
+        setStatuses(statusesSnapshot);
+        setStatusIds(idsSnapshot);
+      }
+    });
+  }, [offerUndo, t]);
 
   const setDefault = useCallback((index: number) => {
     setStatuses((prev) =>

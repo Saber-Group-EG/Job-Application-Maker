@@ -1,6 +1,6 @@
 import Swal from '../../utils/swal';
 import { Modal } from '../ui/modal';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   useSendMessage,
   useSendEmail,
@@ -19,6 +19,17 @@ import { useConnectedGmailSender } from '../../hooks/useConnectedGmailSender';
 import { whatsAppLink } from '../../utils/whatsapp';
 import { useWhatsAppStatus } from '../../hooks/queries/useCompanies';
 import WhatsAppBusinessForm from './WhatsAppBusinessForm';
+import ModalDraft from './ModalDraft';
+import { htmlHasText } from './htmlHasText';
+import type { FormDraft } from '../../hooks/useFormDraft';
+
+type MessageDraft = {
+  type: 'email' | 'whatsapp' | 'internal';
+  subject: string;
+  body: string;
+  templateId: string;
+  aiPrompt: string;
+};
 
 const MessageModal = ({
   isOpen,
@@ -51,6 +62,36 @@ const MessageModal = ({
   const [aiPrompt, setAiPrompt] = useState('');
   const { t } = useLocale();
   const draftEmailMutation = useDraftEmailTemplateWithAi();
+
+  // Unsaved typing survives a refresh or closing the modal, per recipient.
+  const draftRef = useRef<FormDraft | null>(null);
+  const messageDraftKey = id ? `${isInquiry ? 'inquiryReply' : 'message'}:${id}` : null;
+  const messageDraftValue = useMemo<MessageDraft>(
+    () => ({
+      type: messageForm.type,
+      subject: messageForm.subject,
+      body: messageForm.body,
+      templateId: selectedTemplateId,
+      aiPrompt,
+    }),
+    [messageForm, selectedTemplateId, aiPrompt]
+  );
+  const restoreMessageDraft = (saved: MessageDraft) => {
+    setMessageForm({
+      type: saved.type === 'whatsapp' && isInquiry ? 'email' : saved.type || 'email',
+      subject: saved.subject || '',
+      body: saved.body || '',
+    });
+    setSelectedTemplateId(saved.templateId || '');
+    setAiPrompt(saved.aiPrompt || '');
+    if (saved.aiPrompt) setAiPromptOpen(true);
+  };
+  const discardMessageDraft = () => {
+    setMessageForm({ subject: '', body: '', type: 'email' });
+    setSelectedTemplateId('');
+    setAiPrompt('');
+    setMessageError('');
+  };
 
 
   // Sender selection states
@@ -622,6 +663,7 @@ const MessageModal = ({
         // WhatsApp is already open; a missing history entry isn't worth an error.
       }
       setIsSubmittingMessage(false);
+      draftRef.current?.clear();
       setMessageForm({ subject: '', body: '', type: 'email' });
       onClose();
       await Swal.fire({
@@ -717,6 +759,7 @@ const MessageModal = ({
           });
         }
 
+        draftRef.current?.clear();
         setMessageForm({ subject: '', body: '', type: 'email' });
         onClose();
 
@@ -752,6 +795,15 @@ const MessageModal = ({
           <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
             {t('sendMessage', 'modals')}
           </h2>
+
+          <ModalDraft
+            draftKey={messageDraftKey}
+            value={messageDraftValue}
+            isEmpty={(v) => !v.subject.trim() && !htmlHasText(v.body) && !v.aiPrompt.trim()}
+            onRestore={restoreMessageDraft}
+            onDiscard={discardMessageDraft}
+            draftRef={draftRef}
+          />
 
           {messageError && (
             <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
@@ -1005,7 +1057,9 @@ const MessageModal = ({
                 <RichTextEditor
                   value={messageForm.body}
                   onChange={(content) =>
-                    setMessageForm({ ...messageForm, body: content })
+                    // Functional: the editor can report a change after a reset
+                    // (e.g. discarding a draft), and a stale form would bring the old subject back.
+                    setMessageForm((prev) => ({ ...prev, body: content }))
                   }
                   minHeight={120}
                 />

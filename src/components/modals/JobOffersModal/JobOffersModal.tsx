@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   FileText,
   Mail,
@@ -66,6 +66,14 @@ import {
   WORK_TYPE_VALUES,
   workTypeLabel,
 } from '../../../utils/documentLabels';
+import { useFormDraft } from '../../../hooks/useFormDraft';
+import DraftBanner from '../../common/DraftBanner';
+import {
+  allBlank,
+  detectSectionRemoval,
+  hasCustomBulkValues,
+  useRemoveWithUndo,
+} from './documentDraft';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -272,6 +280,8 @@ export default function JobOfferEditor({
   const { t, locale } = useLocale();
 
   const [form, setForm] = useState<FormState>(emptyForm);
+  // The form as it was opened (set by the init effect); null until then.
+  const [startForm, setStartForm] = useState<FormState | null>(null);
   const [docLang, setDocLang] = useState<DocLang>(locale === 'ar' ? 'ar' : 'en');
   const [showSalaryReview, setShowSalaryReview] = useState(false);
   const [translatingAll, setTranslatingAll] = useState(false);
@@ -377,30 +387,74 @@ export default function JobOfferEditor({
     const ids = applicantObjects?.map((a) => a._id) ?? [];
     const bulk = ids.length > 0;
 
+    let initial: FormState;
     if (editing) {
-      setForm({ ...offerToForm(editing), senderByCompany: {} });
+      initial = { ...offerToForm(editing), senderByCompany: {} };
     } else if (cloneFrom) {
-      setForm({
+      initial = {
         ...offerToForm(cloneFrom),
         applicantId: null,
         applicantIds: [],
         isBulk: bulk,
         sendAsEmail: false,
         senderByCompany: {},
-      });
+      };
     } else {
-      setForm({
+      initial = {
         ...emptyForm(),
         applicantIds: ids,
         isBulk: bulk,
         bulkOverrideMap: bulk
           ? seedBulkOverrideMap(applicantObjects ?? [])
           : {},
-      });
+      };
     }
+    setForm(initial);
+    setStartForm(initial);
     setTimeout(() => firstInputRef.current?.focus(), 80);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editing, cloneFrom]);
+
+  // ── Unsaved-draft persistence ──────────────────────────────────────────────
+  // Keyed per record so drafts for different offers/applicants don't collide.
+  const draftKey = (() => {
+    const kind = mode === 'template' ? 'offerTemplate' : 'offer';
+    if (editing) return `${kind}:edit:${editing._id}`;
+    if (cloneFrom) return `${kind}:clone:${cloneFrom._id}`;
+    const ids = (applicantObjects ?? []).map((a) => a._id).sort();
+    if (ids.length) return `${kind}:new:bulk:${ids.join(',')}`;
+    if (applicantId) return `${kind}:new:${applicantId}`;
+    return `${kind}:new:${jobPositionId || 'blank'}`;
+  })();
+  const isCreate = !editing && !cloneFrom;
+  // The sender is auto-picked once the company loads; that alone isn't an edit.
+  const draftBaseline = useMemo(
+    () =>
+      startForm ? { ...startForm, senderByCompany: form.senderByCompany } : undefined,
+    [startForm, form.senderByCompany]
+  );
+  const offerDraft = useFormDraft<FormState>({
+    key: draftKey,
+    value: form,
+    baseline: draftBaseline,
+    ready: startForm !== null,
+    isEmpty: isCreate
+      ? (f) =>
+          allBlank(
+            f.position,
+            f.workHours,
+            f.salaryBasic,
+            f.commissions,
+            f.sections,
+            f.notes
+          ) && !hasCustomBulkValues(f.bulkOverrideMap)
+      : undefined,
+    onRestore: (saved) => setForm(saved),
+  });
+  const discardDraft = () => {
+    if (startForm)
+      setForm((prev) => ({ ...startForm, senderByCompany: prev.senderByCompany }));
+  };
 
   // ── Company + fixed applicant shown on the sheet ───────────────────────────
   const { data: companies = [] } = useCompanies();
@@ -426,6 +480,18 @@ export default function JobOfferEditor({
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
+  const removeWithUndo = useRemoveWithUndo(setForm);
+
+  const changeSections = (sections: FormSection[]) => {
+    const removed = detectSectionRemoval(form.sections, sections);
+    if (!removed) return set('sections', sections);
+    removeWithUndo(
+      t(removed === 'section' ? 'undoSectionRemoved' : 'undoItemRemoved', 'common'),
+      ['sections'],
+      (prev) => ({ ...prev, sections })
+    );
+  };
+
   const patchCommission = (id: string, patch: Partial<FormCommission>) =>
     set(
       'commissions',
@@ -433,10 +499,10 @@ export default function JobOfferEditor({
     );
 
   const removeCommission = (id: string) =>
-    set(
-      'commissions',
-      form.commissions.filter((c) => c._id !== id)
-    );
+    removeWithUndo(t('undoEntryRemoved', 'common'), ['commissions'], (prev) => ({
+      ...prev,
+      commissions: prev.commissions.filter((c) => c._id !== id),
+    }));
 
   const addCommission = () =>
     set('commissions', [
@@ -732,6 +798,7 @@ export default function JobOfferEditor({
         });
         if (willSendEmail) await sendSingleOfferEmail();
       }
+      offerDraft.clear();
       onClose();
     } catch {
       // errors handled inside individual mutation hooks
@@ -957,7 +1024,11 @@ export default function JobOfferEditor({
           <button
             type="button"
             onClick={() =>
-              setForm((prev) => ({ ...prev, isBulk: false, applicantIds: [] }))
+              removeWithUndo(
+                t('undoRemoved', 'common'),
+                ['isBulk', 'applicantIds'],
+                (prev) => ({ ...prev, isBulk: false, applicantIds: [] })
+              )
             }
             className="mt-3 text-xs text-brand-600 hover:underline dark:text-brand-400"
           >
@@ -1039,6 +1110,11 @@ export default function JobOfferEditor({
       }
       side={side}
     >
+      <DraftBanner
+        draft={offerDraft}
+        onDiscard={discardDraft}
+        className="mx-auto mb-4 max-w-[210mm]"
+      />
       <Paper lang={docLang}>
         <PaperHeader
           lang={docLang}
@@ -1233,7 +1309,7 @@ export default function JobOfferEditor({
           )}
           <SectionsEditor
             sections={form.sections}
-            onChange={(sections) => set('sections', sections)}
+            onChange={changeSections}
             lang={docLang}
             docType="offer"
             variant="offer"

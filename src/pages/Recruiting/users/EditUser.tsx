@@ -1,6 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
+import type { SetStateAction } from "react";
 import { Link, useParams, useNavigate } from "react-router";
 import { useLocale } from "../../../context/LocaleContext";
+import { useUndo } from "../../../context/UndoContext";
+import { useFormDraft } from "../../../hooks/useFormDraft";
+import DraftBanner from "../../../components/common/DraftBanner";
 import Swal from '../../../utils/swal';
 import PageMeta from "../../../components/common/PageMeta";
 import LoadingSpinner from "../../../components/common/LoadingSpinner";
@@ -41,6 +45,10 @@ type UserCompany = {
   departments: string[];
 };
 
+type EditUserFields = { email: string; fullName: string; phone: string; roleId: string; isActive: boolean };
+// What the draft keeps. The password is never part of it.
+type EditUserDraft = { form: EditUserFields; companies: UserCompany[]; permissions: UserPermission[] };
+
 export default function EditUser() {
   const { t } = useLocale();
   const { id } = useParams<{ id: string }>();
@@ -72,6 +80,8 @@ export default function EditUser() {
   const [selectedCompanyId, setSelectedCompanyId] = useState("");
   const [userPermissions, setUserPermissions] = useState<UserPermission[]>([]);
   const [initializedUserId, setInitializedUserId] = useState("");
+  const [draftBaseline, setDraftBaseline] = useState<EditUserDraft | null>(null);
+  const { offerUndo } = useUndo();
 
   // Find user
   const user = useMemo(() => {
@@ -95,14 +105,14 @@ export default function EditUser() {
 
   useEffect(() => {
     if (user && user._id !== initializedUserId) {
-      setFormData({
+      const loadedFields: EditUserFields = {
         email: user.email || "",
-        password: "", 
         fullName: toPlainString(user.fullName || user.name || ""),
         phone: user.phone || "",
         roleId: typeof user.roleId === "string" ? user.roleId : user.roleId?._id || "",
         isActive: user.isActive !== false,
-      });
+      };
+      setFormData({ ...loadedFields, password: "" });
 
       // Initialize companies from user data
       const initialCompanies = user.companies?.map((c) => ({
@@ -117,14 +127,15 @@ export default function EditUser() {
       setUserCompanies(initialCompanies);
 
       const fromUser = normalizeUserPermissions(user);
-      if (fromUser.length > 0) {
-        setUserPermissions(fromUser);
-      } else {
+      let loadedPermissions = fromUser;
+      if (fromUser.length === 0) {
         const currentRoleId = typeof user.roleId === "string" ? user.roleId : user.roleId?._id;
         const selectedRole = roles.find((role) => role._id === currentRoleId);
-        setUserPermissions(normalizeRolePermissions(selectedRole));
+        loadedPermissions = normalizeRolePermissions(selectedRole);
       }
+      setUserPermissions(loadedPermissions);
 
+      setDraftBaseline({ form: loadedFields, companies: initialCompanies as UserCompany[], permissions: loadedPermissions });
       setInitializedUserId(user._id);
     }
   }, [user, initializedUserId, roles, permissions]);
@@ -156,8 +167,53 @@ const handleUpdateDepartments = (companyId: string, departments: string[]) => {
 };
 
  const handleRemoveCompany = (companyId: string) => {
+  const before = userCompanies;
   setUserCompanies((prev) => prev.filter((c) => c.companyId !== companyId));
+  offerUndo(t('undoEntryRemoved', 'common'), () => setUserCompanies(before));
 };
+
+  // Removing a permission (from the list or the matrix) can be undone.
+  const setPermissionsWithUndo = (update: SetStateAction<UserPermission[]>) => {
+    const before = userPermissions;
+    const next = typeof update === "function" ? update(before) : update;
+    setUserPermissions(next);
+    if (next.length < before.length) {
+      offerUndo(t('undoRemoved', 'common'), () => setUserPermissions(before));
+    }
+  };
+
+  // Unsaved edits survive a refresh. The password is never stored.
+  const draftValue = useMemo<EditUserDraft>(
+    () => ({
+      form: {
+        email: formData.email,
+        fullName: formData.fullName,
+        phone: formData.phone,
+        roleId: formData.roleId,
+        isActive: formData.isActive,
+      },
+      companies: userCompanies,
+      permissions: userPermissions,
+    }),
+    [formData, userCompanies, userPermissions]
+  );
+  const userDraft = useFormDraft({
+    key: id ? `user:edit:${id}` : null,
+    value: draftValue,
+    baseline: draftBaseline ?? undefined,
+    ready: !!draftBaseline && initializedUserId === id,
+    onRestore: (saved) => {
+      setFormData((prev) => ({ ...prev, ...saved.form, password: prev.password }));
+      if (Array.isArray(saved.companies)) setUserCompanies(saved.companies);
+      if (Array.isArray(saved.permissions)) setUserPermissions(saved.permissions);
+    },
+  });
+  const discardDraft = () => {
+    if (!draftBaseline) return;
+    setFormData((prev) => ({ ...prev, ...draftBaseline.form }));
+    setUserCompanies(draftBaseline.companies);
+    setUserPermissions(draftBaseline.permissions);
+  };
 
   const handleRoleChange = (nextRoleId: string) => {
     setFormData((prev) => ({ ...prev, roleId: nextRoleId }));
@@ -196,6 +252,7 @@ const handleUpdateDepartments = (companyId: string, departments: string[]) => {
           })),
         }
       });
+      userDraft.clear();
 
       await Swal.fire({
         title: t('editSuccessTitle', 'users'),
@@ -241,6 +298,7 @@ const handleUpdateDepartments = (companyId: string, departments: string[]) => {
         subtitle={t('editSubtitle', 'users')}
       >
         <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+          <DraftBanner draft={userDraft} onDiscard={discardDraft} />
           {formError && <ValidationErrorAlert error={formError} onDismiss={() => setFormError("")} />}
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -323,7 +381,7 @@ const handleUpdateDepartments = (companyId: string, departments: string[]) => {
           <UserPermissionsEditor
             catalog={permissions}
             value={userPermissions}
-            onChange={setUserPermissions}
+            onChange={setPermissionsWithUndo}
             getDefaultAccess={getDefaultAccessForPermission}
           />
 

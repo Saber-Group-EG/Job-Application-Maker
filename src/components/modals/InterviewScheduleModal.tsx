@@ -21,6 +21,42 @@ import { useLocale } from '../../context/LocaleContext';
 import { filterTemplatesByCategory } from '../../utils/mailTemplateCategories';
 import RichTextEditor from '../form/RichTextEditor';
 import { getConnectedGmail } from '../../hooks/useConnectedGmailSender';
+import ModalDraft from './ModalDraft';
+import { htmlHasText } from './htmlHasText';
+import type { FormDraft } from '../../hooks/useFormDraft';
+
+// What the user filled in, kept as a draft (no server data, no secrets).
+type InterviewDraft = {
+  form: {
+    date: string;
+    time: string;
+    type: string;
+    location: string;
+    link: string;
+    description: string;
+    comment: string;
+    conductedBy: string;
+  };
+  channels: { email: boolean; sms: boolean; whatsapp: boolean };
+  emailOption: string;
+  customEmail: string;
+  newLocalEmail: string;
+  subject: string;
+  messageTemplate: string;
+  templateId: string;
+  whatsappMessage: string;
+  aiPrompt: string;
+  intervalMinutes: number;
+};
+
+// "HH:mm" -> a Date today at that time, for the time picker's default.
+const timeToDate = (hhmm?: string): Date | undefined => {
+  const m = String(hhmm || '').match(/^(\d{1,2}):(\d{2})/);
+  if (!m) return undefined;
+  const d = new Date();
+  d.setHours(Number(m[1]), Number(m[2]), 0, 0);
+  return d;
+};
 
 // Simple HTML escape utility
 function escapeHtml(str: string) {
@@ -1104,7 +1140,6 @@ export default function InterviewScheduleModal(props: Props) {
   }
 
   const [newLocalEmail, setNewLocalEmail] = useState('');
-  void setNewLocalEmail; // to avoid unused variable warning
 
   const getCompanyDomain = () => {
     const domainFromResponse =
@@ -1145,6 +1180,121 @@ export default function InterviewScheduleModal(props: Props) {
 
   const isOpenRef = useRef(isOpen);
   isOpenRef.current = isOpen;
+
+  // ── Draft: unsaved input survives a refresh or closing the modal ──────────
+  // One draft per applicant; bulk scheduling keeps one per company (the
+  // selection itself isn't part of it).
+  const draftRef = useRef<FormDraft | null>(null);
+  const interviewDraftKey = bulkMode
+    ? `interview:bulk:${companyId || 'any'}`
+    : applicant?._id
+      ? `interview:new:${applicant._id}`
+      : null;
+  // The pickers and the type select don't follow state, so a restore sets
+  // their starting values and remounts the form.
+  const [pickerDefaults, setPickerDefaults] = useState<{
+    date?: string;
+    time?: Date;
+    type?: string;
+  } | null>(null);
+  const [formNonce, setFormNonce] = useState(0);
+  const startDraftRef = useRef<InterviewDraft | null>(null);
+  const interviewDraftValue = useMemo<InterviewDraft>(
+    () => ({
+      form: {
+        date: String(interviewForm?.date || ''),
+        time: String(interviewForm?.time || ''),
+        type: String(interviewForm?.type || 'phone'),
+        location: String(interviewForm?.location || ''),
+        link: String(interviewForm?.link || ''),
+        description: String(interviewForm?.description || ''),
+        comment: String(interviewForm?.comment || ''),
+        conductedBy: String(interviewForm?.conductedBy || ''),
+      },
+      channels: {
+        email: !!notificationChannels?.email,
+        sms: !!notificationChannels?.sms,
+        whatsapp: !!notificationChannels?.whatsapp,
+      },
+      emailOption: String(emailOption || 'company'),
+      customEmail: String(customEmail || ''),
+      newLocalEmail,
+      subject: String(interviewEmailSubject || ''),
+      messageTemplate: String(messageTemplate || ''),
+      templateId: selectedTemplateId,
+      whatsappMessage,
+      aiPrompt,
+      intervalMinutes: Number(intervalMinutes) || 0,
+    }),
+    [
+      interviewForm,
+      notificationChannels,
+      emailOption,
+      customEmail,
+      newLocalEmail,
+      interviewEmailSubject,
+      messageTemplate,
+      selectedTemplateId,
+      whatsappMessage,
+      aiPrompt,
+      intervalMinutes,
+    ]
+  );
+  const interviewDraftIsEmpty = (v: InterviewDraft) =>
+    !v.form.description.trim() &&
+    !v.form.comment.trim() &&
+    !v.form.link.trim() &&
+    !htmlHasText(v.messageTemplate) &&
+    !v.whatsappMessage.trim() &&
+    !v.aiPrompt.trim() &&
+    // Bulk scheduling pre-fills today / the next hour; that isn't the user's input.
+    (bulkMode || (!v.form.date && !v.form.time));
+  const applyInterviewDraft = (v: InterviewDraft) => {
+    setInterviewForm((prev: any) => ({
+      ...prev,
+      ...v.form,
+      conductedBy: v.form.conductedBy || prev?.conductedBy,
+    }));
+    setNotificationChannels(v.channels);
+    if (!connectedGmail) {
+      setEmailOption(v.emailOption || 'company');
+      if (v.customEmail) setCustomEmail(v.customEmail);
+    }
+    setNewLocalEmail(v.newLocalEmail || '');
+    if (v.subject) setInterviewEmailSubject(v.subject);
+    setMessageTemplate(v.messageTemplate || '');
+    setSelectedTemplateId(v.templateId || '');
+    setWhatsappMessage(v.whatsappMessage || '');
+    setAiPrompt(v.aiPrompt || '');
+    if (v.aiPrompt) setAiPromptOpen(true);
+    if (bulkMode && setIntervalMinutes && v.intervalMinutes > 0)
+      setIntervalMinutes(v.intervalMinutes);
+    // Treat the restored messages as edited by the user: keep them, and only
+    // swap the date/time text when those change later.
+    lastGeneratedRef.current = v.messageTemplate ? '\u0000restored' : '';
+    lastWhatsappRef.current = '';
+    lastLabelsRef.current = null;
+    lastDetailsRef.current = [];
+    setPickerDefaults({
+      date: v.form.date || undefined,
+      time: timeToDate(v.form.time),
+      type: v.form.type || undefined,
+    });
+    setFormNonce((n) => n + 1);
+  };
+  const restoreInterviewDraft = (saved: InterviewDraft) => {
+    startDraftRef.current = interviewDraftValue;
+    applyInterviewDraft({
+      ...interviewDraftValue,
+      ...saved,
+      form: { ...interviewDraftValue.form, ...(saved.form || {}) },
+      channels: { ...interviewDraftValue.channels, ...(saved.channels || {}) },
+    });
+  };
+  const discardInterviewDraft = () => {
+    if (startDraftRef.current) applyInterviewDraft(startDraftRef.current);
+    setInterviewError('');
+  };
 
   const titleText = (title: any): string =>
     typeof title === 'string' ? title : title?.[locale] || title?.en || title?.ar || '';
@@ -1252,17 +1402,16 @@ export default function InterviewScheduleModal(props: Props) {
 
     try {
       const result = await handleInterviewSubmit(e, { senderEmail });
-      if (whatsappTargets.length > 0) {
-        // The single-applicant page returns nothing; it closes the modal
-        // on success, so give that render a moment and check.
-        const saved =
-          typeof result === 'boolean'
-            ? result
-            : await new Promise<boolean>((resolve) =>
-                setTimeout(() => resolve(!isOpenRef.current), 100)
-              );
-        if (saved) await showWhatsAppLinks(whatsappTargets);
-      }
+      // The single-applicant page returns nothing; it closes the modal
+      // on success, so give that render a moment and check.
+      const saved =
+        typeof result === 'boolean'
+          ? result
+          : await new Promise<boolean>((resolve) =>
+              setTimeout(() => resolve(!isOpenRef.current), 100)
+            );
+      if (saved) draftRef.current?.clear();
+      if (saved && whatsappTargets.length > 0) await showWhatsAppLinks(whatsappTargets);
     } catch (err: any) {
       const msg =
         (err && (err.message || err.response?.data?.message)) ||
@@ -1343,8 +1492,17 @@ export default function InterviewScheduleModal(props: Props) {
       className="max-w-[1100px] p-6 lg:p-10"
       closeOnBackdrop={false}
     >
+      <ModalDraft
+        draftKey={interviewDraftKey}
+        value={interviewDraftValue}
+        isEmpty={interviewDraftIsEmpty}
+        onRestore={restoreInterviewDraft}
+        onDiscard={discardInterviewDraft}
+        draftRef={draftRef}
+        className="mx-2 mb-4"
+      />
       <form
-        key={`interview-form-${formResetKey}`}
+        key={`interview-form-${formResetKey}-${formNonce}`}
         onSubmit={onSubmit}
         className="flex flex-col px-2"
       >
@@ -1405,6 +1563,7 @@ export default function InterviewScheduleModal(props: Props) {
                 id="interview-date"
                 label={t('interviewDate', 'modals')}
                 placeholder={t('selectInterviewDate', 'modals')}
+                defaultDate={pickerDefaults?.date}
                 onChange={handleDateChange}
               />
             </div>
@@ -1415,6 +1574,7 @@ export default function InterviewScheduleModal(props: Props) {
                   label={t('interviewTime', 'modals')}
                   mode="time"
                   placeholder={t('selectInterviewTime', 'modals')}
+                  defaultDate={pickerDefaults?.time}
                   onChange={handleTimeChange}
                 />
               </div>
@@ -1430,6 +1590,7 @@ export default function InterviewScheduleModal(props: Props) {
                   { value: 'in-person', label: t('inPerson', 'modals') },
                 ]}
                 placeholder={t('interviewType', 'modals')}
+                defaultValue={pickerDefaults?.type}
                 onChange={(value: any) =>
                   setInterviewForm({ ...interviewForm, type: value })
                 }

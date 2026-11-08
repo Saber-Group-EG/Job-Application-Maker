@@ -22,6 +22,10 @@ import TermsCard from './create/TermsCard';
 import JobSpecsCard from './create/JobSpecsCard';
 import CustomFieldsCard from './create/CustomFieldsCard';
 import { SingleLanguageContext } from './create/BilingualField';
+import { customFieldDomId } from './create/CustomFieldEditor';
+import { useRemoveWithUndo } from './create/useRemoveWithUndo';
+import DraftBanner from '../../../components/common/DraftBanner';
+import { useFormDraft } from '../../../hooks/useFormDraft';
 import {
   appendLibraryFields,
   arabicToPrimary,
@@ -33,6 +37,7 @@ import {
   getJobErrorMessage,
   mergeGeneratedFields,
   nextCompanyOrder as computeNextCompanyOrder,
+  jobFormHasContent,
   normalizeAllowedStatuses,
   patchField,
   patchSpec,
@@ -86,6 +91,11 @@ export default function CreateJob() {
   const [aiPrompt, setAiPrompt] = useState('');
   const companyAutoSet = useRef(false);
   const jobDataLoaded = useRef(false);
+  // The job as loaded for editing (null while creating or still loading).
+  const [editBaseline, setEditBaseline] = useState<JobForm | null>(null);
+  // A custom field to scroll to once it has rendered.
+  const [scrollToField, setScrollToField] = useState<string | null>(null);
+  const removeWithUndo = useRemoveWithUndo(setJobForm);
 
   const collapseAll = (fields: CustomFieldDraft[]) => setCollapsed(new Set(fields.map((f) => f.fieldId)));
 
@@ -164,8 +174,16 @@ export default function CreateJob() {
       try {
         setIsEditMode(true);
         const job = jobFromState || (await jobPositionsService.getJobPositionById(editJobId));
-        const next = editJobToForm(job);
+        const loaded = editJobToForm(job);
+        // Normalise statuses now so the effect below doesn't change the form
+        // right after loading (which would look like an unsaved edit).
+        const loadedCompany = allCompanies.find((c) => c._id === loaded.companyId);
+        const statuses = Array.isArray(loadedCompany?.settings?.statuses) ? loadedCompany.settings.statuses : [];
+        const next = statuses.length
+          ? { ...loaded, allowedStatuses: normalizeAllowedStatuses(loaded.allowedStatuses, statuses) }
+          : loaded;
         setJobForm(next);
+        setEditBaseline(next);
         collapseAll(next.customFields);
         jobDataLoaded.current = true;
       } catch (err) {
@@ -208,6 +226,41 @@ export default function CreateJob() {
       setJobForm((prev) => ({ ...prev, jobCode: code }));
     }
   }, [jobForm.companyId, allCompanies, isEditMode]);
+
+  // Unsaved work survives a refresh: one draft for a new job, one per edited job.
+  const draftValue = useMemo(() => ({ form: jobForm, aiPrompt }), [jobForm, aiPrompt]);
+  const draftBaseline = useMemo(() => (editBaseline ? { form: editBaseline, aiPrompt: '' } : undefined), [editBaseline]);
+  const jobDraft = useFormDraft({
+    key: editJobId ? `job:edit:${editJobId}` : 'job:new',
+    value: draftValue,
+    baseline: draftBaseline,
+    ready: editJobId ? !!editBaseline : true,
+    // A new job only counts once something was written (company and code fill in on their own).
+    isEmpty: editJobId ? undefined : (v) => !jobFormHasContent(v.form) && !v.aiPrompt.trim(),
+    onRestore: (saved) => {
+      setJobForm(saved.form);
+      setAiPrompt(saved.aiPrompt || '');
+      collapseAll(saved.form.customFields);
+    },
+  });
+  const discardDraft = () => {
+    setJobForm(editBaseline ?? emptyJobForm(companies.length === 1 ? refId(companies[0].value) : ''));
+    setAiPrompt('');
+    setSelectedJobId('');
+  };
+
+  // Bring a newly added custom field into view and put the cursor in it.
+  useEffect(() => {
+    if (!scrollToField) return;
+    const el = document.getElementById(customFieldDomId(scrollToField));
+    if (!el) return;
+    setScrollToField(null);
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    el.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' });
+    el.querySelector<HTMLElement>('input:not([type=checkbox]), textarea')?.focus({ preventScroll: true });
+    el.classList.add('ring-2', 'ring-brand-400', 'shadow-lg');
+    window.setTimeout(() => el.classList.remove('ring-2', 'ring-brand-400', 'shadow-lg'), 1600);
+  }, [scrollToField, jobForm.customFields]);
 
   // ─── Handlers ──────────────────────────────────────────────────────────────
 
@@ -276,17 +329,22 @@ export default function CreateJob() {
   };
 
   const handleAddBlankField = () => {
+    const fieldId = `temp_${Date.now()}`;
     setJobForm((prev) => ({
       ...prev,
       customFields: [
         ...prev.customFields,
-        { fieldId: `temp_${Date.now()}`, label: '', inputType: 'text', isRequired: false, displayOrder: prev.customFields.length + 1 },
+        { fieldId, label: '', inputType: 'text', isRequired: false, displayOrder: prev.customFields.length + 1 },
       ],
     }));
+    setScrollToField(fieldId);
   };
 
   const handleRemoveField = (index: number) =>
-    setJobForm((prev) => ({ ...prev, customFields: prev.customFields.filter((_, i) => i !== index) }));
+    removeWithUndo(t('undoQuestionRemoved', 'common'), ['customFields'], (prev) => ({
+      ...prev,
+      customFields: prev.customFields.filter((_, i) => i !== index),
+    }));
 
   const handleAddLibrary = (ids: string[], source: 'saved' | 'recommended') => {
     const library = (source === 'saved' ? savedFields : recommendedFields) as LibraryField[];
@@ -300,6 +358,8 @@ export default function CreateJob() {
       const added = remapFormTexts({ ...prev, customFields: fields.filter((f) => !existing.has(f.fieldId)) }, arabicToPrimary);
       return { ...prev, customFields: [...prev.customFields, ...added.customFields] };
     });
+    const firstAdded = next.find((f) => !before.has(f.fieldId));
+    if (firstAdded) setScrollToField(firstAdded.fieldId);
     // Newly added library fields start collapsed.
     setCollapsed((prev) => new Set([...prev, ...next.filter((f) => !before.has(f.fieldId)).map((f) => f.fieldId)]));
   };
@@ -413,6 +473,7 @@ export default function CreateJob() {
       } else {
         await createJobMutation.mutateAsync(payload);
       }
+      jobDraft.clear();
       const doneText = isEditMode ? t('createUpdatedSuccess', 'jobs') : t('createCreatedSuccess', 'jobs');
       setJobStatus(doneText);
 
@@ -474,6 +535,7 @@ export default function CreateJob() {
       >
         <SingleLanguageContext.Provider value={jobForm.bilingual ? 'en' : jobForm.language}>
         <form onSubmit={handleSubmit} className="mx-auto max-w-4xl space-y-6">
+          <DraftBanner draft={jobDraft} onDiscard={discardDraft} />
           {formError && <ValidationErrorAlert error={formError} onDismiss={() => setFormError('')} />}
 
           {!isEditMode && (

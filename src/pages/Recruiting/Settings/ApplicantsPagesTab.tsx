@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, ChevronDown, ChevronRight, GripVertical, Layout, PlusCircle, Save, Trash2 } from 'lucide-react';
 import Swal from '../../../utils/swal';
 import { useLocale } from '../../../context/LocaleContext';
+import { useUndo } from '../../../context/UndoContext';
 import { useAuth } from '../../../context/AuthContext';
 import {
   useCompanies,
@@ -293,6 +294,7 @@ export default function ApplicantPagesSettings({
 }: Props = {}) {
   const { user, hasPermission } = useAuth();
   const { t } = useLocale();
+  const { offerUndo } = useUndo();
   const { data: companies = [] } = useCompanies();
 
   const isSuperAdmin = !!user?.roleId?.name
@@ -483,6 +485,13 @@ export default function ApplicantPagesSettings({
 
   const removePage = (index: number) => {
     const removedId = pageIds[index];
+    const before = { pages, pageIds, collapsedPages };
+    offerUndo(t('undoSectionRemoved', 'common'), () => {
+      setPages(before.pages);
+      syncPagesToCache(before.pages);
+      setPageIds(before.pageIds);
+      setCollapsedPages(before.collapsedPages);
+    });
     setPages((prev) => {
       const updated = prev.filter((_, i) => i !== index);
       syncPagesToCache(updated);

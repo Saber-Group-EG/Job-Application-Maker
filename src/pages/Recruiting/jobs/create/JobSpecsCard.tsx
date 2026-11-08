@@ -6,11 +6,13 @@ import { useLocale } from '../../../../context/LocaleContext';
 import { AdornedInput, Button, Card, CardToolbar, EmptyState, Field, IconButton, SectionTitle } from '../../../../components/ui/kit';
 import BilingualField from './BilingualField';
 import { patchSpec } from './jobFormUtils';
+import { useRemoveWithUndo } from './useRemoveWithUndo';
 import type { JobForm, JobSpecDraft, SetJobForm } from './types';
 
 export default function JobSpecsCard({ form, setForm }: { form: JobForm; setForm: SetJobForm }) {
   const { t } = useLocale();
   const [editing, setEditing] = useState<number | null>(null);
+  const removeWithUndo = useRemoveWithUndo(setForm);
   const totalWeight = form.jobSpecs.reduce((sum, spec) => sum + spec.weight, 0);
 
   const change = (index: number, patch: Partial<JobSpecDraft>) => setForm((prev) => patchSpec(prev, index, patch));
@@ -21,7 +23,10 @@ export default function JobSpecsCard({ form, setForm }: { form: JobForm; setForm
   };
 
   const remove = (index: number) => {
-    setForm((prev) => ({ ...prev, jobSpecs: prev.jobSpecs.filter((_, i) => i !== index) }));
+    removeWithUndo(t('undoSpecRemoved', 'common'), ['jobSpecs'], (prev) => ({
+      ...prev,
+      jobSpecs: prev.jobSpecs.filter((_, i) => i !== index),
+    }));
     if (editing === index) setEditing(null);
   };
 

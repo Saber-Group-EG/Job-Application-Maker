@@ -1,5 +1,5 @@
 // components/ManualInsert.tsx
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   ChevronDown,
   Image as ImageIcon,
@@ -20,6 +20,9 @@ import { toPlainString } from '../../../../utils/strings';
 import type { Applicant } from '../../../../types/applicants';
 import type { JobPosition } from '../../../../types/jobPositions';
 import { useLocale } from '../../../../context/LocaleContext';
+import { useUndo } from '../../../../context/UndoContext';
+import { useFormDraft } from '../../../../hooks/useFormDraft';
+import DraftBanner from '../../../../components/common/DraftBanner';
 
 type ManualFormState = {
   fullName: string;
@@ -57,6 +60,27 @@ type FieldConfigKey =
   | 'profilePhoto'
   | 'cvFilePath'
   | 'expectedSalary';
+
+const emptyManualForm: ManualFormState = {
+  fullName: '',
+  email: '',
+  phone: '',
+  address: '',
+  birthDate: '',
+  gender: 'Male',
+  expectedSalary: '',
+  jobPositionId: '',
+};
+
+// Everything typed into the form; the photo and CV files can't be stored.
+type ManualInsertDraft = {
+  form: ManualFormState;
+  customValues: Record<string, unknown>;
+  tagInputs: Record<string, string>;
+  jobSpecValues: Record<string, boolean>;
+};
+
+const isEmptyManualDraft = (d: ManualInsertDraft) => JSON.stringify(d.form) === JSON.stringify(emptyManualForm);
 
 const PHONE_REGEX = /^01[0125]\d{8}$/;
 const PROFILE_PHOTO_LIMIT = 5 * 1024 * 1024;
@@ -404,6 +428,7 @@ function buildApplicantPayload(
 }
 
 export default function ManualInsert({
+  companyId,
   jobPositions,
   existingApplicants,
   loadingJobs,
@@ -414,16 +439,7 @@ export default function ManualInsert({
   const [manualSubmitting, setManualSubmitting] = useState(false);
   const [uploadingProfilePhoto, setUploadingProfilePhoto] = useState(false);
   const [uploadingCv, setUploadingCv] = useState(false);
-  const [manualForm, setManualForm] = useState<ManualFormState>({
-    fullName: '',
-    email: '',
-    phone: '',
-    address: '',
-    birthDate: '',
-    gender: 'Male',
-    expectedSalary: '',
-    jobPositionId: '',
-  });
+  const [manualForm, setManualForm] = useState<ManualFormState>(emptyManualForm);
   const [manualErrors, setManualErrors] = useState<Record<string, string>>({});
   const [profilePhotoFile, setProfilePhotoFile] = useState<File | null>(null);
   const [cvFile, setCvFile] = useState<File | null>(null);
@@ -431,6 +447,48 @@ export default function ManualInsert({
   const [manualTagInputs, setManualTagInputs] = useState<Record<string, string>>({});
   const [manualJobSpecValues, setManualJobSpecValues] = useState<Record<string, boolean>>({});
   const [manualFileResetKey, setManualFileResetKey] = useState(0);
+  const { offerUndo } = useUndo();
+  // Set when a draft restores a job: its custom answers must not be reset.
+  const restoredJobId = useRef<string | null>(null);
+
+  // Unsaved input survives a refresh. Waits for the job list so the restored
+  // job's custom fields exist.
+  const draftValue = useMemo<ManualInsertDraft>(
+    () => ({
+      form: manualForm,
+      customValues: manualCustomValues,
+      tagInputs: manualTagInputs,
+      jobSpecValues: manualJobSpecValues,
+    }),
+    [manualForm, manualCustomValues, manualTagInputs, manualJobSpecValues]
+  );
+  const manualDraft = useFormDraft({
+    key: `blueCaller:manual:${companyId || 'all'}`,
+    value: draftValue,
+    ready: !loadingJobs,
+    isEmpty: isEmptyManualDraft,
+    onRestore: (saved) => {
+      const form = { ...emptyManualForm, ...saved.form };
+      restoredJobId.current = form.jobPositionId || null;
+      setManualForm(form);
+      setManualCustomValues(saved.customValues || {});
+      setManualTagInputs(saved.tagInputs || {});
+      setManualJobSpecValues(saved.jobSpecValues || {});
+    },
+  });
+  const resetManualForm = () => {
+    setManualForm(emptyManualForm);
+    setManualCustomValues({});
+    setManualTagInputs({});
+    setManualJobSpecValues({});
+    setManualErrors({});
+  };
+
+  // Undo for removing part of one custom answer (a tag, a row): only that answer is restored.
+  const restoreCustomValueOnUndo = (fieldId: string, message: string) => {
+    const before = manualCustomValues[fieldId];
+    offerUndo(message, () => setManualCustomValues((prev) => ({ ...prev, [fieldId]: before })));
+  };
 
   const selectedJobPosition = jobPositions.find((job) => job._id === manualForm.jobPositionId) || null;
   const customFieldDefinitions = useMemo(() => flattenCustomFields(selectedJobPosition), [selectedJobPosition]);
@@ -438,6 +496,11 @@ export default function ManualInsert({
 
   // Reset custom values when job position changes
   useEffect(() => {
+    if (restoredJobId.current && restoredJobId.current === manualForm.jobPositionId) {
+      // The answers came from a restored draft for this job: keep them.
+      restoredJobId.current = null;
+      return;
+    }
     const nextCustomValues: Record<string, unknown> = {};
     const nextJobSpecValues: Record<string, boolean> = {};
 
@@ -478,7 +541,9 @@ export default function ManualInsert({
     label: string,
     isRequired: boolean,
     value: unknown,
-    onChange: (nextTags: string[]) => void
+    onChange: (nextTags: string[]) => void,
+    /** The top-level custom field holding these tags (for Undo). */
+    undoFieldId: string = fieldKey
   ) => {
     const tags = Array.isArray(value) ? value.map((item) => String(item).trim()).filter(Boolean) : [];
     const inputValue = manualTagInputs[fieldKey] || '';
@@ -494,7 +559,14 @@ export default function ManualInsert({
             {tags.map((tag) => (
               <span key={tag} className={`inline-flex items-center gap-1 rounded-full ${themeColors.bgLight} px-3 py-1 text-xs font-semibold ${themeColors.textPrimary}`}>
                 {tag}
-                <button type="button" onClick={() => onChange(tags.filter((t) => t !== tag))} className="rounded-full p-0.5 hover:bg-white/70">
+                <button
+                  type="button"
+                  onClick={() => {
+                    restoreCustomValueOnUndo(undoFieldId, t('undoItemRemoved', 'common'));
+                    onChange(tags.filter((t) => t !== tag));
+                  }}
+                  className="rounded-full p-0.5 hover:bg-white/70"
+                >
                   <X className="h-3 w-3" />
                 </button>
               </span>
@@ -520,11 +592,16 @@ export default function ManualInsert({
     );
   };
 
-  const renderGroupField = (definition: CustomFieldDefinition, value: unknown, onChange: (val: unknown) => void) => {
+  const renderGroupField = (
+    definition: CustomFieldDefinition,
+    value: unknown,
+    onChange: (val: unknown) => void,
+    parentFieldId: string
+  ) => {
     const inputClasses = `mt-1 w-full rounded-xl border ${themeColors.borderPrimary} bg-white dark:bg-slate-800 px-4 py-3 text-slate-900 dark:text-slate-100 shadow-sm outline-none transition ${themeColors.focusRing}`;
 
     if (definition.inputType === 'tags') {
-      return renderTagsField(definition.fieldId, definition.label, definition.isRequired, value, (nextTags) => onChange(nextTags));
+      return renderTagsField(definition.fieldId, definition.label, definition.isRequired, value, (nextTags) => onChange(nextTags), parentFieldId);
     }
 
     if (definition.inputType === 'textarea') {
@@ -619,7 +696,10 @@ export default function ManualInsert({
                     <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">{t('rowLabel', 'blueCaller', { count: rowIndex + 1 })}</span>
                     <button
                       type="button"
-                      onClick={() => setManualCustomValues((prev) => ({ ...prev, [definition.fieldId]: rows.filter((_, i) => i !== rowIndex) }))}
+                      onClick={() => {
+                        restoreCustomValueOnUndo(definition.fieldId, t('undoEntryRemoved', 'common'));
+                        setManualCustomValues((prev) => ({ ...prev, [definition.fieldId]: rows.filter((_, i) => i !== rowIndex) }));
+                      }}
                       className="inline-flex items-center gap-1 rounded-lg bg-red-50 px-2 py-1 text-sm font-semibold text-red-700 hover:bg-red-100 transition dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/30"
                     >
                       <Trash2 className="h-3.5 w-3.5" /> {t('remove', 'blueCaller')}
@@ -631,7 +711,7 @@ export default function ManualInsert({
                         const newRows = [...rows];
                         newRows[rowIndex] = { ...row, [groupField.fieldId]: newVal };
                         setManualCustomValues((prev) => ({ ...prev, [definition.fieldId]: newRows }));
-                      })
+                      }, definition.fieldId)
                     )}
                   </div>
                 </div>
@@ -872,16 +952,9 @@ export default function ManualInsert({
         showConfirmButton: false,
       });
 
-      setManualForm({
-        fullName: '',
-        email: '',
-        phone: '',
-        address: '',
-        birthDate: '',
-        gender: 'Male',
-        expectedSalary: '',
-        jobPositionId: '',
-      });
+      // discard (not clear): this tab stays open, so the next applicant is kept as a draft too.
+      manualDraft.discard();
+      setManualForm(emptyManualForm);
       setProfilePhotoFile(null);
       setCvFile(null);
       setManualCustomValues({});
@@ -936,6 +1009,8 @@ export default function ManualInsert({
             {loadingJobs ? t('loadingJobs', 'blueCaller') : t('positionsLoaded', 'blueCaller', { count: jobPositions.length })}
           </div>
         </div>
+
+        <DraftBanner draft={manualDraft} onDiscard={resetManualForm} />
 
         {duplicateApplicant && (
           <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400">
@@ -1056,7 +1131,15 @@ export default function ManualInsert({
                     <input key={manualFileResetKey} type="file" accept="image/jpeg,image/png" className="hidden" onChange={handleProfilePhotoChange} />
                   </label>
                   {profilePhotoFile && (
-                    <button type="button" onClick={() => setProfilePhotoFile(null)} className={`mt-3 inline-flex items-center gap-2 text-sm font-semibold ${themeColors.textPrimary} hover:opacity-80`}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const before = profilePhotoFile;
+                        setProfilePhotoFile(null);
+                        offerUndo(t('undoRemoved', 'common'), () => setProfilePhotoFile(before));
+                      }}
+                      className={`mt-3 inline-flex items-center gap-2 text-sm font-semibold ${themeColors.textPrimary} hover:opacity-80`}
+                    >
                       <Trash2 className="h-4 w-4" /> {t('clearFile', 'blueCaller')}
                     </button>
                   )}
@@ -1075,7 +1158,15 @@ export default function ManualInsert({
                     <input key={`${manualFileResetKey}-cv`} type="file" accept="application/pdf" className="hidden" onChange={handleCvChange} />
                   </label>
                   {cvFile && (
-                    <button type="button" onClick={() => setCvFile(null)} className={`mt-3 inline-flex items-center gap-2 text-sm font-semibold ${themeColors.textPrimary} hover:opacity-80`}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const before = cvFile;
+                        setCvFile(null);
+                        offerUndo(t('undoRemoved', 'common'), () => setCvFile(before));
+                      }}
+                      className={`mt-3 inline-flex items-center gap-2 text-sm font-semibold ${themeColors.textPrimary} hover:opacity-80`}
+                    >
                       <Trash2 className="h-4 w-4" /> {t('clearFile', 'blueCaller')}
                     </button>
                   )}

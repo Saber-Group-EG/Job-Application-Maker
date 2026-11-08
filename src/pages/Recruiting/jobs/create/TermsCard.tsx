@@ -5,6 +5,7 @@ import { Check, Pencil, Plus, ScrollText, Trash2 } from 'lucide-react';
 import { useLocale } from '../../../../context/LocaleContext';
 import { Button, Card, CardToolbar, EmptyState, IconButton, SectionTitle } from '../../../../components/ui/kit';
 import BilingualField from './BilingualField';
+import { useRemoveWithUndo } from './useRemoveWithUndo';
 import type { JobForm, SetJobForm } from './types';
 
 export default function TermsCard({ form, setForm }: { form: JobForm; setForm: SetJobForm }) {
@@ -12,6 +13,7 @@ export default function TermsCard({ form, setForm }: { form: JobForm; setForm: S
   const [draft, setDraft] = useState('');
   const [draftAr, setDraftAr] = useState('');
   const [editing, setEditing] = useState<number | null>(null);
+  const removeWithUndo = useRemoveWithUndo(setForm);
 
   const add = () => {
     if (!draft.trim() && !draftAr.trim()) return;
@@ -25,7 +27,7 @@ export default function TermsCard({ form, setForm }: { form: JobForm; setForm: S
   };
 
   const remove = (index: number) => {
-    setForm((prev) => ({
+    removeWithUndo(t('undoTermRemoved', 'common'), ['termsAndConditions', 'termsAndConditionsAr'], (prev) => ({
       ...prev,
       termsAndConditions: prev.termsAndConditions.filter((_, i) => i !== index),
       termsAndConditionsAr: prev.termsAndConditionsAr.filter((_, i) => i !== index),

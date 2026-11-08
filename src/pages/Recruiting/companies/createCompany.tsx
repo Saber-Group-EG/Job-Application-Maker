@@ -8,6 +8,9 @@ import { useLocale } from "../../../context/LocaleContext";
 import { useCreateCompany } from "../../../hooks/queries/useCompanies";
 import { companiesKeys } from "../../../hooks/queries/useCompanies";
 import { uploadToCloudinary } from "../../../services/cloudinaryService";
+import { useFormDraft } from "../../../hooks/useFormDraft";
+import { useUndo } from "../../../context/UndoContext";
+import DraftBanner from "../../../components/common/DraftBanner";
 import type { Company } from "../../../types/companies";
 import {
   ArrowLeft,
@@ -60,6 +63,15 @@ export default function CreateCompany() {
   
   const [companyForm, setCompanyForm] = useState<CompanyForm>(defaultCompany);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const { offerUndo } = useUndo();
+
+  // Unsaved work survives a refresh. The logo is already uploaded, so its URL is kept.
+  const companyDraft = useFormDraft({
+    key: "company:new",
+    value: companyForm,
+    baseline: defaultCompany,
+    onRestore: (saved) => setCompanyForm({ ...defaultCompany, ...saved }),
+  });
 
   const handleCompanyChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -87,9 +99,15 @@ export default function CreateCompany() {
   };
 
   const handleRemoveAddress = (index: number) => {
-    setCompanyForm((prev) => ({
-      ...prev, address: prev.address.filter((_, i) => i !== index),
-    }));
+    let before: CompanyForm['address'] | null = null;
+    setCompanyForm((prev) => {
+      before = prev.address;
+      return { ...prev, address: prev.address.filter((_, i) => i !== index) };
+    });
+    offerUndo(t('undoEntryRemoved', 'common'), () => {
+      const snapshot = before;
+      if (snapshot) setCompanyForm((prev) => ({ ...prev, address: snapshot }));
+    });
   };
 
   const handleLogoChange = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -132,6 +150,7 @@ export default function CreateCompany() {
 
     try {
       const newCompany = await createCompanyMutation.mutateAsync(companyForm);
+      companyDraft.clear();
       
       // Invalidate and refetch
       await queryClient.invalidateQueries({ queryKey: companiesKeys.list() });
@@ -178,6 +197,7 @@ export default function CreateCompany() {
       <PageMeta title={t('newPageTitle', 'companies')} description={t('newPageDesc', 'companies')} />
       <PageShell back={back} title={t('companyInformation', 'companies')} subtitle={t('companyInformationDesc', 'companies')}>
         <form id="company-form" onSubmit={handleCompanySubmit} className="space-y-6">
+          <DraftBanner draft={companyDraft} onDiscard={() => setCompanyForm(defaultCompany)} />
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             <div className="space-y-6 lg:col-span-2">
               <Card>

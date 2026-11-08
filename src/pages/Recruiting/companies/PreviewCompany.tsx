@@ -1,5 +1,5 @@
 import type { ChangeEvent, FormEvent, ReactNode } from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Swal from '../../../utils/swal';
 import { Link, useParams } from "react-router";
 import PageMeta from "../../../components/common/PageMeta";
@@ -30,6 +30,9 @@ import {
   useDeleteDepartment,
 } from "../../../hooks/queries";
 import { uploadToCloudinary } from "../../../services/cloudinaryService";
+import { useFormDraft } from "../../../hooks/useFormDraft";
+import { useUndo } from "../../../context/UndoContext";
+import DraftBanner from "../../../components/common/DraftBanner";
 import { toPlainString } from "../../../utils/strings";
 import type { Company } from "../../../types/companies";
 import type { Department } from "../../../types/departments";
@@ -107,12 +110,13 @@ export default function PreviewCompany() {
     description: { en: "", ar: "" },
   });
 
-  const loadCompanyForm = () => {
-    if (!companyData) return;
+  // The company as saved on the server, in form shape.
+  const loadedCompany = useMemo<CompanyForm | null>(() => {
+    if (!companyData) return null;
     // Some endpoints wrap the company in { company } or { data }.
     const wrapped = companyData as Company & { company?: Company; data?: Company };
     const c: Company = wrapped.company ?? wrapped.data ?? wrapped;
-    setCompanyForm({
+    return {
       name: {
         en: typeof c.name === 'object' ? c.name.en || '' : toPlainString(c.name) || '',
         ar: typeof c.name === 'object' ? c.name.ar || '' : '',
@@ -131,15 +135,47 @@ export default function PreviewCompany() {
       website: c.website || "",
       logoPath: c.logoPath || "",
       isActive: c.isActive ?? true,
-    });
+    };
+  }, [companyData]);
+
+  const loadCompanyForm = () => {
+    if (loadedCompany) setCompanyForm(loadedCompany);
   };
 
-  useEffect(loadCompanyForm, [companyData]);
+  useEffect(loadCompanyForm, [loadedCompany]);
+
+  const { offerUndo } = useUndo();
+
+  // Unsaved profile edits survive a refresh (and reopen edit mode).
+  const companyDraft = useFormDraft({
+    key: `company:edit:${companyId}`,
+    value: companyForm,
+    baseline: loadedCompany ?? undefined,
+    ready: !!loadedCompany,
+    enabled: hasValidCompanyId && canEdit,
+    onRestore: (saved) => {
+      setCompanyForm(saved);
+      setIsEditingCompany(true);
+    },
+  });
 
   // Cancel throws away unsaved edits.
   const cancelEditing = () => {
+    companyDraft.discard();
     loadCompanyForm();
     setIsEditingCompany(false);
+  };
+
+  const removeAddress = (idx: number) => {
+    let before: CompanyForm['address'] | null = null;
+    setCompanyForm((p) => {
+      before = p.address;
+      return { ...p, address: p.address.filter((_, i) => i !== idx) };
+    });
+    offerUndo(t('undoEntryRemoved', 'common'), () => {
+      const snapshot = before;
+      if (snapshot) setCompanyForm((p) => ({ ...p, address: snapshot }));
+    });
   };
 
   const handleLogoChange = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -160,6 +196,8 @@ export default function PreviewCompany() {
     setIsSaving(true);
     try {
       await updateCompanyMutation.mutateAsync({ id: companyId!, data: companyForm });
+      // discard (not clear) so later edits on this page are kept as drafts too.
+      companyDraft.discard();
       setIsEditingCompany(false);
       Swal.fire({ title: t('profileUpdated', 'companies'), icon: "success", timer: 1500, showConfirmButton: false });
     } catch (err) {
@@ -196,7 +234,7 @@ export default function PreviewCompany() {
     }
   };
 
-  const handleDeptSubmit = async (e: FormEvent) => {
+  const handleDeptSubmit = async (e: FormEvent): Promise<boolean> => {
     e.preventDefault();
     setIsSaving(true);
     try {
@@ -209,8 +247,10 @@ export default function PreviewCompany() {
       setEditingDeptId(null);
       setDepartmentForm({ companyId: companyId!, name: { en: "", ar: "" }, description: { en: "", ar: "" } });
       Swal.fire({ title: editingDeptId ? t('updatedTitle', 'companies') : t('createdTitle', 'companies'), icon: "success", timer: 1500, showConfirmButton: false });
+      return true;
     } catch (err) {
       Swal.fire(t('error', 'companies'), (err as Error)?.message, "error");
+      return false;
     } finally {
       setIsSaving(false);
     }
@@ -233,9 +273,10 @@ export default function PreviewCompany() {
   };
 
   const updateAddress = (idx: number, key: "en" | "ar" | "location", value: string) => {
-    const newAddrs = [...companyForm.address];
-    newAddrs[idx][key] = value;
-    setCompanyForm(p => ({ ...p, address: newAddrs }));
+    setCompanyForm(p => ({
+      ...p,
+      address: p.address.map((a, i) => (i === idx ? { ...a, [key]: value } : a)),
+    }));
   };
 
   const back = (
@@ -317,6 +358,7 @@ export default function PreviewCompany() {
           ))
         }
       >
+        <DraftBanner draft={companyDraft} onDiscard={loadCompanyForm} className="mb-6" />
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="space-y-6 lg:col-span-2">
             <Card>
@@ -509,7 +551,7 @@ export default function PreviewCompany() {
                           <IconButton
                             tone="danger"
                             label={t('dissolveLocation', 'companies')}
-                            onClick={() => setCompanyForm(p => ({ ...p, address: p.address.filter((_, i) => i !== idx) }))}
+                            onClick={() => removeAddress(idx)}
                           >
                             <Trash2 className="size-4" />
                           </IconButton>
@@ -594,6 +636,7 @@ export default function PreviewCompany() {
           onSubmit={handleDeptSubmit}
           onCancel={() => setShowDeptModal(false)}
           saving={isSaving}
+          draftKey={editingDeptId ? `department:edit:${editingDeptId}` : `department:new:${companyId}`}
         />
       </Modal>
     </>
