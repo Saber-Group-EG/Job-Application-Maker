@@ -242,7 +242,9 @@ export default function ApplicantsMobilePage({
       companyIds:
         (companyIdOverride
           ? (Array.isArray(companyIdOverride) ? companyIdOverride : [companyIdOverride])
-          : (applicantsFetchParam as string[] | undefined)) || undefined,
+          : companyFilters.length
+            ? companyFilters
+            : (applicantsFetchParam as string[] | undefined)) || undefined,
       onlyStatus: hasPageStatus ? onlyStatus : undefined,
       onlyJobPositions: onlyJobPositions?.length ? onlyJobPositions : undefined,
       columnFilters: searching

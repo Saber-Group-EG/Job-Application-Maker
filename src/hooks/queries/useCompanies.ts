@@ -75,6 +75,10 @@ export const subscriptionKeys = {
 };
 
 // ===== Helpers =====
+// A restricted user with no companies must never reach the unscoped list
+// endpoint (that path is reserved for admins), so it gets an id no company has.
+const NO_COMPANY_ACCESS = '__NO_COMPANY_ACCESS__';
+
 function getUserCompanyIds(user: any): string[] | undefined {
   const roleName = user?.roleId?.name?.toLowerCase?.();
 
@@ -92,7 +96,7 @@ function getUserCompanyIds(user: any): string[] | undefined {
   const fromAssigned = user?.assignedcompanyId?.filter(Boolean) ?? [];
 
   const merged = [...new Set([...fromCompanies, ...fromAssigned])];
-  return merged.length > 0 ? merged : undefined;
+  return merged.length > 0 ? merged : [NO_COMPANY_ACCESS];
 }
 
 function getCompanyFromUser(user: any, companyId: string): any | undefined {
@@ -114,12 +118,16 @@ export function useCompanies(
   const userCompanyIds = getUserCompanyIds(user);
   const explicitIds = companyIds?.length ? companyIds : undefined;
   const effectiveIds = explicitIds ?? userCompanyIds;
+  const noCompanyAccess =
+    effectiveIds?.length === 1 && effectiveIds[0] === NO_COMPANY_ACCESS;
   const useListEndpoint = !effectiveIds?.length;
 
   return useQuery({
     // Always use the same canonical list key so useCompany's initialData/select can find it
     queryKey: companiesKeys.list(),
     queryFn: async () => {
+      if (noCompanyAccess) return [];
+
       if (useListEndpoint) {
         // No known IDs (e.g., super admin) - use list endpoint (also has full address)
         const companies = await companiesService.getAllCompanies();

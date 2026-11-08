@@ -606,16 +606,32 @@ export default function Applicants({
     if (isSuperAdminRole) return undefined;
     return userCompanyId?.length ? userCompanyId : undefined;
   }, [companyIdOverride, user]);
+
+  // The header company picker narrows the list to one company for multi-company
+  // accounts and super admins. A page with a fixed company keeps its own scope.
+  const headerCompanyId =
+    companyIdOverride === undefined ? globalSelectedCompanyId : null;
+  const companyScopeIds = useMemo((): string[] | undefined => {
+    if (companyIdOverride !== undefined) {
+      return (Array.isArray(companyIdOverride)
+        ? companyIdOverride
+        : [companyIdOverride]
+      ).filter(Boolean) as string[];
+    }
+    if (headerCompanyId) return [headerCompanyId];
+    return (apiCompanyId as string[] | undefined) ?? undefined;
+  }, [companyIdOverride, headerCompanyId, apiCompanyId]);
+
   const [excludeModes] = useState<Record<string, boolean>>({});
 
   const openOfferEditor = useOpenOfferEditor();
   const openContractEditor = useOpenContractEditor();
 
+  // A single scoped company makes the company column redundant.
   const showCompanyColumn = useMemo(() => {
-    if (!apiCompanyId) return true;
-    if (Array.isArray(apiCompanyId) && apiCompanyId.length === 1) return false;
-    return true;
-  }, [apiCompanyId]);
+    if (!companyScopeIds) return true;
+    return companyScopeIds.length > 1;
+  }, [companyScopeIds]);
 
   const [globalFilter, setGlobalFilter] = useState('');
 
@@ -624,17 +640,17 @@ export default function Applicants({
     isFetching: isJobPositionsFetching,
     isFetched: isJobPositionsFetched,
     refetch: refetchJobPositions,
-  } = useJobPositions(apiCompanyId as any, false, undefined, {
+  } = useJobPositions(companyScopeIds as any, false, undefined, {
     enabled: true,
   });
 
   const searchCompanyId = useMemo(() => {
     if (!effectiveSearch) return undefined;
-    if (globalSelectedCompanyId) return [globalSelectedCompanyId];
+    if (headerCompanyId) return [headerCompanyId];
     return filterCompanyOptions.map((c) => c.id);
-  }, [effectiveSearch, globalSelectedCompanyId, filterCompanyOptions]);
+  }, [effectiveSearch, headerCompanyId, filterCompanyOptions]);
 
-  const finalCompanyId = searchCompanyId ?? apiCompanyId;
+  const finalCompanyId = searchCompanyId ?? companyScopeIds;
 
   const {
     data: allCompaniesRaw = [],
@@ -662,6 +678,7 @@ export default function Applicants({
     setPagination,
     customFilters,
     setCustomFilters,
+    initialColumnFilters: effectiveColumnFilters,
   } = useTableState({
     onlyStatus: effectiveOnlyStatus,
     onlyJobPositions: effectiveOnlyJobPositions,
@@ -669,6 +686,15 @@ export default function Applicants({
     jobPositionMap: {},
     persistedState: persistedTableState,
   });
+
+  // Switching the header company starts a new result set: first page, no
+  // selections carried over from the previous company.
+  useEffect(() => {
+    setPagination((prev: any) =>
+      prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 }
+    );
+    setRowSelection({});
+  }, [headerCompanyId, setPagination, setRowSelection]);
 
   useEffect(() => {
     if (urlParams.status) {
@@ -708,7 +734,13 @@ export default function Applicants({
     | string
     | null
     | undefined => {
-    const companyFilter = columnFilters.find((f: any) => f.id === 'companyId');
+    // The header picker wins: the table is already scoped to that company.
+    if (headerCompanyId) {
+      return headerCompanyId;
+    }
+    const companyFilter = effectiveColumnFilters.find(
+      (f: any) => f.id === 'companyId'
+    );
     if (companyFilter?.value) {
       const value = companyFilter.value;
       if (Array.isArray(value)) {
@@ -722,18 +754,18 @@ export default function Applicants({
       }
       return undefined;
     }
-    if (globalSelectedCompanyId) {
-      return globalSelectedCompanyId;
-    }
     return undefined;
-  }, [columnFilters, globalSelectedCompanyId]);
+  }, [effectiveColumnFilters, headerCompanyId]);
 
   // Debounced so typing in the search box doesn't send a request per key.
   const debouncedGlobalFilter = useDebounce(globalFilter, 300);
   const tableRequest = useMemo(
     () => ({
       companyIds: (finalCompanyId as string[] | undefined) || undefined,
-      columnFilters: (columnFilters as any[]).map((f) => ({ id: f.id, value: f.value })),
+      columnFilters: (effectiveColumnFilters as any[]).map((f) => ({
+        id: f.id,
+        value: f.value,
+      })),
       excludeColumns: layout.excludeColumns ?? [],
       customFilters,
       globalFilter: debouncedGlobalFilter,
@@ -748,7 +780,7 @@ export default function Applicants({
     }),
     [
       finalCompanyId,
-      columnFilters,
+      effectiveColumnFilters,
       layout.excludeColumns,
       customFilters,
       debouncedGlobalFilter,
@@ -891,13 +923,15 @@ export default function Applicants({
       .filter((x) => x.id && x.title);
   }, [allCompaniesRaw, locale]);
 
-  // Cascading filter: Get selected company IDs from column filters
+  // Cascading filter: the header company picker or the company column filter
+  // narrows the job options to the jobs of those companies.
   const selectedCompanyIdsForJobs = useMemo(() => {
+    if (headerCompanyId) return [headerCompanyId];
     const companyFilter = columnFilters.find((f: any) => f.id === 'companyId');
     if (!companyFilter?.value) return [] as string[];
     const value = companyFilter.value;
     return Array.isArray(value) ? value : [value];
-  }, [columnFilters]);
+  }, [columnFilters, headerCompanyId]);
 
   // Map jobId -> companyId for quick lookup
   const jobToCompanyMap = useMemo(() => {
@@ -958,7 +992,7 @@ export default function Applicants({
   ]);
 
   const jobPositionFilterOptions = useMemo(() => {
-    return jobOptions.map((j) => {
+    return filteredJobOptions.map((j) => {
       const coId =
         typeof j.companyId === 'string'
           ? j.companyId
@@ -974,7 +1008,7 @@ export default function Applicants({
         companyId: coId,
       };
     });
-  }, [jobOptions, companyMap, locale]);
+  }, [filteredJobOptions, companyMap, locale]);
 
 
 
