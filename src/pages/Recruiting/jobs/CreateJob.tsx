@@ -103,17 +103,11 @@ export default function CreateJob() {
     { enabled: !companiesLoading && (shouldFetchAllDepartments || !!jobForm.companyId) }
   );
 
-  const companies = useMemo(() => {
-    if (isAdmin) {
-      return allCompanies.map((company) => ({ value: company._id, label: toPlainString(company.name) }));
-    }
-    return (
-      user?.companies?.map((c) => ({
-        value: refId(c.companyId),
-        label: typeof c.companyId === 'string' ? c.companyId : toPlainString(c.companyId.name),
-      })) || []
-    );
-  }, [allCompanies, isAdmin, user?.companies]);
+  // allCompanies is already scoped to the user's companies + assignedcompanyId.
+  const companies = useMemo(
+    () => allCompanies.map((company) => ({ value: company._id, label: toPlainString(company.name) })),
+    [allCompanies]
+  );
 
   // Departments the user is confined to within the selected company, mirroring
   // the backend's per-membership restriction (companies[].departments; empty
@@ -192,15 +186,15 @@ export default function CreateJob() {
     });
   }, [jobForm.companyId, companyStatuses]);
 
-  // Users with a single company get it preselected.
+  // A single accessible company is always preselected, admin or not.
   useEffect(() => {
-    if (!user || isAdmin || hasMultipleCompanies || companies.length === 0 || companyAutoSet.current || editJobId) return;
-    const onlyCompanyId = refId(user.companies?.[0]?.companyId);
+    if (!user || editJobId || companyAutoSet.current || companies.length !== 1) return;
+    const onlyCompanyId = refId(companies[0].value);
     if (onlyCompanyId) {
       setJobForm((prev) => ({ ...prev, companyId: onlyCompanyId }));
       companyAutoSet.current = true;
     }
-  }, [user, isAdmin, hasMultipleCompanies, companies, editJobId]);
+  }, [user, companies, editJobId]);
 
   // New jobs get a fresh code whenever the company changes.
   useEffect(() => {

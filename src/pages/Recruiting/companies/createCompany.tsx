@@ -326,7 +326,7 @@ export default function CreateCompany() {
                   <SectionTitle icon={<Mail className="size-4" />}>{t('contact', 'companies')}</SectionTitle>
                 </CardToolbar>
                 <div className="space-y-4 p-4">
-                  <Field label={t('corporateEmail', 'companies')} htmlFor="cc-email" optional>
+                  <Field label={t('corporateEmail', 'companies')} htmlFor="cc-email">
                     <input
                       id="cc-email"
                       name="contactEmail"
@@ -338,7 +338,7 @@ export default function CreateCompany() {
                       className={inputClass}
                     />
                   </Field>
-                  <Field label={t('centralSwitchboard', 'companies')} htmlFor="cc-phone" optional>
+                  <Field label={t('centralSwitchboard', 'companies')} htmlFor="cc-phone">
                     <input
                       id="cc-phone"
                       name="phone"

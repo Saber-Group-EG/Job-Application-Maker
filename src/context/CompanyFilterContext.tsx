@@ -1,7 +1,8 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useCompanies } from '../hooks/queries/useCompanies';
 import { useAuth } from './AuthContext';
 import { toPlainString } from '../utils/strings';
+import type { User } from '../types/auth';
 
 
 type CompanyOption = {
@@ -25,65 +26,83 @@ type CompanyFilterContextType = {
 
 const CompanyFilterContext = createContext<CompanyFilterContextType | undefined>(undefined);
 
+const LEGACY_STORAGE_KEY = 'company-filter-selected-id';
+const ADMIN_ROLE_NAMES = new Set(['admin', 'super admin', 'super_admin', 'superadmin']);
+
+const selectionKey = (userId: string) => `${LEGACY_STORAGE_KEY}:${userId}`;
+
+const readSelection = (userId: string | null): string | null => {
+  if (!userId) return null;
+  try {
+    return localStorage.getItem(selectionKey(userId));
+  } catch {
+    return null;
+  }
+};
+
+const isAdminUser = (user: User | null): boolean => {
+  if (!user) return false;
+  const roleName = user.roleId?.name?.trim().toLowerCase() ?? '';
+  const legacyRole = typeof user.role === 'string' ? user.role.trim().toLowerCase() : '';
+  return ADMIN_ROLE_NAMES.has(roleName) || ADMIN_ROLE_NAMES.has(legacyRole);
+};
+
+const refId = (ref: unknown): string => {
+  if (typeof ref === 'string') return ref;
+  if (ref && typeof ref === 'object') {
+    const r = ref as { _id?: string; id?: string };
+    return r._id || r.id || '';
+  }
+  return '';
+};
+
+const accessibleCompanyIds = (user: User): string[] => {
+  const fromCompanies = (user.companies ?? []).map((c) => refId(c.companyId));
+  const fromAssigned = (user.assignedcompanyId ?? []).map((id) => refId(id));
+  return [...new Set([...fromCompanies, ...fromAssigned].filter(Boolean))];
+};
+
 export function CompanyFilterProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const { data: companies = [], isLoading: companiesLoading } = useCompanies();
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(() => {
-    try {
-      return localStorage.getItem('company-filter-selected-id');
-    } catch {
-      return null;
-    }
-  });
+  const userId = user?._id || user?.id || null;
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
+  // Tracks which account the in-memory selection currently belongs to, so the
+  // selection never leaks across accounts and storage writes wait for hydration.
+  const [hydratedUserId, setHydratedUserId] = useState<string | null | undefined>(undefined);
+  const hydrationUserId = useRef<string | null | undefined>(undefined);
 
-  // Persist to localStorage whenever selection changes
   useEffect(() => {
+    if (hydrationUserId.current === userId) return;
+    hydrationUserId.current = userId;
+    setSelectedCompanyId(readSelection(userId));
+    setHydratedUserId(userId);
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId || hydratedUserId !== userId) return;
     try {
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
       if (selectedCompanyId) {
-        localStorage.setItem('company-filter-selected-id', selectedCompanyId);
+        localStorage.setItem(selectionKey(userId), selectedCompanyId);
       } else {
-        localStorage.removeItem('company-filter-selected-id');
+        localStorage.removeItem(selectionKey(userId));
       }
     } catch {
-      // ignore
+      // ignore unavailable storage
     }
-  }, [selectedCompanyId]);
+  }, [selectedCompanyId, userId, hydratedUserId]);
 
-  // Auto-select the user's company when they only have access to one
-  useEffect(() => {
-    if (selectedCompanyId) return;
-    const ids = (() => {
-      const roleName = user?.roleId?.name?.toLowerCase();
-      if (roleName === 'super admin' || roleName === 'admin') {
-        return companies.length === 1 ? [companies[0]._id] : [];
-      }
-      return (user?.companies ?? [])
-        .map((c: any) => (typeof c.companyId === 'string' ? c.companyId : c.companyId?._id))
-        .filter(Boolean) as string[];
-    })();
-    if (ids.length === 1) setSelectedCompanyId(ids[0]);
-  }, [selectedCompanyId, user, companies]);
+  const isAdmin = useMemo(() => isAdminUser(user), [user]);
 
   const userCompanyIds = useMemo(() => {
-    if (!user) return [];
-    const roleName = user?.roleId?.name?.toLowerCase();
-    if (roleName === 'super admin' || roleName === 'admin') return [];
-    return (user?.companies ?? [])
-      .map((c: any) => (typeof c.companyId === 'string' ? c.companyId : c.companyId?._id))
-      .filter(Boolean) as string[];
-  }, [user]);
-
-  const isMultiCompany = useMemo(() => {
-    if (userCompanyIds.length === 0) return companies.length > 1;
-    return userCompanyIds.length > 1;
-  }, [userCompanyIds, companies]);
+    if (!user || isAdmin) return [];
+    return accessibleCompanyIds(user);
+  }, [user, isAdmin]);
 
   const companyOptions = useMemo(() => {
     return companies
-      .filter((c: any) => {
-        if (userCompanyIds.length === 0) return true;
-        return userCompanyIds.includes(c._id);
-      })
+      .filter((c: any) => isAdmin || userCompanyIds.includes(c._id))
       .map((c: any) => {
         const raw = c?.name;
         const title = typeof raw === 'string' ? raw : toPlainString(raw, 'en');
@@ -96,7 +115,21 @@ export function CompanyFilterProvider({ children }: { children: ReactNode }) {
         };
       })
       .filter((x) => x.id && x.title);
-  }, [companies, userCompanyIds]);
+  }, [companies, isAdmin, userCompanyIds]);
+
+  // An invalid saved selection is dropped; an account with a single accessible
+  // company always lands on it, whatever its role.
+  useEffect(() => {
+    if (!user || companiesLoading || hydratedUserId !== userId) return;
+    if (selectedCompanyId && !companyOptions.some((option) => option.id === selectedCompanyId)) {
+      setSelectedCompanyId(null);
+    }
+    if (companyOptions.length === 1 && selectedCompanyId !== companyOptions[0].id) {
+      setSelectedCompanyId(companyOptions[0].id);
+    }
+  }, [user, userId, hydratedUserId, companiesLoading, companyOptions, selectedCompanyId]);
+
+  const isMultiCompany = companyOptions.length > 1;
 
   const companyMap = useMemo(() => {
     const map: Record<string, any> = {};
