@@ -85,10 +85,10 @@ function useTimeAgo() {
 function NeedsAttention({ data, loading }: { data?: DashboardOverview['attention']; loading: boolean }) {
   const { t } = useLocale();
   const items = [
-    { key: 'unseenApplicants', icon: <UserPlus className="size-4" />, label: t('attentionUnseen', 'home'), to: paths.applicants.root },
+    { key: 'unseenApplicants', icon: <UserPlus className="size-4" />, label: t('attentionUnseen', 'home'), to: `${paths.applicants.root}?unseen=1` },
     { key: 'interviewsToday', icon: <CalendarClock className="size-4" />, label: t('attentionInterviewsToday', 'home'), to: '#my-interviews' },
     { key: 'unassignedReplies', icon: <Inbox className="size-4" />, label: t('attentionUnassigned', 'home'), to: `${paths.applicants.mailPreview}?folder=unassigned` },
-    { key: 'offersAwaiting', icon: <FileText className="size-4" />, label: t('attentionOffers', 'home'), to: paths.jobs.offers },
+    { key: 'offersAwaiting', icon: <FileText className="size-4" />, label: t('attentionOffers', 'home'), to: `${paths.jobs.offers}?offersPending=1` },
     // Hidden: this system has no contract signatures to wait for.
     // { key: 'contractsAwaiting', icon: <FileSignature className="size-4" />, label: t('attentionContracts', 'home'), to: paths.jobs.contracts },
   ].filter((item) => data?.[item.key as keyof typeof data] !== undefined);

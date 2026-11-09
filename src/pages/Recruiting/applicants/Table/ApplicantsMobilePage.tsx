@@ -1,6 +1,7 @@
 import { describeError } from '../../../../lib/userErrors';
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router";
+import { useLocation } from "react-router-dom";
 import { useApplicantsTable } from "../../../../hooks/queries/useApplicantsTable";
 import type { ApplicantTableRow } from "../../../../services/applicantsTableService";
 import { useDebounce } from "../../../../hooks/useDebounce";
@@ -42,7 +43,8 @@ Trash2,
   ArrowUpDown,
   SlidersHorizontal,
   Download,
-  ExternalLink
+  ExternalLink,
+  UserPlus
 } from 'lucide-react';
 
 const MOBILE_FILTERS_STORAGE_KEY = 'applicants_mobile_filters';
@@ -107,6 +109,11 @@ export default function ApplicantsMobilePage({
   companyIdOverride,
 }: ApplicantsMobilePageProps = {}): JSX.Element {
   const navigate = useNavigate();
+  const location = useLocation();
+  const unseenMode = useMemo(() => {
+    const value = new URLSearchParams(location.search).get('unseen');
+    return value === '1' || value === 'true';
+  }, [location.search]);
   const [initialMobileFilters] = useState(() => readPersistedMobileFilters());
 
   // Lazy image loader with enhanced features
@@ -161,23 +168,24 @@ export default function ApplicantsMobilePage({
   }
 
   const { selectedCompanyId } = useCompanyFilter();
-  const [query, setQuery] = useState(initialMobileFilters.query);
+  const [query, setQuery] = useState(unseenMode ? '' : initialMobileFilters.query);
   const companyFilters = useMemo(() => selectedCompanyId ? [selectedCompanyId] : [] as string[], [selectedCompanyId]);
   const [jobFilters, setJobFilters] = useState<string[]>(
-    initialMobileFilters.jobFilters
+    unseenMode ? [] : initialMobileFilters.jobFilters
   );
   const [statusFilters, setStatusFilters] = useState<string[]>(
-    initialMobileFilters.statusFilters
+    unseenMode ? [] : initialMobileFilters.statusFilters
   );
   const [genderFilters, setGenderFilters] = useState<string[]>(
-    initialMobileFilters.genderFilters
+    unseenMode ? [] : initialMobileFilters.genderFilters
   );
   const [sourceFilters, setSourceFilters] = useState<string[]>(
-    initialMobileFilters.sourceFilters
+    unseenMode ? [] : initialMobileFilters.sourceFilters
   );
   const [customFilterOpen, setCustomFilterOpen] = useState(false);
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
   const [customFilters, setCustomFilters] = useState<Array<any>>(() => {
+    if (unseenMode) return [];
     try {
       const raw = sessionStorage.getItem('applicants_table_state');
       const parsed = raw ? JSON.parse(raw) : null;
@@ -190,12 +198,30 @@ export default function ApplicantsMobilePage({
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
   const [selectedMap, setSelectedMap] = useState<Record<string, boolean>>({});
   const [showBulkModal, setShowBulkModal] = useState(false);
-  const [pageIndex, setPageIndex] = useState<number>(initialMobileFilters.pageIndex);
+  const [pageIndex, setPageIndex] = useState<number>(unseenMode ? 0 : initialMobileFilters.pageIndex);
   const [pageSize, setPageSize] = useState<number>(initialMobileFilters.pageSize);
   const [submittedDesc, setSubmittedDesc] = useState<boolean>(
-    initialMobileFilters.submittedDesc
+    unseenMode ? true : initialMobileFilters.submittedDesc
   );
   const [refreshing, setRefreshing] = useState(false);
+
+  // Entering or leaving the dashboard quick filter starts a new result set.
+  const prevUnseenMode = useRef(unseenMode);
+  useEffect(() => {
+    if (prevUnseenMode.current === unseenMode) return;
+    prevUnseenMode.current = unseenMode;
+    setPageIndex(0);
+    if (unseenMode) {
+      setQuery('');
+      setJobFilters([]);
+      setStatusFilters([]);
+      setGenderFilters([]);
+      setSourceFilters([]);
+      setCustomFilters([]);
+      setSubmittedDesc(true);
+      setSelectedMap({});
+    }
+  }, [unseenMode]);
 
   const { data: companies = [], refetch: refetchCompanies, isFetching: isCompaniesFetching } = useCompanies();
   const { user } = useAuth();
@@ -284,12 +310,36 @@ export default function ApplicantsMobilePage({
     error,
     refetch,
     isFetching: isTableFetching,
-  } = useApplicantsTable(tableRequest, { enabled: Boolean(user) });
-  const paginated: ApplicantTableRow[] = useMemo(() => tableData?.rows ?? [], [tableData]);
-  const totalRows = tableData?.total ?? 0;
+  } = useApplicantsTable(tableRequest, { enabled: Boolean(user), fetchAll: unseenMode });
+  const allRows: ApplicantTableRow[] = useMemo(() => tableData?.rows ?? [], [tableData]);
+
+  // The API has no unseen filter, so load the full result set and narrow it
+  // here. submittedAt + isSeen match the dashboard's "last 30 days" count.
+  const unseenRows = useMemo(() => {
+    if (!unseenMode) return allRows;
+    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    return allRows.filter((row) => {
+      if (row.isSeen) return false;
+      const submitted = row.submittedAt ?? row.createdAt;
+      const at = submitted ? new Date(submitted).getTime() : NaN;
+      return Number.isFinite(at) && at >= cutoff;
+    });
+  }, [allRows, unseenMode]);
+
+  const paginated: ApplicantTableRow[] = useMemo(() => {
+    if (!unseenMode) return allRows;
+    const start = pageIndex * pageSize;
+    return unseenRows.slice(start, start + pageSize);
+  }, [unseenMode, allRows, unseenRows, pageIndex, pageSize]);
+  const totalRows = unseenMode ? unseenRows.length : tableData?.total ?? 0;
+
+  // While switching between the quick filter and the normal list, React Query
+  // keeps the previous result on screen. Its shape no longer matches the
+  // current mode, so treat it as loading instead of showing the wrong rows.
+  const tableDataInMode = Boolean(tableData) && Boolean(tableData?.allRows) === unseenMode;
 
   // Back to the first page when the result set changes.
-  const filterSignature = JSON.stringify([searching, debouncedQuery, jobFilters, statusFilters, genderFilters, sourceFilters, customFilters, companyFilters, submittedDesc]);
+  const filterSignature = JSON.stringify([searching, debouncedQuery, jobFilters, statusFilters, genderFilters, sourceFilters, customFilters, companyFilters, submittedDesc, unseenMode]);
   const prevFilterSignature = useRef(filterSignature);
   useEffect(() => {
     if (prevFilterSignature.current === filterSignature) return;
@@ -309,6 +359,7 @@ export default function ApplicantsMobilePage({
   }, [paginated]);
   const applicants = useMemo(() => Array.from(knownRowsById.values()), [knownRowsById]);
   const [columnFilters, _setColumnFilters] = useState<any[]>(() => {
+    if (unseenMode) return [];
     try {
       const raw = sessionStorage.getItem('applicants_table_state');
       const parsed = raw ? JSON.parse(raw) : {};
@@ -633,6 +684,13 @@ export default function ApplicantsMobilePage({
     }
   };
 
+  const clearUnseen = () => {
+    const next = new URLSearchParams(location.search);
+    next.delete('unseen');
+    const search = next.toString();
+    navigate(`${location.pathname}${search ? `?${search}` : ''}`);
+  };
+
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<string, { color: string; bg: string; icon: JSX.Element }> = {
       pending: { 
@@ -718,12 +776,28 @@ export default function ApplicantsMobilePage({
               </button>
             )}
           </div>
+
+          {unseenMode && tableDataInMode && (
+            <div className="mt-2 flex items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200">
+              <span className="flex items-start gap-1.5">
+                <UserPlus size={14} className="mt-0.5 shrink-0" />
+                <span>
+                  {tableData?.truncated
+                    ? t('unseenBannerTruncated', 'applicants', { count: unseenRows.length })
+                    : t('unseenBanner', 'applicants', { count: unseenRows.length })}
+                </span>
+              </span>
+              <button type="button" onClick={clearUnseen} className="shrink-0 font-medium underline underline-offset-2">
+                {t('unseenShowAll', 'applicants')}
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
       {/* Main Content */}
       <main className="px-4 py-4 pb-24">
-        {isLoading ? (
+        {isLoading || !tableDataInMode ? (
           <div className="flex flex-col items-center justify-center py-16">
             <LoadingSpinner />
             <p className="text-sm text-slate-500 mt-4 dark:text-slate-400">{t('loadingApplicants', 'applicants')}</p>

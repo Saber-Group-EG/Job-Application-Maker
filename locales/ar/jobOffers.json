@@ -67,5 +67,7 @@
   "tabOffers": "العروض",
   "tabTemplates": "القوالب",
   "selectCompanyForTemplates": "اختر شركة من الشريط العلوي لإدارة قوالبها.",
-  "jobOffersSections": "أقسام العروض"
+  "jobOffersSections": "أقسام العروض",
+  "offersPendingBanner": "يتم عرض {count} عرضًا لم يتلق ردًا منذ 3 أيام أو أكثر.",
+  "offersPendingShowAll": "عرض جميع العروض"
 }

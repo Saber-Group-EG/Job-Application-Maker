@@ -53,7 +53,7 @@ import {
 } from 'material-react-table';
 import { ThemeProvider, createTheme } from '@mui/material';
 import { Skeleton } from '@mui/material';
-import { Copy, FileSignature, FileText, Mail, CalendarClock, RefreshCw, RotateCcw, Search, SlidersHorizontal, Trash2, X, ArrowRightLeft } from 'lucide-react';
+import { Copy, FileSignature, FileText, Mail, CalendarClock, RefreshCw, RotateCcw, Search, SlidersHorizontal, Trash2, X, ArrowRightLeft, UserPlus } from 'lucide-react';
 import { Button, Card, Dialog, IconButton, PageShell, focusRing, inputClass } from '../../../../components/ui/kit';
 
 // Table surface colours, matching the kit's slate palette.
@@ -485,6 +485,13 @@ export default function Applicants({
   const location = useLocation();
   const params = useParams();
 
+  // Dashboard quick filter: ?unseen=1 shows only applicants this user has
+  // not opened, submitted in the last 30 days.
+  const unseenMode = useMemo(() => {
+    const value = new URLSearchParams(location.search).get('unseen');
+    return value === '1' || value === 'true';
+  }, [location.search]);
+
   const {
     layout,
     saveLayout,
@@ -801,9 +808,66 @@ export default function Applicants({
     isFetching: isApplicantsFetching,
     isFetched: isApplicantsFetched,
     isPlaceholderData: isTablePlaceholder,
-  } = useApplicantsTable(tableRequest, { enabled: Boolean(user) });
+  } = useApplicantsTable(tableRequest, { enabled: Boolean(user), fetchAll: unseenMode });
   const pageRows: ApplicantTableRow[] = useMemo(() => tableData?.rows ?? [], [tableData]);
   const totalRows = tableData?.total ?? 0;
+
+  // While switching between the quick filter and the normal list, React Query
+  // keeps the previous result on screen. Its shape no longer matches the
+  // current mode, so treat it as loading instead of showing the wrong rows.
+  const tableDataInMode = Boolean(tableData) && Boolean(tableData?.allRows) === unseenMode;
+
+  // The API has no unseen filter, so load the full result set and narrow it
+  // here. submittedAt + isSeen match the dashboard's "last 30 days" count.
+  const unseenRows = useMemo(() => {
+    if (!unseenMode) return pageRows;
+    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    return pageRows.filter((row) => {
+      if (row.isSeen) return false;
+      const submitted = row.submittedAt ?? row.createdAt;
+      const at = submitted ? new Date(submitted).getTime() : NaN;
+      return Number.isFinite(at) && at >= cutoff;
+    });
+  }, [pageRows, unseenMode]);
+
+  // Paging is still manual (the table state drives it), but the slice now
+  // comes from the filtered rows instead of the server page.
+  const visibleRows = useMemo(() => {
+    if (!unseenMode) return pageRows;
+    const start = pagination.pageIndex * pagination.pageSize;
+    return unseenRows.slice(start, start + pagination.pageSize);
+  }, [unseenMode, pageRows, unseenRows, pagination.pageIndex, pagination.pageSize]);
+  const visibleTotal = unseenMode ? unseenRows.length : totalRows;
+
+  // Entering or leaving the quick filter starts a new result set.
+  const prevUnseenMode = useRef(unseenMode);
+  useEffect(() => {
+    if (prevUnseenMode.current === unseenMode) return;
+    prevUnseenMode.current = unseenMode;
+    setPagination((p: { pageIndex: number; pageSize: number }) => ({ ...p, pageIndex: 0 }));
+    if (unseenMode) {
+      setColumnFilters([]);
+      setCustomFilters([]);
+      setSorting([{ id: 'submittedAt', desc: true }]);
+      setRowSelection({});
+    }
+  }, [unseenMode, setPagination, setColumnFilters, setCustomFilters, setSorting, setRowSelection]);
+
+  // The filtered set can be shorter than the page the user was on.
+  useEffect(() => {
+    if (!unseenMode) return;
+    const maxPageIndex = Math.max(0, Math.ceil(unseenRows.length / pagination.pageSize) - 1);
+    if (pagination.pageIndex > maxPageIndex) {
+      setPagination((p: { pageIndex: number; pageSize: number }) => ({ ...p, pageIndex: maxPageIndex }));
+    }
+  }, [unseenMode, unseenRows.length, pagination.pageIndex, pagination.pageSize, setPagination]);
+
+  const clearUnseen = useCallback(() => {
+    const next = new URLSearchParams(location.search);
+    next.delete('unseen');
+    const search = next.toString();
+    navigate(`${location.pathname}${search ? `?${search}` : ''}`);
+  }, [location.pathname, location.search, navigate]);
 
   // Back to the first page whenever the result set or its order changes.
   const filterSignature = JSON.stringify([
@@ -816,6 +880,7 @@ export default function Applicants({
     effectiveOnlyStatus,
     effectiveOnlyJobPositions,
     effectiveSearch,
+    unseenMode,
   ]);
   const prevFilterSignature = useRef(filterSignature);
   useEffect(() => {
@@ -1911,7 +1976,7 @@ export default function Applicants({
   // Skeleton only until the first page arrives; after that the previous page
   // stays on screen (with a progress bar) while the next one loads.
   const isTableLoading = Boolean(
-    !tableData || !isJobPositionsFetched || !isCompaniesFetched
+    !tableData || !isJobPositionsFetched || !isCompaniesFetched || !tableDataInMode
   );
   const isTableRefreshing = Boolean(
     isApplicantsFetching || isTablePlaceholder || isFilterTransitioning
@@ -2992,7 +3057,7 @@ export default function Applicants({
     },
     columns,
     enableSorting: true,
-    data: isTableLoading ? skeletonData : pageRows,
+    data: isTableLoading ? skeletonData : visibleRows,
     enableRowVirtualization: true, // Enable virtual scrolling for better performance
     displayColumnDefOptions: {
       'mrt-row-select': {
@@ -3052,10 +3117,10 @@ export default function Applicants({
     manualPagination: true,
     manualFiltering: true,
     manualSorting: true,
-    rowCount: isTableLoading ? skeletonData.length : totalRows,
+    rowCount: isTableLoading ? skeletonData.length : visibleTotal,
     // "Select all" selects every matching applicant, not just this page.
     muiSelectAllCheckboxProps: () => {
-      const ids = tableData?.ids ?? [];
+      const ids = unseenMode ? unseenRows.map((row) => row._id) : tableData?.ids ?? [];
       const selectedCount = ids.reduce((n, id) => (rowSelection[id] ? n + 1 : n), 0);
       const all = ids.length > 0 && selectedCount === ids.length;
       return {
@@ -3355,6 +3420,22 @@ export default function Applicants({
                 {error && (
                   <div className="m-4 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300" role="alert">
                     {describeError(error).message}
+                  </div>
+                )}
+
+                {unseenMode && !isTableLoading && (
+                  <div className="flex flex-col gap-2 border-b border-amber-100 bg-amber-50/60 px-4 py-3 dark:border-amber-500/20 dark:bg-amber-500/10 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="flex items-start gap-2 text-sm text-amber-800 dark:text-amber-200">
+                      <UserPlus className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                      <span>
+                        {tableData?.truncated
+                          ? t('unseenBannerTruncated', 'applicants', { count: unseenRows.length })
+                          : t('unseenBanner', 'applicants', { count: unseenRows.length })}
+                      </span>
+                    </p>
+                    <Button size="sm" variant="secondary" onClick={clearUnseen}>
+                      {t('unseenShowAll', 'applicants')}
+                    </Button>
                   </div>
                 )}
 

@@ -17,6 +17,7 @@ import {
 import { useAuth } from '../../../context/AuthContext';
 import { useCompanies } from '../../../hooks/queries/useCompanies';
 import { useCompanyFilter } from '../../../context/CompanyFilterContext';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   jobOffersKeys,
   useJobOffers,
@@ -71,6 +72,7 @@ export default function JobOffersPage() {
   const openContractEditor = useOpenContractEditor();
 
   const { selectedCompanyId } = useCompanyFilter();
+  const navigate = useNavigate();
   const companyId: string[] = companies.map((c) => c._id);
   // Nothing to write an offer for until the companies have loaded.
   const openOfferEditor = (state: Parameters<typeof navigateToOfferEditor>[0]) => {
@@ -91,6 +93,14 @@ export default function JobOffersPage() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 500);
 
+  // Dashboard quick filter: ?offersPending=1 shows only offers sent 3+ days ago
+  // with no applicant response yet.
+  const location = useLocation();
+  const offersPending = useMemo(() => {
+    const value = new URLSearchParams(location.search).get('offersPending');
+    return value === '1' || value === 'true';
+  }, [location.search]);
+
   // No company picked: send no companyId and let the API scope the list to
   // the user's companies, so the list doesn't wait for company details.
   const scopeCompanyIds = selectedCompanyId ? [selectedCompanyId] : undefined;
@@ -99,18 +109,35 @@ export default function JobOffersPage() {
   const queryParams = {
     companyId: scopeCompanyIds,
     isTemplate: false as const,
-    PageCount: LIMIT,
+    // Fetch every matching page when in quick-filter mode so the client-side
+    // filter sees the complete set (the API has no "no response for 3+ days"
+    // filter). Otherwise respect normal pagination.
+    PageCount: (offersPending ? 'all' : LIMIT) as number | 'all',
     page,
-    ...(statusFilter !== 'all' ? { status: statusFilter } : {}),
-    ...(trimmedSearch ? { search: trimmedSearch } : {}),
+    ...(offersPending ? {} : statusFilter !== 'all' ? { status: statusFilter } : {}),
+    ...(offersPending ? {} : trimmedSearch ? { search: trimmedSearch } : {}),
   };
 
   // ── Data ───────────────────────────────────────────────────────────────
   const { data: offersData, isLoading, isFetching, isPlaceholderData, isError, error, refetch } = useJobOffers(queryParams);
 
-  const offers = offersData?.data ?? [];
-  const total = offersData?.totalCount ?? 0;
-  const totalPages = offersData?.totalPages ?? 1;
+  const allOffers = offersData?.data ?? [];
+
+  // Client-side filter: offers sent 3+ days ago with no response yet.
+  const cutoff = Date.now() - 3 * 24 * 60 * 60 * 1000;
+  const pendingOffers = useMemo(() => {
+    if (!offersPending) return allOffers;
+    return allOffers.filter((o) => {
+      if (o.status !== 'sent') return false;
+      if (o.respondedAt) return false;
+      const at = o.sentAt ? new Date(o.sentAt).getTime() : new Date(o.createdAt).getTime();
+      return Number.isFinite(at) && at < cutoff;
+    });
+  }, [allOffers, offersPending]);
+
+  const offers = pendingOffers;
+  const total = offersPending ? pendingOffers.length : (offersData?.totalCount ?? 0);
+  const totalPages = offersPending ? Math.max(1, Math.ceil(pendingOffers.length / LIMIT)) : (offersData?.totalPages ?? 1);
 
   // ── Per-status counts (one request for every tab) ──────────────────────
   const { data: statusCounts } = useJobOfferStatusCounts({
@@ -122,7 +149,7 @@ export default function JobOffersPage() {
   useEffect(() => {
     // Wait for the real result: while the previous filter's data is shown as
     // a placeholder, totalPages belongs to that filter.
-    if (!isPlaceholderData && page < totalPages) {
+    if (!isPlaceholderData && !offersPending && page < totalPages) {
       queryClient.prefetchQuery({
         queryKey: jobOffersKeys.list({ ...queryParams, page: page + 1 }),
         queryFn: () =>
@@ -130,12 +157,12 @@ export default function JobOffersPage() {
         staleTime: 2 * 60 * 1000,
       });
     }
-  }, [page, totalPages, isPlaceholderData, selectedCompanyId, statusFilter, trimmedSearch]);
+  }, [page, totalPages, isPlaceholderData, selectedCompanyId, statusFilter, trimmedSearch, offersPending]);
 
   // Reset page on filter change
   useEffect(() => {
     setPage(1);
-  }, [statusFilter, debouncedSearch, selectedCompanyId]);
+  }, [statusFilter, debouncedSearch, selectedCompanyId, offersPending]);
 
   // ── Mutations ──────────────────────────────────────────────────────────
   const deleteMutation = useDeleteJobOffer();
@@ -193,6 +220,13 @@ export default function JobOffersPage() {
   const handleBackToList = () => {
     setView('list');
     setSelectedOfferId(null);
+  };
+
+  const clearOffersPending = () => {
+    const next = new URLSearchParams(location.search);
+    next.delete('offersPending');
+    const search = next.toString();
+    navigate(`${location.pathname}${search ? `?${search}` : ''}`);
   };
 
   const handleEdit = (offer: JobOffer) =>
@@ -255,6 +289,20 @@ export default function JobOffersPage() {
             ]}
           />
         </Card>
+
+        {offersPending && (
+          <div className="flex flex-col gap-2 border-b border-amber-100 bg-amber-50/60 px-4 py-3 dark:border-amber-500/20 dark:bg-amber-500/10 sm:flex-row sm:items-center sm:justify-between">
+            <p className="flex items-start gap-2 text-sm text-amber-800 dark:text-amber-200">
+              <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+              <span>
+                {t('offersPendingBanner', 'jobOffers', { count: offers.length })}
+              </span>
+            </p>
+            <button type="button" onClick={clearOffersPending} className="shrink-0 font-medium underline underline-offset-2 text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-100">
+              {t('offersPendingShowAll', 'jobOffers')}
+            </button>
+          </div>
+        )}
 
         <Card>
           <TabBar

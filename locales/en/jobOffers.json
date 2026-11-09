@@ -67,5 +67,7 @@
   "tabOffers": "Offers",
   "tabTemplates": "Templates",
   "selectCompanyForTemplates": "Select a company in the top bar to manage its templates.",
-  "jobOffersSections": "Offers sections"
+  "jobOffersSections": "Offers sections",
+  "offersPendingBanner": "Showing {count} offer(s) with no response for 3+ days.",
+  "offersPendingShowAll": "Show all offers"
 }

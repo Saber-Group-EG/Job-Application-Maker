@@ -17,6 +17,13 @@ export function useTableState({
 }): any {
   const location = useLocation();
   
+  // Quick filters (e.g. ?unseen=1 from the dashboard) should show their exact
+  // subset, not the filters the user left behind in a previous session.
+  const forceFresh = (() => {
+    const value = new URLSearchParams(location.search).get('unseen');
+    return value === '1' || value === 'true';
+  })();
+  
   // ALL HOOKS MUST BE DECLARED AT THE TOP - NO CONDITIONS
   const navState = (location.state as any);
   const isReturningFromDetails = navState?.returnToApplicants === true;
@@ -30,6 +37,7 @@ export function useTableState({
   ];
   
   const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>(() => {
+    if (forceFresh) return [];
     if (isReturningFromDetails && navState?.columnFilters && !hasInitializedFromNav.current) {
       hasInitializedFromNav.current = true;
       if (pageFilterIds.length > 0) {
@@ -49,17 +57,20 @@ export function useTableState({
   });
   
   const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>(() => {
+    if (forceFresh) return [{ id: 'submittedAt', desc: true }];
     if (isReturningFromDetails && navState?.sorting) return navState.sorting;
     if (persistedState?.sorting) return persistedState.sorting;
     return [{ id: 'submittedAt', desc: true }];
   });
   
   const [pagination, setPagination] = useState<{ pageIndex: number; pageSize: number }>(() => {
+    if (forceFresh) return { pageIndex: 0, pageSize: 10 };
     if (isReturningFromDetails && navState?.pagination) return navState.pagination;
     return { pageIndex: 0, pageSize: 10 };
   });
   
   const [customFilters, setCustomFilters] = useState<Array<any>>(() => {
+    if (forceFresh) return [];
     if (isReturningFromDetails && navState?.customFilters) return navState.customFilters;
     if (persistedState?.customFilters) return persistedState.customFilters;
     return [];
@@ -99,6 +110,9 @@ export function useTableState({
     if (persistTimeoutRef.current) {
       clearTimeout(persistTimeoutRef.current);
     }
+    // A quick filter is a transient view; saving its cleared filters would
+    // overwrite the state the user set up for the normal list.
+    if (forceFresh) return;
     persistTimeoutRef.current = setTimeout(() => {
       try {
         const toSave = {
@@ -116,7 +130,7 @@ export function useTableState({
         clearTimeout(persistTimeoutRef.current);
       }
     };
-  }, [pagination, sorting, columnFilters, customFilters, effectiveColumnFilters]);
+  }, [pagination, sorting, columnFilters, customFilters, effectiveColumnFilters, forceFresh]);
   
   // Reset pagination when filters change
   const prevFiltersKeyRef = useRef<string | null>(null);
