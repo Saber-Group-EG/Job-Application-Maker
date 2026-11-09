@@ -89,7 +89,11 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
   const cleanPhone = (phone: string) => phone.replace(/[^\d+]/g, '');
   const digitsOnly = (phone: string) => phone.replace(/\D/g, '');
   const whatsappNumber = (phone: string) => {
+    const raw = phone.trim();
     const digits = digitsOnly(phone);
+    // International numbers (+966…, 00966…) already carry their country code.
+    if (raw.startsWith('+')) return digits;
+    if (raw.startsWith('00')) return digits.slice(2);
     if (digits.startsWith('20')) return digits;
     return `20${digits.replace(/^0+/, '')}`;
   };
