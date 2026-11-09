@@ -216,6 +216,18 @@ export default function ApplicantsMobilePage({
     return usercompanyId?.length ? usercompanyId : undefined;
   }, [user?._id, user?.roleId?.name, user?.companies]);
 
+  // Same rule as the desktop table: when the list covers a single company
+  // (header pick, a page fixed to one company, or a one-company user), the
+  // company line on each card says nothing new.
+  const showCompanyOnCards = useMemo(() => {
+    const scope = companyIdOverride
+      ? Array.isArray(companyIdOverride) ? companyIdOverride : [companyIdOverride]
+      : selectedCompanyId
+        ? [selectedCompanyId]
+        : companyId;
+    return !scope || scope.length > 1;
+  }, [companyIdOverride, selectedCompanyId, companyId]);
+
   const availableCompanyIds = useMemo(() => (companies || []).map((c: any) => c._id || c.id).filter(Boolean), [companies]);
 
   const primarySelectedCompany =
@@ -948,18 +960,19 @@ export default function ApplicantsMobilePage({
                               : (snap.en || snap.ar || '');
                           })();
                         
-                        if (!displayCompany && !displayJob) return null;
+                        const companyLine = showCompanyOnCards ? displayCompany : '';
+                        if (!companyLine && !displayJob) return null;
                         
                         return (
                           <div className="bg-slate-50 rounded-xl p-3 mb-3 border border-slate-100 dark:bg-slate-800/50 dark:border-slate-800">
-                            {displayCompany && (
+                            {companyLine && (
                               <div className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
                                 <Building2 size={14} className="text-slate-400 flex-shrink-0" />
-                                <span className="truncate">{displayCompany}</span>
+                                <span className="truncate">{companyLine}</span>
                               </div>
                             )}
                             {displayJob && (
-                              <div className="flex items-center gap-2 text-sm text-slate-700 mt-1 dark:text-slate-200">
+                              <div className={`flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200 ${companyLine ? 'mt-1' : ''}`}>
                                 <Briefcase size={14} className="text-slate-400 flex-shrink-0" />
                                 <span className="truncate">{displayJob}</span>
                               </div>
