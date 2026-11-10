@@ -2230,7 +2230,17 @@ export default function Applicants({
                 {orig?.fullName || '-'}
               </a>
               {isDuplicated &&
-                (canMergeDuplicates ? (
+                (orig?.duplicateScope === 'elsewhere' ? (
+                  // Only applied again in departments this user can't open:
+                  // say so, but there's nothing here to merge.
+                  <span
+                    title={t('appliedInOtherDepartment', 'applicants')}
+                    aria-label={t('appliedInOtherDepartment', 'applicants')}
+                    className="inline-flex"
+                  >
+                    <Copy className="h-4 w-4 text-slate-400 dark:text-slate-500" aria-hidden="true" />
+                  </span>
+                ) : canMergeDuplicates ? (
                   <button
                     type="button"
                     title={t('mergeDuplicatesHint', 'applicants')}

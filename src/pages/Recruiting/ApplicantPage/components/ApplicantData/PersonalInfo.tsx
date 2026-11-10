@@ -4,6 +4,9 @@ import { CalenderIcon, ChatIcon, DownloadIcon,  } from '../../../../../icons';
 import type { Applicant, ApplicantView, PersonalInfoProps } from '../../../../../types/applicants';
 import { toPlainString } from '../../../../../utils/strings';
 import { useLocale } from '../../../../../context/LocaleContext';
+import { useQuery } from '@tanstack/react-query';
+import { applicantsService } from '../../../../../services/applicantsService';
+import { applicantsKeys } from '../../../../../hooks/queries/useApplicants';
 
 const buildResumeUrl = (raw?: string): string | null => {
   if (!raw) return null;
@@ -57,6 +60,18 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
     ...(applicant as ApplicantView),
     ...(editedApplicant || {}),
   };
+
+  // Duplicates this user can see (the endpoint is department-scoped; same
+  // query as the merge window, so opening it reuses this). None visible means
+  // the other applications are in departments this user can't open.
+  const applicantId = String((applicant as { _id?: string })?._id || '');
+  const { data: visibleDuplicates, isSuccess: duplicatesLoaded } = useQuery({
+    queryKey: [...applicantsKeys.all, 'duplicates', applicantId],
+    queryFn: () => applicantsService.getDuplicates(applicantId),
+    enabled: Boolean(data.isDuplicated && applicantId),
+  });
+  const duplicatesElsewhereOnly =
+    duplicatesLoaded && Array.isArray(visibleDuplicates) && visibleDuplicates.length === 0;
 
   const fullName = String(
     data.fullName ||
@@ -233,7 +248,12 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
           </div>
         </div>
 
-        {onMergeDuplicates && data.isDuplicated && (
+        {data.isDuplicated && duplicatesElsewhereOnly && (
+          <p className="mb-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-slate-100 px-3 py-2 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+            {t('appliedInOtherDepartment', 'applicants')}
+          </p>
+        )}
+        {onMergeDuplicates && data.isDuplicated && !duplicatesElsewhereOnly && (
           <button
             type="button"
             onClick={onMergeDuplicates}

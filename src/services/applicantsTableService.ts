@@ -33,6 +33,8 @@ export interface ApplicantTableRow {
   createdAt?: string;
   isSeen: boolean;
   isDuplicated: boolean;
+  /** 'elsewhere' = the other applications are in departments this user can't see. */
+  duplicateScope?: 'visible' | 'elsewhere';
   cvFilePath: string | null;
 }
 
