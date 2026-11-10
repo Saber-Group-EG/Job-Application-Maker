@@ -48,6 +48,21 @@ export const usersKeys = {
   detail: (id: string) => [...usersKeys.all, "detail", id] as const,
 };
 
+export const myApplicantPagesKeys = {
+  all: ["myApplicantPages"] as const,
+  list: (companyIds: string[]) => [...myApplicantPagesKeys.all, [...companyIds].sort().join(",")] as const,
+};
+
+/** The signed-in user's own applicant pages (sidebar shortcuts). */
+export function useMyApplicantPages(companyIds: string[], options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: myApplicantPagesKeys.list(companyIds),
+    queryFn: () => usersService.getMyApplicantPages(companyIds),
+    enabled: (options?.enabled ?? true) && companyIds.length > 0,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export const savedFieldsKeys = {
   all: ["savedFields"] as const,
   list: () => [...savedFieldsKeys.all, "list"] as const,

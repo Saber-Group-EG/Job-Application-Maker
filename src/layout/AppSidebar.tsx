@@ -15,6 +15,7 @@ import { ChevronDownIcon, HorizontaLDots } from '../icons';
 import { useSidebar } from '../context/SidebarContext';
 import { useAuth } from '../context/AuthContext';
 import { useCompanies } from '../hooks/queries/useCompanies';
+import { useMyApplicantPages } from '../hooks/queries/useUsers';
 import { useLocale } from '../context/LocaleContext';
 
 type SubItem = {
@@ -65,33 +66,29 @@ const AppSidebar: React.FC = () => {
     return String(roleName) === 'hr manager';
   }, [user]);
 
-  // Get applicant pages from companies data (from /auth/me)
+  // The signed-in user's own applicant pages across their companies.
+  const companyIds = useMemo(
+    () => companies.map((c: any) => String(c?._id || '')).filter(Boolean),
+    [companies]
+  );
+  const { data: myPages = [] } = useMyApplicantPages(companyIds, {
+    enabled: hasPermission('Applicant Management', 'read'),
+  });
   const applicantPageSubItems = useMemo(() => {
     const seen = new Set<string>();
-
-    // Collect applicant pages from all companies the user has access to
-    const allPages: any[] = [];
-
-    companies.forEach((company: any) => {
-      const pages = company?.settings?.applicantPages ?? [];
-      if (Array.isArray(pages)) {
-        allPages.push(...pages);
-      }
-    });
-
-    return allPages
-      .filter((p: any) => {
-        if (seen.has(p.name)) return false;
+    return myPages
+      .filter((p) => {
+        if (!p.name || seen.has(p.name)) return false;
         seen.add(p.name);
         return true;
       })
-      .map((p: any) => ({
+      .map((p) => ({
         name: p.name,
         tKey: undefined as string | undefined,
         path: `/applicants/page/${encodeURIComponent(p.name)}?statuses=${(p.statuses || []).map(encodeURIComponent).join(',')}${p.jobPositions?.length ? `&jobPositions=${p.jobPositions.map(encodeURIComponent).join(',')}` : ''}`,
         pro: false,
       }));
-  }, [companies]);
+  }, [myPages]);
 
   const hasSingleAssignedCompany = useMemo(() => {
     const roleName = user?.roleId?.name?.toLowerCase?.();
@@ -157,6 +154,12 @@ const AppSidebar: React.FC = () => {
           show: can('Applicant Management', 'create'),
         },
         ...applicantPageSubItems,
+        {
+          name: 'Manage my pages',
+          tKey: 'manageMyPages',
+          path: '/applicants/my-pages',
+          show: can('Applicant Management', 'read'),
+        },
       ],
     },
     {

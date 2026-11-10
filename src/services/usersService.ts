@@ -236,7 +236,41 @@ class UsersService extends BaseService {
   }): Promise<any> {
     return this.request<any>('get', '/users/me/interviews', undefined, params);
   }
+
+  /** The signed-in user's own applicant pages for these companies. */
+  async getMyApplicantPages(companyIds?: string[]): Promise<MyApplicantPage[]> {
+    const res = await this.request<{ pages: MyApplicantPage[] }>(
+      'get',
+      '/users/me/applicant-pages',
+      undefined,
+      companyIds?.length ? { companyId: companyIds.join(',') } : undefined
+    );
+    return res?.pages ?? [];
+  }
+
+  /** Replace the signed-in user's applicant pages for one company. */
+  async saveMyApplicantPages(
+    companyId: string,
+    pages: Array<Pick<MyApplicantPage, 'name' | 'statuses'> & { jobPositions?: string[]; _id?: string }>
+  ): Promise<MyApplicantPage[]> {
+    const res = await this.request<{ pages: MyApplicantPage[] }>(
+      'put',
+      `/users/me/applicant-pages/${companyId}`,
+      { applicantPages: pages }
+    );
+    return res?.pages ?? [];
+  }
 }
+
+/** A user's own sidebar shortcut: statuses and optional jobs in one company. */
+export type MyApplicantPage = {
+  _id: string;
+  companyId: string;
+  name: string;
+  statuses: string[];
+  jobPositions: string[];
+  icon?: string | null;
+};
 
 // ==================== EXPORTS ====================
 export const savedFieldsService = new SavedFieldsService();

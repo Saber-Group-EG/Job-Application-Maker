@@ -58,6 +58,7 @@ export const paths = {
     root: '/applicants',
     mobile: '/applicants/mobile',
     blueCaller: '/applicants/blue-caller',
+    myPages: '/applicants/my-pages',
     mailPreview: '/applicants/mail-preview',
     page: (pageName: string) => `/applicants/page/${pageName}`,
     details: (id: string) => `/applicant-details/${id}`,

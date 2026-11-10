@@ -5,11 +5,9 @@ import Swal from '../../../utils/swal';
 import { useLocale } from '../../../context/LocaleContext';
 import { useUndo } from '../../../context/UndoContext';
 import { useAuth } from '../../../context/AuthContext';
-import {
-  useCompanies,
-  useUpdateCompanyApplicantPages,
-  companiesKeys,
-} from '../../../hooks/queries/useCompanies';
+import { useCompanies } from '../../../hooks/queries/useCompanies';
+import { myApplicantPagesKeys, useMyApplicantPages } from '../../../hooks/queries/useUsers';
+import { usersService, type MyApplicantPage } from '../../../services/usersService';
 import { useJobPositions } from '../../../hooks/queries/useJobPositions';
 import { Badge, Button, Card, EmptyState, IconButton, ToggleChip, focusRing, inputClass } from '../../../components/ui/kit';
 import SettingsSection from './components/SettingsSection';
@@ -319,13 +317,10 @@ export default function ApplicantPagesSettings({
     }
     return undefined;
   });
-  const updateMutation = useUpdateCompanyApplicantPages();
   const queryClient = useQueryClient();
 
-  const canEdit =
-    hasPermission('Company Management', 'write') ||
-    hasPermission('Settings Management', 'write') ||
-    hasPermission('Settings Management', 'create');
+  // Pages are personal now: everyone edits their own list.
+  const canEdit = hasPermission('Applicant Management', 'read');
 
   useEffect(() => {
     if (companyId && selectedCompanyId !== companyId) {
@@ -352,8 +347,6 @@ export default function ApplicantPagesSettings({
     [companies, selectedCompanyId]
   );
 
-  // Get settings ID from the selected company
-  const settingsId = selectedCompany?.settings?._id;
 
   // Available statuses from company settings
   const availableStatuses: string[] = useMemo(() => {
@@ -390,43 +383,43 @@ export default function ApplicantPagesSettings({
   const [collapsedPages, setCollapsedPages] = useState<Set<string>>(new Set());
   const listRef = useRef<HTMLDivElement>(null);
 
+  // This user's own pages for the selected company (copied once from the
+  // company's shared pages on first load; see the backend).
+  const { data: myPages, isSuccess: myPagesLoaded } = useMyApplicantPages(
+    selectedCompanyId ? [selectedCompanyId] : []
+  );
+  const loadedForCompany = useRef<string | undefined>(undefined);
   useEffect(() => {
-    const raw = selectedCompany?.settings?.applicantPages ?? [];
-    const normalized: ApplicantPage[] = Array.isArray(raw)
-      ? raw.map((p: any) => ({
-          _id: p._id,
-          name: String(p.name ?? '').trim(),
-          statuses: Array.isArray(p.statuses) ? p.statuses : [],
-          jobPositions: Array.isArray(p.jobPositions) ? p.jobPositions : [],
-        }))
-      : [];
+    if (!selectedCompanyId || !myPagesLoaded) return;
+    if (loadedForCompany.current === selectedCompanyId) return;
+    loadedForCompany.current = selectedCompanyId;
+    const raw = (myPages ?? []).filter((p) => p.companyId === selectedCompanyId);
+    const normalized: ApplicantPage[] = raw.map((p) => ({
+      _id: p._id,
+      name: String(p.name ?? '').trim(),
+      statuses: Array.isArray(p.statuses) ? p.statuses : [],
+      jobPositions: Array.isArray(p.jobPositions) ? p.jobPositions : [],
+    }));
     const initialIds = normalized.map(() => makeId());
     setPages(normalized);
     setPageIds(initialIds);
     setOriginalJson(JSON.stringify(normalized));
     setCollapsedPages(new Set(initialIds));
-  }, [selectedCompanyId]);
+  }, [selectedCompanyId, myPagesLoaded, myPages]);
 
+  // Mirror edits into the cached page lists so the sidebar previews them.
   const syncPagesToCache = useCallback((updatedPages: ApplicantPage[]) => {
     if (!selectedCompanyId) return;
-    queryClient.setQueryData<any[]>(companiesKeys.list(), (old: any[] | undefined) => {
-      if (!old) return old;
-      return old.map((company: any) => {
-        if (company._id !== selectedCompanyId) return company;
-        return {
-          ...company,
-          settings: {
-            ...company.settings,
-            applicantPages: updatedPages.map(p => ({
-              ...(p._id ? { _id: p._id } : {}),
-              name: p.name,
-              statuses: p.statuses,
-              ...(p.jobPositions?.length ? { jobPositions: p.jobPositions } : {}),
-            })),
-          },
-        };
-      });
-    });
+    const asMine: MyApplicantPage[] = updatedPages.map((p, i) => ({
+      _id: p._id || `draft-${i}`,
+      companyId: selectedCompanyId,
+      name: p.name,
+      statuses: p.statuses,
+      jobPositions: p.jobPositions ?? [],
+    }));
+    queryClient.setQueriesData<MyApplicantPage[]>({ queryKey: myApplicantPagesKeys.all }, (old) =>
+      old ? [...old.filter((p) => p.companyId !== selectedCompanyId), ...asMine] : old
+    );
   }, [selectedCompanyId, queryClient]);
 
   const hasChanges = useMemo(
@@ -552,11 +545,6 @@ export default function ApplicantPagesSettings({
       return;
     }
 
-    if (!settingsId) {
-      Swal.fire(t('commonValidation', 'settings'), t('applicantPages.validationSettingsNotFound', 'settings'), 'warning');
-      return;
-    }
-
     for (let i = 0; i < pages.length; i++) {
       if (!pages[i].name.trim()) {
         Swal.fire(t('commonValidation', 'settings'), t('applicantPages.validationPageMustHaveName', 'settings', { number: i + 1 }), 'warning');
@@ -573,10 +561,8 @@ export default function ApplicantPagesSettings({
     
     setIsSaving(true);
     try {
-      await updateMutation.mutateAsync({
-         settingsId,
-      applicantPages: payload,
-      });
+      await usersService.saveMyApplicantPages(selectedCompanyId, payload);
+      await queryClient.invalidateQueries({ queryKey: myApplicantPagesKeys.all });
       setOriginalJson(JSON.stringify(pages));
       Swal.fire({
         title: t('commonSaved', 'settings'),
