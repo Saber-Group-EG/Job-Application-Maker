@@ -22,6 +22,7 @@ import BulkMessageModal from '../../../../components/modals/BulkMessageModal';
 // import BulkWhatsAppModal from '../../../../components/modals/BulkWhatsAppModal';  // Bulk WhatsApp is hidden until the WhatsApp Business API is in use.
 import InterviewScheduleModal from '../../../../components/modals/InterviewScheduleModal';
 import StatusChangeModal from '../../../../components/modals/StatusChangeModal';
+import MergeDuplicatesModal from '../../../../components/modals/MergeDuplicatesModal';
 import CustomFilterModal from '../../../../components/modals/CustomFilterModal';
 import { FilterHeaderCell } from './components/FilterHeaderCell';
 import { StatusCell } from './components/StatusCell';
@@ -563,6 +564,11 @@ export default function Applicants({
       typeof roleName === 'string' && roleName.toLowerCase() === 'super admin'
     );
   }, [user?.roleId?.name]);
+
+  // Same permission as the merge button on the applicant page.
+  const canMergeDuplicates = isSuperAdmin || hasPermission('Applicant Management', 'write');
+  // Applicant whose duplicates are being merged (opened from the yellow icon).
+  const [mergeApplicantId, setMergeApplicantId] = useState<string | null>(null);
 
   const canRestore = useMemo(() => {
     if (isSuperAdmin) return true;
@@ -2223,11 +2229,25 @@ export default function Applicants({
               >
                 {orig?.fullName || '-'}
               </a>
-              {isDuplicated && (
-                <div title={t('hasDuplicateEntries', 'applicants')}>
-                  <AlertIcon className="h-4 w-4 text-yellow-600 dark:text-yellow-500" />
-                </div>
-              )}
+              {isDuplicated &&
+                (canMergeDuplicates ? (
+                  <button
+                    type="button"
+                    title={t('mergeDuplicatesHint', 'applicants')}
+                    aria-label={t('mergeDuplicatesHint', 'applicants')}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMergeApplicantId(orig._id);
+                    }}
+                    className="rounded p-0.5 transition hover:bg-yellow-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500 dark:hover:bg-yellow-500/15"
+                  >
+                    <AlertIcon className="h-4 w-4 text-yellow-600 dark:text-yellow-500" />
+                  </button>
+                ) : (
+                  <div title={t('hasDuplicateEntries', 'applicants')}>
+                    <AlertIcon className="h-4 w-4 text-yellow-600 dark:text-yellow-500" />
+                  </div>
+                ))}
             </div>
           );
         },
@@ -2940,6 +2960,7 @@ export default function Applicants({
       isTableLoading,
       genderOptions,
       showCompanyColumn,
+      canMergeDuplicates,
       companyOptions,
       jobOptions,
       jobPositionFilterOptions,
@@ -3537,6 +3558,12 @@ export default function Applicants({
                     setRowSelection({});
                     setShowBulkModal(false);
                   }}
+                />
+
+                <MergeDuplicatesModal
+                  isOpen={Boolean(mergeApplicantId)}
+                  onClose={() => setMergeApplicantId(null)}
+                  applicantId={mergeApplicantId || ''}
                 />
 
                 <StatusChangeModal

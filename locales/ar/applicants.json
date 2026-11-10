@@ -71,6 +71,7 @@
   "preview": "معاينة",
   "applicantPhotoPreview": "معاينة صورة المتقدم",
   "hasDuplicateEntries": "هذا المتقدم لديه إدخالات مكررة",
+  "mergeDuplicatesHint": "لديه طلبات مكررة. اضغط لدمجها",
   "clear": "مسح",
   "noOptionsAvailable": "لا توجد خيارات متاحة",
   "now": "الآن",

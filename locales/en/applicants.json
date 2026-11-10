@@ -71,6 +71,7 @@
   "preview": "Preview",
   "applicantPhotoPreview": "Applicant photo preview",
   "hasDuplicateEntries": "This applicant has duplicate entries",
+  "mergeDuplicatesHint": "Has duplicate applications. Click to merge them",
   "clear": "Clear",
   "noOptionsAvailable": "No options available",
   "now": "now",
