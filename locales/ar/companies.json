@@ -241,8 +241,6 @@
   "waEventHint_applicationReceived": "يؤكد استلام الطلب.",
   "waEvent_interviewScheduled": "تحديد موعد مقابلة",
   "waEventHint_interviewScheduled": "يرسل تاريخ المقابلة ووقتها.",
-  "waEvent_statusChanged": "تغيير الحالة",
-  "waEventHint_statusChanged": "يُبلغ المتقدم بحالته الجديدة.",
   "waEvent_offerSent": "إرسال عرض عمل",
   "waEventHint_offerSent": "يُبلغ المتقدم بوجود عرض في بريده الإلكتروني."
 }

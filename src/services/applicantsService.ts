@@ -598,11 +598,11 @@ class ApplicantsService {
     return this.request('post', `/applicants/${applicantId}/whatsapp`, body);
   }
 
-  // One of the applicant updates (application received, interview, status,
-  // offer), sent by hand from the platform WhatsApp number.
+  // One of the applicant updates (application received, interview, offer),
+  // sent by hand from the platform WhatsApp number.
   async sendWhatsAppUpdate(
     applicantId: string,
-    event: 'applicationReceived' | 'interviewScheduled' | 'statusChanged' | 'offerSent'
+    event: 'applicationReceived' | 'interviewScheduled' | 'offerSent'
   ): Promise<{ sent: boolean; externalId?: string }> {
     return this.request('post', `/applicants/${applicantId}/whatsapp/notify`, { event });
   }

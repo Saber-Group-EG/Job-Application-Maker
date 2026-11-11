@@ -218,7 +218,6 @@ export default function AdminPlansPage() {
     ...([
       'applicationReceived',
       'interviewScheduled',
-      'statusChanged',
       'offerSent',
     ] as const).map(
       (key): Row => ({

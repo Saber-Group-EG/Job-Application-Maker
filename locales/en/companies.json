@@ -241,8 +241,6 @@
   "waEventHint_applicationReceived": "Confirms we got the application.",
   "waEvent_interviewScheduled": "Interview scheduled",
   "waEventHint_interviewScheduled": "Gives the interview date and time.",
-  "waEvent_statusChanged": "Status changed",
-  "waEventHint_statusChanged": "Tells the applicant their new status.",
   "waEvent_offerSent": "Job offer sent",
   "waEventHint_offerSent": "Tells the applicant an offer is waiting in their email."
 }

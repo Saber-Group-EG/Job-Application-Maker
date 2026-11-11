@@ -147,7 +147,7 @@ export interface WhatsAppSender {
 }
 
 // Applicant updates sent from the platform WhatsApp number.
-export type WhatsAppEventKey = 'applicationReceived' | 'interviewScheduled' | 'statusChanged' | 'offerSent';
+export type WhatsAppEventKey = 'applicationReceived' | 'interviewScheduled' | 'offerSent';
 
 export interface WhatsAppEventSetting {
   key: WhatsAppEventKey;
@@ -349,7 +349,6 @@ export interface PlanFeatures {
   whatsapp: {
     applicationReceived: PlanBooleanFeature;
     interviewScheduled: PlanBooleanFeature;
-    statusChanged: PlanBooleanFeature;
     offerSent: PlanBooleanFeature;
   };
   ai: {
