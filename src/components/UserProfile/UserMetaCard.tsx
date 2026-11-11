@@ -38,7 +38,14 @@ export default function UserMetaCard() {
                 </p>
                 <div className="hidden h-3.5 w-px bg-gray-300 dark:bg-gray-700 xl:block"></div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {user?.location || (user as any)?.address || (user?.companies && (user.companies as any)[0]?.companyId?.name) || "-"}
+                  {user?.location ||
+                    (user as any)?.address ||
+                    (() => {
+                      // Company names are { en, ar } objects.
+                      const name = (user?.companies as any)?.[0]?.companyId?.name;
+                      return typeof name === "object" ? name?.en || name?.ar : name;
+                    })() ||
+                    "-"}
                 </p>
               </div>
             </div>

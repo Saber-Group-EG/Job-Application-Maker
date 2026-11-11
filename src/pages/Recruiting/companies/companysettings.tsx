@@ -7,7 +7,7 @@ import { useUndo } from "../../../context/UndoContext";
 import PageMeta from "../../../components/common/PageMeta";
 import { useCompanies, useUpdateMailSettings } from "../../../hooks/queries/useCompanies";
 import GmailConnectionCard from "./components/GmailConnectionCard";
-// import WhatsAppConnectionCard from "./components/WhatsAppConnectionCard";  // WhatsApp Business is hidden until we decide how to use it.
+import WhatsAppConnectionCard from "./components/WhatsAppConnectionCard";
 import EmailTemplates from "../Settings/MailTemplate";
 import { AlertTriangle, Building2, CheckCircle, Globe, Mail, PlusCircle, Save, ShieldCheck, Trash2 } from "lucide-react";
 import {
@@ -207,9 +207,7 @@ export default function CompanySettingsPage({ companyId: _companyId, onSaved, on
         defaultSenderName={selectedCompanyName !== t('noCompanySelected', 'companies') ? selectedCompanyName : undefined}
       />
 
-      {/* WhatsApp Business is hidden until we decide how to use it.
-      <WhatsAppConnectionCard companyId={selectedCompanyId ?? undefined} companyName={selectedCompanyName} />
-      */}
+      <WhatsAppConnectionCard companyId={selectedCompanyId ?? undefined} canEdit={canEdit} />
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
         <Card className="xl:col-span-4">

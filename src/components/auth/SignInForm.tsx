@@ -8,12 +8,29 @@ import Checkbox from '../form/input/Checkbox';
 import { useAuth } from '../../context/AuthContext';
 import { useLocale } from '../../context/LocaleContext';
 import { useVerify2FALoginMutation } from '../../hooks/queries/useAuth';
+import { authService } from '../../services/authService';
+import type { TwoFactorChannel } from '../../types/auth';
+import AuthMethodTabs, {
+  type AuthMethod,
+  codeInputClass,
+  errorBoxClass,
+  infoBoxClass,
+  primaryButtonClass,
+} from './AuthMethodTabs';
 
 export default function SignInForm() {
   const navigate = useNavigate();
   const { t, dir } = useLocale();
   const { login, error: authError, isLoading, isAuthenticated } = useAuth();
   const [twoFATempToken, setTwoFATempToken] = useState<string | null>(null);
+  const [twoFAChannel, setTwoFAChannel] = useState<TwoFactorChannel | null>(null);
+  const [method, setMethod] = useState<AuthMethod>('email');
+  // WhatsApp sign-in
+  const [phone, setPhone] = useState('');
+  const [waCode, setWaCode] = useState('');
+  const [waCodeSent, setWaCodeSent] = useState(false);
+  const [waBusy, setWaBusy] = useState(false);
+  const [waError, setWaError] = useState<string | null>(null);
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
   const [twoFACode, setTwoFACode] = useState('');
   const [twoFAError, setTwoFAError] = useState<string | null>(null);
@@ -57,6 +74,7 @@ export default function SignInForm() {
       const result = await login(email, password);
       if (result.type === '2fa') {
         setTwoFATempToken(result.tempToken);
+        setTwoFAChannel(result.channel ?? null);
         return;
       }
       setIsLoggingIn(false);
@@ -65,6 +83,42 @@ export default function SignInForm() {
       setIsLoggingIn(false);
     }
   };
+
+  async function sendWhatsAppCode() {
+    setWaError(null);
+    if (phone.replace(/\D/g, '').length < 8) {
+      setWaError(t('enterValidPhone', 'common'));
+      return;
+    }
+    setWaBusy(true);
+    try {
+      await authService.requestWhatsAppLoginCode(phone);
+      setWaCodeSent(true);
+      setWaCode('');
+    } catch (err) {
+      setWaError((err as Error)?.message || t('somethingWentWrong', 'common'));
+    } finally {
+      setWaBusy(false);
+    }
+  }
+
+  async function handleWhatsAppSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!waCodeSent) return sendWhatsAppCode();
+    setWaError(null);
+    if (waCode.length < 6) {
+      setWaError(t('enter6DigitCode', 'common'));
+      return;
+    }
+    setWaBusy(true);
+    try {
+      await authService.verifyWhatsAppLogin(phone, waCode);
+      window.location.href = '/home';
+    } catch (err) {
+      setWaBusy(false);
+      setWaError((err as Error)?.message || t('invalidVerificationCode', 'common'));
+    }
+  }
 
   async function handleVerify2FA(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -101,10 +155,14 @@ export default function SignInForm() {
           <div>
             <div className="mb-5 sm:mb-8">
               <h1 className="mb-2 font-semibold text-gray-800 text-title-sm dark:text-white/90 sm:text-title-md">
-                {t('checkYourEmail', 'common')}
+                {twoFAChannel?.method === 'whatsapp'
+                  ? t('checkYourWhatsApp', 'common')
+                  : t('checkYourEmail', 'common')}
               </h1>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                {t('checkYourEmailDesc', 'common')}
+                {twoFAChannel?.method === 'whatsapp'
+                  ? t('checkYourWhatsAppDesc', 'common').replace('{to}', twoFAChannel.to)
+                  : t('checkYourEmailDesc', 'common')}
               </p>
             </div>
 
@@ -151,6 +209,7 @@ export default function SignInForm() {
                     type="button"
                     onClick={() => {
                       setTwoFATempToken(null);
+                      setTwoFAChannel(null);
                       setTwoFACode('');
                       setTwoFAError(null);
                       setIsLoggingIn(false);
@@ -182,6 +241,71 @@ export default function SignInForm() {
             </p>
           </div>
           <div>
+            <AuthMethodTabs value={method} onChange={setMethod} />
+
+            {method === 'whatsapp' ? (
+              <form onSubmit={handleWhatsAppSubmit}>
+                {waError && <div className={errorBoxClass}>{waError}</div>}
+                {waCodeSent && !waError && (
+                  <div className={infoBoxClass}>{t('whatsAppCodeSentHint', 'common')}</div>
+                )}
+                <div className="space-y-6">
+                  <div>
+                    <Label>
+                      {t('whatsAppNumber', 'common')} <span className="text-error-500">*</span>
+                    </Label>
+                    <Input
+                      type="tel"
+                      placeholder="+20 10 1234 5678"
+                      value={phone}
+                      onChange={(e) => {
+                        setPhone(e.target.value);
+                        setWaCodeSent(false);
+                      }}
+                      disabled={waBusy}
+                    />
+                    <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                      {t('whatsAppLoginHint', 'common')}
+                    </p>
+                  </div>
+                  {waCodeSent && (
+                    <div>
+                      <Label htmlFor="waCode">
+                        {t('enter6DigitCode', 'common')} <span className="text-error-500">*</span>
+                      </Label>
+                      <input
+                        id="waCode"
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        maxLength={6}
+                        placeholder="000000"
+                        value={waCode}
+                        onChange={(e) => setWaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        className={codeInputClass}
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        onClick={sendWhatsAppCode}
+                        disabled={waBusy}
+                        className="mt-2 text-sm text-brand-500 hover:text-brand-600 disabled:opacity-50 dark:text-brand-400"
+                      >
+                        {t('resendCode', 'common')}
+                      </button>
+                    </div>
+                  )}
+                  <button type="submit" className={primaryButtonClass} disabled={waBusy}>
+                    {waBusy
+                      ? t('submitting', 'common')
+                      : waCodeSent
+                        ? t('signIn', 'common')
+                        : t('sendCodeOnWhatsApp', 'common')}
+                  </button>
+                </div>
+              </form>
+            ) : (
+            <>
             {/* Error Message */}
             {displayError && (
               <div className="p-4 mb-5 text-sm text-red-700 bg-red-100 border border-red-300 rounded-lg dark:bg-red-900/20 dark:border-red-800 dark:text-red-400">
@@ -256,6 +380,8 @@ export default function SignInForm() {
                 </div>
               </div>
             </form>
+            </>
+            )}
           </div>
         </div>
       </div>

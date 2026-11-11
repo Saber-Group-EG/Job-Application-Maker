@@ -74,7 +74,7 @@ export default function BulkWhatsAppModal({ isOpen, onClose, applicants, company
   useEffect(() => {
     if (status?.connected) {
       setMode('auto');
-      setSenderId((prev) => prev || status.defaultSenderId || status.senders[0]?.phoneNumberId || '');
+      setSenderId((prev) => prev || status.sender?.phoneNumberId || '');
     } else if (status) {
       setMode('manual');
     }
@@ -196,7 +196,7 @@ export default function BulkWhatsAppModal({ isOpen, onClose, applicants, company
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-200">{t('bulkWhatsappFrom', 'modals')}</label>
                 <select value={senderId} onChange={(e) => setSenderId(e.target.value)} disabled={running} className={selectClass}>
-                  {status!.senders.map((s) => (
+                  {(status!.sender ? [status!.sender] : []).map((s) => (
                     <option key={s.phoneNumberId} value={s.phoneNumberId}>
                       {s.displayPhone}{s.verifiedName ? ` — ${s.verifiedName}` : ''}
                     </option>

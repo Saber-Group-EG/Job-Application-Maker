@@ -146,34 +146,35 @@ export interface WhatsAppSender {
   qualityRating?: string | null;
 }
 
-// The app's WhatsApp Business account has many numbers; each is assigned to one
-// company (it carries that company's display name). A company only sees its own.
-// Configured on the server (environment variables), never in the UI.
+// Applicant updates sent from the platform WhatsApp number.
+export type WhatsAppEventKey = 'applicationReceived' | 'interviewScheduled' | 'statusChanged' | 'offerSent';
+
+export interface WhatsAppEventSetting {
+  key: WhatsAppEventKey;
+  label: string;
+  // The company's plan includes this update.
+  allowedByPlan: boolean;
+  // 'auto' sends when the event happens; 'manual' only when someone presses send.
+  mode: 'auto' | 'manual';
+}
+
+// The platform's single WhatsApp number ("SG Hiring"), configured on the server.
 export interface WhatsAppStatus {
   // False until the server has its WhatsApp credentials.
   configured: boolean;
-  // True when this company has at least one number it can send from.
+  // True when the platform number can send.
   connected: boolean;
-  accountName: string | null;
-  senders: WhatsAppSender[];
-  defaultSenderId: string | null;
+  sender: WhatsAppSender | null;
   // True once the app secret and verify token are set, so replies/status can arrive.
   webhookReady: boolean;
-  // Platform admin: may assign numbers to companies.
-  canManage: boolean;
+  // Per-company plan availability of the applicant updates (when asked for a company).
+  events: WhatsAppEventSetting[];
   error: string | null;
 }
 
-// Platform admin view of every number on the account and who owns it.
-export interface WhatsAppNumber extends WhatsAppSender {
-  assignedTo: { companyId: string; companyName: string | null } | null;
-}
-
-export interface WhatsAppNumbersOverview {
+export interface WhatsAppNotificationSettings {
   configured: boolean;
-  accountName?: string;
-  webhook: { url: string; ready: boolean };
-  numbers: WhatsAppNumber[];
+  events: WhatsAppEventSetting[];
 }
 
 export interface WhatsAppTemplate {
@@ -344,6 +345,12 @@ export interface PlanFeatures {
   users: {
     total: PlanLimitFeature;
     departmentLevelAccess: PlanBooleanFeature;
+  };
+  whatsapp: {
+    applicationReceived: PlanBooleanFeature;
+    interviewScheduled: PlanBooleanFeature;
+    statusChanged: PlanBooleanFeature;
+    offerSent: PlanBooleanFeature;
   };
   ai: {
     jobFieldGenerator: PlanBooleanFeature;

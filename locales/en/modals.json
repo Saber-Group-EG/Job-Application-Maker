@@ -437,5 +437,10 @@
   "waBizSend": "Send on WhatsApp",
   "waBizSent": "WhatsApp message sent",
   "waBizReply": "Reply",
-  "waBizReplyHint": "The applicant wrote to you in the last 24 hours, so you can reply with free text."
+  "waBizReplyHint": "The applicant wrote to you in the last 24 hours, so you can reply with free text.",
+  "waModeSystem": "Send update from SG Hiring",
+  "waUpdateIntro": "Send one of these updates to the applicant on WhatsApp from {name}.",
+  "waNoPhone": "This applicant has no valid phone number.",
+  "waSendUpdate": "Send update",
+  "waUpdateSent": "Update sent on WhatsApp"
 }

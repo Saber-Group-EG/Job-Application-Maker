@@ -18,7 +18,7 @@ import RichTextEditor from '../form/RichTextEditor';
 import { useConnectedGmailSender } from '../../hooks/useConnectedGmailSender';
 import { whatsAppLink } from '../../utils/whatsapp';
 import { useWhatsAppStatus } from '../../hooks/queries/useCompanies';
-import WhatsAppBusinessForm from './WhatsAppBusinessForm';
+import WhatsAppUpdateForm from './WhatsAppUpdateForm';
 import ModalDraft from './ModalDraft';
 import { htmlHasText } from './htmlHasText';
 import type { FormDraft } from '../../hooks/useFormDraft';
@@ -116,10 +116,10 @@ const MessageModal = ({
     (applicant && (applicant.company || applicant.companyObj)) ||
     null;
 
-  // With the app's WhatsApp Business connected, WhatsApp messages are sent from
-  // the system; otherwise (or by choice) they open the user's own WhatsApp.
-  // WhatsApp Business is hidden until we decide how to use it. Flip this to bring back sending from the system.
-  const WHATSAPP_BUSINESS_ENABLED = false;
+  // With the platform WhatsApp number connected, an applicant update can be sent
+  // from the system ("SG Hiring"); otherwise (or by choice) WhatsApp opens the
+  // user's own WhatsApp with a free-text message.
+  const WHATSAPP_BUSINESS_ENABLED = true;
   const [waMode, setWaMode] = useState<'business' | 'chat'>('business');
   const { data: waStatus } = useWhatsAppStatus(
     (company && (company._id || company.id)) || companyIdForQuery,
@@ -1034,14 +1034,14 @@ const MessageModal = ({
                   onClick={() => setWaMode(m)}
                   className={`rounded-md px-3 py-1.5 ${waMode === m ? 'bg-brand-600 text-white' : 'text-slate-600 dark:text-slate-300'}`}
                 >
-                  {m === 'business' ? t('bulkWhatsappModeAuto', 'modals') : t('bulkWhatsappModeManual', 'modals')}
+                  {m === 'business' ? t('waModeSystem', 'modals') : t('bulkWhatsappModeManual', 'modals')}
                 </button>
               ))}
             </div>
           )}
 
           {useBusinessWhatsApp ? (
-            <WhatsAppBusinessForm
+            <WhatsAppUpdateForm
               applicantId={id}
               applicant={applicant}
               companyId={(company && (company._id || company.id)) || companyIdForQuery}

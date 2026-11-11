@@ -61,5 +61,10 @@
   "sendReceiveDisabled": "Disabled",
   "sendReceiveSendOnly": "Send only",
   "sendReceiveSendReceive": "Send & receive replies",
-  "featureInterviewReview": "Interview Recording & AI Review"
+  "featureInterviewReview": "Interview Recording & AI Review",
+  "sectionWhatsApp": "WhatsApp updates",
+  "whatsAppApplicationReceived": "Application received",
+  "whatsAppInterviewScheduled": "Interview scheduled",
+  "whatsAppStatusChanged": "Status changed",
+  "whatsAppOfferSent": "Job offer sent"
 }

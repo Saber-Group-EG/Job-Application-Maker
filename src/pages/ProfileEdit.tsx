@@ -6,6 +6,7 @@ import { useChangePasswordMutation, useSetup2FAMutation, useVerify2FASetupMutati
 import { useUpdateProfile } from "../hooks/queries/useUsers";
 import { useLocale } from "../context/LocaleContext";
 import Swal from "../utils/swal";
+import WhatsAppPhoneCard from "../components/profile/WhatsAppPhoneCard";
 import { KeyRound, Loader2, ShieldCheck, UserRound } from "lucide-react";
 import {
   Badge,
@@ -335,6 +336,8 @@ export default function ProfileEdit() {
               />
             </div>
           </Card>
+
+          <WhatsAppPhoneCard twoFAEnabled={twoFAEnabled} />
         </div>
       </PageShell>
 

@@ -59,8 +59,10 @@ export interface User {
   location?: string;
   address?: string;
   phone?: string;
+  phoneVerified?: boolean;
   bio?: string;
   twoFactorEnabled?: boolean;
+  twoFactorMethod?: 'email' | 'whatsapp';
   country?: string;
   city?: string;
   state?: string;
@@ -129,7 +131,10 @@ export interface LoginResponse {
 
 export type LoginResult =
   | { type: 'success'; user: User }
-  | { type: '2fa'; tempToken: string };
+  | { type: '2fa'; tempToken: string; channel?: TwoFactorChannel };
+
+// Where a 2FA code was sent ("to" is masked for WhatsApp).
+export type TwoFactorChannel = { method: 'email' | 'whatsapp'; to: string };
 
 // API Error class
 export class ApiError extends Error {

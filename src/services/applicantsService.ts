@@ -585,7 +585,7 @@ class ApplicantsService {
     return this.request('delete', this.recordingUrl(applicantId, interviewId));
   }
 
-  // Sends through the company's WhatsApp Business account (not click-to-chat).
+  // Sends from the platform WhatsApp number (not click-to-chat).
   async sendWhatsApp(
     applicantId: string,
     body: {
@@ -596,6 +596,15 @@ class ApplicantsService {
     }
   ): Promise<{ externalId: string | null; from: string }> {
     return this.request('post', `/applicants/${applicantId}/whatsapp`, body);
+  }
+
+  // One of the applicant updates (application received, interview, status,
+  // offer), sent by hand from the platform WhatsApp number.
+  async sendWhatsAppUpdate(
+    applicantId: string,
+    event: 'applicationReceived' | 'interviewScheduled' | 'statusChanged' | 'offerSent'
+  ): Promise<{ sent: boolean; externalId?: string }> {
+    return this.request('post', `/applicants/${applicantId}/whatsapp/notify`, { event });
   }
 
   async getDuplicates(applicantId: string): Promise<

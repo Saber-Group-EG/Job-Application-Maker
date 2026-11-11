@@ -8,7 +8,8 @@ import type {
   MailSettings,
   GmailStatus,
   WhatsAppStatus,
-  WhatsAppNumbersOverview,
+  WhatsAppNotificationSettings,
+  WhatsAppEventKey,
   WhatsAppTemplate,
   EmailTemplate,
   CompanySet,
@@ -291,18 +292,24 @@ class CompaniesService {
     );
   }
 
-  // ===== WhatsApp Business (one account for the app; numbers belong to companies) =====
-  async getWhatsAppStatus(companyId: string): Promise<WhatsAppStatus> {
-    return this.request<WhatsAppStatus>('get', `/whatsapp/status?companyId=${encodeURIComponent(companyId)}`);
+  // ===== WhatsApp (one platform number for the whole app) =====
+  async getWhatsAppStatus(companyId?: string): Promise<WhatsAppStatus> {
+    const q = companyId ? `?companyId=${encodeURIComponent(companyId)}` : '';
+    return this.request<WhatsAppStatus>('get', `/whatsapp/status${q}`);
   }
 
-  // Platform admin only.
-  async getWhatsAppNumbers(refresh = false): Promise<WhatsAppNumbersOverview> {
-    return this.request<WhatsAppNumbersOverview>('get', `/whatsapp/numbers${refresh ? '?refresh=1' : ''}`);
+  async getWhatsAppNotifications(companyId: string): Promise<WhatsAppNotificationSettings> {
+    return this.request<WhatsAppNotificationSettings>(
+      'get',
+      `/whatsapp/notifications?companyId=${encodeURIComponent(companyId)}`
+    );
   }
 
-  async assignWhatsAppNumber(phoneNumberId: string, companyId: string | null): Promise<void> {
-    await this.request('put', `/whatsapp/numbers/${encodeURIComponent(phoneNumberId)}`, { companyId });
+  async updateWhatsAppNotifications(
+    companyId: string,
+    modes: Partial<Record<WhatsAppEventKey, 'auto' | 'manual'>>
+  ): Promise<WhatsAppNotificationSettings> {
+    return this.request<WhatsAppNotificationSettings>('put', '/whatsapp/notifications', { companyId, modes });
   }
 
   async getWhatsAppTemplates(): Promise<WhatsAppTemplate[]> {

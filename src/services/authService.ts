@@ -154,7 +154,7 @@ class AuthService {
       const deepBody = body.data || body;
 
       if (deepBody.twoFactorRequired) {
-        return { type: '2fa', tempToken: deepBody.tempToken };
+        return { type: '2fa', tempToken: deepBody.tempToken, channel: deepBody.channel };
       }
 
       const { accessToken, refreshToken } = this.extractTokens(response);
@@ -229,6 +229,39 @@ class AuthService {
     const { accessToken, refreshToken } = this.extractTokens(response);
     tokenStorage.setTokens(accessToken, refreshToken);
     return response.data?.user || response.user;
+  }
+
+  // ── WhatsApp (platform number) ──────────────────────────────
+  async requestWhatsAppLoginCode(phone: string): Promise<void> {
+    await this.api.post("/auth/whatsapp/request-code", { phone }, false);
+  }
+
+  async verifyWhatsAppLogin(phone: string, code: string): Promise<void> {
+    const response = await this.api.post<any>("/auth/whatsapp/verify", { phone, code }, false);
+    const { accessToken, refreshToken } = this.extractTokens(response);
+    tokenStorage.setTokens(accessToken, refreshToken);
+  }
+
+  async forgotPasswordWhatsApp(phone: string): Promise<void> {
+    await this.api.post("/auth/forgot-password/whatsapp", { phone }, false);
+  }
+
+  async resetPasswordWhatsApp(data: { phone: string; code: string; newPassword: string }): Promise<void> {
+    await this.api.post("/auth/reset-password/whatsapp", data, false);
+  }
+
+  async sendPhoneCode(phone?: string): Promise<{ to: string; sent: boolean }> {
+    const res = await this.api.post<any>("/auth/phone/send-code", phone ? { phone } : {}, true);
+    return res.data;
+  }
+
+  async verifyPhone(code: string): Promise<User> {
+    const res = await this.api.post<any>("/auth/phone/verify", { code }, true);
+    return res.data;
+  }
+
+  async setTwoFactorMethod(method: 'email' | 'whatsapp'): Promise<void> {
+    await this.api.put("/auth/2fa/method", { method }, true);
   }
 
   logout(): void {

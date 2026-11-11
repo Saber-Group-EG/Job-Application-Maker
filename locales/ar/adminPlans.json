@@ -61,5 +61,10 @@
   "sendReceiveDisabled": "معطّل",
   "sendReceiveSendOnly": "إرسال فقط",
   "sendReceiveSendReceive": "إرسال واستقبال الردود",
-  "featureInterviewReview": "تسجيل المقابلات ومراجعتها بالذكاء الاصطناعي"
+  "featureInterviewReview": "تسجيل المقابلات ومراجعتها بالذكاء الاصطناعي",
+  "sectionWhatsApp": "تحديثات واتساب",
+  "whatsAppApplicationReceived": "استلام الطلب",
+  "whatsAppInterviewScheduled": "تحديد موعد مقابلة",
+  "whatsAppStatusChanged": "تغيير الحالة",
+  "whatsAppOfferSent": "إرسال عرض عمل"
 }

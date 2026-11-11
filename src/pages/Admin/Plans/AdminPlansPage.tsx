@@ -214,6 +214,19 @@ export default function AdminPlansPage() {
       label: t('usersDepartmentLevelAccess', 'adminPlans'),
       path: 'users.departmentLevelAccess',
     },
+    { kind: 'section', label: t('sectionWhatsApp', 'adminPlans') },
+    ...([
+      'applicationReceived',
+      'interviewScheduled',
+      'statusChanged',
+      'offerSent',
+    ] as const).map(
+      (key): Row => ({
+        kind: 'boolean',
+        label: t(`whatsApp${key.charAt(0).toUpperCase()}${key.slice(1)}`, 'adminPlans'),
+        path: `whatsapp.${key}`,
+      })
+    ),
     { kind: 'section', label: t('sectionAi', 'adminPlans') },
     ...([
       'jobFieldGenerator',

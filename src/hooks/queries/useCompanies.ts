@@ -22,6 +22,7 @@ import type {
   SectionTemplate,
   AiFeatureToggle,
   GmailStatus,
+  WhatsAppEventKey,
 } from '../../types/companies';
 import type { Applicant } from '../../types/applicants';
 import { useAuth } from '../../context/AuthContext';
@@ -45,7 +46,7 @@ export const companiesKeys = {
   gmailStatus: (settingsId: string) =>
     [...companiesKeys.all, 'gmailStatus', settingsId] as const,
   whatsappStatus: (companyId: string) => [...companiesKeys.all, 'whatsappStatus', companyId] as const,
-  whatsappNumbers: () => [...companiesKeys.all, 'whatsappNumbers'] as const,
+  whatsappNotifications: (companyId: string) => [...companiesKeys.all, 'whatsappNotifications', companyId] as const,
   whatsappTemplates: () => [...companiesKeys.all, 'whatsappTemplates'] as const,
   interviewSettings: (companyId: string) =>
     [...companiesKeys.settings(companyId), 'interview'] as const,
@@ -1290,8 +1291,8 @@ function showErrorToast(
 }
 
 
-// ===== WhatsApp Business (one account for the app; numbers belong to companies) =====
-// What this company can send from: only the numbers assigned to it.
+// ===== WhatsApp (one platform number for the whole app) =====
+// The platform number's status, plus which updates this company's plan allows.
 export function useWhatsAppStatus(companyId?: string, enabled = true) {
   return useQuery({
     queryKey: companiesKeys.whatsappStatus(companyId ?? ''),
@@ -1312,22 +1313,22 @@ export function useWhatsAppTemplates(enabled = true) {
 }
 
 // Platform admin: every number on the account and which company owns it.
-export function useWhatsAppNumbers(enabled = true) {
+export function useWhatsAppNotifications(companyId?: string, enabled = true) {
   return useQuery({
-    queryKey: companiesKeys.whatsappNumbers(),
-    queryFn: () => companiesService.getWhatsAppNumbers(),
-    enabled,
-    staleTime: 30 * 1000,
+    queryKey: companiesKeys.whatsappNotifications(companyId ?? ''),
+    queryFn: () => companiesService.getWhatsAppNotifications(companyId!),
+    enabled: enabled && Boolean(companyId),
+    staleTime: 60 * 1000,
   });
 }
 
-export function useAssignWhatsAppNumber() {
+export function useUpdateWhatsAppNotifications() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ phoneNumberId, companyId }: { phoneNumberId: string; companyId: string | null }) =>
-      companiesService.assignWhatsAppNumber(phoneNumberId, companyId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: companiesKeys.whatsappNumbers() });
+    mutationFn: ({ companyId, modes }: { companyId: string; modes: Partial<Record<WhatsAppEventKey, 'auto' | 'manual'>> }) =>
+      companiesService.updateWhatsAppNotifications(companyId, modes),
+    onSuccess: (data, { companyId }) => {
+      queryClient.setQueryData(companiesKeys.whatsappNotifications(companyId), data);
       queryClient.invalidateQueries({ queryKey: [...companiesKeys.all, 'whatsappStatus'] });
     },
   });
