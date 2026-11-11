@@ -470,5 +470,7 @@
   "whatsAppCodeSentTo": "Code sent to {to} on WhatsApp",
   "change": "Change",
   "verify": "Verify",
-  "send2FACodesBy": "Send two-factor codes by"
+  "send2FACodesBy": "Send two-factor codes by",
+  "whatsAppCodeRecent": "A code was sent less than a minute ago. Use that code, or wait a moment and press Resend.",
+  "phoneCountry": "Country code"
 }

@@ -10,6 +10,7 @@ import { useLocale } from '../../context/LocaleContext';
 import { useVerify2FALoginMutation } from '../../hooks/queries/useAuth';
 import { authService } from '../../services/authService';
 import type { TwoFactorChannel } from '../../types/auth';
+import CountryPhoneInput from '../form/CountryPhoneInput';
 import AuthMethodTabs, {
   type AuthMethod,
   codeInputClass,
@@ -254,12 +255,9 @@ export default function SignInForm() {
                     <Label>
                       {t('whatsAppNumber', 'common')} <span className="text-error-500">*</span>
                     </Label>
-                    <Input
-                      type="tel"
-                      placeholder="+20 10 1234 5678"
-                      value={phone}
-                      onChange={(e) => {
-                        setPhone(e.target.value);
+                    <CountryPhoneInput
+                      onChange={(v) => {
+                        setPhone(v);
                         setWaCodeSent(false);
                       }}
                       disabled={waBusy}

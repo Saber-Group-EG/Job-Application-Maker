@@ -6,6 +6,11 @@ import { useLocale } from "../../context/LocaleContext";
 import { authService } from "../../services/authService";
 import { authKeys } from "../../hooks/queries/useAuth";
 import { Badge, Button, Card, Field, Segmented, inputClass } from "../ui/kit";
+import CountryPhoneInput, { toInternational } from "../form/CountryPhoneInput";
+
+// Stored numbers may be local ("0115…"); the picker starts on Egypt for those.
+const toInternationalSafe = (raw: string) =>
+  raw.trim().startsWith("+") ? raw.trim() : toInternational("EG", raw);
 
 // Profile card: prove the phone number is yours with a WhatsApp code, then use
 // it to sign in, reset the password and (optionally) receive 2FA codes.
@@ -16,7 +21,7 @@ export default function WhatsAppPhoneCard({ twoFAEnabled }: { twoFAEnabled: bool
   const verified = Boolean(user?.phoneVerified && user?.phone);
 
   const [editing, setEditing] = useState(false);
-  const [phone, setPhone] = useState(user?.phone || "");
+  const [phone, setPhone] = useState(() => (user?.phone ? toInternationalSafe(user.phone) : ""));
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
@@ -32,7 +37,10 @@ export default function WhatsAppPhoneCard({ twoFAEnabled }: { twoFAEnabled: bool
       const res = await authService.sendPhoneCode(phone);
       setSentTo(res.to);
       setCode("");
+      // A code went out moments ago: nothing new was sent, use that one.
+      if (!res.sent) setError(t("whatsAppCodeRecent", "common"));
     } catch (err) {
+      setSentTo(null);
       setError((err as Error).message);
     } finally {
       setBusy(false);
@@ -101,18 +109,14 @@ export default function WhatsAppPhoneCard({ twoFAEnabled }: { twoFAEnabled: bool
               <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
                 <div className="flex-1">
                   <Field label={t("whatsAppNumber", "common")} htmlFor="waPhone">
-                    <input
+                    <CountryPhoneInput
                       id="waPhone"
-                      type="tel"
-                      dir="ltr"
-                      autoComplete="tel"
-                      value={phone}
-                      onChange={(e) => {
-                        setPhone(e.target.value);
+                      defaultValue={user?.phone}
+                      onChange={(v) => {
+                        setPhone(v);
                         setSentTo(null);
                       }}
-                      placeholder="+20 10 1234 5678"
-                      className={inputClass}
+                      className="!h-10 !rounded-lg !border-slate-300 dark:!border-slate-600"
                     />
                   </Field>
                 </div>

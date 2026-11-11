@@ -5,6 +5,7 @@ import Input from "../form/input/InputField";
 import { useForgotPasswordMutation } from "../../hooks/queries/useAuth";
 import { useLocale } from "../../context/LocaleContext";
 import { authService } from "../../services/authService";
+import CountryPhoneInput from "../form/CountryPhoneInput";
 import AuthMethodTabs, {
   type AuthMethod,
   codeInputClass,
@@ -121,12 +122,9 @@ export default function ForgotPasswordForm() {
                   <Label>
                     {t("whatsAppNumber", "common")} <span className="text-error-500">*</span>
                   </Label>
-                  <Input
-                    type="tel"
-                    placeholder="+20 10 1234 5678"
-                    value={phone}
-                    onChange={(e) => {
-                      setPhone(e.target.value);
+                  <CountryPhoneInput
+                    onChange={(v) => {
+                      setPhone(v);
                       setCodeSent(false);
                     }}
                     disabled={busy}
