@@ -1,7 +1,7 @@
 // services/applicantsService.ts
 import axios from '../config/axios';
 import { getErrorMessage } from '../utils/errorHandler';
-import Swal from '../utils/swal';
+import { warnWhatsAppNotSent } from '../utils/whatsappWarnings';
 import { jobPositionsService } from './jobPositionsService';
 import { normalizeChoicesToServer } from '../types/companies';
 import type {
@@ -134,22 +134,7 @@ function extractApplicantFromPayload(payload: unknown, applicantId: string): Can
 function reportWhatsAppFailures(result: unknown) {
   const failed = (result as { whatsappFailed?: Array<{ message?: string }> } | null)?.whatsappFailed;
   if (!Array.isArray(failed) || failed.length === 0) return;
-  const ar = document.documentElement.lang === 'ar';
-  const reasons = [...new Set(failed.map((f) => f.message).filter(Boolean))].join(' · ');
-  const show = () =>
-    void Swal.fire({
-      icon: 'warning',
-      title: ar ? 'تم حفظ المقابلة، لكن لم يُرسل تحديث واتساب' : "Interview saved, but the WhatsApp update wasn't sent",
-      text: reasons,
-    });
-  // The page shows its own "scheduled" popup right after this returns, and only
-  // one popup is shown at a time: wait for it to close, then warn.
-  let tries = 0;
-  const waitTurn = () => {
-    if (Swal.isVisible() && tries++ < 120) setTimeout(waitTurn, 500);
-    else show();
-  };
-  setTimeout(waitTurn, 400);
+  warnWhatsAppNotSent('interview', failed.map((f) => f.message));
 }
 
 class ApplicantsService {

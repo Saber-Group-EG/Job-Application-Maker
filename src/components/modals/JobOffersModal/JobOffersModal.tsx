@@ -23,6 +23,9 @@ import {
 import { useApplicant } from '../../../hooks/queries/useApplicants';
 import { useCompanies } from '../../../hooks/queries';
 import Swal from '../../../utils/swal';
+import { useWhatsAppStatus } from '../../../hooks/queries/useCompanies';
+import { applicantsService } from '../../../services/applicantsService';
+import { warnWhatsAppNotSent } from '../../../utils/whatsappWarnings';
 import { ApplicantSelect } from '../../form/ApplicantSelection';
 import { TemplateSelector } from './TemplateSelector';
 import {
@@ -307,6 +310,26 @@ export default function JobOfferEditor({
     applicantObjects,
     jobPositionId,
   });
+
+  // "Also send a WhatsApp update": the approved "offer sent" template from the
+  // platform number (SG Hiring). Only with "send as email", since it tells the
+  // applicant to check their email. Starts ticked when the company is on Automatic.
+  const waCompanyId: string =
+    Object.keys(groupedByCompany)[0] ||
+    form.selectedApplicantObject?.jobPositionId?.companyId?._id ||
+    (Array.isArray(companyId) ? companyId[0] : companyId) ||
+    (typeof propCompany === 'string' ? propCompany : (propCompany as { _id?: string } | undefined)?._id) ||
+    '';
+  const { data: waStatus } = useWhatsAppStatus(waCompanyId, mode === 'offer' && Boolean(waCompanyId));
+  const waOfferEvent = waStatus?.events?.find((ev) => ev.key === 'offerSent');
+  const whatsAppOffered = Boolean(waStatus?.connected && waOfferEvent);
+  const [notifyWhatsApp, setNotifyWhatsApp] = useState(false);
+  const notifyWhatsAppTouched = useRef(false);
+  useEffect(() => {
+    if (!notifyWhatsAppTouched.current && waOfferEvent) {
+      setNotifyWhatsApp(waOfferEvent.allowedByPlan && waOfferEvent.mode === 'auto');
+    }
+  }, [waOfferEvent]);
 
   const isSaving =
     createMutation.isPending ||
@@ -673,6 +696,10 @@ export default function JobOfferEditor({
       return;
     }
     const willSendEmail = form.sendAsEmail && mode === 'offer';
+    // Decided here and sent after saving; the server then leaves the offer alone.
+    const whatsAppChoice = willSendEmail && whatsAppOffered;
+    const sendWhatsApp = whatsAppChoice && notifyWhatsApp && Boolean(waOfferEvent?.allowedByPlan);
+    let savedApplicantIds: string[] = [];
 
     if (willSendEmail) {
       const missingSender = Object.keys(groupedByCompany).find(
@@ -746,11 +773,14 @@ export default function JobOfferEditor({
             lastEmailSentAt: now,
           }
         : {}),
+      ...(whatsAppChoice ? { notifyWhatsApp: sendWhatsApp } : {}),
     };
 
     try {
       if (editing) {
         await updateMutation.mutateAsync({ id: editing._id, payload: base });
+        const editedApplicant = (editing as { applicantId?: string | { _id?: string } | null }).applicantId;
+        savedApplicantIds = [typeof editedApplicant === 'string' ? editedApplicant : editedApplicant?._id || ''];
         if (willSendEmail) await sendSingleOfferEmail();
       } else if (form.isBulk && form.applicantIds?.length) {
         await bulkMutation.mutateAsync({
@@ -783,6 +813,7 @@ export default function JobOfferEditor({
             };
           }),
         });
+        savedApplicantIds = applicantObjects!.map((a) => a._id!);
         if (willSendEmail) await sendBulkOfferEmail();
       } else {
         const singleApplicantId = applicantId ?? form.applicantId;
@@ -796,10 +827,23 @@ export default function JobOfferEditor({
             ? { applicantId: singleApplicantId }
             : {}),
         });
+        savedApplicantIds = singleApplicantId ? [singleApplicantId] : [];
         if (willSendEmail) await sendSingleOfferEmail();
       }
       offerDraft.clear();
       onClose();
+      if (sendWhatsApp) {
+        // The offers are saved; send the WhatsApp updates and only report the misses.
+        const ids = savedApplicantIds.filter(Boolean);
+        void Promise.allSettled(ids.map((id) => applicantsService.sendWhatsAppUpdate(id, 'offerSent'))).then(
+          (results) => {
+            const reasons = results
+              .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+              .map((r) => (r.reason as { message?: string })?.message);
+            if (reasons.length) warnWhatsAppNotSent('offer', reasons);
+          }
+        );
+      }
     } catch {
       // errors handled inside individual mutation hooks
     }
@@ -1080,6 +1124,34 @@ export default function JobOfferEditor({
                 onLangChange={(lang) => set('emailLang', lang)}
               />
             </div>
+          )}
+          {form.sendAsEmail && whatsAppOffered && waOfferEvent && (
+            <label
+              className={`mt-3 flex items-start gap-3 rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-800 ${
+                waOfferEvent.allowedByPlan ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={notifyWhatsApp && waOfferEvent.allowedByPlan}
+                disabled={!waOfferEvent.allowedByPlan}
+                onChange={(e) => {
+                  notifyWhatsAppTouched.current = true;
+                  setNotifyWhatsApp(e.target.checked);
+                }}
+                className="mt-0.5 size-4 shrink-0 accent-brand-600"
+              />
+              <span className="min-w-0">
+                <span className="block text-sm font-medium text-slate-800 dark:text-slate-100">
+                  {t('notifyWhatsAppOffer', 'modals')}
+                </span>
+                <span className="block text-xs text-slate-500 dark:text-slate-400">
+                  {waOfferEvent.allowedByPlan
+                    ? t('notifyWhatsAppOfferHint', 'modals')
+                    : t('waNotOnPlan', 'companies')}
+                </span>
+              </span>
+            </label>
           )}
         </SideCard>
       )}

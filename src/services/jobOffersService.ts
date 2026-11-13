@@ -128,6 +128,9 @@ export type CreateJobOfferPayload = {
   sections?: Omit<OfferSection, '_id'>[];
   notes?: BilingualField | null;
   expiresAt?: string | null;
+  // With status 'sent': true/false = the form sends (or skips) the WhatsApp
+  // "offer sent" update itself; unset = the company's Automatic/Manual setting.
+  notifyWhatsApp?: boolean;
 };
 
 export type UpdateJobOfferPayload = Partial<CreateJobOfferPayload> & {

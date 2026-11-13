@@ -444,5 +444,7 @@
   "waSendUpdate": "Send update",
   "waUpdateSent": "Update sent on WhatsApp",
   "notifyWhatsAppInterview": "Also send a WhatsApp update from SG Hiring",
-  "notifyWhatsAppInterviewHint": "Sends the approved interview message to the applicant's WhatsApp with the date and time, and asks them to check their email for details."
+  "notifyWhatsAppInterviewHint": "Sends the approved interview message to the applicant's WhatsApp with the date and time, and asks them to check their email for details.",
+  "notifyWhatsAppOffer": "Also send a WhatsApp update from SG Hiring",
+  "notifyWhatsAppOfferHint": "Tells the applicant on WhatsApp that a job offer was sent to their email."
 }
