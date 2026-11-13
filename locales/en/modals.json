@@ -442,5 +442,7 @@
   "waUpdateIntro": "Send one of these updates to the applicant on WhatsApp from {name}.",
   "waNoPhone": "This applicant has no valid phone number.",
   "waSendUpdate": "Send update",
-  "waUpdateSent": "Update sent on WhatsApp"
+  "waUpdateSent": "Update sent on WhatsApp",
+  "notifyWhatsAppInterview": "Also send a WhatsApp update from SG Hiring",
+  "notifyWhatsAppInterviewHint": "Sends the approved interview message to the applicant's WhatsApp with the date and time, and asks them to check their email for details."
 }

@@ -199,6 +199,8 @@ export type ScheduleInterviewRequest = {
   interviewers?: string[];
   status?: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
   questions?: InterviewAnswer[];
+  // Send the WhatsApp interview update: true now, false never, unset = company setting.
+  notifyWhatsApp?: boolean;
   notifications?: {
     channels?: { email?: boolean; sms?: boolean; whatsapp?: boolean };
     emailOption?: string;

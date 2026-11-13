@@ -681,7 +681,10 @@ const ApplicantDetails: React.FC = () => {
     ]
   );
 
-  const handleScheduleInterviewSubmit = async () => {
+  const handleScheduleInterviewSubmit = async (
+    _e?: unknown,
+    opts?: { senderEmail?: string; notifyWhatsApp?: boolean }
+  ) => {
     if (!id || !applicant) return;
     setIsSubmittingInterview(true);
     const emailSnapshot = {
@@ -717,11 +720,12 @@ const ApplicantDetails: React.FC = () => {
         conductedBy: interviewForm.conductedBy || undefined,
         status: 'scheduled',
         scheduledBy: user?._id || user?.id || undefined,
+        notifyWhatsApp: opts?.notifyWhatsApp,
         notifications: {
           channels: {
             email: notificationChannels.email,
             sms: notificationChannels.sms,
-            whatsapp: notificationChannels.whatsapp,
+            whatsapp: false,
           },
           emailOption,
           customEmail: customEmail || undefined,

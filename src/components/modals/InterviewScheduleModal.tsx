@@ -14,9 +14,7 @@ import {
   useDraftEmailTemplateWithAi,
 } from '../../hooks/queries';
 import { resolveCompanyAddress } from '../../utils/companyAddress';
-import { whatsAppLink } from '../../utils/whatsapp';
-import Swal from '../../utils/swal';
-import { fillInterviewTemplate } from '../../pages/Recruiting/applicants/Table/utils/interviewEmail';
+import { useWhatsAppStatus } from '../../hooks/queries/useCompanies';
 import { useLocale } from '../../context/LocaleContext';
 import { filterTemplatesByCategory } from '../../utils/mailTemplateCategories';
 import RichTextEditor from '../form/RichTextEditor';
@@ -44,7 +42,7 @@ type InterviewDraft = {
   subject: string;
   messageTemplate: string;
   templateId: string;
-  whatsappMessage: string;
+  notifyWhatsApp: boolean;
   aiPrompt: string;
   intervalMinutes: number;
 };
@@ -467,7 +465,6 @@ export default function InterviewScheduleModal(props: Props) {
     const { date: interviewDate, time: interviewTime } = scheduleLabels();
     const interviewType = interviewForm.type || 'phone';
     const typeLabel = t(interviewType, 'modals');
-    const location = (interviewForm.location || '').trim();
     const link = (interviewForm.link || '').trim();
     const interviewDescription = (interviewForm.description || '').trim();
     const interviewComment = (interviewForm.comment || '').trim();
@@ -566,23 +563,6 @@ export default function InterviewScheduleModal(props: Props) {
         `<p>Please confirm your availability at your earliest convenience.</p>` +
         `<p>Best regards,<br/>HR Team</p>`
       );
-    } else if (channels.whatsapp) {
-      const detailLines = [
-        `${t('interviewDate', 'modals')}: ${interviewDate}`,
-        `${t('interviewTime', 'modals')}: ${interviewTime}`,
-        `${t('interviewType', 'modals')}: ${typeLabel}`,
-      ];
-      if (location) detailLines.push(`${t('openLocation', 'modals')}: ${location}`);
-      if (link)
-        detailLines.push(`${t('videoLinkOptional', 'modals')}: ${link}`);
-      if (interviewDescription)
-        detailLines.push(
-          `${t('description', 'modals')}: ${interviewDescription}`
-        );
-      if (interviewComment)
-        detailLines.push(`${t('comment', 'modals')}: ${interviewComment}`);
-
-      return `Hi ${applicantName}! 👋\n\nGreat news! We'd like to invite you for an interview for the position of ${positionTitle}.\n\nInterview details:\n${detailLines.join('\n')}\n\nPlease confirm if you're available. Looking forward to meeting you!`;
     }
 
     return '';
@@ -592,14 +572,10 @@ export default function InterviewScheduleModal(props: Props) {
   // step with the form: while the user hasn't edited it, regenerate it;
   // once edited, only swap the old date/time text for the new one.
   const lastGeneratedRef = useRef('');
-  // WhatsApp has its own plain-text message, sent from the user's WhatsApp.
-  const [whatsappMessage, setWhatsappMessage] = useState('');
-  const lastWhatsappRef = useRef('');
-  const applyWhatsAppMessage = () => {
-    const next = generateMessageTemplate({ email: false, sms: false, whatsapp: true });
-    lastWhatsappRef.current = next;
-    setWhatsappMessage(next);
-  };
+  // "Also send a WhatsApp update": the approved interview template, sent
+  // from the platform number (SG Hiring) once the interview is saved.
+  const [notifyWhatsApp, setNotifyWhatsApp] = useState(false);
+  const notifyWhatsAppTouched = useRef(false);
   const lastLabelsRef = useRef<{ date: string; time: string } | null>(null);
   const lastDetailsRef = useRef<[string, string][]>([]);
   const currentDetails = () => {
@@ -662,15 +638,6 @@ export default function InterviewScheduleModal(props: Props) {
     const prevDetails = lastDetailsRef.current;
     const details = currentDetails();
     lastDetailsRef.current = details;
-    if (notificationChannels.whatsapp) {
-      if (whatsappMessage === lastWhatsappRef.current) applyWhatsAppMessage();
-      else if (prev) {
-        let wa = whatsappMessage;
-        if (prev.date !== labels.date && !prev.date.startsWith('{{')) wa = wa.split(prev.date).join(labels.date);
-        if (prev.time !== labels.time && !prev.time.startsWith('{{') && !prev.time.startsWith('[')) wa = wa.split(prev.time).join(labels.time);
-        if (wa !== whatsappMessage) setWhatsappMessage(wa);
-      }
-    }
     if (!lastGeneratedRef.current) return;
     if (plainText(messageTemplate || '') === plainText(lastGeneratedRef.current)) {
       applyGeneratedTemplate();
@@ -1096,6 +1063,23 @@ export default function InterviewScheduleModal(props: Props) {
     (applicant as any)?.jobPositionId?.company ||
     null;
 
+  // WhatsApp interview update: offered when the platform number works and the
+  // company's plan includes it. Starts ticked when the company set it to Automatic.
+  const waCompanyId: string =
+    (typeof companyCompany === 'string' ? companyCompany : companyCompany?._id || companyCompany?.id) || '';
+  const { data: waStatus } = useWhatsAppStatus(waCompanyId, isOpen && Boolean(waCompanyId));
+  const waInterviewEvent = waStatus?.events?.find((ev) => ev.key === 'interviewScheduled');
+  const whatsAppOffered = Boolean(waStatus?.connected && waInterviewEvent);
+  useEffect(() => {
+    if (!isOpen) {
+      notifyWhatsAppTouched.current = false;
+      return;
+    }
+    if (!notifyWhatsAppTouched.current && waInterviewEvent) {
+      setNotifyWhatsApp(waInterviewEvent.allowedByPlan && waInterviewEvent.mode === 'auto');
+    }
+  }, [isOpen, waInterviewEvent]);
+
   const senderOptions: Array<{ value: string; label: string }> = [];
   const availableCandidates: any[] = [];
 
@@ -1214,7 +1198,7 @@ export default function InterviewScheduleModal(props: Props) {
       channels: {
         email: !!notificationChannels?.email,
         sms: !!notificationChannels?.sms,
-        whatsapp: !!notificationChannels?.whatsapp,
+        whatsapp: false,
       },
       emailOption: String(emailOption || 'company'),
       customEmail: String(customEmail || ''),
@@ -1222,7 +1206,7 @@ export default function InterviewScheduleModal(props: Props) {
       subject: String(interviewEmailSubject || ''),
       messageTemplate: String(messageTemplate || ''),
       templateId: selectedTemplateId,
-      whatsappMessage,
+      notifyWhatsApp,
       aiPrompt,
       intervalMinutes: Number(intervalMinutes) || 0,
     }),
@@ -1235,7 +1219,7 @@ export default function InterviewScheduleModal(props: Props) {
       interviewEmailSubject,
       messageTemplate,
       selectedTemplateId,
-      whatsappMessage,
+      notifyWhatsApp,
       aiPrompt,
       intervalMinutes,
     ]
@@ -1245,7 +1229,6 @@ export default function InterviewScheduleModal(props: Props) {
     !v.form.comment.trim() &&
     !v.form.link.trim() &&
     !htmlHasText(v.messageTemplate) &&
-    !v.whatsappMessage.trim() &&
     !v.aiPrompt.trim() &&
     // Bulk scheduling pre-fills today / the next hour; that isn't the user's input.
     (bulkMode || (!v.form.date && !v.form.time));
@@ -1255,7 +1238,7 @@ export default function InterviewScheduleModal(props: Props) {
       ...v.form,
       conductedBy: v.form.conductedBy || prev?.conductedBy,
     }));
-    setNotificationChannels(v.channels);
+    setNotificationChannels({ ...v.channels, whatsapp: false });
     if (!connectedGmail) {
       setEmailOption(v.emailOption || 'company');
       if (v.customEmail) setCustomEmail(v.customEmail);
@@ -1264,7 +1247,10 @@ export default function InterviewScheduleModal(props: Props) {
     if (v.subject) setInterviewEmailSubject(v.subject);
     setMessageTemplate(v.messageTemplate || '');
     setSelectedTemplateId(v.templateId || '');
-    setWhatsappMessage(v.whatsappMessage || '');
+    if (typeof v.notifyWhatsApp === 'boolean') {
+      notifyWhatsAppTouched.current = true;
+      setNotifyWhatsApp(v.notifyWhatsApp);
+    }
     setAiPrompt(v.aiPrompt || '');
     if (v.aiPrompt) setAiPromptOpen(true);
     if (bulkMode && setIntervalMinutes && v.intervalMinutes > 0)
@@ -1272,7 +1258,6 @@ export default function InterviewScheduleModal(props: Props) {
     // Treat the restored messages as edited by the user: keep them, and only
     // swap the date/time text when those change later.
     lastGeneratedRef.current = v.messageTemplate ? '\u0000restored' : '';
-    lastWhatsappRef.current = '';
     lastLabelsRef.current = null;
     lastDetailsRef.current = [];
     setPickerDefaults({
@@ -1294,71 +1279,6 @@ export default function InterviewScheduleModal(props: Props) {
   const discardInterviewDraft = () => {
     if (startDraftRef.current) applyInterviewDraft(startDraftRef.current);
     setInterviewError('');
-  };
-
-  const titleText = (title: any): string =>
-    typeof title === 'string' ? title : title?.[locale] || title?.en || title?.ar || '';
-
-  // One WhatsApp message per applicant, placeholders filled in.
-  const buildWhatsAppTargets = () => {
-    const { date } = scheduleLabels();
-    const typeLabel = t(interviewForm.type || 'phone', 'modals');
-    const people: any[] = bulkMode ? recipients : applicant ? [applicant] : [];
-    return people.map((person: any, index: number) => {
-      const name = String(person.applicantName || person.fullName || person.name || '').trim();
-      let time = formatTime12Hour(interviewForm.time || '');
-      if (bulkMode && interviewForm.time) {
-        const [h, m] = interviewForm.time.split(':').map(Number);
-        const total = h * 60 + m + index * (intervalMinutes || 0);
-        time = formatTime12Hour(`${Math.floor(total / 60) % 24}:${String(total % 60).padStart(2, '0')}`);
-      }
-      const jobId =
-        typeof person.jobPositionId === 'string' ? person.jobPositionId : person.jobPositionId?._id;
-      const jobTitle =
-        (bulkMode ? titleText((jobTitleById as any)?.[jobId]?.title) : titleText(getJobTitle?.())) ||
-        titleText(person.jobPositionId?.title) ||
-        titleText(person.jobPosition?.title);
-      const message = fillInterviewTemplate(
-        whatsappMessage,
-        {
-          candidateName: name,
-          jobTitle,
-          interviewDate: date,
-          interviewTime: time,
-          interviewType: typeLabel,
-          location: interviewForm.link || interviewForm.location || '',
-          address: interviewForm.location || '',
-        },
-        false
-      );
-      return { name, phone: String(person.phone || ''), link: whatsAppLink(person.phone, message) };
-    });
-  };
-
-  const showWhatsAppLinks = async (targets: { name: string; phone: string; link: string | null }[]) => {
-    const esc = escapeHtml;
-    const rows = targets
-      .map(
-        ({ name, phone, link }) => `
-        <li style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid #e2e8f0;">
-          <span style="text-align:start;min-width:0;">
-            <span style="display:block;font-weight:600;color:#0f172a;">${esc(name)}</span>
-            <span dir="ltr" style="display:block;font-size:12px;color:#64748b;">${esc(phone)}</span>
-          </span>
-          ${
-            link
-              ? `<a href="${esc(link)}" target="_blank" rel="noopener noreferrer" style="flex-shrink:0;border-radius:8px;background:#16a34a;color:#fff;padding:8px 12px;font-size:13px;font-weight:600;text-decoration:none;">${esc(t('whatsappOpen', 'modals'))}</a>`
-              : `<span style="flex-shrink:0;font-size:12px;color:#b45309;">${esc(t('whatsappNoPhone', 'modals'))}</span>`
-          }
-        </li>`
-      )
-      .join('');
-    await Swal.fire({
-      title: t('whatsappDialogTitle', 'modals'),
-      html: `<p style="margin:0 0 12px;font-size:14px;color:#475569;">${esc(t('whatsappDialogText', 'modals'))}</p><ul style="list-style:none;margin:0;padding:0;max-height:50vh;overflow:auto;">${rows}</ul>`,
-      confirmButtonText: t('whatsappDone', 'modals'),
-      width: 560,
-    });
   };
 
   const onSubmit = async (e: any) => {
@@ -1397,11 +1317,12 @@ export default function InterviewScheduleModal(props: Props) {
       return;
     }
 
-    // Built now: the form is reset once the interviews are saved.
-    const whatsappTargets = notificationChannels.whatsapp ? buildWhatsAppTargets() : [];
-
     try {
-      const result = await handleInterviewSubmit(e, { senderEmail });
+      const result = await handleInterviewSubmit(e, {
+        senderEmail,
+        // Only offered when the plan allows it; false also stops an Automatic send.
+        notifyWhatsApp: whatsAppOffered ? notifyWhatsApp : undefined,
+      });
       // The single-applicant page returns nothing; it closes the modal
       // on success, so give that render a moment and check.
       const saved =
@@ -1411,7 +1332,6 @@ export default function InterviewScheduleModal(props: Props) {
               setTimeout(() => resolve(!isOpenRef.current), 100)
             );
       if (saved) draftRef.current?.clear();
-      if (saved && whatsappTargets.length > 0) await showWhatsAppLinks(whatsappTargets);
     } catch (err: any) {
       const msg =
         (err && (err.message || err.response?.data?.message)) ||
@@ -1841,40 +1761,36 @@ export default function InterviewScheduleModal(props: Props) {
                     📧 {t('email', 'modals')}
                   </span>
                 </label>
-                <label className="group relative inline-flex items-center gap-3 cursor-pointer rounded-lg border border-slate-300 bg-white px-4 py-2.5 transition-all hover:border-brand-400 hover:bg-brand-50/50 dark:border-slate-600 dark:bg-slate-800 dark:hover:border-brand-600 dark:hover:bg-brand-900/20">
+              </div>
+
+              {whatsAppOffered && waInterviewEvent && (
+                <label
+                  className={`mt-3 flex items-start gap-3 rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-800 ${
+                    waInterviewEvent.allowedByPlan ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'
+                  }`}
+                >
                   <input
                     type="checkbox"
-                    checked={notificationChannels.whatsapp}
-                    onChange={() => {
-                      const next = {
-                        ...notificationChannels,
-                        whatsapp: !notificationChannels.whatsapp,
-                      };
-                      setNotificationChannels(next);
-                      if (next.whatsapp) applyWhatsAppMessage();
+                    checked={notifyWhatsApp && waInterviewEvent.allowedByPlan}
+                    disabled={!waInterviewEvent.allowedByPlan}
+                    onChange={(e) => {
+                      notifyWhatsAppTouched.current = true;
+                      setNotifyWhatsApp(e.target.checked);
                     }}
-                    className="peer sr-only"
+                    className="mt-0.5 size-4 shrink-0 accent-brand-600"
                   />
-                  <div className="h-5 w-5 rounded border-2 border-slate-300 bg-white transition-all peer-checked:border-brand-600 peer-checked:bg-brand-600 dark:border-slate-600 dark:bg-slate-700 dark:peer-checked:border-brand-500 dark:peer-checked:bg-brand-500 flex items-center justify-center">
-                    <svg
-                      className="h-3 w-3 text-white scale-0 peer-checked:scale-100 transition-transform"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={3}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                  </div>
-                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                    📱 {t('whatsapp', 'modals')}
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium text-slate-800 dark:text-slate-100">
+                      {t('notifyWhatsAppInterview', 'modals')}
+                    </span>
+                    <span className="block text-xs text-slate-500 dark:text-slate-400">
+                      {waInterviewEvent.allowedByPlan
+                        ? t('notifyWhatsAppInterviewHint', 'modals')
+                        : t('waNotOnPlan', 'companies')}
+                    </span>
                   </span>
                 </label>
-              </div>
+              )}
 
               <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {notificationChannels.email && connectedGmail && (
@@ -2150,28 +2066,6 @@ export default function InterviewScheduleModal(props: Props) {
                     </div>
                   </>
                 ) : null}
-              </div>
-            )}
-            {notificationChannels.whatsapp && (
-              <div className="mt-4">
-                <Label htmlFor="whatsapp-message">
-                  {t('whatsappMessage', 'modals')}
-                  <button
-                    type="button"
-                    onClick={applyWhatsAppMessage}
-                    className="ml-2 text-xs text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
-                  >
-                    🔄 {t('loadTemplate', 'modals')}
-                  </button>
-                </Label>
-                <TextArea
-                  value={whatsappMessage}
-                  onChange={(value: any) => setWhatsappMessage(value)}
-                  rows={6}
-                />
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                  {t('whatsappHint', 'modals')}
-                </p>
               </div>
             )}
           </div>

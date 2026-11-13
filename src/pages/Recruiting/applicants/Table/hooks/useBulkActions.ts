@@ -115,7 +115,7 @@ interface UseBulkActionsReturn {
   // Actions
   handleBulkDelete: () => Promise<void>;
   handleBulkStatusChange: (e: React.FormEvent) => Promise<void>;
-  handleBulkInterviewSubmit: (e: React.FormEvent, opts?: { senderEmail?: string }) => Promise<boolean>;
+  handleBulkInterviewSubmit: (e: React.FormEvent, opts?: { senderEmail?: string; notifyWhatsApp?: boolean }) => Promise<boolean>;
   handlePreviewBulkInterviews: () => void;
   handleBulkChangeStatus: (action: string) => Promise<void>;
   openBulkInterviewModal: () => Promise<void>;
@@ -542,7 +542,7 @@ export function useBulkActions({
 
   // Handle bulk interview submit
   const handleBulkInterviewSubmit = useCallback(
-    async (e: React.FormEvent, opts?: { senderEmail?: string }) => {
+    async (e: React.FormEvent, opts?: { senderEmail?: string; notifyWhatsApp?: boolean }) => {
       e.preventDefault();
       setBulkInterviewError('');
 
@@ -569,6 +569,7 @@ export function useBulkActions({
           videoLink: bulkInterviewForm.link || undefined,
           notes: bulkInterviewForm.comment || undefined,
           status: 'scheduled',
+          notifyWhatsApp: opts?.notifyWhatsApp,
         }));
 
         await scheduleBulkInterviewsMutation.mutateAsync(bulkInterviewPayload);

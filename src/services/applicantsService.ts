@@ -1,6 +1,7 @@
 // services/applicantsService.ts
 import axios from '../config/axios';
 import { getErrorMessage } from '../utils/errorHandler';
+import Swal from '../utils/swal';
 import { jobPositionsService } from './jobPositionsService';
 import { normalizeChoicesToServer } from '../types/companies';
 import type {
@@ -128,6 +129,29 @@ function extractApplicantFromPayload(payload: unknown, applicantId: string): Can
 }
 
 // ===== Applicants Service =====
+// The interview is saved even when its WhatsApp update couldn't go out
+// (e.g. template not approved, no phone): say so, without blocking.
+function reportWhatsAppFailures(result: unknown) {
+  const failed = (result as { whatsappFailed?: Array<{ message?: string }> } | null)?.whatsappFailed;
+  if (!Array.isArray(failed) || failed.length === 0) return;
+  const ar = document.documentElement.lang === 'ar';
+  const reasons = [...new Set(failed.map((f) => f.message).filter(Boolean))].join(' · ');
+  const show = () =>
+    void Swal.fire({
+      icon: 'warning',
+      title: ar ? 'تم حفظ المقابلة، لكن لم يُرسل تحديث واتساب' : "Interview saved, but the WhatsApp update wasn't sent",
+      text: reasons,
+    });
+  // The page shows its own "scheduled" popup right after this returns, and only
+  // one popup is shown at a time: wait for it to close, then warn.
+  let tries = 0;
+  const waitTurn = () => {
+    if (Swal.isVisible() && tries++ < 120) setTimeout(waitTurn, 500);
+    else show();
+  };
+  setTimeout(waitTurn, 400);
+}
+
 class ApplicantsService {
   public async request<T>(
     method: 'get' | 'post' | 'put' | 'delete' | 'patch',
@@ -203,6 +227,7 @@ class ApplicantsService {
       'type',
       'notes',
       'status',
+      'notifyWhatsApp',
     ];
 
     allowedKeys.forEach((key) => {
@@ -416,6 +441,8 @@ class ApplicantsService {
       );
     }
 
+    reportWhatsAppFailures(response);
+
     const extractedApplicant = extractApplicantFromPayload(
       response,
       applicantId
@@ -448,7 +475,9 @@ class ApplicantsService {
       throw new ApiError('At least one interview payload is required.');
     }
 
-    return this.request<BulkScheduleResult>('post', '/applicants/interviews', interviews);
+    const result = await this.request<BulkScheduleResult>('post', '/applicants/interviews', interviews);
+    reportWhatsAppFailures(result);
+    return result;
   }
 
   async updateInterviewStatus(
