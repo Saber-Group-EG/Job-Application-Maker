@@ -54,8 +54,8 @@ export interface ReportsOverview {
     | null;
   speed: {
     windowDays: number;
-    overall: { toInterview: Stat; toOffer?: Stat };
-    perJob: { _id: string; title: Bilingual; applicants: number; toInterview: Stat; toOffer?: Stat }[];
+    overall: { toInterview: Stat; toOffer?: Stat; toContract?: Stat };
+    perJob: { _id: string; title: Bilingual; applicants: number; toInterview: Stat; toOffer?: Stat; toContract?: Stat }[];
   } | null;
 }
 

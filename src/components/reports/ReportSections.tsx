@@ -394,6 +394,7 @@ export function HiringSpeed({ data, loading }: { data?: ReportsOverview['speed']
   const steps = [
     { key: 'toInterview' as const, label: t('speedToInterview', 'home') },
     { key: 'toOffer' as const, label: t('speedToOffer', 'home') },
+    { key: 'toContract' as const, label: t('speedToContract', 'home') },
   ].filter((s) => data && data.overall[s.key] !== undefined);
   const days = (v?: { median: number } | null) => (v ? t('speedDays', 'home', { days: Math.round(v.median) }) : '—');
 
@@ -405,7 +406,7 @@ export function HiringSpeed({ data, loading }: { data?: ReportsOverview['speed']
         <Empty text={t('noData', 'home')} />
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             {steps.map((s) => {
               const v = data.overall[s.key];
               return (

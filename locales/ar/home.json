@@ -58,7 +58,7 @@
   "speedTitle": "سرعة التوظيف",
   "speedToInterview": "حتى المقابلة",
   "speedToOffer": "حتى العرض",
-  "speedToHire": "حتى التعيين",
+  "speedToContract": "حتى العقد",
   "speedDays": "{days} يوم",
   "speedBasedOn": "الوسيط من {count}",
   "speedNoData": "لا توجد بيانات بعد",

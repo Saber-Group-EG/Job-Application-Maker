@@ -58,7 +58,7 @@
   "speedTitle": "Hiring speed",
   "speedToInterview": "To interview",
   "speedToOffer": "To offer",
-  "speedToHire": "To hire",
+  "speedToContract": "To contract",
   "speedDays": "{days} days",
   "speedBasedOn": "median of {count}",
   "speedNoData": "no data yet",
