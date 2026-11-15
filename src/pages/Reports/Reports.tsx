@@ -39,7 +39,9 @@ export default function Reports() {
   // pick among the ones in view.
   const [pickedCompanyId, setPickedCompanyId] = useState<string | null>(null);
   const hiringCompanyId = selectedCompanyId ?? pickedCompanyId ?? companyOptions[0]?.id ?? null;
-  useEffect(() => setJobId(null), [hiringCompanyId]);
+  useEffect(() => {
+    setJobId(null);
+  }, [hiringCompanyId]);
 
   const { data, isLoading } = useReportsOverview({ companyIds, days, hiringCompanyId, jobId }, { enabled: Boolean(user) });
   const companyName = (id: string) => toPlainString((companies as any[]).find((c) => (c._id || c.id) === id)?.name, locale) || '';

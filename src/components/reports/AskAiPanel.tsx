@@ -34,8 +34,14 @@ export default function AskAiPanel({ companyId, enabled }: { companyId: string |
   const endRef = useRef<HTMLDivElement>(null);
 
   // A new company starts a new conversation.
-  useEffect(() => setTurns([]), [companyId]);
-  useEffect(() => endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), [turns.length]);
+  useEffect(() => {
+    setTurns([]);
+  }, [companyId]);
+  // Braces matter: scrollIntoView returns a Promise in current browsers, and
+  // an effect must not return anything but a clean-up function.
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [turns.length]);
 
   const lastSpec = [...turns].reverse().find((x) => x.role === 'ai' && x.spec)?.spec ?? null;
   const patch = (id: number, p: Partial<AiTurn>) => setTurns((all) => all.map((x) => (x.id === id ? { ...x, ...p } : x)));
