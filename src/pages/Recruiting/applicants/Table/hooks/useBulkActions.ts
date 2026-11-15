@@ -15,7 +15,7 @@ import {
   fillInterviewTemplate,
   resolveInterviewSender,
 } from '../utils/interviewEmail';
-import { isNoShowStatus, settingsOf } from '../../../../../utils/noShow';
+import { isNoShowStatus, reasonsForStatus, settingsOf } from '../../../../../utils/noShow';
 
 interface SelectedApplicantForInterview {
   applicantId: string;
@@ -318,8 +318,12 @@ export function useBulkActions({
     async (action: string) => {
       if (selectedApplicantIds.length === 0 || !action) return;
 
-      // Rejected and the company's no-show status ask for (optional) reasons first.
-      if (action === 'rejected' || isNoShowStatus(settingsOf(selectedApplicantCompany), action)) {
+      // Rejected, the no-show status and any status with reasons ask for (optional) reasons first.
+      if (
+        action === 'rejected' ||
+        isNoShowStatus(settingsOf(selectedApplicantCompany), action) ||
+        reasonsForStatus(selectedApplicantCompany, action).length > 0
+      ) {
         setBulkStatusForm({ status: action, reasons: [], notes: '' });
         setBulkStatusError('');
         setShowBulkStatusModal(true);

@@ -22,7 +22,7 @@ import { useLocale } from '../../../../context/LocaleContext';
 import type { Activity, ActivityFeedProps, Interview } from '../../../../types/applicants';
 import { useStatusSettings } from '../../../../hooks/useStatusSettings';
 import StatusReasonsModal from '../../../../components/modals/StatusReasonsModal';
-import { isNoShowStatus, noShowReasonsOf, settingsOf } from '../../../../utils/noShow';
+import { isNoShowStatus, reasonsForStatus, settingsOf } from '../../../../utils/noShow';
 
 const ActivityFeed: React.FC<ActivityFeedProps> = ({
   activities,
@@ -33,15 +33,10 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({
   canEditReasons = false,
 }) => {
   const { t, locale } = useLocale();
-  // Reasons of a rejected / no-show status change, added or edited later.
+  // Reasons of a status change, added or edited later (any status with reasons).
   const [editingReasons, setEditingReasons] = useState<Activity | null>(null);
   const companySettings = settingsOf(company);
   const isNoShow = (status?: string) => isNoShowStatus(companySettings, status);
-  const rejectReasonOptions: string[] = Array.isArray((companySettings as any)?.rejectReasons)
-    ? (companySettings as any).rejectReasons
-    : Array.isArray(company?.rejectReasons)
-      ? company.rejectReasons
-      : [];
   const { getStatus } = useStatusSettings(company);
   const data: Activity[] = Array.isArray(activities) ? activities : [];
   const [isExpanded, setIsExpanded] = useState(true);
@@ -345,7 +340,9 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({
         const noShow = isNoShow(activity.status);
         const rejected = activity.status === 'rejected';
         const reasons = activity.reasons || [];
-        const canEdit = canEditReasons && Boolean(applicantId && activity.entryId) && (noShow || rejected);
+        const hasReasonList = reasonsForStatus(company, activity.status).length > 0;
+        const canEdit =
+          canEditReasons && Boolean(applicantId && activity.entryId) && (noShow || rejected || hasReasonList || reasons.length > 0);
         if (!reasons.length && !canEdit) return null;
         return (
           <div className="flex flex-wrap items-center gap-1.5">
@@ -353,7 +350,11 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({
               <span
                 key={i}
                 className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${
-                  noShow ? 'bg-amber-50 text-amber-700 ring-amber-200' : 'bg-red-50 text-red-600 ring-red-200'
+                  rejected
+                    ? 'bg-red-50 text-red-600 ring-red-200'
+                    : noShow
+                      ? 'bg-amber-50 text-amber-700 ring-amber-200'
+                      : 'bg-slate-50 text-slate-700 ring-slate-200'
                 }`}
               >
                 {reason}
@@ -447,8 +448,8 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({
           entryId={editingReasons.entryId}
           status={editingReasons.status || ''}
           initialReasons={editingReasons.reasons || []}
-          kind={isNoShow(editingReasons.status) ? 'noShow' : 'rejected'}
-          suggestions={isNoShow(editingReasons.status) ? noShowReasonsOf(company) : rejectReasonOptions}
+          kind={editingReasons.status === 'rejected' ? 'rejected' : isNoShow(editingReasons.status) ? 'noShow' : 'other'}
+          suggestions={reasonsForStatus(company, editingReasons.status)}
         />
       )}
     </div>

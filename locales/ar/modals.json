@@ -475,5 +475,7 @@
   "noShowBulkSendWhatsApp": "إرسال واتساب إلى الجميع ({count})",
   "noShowBulkSending": "جارٍ الإرسال… {done} من {count}",
   "noShowBulkResult": "تم الإرسال: {sent} · لم يُرسل: {failed}",
-  "noShowBulkOneCompany": "اختر متقدمين من شركة واحدة لإرسال واتساب."
+  "noShowBulkOneCompany": "اختر متقدمين من شركة واحدة لإرسال واتساب.",
+  "reasonsOptional": "الأسباب (اختياري)",
+  "reasons": "الأسباب"
 }

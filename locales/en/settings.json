@@ -481,8 +481,12 @@
   "statusSettings.noShowAutoNone": "Find it by name (none found yet)",
   "statusSettings.noShowOff": "None — don't treat any status as a no-show",
   "statusSettings.noShowMissing": "This status no longer exists. Pick another one, or the name will be used to find it.",
-  "rejectionTab.noShowTitle": "No-show reasons",
-  "rejectionTab.noShowDesc": "Reasons to pick when an applicant didn't show up — when you set the status, or later from their activity.",
-  "rejectionTab.noShowEmpty": "No no-show reasons yet.",
-  "rejectionTab.noShowPlaceholder": "Example: Couldn't be reached"
+  "statusSettings.reasonsButton": "Reasons",
+  "statusSettings.reasonsButtonTitle": "Reasons people can pick when moving an applicant to this status",
+  "statusSettings.reasonsInRejectionTab": "Rejection reasons are set in the Rejection Reasons tab",
+  "statusSettings.reasonsTitle": "Reasons for \"{status}\"",
+  "statusSettings.reasonsDesc": "Optional. When someone moves an applicant to this status they can pick any of these (or type their own), now or later from the applicant's activity. Click Save Changes afterwards.",
+  "statusSettings.reasonPlaceholder": "Example: Couldn't be reached",
+  "statusSettings.addReason": "Add reason",
+  "statusSettings.reasonsDone": "Done"
 }

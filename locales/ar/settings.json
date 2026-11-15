@@ -479,8 +479,12 @@
   "statusSettings.noShowAutoNone": "التعرّف عليها من الاسم (لا توجد بعد)",
   "statusSettings.noShowOff": "لا شيء — لا تعامل أي حالة كعدم حضور",
   "statusSettings.noShowMissing": "هذه الحالة لم تعد موجودة. اختر حالة أخرى، وإلا سيُستخدم الاسم للتعرّف عليها.",
-  "rejectionTab.noShowTitle": "أسباب عدم الحضور",
-  "rejectionTab.noShowDesc": "أسباب يمكن اختيارها عندما لا يحضر المتقدم — عند تغيير الحالة أو لاحقًا من سجل نشاطه.",
-  "rejectionTab.noShowEmpty": "لا توجد أسباب لعدم الحضور بعد.",
-  "rejectionTab.noShowPlaceholder": "مثال: تعذّر التواصل معه"
+  "statusSettings.reasonsButton": "الأسباب",
+  "statusSettings.reasonsButtonTitle": "أسباب يمكن اختيارها عند نقل متقدم إلى هذه الحالة",
+  "statusSettings.reasonsInRejectionTab": "تُحدَّد أسباب الرفض في تبويب أسباب الرفض",
+  "statusSettings.reasonsTitle": "أسباب \"{status}\"",
+  "statusSettings.reasonsDesc": "اختيارية. عند نقل متقدم إلى هذه الحالة يمكن اختيار أي منها (أو كتابة سبب آخر)، الآن أو لاحقًا من سجل نشاط المتقدم. اضغط حفظ التغييرات بعد ذلك.",
+  "statusSettings.reasonPlaceholder": "مثال: تعذّر التواصل معه",
+  "statusSettings.addReason": "إضافة سبب",
+  "statusSettings.reasonsDone": "تم"
 }

@@ -48,8 +48,19 @@ export const isNoShowStatus = (settings: SettingsLike, status: unknown) => {
 export const settingsOf = (companyOrSettings: any): SettingsLike =>
   companyOrSettings?.settings?.statuses ? companyOrSettings.settings : companyOrSettings;
 
-export const noShowReasonsOf = (companyOrSettings: any): string[] => {
+const cleanList = (list: unknown): string[] =>
+  Array.isArray(list) ? [...new Set(list.map((r) => String(r ?? '').trim()).filter(Boolean))] : [];
+
+/**
+ * The reasons a user can pick for a status: "rejected" uses the company's
+ * rejection reasons (Settings → Rejection Reasons); every other status its own
+ * list (Settings → Statuses). Empty when the company set none.
+ */
+export function reasonsForStatus(companyOrSettings: any, status: unknown): string[] {
+  const key = norm(status);
+  if (!key) return [];
   const s = settingsOf(companyOrSettings) as any;
-  const list = s?.noShowReasons ?? companyOrSettings?.noShowReasons;
-  return Array.isArray(list) ? list.map((r: unknown) => String(r ?? '').trim()).filter(Boolean) : [];
-};
+  if (key === 'rejected') return cleanList(s?.rejectReasons ?? companyOrSettings?.rejectReasons);
+  const match = (s?.statuses || []).find((x: any) => norm(x?.name) === key);
+  return cleanList(match?.reasons);
+}

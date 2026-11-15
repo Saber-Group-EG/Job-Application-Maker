@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
-import { BarChart3, Eye, GripVertical, Lock, PlusCircle, Save, Settings, Trash2, UserX } from 'lucide-react';
+import { BarChart3, Eye, GripVertical, ListChecks, Lock, PlusCircle, Save, Settings, Trash2, UserX } from 'lucide-react';
+import { Modal } from '../../../components/ui/modal';
 import Swal from '../../../utils/swal';
 import { useLocale } from '../../../context/LocaleContext';
 import { useUndo } from '../../../context/UndoContext';
@@ -46,8 +47,84 @@ type LeadStatus = {
   description: string;
   statusKey?: string;
   reportRole?: ReportRole;
+  // Reasons to pick when moving an applicant to this status (optional).
+  reasons?: string[];
   _id?: string;
 };
+
+// Edits one status's reasons list (saved with the page's Save Changes).
+function StatusReasonsEditor({
+  status,
+  canEdit,
+  onClose,
+  onSave,
+}: {
+  status: LeadStatus;
+  canEdit: boolean;
+  onClose: () => void;
+  onSave: (reasons: string[]) => void;
+}) {
+  const { t } = useLocale();
+  const [items, setItems] = useState<string[]>(() => (status.reasons?.length ? [...status.reasons] : ['']));
+  const done = () => {
+    onSave([...new Set(items.map((r) => r.trim()).filter(Boolean))]);
+    onClose();
+  };
+  return (
+    <Modal isOpen onClose={onClose} className="max-w-lg p-6">
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+            {t('statusSettings.reasonsTitle', 'settings', { status: status.name || t('statusSettings.previewFallback', 'settings') })}
+          </h2>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t('statusSettings.reasonsDesc', 'settings')}</p>
+        </div>
+        <div className="max-h-[50vh] space-y-2 overflow-y-auto">
+          {items.map((r, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-slate-100 text-xs font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                {i + 1}
+              </span>
+              <input
+                value={r}
+                autoFocus={i === items.length - 1 && !r}
+                onChange={(e) => setItems((prev) => prev.map((x, j) => (j === i ? e.target.value : x)))}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    setItems((prev) => [...prev, '']);
+                  }
+                }}
+                disabled={!canEdit}
+                placeholder={t('statusSettings.reasonPlaceholder', 'settings')}
+                className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-slate-700 dark:bg-slate-900"
+              />
+              <IconButton
+                tone="danger"
+                label={t('delete', 'common')}
+                onClick={() => setItems((prev) => prev.filter((_, j) => j !== i))}
+                disabled={!canEdit}
+              >
+                <Trash2 className="size-4" />
+              </IconButton>
+            </div>
+          ))}
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <Button icon={<PlusCircle className="size-4" />} onClick={() => setItems((prev) => [...prev, ''])} disabled={!canEdit}>
+            {t('statusSettings.addReason', 'settings')}
+          </Button>
+          <div className="flex gap-2">
+            <Button onClick={onClose}>{t('cancel', 'common')}</Button>
+            <Button variant="primary" onClick={done} disabled={!canEdit}>
+              {t('statusSettings.reasonsDone', 'settings')}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+}
 
 const STATUS_DESC_LOCALE_KEYS: Record<string, string> = {
   pending: 'statusSettings.defaultDescPending',
@@ -161,6 +238,7 @@ function SortableStatusItem({
   onSetDefault,
   onRemove,
   onReportRoleChange,
+  onEditReasons,
 }: {
   id: string;
   status: LeadStatus;
@@ -176,6 +254,7 @@ function SortableStatusItem({
   onSetDefault: (index: number) => void;
   onRemove: (index: number) => void;
   onReportRoleChange: (index: number, role: ReportRole) => void;
+  onEditReasons: (index: number) => void;
 }) {
   const { t } = useLocale();
   const {
@@ -286,6 +365,29 @@ function SortableStatusItem({
           <option value="ignore">{t('statusSettings.reportRoleIgnore', 'settings')}</option>
         </select>
 
+        {(() => {
+          // The rejected status keeps its reasons in the Rejection Reasons tab.
+          const isRejected = (status.statusKey || status.name).toLowerCase() === 'rejected';
+          const n = status.reasons?.length ?? 0;
+          const label = isRejected
+            ? t('statusSettings.reasonsInRejectionTab', 'settings')
+            : t('statusSettings.reasonsButtonTitle', 'settings');
+          return (
+            <button
+              type="button"
+              onClick={() => !isRejected && onEditReasons(index)}
+              disabled={isRejected}
+              title={label}
+              aria-label={label}
+              className={`inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 px-2 text-xs text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 ${focusRing}`}
+            >
+              <ListChecks className="size-3.5" />
+              {t('statusSettings.reasonsButton', 'settings')}
+              {n > 0 && <span className="rounded bg-brand-50 px-1 font-semibold text-brand-700 dark:bg-brand-500/15 dark:text-brand-300">{n}</span>}
+            </button>
+          );
+        })()}
+
         <label className={`inline-flex items-center gap-2 text-sm ${isLocked || !canEdit ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
           <input
             type="radio"
@@ -391,6 +493,7 @@ export default function StatusLabelsSettings({
           isDefault: !!s?.isDefault,
           statusKey: statusKey,
           ...(s?.reportRole ? { reportRole: s.reportRole } : {}),
+          ...(Array.isArray(s?.reasons) && s.reasons.length ? { reasons: s.reasons.map(String) } : {}),
           _id: s?._id,
         };
       });
@@ -527,6 +630,17 @@ export default function StatusLabelsSettings({
     );
   }, []);
 
+  const [editingReasonsIndex, setEditingReasonsIndex] = useState<number | null>(null);
+  const handleReasonsChange = useCallback((index: number, reasons: string[]) => {
+    setStatuses((prev) =>
+      prev.map((s, i) => {
+        if (i !== index) return s;
+        const { reasons: _old, ...rest } = s;
+        return reasons.length ? { ...rest, reasons } : rest;
+      })
+    );
+  }, []);
+
   const handleDescriptionChange = useCallback((index: number, value: string) => {
     setStatuses((prev) =>
       prev.map((s, i) => (i === index ? { ...s, description: value } : s))
@@ -572,6 +686,7 @@ export default function StatusLabelsSettings({
         : String(s.description ?? '').trim(),
       isDefault: !!s.isDefault,
       ...(s.reportRole ? { reportRole: s.reportRole } : {}),
+      reasons: (s.reasons || []).map((r) => r.trim()).filter(Boolean),
     }));
 
     const settingsId = selectedCompany?.settings?._id;
@@ -791,6 +906,7 @@ export default function StatusLabelsSettings({
                       onSetDefault={setDefault}
                       onRemove={removeStatus}
                       onReportRoleChange={handleReportRoleChange}
+                      onEditReasons={setEditingReasonsIndex}
                     />
                   );
                 })}
@@ -806,6 +922,15 @@ export default function StatusLabelsSettings({
               document.body
             )}
           </DndContext>
+          {editingReasonsIndex !== null && statuses[editingReasonsIndex] && (
+            <StatusReasonsEditor
+              key={statusIds[editingReasonsIndex]}
+              status={statuses[editingReasonsIndex]}
+              canEdit={canEdit}
+              onClose={() => setEditingReasonsIndex(null)}
+              onSave={(reasons) => handleReasonsChange(editingReasonsIndex, reasons)}
+            />
+          )}
         </Card>
       </div>
     </SettingsSection>

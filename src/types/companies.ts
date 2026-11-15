@@ -13,6 +13,8 @@ export type CompanyStatus = {
   statusKey?: string;
   // How the hiring reports count this status (unset = default rule).
   reportRole?: 'step' | 'exit' | 'ignore';
+  // Reasons to pick when moving an applicant to this status (optional).
+  reasons?: string[];
 };
 
 export type SectionTemplateItem = {
@@ -275,7 +277,6 @@ export interface UpdateCompanySettingsRequest {
   interviewSettings?: InterviewSettings;
   defaultColorGradient?: string[];
   rejectReasons?: string[];
-  noShowReasons?: string[];
   applicantStatus?: any[];
   statuses?: any[];
   applicantPages?: any[];

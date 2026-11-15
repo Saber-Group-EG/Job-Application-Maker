@@ -8,7 +8,7 @@ import { useUndo } from '../../context/UndoContext';
 import type { FormDraft } from '../../hooks/useFormDraft';
 import ModalDraft from './ModalDraft';
 import { Flag } from 'lucide-react';
-import { isNoShowStatus, noShowReasonsOf, settingsOf } from '../../utils/noShow';
+import { isNoShowStatus, reasonsForStatus, settingsOf } from '../../utils/noShow';
 
 type StatusDraft = { status: string; notes: string; reasons: string[] };
 
@@ -187,25 +187,21 @@ export default function StatusChangeModal({
     [isRejected, resolvedCompanySettings, statusForm?.status]
   );
 
-  const reasonOptions = useMemo(() => {
-    let list: string[] = [];
-    if (isNoShow) {
-      list = noShowReasonsOf(resolvedCompanySettings);
-    } else {
-      const fromRoot = (resolvedCompanySettings as any)?.rejectReasons;
-      const fromNested = (resolvedCompanySettings as any)?.settings?.rejectReasons;
-      list =
-        Array.isArray(fromRoot) && fromRoot.length
-          ? fromRoot
-          : Array.isArray(fromNested)
-            ? fromNested
-            : [];
-    }
-    return [...new Set([...list, ...customReasons])].map((r: any) => ({
-      value: String(r ?? ''),
-      text: String(r ?? ''),
-    }));
-  }, [resolvedCompanySettings, customReasons, isNoShow]);
+  // Any status can have reasons (Settings → Statuses; rejected: Rejection Reasons).
+  const statusReasons = useMemo(
+    () => reasonsForStatus(resolvedCompanySettings, statusForm?.status),
+    [resolvedCompanySettings, statusForm?.status]
+  );
+  const showReasons = isRejected || isNoShow || statusReasons.length > 0;
+
+  const reasonOptions = useMemo(
+    () =>
+      [...new Set([...statusReasons, ...customReasons])].map((r: any) => ({
+        value: String(r ?? ''),
+        text: String(r ?? ''),
+      })),
+    [statusReasons, customReasons]
+  );
 
   const selectedStatusDescription = statusForm?.status
     ? getDescription(statusForm.status)
@@ -433,16 +429,22 @@ export default function StatusChangeModal({
               </p>
             )}
 
-            {/* Rejection / no-show reasons */}
-            {(isRejected || isNoShow) && (
+            {/* Reasons (rejected, no-show, or any status the company gave reasons) */}
+            {showReasons && (
               <div
                 className={`p-4 rounded-lg border ${
-                  isNoShow
-                    ? 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700'
-                    : 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800'
+                  isRejected
+                    ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800'
+                    : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700'
                 }`}
               >
-                <Label>{isNoShow ? t('reasonsForNoShow', 'modals') : t('reasonsForRejection', 'modals')}</Label>
+                <Label>
+                  {isRejected
+                    ? t('reasonsForRejection', 'modals')
+                    : isNoShow
+                      ? t('reasonsForNoShow', 'modals')
+                      : t('reasonsOptional', 'modals')}
+                </Label>
 
                 {/* Selected chips */}
                 <div className="flex flex-wrap gap-2 mt-2 mb-3 p-2 border border-slate-300 dark:border-slate-600 rounded-lg min-h-[42px] bg-white dark:bg-slate-800">

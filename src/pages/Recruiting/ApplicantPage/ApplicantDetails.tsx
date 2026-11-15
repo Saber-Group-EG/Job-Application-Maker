@@ -816,11 +816,8 @@ const ApplicantDetails: React.FC = () => {
       if (statusForm.notes && statusForm.notes.trim())
         payload.notes = statusForm.notes.trim();
       const noShow = isNoShowStatus(settingsOf(companyWithAddress), statusForm.status);
-      if (
-        (statusForm.status === 'rejected' || noShow) &&
-        statusForm.reasons &&
-        statusForm.reasons.length
-      )
+      // Reasons are optional on every status.
+      if (statusForm.reasons && statusForm.reasons.length)
         payload.reasons = statusForm.reasons;
       await updateStatus.mutateAsync({ id, data: payload });
       setShowStatusModal(false);

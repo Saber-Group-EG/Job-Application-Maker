@@ -380,13 +380,12 @@ class CompaniesService {
   // ===== Rejection Reasons =====
   async updateCompanyRejectionReasons(
     settingsId: string,
-    rejectReasons: string[],
-    noShowReasons?: string[]
+    rejectReasons: string[]
   ): Promise<unknown> {
     return this.request<unknown>(
       'put',
       `/companies/${settingsId}/settings/rejection-reasons`,
-      { rejectReasons, ...(noShowReasons ? { noShowReasons } : {}) }
+      { rejectReasons }
     );
   }
 

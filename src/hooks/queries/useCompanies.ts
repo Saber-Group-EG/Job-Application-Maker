@@ -746,12 +746,10 @@ export function useUpdateCompanyRejectionReasons() {
       companyId,
       settingsId,
       rejectReasons,
-      noShowReasons,
     }: {
       companyId?: string;
       settingsId?: string;
       rejectReasons: string[];
-      noShowReasons?: string[];
     }) => {
       // Use settingsId if provided, otherwise use companyId
       const idToUse = settingsId || companyId;
@@ -760,11 +758,10 @@ export function useUpdateCompanyRejectionReasons() {
       }
       return companiesService.updateCompanyRejectionReasons(
         idToUse,
-        rejectReasons,
-        noShowReasons
+        rejectReasons
       );
     },
-    onSuccess: (_result, { companyId, settingsId, rejectReasons, noShowReasons }) => {
+    onSuccess: (_result, { companyId, settingsId, rejectReasons }) => {
       // Determine which ID was used for the cache key
       const idUsed = settingsId || companyId;
       if (!idUsed) return;
@@ -779,11 +776,7 @@ export function useUpdateCompanyRejectionReasons() {
             if (c._id === idUsed || c.settings?._id === idUsed) {
               return {
                 ...c,
-                settings: {
-                  ...(c.settings ?? {}),
-                  rejectReasons,
-                  ...(noShowReasons ? { noShowReasons } : {}),
-                },
+                settings: { ...(c.settings ?? {}), rejectReasons },
               };
             }
             return c;

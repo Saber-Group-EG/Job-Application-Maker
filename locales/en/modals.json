@@ -475,5 +475,7 @@
   "noShowBulkSendWhatsApp": "Send WhatsApp to all {count}",
   "noShowBulkSending": "Sending… {done} of {count}",
   "noShowBulkResult": "Sent: {sent} · Not sent: {failed}",
-  "noShowBulkOneCompany": "Select applicants from one company to send WhatsApp."
+  "noShowBulkOneCompany": "Select applicants from one company to send WhatsApp.",
+  "reasonsOptional": "Reasons (optional)",
+  "reasons": "Reasons"
 }

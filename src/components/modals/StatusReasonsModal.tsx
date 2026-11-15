@@ -15,9 +15,9 @@ type Props = {
   entryId: string;
   status: string;
   initialReasons?: string[];
-  // The company's saved reasons for this status (no-show or rejection).
+  // The company's saved reasons for this status.
   suggestions: string[];
-  kind: 'noShow' | 'rejected';
+  kind: 'noShow' | 'rejected' | 'other';
 };
 
 /**
@@ -87,7 +87,11 @@ export default function StatusReasonsModal({
       <div className="space-y-4">
         <div>
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-            {kind === 'noShow' ? t('reasonsForNoShow', 'modals') : t('reasonsForRejection', 'modals')}
+            {kind === 'noShow'
+              ? t('reasonsForNoShow', 'modals')
+              : kind === 'rejected'
+                ? t('reasonsForRejection', 'modals')
+                : t('reasons', 'modals')}
           </h2>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t('reasonsForStatusChange', 'modals', { status })}</p>
         </div>
