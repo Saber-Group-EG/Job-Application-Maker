@@ -5,7 +5,8 @@
 import { lazy, Suspense, useMemo, type ReactNode } from 'react';
 import type { ApexOptions } from 'apexcharts';
 import { useLocale } from '../../context/LocaleContext';
-import type { ChartView, CustomResult } from '../../services/reportsService';
+import type { ChartView, CustomResult, CustomSpec } from '../../services/reportsService';
+import { toPlainString } from '../../utils/strings';
 
 const Chart = lazy(() => import('react-apexcharts'));
 
@@ -153,21 +154,56 @@ export function CustomChartBody({ result, view }: { result: CustomResult; view: 
   );
 }
 
-// A card around a chart: title, view switcher, and the caller's buttons.
-export function ChartCard({ title, result, view, onViewChange, actions, footer }: {
+export type JobOption = { _id: string; title: string | { en?: string; ar?: string } };
+
+// The job a chart is narrowed to (its first job filter), or null for all jobs.
+export const chartJobId = (spec: CustomSpec): string | null => {
+  const ids = (spec.filters?.jobIds as string[] | undefined) ?? [];
+  return ids.length === 1 ? ids[0] : null;
+};
+export const withJob = (spec: CustomSpec, jobId: string | null): CustomSpec => ({
+  ...spec,
+  filters: { ...(spec.filters || {}), jobIds: jobId ? [jobId] : [] },
+});
+
+// "All jobs / one job" menu, on charts where the user asked for one.
+function JobPicker({ spec, jobs, onChange }: { spec: CustomSpec; jobs: JobOption[]; onChange: (id: string | null) => void }) {
+  const { t, locale } = useLocale();
+  return (
+    <select
+      value={chartJobId(spec) ?? ''}
+      onChange={(e) => onChange(e.target.value || null)}
+      aria-label={t('funnelJobFilter', 'reports')}
+      className="h-8 max-w-[220px] rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+    >
+      <option value="">{t('allJobs', 'reports')}</option>
+      {jobs.map((j) => (
+        <option key={j._id} value={j._id}>{toPlainString(j.title, locale) || '—'}</option>
+      ))}
+    </select>
+  );
+}
+
+// A card around a chart: title, job menu, view switcher, and the caller's buttons.
+export function ChartCard({ title, result, view, onViewChange, jobs, onJobChange, actions, footer }: {
   title: ReactNode;
   result: CustomResult;
   view: ChartView;
   // Leave out to show the chart in a fixed view (saved charts).
   onViewChange?: (v: ChartView) => void;
+  // The company's jobs, to narrow the chart to one job (no AI involved).
+  jobs?: JobOption[];
+  onJobChange?: (id: string | null) => void;
   actions?: ReactNode;
   footer?: ReactNode;
 }) {
+  const showJobs = Boolean(result.spec.jobFilter && jobs?.length && onJobChange && result.spec.groupBy !== 'job');
   return (
     <section className="rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-3 dark:border-slate-800">
         <div className="min-w-0 text-base font-semibold text-slate-900 dark:text-white">{title}</div>
         <div className="flex flex-wrap items-center gap-2">
+          {showJobs && <JobPicker spec={result.spec} jobs={jobs!} onChange={onJobChange!} />}
           {onViewChange && <ViewSwitcher result={result} view={fitView(result, view)} onChange={onViewChange} />}
           {actions}
         </div>

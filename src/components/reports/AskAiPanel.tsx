@@ -9,7 +9,7 @@ import { useLocale } from '../../context/LocaleContext';
 import { Button } from '../ui/kit';
 import { reportBuilderService, type ChartView, type CustomResult, type CustomSpec } from '../../services/reportsService';
 import { useReportWidgetMutations } from '../../hooks/queries/useReports';
-import { ChartCard, fitView } from './CustomChart';
+import { ChartCard, fitView, withJob, type JobOption } from './CustomChart';
 
 type AiTurn = {
   id: number;
@@ -24,7 +24,7 @@ type AiTurn = {
   error?: boolean;
 };
 
-export default function AskAiPanel({ companyId, enabled, days }: { companyId: string | null; enabled: boolean; days: number }) {
+export default function AskAiPanel({ companyId, enabled, days, jobs = [] }: { companyId: string | null; enabled: boolean; days: number; jobs?: JobOption[] }) {
   const { t, locale } = useLocale();
   const [turns, setTurns] = useState<AiTurn[]>([]);
   const [message, setMessage] = useState('');
@@ -77,6 +77,18 @@ export default function AskAiPanel({ companyId, enabled, days }: { companyId: st
       setTurns((all) => [...all, { id: nextId.current++, role: 'ai', text: err?.message || t('aiError', 'reports'), error: true }]);
     } finally {
       setBusy(false);
+    }
+  };
+
+  // Narrow a chart to one job (or back to all jobs) without asking the AI.
+  const filterJob = async (turn: AiTurn, jobId: string | null) => {
+    if (!companyId || !turn.spec) return;
+    const spec = withJob(turn.spec, jobId);
+    try {
+      const result = await reportBuilderService.run({ companyId, spec, locale, days });
+      patch(turn.id, { spec: result.spec, result, insights: undefined, saved: false });
+    } catch (err: any) {
+      patch(turn.id, { insights: [err?.message || t('aiError', 'reports')] });
     }
   };
 
@@ -156,6 +168,8 @@ export default function AskAiPanel({ companyId, enabled, days }: { companyId: st
                           result={turn.result}
                           view={turn.view ?? turn.spec.view}
                           onViewChange={(v) => patch(turn.id, { view: v })}
+                          jobs={jobs}
+                          onJobChange={(id) => filterJob(turn, id)}
                           actions={
                             <>
                               <Button size="sm" icon={<Lightbulb className="size-4" />} loading={turn.explaining} onClick={() => explain(turn)}>

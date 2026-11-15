@@ -101,6 +101,8 @@ export interface CustomSpec {
   view: ChartView;
   sort?: string | null;
   limit?: number;
+  // The chart shows a Job menu (only when the user asked for one).
+  jobFilter?: boolean;
 }
 
 export interface CustomResult {

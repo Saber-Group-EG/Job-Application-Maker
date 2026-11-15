@@ -6,20 +6,23 @@ import { useLocale } from '../../context/LocaleContext';
 import { IconButton } from '../ui/kit';
 import { useMyReportWidgets, useReportWidgetMutations, useRunCustomChart } from '../../hooks/queries/useReports';
 import type { ReportWidget } from '../../services/reportsService';
-import { ChartCard } from './CustomChart';
+import { ChartCard, chartJobId, withJob, type JobOption } from './CustomChart';
 import { Skeleton } from './parts';
 
-function SavedChart({ widget, companyId, days, first, last, onMove }: {
+function SavedChart({ widget, companyId, days, jobs, first, last, onMove }: {
   widget: ReportWidget;
   companyId: string;
   days: number;
+  jobs: JobOption[];
   first: boolean;
   last: boolean;
   onMove: (dir: -1 | 1) => void;
 }) {
   const { t, locale } = useLocale();
   // Saved charts keep the view they were saved with and follow the page's date range.
-  const { data, isLoading, error } = useRunCustomChart(companyId, widget.spec, locale, days);
+  // The job menu narrows a saved chart for this visit only; the saved job stays the default.
+  const [jobId, setJobId] = useState<string | null>(chartJobId(widget.spec));
+  const { data, isLoading, error } = useRunCustomChart(companyId, withJob(widget.spec, jobId), locale, days);
   const { update, remove } = useReportWidgetMutations(companyId);
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(widget.title);
@@ -74,12 +77,14 @@ function SavedChart({ widget, companyId, days, first, last, onMove }: {
       title={titleNode}
       result={data}
       view={widget.view}
+      jobs={jobs}
+      onJobChange={setJobId}
       actions={actions}
     />
   );
 }
 
-export default function MyCharts({ companyId, days }: { companyId: string | null; days: number }) {
+export default function MyCharts({ companyId, days, jobs = [] }: { companyId: string | null; days: number; jobs?: JobOption[] }) {
   const { t } = useLocale();
   const { data: widgets = [] } = useMyReportWidgets(companyId);
   const { update } = useReportWidgetMutations(companyId);
@@ -101,7 +106,7 @@ export default function MyCharts({ companyId, days }: { companyId: string | null
       <h2 className="text-base font-semibold text-slate-900 dark:text-white">{t('myCharts', 'reports')}</h2>
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         {widgets.map((w, i) => (
-          <SavedChart key={w._id} widget={w} companyId={companyId} days={days} first={i === 0} last={i === widgets.length - 1} onMove={(dir) => move(i, dir)} />
+          <SavedChart key={w._id} widget={w} companyId={companyId} days={days} jobs={jobs} first={i === 0} last={i === widgets.length - 1} onMove={(dir) => move(i, dir)} />
         ))}
       </div>
     </div>
