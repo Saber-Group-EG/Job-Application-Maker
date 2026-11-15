@@ -91,30 +91,52 @@ export type ChartView = 'table' | 'bar' | 'hbar' | 'line' | 'area' | 'pie' | 'do
 
 // A chart description from the fixed menu (application-maker:
 // services/reports/customReport.js). The AI fills these in; the server runs them.
+export type ChartControl = 'job' | 'source' | 'status' | 'gender' | 'department';
+
 export interface CustomSpec {
   title: string;
-  measure: 'applicants' | 'interviews' | 'reachedStatus' | 'conversion' | 'avgDaysToStatus';
+  measure:
+    | 'applicants' | 'interviews' | 'reachedStatus' | 'conversion' | 'avgDaysToStatus'
+    | 'avgMatchScore' | 'avgExpectedSalary' | 'medianExpectedSalary';
   status?: string | null;
+  // job, status, source, gender, department, rejectionReason, ageBand, weekday,
+  // day/week/month/quarter/year, none, or "field:<form question key>".
   groupBy: string;
   splitBy?: string | null;
   filters: Record<string, unknown>;
   view: ChartView;
   sort?: string | null;
   limit?: number;
-  // The chart shows a Job menu (only when the user asked for one).
-  jobFilter?: boolean;
+  // Numbers written on the chart.
+  labels?: 'none' | 'value' | 'percent' | 'both';
+  stacked?: 'none' | 'stacked' | 'percent';
+  cumulative?: boolean;
+  showTotal?: boolean;
+  showLegend?: boolean;
+  colors?: string[];
+  groupOthers?: boolean;
+  // Menus on the chart (only when the user asked for them).
+  controls?: ChartControl[];
+  jobFilter?: boolean; // older charts: same as controls: ['job']
 }
 
 export interface CustomResult {
   spec: CustomSpec;
-  unit: 'count' | 'percent' | 'days';
+  unit: 'count' | 'percent' | 'days' | 'score' | 'money';
   timeGrouped: boolean;
+  groupLabel?: string | null;
   categories: string[];
   series: { name: string; data: number[] }[];
   columns: string[];
   rows: (string | number)[][];
   total: number;
   counted: number;
+  controlOptions?: {
+    source: string[];
+    status: string[];
+    gender: string[];
+    department: { id: string; name: string }[];
+  };
 }
 
 export interface ReportWidget {

@@ -7,9 +7,9 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { BookmarkPlus, Check, Lightbulb, Send, Sparkles } from 'lucide-react';
 import { useLocale } from '../../context/LocaleContext';
 import { Button } from '../ui/kit';
-import { reportBuilderService, type ChartView, type CustomResult, type CustomSpec } from '../../services/reportsService';
+import { reportBuilderService, type ChartControl, type ChartView, type CustomResult, type CustomSpec } from '../../services/reportsService';
 import { useReportWidgetMutations } from '../../hooks/queries/useReports';
-import { ChartCard, fitView, withJob, type JobOption } from './CustomChart';
+import { ChartCard, fitView, withControl, type JobOption } from './CustomChart';
 
 type AiTurn = {
   id: number;
@@ -80,10 +80,10 @@ export default function AskAiPanel({ companyId, enabled, days, jobs = [] }: { co
     }
   };
 
-  // Narrow a chart to one job (or back to all jobs) without asking the AI.
-  const filterJob = async (turn: AiTurn, jobId: string | null) => {
+  // A menu on the chart changed (job, source…): re-run it without asking the AI.
+  const setControl = async (turn: AiTurn, control: ChartControl, value: string | null) => {
     if (!companyId || !turn.spec) return;
-    const spec = withJob(turn.spec, jobId);
+    const spec = withControl(turn.spec, control, value);
     try {
       const result = await reportBuilderService.run({ companyId, spec, locale, days });
       patch(turn.id, { spec: result.spec, result, insights: undefined, saved: false });
@@ -169,7 +169,7 @@ export default function AskAiPanel({ companyId, enabled, days, jobs = [] }: { co
                           view={turn.view ?? turn.spec.view}
                           onViewChange={(v) => patch(turn.id, { view: v })}
                           jobs={jobs}
-                          onJobChange={(id) => filterJob(turn, id)}
+                          onControlChange={(c, v) => setControl(turn, c, v)}
                           actions={
                             <>
                               <Button size="sm" icon={<Lightbulb className="size-4" />} loading={turn.explaining} onClick={() => explain(turn)}>

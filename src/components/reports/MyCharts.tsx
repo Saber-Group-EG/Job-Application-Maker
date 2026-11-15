@@ -5,8 +5,8 @@ import { ArrowDown, ArrowUp, Pencil, Trash2 } from 'lucide-react';
 import { useLocale } from '../../context/LocaleContext';
 import { IconButton } from '../ui/kit';
 import { useMyReportWidgets, useReportWidgetMutations, useRunCustomChart } from '../../hooks/queries/useReports';
-import type { ReportWidget } from '../../services/reportsService';
-import { ChartCard, chartJobId, withJob, type JobOption } from './CustomChart';
+import type { ChartControl, ReportWidget } from '../../services/reportsService';
+import { ChartCard, controlsOf, controlValue, withControl, type JobOption } from './CustomChart';
 import { Skeleton } from './parts';
 
 function SavedChart({ widget, companyId, days, jobs, first, last, onMove }: {
@@ -20,9 +20,12 @@ function SavedChart({ widget, companyId, days, jobs, first, last, onMove }: {
 }) {
   const { t, locale } = useLocale();
   // Saved charts keep the view they were saved with and follow the page's date range.
-  // The job menu narrows a saved chart for this visit only; the saved job stays the default.
-  const [jobId, setJobId] = useState<string | null>(chartJobId(widget.spec));
-  const { data, isLoading, error } = useRunCustomChart(companyId, withJob(widget.spec, jobId), locale, days);
+  // Menus narrow a saved chart for this visit only; the saved values stay the defaults.
+  const [picked, setPicked] = useState<Partial<Record<ChartControl, string | null>>>(() =>
+    Object.fromEntries(controlsOf(widget.spec).map((c) => [c, controlValue(widget.spec, c)]))
+  );
+  const spec = controlsOf(widget.spec).reduce((s, c) => withControl(s, c, picked[c] ?? null), widget.spec);
+  const { data, isLoading, error } = useRunCustomChart(companyId, spec, locale, days);
   const { update, remove } = useReportWidgetMutations(companyId);
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(widget.title);
@@ -78,7 +81,7 @@ function SavedChart({ widget, companyId, days, jobs, first, last, onMove }: {
       result={data}
       view={widget.view}
       jobs={jobs}
-      onJobChange={setJobId}
+      onControlChange={(c, v) => setPicked((p) => ({ ...p, [c]: v }))}
       actions={actions}
     />
   );
