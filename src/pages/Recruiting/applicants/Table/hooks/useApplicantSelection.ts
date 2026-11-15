@@ -63,6 +63,7 @@ interface UseApplicantSelectionReturn {
       _id: string;
       companyId: { _id: string; name: { en: string; ar: string } };
     };
+    noShow?: { count: number; total: number; lastAt: string | null } | null;
   }[];
 }
 
@@ -89,6 +90,7 @@ export function useApplicantSelection({
           email: String(a.email).trim(),
           expectedSalary: a.expectedSalary,
           jobPositionId: a.jobPositionId, // ← add this
+          noShow: (a as any).noShow ?? null,
         };
       });
   }, [selectedApplicantIds, applicants]);

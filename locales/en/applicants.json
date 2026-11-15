@@ -226,5 +226,11 @@
   "interviewEmailsSent": "Invitation email sent to {count} applicant(s).",
   "interviewsEmailFailed": "The interviews were scheduled, but the invitation emails couldn't be sent: {msg}",
   "interviewsNoSender": "The interviews were scheduled, but no emails were sent because this company has no sender address. Pick a sender in the scheduling form or set one in Mail Settings.",
-  "interviewsScheduledNoEmail": "Interviews scheduled, emails not sent"
+  "interviewsScheduledNoEmail": "Interviews scheduled, emails not sent",
+  "noShowFlagTitle": "Didn't show up before ({count}×)",
+  "noShowFlagTitleLast": "Didn't show up before ({count}×), last on {date}",
+  "noShowFlagLast": "Last time: {date}",
+  "noShowFlagOther": "Also on application #{no} {job} ({count}×)",
+  "noShowSingleWarning": "This applicant already didn't show up before ({count}×).",
+  "noShowBulkWarning": "{count} of the selected applicants already didn't show up before."
 }

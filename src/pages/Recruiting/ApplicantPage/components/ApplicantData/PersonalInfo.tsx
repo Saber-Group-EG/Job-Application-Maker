@@ -6,7 +6,8 @@ import { toPlainString } from '../../../../../utils/strings';
 import { useLocale } from '../../../../../context/LocaleContext';
 import { useQuery } from '@tanstack/react-query';
 import { applicantsService } from '../../../../../services/applicantsService';
-import { applicantsKeys } from '../../../../../hooks/queries/useApplicants';
+import { applicantsKeys, useNoShowHistory } from '../../../../../hooks/queries/useApplicants';
+import { Flag } from 'lucide-react';
 
 const buildResumeUrl = (raw?: string): string | null => {
   if (!raw) return null;
@@ -70,6 +71,9 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
     queryFn: () => applicantsService.getDuplicates(applicantId),
     enabled: Boolean(data.isDuplicated && applicantId),
   });
+  // Red flag: didn't show up before (here or on another of their applications).
+  const historyVersion = `${(applicant as any)?.status ?? ''}|${(applicant as any)?.statusHistory?.length ?? 0}`;
+  const { data: noShowHistory } = useNoShowHistory(applicantId, historyVersion);
   const duplicatesElsewhereOnly =
     duplicatesLoaded && Array.isArray(visibleDuplicates) && visibleDuplicates.length === 0;
 
@@ -248,6 +252,30 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({
           </div>
         </div>
 
+        {noShowHistory && noShowHistory.total > 0 && (
+          <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
+            <p className="flex items-center gap-1.5 font-semibold">
+              <Flag className="size-3.5 fill-current" aria-hidden="true" />
+              {t('noShowFlagTitle', 'applicants', { count: noShowHistory.total })}
+            </p>
+            {noShowHistory.lastAt && (
+              <p className="mt-0.5">
+                {t('noShowFlagLast', 'applicants', {
+                  date: new Date(noShowHistory.lastAt).toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+                })}
+              </p>
+            )}
+            {noShowHistory.others.map((o) => (
+              <a key={o._id} href={`/applicant-details/${o._id}`} className="mt-0.5 block underline hover:no-underline">
+                {t('noShowFlagOther', 'applicants', {
+                  no: o.applicantNo ?? '',
+                  job: typeof o.jobTitle === 'object' ? (locale === 'ar' ? o.jobTitle?.ar || o.jobTitle?.en : o.jobTitle?.en || o.jobTitle?.ar) || '' : o.jobTitle || '',
+                  count: o.count,
+                })}
+              </a>
+            ))}
+          </div>
+        )}
         {data.isDuplicated && duplicatesElsewhereOnly && (
           <p className="mb-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-slate-100 px-3 py-2 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
             {t('appliedInOtherDepartment', 'applicants')}

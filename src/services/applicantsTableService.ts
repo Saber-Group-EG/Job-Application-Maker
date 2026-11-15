@@ -37,6 +37,8 @@ export interface ApplicantTableRow {
   createdAt?: string;
   isSeen: boolean;
   isDuplicated: boolean;
+  /** Didn't show up before: this application (count) and all of theirs (total). */
+  noShow?: { count: number; total: number; lastAt: string | null } | null;
   /** 'elsewhere' = the other applications are in departments this user can't see. */
   duplicateScope?: 'visible' | 'elsewhere';
   cvFilePath: string | null;

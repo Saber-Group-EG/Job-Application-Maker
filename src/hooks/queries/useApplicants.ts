@@ -769,6 +769,17 @@ export function useUpdateApplicantStatus() {
     },
   });
 }
+// "Didn't show up before" flag for one applicant. `version` (their status and
+// history length) refetches it after a status change.
+export function useNoShowHistory(id?: string, version?: string, enabled = true) {
+  return useQuery({
+    queryKey: [...applicantsKeys.all, 'noShowHistory', id ?? '', version ?? ''],
+    queryFn: () => applicantsService.getNoShowHistory(id!),
+    enabled: enabled && Boolean(id),
+    staleTime: 30 * 1000,
+  });
+}
+
 // Delete applicant
 export function useDeleteApplicant() {
   const queryClient = useQueryClient();

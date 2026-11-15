@@ -67,6 +67,7 @@ import CandidateSummaryCard from './components/ApplicantData/AiInsightsCard';
 import { useFormDraft } from '../../../hooks/useFormDraft';
 import NoShowFollowUpModal from '../../../components/modals/NoShowFollowUpModal';
 import { isNoShowStatus, settingsOf } from '../../../utils/noShow';
+import { useNoShowHistory } from '../../../hooks/queries/useApplicants';
 
 const resolveId = (value: unknown): string | undefined => {
   if (!value) return undefined;
@@ -360,6 +361,11 @@ const ApplicantDetails: React.FC = () => {
   // After moving someone to the company's no-show status: offer to let them know.
   const [showNoShowFollowUp, setShowNoShowFollowUp] = useState(false);
   const [messagePrefill, setMessagePrefill] = useState<{ type: 'email'; subject: string; body: string } | null>(null);
+  // Same query as the red flag in the details card (shared cache).
+  const { data: noShowHistory } = useNoShowHistory(
+    id,
+    `${applicant?.status ?? ''}|${applicant?.statusHistory?.length ?? 0}`
+  );
   const [showScheduleModal, setShowScheduleModal] = useState(false);
 
   // Coming from the interview page's Schedule button: open the schedule dialog here.
@@ -1495,6 +1501,11 @@ const ApplicantDetails: React.FC = () => {
         companySettings={companyWithAddress}
         jobIds={applicantJobPositionId ? [applicantJobPositionId] : []}
         jobs={fetchedJobPosition ? [fetchedJobPosition] : []}
+        noShowWarning={
+          noShowHistory && noShowHistory.total > 0
+            ? t('noShowSingleWarning', 'applicants', { count: noShowHistory.total })
+            : ''
+        }
       />
       <CommentModal
         isOpen={showCommentModal}
@@ -1527,6 +1538,7 @@ const ApplicantDetails: React.FC = () => {
         applicantId={id || ''}
         applicant={applicant}
         companyId={applicantCompanyId}
+        noShowTotal={noShowHistory?.total ?? 0}
         onEmail={() => {
           setShowNoShowFollowUp(false);
           setMessagePrefill({

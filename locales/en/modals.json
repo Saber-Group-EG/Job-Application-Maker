@@ -468,5 +468,12 @@
   "noShowEmailHint": "Opens a message you can edit before sending.",
   "noShowNotNow": "Not now",
   "noShowEmailSubject": "We missed you at your interview for {{position}}",
-  "noShowEmailBody": "<p>Hello {{candidateName}},</p><p>We were expecting you for your interview for the {{position}} position, but we missed you.</p><p>If you are still interested, please reply to this email and we will arrange a new time.</p><p>Best regards</p>"
+  "noShowEmailBody": "<p>Hello {{candidateName}},</p><p>We were expecting you for your interview for the {{position}} position, but we missed you.</p><p>If you are still interested, please reply to this email and we will arrange a new time.</p><p>Best regards</p>",
+  "noShowRepeat": "This person has now not shown up {count} times.",
+  "noShowBulkTitle": "Let these {count} applicants know?",
+  "noShowBulkMarked": "Their scheduled interviews were marked as missed.",
+  "noShowBulkSendWhatsApp": "Send WhatsApp to all {count}",
+  "noShowBulkSending": "Sending… {done} of {count}",
+  "noShowBulkResult": "Sent: {sent} · Not sent: {failed}",
+  "noShowBulkOneCompany": "Select applicants from one company to send WhatsApp."
 }

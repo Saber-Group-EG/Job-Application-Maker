@@ -15,6 +15,7 @@ import {
   fillInterviewTemplate,
   resolveInterviewSender,
 } from '../utils/interviewEmail';
+import { isNoShowStatus, settingsOf } from '../../../../../utils/noShow';
 
 interface SelectedApplicantForInterview {
   applicantId: string;
@@ -87,6 +88,9 @@ interface UseBulkActionsReturn {
   bulkInterviewPreviewItems: any[];
   bulkStatusForm: BulkStatusForm;
   bulkAction: string;
+  /** Applicants just moved to the no-show status together (follow-up dialog). */
+  bulkNoShowIds: string[];
+  closeBulkNoShowFollowUp: (keepSelection?: boolean) => void;
 
   // Setters
   setShowBulkModal: (show: boolean) => void;
@@ -156,6 +160,7 @@ export function useBulkActions({
   const [bulkStatusError, setBulkStatusError] = useState('');
   const [bulkDeleteError, setBulkDeleteError] = useState('');
   const [bulkAction, setBulkAction] = useState('');
+  const [bulkNoShowIds, setBulkNoShowIds] = useState<string[]>([]);
   const [bulkInterviewIntervalMinutes, setBulkInterviewIntervalMinutes] = useState(15);
   const [bulkInterviewForm, setBulkInterviewForm] = useState<BulkInterviewForm>({
     date: '',
@@ -270,6 +275,17 @@ export function useBulkActions({
 
         await batchUpdateStatusMutation.mutateAsync(updates);
 
+        const noShow = isNoShowStatus(settingsOf(selectedApplicantCompany), bulkStatusForm.status);
+        setBulkAction('');
+        setShowBulkStatusModal(false);
+        setBulkStatusForm({ status: '', reasons: [], notes: '' });
+
+        if (noShow) {
+          // Keep the selection: the follow-up may email these same applicants.
+          setBulkNoShowIds([...selectedApplicantIds]);
+          return;
+        }
+
         await Swal.fire({
           title: t('success', 'applicants'),
           text: t('statusUpdateSuccess', 'applicants', { count: selectedApplicantIds.length }),
@@ -280,16 +296,21 @@ export function useBulkActions({
         });
 
         clearSelection();
-        setBulkAction('');
-        setShowBulkStatusModal(false);
-        setBulkStatusForm({ status: '', reasons: [], notes: '' });
       } catch (err: any) {
         setBulkStatusError(err.message || 'Failed to update statuses');
       } finally {
         setIsSubmittingBulkStatus(false);
       }
     },
-    [selectedApplicantIds, bulkStatusForm, batchUpdateStatusMutation, clearSelection]
+    [selectedApplicantIds, bulkStatusForm, batchUpdateStatusMutation, clearSelection, selectedApplicantCompany]
+  );
+
+  const closeBulkNoShowFollowUp = useCallback(
+    (keepSelection = false) => {
+      setBulkNoShowIds([]);
+      if (!keepSelection) clearSelection();
+    },
+    [clearSelection]
   );
 
   // Handle bulk change status (triggered by button click)
@@ -297,8 +318,9 @@ export function useBulkActions({
     async (action: string) => {
       if (selectedApplicantIds.length === 0 || !action) return;
 
-      if (action === 'rejected') {
-        setBulkStatusForm({ status: 'rejected', reasons: [], notes: '' });
+      // Rejected and the company's no-show status ask for (optional) reasons first.
+      if (action === 'rejected' || isNoShowStatus(settingsOf(selectedApplicantCompany), action)) {
+        setBulkStatusForm({ status: action, reasons: [], notes: '' });
         setBulkStatusError('');
         setShowBulkStatusModal(true);
         return;
@@ -345,7 +367,7 @@ export function useBulkActions({
         setIsProcessing(false);
       }
     },
-    [selectedApplicantIds, batchUpdateStatusMutation, clearSelection]
+    [selectedApplicantIds, batchUpdateStatusMutation, clearSelection, selectedApplicantCompany]
   );
 
   // Get company address
@@ -719,6 +741,8 @@ export function useBulkActions({
     bulkInterviewPreviewItems,
     bulkStatusForm,
     bulkAction,
+    bulkNoShowIds,
+    closeBulkNoShowFollowUp,
 
     // Setters
     setShowBulkModal,

@@ -813,3 +813,12 @@ export type ObjectFieldModel = {
   nestedObject?: UnknownRecord;
   rawValue: unknown;
 };
+
+// "Didn't show up before" flag: no-shows on this application (count) and on
+// all of this person's applications to the company (total).
+export type NoShowHistory = {
+  count: number;
+  total: number;
+  lastAt: string | null;
+  others: Array<{ _id: string; applicantNo?: number; jobTitle?: { en?: string; ar?: string } | string; count: number; lastAt: string | null }>;
+};

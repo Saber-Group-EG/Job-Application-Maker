@@ -468,5 +468,12 @@
   "noShowEmailHint": "يفتح رسالة يمكنك تعديلها قبل الإرسال.",
   "noShowNotNow": "ليس الآن",
   "noShowEmailSubject": "افتقدناك في مقابلتك لوظيفة {{position}}",
-  "noShowEmailBody": "<p>مرحبًا {{candidateName}}،</p><p>كنا ننتظرك في مقابلتك لوظيفة {{position}} ولكنك لم تحضر.</p><p>إذا كنت لا تزال مهتمًا، يُرجى الرد على هذه الرسالة وسنحدد لك موعدًا جديدًا.</p><p>مع أطيب التحيات</p>"
+  "noShowEmailBody": "<p>مرحبًا {{candidateName}}،</p><p>كنا ننتظرك في مقابلتك لوظيفة {{position}} ولكنك لم تحضر.</p><p>إذا كنت لا تزال مهتمًا، يُرجى الرد على هذه الرسالة وسنحدد لك موعدًا جديدًا.</p><p>مع أطيب التحيات</p>",
+  "noShowRepeat": "لم يحضر هذا الشخص حتى الآن {count} مرات.",
+  "noShowBulkTitle": "هل تريد إبلاغ هؤلاء المتقدمين ({count})؟",
+  "noShowBulkMarked": "تم تعليم مقابلاتهم المجدولة كفائتة.",
+  "noShowBulkSendWhatsApp": "إرسال واتساب إلى الجميع ({count})",
+  "noShowBulkSending": "جارٍ الإرسال… {done} من {count}",
+  "noShowBulkResult": "تم الإرسال: {sent} · لم يُرسل: {failed}",
+  "noShowBulkOneCompany": "اختر متقدمين من شركة واحدة لإرسال واتساب."
 }

@@ -22,6 +22,7 @@ import BulkMessageModal from '../../../../components/modals/BulkMessageModal';
 // import BulkWhatsAppModal from '../../../../components/modals/BulkWhatsAppModal';  // Bulk WhatsApp is hidden until the WhatsApp Business API is in use.
 import InterviewScheduleModal from '../../../../components/modals/InterviewScheduleModal';
 import StatusChangeModal from '../../../../components/modals/StatusChangeModal';
+import BulkNoShowFollowUpModal from '../../../../components/modals/BulkNoShowFollowUpModal';
 import MergeDuplicatesModal from '../../../../components/modals/MergeDuplicatesModal';
 import CustomFilterModal from '../../../../components/modals/CustomFilterModal';
 import { FilterHeaderCell } from './components/FilterHeaderCell';
@@ -54,7 +55,7 @@ import {
 } from 'material-react-table';
 import { ThemeProvider, createTheme } from '@mui/material';
 import { Skeleton } from '@mui/material';
-import { Copy, FileSignature, FileText, Mail, CalendarClock, RefreshCw, RotateCcw, Search, SlidersHorizontal, Trash2, X, ArrowRightLeft, UserPlus } from 'lucide-react';
+import { Copy, Flag, FileSignature, FileText, Mail, CalendarClock, RefreshCw, RotateCcw, Search, SlidersHorizontal, Trash2, X, ArrowRightLeft, UserPlus } from 'lucide-react';
 import { Button, Card, Dialog, IconButton, PageShell, focusRing, inputClass } from '../../../../components/ui/kit';
 
 // Table surface colours, matching the kit's slate palette.
@@ -1290,6 +1291,8 @@ export default function Applicants({
     openBulkInterviewModal,
     resetBulkInterviewModal,
     fillBulkCompanyAddress,
+    bulkNoShowIds,
+    closeBulkNoShowFollowUp,
   } = useBulkActions({
     selectedApplicantIds,
     selectedApplicantsForInterview,
@@ -1301,6 +1304,14 @@ export default function Applicants({
     },
     onClearSelection: () => setRowSelection({}),
   });
+
+  // Bulk "we missed you" email after a bulk no-show change.
+  const [bulkMessagePrefill, setBulkMessagePrefill] = useState<{ subject: string; body: string } | null>(null);
+  // Selected applicants who didn't show up before (warning in the status pop-up).
+  const selectedNoShowCount = useMemo(
+    () => selectedApplicants.filter((a) => (a.noShow?.total ?? 0) > 0).length,
+    [selectedApplicants]
+  );
 
   const [viewportWidth, setViewportWidth] = useState<number>(() =>
     typeof window !== 'undefined' ? window.innerWidth : 1920
@@ -2233,6 +2244,21 @@ export default function Applicants({
               >
                 {orig?.fullName || '-'}
               </a>
+              {orig?.noShow?.total > 0 && (() => {
+                // Red flag: didn't show up before (this or another of their applications).
+                const label = orig.noShow.lastAt
+                  ? t('noShowFlagTitleLast', 'applicants', {
+                      count: orig.noShow.total,
+                      date: new Date(orig.noShow.lastAt).toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+                    })
+                  : t('noShowFlagTitle', 'applicants', { count: orig.noShow.total });
+                return (
+                  <span title={label} aria-label={label} className="inline-flex items-center gap-0.5 text-red-600 dark:text-red-400">
+                    <Flag className="h-4 w-4 fill-current" aria-hidden="true" />
+                    {orig.noShow.total > 1 && <span className="text-[11px] font-semibold">{orig.noShow.total}</span>}
+                  </span>
+                );
+              })()}
               {isDuplicated &&
                 (orig?.duplicateScope === 'elsewhere' ? (
                   // Only applied again in departments this user can't open:
@@ -3610,13 +3636,33 @@ export default function Applicants({
 
                 <BulkMessageModal
                   isOpen={showBulkModal}
-                  onClose={() => setShowBulkModal(false)}
+                  onClose={() => {
+                    setShowBulkModal(false);
+                    setBulkMessagePrefill(null);
+                  }}
                   recipients={selectedApplicantRecipients}
                   companyId={selectedApplicantCompanyId}
                   company={selectedApplicantCompany}
+                  prefill={bulkMessagePrefill}
                   onSuccess={() => {
                     setRowSelection({});
                     setShowBulkModal(false);
+                    setBulkMessagePrefill(null);
+                  }}
+                />
+
+                <BulkNoShowFollowUpModal
+                  isOpen={bulkNoShowIds.length > 0}
+                  onClose={() => closeBulkNoShowFollowUp()}
+                  applicantIds={bulkNoShowIds}
+                  companyId={selectedApplicantCompanyId ?? undefined}
+                  onEmail={() => {
+                    closeBulkNoShowFollowUp(true);
+                    setBulkMessagePrefill({
+                      subject: t('noShowEmailSubject', 'modals'),
+                      body: t('noShowEmailBody', 'modals'),
+                    });
+                    setShowBulkModal(true);
                   }}
                 />
 
@@ -3642,6 +3688,11 @@ export default function Applicants({
                   companySettings={selectedApplicantCompany}
                   jobIds={selectedApplicantJobIds}
                   jobs={jobPositions}
+                  noShowWarning={
+                    selectedNoShowCount > 0
+                      ? t('noShowBulkWarning', 'applicants', { count: selectedNoShowCount })
+                      : ''
+                  }
                 />
 
                 <InterviewScheduleModal

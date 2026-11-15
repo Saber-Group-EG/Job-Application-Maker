@@ -7,6 +7,7 @@ import { useMatch } from 'react-router';
 import { useUndo } from '../../context/UndoContext';
 import type { FormDraft } from '../../hooks/useFormDraft';
 import ModalDraft from './ModalDraft';
+import { Flag } from 'lucide-react';
 import { isNoShowStatus, noShowReasonsOf, settingsOf } from '../../utils/noShow';
 
 type StatusDraft = { status: string; notes: string; reasons: string[] };
@@ -24,6 +25,9 @@ type Props = {
   companySettings?: any;
   jobIds?: string[];
   jobs?: any[];
+  // Red warning shown when the no-show status is picked for someone who
+  // didn't show up before (one applicant, or how many of a selection).
+  noShowWarning?: string;
 };
 
 export default function StatusChangeModal({
@@ -38,6 +42,7 @@ export default function StatusChangeModal({
   companySettings,
   jobIds = [],
   jobs = [],
+  noShowWarning = '',
 }: Props) {
   const { t } = useLocale();
   const { offerUndo } = useUndo();
@@ -416,6 +421,12 @@ export default function StatusChangeModal({
               />
             </div>
 
+            {isNoShow && noShowWarning && (
+              <p className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
+                <Flag className="mt-0.5 size-4 shrink-0 fill-current" aria-hidden="true" />
+                {noShowWarning}
+              </p>
+            )}
             {isNoShow && (
               <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
                 {t('noShowStatusHint', 'modals')}

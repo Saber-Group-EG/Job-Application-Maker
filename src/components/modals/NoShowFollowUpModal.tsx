@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { CalendarX, Mail, MessageCircle } from 'lucide-react';
+import { CalendarX, Flag, Mail, MessageCircle } from 'lucide-react';
 import { Modal } from '../ui/modal';
 import Swal from '../../utils/swal';
 import { useLocale } from '../../context/LocaleContext';
@@ -17,6 +17,8 @@ type Props = {
   applicantId: string;
   applicant: { fullName?: string; phone?: string; email?: string; interviews?: Interview[] } | null | undefined;
   companyId?: string;
+  // All the times this person didn't show up, this one included.
+  noShowTotal?: number;
   // Opens the message window with a "we missed you" email written.
   onEmail: () => void;
 };
@@ -26,7 +28,7 @@ type Props = {
  * says which interview was marked missed and offers to let the applicant know
  * on WhatsApp (platform number, "interviewMissed" update) or by email.
  */
-export default function NoShowFollowUpModal({ isOpen, onClose, applicantId, applicant, companyId, onEmail }: Props) {
+export default function NoShowFollowUpModal({ isOpen, onClose, applicantId, applicant, companyId, noShowTotal = 0, onEmail }: Props) {
   const { t, locale } = useLocale();
   const queryClient = useQueryClient();
   const { data: waStatus } = useWhatsAppStatus(companyId, isOpen);
@@ -102,6 +104,13 @@ export default function NoShowFollowUpModal({ isOpen, onClose, applicantId, appl
             </p>
           </div>
         </div>
+
+        {noShowTotal > 1 && (
+          <p className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
+            <Flag className="size-4 shrink-0 fill-current" aria-hidden="true" />
+            {t('noShowRepeat', 'modals', { count: noShowTotal })}
+          </p>
+        )}
 
         <p className="text-sm text-slate-600 dark:text-slate-300">{t('noShowAskNotify', 'modals')}</p>
 

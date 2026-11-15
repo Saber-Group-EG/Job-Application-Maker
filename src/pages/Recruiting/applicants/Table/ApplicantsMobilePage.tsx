@@ -44,7 +44,8 @@ Trash2,
   SlidersHorizontal,
   Download,
   ExternalLink,
-  UserPlus
+  UserPlus,
+  Flag,
 } from 'lucide-react';
 
 const MOBILE_FILTERS_STORAGE_KEY = 'applicants_mobile_filters';
@@ -1140,8 +1141,18 @@ export default function ApplicantsMobilePage({
 
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2">
-                            <h3 className={`text-base font-semibold truncate ${isSeen ? 'text-slate-500 dark:text-slate-400' : 'text-slate-900 dark:text-white'}`}>
-                              {a.fullName}
+                            <h3 className={`flex min-w-0 items-center gap-1.5 text-base font-semibold ${isSeen ? 'text-slate-500 dark:text-slate-400' : 'text-slate-900 dark:text-white'}`}>
+                              <span className="truncate">{a.fullName}</span>
+                              {(a.noShow?.total ?? 0) > 0 && (
+                                <span
+                                  title={t('noShowFlagTitle', 'applicants', { count: a.noShow?.total ?? 0 })}
+                                  aria-label={t('noShowFlagTitle', 'applicants', { count: a.noShow?.total ?? 0 })}
+                                  className="inline-flex shrink-0 items-center gap-0.5 text-red-600 dark:text-red-400"
+                                >
+                                  <Flag size={14} className="fill-current" aria-hidden="true" />
+                                  {(a.noShow?.total ?? 0) > 1 && <span className="text-[11px]">{a.noShow?.total}</span>}
+                                </span>
+                              )}
                             </h3>
                             <div className={`px-2 py-1 rounded-full text-xs font-medium border flex items-center gap-1 ${statusBadge.bg}    ${statusBadge.color}`}>
                               {statusBadge.icon}

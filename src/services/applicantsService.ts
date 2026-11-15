@@ -22,6 +22,7 @@ import type {
   BatchStatusResult,
   BulkScheduleResult,
 } from '../types/applicants';
+import type { NoShowHistory } from '../types/applicants';
 import { ApiError } from './companiesService';
 import type { ApplyOverrides, ApplyReviewResult, InterviewRecording } from '../types/interviewRecording';
 
@@ -397,6 +398,11 @@ class ApplicantsService {
     data: UpdateStatusRequest
   ): Promise<Applicant> {
     return this.request<Applicant>('put', `/applicants/${id}/status`, data);
+  }
+
+  // How often this person didn't show up (this application + their others).
+  async getNoShowHistory(id: string): Promise<NoShowHistory> {
+    return this.request<NoShowHistory>('get', `/applicants/${id}/no-show-history`);
   }
 
   // Add or change the reasons/notes of one past status change (e.g. why the
