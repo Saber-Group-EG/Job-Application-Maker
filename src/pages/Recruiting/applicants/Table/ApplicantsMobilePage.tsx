@@ -6,7 +6,7 @@ import { useApplicantsTable } from "../../../../hooks/queries/useApplicantsTable
 import type { ApplicantTableRow } from "../../../../services/applicantsTableService";
 import { useDebounce } from "../../../../hooks/useDebounce";
 import { useCompanies } from "../../../../hooks/queries/useCompanies";
-import { useJobPositions } from "../../../../hooks/queries/useJobPositions";
+import { useJobPositions, useJobPosition } from "../../../../hooks/queries/useJobPositions";
 import { useAuth } from "../../../../context/AuthContext";
 import { useLocale } from "../../../../context/LocaleContext";
 import { useCompanyFilter } from "../../../../context/CompanyFilterContext";
@@ -54,6 +54,22 @@ const toStringArray = (value: any): string[] => {
   if (typeof value === 'string' && value) return [value];
   return [];
 };
+
+type StatusEntry = { _id?: unknown; id?: unknown; name?: unknown };
+
+const statusIdOf = (value: unknown): string => {
+  if (typeof value === 'string') return value.trim();
+  if (value && typeof value === 'object') {
+    const ref = value as { _id?: unknown; id?: unknown };
+    return String(ref._id ?? ref.id ?? '').trim();
+  }
+  return '';
+};
+
+const statusEntriesOf = (value: unknown): StatusEntry[] =>
+  Array.isArray(value)
+    ? (value.filter((entry) => entry && typeof entry === 'object') as StatusEntry[])
+    : [];
 
 const readPersistedMobileFilters = () => {
   try {
@@ -404,6 +420,134 @@ export default function ApplicantsMobilePage({
       return id ? companyFilters.includes(String(id)) : false;
     });
   }, [jobPositions, companyFilters]);
+
+  // Some job list payloads omit allowedStatuses; the detail endpoint carries
+  // them, so look the single selected job up when the list version lacks it.
+  const soleSelectedJobId = jobFilters.length === 1 ? jobFilters[0] : '';
+  const soleSelectedJob = useMemo(
+    () =>
+      displayedJobPositions.find((job) => {
+        const legacyJob = job as unknown as { id?: string };
+        return String(job._id || legacyJob.id || '') === soleSelectedJobId;
+      }) ?? null,
+    [displayedJobPositions, soleSelectedJobId]
+  );
+  const needsSoleJobDetail = Boolean(soleSelectedJobId) && !soleSelectedJob?.allowedStatuses;
+  const { data: soleSelectedJobDetail } = useJobPosition(soleSelectedJobId, {
+    enabled: needsSoleJobDetail,
+    useInitialData: false,
+  });
+
+  // Company status _id → name, so a job's allowedStatuses (stored as ids) can
+  // be matched against the status names that applicants carry.
+  const statusNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    const add = (entry: StatusEntry) => {
+      const id = String(entry._id ?? entry.id ?? '').trim();
+      const name = typeof entry.name === 'string' ? entry.name.trim() : '';
+      if (id && name) map.set(id, name);
+    };
+    (companies || []).forEach((company) => {
+      const withStatuses = company as unknown as {
+        statuses?: unknown;
+        settings?: { statuses?: unknown };
+      };
+      statusEntriesOf(withStatuses.statuses).forEach(add);
+      statusEntriesOf(withStatuses.settings?.statuses).forEach(add);
+    });
+    (jobPositions || []).forEach((job) => {
+      const company = job.companyId as unknown as { settings?: { statuses?: unknown } };
+      statusEntriesOf(company?.settings?.statuses).forEach(add);
+    });
+    if (soleSelectedJobDetail?.companyId && typeof soleSelectedJobDetail.companyId === 'object') {
+      const company = soleSelectedJobDetail.companyId as unknown as {
+        settings?: { statuses?: unknown };
+      };
+      statusEntriesOf(company.settings?.statuses).forEach(add);
+    }
+    return map;
+  }, [companies, jobPositions, soleSelectedJobDetail]);
+
+  // When jobs are selected, the status filter only offers the statuses those
+  // jobs allow (a job without a configured list allows every status).
+  const allowedStatusNames = useMemo(() => {
+    if (!jobFilters.length) return null;
+    const selectedJobs = displayedJobPositions.filter((job) => {
+      const legacyJob = job as unknown as { id?: string };
+      return jobFilters.includes(String(job._id || legacyJob.id || ''));
+    });
+    if (!selectedJobs.length) return null;
+    const jobsToCheck: Array<{ allowedStatuses?: unknown }> =
+      selectedJobs.length === 1 && soleSelectedJobDetail
+        ? [soleSelectedJobDetail as unknown as { allowedStatuses?: unknown }]
+        : (selectedJobs as unknown as Array<{ allowedStatuses?: unknown }>);
+
+    const knownNames = new Set(
+      Array.from(statusNameById.values()).map((name) => name.toLowerCase())
+    );
+    const allowed = new Set<string>();
+    for (const job of jobsToCheck) {
+      const configured: unknown[] = Array.isArray(job?.allowedStatuses)
+        ? job.allowedStatuses
+        : [];
+      if (configured.length === 0) return null;
+      configured.forEach((value) => {
+        const raw = statusIdOf(value);
+        if (!raw) return;
+        const resolved = statusNameById.get(raw);
+        if (resolved) {
+          allowed.add(resolved.toLowerCase());
+          return;
+        }
+        // Older jobs stored status names instead of ids.
+        if (knownNames.has(raw.toLowerCase())) allowed.add(raw.toLowerCase());
+      });
+    }
+    return allowed.size > 0 ? allowed : null;
+  }, [jobFilters, displayedJobPositions, statusNameById, soleSelectedJobDetail]);
+
+  // Keep a selected status from silently filtering everything out after the
+  // job selection narrows the list.
+  useEffect(() => {
+    if (!allowedStatusNames) return;
+    setStatusFilters((prev) => {
+      const next = prev.filter((status) => allowedStatusNames.has(String(status).toLowerCase()));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [allowedStatusNames]);
+
+  const baseStatusOptions = useMemo(() => {
+    const preferred = ['pending', 'interview', 'interviewed', 'approved', 'rejected'];
+    const configured = Array.from(statusNameById.values());
+    const options = preferred.map(
+      (key) => configured.find((name) => name.toLowerCase() === key) || key
+    );
+    const reserved = new Set([...preferred, 'trashed']);
+    configured.forEach((name) => {
+      if (!reserved.has(name.toLowerCase())) options.push(name);
+    });
+    if (isSuperAdmin) {
+      options.push(configured.find((name) => name.toLowerCase() === 'trashed') || 'trashed');
+    }
+    const seen = new Set<string>();
+    return options.filter((name) => {
+      const key = name.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [statusNameById, isSuperAdmin]);
+
+  const jobStatusOptions = useMemo(
+    () =>
+      baseStatusOptions.filter(
+        (name) => !allowedStatusNames || allowedStatusNames.has(name.toLowerCase())
+      ),
+    [baseStatusOptions, allowedStatusNames]
+  );
+
+  // Only explain the shorter list when the job actually hides an option.
+  const statusFilterNarrowed = jobStatusOptions.length < baseStatusOptions.length;
 
   // Sync job filters with the column filter model used by custom modal.
   useEffect(() => {
@@ -1242,24 +1386,28 @@ export default function ApplicantsMobilePage({
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-800/50">
                 <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">
                   {statusFilters.length ? t('selected', 'applicants', { count: statusFilters.length }) : t('allStatuses', 'applicants')}
+                  {statusFilterNarrowed && (
+                    <span className="mt-0.5 block text-[11px] text-slate-400 dark:text-slate-500">
+                      {t('jobAllowedStatusesHint', 'applicants')}
+                    </span>
+                  )}
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {[
-                    'pending',
-                    'interview',
-                    'interviewed',
-                    'approved',
-                    'rejected',
-                    ...(isSuperAdmin ? ['trashed'] : []),
-                  ].map((status) => {
-                    const selected = statusFilters.includes(status);
+                  {jobStatusOptions.map((status) => {
+                    const selected = statusFilters.some(
+                      (value) => String(value).toLowerCase() === status.toLowerCase()
+                    );
                     return (
                       <button
                         key={status}
                         type="button"
                         onClick={() => {
                           setStatusFilters((prev) => {
-                            if (selected) return prev.filter((s) => s !== status);
+                            if (selected) {
+                              return prev.filter(
+                                (s) => String(s).toLowerCase() !== status.toLowerCase()
+                              );
+                            }
                             return [...prev, status];
                           });
                         }}

@@ -108,6 +108,7 @@
   "allCompanies": "جميع الشركات",
   "allJobs": "جميع الوظائف",
   "allStatuses": "جميع الحالات",
+  "jobAllowedStatusesHint": "مقتصرة على الحالات المسموح بها للوظيفة المحددة.",
   "allGenders": "جميع الأجناس",
   "selected": "{count} محدد",
   "selectedAuto": "1 محدد (تلقائي)",

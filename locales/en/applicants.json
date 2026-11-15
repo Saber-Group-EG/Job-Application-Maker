@@ -139,6 +139,7 @@
   "allCompanies": "All companies",
   "allJobs": "All jobs",
   "allStatuses": "All statuses",
+  "jobAllowedStatusesHint": "Limited to the statuses allowed for the selected job.",
   "allGenders": "All genders",
   "selected": "{count} selected",
   "selectedAuto": "1 selected (auto)",
