@@ -472,5 +472,15 @@
   "aiFeatures.interviewReview.title": "تسجيل المقابلات ومراجعتها بالذكاء الاصطناعي",
   "aiFeatures.interviewReview.desc": "سجّل المقابلات وفرّغها نصياً، ودع الذكاء الاصطناعي يستخرج الأسئلة التي طُرحت ويلخّص الإجابات ويقترح الدرجات. يُحتسب التفريغ الصوتي بالدقيقة.",
   "aiFeatures.reportBuilder.title": "منشئ التقارير بالذكاء الاصطناعي",
-  "aiFeatures.reportBuilder.desc": "اطلب أي رسم بياني أو جدول بكلامك العادي في صفحة التقارير، واحصل على ملاحظات مكتوبة، واحفظ الرسوم في تقاريرك."
+  "aiFeatures.reportBuilder.desc": "اطلب أي رسم بياني أو جدول بكلامك العادي في صفحة التقارير، واحصل على ملاحظات مكتوبة، واحفظ الرسوم في تقاريرك.",
+  "statusSettings.noShowTitle": "حالة عدم الحضور",
+  "statusSettings.noShowDesc": "الحالة التي تعني أن المتقدم لم يحضر. عند نقل متقدم إليها تُعلَّم مقابلته المجدولة كفائتة ويُعرض عليك إبلاغه عبر واتساب أو البريد الإلكتروني.",
+  "statusSettings.noShowAutoFound": "التعرّف عليها من الاسم (حاليًا: {status})",
+  "statusSettings.noShowAutoNone": "التعرّف عليها من الاسم (لا توجد بعد)",
+  "statusSettings.noShowOff": "لا شيء — لا تعامل أي حالة كعدم حضور",
+  "statusSettings.noShowMissing": "هذه الحالة لم تعد موجودة. اختر حالة أخرى، وإلا سيُستخدم الاسم للتعرّف عليها.",
+  "rejectionTab.noShowTitle": "أسباب عدم الحضور",
+  "rejectionTab.noShowDesc": "أسباب يمكن اختيارها عندما لا يحضر المتقدم — عند تغيير الحالة أو لاحقًا من سجل نشاطه.",
+  "rejectionTab.noShowEmpty": "لا توجد أسباب لعدم الحضور بعد.",
+  "rejectionTab.noShowPlaceholder": "مثال: تعذّر التواصل معه"
 }

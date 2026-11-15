@@ -8,6 +8,7 @@ import {
 	ShieldCheck,
 	Trash2,
 	GripVertical,
+	UserX,
 } from "lucide-react";
 import Swal from "../../../utils/swal";
 import {
@@ -66,6 +67,7 @@ type CompanyShape = {
 		_id?: string;
 		company?: string;
 		rejectReasons?: string[];
+		noShowReasons?: string[];
 	};
 };
 
@@ -208,6 +210,8 @@ export default function RejectionTab({
 		hasPermission("Settings Management", "write") ||
 		hasPermission("Settings Management", "create");
 	const [rejectReasons, setRejectReasons] = useState<ReasonItem[]>([]);
+	// Reasons for "didn't show up", picked when the status is set or later.
+	const [noShowReasons, setNoShowReasons] = useState<ReasonItem[]>([]);
 	const [isSaving, setIsSaving] = useState(false);
 	const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -232,6 +236,23 @@ export default function RejectionTab({
 	}, [selectedCompany]);
 
 	const isLoading = isCompaniesLoading;
+
+	const derivedNoShowReasons = useMemo(
+		() => normalizeRejectReasons(selectedCompany?.settings?.noShowReasons),
+		[selectedCompany]
+	);
+	useEffect(() => {
+		setNoShowReasons(derivedNoShowReasons.map((value) => ({ id: crypto.randomUUID(), value })));
+	}, [derivedNoShowReasons]);
+	const addNoShowReason = () =>
+		setNoShowReasons((prev) => [...prev, { id: crypto.randomUUID(), value: "" }]);
+	const updateNoShowReason = (id: string, value: string) =>
+		setNoShowReasons((prev) => prev.map((r) => (r.id === id ? { ...r, value } : r)));
+	const removeNoShowReason = (id: string) => {
+		const before = noShowReasons;
+		setNoShowReasons((prev) => prev.filter((r) => r.id !== id));
+		offerUndo(t('undoItemRemoved', 'common'), () => setNoShowReasons(before));
+	};
 
 	useEffect(() => {
 		setRejectReasons(derivedRejectReasons.map((value) => ({
@@ -299,6 +320,7 @@ export default function RejectionTab({
 			await updateRejectionReasonsMutation.mutateAsync({
 				settingsId: settingsId || '',  // Only settingsId
 				rejectReasons: payload,  // Array of strings      
+				noShowReasons: [...new Set(normalizeRejectReasons(noShowReasons.map((r) => r.value)))],
 			});
 
 			Swal.fire({
@@ -448,6 +470,53 @@ export default function RejectionTab({
 								document.body
 							)}
 						</DndContext>
+					)}
+				</div>
+			</Card>
+
+			<Card className="mt-6">
+				<CardToolbar>
+					<div>
+						<SectionTitle icon={<UserX className="size-4" />}>{t('rejectionTab.noShowTitle', 'settings')}</SectionTitle>
+						<p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{t('rejectionTab.noShowDesc', 'settings')}</p>
+					</div>
+					<Button icon={<PlusCircle className="size-4" />} onClick={addNoShowReason} disabled={!canEdit}>
+						{t('rejectionTab.addReason', 'settings')}
+					</Button>
+				</CardToolbar>
+				<div className="p-4">
+					{!isLoading && noShowReasons.length === 0 && (
+						<EmptyState icon={<UserX className="size-6" />} title={t('rejectionTab.noShowEmpty', 'settings')} />
+					)}
+					{noShowReasons.length > 0 && (
+						<div className="space-y-2">
+							{noShowReasons.map((item, index) => (
+								<div
+									key={item.id}
+									className="grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/60"
+								>
+									<span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-slate-100 text-xs font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+										{index + 1}
+									</span>
+									<input
+										value={item.value}
+										onChange={(e) => updateNoShowReason(item.id, e.target.value)}
+										disabled={!canEdit}
+										aria-label={t('rejectionTab.reasonLabel', 'settings', { number: index + 1 })}
+										placeholder={t('rejectionTab.noShowPlaceholder', 'settings')}
+										className={inputClass}
+									/>
+									<IconButton
+										tone="danger"
+										label={t('delete', 'common')}
+										onClick={() => removeNoShowReason(item.id)}
+										disabled={!canEdit}
+									>
+										<Trash2 className="size-4" />
+									</IconButton>
+								</div>
+							))}
+						</div>
 					)}
 				</div>
 			</Card>

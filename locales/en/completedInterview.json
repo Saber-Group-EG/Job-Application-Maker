@@ -39,5 +39,6 @@
   "noQuestionsRecordedDesc": "This interview does not have any questions attached to it.",
   "scoreFormat": "{achieved} / {total}",
   "answeredCountFormat": "{answered} / {total}",
-  "interview": "Interview"
+  "interview": "Interview",
+  "statusMissed": "Missed"
 }

@@ -399,6 +399,16 @@ class ApplicantsService {
     return this.request<Applicant>('put', `/applicants/${id}/status`, data);
   }
 
+  // Add or change the reasons/notes of one past status change (e.g. why the
+  // applicant didn't show up, once that is known).
+  async updateStatusHistoryEntry(
+    id: string,
+    entryId: string,
+    data: { reasons?: string[]; notes?: string }
+  ): Promise<Applicant> {
+    return this.request<Applicant>('put', `/applicants/${id}/status-history/${entryId}`, data);
+  }
+
   async scheduleInterview(
     applicantId: string,
     data: ScheduleInterviewRequest
@@ -616,7 +626,7 @@ class ApplicantsService {
   // sent by hand from the platform WhatsApp number.
   async sendWhatsAppUpdate(
     applicantId: string,
-    event: 'applicationReceived' | 'interviewScheduled' | 'offerSent'
+    event: 'applicationReceived' | 'interviewScheduled' | 'offerSent' | 'interviewMissed'
   ): Promise<{ sent: boolean; externalId?: string }> {
     return this.request('post', `/applicants/${applicantId}/whatsapp/notify`, { event });
   }

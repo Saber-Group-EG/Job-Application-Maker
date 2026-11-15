@@ -474,5 +474,15 @@
   "aiFeatures.interviewReview.title": "Interview Recording & AI Review",
   "aiFeatures.interviewReview.desc": "Record interviews, transcribe them, and let AI extract the questions asked, summarise the answers and suggest scores. Transcription is billed per minute of audio.",
   "aiFeatures.reportBuilder.title": "AI Report Builder",
-  "aiFeatures.reportBuilder.desc": "Ask for any chart or table in plain words on the Reports page, get written takeaways, and save charts to your own reports."
+  "aiFeatures.reportBuilder.desc": "Ask for any chart or table in plain words on the Reports page, get written takeaways, and save charts to your own reports.",
+  "statusSettings.noShowTitle": "No-show status",
+  "statusSettings.noShowDesc": "The status that means the applicant didn't show up. Moving someone to it marks their scheduled interview as missed and offers to let them know by WhatsApp or email.",
+  "statusSettings.noShowAutoFound": "Find it by name (now: {status})",
+  "statusSettings.noShowAutoNone": "Find it by name (none found yet)",
+  "statusSettings.noShowOff": "None — don't treat any status as a no-show",
+  "statusSettings.noShowMissing": "This status no longer exists. Pick another one, or the name will be used to find it.",
+  "rejectionTab.noShowTitle": "No-show reasons",
+  "rejectionTab.noShowDesc": "Reasons to pick when an applicant didn't show up — when you set the status, or later from their activity.",
+  "rejectionTab.noShowEmpty": "No no-show reasons yet.",
+  "rejectionTab.noShowPlaceholder": "Example: Couldn't be reached"
 }

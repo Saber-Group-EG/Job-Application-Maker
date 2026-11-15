@@ -65,6 +65,8 @@ import { getPreviousStatus } from './utils/statusUtils';
 import type { JobSpecItem } from '../../../types/applicants';
 import CandidateSummaryCard from './components/ApplicantData/AiInsightsCard';
 import { useFormDraft } from '../../../hooks/useFormDraft';
+import NoShowFollowUpModal from '../../../components/modals/NoShowFollowUpModal';
+import { isNoShowStatus, settingsOf } from '../../../utils/noShow';
 
 const resolveId = (value: unknown): string | undefined => {
   if (!value) return undefined;
@@ -154,7 +156,8 @@ const ApplicantDetails: React.FC = () => {
   )?.applicant;
   const { t, dir } = useLocale();
   const { user, hasPermission } = useAuth();
-  const canMergeDuplicates = hasPermission('Applicant Management', 'write');
+  const canWriteApplicants = hasPermission('Applicant Management', 'write');
+  const canMergeDuplicates = canWriteApplicants;
   const { data: applicantName } = useApplicant(id || '', {
     fields: 'fullName',
   });
@@ -354,6 +357,9 @@ const ApplicantDetails: React.FC = () => {
   const [statusError, setStatusError] = useState('');
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [showMessageModal, setShowMessageModal] = useState(false);
+  // After moving someone to the company's no-show status: offer to let them know.
+  const [showNoShowFollowUp, setShowNoShowFollowUp] = useState(false);
+  const [messagePrefill, setMessagePrefill] = useState<{ type: 'email'; subject: string; body: string } | null>(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
 
   // Coming from the interview page's Schedule button: open the schedule dialog here.
@@ -803,14 +809,16 @@ const ApplicantDetails: React.FC = () => {
       };
       if (statusForm.notes && statusForm.notes.trim())
         payload.notes = statusForm.notes.trim();
+      const noShow = isNoShowStatus(settingsOf(companyWithAddress), statusForm.status);
       if (
-        statusForm.status === 'rejected' &&
+        (statusForm.status === 'rejected' || noShow) &&
         statusForm.reasons &&
         statusForm.reasons.length
       )
         payload.reasons = statusForm.reasons;
       await updateStatus.mutateAsync({ id, data: payload });
       setShowStatusModal(false);
+      if (noShow) setShowNoShowFollowUp(true);
     } catch {
       /* toast handled by mutation */
     }
@@ -1404,6 +1412,8 @@ const ApplicantDetails: React.FC = () => {
                   mailRecords={applicantMailRecords}
                   interviews={applicant?.interviews}
                   company={companyWithAddress}
+                  applicantId={id}
+                  canEditReasons={canWriteApplicants}
                 />
               </div>
 
@@ -1502,10 +1512,30 @@ const ApplicantDetails: React.FC = () => {
       />
       <MessageModal
         isOpen={showMessageModal}
-        onClose={() => setShowMessageModal(false)}
+        onClose={() => {
+          setShowMessageModal(false);
+          setMessagePrefill(null);
+        }}
         applicant={applicant}
         id={id || ''}
         company={companyWithAddress}
+        prefill={messagePrefill}
+      />
+      <NoShowFollowUpModal
+        isOpen={showNoShowFollowUp}
+        onClose={() => setShowNoShowFollowUp(false)}
+        applicantId={id || ''}
+        applicant={applicant}
+        companyId={applicantCompanyId}
+        onEmail={() => {
+          setShowNoShowFollowUp(false);
+          setMessagePrefill({
+            type: 'email',
+            subject: t('noShowEmailSubject', 'modals'),
+            body: t('noShowEmailBody', 'modals'),
+          });
+          setShowMessageModal(true);
+        }}
       />
       <InterviewScheduleModal
         isOpen={showScheduleModal}

@@ -464,6 +464,7 @@ const STATUS_OPTIONS = [
   { value: 'scheduled', labelKey: 'statusScheduled' },
   { value: 'in_progress', labelKey: 'statusInProgress' },
   { value: 'cancelled', labelKey: 'statusCancelled' },
+  { value: 'missed', labelKey: 'statusMissed' },
 ];
 
 const CompletedInterviewDetails: React.FC = () => {

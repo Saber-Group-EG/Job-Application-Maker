@@ -150,7 +150,7 @@ export interface WhatsAppSender {
 }
 
 // Applicant updates sent from the platform WhatsApp number.
-export type WhatsAppEventKey = 'applicationReceived' | 'interviewScheduled' | 'offerSent';
+export type WhatsAppEventKey = 'applicationReceived' | 'interviewScheduled' | 'offerSent' | 'interviewMissed';
 
 export interface WhatsAppEventSetting {
   key: WhatsAppEventKey;
@@ -275,6 +275,7 @@ export interface UpdateCompanySettingsRequest {
   interviewSettings?: InterviewSettings;
   defaultColorGradient?: string[];
   rejectReasons?: string[];
+  noShowReasons?: string[];
   applicantStatus?: any[];
   statuses?: any[];
   applicantPages?: any[];

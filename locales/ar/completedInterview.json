@@ -39,5 +39,6 @@
   "noQuestionsRecordedDesc": "هذه المقابلة لا تحتوي على أي أسئلة مرفقة بها.",
   "scoreFormat": "{achieved} / {total}",
   "answeredCountFormat": "{answered} / {total}",
-  "interview": "مقابلة"
+  "interview": "مقابلة",
+  "statusMissed": "فائتة"
 }

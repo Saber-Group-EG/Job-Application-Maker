@@ -60,6 +60,7 @@ const getStatusLabel = (status: string | undefined, t: (key: string, ns?: string
     in_progress: t('inProgress', 'interview'),
     completed: t('completed', 'interview'),
     cancelled: t('cancelled', 'interview'),
+    missed: t('missed', 'interview'),
   };
   return status ? (map[status] ?? status) : '—';
 };
@@ -70,6 +71,7 @@ const getStatusStyle = (s: string | undefined, t: (key: string, ns?: string) => 
     in_progress: { dot: 'bg-amber-500',  badge: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' },
     completed:   { dot: 'bg-green-500',  badge: 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300' },
     cancelled:   { dot: 'bg-red-400',    badge: 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-300' },
+    missed:      { dot: 'bg-orange-500', badge: 'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' },
   };
   const style = (s && base[s]) ?? { dot: 'bg-slate-400', badge: 'bg-slate-100 text-slate-600' };
   return { ...style, label: getStatusLabel(s, t) };

@@ -242,5 +242,7 @@
   "waEvent_interviewScheduled": "Interview scheduled",
   "waEventHint_interviewScheduled": "Gives the interview date and time.",
   "waEvent_offerSent": "Job offer sent",
-  "waEventHint_offerSent": "Tells the applicant an offer is waiting in their email."
+  "waEventHint_offerSent": "Tells the applicant an offer is waiting in their email.",
+  "waEvent_interviewMissed": "Missed interview",
+  "waEventHint_interviewMissed": "Tells the applicant they missed their interview and invites them to arrange a new time."
 }

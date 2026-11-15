@@ -1,5 +1,6 @@
 // services/companiesService.ts
 import axios from '../config/axios';
+import type { NoShowSetting } from '../utils/noShow';
 import { getErrorMessage } from '../utils/errorHandler';
 import type {
   Company,
@@ -353,12 +354,13 @@ class CompaniesService {
 
   async updateCompanyStatuses(
     settingsId: string,
-    statuses: CompanyStatus[]
+    statuses: CompanyStatus[],
+    noShow?: NoShowSetting
   ): Promise<CompanyStatus[]> {
     const response = await this.request<CompanyStatus[]>(
       'put',
       `/companies/${settingsId}/settings`,
-      { statuses }
+      { statuses, ...(noShow ? { noShow } : {}) }
     );
     return Array.isArray(response) ? response : [];
   }
@@ -378,12 +380,13 @@ class CompaniesService {
   // ===== Rejection Reasons =====
   async updateCompanyRejectionReasons(
     settingsId: string,
-    rejectReasons: string[]
+    rejectReasons: string[],
+    noShowReasons?: string[]
   ): Promise<unknown> {
     return this.request<unknown>(
       'put',
       `/companies/${settingsId}/settings/rejection-reasons`,
-      { rejectReasons }
+      { rejectReasons, ...(noShowReasons ? { noShowReasons } : {}) }
     );
   }
 

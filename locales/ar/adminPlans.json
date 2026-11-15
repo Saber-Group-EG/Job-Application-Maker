@@ -66,5 +66,6 @@
   "whatsAppApplicationReceived": "استلام الطلب",
   "whatsAppInterviewScheduled": "تحديد موعد مقابلة",
   "whatsAppOfferSent": "إرسال عرض عمل",
-  "featureReportBuilder": "منشئ التقارير بالذكاء الاصطناعي"
+  "featureReportBuilder": "منشئ التقارير بالذكاء الاصطناعي",
+  "whatsAppInterviewMissed": "مقابلة فائتة"
 }

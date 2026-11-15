@@ -37,5 +37,8 @@
   "whatsappReply": "وصل رد على واتساب",
   "whatsappStatus_delivered": "تم التسليم",
   "whatsappStatus_read": "تمت القراءة",
-  "whatsappStatus_failed": "فشل"
+  "whatsappStatus_failed": "فشل",
+  "addReason": "إضافة سبب",
+  "addNoShowReason": "إضافة سبب عدم الحضور",
+  "editReasons": "تعديل الأسباب"
 }

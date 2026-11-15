@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
-import { BarChart3, Eye, GripVertical, Lock, PlusCircle, Save, Settings, Trash2 } from 'lucide-react';
+import { BarChart3, Eye, GripVertical, Lock, PlusCircle, Save, Settings, Trash2, UserX } from 'lucide-react';
 import Swal from '../../../utils/swal';
 import { useLocale } from '../../../context/LocaleContext';
 import { useUndo } from '../../../context/UndoContext';
@@ -36,6 +36,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { createPortal } from "react-dom";
 import { useCompanyFilter } from '../../../context/CompanyFilterContext';
 import { effectiveReportRole, type ReportRole } from '../../../utils/reportRoles';
+import { guessedNoShowStatus, type NoShowSetting } from '../../../utils/noShow';
 
 type LeadStatus = {
   name: string;
@@ -406,6 +407,11 @@ export default function StatusLabelsSettings({
     JSON.stringify(DEFAULT_STATUSES)
   );
   const [isSaving, setIsSaving] = useState(false);
+  // Which status means "didn't show up" (see utils/noShow.ts).
+  const [noShow, setNoShow] = useState<NoShowSetting>({ mode: 'auto', status: null });
+  const [originalNoShowJson, setOriginalNoShowJson] = useState('');
+  const statusesRef = useRef<LeadStatus[]>(statuses);
+  statusesRef.current = statuses;
 
   const { isStaticStatus: checkIsStatic, getDescription } = useStatusSettings(
     selectedCompany
@@ -416,6 +422,12 @@ export default function StatusLabelsSettings({
     setStatuses(normalized);
     setStatusIds(normalized.map(() => makeId()));
     setOriginalStatusesJson(JSON.stringify(normalized));
+    const savedNoShow: NoShowSetting = {
+      mode: selectedCompany?.settings?.noShow?.mode || 'auto',
+      status: selectedCompany?.settings?.noShow?.status || null,
+    };
+    setNoShow(savedNoShow);
+    setOriginalNoShowJson(JSON.stringify(savedNoShow));
   }, [selectedCompanyId, selectedCompany]);
 
   const canEdit =
@@ -425,9 +437,16 @@ export default function StatusLabelsSettings({
       hasPermission('Settings Management', 'create'));
 
   const hasChanges = useMemo(
-    () => JSON.stringify(statuses) !== originalStatusesJson,
-    [statuses, originalStatusesJson]
+    () =>
+      JSON.stringify(statuses) !== originalStatusesJson ||
+      JSON.stringify(noShow) !== originalNoShowJson,
+    [statuses, originalStatusesJson, noShow, originalNoShowJson]
   );
+
+  const guessedNoShow = useMemo(() => guessedNoShowStatus(statuses), [statuses]);
+  const pickedNoShowMissing =
+    noShow.mode === 'status' &&
+    !statuses.some((s) => s.name.trim().toLowerCase() === String(noShow.status || '').trim().toLowerCase());
 
   const addStatus = useCallback(() => {
     const newId = makeId();
@@ -482,6 +501,11 @@ export default function StatusLabelsSettings({
   }, []);
 
   const handleNameChange = useCallback((index: number, value: string) => {
+    // The picked no-show status follows its rename.
+    const oldName = statusesRef.current[index]?.name;
+    setNoShow((ns) =>
+      ns.mode === 'status' && oldName && ns.status === oldName ? { ...ns, status: value } : ns
+    );
     setStatuses((prev) =>
       prev.map((s, i) => (i === index ? { ...s, name: value } : s))
     );
@@ -555,10 +579,17 @@ export default function StatusLabelsSettings({
     setIsSaving(true);
 
     try {
+      const noShowPayload: NoShowSetting =
+        noShow.mode === 'status' && String(noShow.status || '').trim()
+          ? { mode: 'status', status: String(noShow.status).trim() }
+          : { mode: noShow.mode === 'off' ? 'off' : 'auto', status: null };
       await updateMutation.mutateAsync({
         settingsId: settingsId,
         statuses: payload,
+        noShow: noShowPayload,
       });
+      setOriginalNoShowJson(JSON.stringify(noShowPayload));
+      setNoShow(noShowPayload);
 
       queryClient.invalidateQueries({ queryKey: ['companies'] });
       queryClient.invalidateQueries({ queryKey: ['applicants'] });
@@ -584,7 +615,7 @@ export default function StatusLabelsSettings({
     } finally {
       setIsSaving(false);
     }
-  }, [selectedCompanyId, statuses, selectedCompany, updateMutation, queryClient]);
+  }, [selectedCompanyId, statuses, noShow, selectedCompany, updateMutation, queryClient]);
 
   const isLocked = useCallback((status: LeadStatus) => {
     return isLockedStatus(status.statusKey || status.name);
@@ -666,6 +697,46 @@ export default function StatusLabelsSettings({
               <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
                 {t('statusSettings.previewDesc', 'settings')}
               </p>
+            </div>
+          </Card>
+
+          <Card>
+            <CardToolbar>
+              <SectionTitle icon={<UserX className="size-4" />}>{t('statusSettings.noShowTitle', 'settings')}</SectionTitle>
+            </CardToolbar>
+            <div className="space-y-2 p-4">
+              <p className="text-xs text-slate-500 dark:text-slate-400">{t('statusSettings.noShowDesc', 'settings')}</p>
+              <select
+                value={noShow.mode === 'status' ? `s:${noShow.status ?? ''}` : noShow.mode}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === 'auto' || v === 'off') setNoShow({ mode: v, status: null });
+                  else setNoShow({ mode: 'status', status: v.slice(2) });
+                }}
+                disabled={!canEdit}
+                aria-label={t('statusSettings.noShowTitle', 'settings')}
+                className={`h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-700 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 ${focusRing}`}
+              >
+                <option value="auto">
+                  {guessedNoShow
+                    ? t('statusSettings.noShowAutoFound', 'settings', { status: guessedNoShow })
+                    : t('statusSettings.noShowAutoNone', 'settings')}
+                </option>
+                {statuses
+                  .filter((s) => s.name.trim())
+                  .map((s, i) => (
+                    <option key={`${s.name}-${i}`} value={`s:${s.name}`}>
+                      {s.name}
+                    </option>
+                  ))}
+                {pickedNoShowMissing && noShow.status && (
+                  <option value={`s:${noShow.status}`}>{noShow.status}</option>
+                )}
+                <option value="off">{t('statusSettings.noShowOff', 'settings')}</option>
+              </select>
+              {pickedNoShowMissing && (
+                <p className="text-xs text-amber-700 dark:text-amber-400">{t('statusSettings.noShowMissing', 'settings')}</p>
+              )}
             </div>
           </Card>
 

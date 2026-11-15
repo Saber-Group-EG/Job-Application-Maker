@@ -66,5 +66,6 @@
   "whatsAppApplicationReceived": "Application received",
   "whatsAppInterviewScheduled": "Interview scheduled",
   "whatsAppOfferSent": "Job offer sent",
-  "featureReportBuilder": "AI Report Builder"
+  "featureReportBuilder": "AI Report Builder",
+  "whatsAppInterviewMissed": "Missed interview"
 }

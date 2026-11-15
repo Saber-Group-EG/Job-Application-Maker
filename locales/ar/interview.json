@@ -204,5 +204,6 @@
   "openInterview": "فتح",
   "completedInHistory": "المقابلات المنتهية موجودة في تبويب السجل.",
   "interviewerYou": "أنت",
-  "locked": "مقفلة"
+  "locked": "مقفلة",
+  "missed": "فائتة"
 }

@@ -37,5 +37,8 @@
   "whatsappReply": "WhatsApp reply received",
   "whatsappStatus_delivered": "Delivered",
   "whatsappStatus_read": "Read",
-  "whatsappStatus_failed": "Failed"
+  "whatsappStatus_failed": "Failed",
+  "addReason": "Add reason",
+  "addNoShowReason": "Add reason for not showing up",
+  "editReasons": "Edit reasons"
 }

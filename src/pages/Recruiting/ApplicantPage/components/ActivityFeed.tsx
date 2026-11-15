@@ -12,6 +12,8 @@ import {
   Star,
   ChevronDown,
   Reply,
+  Pencil,
+  Plus,
 } from 'lucide-react';
 
 import { Modal } from '../../../../components/ui/modal';
@@ -19,9 +21,27 @@ import MailAttachments from '../../../../components/mail/MailAttachments';
 import { useLocale } from '../../../../context/LocaleContext';
 import type { Activity, ActivityFeedProps, Interview } from '../../../../types/applicants';
 import { useStatusSettings } from '../../../../hooks/useStatusSettings';
+import StatusReasonsModal from '../../../../components/modals/StatusReasonsModal';
+import { isNoShowStatus, noShowReasonsOf, settingsOf } from '../../../../utils/noShow';
 
-const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, mailRecords = [], interviews = [], company }) => {
+const ActivityFeed: React.FC<ActivityFeedProps> = ({
+  activities,
+  mailRecords = [],
+  interviews = [],
+  company,
+  applicantId,
+  canEditReasons = false,
+}) => {
   const { t, locale } = useLocale();
+  // Reasons of a rejected / no-show status change, added or edited later.
+  const [editingReasons, setEditingReasons] = useState<Activity | null>(null);
+  const companySettings = settingsOf(company);
+  const isNoShow = (status?: string) => isNoShowStatus(companySettings, status);
+  const rejectReasonOptions: string[] = Array.isArray((companySettings as any)?.rejectReasons)
+    ? (companySettings as any).rejectReasons
+    : Array.isArray(company?.rejectReasons)
+      ? company.rejectReasons
+      : [];
   const { getStatus } = useStatusSettings(company);
   const data: Activity[] = Array.isArray(activities) ? activities : [];
   const [isExpanded, setIsExpanded] = useState(true);
@@ -321,22 +341,37 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, mailRecords = [
         </div>
       )}
 
-      {activity.type === 'status_change' && activity.status && (
-        <div className="space-y-2">
-          {activity.status === 'rejected' && activity.reasons && activity.reasons.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {activity.reasons.map((reason, i) => (
-                <span
-                  key={i}
-                  className="inline-flex items-center rounded-md bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-600 ring-1 ring-inset ring-red-200"
-                >
-                  {reason}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+      {activity.type === 'status_change' && activity.status && (() => {
+        const noShow = isNoShow(activity.status);
+        const rejected = activity.status === 'rejected';
+        const reasons = activity.reasons || [];
+        const canEdit = canEditReasons && Boolean(applicantId && activity.entryId) && (noShow || rejected);
+        if (!reasons.length && !canEdit) return null;
+        return (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {reasons.map((reason, i) => (
+              <span
+                key={i}
+                className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${
+                  noShow ? 'bg-amber-50 text-amber-700 ring-amber-200' : 'bg-red-50 text-red-600 ring-red-200'
+                }`}
+              >
+                {reason}
+              </span>
+            ))}
+            {canEdit && (
+              <button
+                type="button"
+                onClick={() => setEditingReasons(activity)}
+                className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium text-brand-600 hover:bg-brand-50"
+              >
+                {reasons.length ? <Pencil className="size-3" /> : <Plus className="size-3" />}
+                {reasons.length ? t('editReasons', 'activity') : noShow ? t('addNoShowReason', 'activity') : t('addReason', 'activity')}
+              </button>
+            )}
+          </div>
+        );
+      })()}
 
       {activity.type === 'task' && activity.description && (
         <div>
@@ -403,6 +438,19 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, mailRecords = [
           </div>
         </div>
       </Modal>
+
+      {editingReasons && applicantId && editingReasons.entryId && (
+        <StatusReasonsModal
+          isOpen
+          onClose={() => setEditingReasons(null)}
+          applicantId={applicantId}
+          entryId={editingReasons.entryId}
+          status={editingReasons.status || ''}
+          initialReasons={editingReasons.reasons || []}
+          kind={isNoShow(editingReasons.status) ? 'noShow' : 'rejected'}
+          suggestions={isNoShow(editingReasons.status) ? noShowReasonsOf(company) : rejectReasonOptions}
+        />
+      )}
     </div>
   );
 };

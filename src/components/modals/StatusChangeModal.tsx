@@ -7,6 +7,7 @@ import { useMatch } from 'react-router';
 import { useUndo } from '../../context/UndoContext';
 import type { FormDraft } from '../../hooks/useFormDraft';
 import ModalDraft from './ModalDraft';
+import { isNoShowStatus, noShowReasonsOf, settingsOf } from '../../utils/noShow';
 
 type StatusDraft = { status: string; notes: string; reasons: string[] };
 
@@ -170,25 +171,36 @@ export default function StatusChangeModal({
   const modalRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const reasonOptions = useMemo(() => {
-    const fromRoot = (resolvedCompanySettings as any)?.rejectReasons;
-    const fromNested = (resolvedCompanySettings as any)?.settings?.rejectReasons;
-    const list =
-      Array.isArray(fromRoot) && fromRoot.length
-        ? fromRoot
-        : Array.isArray(fromNested)
-          ? fromNested
-          : [];
-    return [...new Set([...list, ...customReasons])].map((r: any) => ({
-      value: String(r ?? ''),
-      text: String(r ?? ''),
-    }));
-  }, [resolvedCompanySettings, customReasons]);
-
   const isRejected = useMemo(
     () => Boolean(statusForm?.status && statusForm.status.toLowerCase() === 'rejected'),
     [statusForm?.status]
   );
+  // The company's "didn't show up" status: optional reasons (often only known
+  // later; they can be added from the applicant's activity).
+  const isNoShow = useMemo(
+    () => !isRejected && isNoShowStatus(settingsOf(resolvedCompanySettings), statusForm?.status),
+    [isRejected, resolvedCompanySettings, statusForm?.status]
+  );
+
+  const reasonOptions = useMemo(() => {
+    let list: string[] = [];
+    if (isNoShow) {
+      list = noShowReasonsOf(resolvedCompanySettings);
+    } else {
+      const fromRoot = (resolvedCompanySettings as any)?.rejectReasons;
+      const fromNested = (resolvedCompanySettings as any)?.settings?.rejectReasons;
+      list =
+        Array.isArray(fromRoot) && fromRoot.length
+          ? fromRoot
+          : Array.isArray(fromNested)
+            ? fromNested
+            : [];
+    }
+    return [...new Set([...list, ...customReasons])].map((r: any) => ({
+      value: String(r ?? ''),
+      text: String(r ?? ''),
+    }));
+  }, [resolvedCompanySettings, customReasons, isNoShow]);
 
   const selectedStatusDescription = statusForm?.status
     ? getDescription(statusForm.status)
@@ -219,15 +231,14 @@ export default function StatusChangeModal({
       const found = statusOptions.find((opt: any) => String(opt.value) === String(selectedValue));
       selectedLabel = found ? (found.text || found.label || '') : '';
     }
-    const isRejectedStatus =
-      String(selectedLabel).toLowerCase() === 'rejected' ||
-      (typeof selectedValue === 'string' && selectedValue.toLowerCase() === 'rejected');
-
+    // Reasons belong to one status (rejected, no-show): a different status starts empty.
+    const changed = String(selectedValue ?? '') !== String(statusForm?.status ?? '');
     setStatusForm({
       ...statusForm,
       status: selectedValue,
-      ...(!isRejectedStatus ? { reasons: [] } : {}),
+      ...(changed ? { reasons: [] } : {}),
     });
+    if (changed) setCustomReasons([]);
     setSearchQuery('');
     setIsDropdownOpen(false);
   };
@@ -405,10 +416,22 @@ export default function StatusChangeModal({
               />
             </div>
 
-            {/* Rejection reasons */}
-            {isRejected && (
-              <div className="p-4 bg-red-50 dark:bg-red-900/10 rounded-lg border border-red-200 dark:border-red-800">
-                <Label>{t('reasonsForRejection', 'modals')}</Label>
+            {isNoShow && (
+              <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+                {t('noShowStatusHint', 'modals')}
+              </p>
+            )}
+
+            {/* Rejection / no-show reasons */}
+            {(isRejected || isNoShow) && (
+              <div
+                className={`p-4 rounded-lg border ${
+                  isNoShow
+                    ? 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700'
+                    : 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800'
+                }`}
+              >
+                <Label>{isNoShow ? t('reasonsForNoShow', 'modals') : t('reasonsForRejection', 'modals')}</Label>
 
                 {/* Selected chips */}
                 <div className="flex flex-wrap gap-2 mt-2 mb-3 p-2 border border-slate-300 dark:border-slate-600 rounded-lg min-h-[42px] bg-white dark:bg-slate-800">

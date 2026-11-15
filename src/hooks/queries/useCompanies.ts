@@ -1,4 +1,5 @@
 // hooks/queries/useCompanies.ts
+import type { NoShowSetting } from '../../utils/noShow';
 import {
   useQuery,
   useMutation,
@@ -745,10 +746,12 @@ export function useUpdateCompanyRejectionReasons() {
       companyId,
       settingsId,
       rejectReasons,
+      noShowReasons,
     }: {
       companyId?: string;
       settingsId?: string;
       rejectReasons: string[];
+      noShowReasons?: string[];
     }) => {
       // Use settingsId if provided, otherwise use companyId
       const idToUse = settingsId || companyId;
@@ -757,10 +760,11 @@ export function useUpdateCompanyRejectionReasons() {
       }
       return companiesService.updateCompanyRejectionReasons(
         idToUse,
-        rejectReasons
+        rejectReasons,
+        noShowReasons
       );
     },
-    onSuccess: (_result, { companyId, settingsId, rejectReasons }) => {
+    onSuccess: (_result, { companyId, settingsId, rejectReasons, noShowReasons }) => {
       // Determine which ID was used for the cache key
       const idUsed = settingsId || companyId;
       if (!idUsed) return;
@@ -775,7 +779,11 @@ export function useUpdateCompanyRejectionReasons() {
             if (c._id === idUsed || c.settings?._id === idUsed) {
               return {
                 ...c,
-                settings: { ...(c.settings ?? {}), rejectReasons },
+                settings: {
+                  ...(c.settings ?? {}),
+                  rejectReasons,
+                  ...(noShowReasons ? { noShowReasons } : {}),
+                },
               };
             }
             return c;
@@ -865,10 +873,12 @@ export function useUpdateCompanyStatuses() {
     mutationFn: ({
       settingsId,
       statuses,
+      noShow,
     }: {
       settingsId: string;
       statuses: CompanyStatus[];
-    }) => companiesService.updateCompanyStatuses(settingsId, statuses),
+      noShow?: NoShowSetting;
+    }) => companiesService.updateCompanyStatuses(settingsId, statuses, noShow),
     onSuccess: (_, { settingsId }) => {
       queryClient.invalidateQueries({
         queryKey: companiesKeys.statuses(settingsId),

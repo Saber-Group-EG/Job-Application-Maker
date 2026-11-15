@@ -240,7 +240,7 @@ export default function CompletedInterviewsHistory({
                       )}`}
                     >
                       <CheckCircle2 className="h-3 w-3" />
-                      {{ scheduled: t('scheduled', 'interview'), in_progress: t('inProgress', 'interview'), completed: t('completed', 'interview'), cancelled: t('cancelled', 'interview') }[status] || status}
+                      {{ scheduled: t('scheduled', 'interview'), in_progress: t('inProgress', 'interview'), completed: t('completed', 'interview'), cancelled: t('cancelled', 'interview'), missed: t('missed', 'interview') }[status] || status}
                     </span>
                   </td>
                   <td className={BODY_CELL_SECONDARY}>

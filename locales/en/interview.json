@@ -204,5 +204,6 @@
   "openInterview": "Open",
   "completedInHistory": "Finished interviews are in the History tab.",
   "interviewerYou": "You",
-  "locked": "Locked"
+  "locked": "Locked",
+  "missed": "Missed"
 }

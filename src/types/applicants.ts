@@ -12,7 +12,9 @@ export type Interview = {
   endedAt?: string;
   scheduledBy?: string | { _id?: string; fullName?: string; id?: string };
   conductedBy?: string;
-  status?: 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | string;
+  status?: 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'missed' | string;
+  // When it was marked missed (the applicant didn't show up).
+  missedAt?: string;
   type?: string;
   videoLink?: string;
   notes?: string;
@@ -77,6 +79,7 @@ export type StatusHistory = {
   changedAt: string;
   notes?: string;
   reasons?: string[];
+  reasonsUpdatedAt?: string;
   notifications?: {
     channels: { email: boolean; sms: boolean; whatsapp: boolean };
     emailOption?: 'company' | 'user' | 'custom';
@@ -197,7 +200,7 @@ export type ScheduleInterviewRequest = {
   type?: string | null;
   notes?: string;
   interviewers?: string[];
-  status?: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+  status?: 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'missed';
   questions?: InterviewAnswer[];
   // Send the WhatsApp interview update: true now, false never, unset = company setting.
   notifyWhatsApp?: boolean;
@@ -226,7 +229,7 @@ export type UpdateInterviewStatusRequest = {
   address?: string | null;
   type?: string | null;
   notes?: string | null;
-  status?: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+  status?: 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'missed';
   interviewers?: string[];
   questions?: InterviewAnswer[];
 };
@@ -257,6 +260,8 @@ export interface Activity {
   conductedBy?: string;
   interviewStatus?: string;
   reasons?: string[];
+  // statusHistory entry id, for editing its reasons later.
+  entryId?: string;
   // An applicant's reply (connected Gmail or Resend Inbound).
   inbound?: boolean;
   from?: string;
@@ -280,6 +285,7 @@ export interface ActivityItem {
   endedAt?: string;
   conductedBy?: string;
   reasons?: string[];
+  entryId?: string;
 }
 
 export type ActivityLike = Partial<Comment & StatusHistory & Message & Interview> & {
@@ -307,6 +313,9 @@ export interface ActivityFeedProps {
   mailRecords?: Array<{ createdAt: string; html: string }>;
   interviews?: Interview[];
   company?: any;
+  // Lets the feed add/edit reasons of rejected and no-show status changes.
+  applicantId?: string;
+  canEditReasons?: boolean;
 }
 
 // ─── JobSpec ──────────────────────────────────────────────────────────────────

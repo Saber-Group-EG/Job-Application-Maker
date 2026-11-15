@@ -59,6 +59,7 @@ const translateInterviewStatus = (
     in_progress: t('progressing', 'activity'),
     completed: t('completed', 'modals'),
     cancelled: t('cancelled', 'modals'),
+    missed: t('missed', 'interview'),
   };
   return map[status] || status;
 };
@@ -80,6 +81,7 @@ const buildActivities = (
       title: t ? t('statusChangedTo', 'activity', { status: entry.status }) : `Application status changed to ${entry.status}`,
       status: entry.status,
       reasons: entry.reasons,
+      entryId: entry._id,
     });
   });
 

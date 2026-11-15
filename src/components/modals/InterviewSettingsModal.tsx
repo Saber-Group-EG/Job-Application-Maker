@@ -56,7 +56,7 @@ export default function InterviewSettingsModal({
                 <p className="text-slate-600 dark:text-slate-400"><span className="font-medium">{t('date', 'modals')}</span>{' '}{selectedInterview.scheduledAt ? new Date(selectedInterview.scheduledAt).toLocaleString(locale) : t('notScheduled', 'modals')}</p>
                 <p className="text-slate-600 dark:text-slate-400"><span className="font-medium">{t('type', 'modals')}</span>{' '}{selectedInterview.type ? t(selectedInterview.type.replace(/-([a-z])/g, (_: string, c: string) => c.toUpperCase()), 'modals') : t('notScheduled', 'modals')}</p>
                 <p className="text-slate-600 dark:text-slate-400"><span className="font-medium">{t('status', 'modals')}</span>{' '}
-                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize ${selectedInterview.status === 'completed' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : selectedInterview.status === 'cancelled' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'}`}>
+                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize ${selectedInterview.status === 'completed' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : selectedInterview.status === 'cancelled' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' : selectedInterview.status === 'missed' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400' : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'}`}>
                     {t((selectedInterview.status || 'scheduled').replace(/_([a-z])/g, (_: string, c: string) => c.toUpperCase()), 'modals')}
                   </span>
                 </p>
@@ -120,6 +120,24 @@ export default function InterviewSettingsModal({
                     className="rounded-lg bg-red-500 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     ✕ {t('cancelled', 'modals')}
+                  </button>
+                )}
+
+                {selectedInterview.status !== 'missed' && (
+                  <button
+                    onClick={() => {
+                      setShowInterviewSettingsModal(false);
+                      setSelectedInterview(null);
+                      updateInterviewMutation.mutate({
+                        applicantId: applicant._id,
+                        interviewId: selectedInterview._id,
+                        data: { status: 'missed' },
+                      });
+                      Swal.fire({ title: t('success', 'modals'), text: t('successStatusUpdated', 'modals'), icon: 'success', position: 'center', timer: 2000, showConfirmButton: false, customClass: { container: '!mt-16' } });
+                    }}
+                    className="rounded-lg bg-orange-500 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    ⊘ {t('missed', 'modals')}
                   </button>
                 )}
               </div>

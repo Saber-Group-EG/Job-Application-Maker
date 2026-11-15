@@ -219,6 +219,7 @@ export default function AdminPlansPage() {
       'applicationReceived',
       'interviewScheduled',
       'offerSent',
+      'interviewMissed',
     ] as const).map(
       (key): Row => ({
         kind: 'boolean',
