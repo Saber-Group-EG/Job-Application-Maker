@@ -32,8 +32,8 @@ export const applicantsKeys = {
     skipPopulation?: boolean;
   }) => [...applicantsKeys.lists(), params] as const,
   detail: (id: string) => [...applicantsKeys.all, 'detail', id] as const,
-  rejectionInsights: (companyId?: string[]) =>
-    [...applicantsKeys.all, 'rejection-insights', companyId] as const,
+  rejectionInsights: (companyId?: string[], days?: number) =>
+    [...applicantsKeys.all, 'rejection-insights', companyId, days ?? null] as const,
   byPhone: (phone: string) =>
     [...applicantsKeys.all, 'by-phone', phone] as const,
 };
@@ -1088,6 +1088,7 @@ export function useSendMessage() {
 
 export function useRejectionInsights(params?: {
   companyId?: string[];
+  days?: number;
   enabled?: boolean;
 }) {
   const { user } = useAuth();
@@ -1097,9 +1098,9 @@ export function useRejectionInsights(params?: {
     : userCompanyIds;
 
   return useQuery({
-    queryKey: applicantsKeys.rejectionInsights(effectiveCompanyId),
+    queryKey: applicantsKeys.rejectionInsights(effectiveCompanyId, params?.days),
     queryFn: () =>
-      applicantsService.getRejectionInsights({ companyId: effectiveCompanyId }),
+      applicantsService.getRejectionInsights({ companyId: effectiveCompanyId, days: params?.days }),
     staleTime: 2 * 60 * 1000,
     refetchOnMount: false,
     refetchOnWindowFocus: false,

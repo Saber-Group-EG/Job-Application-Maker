@@ -98,7 +98,7 @@ export default function Reports() {
         </div>
         <ApplicationsTrend data={data?.trend} loading={isLoading} />
         <JobsPipeline data={data?.jobs} loading={isLoading} showCompany={showCompany} companyName={companyName} />
-        <RejectionInsightsChart companyId={companyIds} info={splitLines(t('how_rejection', 'reports'))} />
+        <RejectionInsightsChart companyId={companyIds} days={days} info={splitLines(t('how_rejection', 'reports', { days }))} />
       </div>
     </PageShell>
   );

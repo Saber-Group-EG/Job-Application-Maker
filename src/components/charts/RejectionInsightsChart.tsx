@@ -12,6 +12,8 @@ type RejectionInsightsChartProps = {
   showPercentageLabels?: boolean;
   // "How is this calculated?" lines (Reports page).
   info?: string[];
+  // Only rejections in the last N days (Reports page range).
+  days?: number;
 };
 
 const MAX_REASON_LENGTH = 34;
@@ -36,9 +38,10 @@ export default function RejectionInsightsChart({
   maxReasons = DEFAULT_MAX_REASONS,
   showPercentageLabels = false,
   info,
+  days,
 }: RejectionInsightsChartProps) {
   const { t, dir } = useLocale();
-  const { data, isLoading, isFetching, error, refetch } = useRejectionInsights({ companyId });
+  const { data, isLoading, isFetching, error, refetch } = useRejectionInsights({ companyId, days });
   const [showAllReasons, setShowAllReasons] = useState(false);
 
   // Memoized data transformation

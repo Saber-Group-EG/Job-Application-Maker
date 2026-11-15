@@ -687,12 +687,15 @@ class ApplicantsService {
 
   async getRejectionInsights(params?: {
     companyId?: string[];
+    // Only rejections in the last N days (Reports page range); all time when left out.
+    days?: number;
   }): Promise<RejectionInsights> {
     const companyIds = this.normalizeCompanyIds(params?.companyId);
 
     const fetchOne = async (companyId?: string): Promise<RejectionInsights> => {
       const queryParams: Params = {};
       if (companyId) queryParams.companyId = companyId;
+      if (params?.days) queryParams.days = params.days;
       return this.request<RejectionInsights>(
         'get',
         '/applicants/rejection-insights',
