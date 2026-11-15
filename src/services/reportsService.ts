@@ -99,7 +99,9 @@ export interface CustomSpec {
     | 'applicants' | 'interviews' | 'reachedStatus' | 'conversion' | 'avgDaysToStatus'
     | 'avgMatchScore' | 'avgExpectedSalary' | 'medianExpectedSalary';
   status?: string | null;
-  // job, status, source, gender, department, rejectionReason, ageBand, weekday,
+  // statusReason breakdown: the status whose reasons are shown (none = latest change).
+  reasonStatus?: string | null;
+  // job, status, source, gender, department, rejectionReason, statusReason, ageBand, weekday,
   // day/week/month/quarter/year, none, or "field:<form question key>".
   groupBy: string;
   splitBy?: string | null;

@@ -23,6 +23,9 @@ export function describeChart(result: CustomResult, t: T, jobs: JobOption[], day
   const dimLine = (dim: string, key: 'how_g' | 'how_split') => {
     if (dim.startsWith('field:')) return r(`${key}_field`, { label: result.groupLabel && key === 'how_g' ? result.groupLabel : dim.slice(6).replace(/_/g, ' ') });
     if (TIME.has(dim)) return r(`${key}_time`, { unit: r(`unit_${dim}`) });
+    if (dim === 'statusReason') {
+      return s.reasonStatus ? r(`${key}_statusReason`, { status: s.reasonStatus }) : r(`${key}_statusReasonLatest`);
+    }
     return r(`${key}_${dim}`);
   };
   if (s.groupBy && s.groupBy !== 'none') lines.push(dimLine(s.groupBy, 'how_g'));

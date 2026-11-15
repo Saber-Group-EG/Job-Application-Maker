@@ -153,5 +153,10 @@
   "note_limitation": "غير ممكن",
   "note_suggestion": "اقتراح",
   "note_assumption": "كيف فهمت طلبك",
-  "note_data": "عن البيانات"
+  "note_data": "عن البيانات",
+  "group_statusReason": "السبب",
+  "how_g_statusReason": "مقسّم حسب الأسباب التي اختيرت آخر مرة نُقلوا فيها إلى \"{status}\". لا يُحتسب إلا من نُقل إليها، ومن له عدة أسباب يُحتسب مرة في كل سبب.",
+  "how_g_statusReasonLatest": "مقسّم حسب الأسباب التي اختيرت عند آخر تغيير لحالتهم أيًا كانت الحالة. من له عدة أسباب يُحتسب مرة في كل سبب.",
+  "how_split_statusReason": "كل لون سبب مختار لحالة \"{status}\".",
+  "how_split_statusReasonLatest": "كل لون سبب من آخر تغيير للحالة."
 }
