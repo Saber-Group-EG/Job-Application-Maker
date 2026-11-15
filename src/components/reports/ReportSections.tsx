@@ -44,6 +44,11 @@ export function HiringFunnel({ data, loading, jobId, onJobChange, companyPicker 
 }) {
   const { t, locale } = useLocale();
   const firstEmpty = data?.funnel.find((f, i) => i > 0 && f.reached === 0);
+  // When the first step is where every applicant starts (e.g. Pending), an
+  // "Applied" row would just repeat it, so only that step is shown.
+  const startsAtFirstStep = Boolean(
+    data && data.funnel[0]?.reached === data.applied && !Object.keys(data.leftAfterApplying).length
+  );
   const select = 'h-8 rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200';
 
   return (
@@ -83,6 +88,7 @@ export function HiringFunnel({ data, loading, jobId, onJobChange, companyPicker 
       ) : (
         <>
           <ol className="space-y-4">
+            {!startsAtFirstStep && (
             <li>
               <div className="mb-1 flex items-center justify-between gap-3 text-sm">
                 <span className="font-medium text-slate-900 dark:text-white">{t('applied', 'reports')}</span>
@@ -93,14 +99,17 @@ export function HiringFunnel({ data, loading, jobId, onJobChange, companyPicker 
               </div>
               <DropOffs counts={data.leftAfterApplying} />
             </li>
-            {data.funnel.map((step) => (
+            )}
+            {data.funnel.map((step, i) => (
               <li key={step.status}>
                 <div className="mb-1 flex items-center justify-between gap-3 text-sm">
                   <span className="font-medium capitalize text-slate-900 dark:text-white">{step.status}</span>
                   <span className="flex items-center gap-2">
-                    <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-semibold tabular-nums text-brand-700 dark:bg-brand-500/10 dark:text-brand-300" title={t('pctOfPrevious', 'reports')}>
-                      {pctText(step.pctOfPrevious)}
-                    </span>
+                    {!(startsAtFirstStep && i === 0) && (
+                      <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-semibold tabular-nums text-brand-700 dark:bg-brand-500/10 dark:text-brand-300" title={t('pctOfPrevious', 'reports')}>
+                        {pctText(step.pctOfPrevious)}
+                      </span>
+                    )}
                     <span className="tabular-nums font-semibold text-slate-900 dark:text-white">{step.reached}</span>
                   </span>
                 </div>
