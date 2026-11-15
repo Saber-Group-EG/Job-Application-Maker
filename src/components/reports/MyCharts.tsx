@@ -80,6 +80,15 @@ function SavedChart({ widget, companyId, days, jobs, first, last, onMove }: {
       title={titleNode}
       result={data}
       view={widget.view}
+      footer={
+        data.dataNotes?.length ? (
+          <ul className="mt-3 space-y-1 text-xs text-sky-700 dark:text-sky-300">
+            {data.dataNotes.map((n, i) => (
+              <li key={i}>{n.text}</li>
+            ))}
+          </ul>
+        ) : null
+      }
       jobs={jobs}
       onControlChange={(c, v) => setPicked((p) => ({ ...p, [c]: v }))}
       days={days}

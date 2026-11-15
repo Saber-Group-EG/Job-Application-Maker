@@ -4,17 +4,31 @@
 // charts to their own reports. The AI only picks a chart description; the
 // server computes the numbers within the user's access.
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { BookmarkPlus, Check, Lightbulb, Send, Sparkles } from 'lucide-react';
+import { AlertTriangle, BarChart2, BookmarkPlus, Check, Info, Lightbulb, Send, Sparkles } from 'lucide-react';
 import { useLocale } from '../../context/LocaleContext';
 import { Button } from '../ui/kit';
-import { reportBuilderService, type ChartControl, type ChartView, type CustomResult, type CustomSpec } from '../../services/reportsService';
+import { reportBuilderService, type AiNote, type ChartControl, type ChartView, type CustomResult, type CustomSpec } from '../../services/reportsService';
 import { useReportWidgetMutations } from '../../hooks/queries/useReports';
 import { ChartCard, fitView, withControl, type JobOption } from './CustomChart';
+
+const NOTE_STYLE: Record<AiNote['type'], { icon: typeof Info; tone: string }> = {
+  limitation: { icon: AlertTriangle, tone: 'text-amber-700 dark:text-amber-300' },
+  suggestion: { icon: Lightbulb, tone: 'text-brand-700 dark:text-brand-300' },
+  assumption: { icon: Info, tone: 'text-slate-600 dark:text-slate-300' },
+  data: { icon: BarChart2, tone: 'text-sky-700 dark:text-sky-300' },
+};
+
+// Data notes are recomputed whenever the chart is re-run; the AI's notes stay.
+const withDataNotes = (notes: AiNote[] | undefined, result: CustomResult) => [
+  ...(notes ?? []).filter((n) => n.type !== 'data'),
+  ...(result.dataNotes ?? []),
+];
 
 type AiTurn = {
   id: number;
   role: 'user' | 'ai';
   text: string;
+  notes?: AiNote[];
   spec?: CustomSpec | null;
   result?: CustomResult | null;
   view?: ChartView;
@@ -48,7 +62,7 @@ export default function AskAiPanel({ companyId, enabled, days, jobs = [] }: { co
       if (turn.role !== 'ai' || !turn.spec) return;
       reportBuilderService
         .run({ companyId, spec: turn.spec, locale, days })
-        .then((result) => patch(turn.id, { result, insights: undefined }))
+        .then((result) => patch(turn.id, { result, insights: undefined, notes: withDataNotes(turn.notes, result) }))
         .catch(() => undefined);
     });
   }, [days, companyId, locale]);
@@ -71,7 +85,7 @@ export default function AskAiPanel({ companyId, enabled, days, jobs = [] }: { co
       const r = await reportBuilderService.ask({ companyId, message: q, previousSpec: lastSpec, locale, days });
       setTurns((all) => [
         ...all,
-        { id: nextId.current++, role: 'ai', text: r.reply, spec: r.spec, result: r.result, view: r.result ? fitView(r.result, r.spec?.view ?? 'bar') : undefined },
+        { id: nextId.current++, role: 'ai', text: r.reply, notes: r.notes ?? [], spec: r.spec, result: r.result, view: r.result ? fitView(r.result, r.spec?.view ?? 'bar') : undefined },
       ]);
     } catch (err: any) {
       setTurns((all) => [...all, { id: nextId.current++, role: 'ai', text: err?.message || t('aiError', 'reports'), error: true }]);
@@ -86,7 +100,7 @@ export default function AskAiPanel({ companyId, enabled, days, jobs = [] }: { co
     const spec = withControl(turn.spec, control, value);
     try {
       const result = await reportBuilderService.run({ companyId, spec, locale, days });
-      patch(turn.id, { spec: result.spec, result, insights: undefined, saved: false });
+      patch(turn.id, { spec: result.spec, result, insights: undefined, saved: false, notes: withDataNotes(turn.notes, result) });
     } catch (err: any) {
       patch(turn.id, { insights: [err?.message || t('aiError', 'reports')] });
     }
@@ -162,6 +176,32 @@ export default function AskAiPanel({ companyId, enabled, days, jobs = [] }: { co
                       <p className={`max-w-[85%] rounded-2xl rounded-es-sm px-4 py-2 text-sm ${turn.error ? 'bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300' : 'bg-white text-slate-800 shadow-sm dark:bg-slate-800 dark:text-slate-100'}`}>
                         {turn.text}
                       </p>
+                      {!!turn.notes?.length && (
+                        <ul className="max-w-[85%] space-y-1.5" aria-label={t('notesLabel', 'reports')}>
+                          {turn.notes.map((n, i) => {
+                            const { icon: Icon, tone } = NOTE_STYLE[n.type] ?? NOTE_STYLE.assumption;
+                            return (
+                              <li key={i} className={`flex items-start gap-2 text-xs ${tone}`}>
+                                <Icon className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+                                <span>
+                                  <span className="sr-only">{t(`note_${n.type}`, 'reports')}: </span>
+                                  {n.text}
+                                  {n.tryMessage && (
+                                    <button
+                                      type="button"
+                                      onClick={() => send(n.tryMessage!)}
+                                      disabled={busy}
+                                      className="ms-2 rounded-full border border-current px-2 py-0.5 text-[11px] font-medium hover:bg-white disabled:opacity-50 dark:hover:bg-slate-800"
+                                    >
+                                      {t('tryIt', 'reports')}
+                                    </button>
+                                  )}
+                                </span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
                       {turn.result && turn.spec && (
                         <ChartCard
                           title={turn.spec.title}

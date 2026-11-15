@@ -131,12 +131,22 @@ export interface CustomResult {
   rows: (string | number)[][];
   total: number;
   counted: number;
+  // Notes about the data, sent when a chart is re-run.
+  dataNotes?: AiNote[];
   controlOptions?: {
     source: string[];
     status: string[];
     gender: string[];
     department: { id: string; name: string }[];
   };
+}
+
+// A note the AI (or the server, for "data") adds to an answer.
+export interface AiNote {
+  type: 'limitation' | 'suggestion' | 'assumption' | 'data';
+  text: string;
+  // For suggestions: the follow-up message that applies it.
+  tryMessage?: string;
 }
 
 export interface ReportWidget {
@@ -161,7 +171,7 @@ const call = async <T>(fn: () => Promise<{ data: { data: T } }>): Promise<T> => 
 export const reportBuilderService = {
   // days: the Reports page's date range; every chart follows it.
   ask: (p: { companyId: string; message: string; previousSpec?: CustomSpec | null; locale: string; days: number }) =>
-    call<{ reply: string; spec: CustomSpec | null; result: CustomResult | null }>(() => axios.post('/reports/ai/ask', p)),
+    call<{ reply: string; notes?: AiNote[]; spec: CustomSpec | null; result: CustomResult | null }>(() => axios.post('/reports/ai/ask', p)),
   explain: (p: { companyId: string; spec: CustomSpec; locale: string; days: number }) =>
     call<{ insights: string[] }>(() => axios.post('/reports/ai/explain', p)),
   run: (p: { companyId: string; spec: CustomSpec; locale: string; days: number }) =>

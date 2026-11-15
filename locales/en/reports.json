@@ -147,5 +147,11 @@
   "how_maxSeries": "At most the 8 largest colours (series) are shown.",
   "how_avgEmpty": "Groups with nothing to average are left out.",
   "how_totalRow": "The total row adds up each column.",
-  "how_overallRow": "The bottom row is the overall value for everyone in the chart, not a sum of the rows."
+  "how_overallRow": "The bottom row is the overall value for everyone in the chart, not a sum of the rows.",
+  "notesLabel": "Notes",
+  "tryIt": "Try it",
+  "note_limitation": "Can't do",
+  "note_suggestion": "Suggestion",
+  "note_assumption": "How I read it",
+  "note_data": "About the data"
 }
