@@ -16,7 +16,7 @@
   "setUpStatuses": "Set them up in General Settings → Statuses",
   "noApplicantsInRange": "No applicants in this range.",
   "pickCompany": "Choose a company to see its hiring funnel.",
-  "ratiosTitle": "Selection ratio, time to fill and fill rate",
+  "ratiosTitle": "Selection ratio, time to fill, time to hire and fill rate",
   "selectionRatio": "Selection ratio",
   "selectionHint": "{hired} of {applied} applicants reached \"{status}\"",
   "timeToFill": "Time to fill",
@@ -24,10 +24,12 @@
   "timeToFillNone": "No job has reached \"{status}\" yet",
   "fillRate": "Fill rate",
   "fillRateHint": "{filled} of {openings} open positions filled",
-  "ratiosExplain": "Jobs posted in the last {days} days. A position counts as filled when an applicant reaches \"{status}\". Time to fill runs from the job's posting date to its first fill.",
+  "ratiosExplain": "Jobs posted in the last {days} days. A position counts as filled when an applicant reaches \"{status}\". Time to fill runs from the job's posting date, and time to hire from the applicant's application date, both up to the day they reached \"{status}\". In each job's row, both times are for the same person.",
   "daysValue": "{days} days",
   "posted": "Posted",
   "applicants": "Applicants",
   "openings": "Openings",
-  "filled": "Filled"
+  "filled": "Filled",
+  "timeToHire": "Time to hire",
+  "timeToHireHint": "Median across {count} filled jobs (the same people as time to fill)"
 }

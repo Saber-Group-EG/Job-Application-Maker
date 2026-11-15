@@ -158,7 +158,7 @@ export function RecruitingRatios({ data, loading, days }: { data?: HiringReport 
         <Empty text={t('pickCompany', 'reports')} />
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <Tile
               label={t('selectionRatio', 'reports')}
               value={pctText(data.selectionRatio.pct)}
@@ -170,6 +170,11 @@ export function RecruitingRatios({ data, loading, days }: { data?: HiringReport 
               hint={data.timeToFill ? t('timeToFillHint', 'reports', { count: data.timeToFill.count }) : t('timeToFillNone', 'reports', { status: lastStep })}
             />
             <Tile
+              label={t('timeToHire', 'reports')}
+              value={daysText(data.timeToHire?.median)}
+              hint={data.timeToHire ? t('timeToHireHint', 'reports', { count: data.timeToHire.count }) : t('timeToFillNone', 'reports', { status: lastStep })}
+            />
+            <Tile
               label={t('fillRate', 'reports')}
               value={pctText(data.fillRate.pct)}
               hint={t('fillRateHint', 'reports', { filled: data.fillRate.filled, openings: data.fillRate.openings })}
@@ -178,7 +183,7 @@ export function RecruitingRatios({ data, loading, days }: { data?: HiringReport 
           <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">{t('ratiosExplain', 'reports', { days, status: lastStep })}</p>
           {data.jobs.length > 0 && (
             <div className="-mx-5 -mb-5 mt-4 overflow-x-auto border-t border-slate-100 dark:border-slate-800">
-              <table className="w-full min-w-[640px] text-sm">
+              <table className="w-full min-w-[720px] text-sm">
                 <thead>
                   <tr className="text-xs font-medium text-slate-500 dark:text-slate-400">
                     <th className="px-5 py-2.5 text-start">{t('jobsJob', 'home')}</th>
@@ -187,7 +192,8 @@ export function RecruitingRatios({ data, loading, days }: { data?: HiringReport 
                     <th className="px-3 py-2.5 text-end">{t('openings', 'reports')}</th>
                     <th className="px-3 py-2.5 text-end">{t('filled', 'reports')}</th>
                     <th className="px-3 py-2.5 text-end">{t('fillRate', 'reports')}</th>
-                    <th className="px-5 py-2.5 text-end">{t('timeToFill', 'reports')}</th>
+                    <th className="px-3 py-2.5 text-end">{t('timeToFill', 'reports')}</th>
+                    <th className="px-5 py-2.5 text-end">{t('timeToHire', 'reports')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -199,7 +205,8 @@ export function RecruitingRatios({ data, loading, days }: { data?: HiringReport 
                       <td className="px-3 py-2.5 text-end tabular-nums text-slate-600 dark:text-slate-300">{j.openings}</td>
                       <td className="px-3 py-2.5 text-end tabular-nums text-slate-600 dark:text-slate-300">{j.filled}</td>
                       <td className="px-3 py-2.5 text-end tabular-nums text-slate-600 dark:text-slate-300">{pctText(j.fillRate)}</td>
-                      <td className="px-5 py-2.5 text-end tabular-nums text-slate-600 dark:text-slate-300">{daysText(j.daysToFill)}</td>
+                      <td className="px-3 py-2.5 text-end tabular-nums text-slate-600 dark:text-slate-300">{daysText(j.daysToFill)}</td>
+                      <td className="px-5 py-2.5 text-end tabular-nums text-slate-600 dark:text-slate-300">{daysText(j.daysToHire)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -387,7 +394,6 @@ export function HiringSpeed({ data, loading }: { data?: ReportsOverview['speed']
   const steps = [
     { key: 'toInterview' as const, label: t('speedToInterview', 'home') },
     { key: 'toOffer' as const, label: t('speedToOffer', 'home') },
-    { key: 'toHire' as const, label: t('speedToHire', 'home') },
   ].filter((s) => data && data.overall[s.key] !== undefined);
   const days = (v?: { median: number } | null) => (v ? t('speedDays', 'home', { days: Math.round(v.median) }) : '—');
 
@@ -399,7 +405,7 @@ export function HiringSpeed({ data, loading }: { data?: ReportsOverview['speed']
         <Empty text={t('noData', 'home')} />
       ) : (
         <>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             {steps.map((s) => {
               const v = data.overall[s.key];
               return (

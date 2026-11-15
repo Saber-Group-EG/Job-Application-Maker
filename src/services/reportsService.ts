@@ -18,6 +18,7 @@ export interface HiringReport {
   leftAfterApplying: Record<string, number>;
   selectionRatio: { hired: number; applied: number; pct: number | null };
   timeToFill: Stat;
+  timeToHire: Stat;
   fillRate: { filled: number; openings: number; pct: number | null };
   jobs: {
     _id: string;
@@ -28,6 +29,7 @@ export interface HiringReport {
     filled: number;
     fillRate: number | null;
     daysToFill: number | null;
+    daysToHire: number | null;
   }[];
 }
 
@@ -52,8 +54,8 @@ export interface ReportsOverview {
     | null;
   speed: {
     windowDays: number;
-    overall: { toInterview: Stat; toOffer?: Stat; toHire?: Stat };
-    perJob: { _id: string; title: Bilingual; applicants: number; toInterview: Stat; toOffer?: Stat; toHire?: Stat }[];
+    overall: { toInterview: Stat; toOffer?: Stat };
+    perJob: { _id: string; title: Bilingual; applicants: number; toInterview: Stat; toOffer?: Stat }[];
   } | null;
 }
 
