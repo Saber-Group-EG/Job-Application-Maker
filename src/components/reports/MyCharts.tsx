@@ -82,6 +82,7 @@ function SavedChart({ widget, companyId, days, jobs, first, last, onMove }: {
       view={widget.view}
       jobs={jobs}
       onControlChange={(c, v) => setPicked((p) => ({ ...p, [c]: v }))}
+      days={days}
       actions={actions}
     />
   );

@@ -7,6 +7,8 @@ import type { ApexOptions } from 'apexcharts';
 import { useLocale } from '../../context/LocaleContext';
 import type { ChartControl, ChartView, CustomResult, CustomSpec } from '../../services/reportsService';
 import { toPlainString } from '../../utils/strings';
+import HowCalculated from './HowCalculated';
+import { describeChart } from './describeChart';
 
 const Chart = lazy(() => import('react-apexcharts'));
 
@@ -297,10 +299,12 @@ export function CustomChartBody({ result, view }: { result: CustomResult; view: 
 }
 
 // A card around a chart: title, menus, view switcher, and the caller's buttons.
-export function ChartCard({ title, result, view, onViewChange, jobs, onControlChange, actions, footer }: {
+export function ChartCard({ title, result, view, onViewChange, jobs, onControlChange, days, actions, footer }: {
   title: ReactNode;
   result: CustomResult;
   view: ChartView;
+  // The page's date range, for the "How is this calculated?" note.
+  days?: number;
   // Leave out to show the chart in a fixed view (saved charts).
   onViewChange?: (v: ChartView) => void;
   // Menus the user asked for on this chart (no AI involved when they change).
@@ -309,7 +313,9 @@ export function ChartCard({ title, result, view, onViewChange, jobs, onControlCh
   actions?: ReactNode;
   footer?: ReactNode;
 }) {
+  const { t, locale } = useLocale();
   const controls = onControlChange ? controlsOf(result.spec).filter((c) => c !== result.spec.groupBy) : [];
+  const how = describeChart(result, t as any, jobs ?? [], days ?? 90, locale);
   return (
     <section className="rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-3 dark:border-slate-800">
@@ -320,6 +326,7 @@ export function ChartCard({ title, result, view, onViewChange, jobs, onControlCh
           ))}
           {onViewChange && <ViewSwitcher result={result} view={fitView(result, view)} onChange={onViewChange} />}
           {actions}
+          <HowCalculated lines={how} />
         </div>
       </header>
       <div className="p-5">

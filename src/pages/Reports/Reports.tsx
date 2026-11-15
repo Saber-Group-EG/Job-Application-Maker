@@ -14,6 +14,7 @@ import { toPlainString } from '../../utils/strings';
 import RejectionInsightsChart from '../../components/charts/RejectionInsightsChart';
 import AskAiPanel from '../../components/reports/AskAiPanel';
 import MyCharts from '../../components/reports/MyCharts';
+import { splitLines } from '../../components/reports/HowCalculated';
 import {
   ApplicantSources,
   ApplicationsTrend,
@@ -97,7 +98,7 @@ export default function Reports() {
         </div>
         <ApplicationsTrend data={data?.trend} loading={isLoading} />
         <JobsPipeline data={data?.jobs} loading={isLoading} showCompany={showCompany} companyName={companyName} />
-        <RejectionInsightsChart companyId={companyIds} />
+        <RejectionInsightsChart companyId={companyIds} info={splitLines(t('how_rejection', 'reports'))} />
       </div>
     </PageShell>
   );

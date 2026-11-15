@@ -11,6 +11,7 @@ import { paths } from '../../router/Paths';
 import { toPlainString } from '../../utils/strings';
 import { formatSourceLabel } from '../../utils/publicJobLinks';
 import { Card, Empty, Skeleton, useTimeAgo } from './parts';
+import { splitLines } from './HowCalculated';
 
 const Chart = lazy(() => import('react-apexcharts'));
 
@@ -55,6 +56,7 @@ export function HiringFunnel({ data, loading, jobId, onJobChange, companyPicker 
     <Card
       title={t('funnelTitle', 'reports')}
       icon={<Filter className="size-4" />}
+      info={splitLines(t('how_funnel', 'reports'))}
       action={
         <div className="flex flex-wrap items-center gap-2">
           {companyPicker}
@@ -125,7 +127,6 @@ export function HiringFunnel({ data, loading, jobId, onJobChange, companyPicker 
               {t('emptyStepHint', 'reports', { status: firstEmpty.status })}
             </p>
           )}
-          <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">{t('funnelExplain', 'reports')}</p>
         </>
       )}
     </Card>
@@ -151,7 +152,7 @@ export function RecruitingRatios({ data, loading, days }: { data?: HiringReport 
   const postedFmt = (iso: string) => new Date(iso).toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 
   return (
-    <Card title={t('ratiosTitle', 'reports')} icon={<Percent className="size-4" />}>
+    <Card title={t('ratiosTitle', 'reports')} icon={<Percent className="size-4" />} info={splitLines(t('how_ratios', 'reports', { days, status: lastStep || '—' }))}>
       {loading && !data ? (
         <Skeleton rows={4} />
       ) : !data || !data.steps.length ? (
@@ -180,7 +181,6 @@ export function RecruitingRatios({ data, loading, days }: { data?: HiringReport 
               hint={t('fillRateHint', 'reports', { filled: data.fillRate.filled, openings: data.fillRate.openings })}
             />
           </div>
-          <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">{t('ratiosExplain', 'reports', { days, status: lastStep })}</p>
           {data.jobs.length > 0 && (
             <div className="-mx-5 -mb-5 mt-4 overflow-x-auto border-t border-slate-100 dark:border-slate-800">
               <table className="w-full min-w-[720px] text-sm">
@@ -256,6 +256,7 @@ export function ApplicationsTrend({ data, loading }: { data?: ReportsOverview['t
     <Card
       title={t('trendTitle', 'home')}
       icon={<TrendingUp className="size-4" />}
+      info={splitLines(t('how_trend', 'reports'))}
     >
       {loading && !data ? (
         <Skeleton rows={5} />
@@ -291,7 +292,7 @@ export function ApplicantSources({ data, loading, days }: { data?: ReportsOvervi
   const label = (channel: string) => (channel === '__none' ? t('sourceUnknown', 'applicants') : formatSourceLabel(channel));
 
   return (
-    <Card title={t('sourcesTitle', 'home')} icon={<Share2 className="size-4" />}>
+    <Card title={t('sourcesTitle', 'home')} icon={<Share2 className="size-4" />} info={splitLines(t('how_sources', 'reports'))}>
       {loading && !data ? (
         <Skeleton rows={4} />
       ) : !data || data.total === 0 ? (
@@ -333,7 +334,7 @@ export function JobsPipeline({ data, loading, showCompany, companyName }: { data
   const timeAgo = useTimeAgo();
   const showOffered = (data ?? []).some((j) => j.offered !== null);
   return (
-    <Card title={t('jobsTitle', 'home')} icon={<Briefcase className="size-4" />} action={<Link to={paths.jobs.root} className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">{t('viewAll', 'home')}</Link>}>
+    <Card title={t('jobsTitle', 'home')} icon={<Briefcase className="size-4" />} info={splitLines(t('how_jobs', 'reports'))} action={<Link to={paths.jobs.root} className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">{t('viewAll', 'home')}</Link>}>
       {loading && !data ? (
         <Skeleton rows={5} />
       ) : !data?.length ? (
@@ -399,7 +400,7 @@ export function HiringSpeed({ data, loading }: { data?: ReportsOverview['speed']
   const days = (v?: { median: number } | null) => (v ? t('speedDays', 'home', { days: Math.round(v.median) }) : '—');
 
   return (
-    <Card title={t('speedTitle', 'home')} icon={<Timer className="size-4" />}>
+    <Card title={t('speedTitle', 'home')} icon={<Timer className="size-4" />} info={splitLines(t('how_speed', 'reports'))}>
       {loading && !data ? (
         <Skeleton rows={4} />
       ) : !data ? (

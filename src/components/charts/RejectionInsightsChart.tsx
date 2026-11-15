@@ -2,6 +2,7 @@ import { Suspense, lazy, useState, useMemo, useCallback } from "react";
 import type { ApexOptions } from "apexcharts";
 import { useRejectionInsights } from "../../hooks/queries/useApplicants";
 import { useLocale } from "../../context/LocaleContext";
+import HowCalculated from "../reports/HowCalculated";
 
 const Chart = lazy(() => import("react-apexcharts"));
 
@@ -9,6 +10,8 @@ type RejectionInsightsChartProps = {
   companyId?: string[];
   maxReasons?: number;
   showPercentageLabels?: boolean;
+  // "How is this calculated?" lines (Reports page).
+  info?: string[];
 };
 
 const MAX_REASON_LENGTH = 34;
@@ -31,7 +34,8 @@ function getReasonColor(index: number): string {
 export default function RejectionInsightsChart({ 
   companyId, 
   maxReasons = DEFAULT_MAX_REASONS,
-  showPercentageLabels = false 
+  showPercentageLabels = false,
+  info,
 }: RejectionInsightsChartProps) {
   const { t, dir } = useLocale();
   const { data, isLoading, isFetching, error, refetch } = useRejectionInsights({ companyId });
@@ -312,8 +316,9 @@ export default function RejectionInsightsChart({
     >
       <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-slate-800 dark:text-white">
+          <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-800 dark:text-white">
             {t('title', 'rejection')}
+            {info && <HowCalculated lines={info} />}
           </h3>
           <p className="mt-1 max-w-2xl text-sm text-slate-500 dark:text-slate-400">
             {t('description', 'rejection')}

@@ -105,7 +105,8 @@ export const LocaleProvider = ({ children }: { children: ReactNode }) => {
     let value = translations[locale]?.[namespace]?.[key] ?? key;
     if (params) {
       Object.entries(params).forEach(([k, v]) => {
-        value = value.replace(`{${k}}`, String(v));
+        // Every occurrence: a text may use the same placeholder more than once.
+        value = value.split(`{${k}}`).join(String(v));
       });
     }
     return value;

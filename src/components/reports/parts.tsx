@@ -2,8 +2,9 @@
 // the Reports page, so both look the same.
 import type { ReactNode } from 'react';
 import { useLocale } from '../../context/LocaleContext';
+import HowCalculated from './HowCalculated';
 
-export function Card({ title, icon, action, children, className = '' }: { title: string; icon: ReactNode; action?: ReactNode; children: ReactNode; className?: string }) {
+export function Card({ title, icon, action, info, children, className = '' }: { title: string; icon: ReactNode; action?: ReactNode; info?: string[]; children: ReactNode; className?: string }) {
   return (
     <section className={`rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 ${className}`}>
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 dark:border-slate-800">
@@ -11,7 +12,12 @@ export function Card({ title, icon, action, children, className = '' }: { title:
           <span className="text-brand-600 dark:text-brand-400">{icon}</span>
           {title}
         </h2>
-        {action}
+        {(action || info) && (
+          <div className="flex flex-wrap items-center gap-2">
+            {action}
+            {info && <HowCalculated lines={info} />}
+          </div>
+        )}
       </header>
       <div className="p-5">{children}</div>
     </section>

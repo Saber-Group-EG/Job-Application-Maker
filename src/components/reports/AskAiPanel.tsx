@@ -170,6 +170,7 @@ export default function AskAiPanel({ companyId, enabled, days, jobs = [] }: { co
                           onViewChange={(v) => patch(turn.id, { view: v })}
                           jobs={jobs}
                           onControlChange={(c, v) => setControl(turn, c, v)}
+                          days={days}
                           actions={
                             <>
                               <Button size="sm" icon={<Lightbulb className="size-4" />} loading={turn.explaining} onClick={() => explain(turn)}>
