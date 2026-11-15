@@ -159,22 +159,17 @@ export function formatDateForExport(
   });
 }
 
-// Extract rejection reasons from applicant
+// Reasons of the applicant's latest status change, whatever the status (the
+// table's Reasons column; same rule as the server's latestStatusReasons).
 export function extractRejectionReasons(applicant: any): string[] {
   try {
     // Check status history
     const history = applicant?.statusHistory;
-    if (Array.isArray(history)) {
-      const rejected = history.filter((h: any) => 
-        String(h?.status || '').toLowerCase() === 'rejected'
-      );
-      if (rejected.length) {
-        rejected.sort((x: any, y: any) => {
-          const tx = x?.changedAt ? new Date(x.changedAt).getTime() : 0;
-          const ty = y?.changedAt ? new Date(y.changedAt).getTime() : 0;
-          return ty - tx;
-        });
-        const latest = rejected[0] || {};
+    if (Array.isArray(history) && history.length) {
+      {
+        // Latest by date; without dates, the last one added.
+        const time = (h: any) => (h?.changedAt ? new Date(h.changedAt).getTime() : 0);
+        const latest: any = history.reduce((best: any, h: any) => (time(h) >= time(best) ? h : best), history[0]) || {};
         const reasons = latest.reasons ?? latest.rejectionReasons ?? latest.reasonsSelected ?? [];
         if (Array.isArray(reasons)) {
           return reasons.map((r: any) => String(r ?? '').trim()).filter(Boolean);
