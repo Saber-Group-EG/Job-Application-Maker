@@ -10,6 +10,8 @@
   "email": "Email",
   "messages": "Messages",
   "phone": "Phone",
+  "address": "Address",
+  "department": "Department",
   "gender": "Gender",
   "source": "Source",
   "sourceUnknown": "Not tracked",

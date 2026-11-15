@@ -10,6 +10,8 @@
   "email": "البريد الإلكتروني",
   "messages": "الرسائل",
   "phone": "الهاتف",
+  "address": "العنوان",
+  "department": "القسم",
   "gender": "الجنس",
   "source": "المصدر",
   "sourceUnknown": "غير مسجّل",

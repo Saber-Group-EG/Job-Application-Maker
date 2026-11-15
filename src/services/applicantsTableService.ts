@@ -12,6 +12,7 @@ export interface ApplicantTableRow {
   fullName: string;
   email: string;
   phone: string;
+  address?: string;
   gender: string;
   source?: string;
   companyId: string;
@@ -21,6 +22,9 @@ export interface ApplicantTableRow {
     companyId: { _id: string; name?: { en?: string; ar?: string } };
   };
   jobPositionNameSnapshot?: { en?: string; ar?: string };
+  /** The department of the applicant's job position. */
+  departmentId?: string;
+  departmentName?: { en?: string; ar?: string };
   expectedSalary?: number;
   expectedSalaryDisplay: string;
   sscore: number | null;

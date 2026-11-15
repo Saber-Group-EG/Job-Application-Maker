@@ -1322,10 +1322,12 @@ export default function Applicants({
       fullName: isLaptopViewport ? 160 : 220,
       email: isLaptopViewport ? 200 : 280,
       phone: isLaptopViewport ? 86 : 110,
+      address: isLaptopViewport ? 160 : 220,
       gender: isLaptopViewport ? 70 : 90,
       source: isLaptopViewport ? 96 : 120,
       companyId: isLaptopViewport ? 150 : 200,
       jobPositionId: isLaptopViewport ? 180 : 240,
+      departmentId: isLaptopViewport ? 130 : 170,
       expectedSalary: isLaptopViewport ? 104 : 140,
       sscore: isLaptopViewport ? 72 : 96,
       aiMatchScore: isLaptopViewport ? 72 : 96,
@@ -1345,9 +1347,11 @@ export default function Applicants({
       fullName: columnSizeConfig.fullName,
       email: columnSizeConfig.email,
       phone: columnSizeConfig.phone,
+      address: columnSizeConfig.address,
       gender: columnSizeConfig.gender,
       companyId: columnSizeConfig.companyId,
       jobPositionId: columnSizeConfig.jobPositionId,
+      departmentId: columnSizeConfig.departmentId,
       expectedSalary: columnSizeConfig.expectedSalary,
       sscore: columnSizeConfig.sscore,
       status: columnSizeConfig.status,
@@ -2331,6 +2335,28 @@ export default function Applicants({
         },
       },
       {
+        accessorKey: 'address',
+        header: t('address', 'applicants'),
+        size: columnSizeConfig.address,
+        enableColumnFilter: false,
+        enableSorting: true,
+        Cell: ({ row }: { row: { original: any } }) => {
+          if (isTableLoading) return renderCellSkeleton('text');
+          const address = row.original.address;
+          return (
+            <a
+              href={getApplicantHref(row)}
+              className="text-inherit no-underline hover:no-underline"
+              title={address || undefined}
+              onClick={(e) => handleApplicantLinkClick(e, row)}
+              onAuxClick={handleApplicantLinkAuxClick}
+            >
+              {address || '-'}
+            </a>
+          );
+        },
+      },
+      {
         id: 'gender',
         accessorFn: (row: any) =>
           normalizeGender(
@@ -2537,6 +2563,30 @@ export default function Applicants({
               onAuxClick={handleApplicantLinkAuxClick}
             >
               {title}
+            </a>
+          );
+        },
+      },
+      {
+        id: 'departmentId',
+        header: t('department', 'applicants'),
+        size: columnSizeConfig.departmentId,
+        enableColumnFilter: false,
+        enableSorting: true,
+        accessorFn: (row: any) => row.departmentId,
+        Cell: ({ row }: { row: { original: any } }) => {
+          if (isTableLoading) return renderCellSkeleton('text');
+          const name = row.original.departmentName;
+          const label =
+            locale === 'ar' ? name?.ar || name?.en : name?.en || name?.ar;
+          return (
+            <a
+              href={getApplicantHref(row)}
+              className="text-inherit no-underline hover:no-underline"
+              onClick={(e) => handleApplicantLinkClick(e, row)}
+              onAuxClick={handleApplicantLinkAuxClick}
+            >
+              {label || '-'}
             </a>
           );
         },
