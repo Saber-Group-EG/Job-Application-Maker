@@ -65,7 +65,8 @@ import { getPreviousStatus } from './utils/statusUtils';
 import type { JobSpecItem } from '../../../types/applicants';
 import CandidateSummaryCard from './components/ApplicantData/AiInsightsCard';
 import { useFormDraft } from '../../../hooks/useFormDraft';
-import NoShowFollowUpModal from '../../../components/modals/NoShowFollowUpModal';
+import { sendNoShowNotices, describeNoShowNotify } from '../../../utils/noShowNotify';
+import { useSendBatchEmail } from '../../../hooks/queries/useSendEmail';
 import { isNoShowStatus, settingsOf } from '../../../utils/noShow';
 import { useNoShowHistory } from '../../../hooks/queries/useApplicants';
 
@@ -354,13 +355,16 @@ const ApplicantDetails: React.FC = () => {
     status: string;
     notes?: string;
     reasons?: string[];
+    // No-show: let them know (chosen in the Change Status window).
+    notifyWhatsApp?: boolean;
+    notifyEmail?: boolean;
+    emailSubject?: string;
+    emailBody?: string;
   }>({ status: '', notes: '', reasons: [] });
+  const sendBatchEmail = useSendBatchEmail();
   const [statusError, setStatusError] = useState('');
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [showMessageModal, setShowMessageModal] = useState(false);
-  // After moving someone to the company's no-show status: offer to let them know.
-  const [showNoShowFollowUp, setShowNoShowFollowUp] = useState(false);
-  const [messagePrefill, setMessagePrefill] = useState<{ type: 'email'; subject: string; body: string } | null>(null);
   // Same query as the red flag in the details card (shared cache).
   const { data: noShowHistory } = useNoShowHistory(
     id,
@@ -821,7 +825,39 @@ const ApplicantDetails: React.FC = () => {
         payload.reasons = statusForm.reasons;
       await updateStatus.mutateAsync({ id, data: payload });
       setShowStatusModal(false);
-      if (noShow) setShowNoShowFollowUp(true);
+
+      // No-show: send what was ticked in the window (WhatsApp / email).
+      const choice = {
+        whatsapp: noShow && Boolean(statusForm.notifyWhatsApp),
+        email: noShow && Boolean(statusForm.notifyEmail),
+        subject: statusForm.emailSubject || '',
+        body: statusForm.emailBody || '',
+      };
+      setStatusForm({ status: '', notes: '', reasons: [] });
+      if (applicant && (choice.whatsapp || choice.email)) {
+        const result = await sendNoShowNotices({
+          recipients: [
+            {
+              applicantId: id,
+              name: applicant.fullName || '',
+              email: applicant.email,
+              jobTitle: getJobTitle().en,
+              jobPositionId: applicantJobPositionId || undefined,
+            },
+          ],
+          choice,
+          company: companyWithAddress,
+          companyId: applicantCompanyId,
+          sendBatch: (payload) => sendBatchEmail.mutateAsync(payload),
+        });
+        const summary = describeNoShowNotify(result, choice, t);
+        Swal.fire({
+          icon: summary.ok ? 'success' : 'warning',
+          title: summary.ok ? t('noShowNotifyDone', 'modals') : t('noShowNotifyPartly', 'modals'),
+          text: summary.text,
+          ...(summary.ok ? { timer: 2500, showConfirmButton: false } : {}),
+        });
+      }
     } catch {
       /* toast handled by mutation */
     }
@@ -1498,11 +1534,12 @@ const ApplicantDetails: React.FC = () => {
         companySettings={companyWithAddress}
         jobIds={applicantJobPositionId ? [applicantJobPositionId] : []}
         jobs={fetchedJobPosition ? [fetchedJobPosition] : []}
-        noShowWarning={
+        noShowFlagged={
           noShowHistory && noShowHistory.total > 0
-            ? t('noShowSingleWarning', 'applicants', { count: noShowHistory.total })
-            : ''
+            ? [{ id: id || '', name: applicant?.fullName || '', count: noShowHistory.total, lastAt: noShowHistory.lastAt }]
+            : []
         }
+        applicantCount={1}
       />
       <CommentModal
         isOpen={showCommentModal}
@@ -1520,31 +1557,10 @@ const ApplicantDetails: React.FC = () => {
       />
       <MessageModal
         isOpen={showMessageModal}
-        onClose={() => {
-          setShowMessageModal(false);
-          setMessagePrefill(null);
-        }}
+        onClose={() => setShowMessageModal(false)}
         applicant={applicant}
         id={id || ''}
         company={companyWithAddress}
-        prefill={messagePrefill}
-      />
-      <NoShowFollowUpModal
-        isOpen={showNoShowFollowUp}
-        onClose={() => setShowNoShowFollowUp(false)}
-        applicantId={id || ''}
-        applicant={applicant}
-        companyId={applicantCompanyId}
-        noShowTotal={noShowHistory?.total ?? 0}
-        onEmail={() => {
-          setShowNoShowFollowUp(false);
-          setMessagePrefill({
-            type: 'email',
-            subject: t('noShowEmailSubject', 'modals'),
-            body: t('noShowEmailBody', 'modals'),
-          });
-          setShowMessageModal(true);
-        }}
       />
       <InterviewScheduleModal
         isOpen={showScheduleModal}

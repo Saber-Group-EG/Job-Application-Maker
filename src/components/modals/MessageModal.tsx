@@ -39,7 +39,6 @@ const MessageModal = ({
   company: propCompany,
   defaultFrom: defaultFromProp,
   isInquiry,
-  prefill,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -48,8 +47,6 @@ const MessageModal = ({
   company?: any;
   defaultFrom?: string;
   isInquiry?: boolean;
-  // Opens with this message already written (e.g. "we missed you" after a no-show).
-  prefill?: { type?: 'email' | 'whatsapp' | 'internal'; subject?: string; body?: string } | null;
 }) => {
   const [messageForm, setMessageForm] = useState({
     subject: '',
@@ -57,22 +54,6 @@ const MessageModal = ({
     type: 'email' as 'email' | 'whatsapp' | 'internal',
   });
   const [messageError, setMessageError] = useState('');
-  // Apply a prefill once each time the modal opens with one.
-  const prefillAppliedRef = useRef(false);
-  useEffect(() => {
-    if (!isOpen) {
-      prefillAppliedRef.current = false;
-      return;
-    }
-    if (prefill && !prefillAppliedRef.current) {
-      prefillAppliedRef.current = true;
-      setMessageForm({
-        type: prefill.type || 'email',
-        subject: prefill.subject || '',
-        body: prefill.body || '',
-      });
-    }
-  }, [isOpen, prefill]);
   const [isSubmittingMessage, setIsSubmittingMessage] = useState(false);
   const [showEmailPreview, setShowEmailPreview] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');

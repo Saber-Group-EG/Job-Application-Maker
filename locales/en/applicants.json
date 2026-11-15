@@ -232,5 +232,9 @@
   "noShowFlagLast": "Last time: {date}",
   "noShowFlagOther": "Also on application #{no} {job} ({count}×)",
   "noShowSingleWarning": "This applicant already didn't show up before ({count}×).",
-  "noShowBulkWarning": "{count} of the selected applicants already didn't show up before."
+  "noShowBulkWarning": "{count} of the selected applicants already didn't show up before.",
+  "noShowSingleWarningLast": "This applicant already didn't show up before ({count}×), last on {date}.",
+  "noShowDeselectOne": "Take out of the selection",
+  "noShowDeselectShort": "Remove",
+  "noShowDeselectAll": "Remove all {count} from the selection"
 }

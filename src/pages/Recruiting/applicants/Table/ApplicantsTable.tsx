@@ -22,7 +22,6 @@ import BulkMessageModal from '../../../../components/modals/BulkMessageModal';
 // import BulkWhatsAppModal from '../../../../components/modals/BulkWhatsAppModal';  // Bulk WhatsApp is hidden until the WhatsApp Business API is in use.
 import InterviewScheduleModal from '../../../../components/modals/InterviewScheduleModal';
 import StatusChangeModal from '../../../../components/modals/StatusChangeModal';
-import BulkNoShowFollowUpModal from '../../../../components/modals/BulkNoShowFollowUpModal';
 import MergeDuplicatesModal from '../../../../components/modals/MergeDuplicatesModal';
 import CustomFilterModal from '../../../../components/modals/CustomFilterModal';
 import { FilterHeaderCell } from './components/FilterHeaderCell';
@@ -1291,8 +1290,6 @@ export default function Applicants({
     openBulkInterviewModal,
     resetBulkInterviewModal,
     fillBulkCompanyAddress,
-    bulkNoShowIds,
-    closeBulkNoShowFollowUp,
   } = useBulkActions({
     selectedApplicantIds,
     selectedApplicantsForInterview,
@@ -1305,13 +1302,22 @@ export default function Applicants({
     onClearSelection: () => setRowSelection({}),
   });
 
-  // Bulk "we missed you" email after a bulk no-show change.
-  const [bulkMessagePrefill, setBulkMessagePrefill] = useState<{ subject: string; body: string } | null>(null);
-  // Selected applicants who didn't show up before (warning in the status pop-up).
-  const selectedNoShowCount = useMemo(
-    () => selectedApplicants.filter((a) => (a.noShow?.total ?? 0) > 0).length,
+  // Selected applicants who didn't show up before (named in the status window,
+  // each with a button to take them out of the selection).
+  const selectedNoShowFlagged = useMemo(
+    () =>
+      selectedApplicants
+        .filter((a) => (a.noShow?.total ?? 0) > 0)
+        .map((a) => ({ id: a._id, name: a.fullName, count: a.noShow?.total ?? 0, lastAt: a.noShow?.lastAt ?? null })),
     [selectedApplicants]
   );
+  const deselectApplicants = useCallback((ids: string[]) => {
+    setRowSelection((prev: Record<string, boolean>) => {
+      const next = { ...prev };
+      ids.forEach((id) => delete next[id]);
+      return next;
+    });
+  }, []);
 
   const [viewportWidth, setViewportWidth] = useState<number>(() =>
     typeof window !== 'undefined' ? window.innerWidth : 1920
@@ -3636,33 +3642,13 @@ export default function Applicants({
 
                 <BulkMessageModal
                   isOpen={showBulkModal}
-                  onClose={() => {
-                    setShowBulkModal(false);
-                    setBulkMessagePrefill(null);
-                  }}
+                  onClose={() => setShowBulkModal(false)}
                   recipients={selectedApplicantRecipients}
                   companyId={selectedApplicantCompanyId}
                   company={selectedApplicantCompany}
-                  prefill={bulkMessagePrefill}
                   onSuccess={() => {
                     setRowSelection({});
                     setShowBulkModal(false);
-                    setBulkMessagePrefill(null);
-                  }}
-                />
-
-                <BulkNoShowFollowUpModal
-                  isOpen={bulkNoShowIds.length > 0}
-                  onClose={() => closeBulkNoShowFollowUp()}
-                  applicantIds={bulkNoShowIds}
-                  companyId={selectedApplicantCompanyId ?? undefined}
-                  onEmail={() => {
-                    closeBulkNoShowFollowUp(true);
-                    setBulkMessagePrefill({
-                      subject: t('noShowEmailSubject', 'modals'),
-                      body: t('noShowEmailBody', 'modals'),
-                    });
-                    setShowBulkModal(true);
                   }}
                 />
 
@@ -3688,11 +3674,9 @@ export default function Applicants({
                   companySettings={selectedApplicantCompany}
                   jobIds={selectedApplicantJobIds}
                   jobs={jobPositions}
-                  noShowWarning={
-                    selectedNoShowCount > 0
-                      ? t('noShowBulkWarning', 'applicants', { count: selectedNoShowCount })
-                      : ''
-                  }
+                  noShowFlagged={selectedNoShowFlagged}
+                  onDeselectApplicants={deselectApplicants}
+                  applicantCount={selectedApplicantIds.length}
                 />
 
                 <InterviewScheduleModal

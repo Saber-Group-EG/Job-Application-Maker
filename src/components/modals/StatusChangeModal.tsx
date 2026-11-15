@@ -7,7 +7,8 @@ import { useMatch } from 'react-router';
 import { useUndo } from '../../context/UndoContext';
 import type { FormDraft } from '../../hooks/useFormDraft';
 import ModalDraft from './ModalDraft';
-import { Flag } from 'lucide-react';
+import { Flag, Mail, MessageCircle, X } from 'lucide-react';
+import { useWhatsAppStatus } from '../../hooks/queries/useCompanies';
 import { isNoShowStatus, reasonsForStatus, settingsOf } from '../../utils/noShow';
 
 type StatusDraft = { status: string; notes: string; reasons: string[] };
@@ -25,9 +26,13 @@ type Props = {
   companySettings?: any;
   jobIds?: string[];
   jobs?: any[];
-  // Red warning shown when the no-show status is picked for someone who
-  // didn't show up before (one applicant, or how many of a selection).
-  noShowWarning?: string;
+  // Applicants (of this one or the selection) who didn't show up before:
+  // a red warning when the no-show status is picked.
+  noShowFlagged?: Array<{ id: string; name: string; count: number; lastAt?: string | null }>;
+  // Bulk only: take applicants out of the selection from the warning.
+  onDeselectApplicants?: (ids: string[]) => void;
+  // How many applicants the change is for (1 on an applicant's page).
+  applicantCount?: number;
 };
 
 export default function StatusChangeModal({
@@ -42,7 +47,10 @@ export default function StatusChangeModal({
   companySettings,
   jobIds = [],
   jobs = [],
-  noShowWarning = '',
+  companyId,
+  noShowFlagged = [],
+  onDeselectApplicants,
+  applicantCount = 1,
 }: Props) {
   const { t } = useLocale();
   const { offerUndo } = useUndo();
@@ -203,6 +211,27 @@ export default function StatusChangeModal({
     [statusReasons, customReasons]
   );
 
+  // "Let them know" (no-show): the Missed interview WhatsApp update and an email.
+  const { data: waStatus } = useWhatsAppStatus(companyId, isOpen && isNoShow);
+  const waEvent = waStatus?.events?.find((e) => e.key === 'interviewMissed');
+  const waAuto = waEvent?.mode === 'auto' && waEvent.allowedByPlan;
+  const waBlocked = !companyId
+    ? t('noShowBulkOneCompany', 'modals')
+    : !waStatus?.connected
+      ? t('noShowWaNotConnected', 'modals')
+      : !waEvent?.allowedByPlan
+        ? t('waNotOnPlan', 'companies')
+        : '';
+  const toggleEmail = (on: boolean) =>
+    setStatusForm({
+      ...statusForm,
+      notifyEmail: on,
+      ...(on && !statusForm?.emailSubject ? { emailSubject: t('noShowEmailSubject', 'modals') } : {}),
+      ...(on && !statusForm?.emailBody ? { emailBody: t('noShowEmailBodyText', 'modals') } : {}),
+    });
+  const fmtDate = (d?: string | null) =>
+    d ? new Date(d).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+
   const selectedStatusDescription = statusForm?.status
     ? getDescription(statusForm.status)
     : '';
@@ -238,6 +267,8 @@ export default function StatusChangeModal({
       ...statusForm,
       status: selectedValue,
       ...(changed ? { reasons: [] } : {}),
+      // "Let them know" choices only apply to the no-show status.
+      ...(changed ? { notifyWhatsApp: false, notifyEmail: false } : {}),
     });
     if (changed) setCustomReasons([]);
     setSearchQuery('');
@@ -344,7 +375,8 @@ export default function StatusChangeModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-sm">
+      <div className="flex min-h-full items-center justify-center py-6">
       <div
         ref={modalRef}
         className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-2xl w-full mx-4"
@@ -417,11 +449,54 @@ export default function StatusChangeModal({
               />
             </div>
 
-            {isNoShow && noShowWarning && (
-              <p className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
-                <Flag className="mt-0.5 size-4 shrink-0 fill-current" aria-hidden="true" />
-                {noShowWarning}
-              </p>
+            {isNoShow && noShowFlagged.length > 0 && (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
+                <p className="flex items-start gap-2 font-medium">
+                  <Flag className="mt-0.5 size-4 shrink-0 fill-current" aria-hidden="true" />
+                  {applicantCount > 1
+                    ? t('noShowBulkWarning', 'applicants', { count: noShowFlagged.length })
+                    : noShowFlagged[0].lastAt
+                      ? t('noShowSingleWarningLast', 'applicants', { count: noShowFlagged[0].count, date: fmtDate(noShowFlagged[0].lastAt) })
+                      : t('noShowSingleWarning', 'applicants', { count: noShowFlagged[0].count })}
+                </p>
+                {applicantCount > 1 && (
+                  <>
+                    <ul className="mt-2 max-h-40 space-y-1 overflow-y-auto ps-6">
+                      {noShowFlagged.map((a) => (
+                        <li key={a.id} className="flex items-center justify-between gap-2">
+                          <span className="min-w-0 truncate">
+                            {a.name}{' '}
+                            <span className="text-xs opacity-80">
+                              ({a.count}×{a.lastAt ? `, ${fmtDate(a.lastAt)}` : ''})
+                            </span>
+                          </span>
+                          {onDeselectApplicants && (
+                            <button
+                              type="button"
+                              onClick={() => onDeselectApplicants([a.id])}
+                              title={t('noShowDeselectOne', 'applicants')}
+                              aria-label={t('noShowDeselectOne', 'applicants')}
+                              className="inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium hover:bg-red-100 dark:hover:bg-red-500/20"
+                            >
+                              <X className="size-3.5" />
+                              {t('noShowDeselectShort', 'applicants')}
+                            </button>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                    {onDeselectApplicants && (
+                      <button
+                        type="button"
+                        onClick={() => onDeselectApplicants(noShowFlagged.map((a) => a.id))}
+                        className="mt-2 ms-6 rounded-md border border-red-300 bg-white px-2.5 py-1 text-xs font-semibold text-red-700 hover:bg-red-100 dark:border-red-500/40 dark:bg-transparent dark:text-red-300 dark:hover:bg-red-500/20"
+                      >
+                        {t('noShowDeselectAll', 'applicants', { count: noShowFlagged.length })}
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
             )}
             {isNoShow && (
               <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
@@ -527,6 +602,79 @@ export default function StatusChangeModal({
               </div>
             )}
 
+            {/* Let them know (no-show): sent right after the status is saved */}
+            {isNoShow && (
+              <div className="space-y-3 rounded-lg border border-slate-200 p-4 dark:border-slate-700">
+                <Label>{t('noShowNotifyTitle', 'modals')}</Label>
+                {waAuto ? (
+                  <p className="flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-300">
+                    <MessageCircle className="size-4 shrink-0" />
+                    {t('noShowWaAuto', 'modals')}
+                  </p>
+                ) : (
+                  <label className={`flex items-start gap-2 text-sm ${waBlocked ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 size-4 accent-brand-500"
+                      checked={Boolean(statusForm?.notifyWhatsApp) && !waBlocked}
+                      disabled={Boolean(waBlocked)}
+                      onChange={(e) => setStatusForm({ ...statusForm, notifyWhatsApp: e.target.checked })}
+                    />
+                    <span>
+                      <span className="flex items-center gap-1.5 font-medium text-slate-800 dark:text-slate-100">
+                        <MessageCircle className="size-4 text-emerald-600" />
+                        {applicantCount > 1
+                          ? t('noShowBulkSendWhatsApp', 'modals', { count: applicantCount })
+                          : t('noShowSendWhatsApp', 'modals')}
+                      </span>
+                      <span className="block text-xs text-slate-500 dark:text-slate-400">{waBlocked || t('noShowWaHint', 'modals')}</span>
+                    </span>
+                  </label>
+                )}
+
+                <label className={`flex items-start gap-2 text-sm ${companyId ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}>
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 size-4 accent-brand-500"
+                    checked={Boolean(statusForm?.notifyEmail) && Boolean(companyId)}
+                    disabled={!companyId}
+                    onChange={(e) => toggleEmail(e.target.checked)}
+                  />
+                  <span>
+                    <span className="flex items-center gap-1.5 font-medium text-slate-800 dark:text-slate-100">
+                      <Mail className="size-4 text-brand-600" />
+                      {applicantCount > 1
+                        ? t('noShowBulkSendEmail', 'modals', { count: applicantCount })
+                        : t('noShowSendEmail', 'modals')}
+                    </span>
+                    <span className="block text-xs text-slate-500 dark:text-slate-400">
+                      {companyId ? t('noShowEmailInlineHint', 'modals') : t('noShowBulkOneCompany', 'modals')}
+                    </span>
+                  </span>
+                </label>
+                {statusForm?.notifyEmail && companyId && (
+                  <div className="space-y-2 ps-6">
+                    <input
+                      value={statusForm.emailSubject || ''}
+                      onChange={(e) => setStatusForm({ ...statusForm, emailSubject: e.target.value })}
+                      aria-label={t('subject', 'modals')}
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-slate-600 dark:bg-slate-800"
+                    />
+                    <textarea
+                      value={statusForm.emailBody || ''}
+                      onChange={(e) => setStatusForm({ ...statusForm, emailBody: e.target.value })}
+                      rows={6}
+                      aria-label={t('messageBody', 'modals')}
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-slate-600 dark:bg-slate-800"
+                    />
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      {t('availableVariables', 'modals')}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Actions */}
             <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
               <button
@@ -557,6 +705,7 @@ export default function StatusChangeModal({
             </div>
           </form>
         </div>
+      </div>
       </div>
     </div>
   );

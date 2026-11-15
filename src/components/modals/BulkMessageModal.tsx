@@ -33,7 +33,6 @@ const BulkMessageModal = ({
   companyId,
   company,
   onSuccess,
-  prefill,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -54,25 +53,12 @@ const BulkMessageModal = ({
   companyId?: string | null;
   company?: any;
   onSuccess?: () => void;
-  // Opens with this email already written (e.g. "we missed you" after no-shows).
-  prefill?: { subject?: string; body?: string } | null;
 }) => {
   const [form, setForm] = useState({
     subject: '',
     body: '',
     type: 'email' as const,
   });
-  const prefillAppliedRef = useRef(false);
-  useEffect(() => {
-    if (!isOpen) {
-      prefillAppliedRef.current = false;
-      return;
-    }
-    if (prefill && !prefillAppliedRef.current) {
-      prefillAppliedRef.current = true;
-      setForm({ subject: prefill.subject || '', body: prefill.body || '', type: 'email' });
-    }
-  }, [isOpen, prefill]);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [emailOption, setEmailOption] = useState<

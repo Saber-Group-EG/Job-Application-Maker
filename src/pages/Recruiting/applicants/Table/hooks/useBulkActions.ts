@@ -16,6 +16,7 @@ import {
   resolveInterviewSender,
 } from '../utils/interviewEmail';
 import { isNoShowStatus, reasonsForStatus, settingsOf } from '../../../../../utils/noShow';
+import { sendNoShowNotices, describeNoShowNotify } from '../../../../../utils/noShowNotify';
 
 interface SelectedApplicantForInterview {
   applicantId: string;
@@ -30,6 +31,11 @@ interface SelectedApplicantForInterview {
 
 interface BulkStatusForm {
   status?: string;
+  // No-show: let them know (chosen in the Change Status window).
+  notifyWhatsApp?: boolean;
+  notifyEmail?: boolean;
+  emailSubject?: string;
+  emailBody?: string;
   reasons?: string[];
   notes?: string;
 }
@@ -88,9 +94,6 @@ interface UseBulkActionsReturn {
   bulkInterviewPreviewItems: any[];
   bulkStatusForm: BulkStatusForm;
   bulkAction: string;
-  /** Applicants just moved to the no-show status together (follow-up dialog). */
-  bulkNoShowIds: string[];
-  closeBulkNoShowFollowUp: (keepSelection?: boolean) => void;
 
   // Setters
   setShowBulkModal: (show: boolean) => void;
@@ -160,7 +163,6 @@ export function useBulkActions({
   const [bulkStatusError, setBulkStatusError] = useState('');
   const [bulkDeleteError, setBulkDeleteError] = useState('');
   const [bulkAction, setBulkAction] = useState('');
-  const [bulkNoShowIds, setBulkNoShowIds] = useState<string[]>([]);
   const [bulkInterviewIntervalMinutes, setBulkInterviewIntervalMinutes] = useState(15);
   const [bulkInterviewForm, setBulkInterviewForm] = useState<BulkInterviewForm>({
     date: '',
@@ -276,24 +278,53 @@ export function useBulkActions({
         await batchUpdateStatusMutation.mutateAsync(updates);
 
         const noShow = isNoShowStatus(settingsOf(selectedApplicantCompany), bulkStatusForm.status);
+        const choice = {
+          whatsapp: noShow && Boolean(bulkStatusForm.notifyWhatsApp),
+          email: noShow && Boolean(bulkStatusForm.notifyEmail),
+          subject: bulkStatusForm.emailSubject || '',
+          body: bulkStatusForm.emailBody || '',
+        };
         setBulkAction('');
         setShowBulkStatusModal(false);
         setBulkStatusForm({ status: '', reasons: [], notes: '' });
 
-        if (noShow) {
-          // Keep the selection: the follow-up may email these same applicants.
-          setBulkNoShowIds([...selectedApplicantIds]);
-          return;
+        const done = t('statusUpdateSuccess', 'applicants', { count: selectedApplicantIds.length });
+        if (choice.whatsapp || choice.email) {
+          // No-show: send what was ticked in the window.
+          const wanted = new Set(selectedApplicantIds);
+          const result = await sendNoShowNotices({
+            recipients: selectedApplicantsForInterview
+              .filter((a) => wanted.has(a.applicantId))
+              .map((a) => ({
+                applicantId: a.applicantId,
+                name: a.applicantName,
+                email: a.email,
+                jobTitle: jobTitleOf?.(a.jobPositionId) || '',
+                jobPositionId: a.jobPositionId,
+              })),
+            choice,
+            company: selectedApplicantCompany,
+            companyId: selectedApplicantCompanyId,
+            sendBatch: (payload) => sendBatchEmailMutation.mutateAsync(payload),
+          });
+          const summary = describeNoShowNotify(result, choice, t);
+          await Swal.fire({
+            title: summary.ok ? t('success', 'applicants') : t('noShowNotifyPartly', 'modals'),
+            text: `${done} ${summary.text}`,
+            icon: summary.ok ? 'success' : 'warning',
+            position: 'center',
+            ...(summary.ok ? { timer: 3000, showConfirmButton: false } : {}),
+          });
+        } else {
+          await Swal.fire({
+            title: t('success', 'applicants'),
+            text: done,
+            icon: 'success',
+            position: 'center',
+            timer: 2000,
+            showConfirmButton: false,
+          });
         }
-
-        await Swal.fire({
-          title: t('success', 'applicants'),
-          text: t('statusUpdateSuccess', 'applicants', { count: selectedApplicantIds.length }),
-          icon: 'success',
-          position: 'center',
-          timer: 2000,
-          showConfirmButton: false,
-        });
 
         clearSelection();
       } catch (err: any) {
@@ -302,15 +333,17 @@ export function useBulkActions({
         setIsSubmittingBulkStatus(false);
       }
     },
-    [selectedApplicantIds, bulkStatusForm, batchUpdateStatusMutation, clearSelection, selectedApplicantCompany]
-  );
-
-  const closeBulkNoShowFollowUp = useCallback(
-    (keepSelection = false) => {
-      setBulkNoShowIds([]);
-      if (!keepSelection) clearSelection();
-    },
-    [clearSelection]
+    [
+      selectedApplicantIds,
+      bulkStatusForm,
+      batchUpdateStatusMutation,
+      clearSelection,
+      selectedApplicantCompany,
+      selectedApplicantCompanyId,
+      selectedApplicantsForInterview,
+      sendBatchEmailMutation,
+      jobTitleOf,
+    ]
   );
 
   // Handle bulk change status (triggered by button click)
@@ -745,8 +778,6 @@ export function useBulkActions({
     bulkInterviewPreviewItems,
     bulkStatusForm,
     bulkAction,
-    bulkNoShowIds,
-    closeBulkNoShowFollowUp,
 
     // Setters
     setShowBulkModal,

@@ -232,5 +232,9 @@
   "noShowFlagLast": "آخر مرة: {date}",
   "noShowFlagOther": "أيضًا في الطلب رقم {no} {job} ({count} مرة)",
   "noShowSingleWarning": "هذا المتقدم لم يحضر من قبل ({count} مرة).",
-  "noShowBulkWarning": "{count} من المتقدمين المحددين لم يحضروا من قبل."
+  "noShowBulkWarning": "{count} من المتقدمين المحددين لم يحضروا من قبل.",
+  "noShowSingleWarningLast": "هذا المتقدم لم يحضر من قبل ({count} مرة)، آخرها في {date}.",
+  "noShowDeselectOne": "إزالة من التحديد",
+  "noShowDeselectShort": "إزالة",
+  "noShowDeselectAll": "إزالة الكل ({count}) من التحديد"
 }
