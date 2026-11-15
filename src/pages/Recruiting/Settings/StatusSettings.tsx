@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
-import { Eye, GripVertical, Lock, PlusCircle, Save, Settings, Trash2 } from 'lucide-react';
+import { BarChart3, Eye, GripVertical, Lock, PlusCircle, Save, Settings, Trash2 } from 'lucide-react';
 import Swal from '../../../utils/swal';
 import { useLocale } from '../../../context/LocaleContext';
 import { useUndo } from '../../../context/UndoContext';
@@ -35,6 +35,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { createPortal } from "react-dom";
 import { useCompanyFilter } from '../../../context/CompanyFilterContext';
+import { effectiveReportRole, type ReportRole } from '../../../utils/reportRoles';
 
 type LeadStatus = {
   name: string;
@@ -43,6 +44,7 @@ type LeadStatus = {
   isDefault?: boolean;
   description: string;
   statusKey?: string;
+  reportRole?: ReportRole;
   _id?: string;
 };
 
@@ -157,6 +159,7 @@ function SortableStatusItem({
   onColorChange,
   onSetDefault,
   onRemove,
+  onReportRoleChange,
 }: {
   id: string;
   status: LeadStatus;
@@ -171,6 +174,7 @@ function SortableStatusItem({
   onColorChange: (index: number, value: string) => void;
   onSetDefault: (index: number) => void;
   onRemove: (index: number) => void;
+  onReportRoleChange: (index: number, role: ReportRole) => void;
 }) {
   const { t } = useLocale();
   const {
@@ -267,6 +271,19 @@ function SortableStatusItem({
             className="absolute inset-0 cursor-pointer opacity-0 disabled:cursor-not-allowed"
           />
         </label>
+
+        <select
+          value={effectiveReportRole(status)}
+          onChange={(e) => onReportRoleChange(index, e.target.value as ReportRole)}
+          disabled={!canEdit}
+          aria-label={t('statusSettings.reportRoleLabel', 'settings')}
+          title={t('statusSettings.reportRoleLabel', 'settings')}
+          className={`h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-700 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 ${focusRing}`}
+        >
+          <option value="step">{t('statusSettings.reportRoleStep', 'settings')}</option>
+          <option value="exit">{t('statusSettings.reportRoleExit', 'settings')}</option>
+          <option value="ignore">{t('statusSettings.reportRoleIgnore', 'settings')}</option>
+        </select>
 
         <label className={`inline-flex items-center gap-2 text-sm ${isLocked || !canEdit ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
           <input
@@ -372,6 +389,7 @@ export default function StatusLabelsSettings({
             : String(s?.description ?? ''),
           isDefault: !!s?.isDefault,
           statusKey: statusKey,
+          ...(s?.reportRole ? { reportRole: s.reportRole } : {}),
           _id: s?._id,
         };
       });
@@ -479,6 +497,12 @@ export default function StatusLabelsSettings({
     );
   }, []);
 
+  const handleReportRoleChange = useCallback((index: number, role: ReportRole) => {
+    setStatuses((prev) =>
+      prev.map((s, i) => (i === index ? { ...s, reportRole: role } : s))
+    );
+  }, []);
+
   const handleDescriptionChange = useCallback((index: number, value: string) => {
     setStatuses((prev) =>
       prev.map((s, i) => (i === index ? { ...s, description: value } : s))
@@ -523,6 +547,7 @@ export default function StatusLabelsSettings({
         ? ''
         : String(s.description ?? '').trim(),
       isDefault: !!s.isDefault,
+      ...(s.reportRole ? { reportRole: s.reportRole } : {}),
     }));
 
     const settingsId = selectedCompany?.settings?._id;
@@ -651,6 +676,14 @@ export default function StatusLabelsSettings({
               <p className="mt-0.5 text-xs text-amber-700 dark:text-amber-400/90">{t('statusSettings.noteText', 'settings')}</p>
             </div>
           </div>
+
+          <div className="flex gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
+            <BarChart3 className="mt-0.5 size-4 shrink-0 text-slate-500 dark:text-slate-400" />
+            <div>
+              <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">{t('statusSettings.reportsNoteTitle', 'settings')}</h3>
+              <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">{t('statusSettings.reportsNoteText', 'settings')}</p>
+            </div>
+          </div>
         </div>
 
         <Card className="p-4 xl:col-span-8">
@@ -686,6 +719,7 @@ export default function StatusLabelsSettings({
                       onColorChange={handleColorChange}
                       onSetDefault={setDefault}
                       onRemove={removeStatus}
+                      onReportRoleChange={handleReportRoleChange}
                     />
                   );
                 })}

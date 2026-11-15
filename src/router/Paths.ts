@@ -10,6 +10,8 @@ export const paths = {
     home: '/home',
   },
 
+  reports: '/reports',
+
   landing: {
     home: '/',
     about: '/about',

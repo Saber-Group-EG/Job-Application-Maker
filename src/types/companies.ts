@@ -11,6 +11,8 @@ export type CompanyStatus = {
   description?: string;
   isDefault?: boolean;
   statusKey?: string;
+  // How the hiring reports count this status (unset = default rule).
+  reportRole?: 'step' | 'exit' | 'ignore';
 };
 
 export type SectionTemplateItem = {

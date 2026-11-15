@@ -67,5 +67,6 @@
   "planManage": "Manage plan",
   "planRequests": "Requests ({plan})",
   "planAi": "AI credits",
-  "planUnlimited": "Unlimited requests on this account."
+  "planUnlimited": "Unlimited requests on this account.",
+  "seeAllReports": "See all reports: hiring funnel, time to hire, sources and more"
 }

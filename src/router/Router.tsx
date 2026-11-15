@@ -31,6 +31,7 @@ const ResetPassword = lazy(() => import('../pages/AuthPages/ResetPassword'));
 const NotFound = lazy(() => import('../pages/OtherPage/NotFound'));
 const AppLayout = lazy(() => import('../layout/AppLayout'));
 const Home = lazy(() => import('../pages/Dashboard/Home'));
+const Reports = lazy(() => import('../pages/Reports/Reports'));
 
 // Recruiting
 const CreateCompany = lazy(
@@ -210,6 +211,7 @@ export default function App() {
           <Route element={<ProtectedRoute />}>
             <Route element={<AppLayout />}>
               <Route path={paths.dashboard.home} element={<Home />} />
+              <Route path={paths.reports} element={<Reports />} />
 
               {/* Recruiting */}
               <Route path={paths.recruiting.root} element={<CreateCompany />} />

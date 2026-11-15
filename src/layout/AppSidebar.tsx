@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router';
 
 import {
+  BarChart3,
   Briefcase,
   Building2,
   CreditCard,
@@ -136,6 +137,7 @@ const AppSidebar: React.FC = () => {
   // visible child is shown as a plain link instead of a one-item submenu.
   const rawItems: NavItem[] = [
     { icon: <Home />, name: 'Home', tKey: 'home', path: '/home' },
+    { icon: <BarChart3 />, name: 'Reports', tKey: 'reports', path: '/reports', show: can('Applicant Management', 'read') },
     {
       icon: <UsersRound />,
       name: 'Applicants',

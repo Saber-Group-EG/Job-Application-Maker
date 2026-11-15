@@ -17,7 +17,7 @@ import {
   UserIcon,
 } from '../../icons';
 import InterviewScheduleWidget from '../../components/charts/MyInterviewWidget';
-import RejectionInsightsChart from '../../components/charts/RejectionInsightsChart';
+import { getCompanyIdFromUser } from '../../utils/companyScope';
 import DashboardSections from '../../components/dashboard/DashboardSections';
 import { RefreshCw } from 'lucide-react';
 import { Button, Card, EmptyState, PageShell, focusRing } from '../../components/ui/kit';
@@ -36,27 +36,6 @@ const getStatusIcon = (statusName: string): any => {
   };
   return iconMap[lowerStatus] || UserIcon;
 };
-
-function getCompanyIdFromUser(
-  user: any,
-  selectedCompanyId?: string
-): string[] | undefined {
-  const roleName = user?.roleId?.name?.toLowerCase();
-  if (roleName === 'super admin') {
-    if (selectedCompanyId) return [selectedCompanyId];
-    return undefined;
-  }
-  const fromCompanies =
-    user?.companies?.map((c: any) =>
-      typeof c.companyId === 'string' ? c.companyId : c.companyId?._id
-    ).filter(Boolean) || [];
-  const fromAssigned = user?.assignedcompanyId?.filter(Boolean) || [];
-  const userCompanyIds = [...new Set([...fromCompanies, ...fromAssigned])];
-  if (selectedCompanyId) {
-    return userCompanyIds.includes(selectedCompanyId) ? [selectedCompanyId] : [];
-  }
-  return userCompanyIds.length > 0 ? userCompanyIds : undefined;
-}
 
 export default function Home() {
   const navigate = useNavigate();
@@ -322,7 +301,6 @@ export default function Home() {
           <div id="my-interviews" className="scroll-mt-20">
             <InterviewScheduleWidget />
           </div>
-          <RejectionInsightsChart companyId={companyIds} />
 
           {!loading && statusCards.length === 0 && countsData && (
             <Card>
