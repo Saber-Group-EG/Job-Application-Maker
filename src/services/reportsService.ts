@@ -135,11 +135,12 @@ const call = async <T>(fn: () => Promise<{ data: { data: T } }>): Promise<T> => 
 };
 
 export const reportBuilderService = {
-  ask: (p: { companyId: string; message: string; previousSpec?: CustomSpec | null; locale: string }) =>
+  // days: the Reports page's date range; every chart follows it.
+  ask: (p: { companyId: string; message: string; previousSpec?: CustomSpec | null; locale: string; days: number }) =>
     call<{ reply: string; spec: CustomSpec | null; result: CustomResult | null }>(() => axios.post('/reports/ai/ask', p)),
-  explain: (p: { companyId: string; spec: CustomSpec; locale: string }) =>
+  explain: (p: { companyId: string; spec: CustomSpec; locale: string; days: number }) =>
     call<{ insights: string[] }>(() => axios.post('/reports/ai/explain', p)),
-  run: (p: { companyId: string; spec: CustomSpec; locale: string }) =>
+  run: (p: { companyId: string; spec: CustomSpec; locale: string; days: number }) =>
     call<CustomResult>(() => axios.post('/reports/custom/run', p)),
   widgets: (companyId: string) =>
     call<ReportWidget[]>(() => axios.get('/users/me/report-widgets', { params: { companyId } })),

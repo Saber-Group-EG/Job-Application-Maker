@@ -17,7 +17,8 @@ export function viewsFor(result: CustomResult): ChartView[] {
   const grouped = result.spec.groupBy !== 'none' && result.categories.length > 0;
   const single = result.series.length === 1;
   return ALL_VIEWS.filter((v) => {
-    if (v === 'table' || v === 'number') return true;
+    if (v === 'number') return !grouped;
+    if (v === 'table') return true;
     if (!grouped) return false;
     if (v === 'line' || v === 'area') return result.timeGrouped;
     if (v === 'pie' || v === 'donut') return single && !result.timeGrouped && result.unit === 'count';
@@ -157,7 +158,8 @@ export function ChartCard({ title, result, view, onViewChange, actions, footer }
   title: ReactNode;
   result: CustomResult;
   view: ChartView;
-  onViewChange: (v: ChartView) => void;
+  // Leave out to show the chart in a fixed view (saved charts).
+  onViewChange?: (v: ChartView) => void;
   actions?: ReactNode;
   footer?: ReactNode;
 }) {
@@ -166,7 +168,7 @@ export function ChartCard({ title, result, view, onViewChange, actions, footer }
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-3 dark:border-slate-800">
         <div className="min-w-0 text-base font-semibold text-slate-900 dark:text-white">{title}</div>
         <div className="flex flex-wrap items-center gap-2">
-          <ViewSwitcher result={result} view={fitView(result, view)} onChange={onViewChange} />
+          {onViewChange && <ViewSwitcher result={result} view={fitView(result, view)} onChange={onViewChange} />}
           {actions}
         </div>
       </header>

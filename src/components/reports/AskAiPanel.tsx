@@ -24,7 +24,7 @@ type AiTurn = {
   error?: boolean;
 };
 
-export default function AskAiPanel({ companyId, enabled }: { companyId: string | null; enabled: boolean }) {
+export default function AskAiPanel({ companyId, enabled, days }: { companyId: string | null; enabled: boolean; days: number }) {
   const { t, locale } = useLocale();
   const [turns, setTurns] = useState<AiTurn[]>([]);
   const [message, setMessage] = useState('');
@@ -37,6 +37,21 @@ export default function AskAiPanel({ companyId, enabled }: { companyId: string |
   useEffect(() => {
     setTurns([]);
   }, [companyId]);
+  // Charts follow the page's date range: re-run them (no AI) when it changes.
+  const turnsRef = useRef(turns);
+  turnsRef.current = turns;
+  const shownDays = useRef(days);
+  useEffect(() => {
+    if (shownDays.current === days || !companyId) return;
+    shownDays.current = days;
+    turnsRef.current.forEach((turn) => {
+      if (turn.role !== 'ai' || !turn.spec) return;
+      reportBuilderService
+        .run({ companyId, spec: turn.spec, locale, days })
+        .then((result) => patch(turn.id, { result, insights: undefined }))
+        .catch(() => undefined);
+    });
+  }, [days, companyId, locale]);
   // Braces matter: scrollIntoView returns a Promise in current browsers, and
   // an effect must not return anything but a clean-up function.
   useEffect(() => {
@@ -53,7 +68,7 @@ export default function AskAiPanel({ companyId, enabled }: { companyId: string |
     setTurns((all) => [...all, { id: nextId.current++, role: 'user', text: q }]);
     setBusy(true);
     try {
-      const r = await reportBuilderService.ask({ companyId, message: q, previousSpec: lastSpec, locale });
+      const r = await reportBuilderService.ask({ companyId, message: q, previousSpec: lastSpec, locale, days });
       setTurns((all) => [
         ...all,
         { id: nextId.current++, role: 'ai', text: r.reply, spec: r.spec, result: r.result, view: r.result ? fitView(r.result, r.spec?.view ?? 'bar') : undefined },
@@ -69,7 +84,7 @@ export default function AskAiPanel({ companyId, enabled }: { companyId: string |
     if (!companyId || !turn.spec) return;
     patch(turn.id, { explaining: true });
     try {
-      const r = await reportBuilderService.explain({ companyId, spec: turn.spec, locale });
+      const r = await reportBuilderService.explain({ companyId, spec: turn.spec, locale, days });
       patch(turn.id, { insights: r.insights.length ? r.insights : [t('noInsights', 'reports')], explaining: false });
     } catch (err: any) {
       patch(turn.id, { insights: [err?.message || t('aiError', 'reports')], explaining: false });

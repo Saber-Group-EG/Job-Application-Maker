@@ -9,18 +9,17 @@ import type { ReportWidget } from '../../services/reportsService';
 import { ChartCard } from './CustomChart';
 import { Skeleton } from './parts';
 
-function SavedChart({ widget, companyId, first, last, onMove }: {
+function SavedChart({ widget, companyId, days, first, last, onMove }: {
   widget: ReportWidget;
   companyId: string;
+  days: number;
   first: boolean;
   last: boolean;
   onMove: (dir: -1 | 1) => void;
 }) {
   const { t, locale } = useLocale();
-  // The chart's data doesn't depend on how it's shown, so changing the view
-  // doesn't reload it.
-  const { view: _view, ...dataSpec } = widget.spec;
-  const { data, isLoading, error } = useRunCustomChart(companyId, { ...dataSpec, view: 'table' }, locale);
+  // Saved charts keep the view they were saved with and follow the page's date range.
+  const { data, isLoading, error } = useRunCustomChart(companyId, widget.spec, locale, days);
   const { update, remove } = useReportWidgetMutations(companyId);
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(widget.title);
@@ -75,13 +74,12 @@ function SavedChart({ widget, companyId, first, last, onMove }: {
       title={titleNode}
       result={data}
       view={widget.view}
-      onViewChange={(v) => update.mutate({ id: widget._id, view: v })}
       actions={actions}
     />
   );
 }
 
-export default function MyCharts({ companyId }: { companyId: string | null }) {
+export default function MyCharts({ companyId, days }: { companyId: string | null; days: number }) {
   const { t } = useLocale();
   const { data: widgets = [] } = useMyReportWidgets(companyId);
   const { update } = useReportWidgetMutations(companyId);
@@ -103,7 +101,7 @@ export default function MyCharts({ companyId }: { companyId: string | null }) {
       <h2 className="text-base font-semibold text-slate-900 dark:text-white">{t('myCharts', 'reports')}</h2>
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         {widgets.map((w, i) => (
-          <SavedChart key={w._id} widget={w} companyId={companyId} first={i === 0} last={i === widgets.length - 1} onMove={(dir) => move(i, dir)} />
+          <SavedChart key={w._id} widget={w} companyId={companyId} days={days} first={i === 0} last={i === widgets.length - 1} onMove={(dir) => move(i, dir)} />
         ))}
       </div>
     </div>

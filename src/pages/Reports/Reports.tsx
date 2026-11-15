@@ -87,8 +87,8 @@ export default function Reports() {
     >
       <PageMeta title={t('pageTitle', 'reports')} description={t('pageSubtitle', 'reports')} />
       <div className="space-y-6">
-        <AskAiPanel companyId={hiringCompanyId} enabled={aiEnabled} />
-        <MyCharts companyId={hiringCompanyId} />
+        <AskAiPanel companyId={hiringCompanyId} enabled={aiEnabled} days={days} />
+        <MyCharts companyId={hiringCompanyId} days={days} />
         <HiringFunnel data={data?.hiring} loading={isLoading} jobId={jobId} onJobChange={setJobId} companyPicker={companyPicker} />
         <RecruitingRatios data={data?.hiring} loading={isLoading} days={days} />
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

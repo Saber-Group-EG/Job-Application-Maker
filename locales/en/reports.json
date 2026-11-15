@@ -33,7 +33,7 @@
   "timeToHire": "Time to hire",
   "timeToHireHint": "Median across {count} filled jobs (the same people as time to fill)",
   "askTitle": "Ask AI for a chart",
-  "askIntro": "Describe the chart or table you need, in English or Arabic. Ask follow-ups to change it, and save the ones you want to keep. They'll appear under \"My charts\" every time you open Reports.",
+  "askIntro": "Describe the chart or table you need, in English or Arabic. Charts follow the date range at the top of the page. Ask follow-ups to change a chart, and save the ones you want to keep. They'll appear under \"My charts\" every time you open Reports.",
   "askPlaceholder": "e.g. applicants per job in the last 3 months",
   "askFollowUp": "Change this chart (e.g. \"only Facebook\", \"as a pie\") or ask something new",
   "askDisabled": "Ask AI isn't switched on for this company. An admin can turn on \"AI Report Builder\" in General Settings → AI Features (your plan must include it).",

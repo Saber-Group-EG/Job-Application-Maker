@@ -26,7 +26,7 @@ export function useReportsOverview(params: ReportsParams, options?: { enabled?: 
 
 export const widgetKeys = {
   list: (companyId: string | null) => ['reports', 'widgets', companyId] as const,
-  run: (companyId: string, spec: CustomSpec, locale: string) => ['reports', 'custom-run', companyId, spec, locale] as const,
+  run: (companyId: string, spec: CustomSpec, locale: string, days: number) => ['reports', 'custom-run', companyId, spec, locale, days] as const,
 };
 
 export function useMyReportWidgets(companyId: string | null) {
@@ -38,11 +38,12 @@ export function useMyReportWidgets(companyId: string | null) {
   });
 }
 
-export function useRunCustomChart(companyId: string, spec: CustomSpec, locale: string) {
+export function useRunCustomChart(companyId: string, spec: CustomSpec, locale: string, days: number) {
   return useQuery({
-    queryKey: widgetKeys.run(companyId, spec, locale),
-    queryFn: () => reportBuilderService.run({ companyId, spec, locale }),
+    queryKey: widgetKeys.run(companyId, spec, locale, days),
+    queryFn: () => reportBuilderService.run({ companyId, spec, locale, days }),
     staleTime: 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 }
 
