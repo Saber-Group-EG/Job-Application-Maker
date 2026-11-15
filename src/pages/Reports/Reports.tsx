@@ -12,6 +12,8 @@ import { useReportsOverview } from '../../hooks/queries/useReports';
 import { getCompanyIdFromUser } from '../../utils/companyScope';
 import { toPlainString } from '../../utils/strings';
 import RejectionInsightsChart from '../../components/charts/RejectionInsightsChart';
+import AskAiPanel from '../../components/reports/AskAiPanel';
+import MyCharts from '../../components/reports/MyCharts';
 import {
   ApplicantSources,
   ApplicationsTrend,
@@ -42,6 +44,10 @@ export default function Reports() {
   const { data, isLoading } = useReportsOverview({ companyIds, days, hiringCompanyId, jobId }, { enabled: Boolean(user) });
   const companyName = (id: string) => toPlainString((companies as any[]).find((c) => (c._id || c.id) === id)?.name, locale) || '';
   const showCompany = (companyIds?.length ?? 0) !== 1;
+  // Ask AI follows the funnel's company; it needs that company's AI switched on.
+  const hiringCompany = (companies as any[]).find((c) => (c._id || c.id) === hiringCompanyId);
+  const aiSettings = hiringCompany?.settings?.aiSettings;
+  const aiEnabled = Boolean(aiSettings?.enabled) && aiSettings?.featureToggles?.reportBuilder !== false;
 
   const companyPicker =
     !selectedCompanyId && companyOptions.length > 1 ? (
@@ -79,6 +85,8 @@ export default function Reports() {
     >
       <PageMeta title={t('pageTitle', 'reports')} description={t('pageSubtitle', 'reports')} />
       <div className="space-y-6">
+        <AskAiPanel companyId={hiringCompanyId} enabled={aiEnabled} />
+        <MyCharts companyId={hiringCompanyId} />
         <HiringFunnel data={data?.hiring} loading={isLoading} jobId={jobId} onJobChange={setJobId} companyPicker={companyPicker} />
         <RecruitingRatios data={data?.hiring} loading={isLoading} days={days} />
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

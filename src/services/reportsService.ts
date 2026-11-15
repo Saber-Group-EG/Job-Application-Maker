@@ -84,3 +84,68 @@ export const reportsService = {
     }
   },
 };
+
+// ─── AI report builder and saved charts ───────────────────────────────────────
+
+export type ChartView = 'table' | 'bar' | 'hbar' | 'line' | 'area' | 'pie' | 'donut' | 'number';
+
+// A chart description from the fixed menu (application-maker:
+// services/reports/customReport.js). The AI fills these in; the server runs them.
+export interface CustomSpec {
+  title: string;
+  measure: 'applicants' | 'interviews' | 'reachedStatus' | 'conversion' | 'avgDaysToStatus';
+  status?: string | null;
+  groupBy: string;
+  splitBy?: string | null;
+  filters: Record<string, unknown>;
+  view: ChartView;
+  sort?: string | null;
+  limit?: number;
+}
+
+export interface CustomResult {
+  spec: CustomSpec;
+  unit: 'count' | 'percent' | 'days';
+  timeGrouped: boolean;
+  categories: string[];
+  series: { name: string; data: number[] }[];
+  columns: string[];
+  rows: (string | number)[][];
+  total: number;
+  counted: number;
+}
+
+export interface ReportWidget {
+  _id: string;
+  companyId: string;
+  title: string;
+  spec: CustomSpec;
+  view: ChartView;
+  order: number;
+  createdAt: string;
+}
+
+const call = async <T>(fn: () => Promise<{ data: { data: T } }>): Promise<T> => {
+  try {
+    const { data } = await fn();
+    return data.data;
+  } catch (error: any) {
+    throw new ApiError(getErrorMessage(error), error?.response?.status);
+  }
+};
+
+export const reportBuilderService = {
+  ask: (p: { companyId: string; message: string; previousSpec?: CustomSpec | null; locale: string }) =>
+    call<{ reply: string; spec: CustomSpec | null; result: CustomResult | null }>(() => axios.post('/reports/ai/ask', p)),
+  explain: (p: { companyId: string; spec: CustomSpec; locale: string }) =>
+    call<{ insights: string[] }>(() => axios.post('/reports/ai/explain', p)),
+  run: (p: { companyId: string; spec: CustomSpec; locale: string }) =>
+    call<CustomResult>(() => axios.post('/reports/custom/run', p)),
+  widgets: (companyId: string) =>
+    call<ReportWidget[]>(() => axios.get('/users/me/report-widgets', { params: { companyId } })),
+  saveWidget: (p: { companyId: string; title: string; spec: CustomSpec; view: ChartView }) =>
+    call<ReportWidget>(() => axios.post('/users/me/report-widgets', p)),
+  updateWidget: (id: string, p: { title?: string; view?: ChartView; order?: number }) =>
+    call<ReportWidget>(() => axios.patch(`/users/me/report-widgets/${id}`, p)),
+  deleteWidget: (id: string) => call<{ _id: string }>(() => axios.delete(`/users/me/report-widgets/${id}`)),
+};

@@ -13,6 +13,7 @@ import {
   FileText,
   Loader2,
   Mic,
+  BarChart3,
 } from 'lucide-react';
 import Swal from '../../../utils/swal';
 import { Card, CardToolbar, EmptyState, NoAccess, SectionTitle, Switch } from '../../../components/ui/kit';
@@ -55,6 +56,7 @@ const ALL_FEATURES: AiFeature[] = [
   'interviewQuestionGen',
   'interviewScoring',
   'interviewReview',
+  'reportBuilder',
 ];
 
 const TOGGLEABLE_FEATURES: AiFeature[] = [
@@ -62,11 +64,12 @@ const TOGGLEABLE_FEATURES: AiFeature[] = [
   'nlFilters',
   'cvParse',
   'interviewReview',
+  'reportBuilder',
 ];
 
 // Features that are ON unless a company switched them off (same default as the server), so a
 // company saved before the feature existed does not appear switched off.
-const DEFAULT_ON_FEATURES: AiFeature[] = ['interviewReview'];
+const DEFAULT_ON_FEATURES: AiFeature[] = ['interviewReview', 'reportBuilder'];
 
 const FEATURE_ICONS: Record<AiFeature, typeof Sparkles> = {
   jobFieldGenerator: Bot,
@@ -77,6 +80,7 @@ const FEATURE_ICONS: Record<AiFeature, typeof Sparkles> = {
   interviewQuestionGen: ListChecks,
   interviewScoring: ClipboardCheck,
   interviewReview: Mic,
+  reportBuilder: BarChart3,
   cvParse: FileText,
 };
 

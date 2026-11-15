@@ -1,5 +1,11 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { reportsService, type ReportsParams } from '../../services/reportsService';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  reportBuilderService,
+  reportsService,
+  type ChartView,
+  type CustomSpec,
+  type ReportsParams,
+} from '../../services/reportsService';
 
 export const reportsKeys = {
   overview: (p: ReportsParams) =>
@@ -14,4 +20,41 @@ export function useReportsOverview(params: ReportsParams, options?: { enabled?: 
     staleTime: 60 * 1000,
     placeholderData: keepPreviousData,
   });
+}
+
+// ─── Saved charts (AI report builder) ─────────────────────────────────────────
+
+export const widgetKeys = {
+  list: (companyId: string | null) => ['reports', 'widgets', companyId] as const,
+  run: (companyId: string, spec: CustomSpec, locale: string) => ['reports', 'custom-run', companyId, spec, locale] as const,
+};
+
+export function useMyReportWidgets(companyId: string | null) {
+  return useQuery({
+    queryKey: widgetKeys.list(companyId),
+    queryFn: () => reportBuilderService.widgets(companyId as string),
+    enabled: Boolean(companyId),
+    staleTime: 60 * 1000,
+  });
+}
+
+export function useRunCustomChart(companyId: string, spec: CustomSpec, locale: string) {
+  return useQuery({
+    queryKey: widgetKeys.run(companyId, spec, locale),
+    queryFn: () => reportBuilderService.run({ companyId, spec, locale }),
+    staleTime: 60 * 1000,
+  });
+}
+
+export function useReportWidgetMutations(companyId: string | null) {
+  const qc = useQueryClient();
+  const refresh = () => qc.invalidateQueries({ queryKey: widgetKeys.list(companyId) });
+  return {
+    save: useMutation({ mutationFn: reportBuilderService.saveWidget, onSuccess: refresh }),
+    update: useMutation({
+      mutationFn: ({ id, ...p }: { id: string; title?: string; view?: ChartView; order?: number }) => reportBuilderService.updateWidget(id, p),
+      onSuccess: refresh,
+    }),
+    remove: useMutation({ mutationFn: (id: string) => reportBuilderService.deleteWidget(id), onSuccess: refresh }),
+  };
 }

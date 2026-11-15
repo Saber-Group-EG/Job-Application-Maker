@@ -85,6 +85,7 @@ export default function CompanyUsageDetailDrawer({
     contractGenerator: t('featureContractGenerator', 'systemSettings'),
     cvParse: t('featureCvParse', 'systemSettings'),
     interviewReview: t('featureInterviewReview', 'systemSettings'),
+    reportBuilder: t('featureReportBuilder', 'systemSettings'),
   };
 
   const sectionClass = 'border-t border-slate-200 pt-5 dark:border-slate-800';

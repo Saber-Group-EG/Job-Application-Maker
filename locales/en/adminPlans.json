@@ -65,5 +65,6 @@
   "sectionWhatsApp": "WhatsApp updates",
   "whatsAppApplicationReceived": "Application received",
   "whatsAppInterviewScheduled": "Interview scheduled",
-  "whatsAppOfferSent": "Job offer sent"
+  "whatsAppOfferSent": "Job offer sent",
+  "featureReportBuilder": "AI Report Builder"
 }

@@ -472,5 +472,7 @@
   "subscription.revertsOn": "reverts to standard price after",
   "mailTemplates.previewTitle": "Email preview",
   "aiFeatures.interviewReview.title": "Interview Recording & AI Review",
-  "aiFeatures.interviewReview.desc": "Record interviews, transcribe them, and let AI extract the questions asked, summarise the answers and suggest scores. Transcription is billed per minute of audio."
+  "aiFeatures.interviewReview.desc": "Record interviews, transcribe them, and let AI extract the questions asked, summarise the answers and suggest scores. Transcription is billed per minute of audio.",
+  "aiFeatures.reportBuilder.title": "AI Report Builder",
+  "aiFeatures.reportBuilder.desc": "Ask for any chart or table in plain words on the Reports page, get written takeaways, and save charts to your own reports."
 }

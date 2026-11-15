@@ -38,6 +38,7 @@ export type AiFeature =
   | 'interviewQuestionGen'
   | 'interviewScoring'
   | 'interviewReview'
+  | 'reportBuilder'
   | 'cvParse';
 
 export interface AiFeatureToggle {
@@ -364,6 +365,7 @@ export interface PlanFeatures {
     contractGenerator: PlanBooleanFeature;
     cvParse: PlanBooleanFeature;
     interviewReview: PlanBooleanFeature;
+    reportBuilder: PlanBooleanFeature;
   };
 }
 

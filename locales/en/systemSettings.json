@@ -104,5 +104,6 @@
   "featureOfferGenerator": "Offer Generator",
   "featureContractGenerator": "Contract Generator",
   "featureCvParse": "CV Parser",
-  "featureInterviewReview": "Interview Recording & AI Review"
+  "featureInterviewReview": "Interview Recording & AI Review",
+  "featureReportBuilder": "AI Report Builder"
 }
