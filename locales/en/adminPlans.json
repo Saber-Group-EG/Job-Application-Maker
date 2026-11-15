@@ -67,5 +67,9 @@
   "whatsAppInterviewScheduled": "Interview scheduled",
   "whatsAppOfferSent": "Job offer sent",
   "featureReportBuilder": "AI Report Builder",
-  "whatsAppInterviewMissed": "Missed interview"
+  "whatsAppInterviewMissed": "Missed interview",
+  "whatsAppAutomatic": "Automatic updates (otherwise sent by hand only)",
+  "sectionReports": "Reports",
+  "reportsOverview": "Reports page",
+  "reportsSavedCharts": "Saved charts per user"
 }

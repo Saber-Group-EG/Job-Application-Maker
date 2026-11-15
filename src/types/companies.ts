@@ -159,6 +159,8 @@ export interface WhatsAppEventSetting {
   label: string;
   // The company's plan includes this update.
   allowedByPlan: boolean;
+  // The plan lets it go out automatically (otherwise only by hand).
+  autoAllowedByPlan?: boolean;
   // 'auto' sends when the event happens; 'manual' only when someone presses send.
   mode: 'auto' | 'manual';
 }
@@ -352,9 +354,16 @@ export interface PlanFeatures {
     departmentLevelAccess: PlanBooleanFeature;
   };
   whatsapp: {
+    // Updates may be set to go out automatically (otherwise by hand only).
+    automatic: PlanBooleanFeature;
     applicationReceived: PlanBooleanFeature;
     interviewScheduled: PlanBooleanFeature;
     offerSent: PlanBooleanFeature;
+    interviewMissed: PlanBooleanFeature;
+  };
+  reports: {
+    overview: PlanBooleanFeature;
+    savedCharts: PlanLimitFeature;
   };
   ai: {
     jobFieldGenerator: PlanBooleanFeature;

@@ -3,7 +3,8 @@
 // trend, sources, the jobs pipeline and rejection insights.
 import { useEffect, useMemo, useState } from 'react';
 import PageMeta from '../../components/common/PageMeta';
-import { PageShell } from '../../components/ui/kit';
+import { EmptyState, PageShell } from '../../components/ui/kit';
+import { Lock } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useLocale } from '../../context/LocaleContext';
 import { useCompanyFilter } from '../../context/CompanyFilterContext';
@@ -44,7 +45,9 @@ export default function Reports() {
     setJobId(null);
   }, [hiringCompanyId]);
 
-  const { data, isLoading } = useReportsOverview({ companyIds, days, hiringCompanyId, jobId }, { enabled: Boolean(user) });
+  const { data, isLoading, error } = useReportsOverview({ companyIds, days, hiringCompanyId, jobId }, { enabled: Boolean(user) });
+  // The company's plan doesn't include the Reports page.
+  const notOnPlan = (error as { code?: string } | null)?.code === 'PLAN_FEATURE_DISALLOWED';
   const companyName = (id: string) => toPlainString((companies as any[]).find((c) => (c._id || c.id) === id)?.name, locale) || '';
   const showCompany = (companyIds?.length ?? 0) !== 1;
   // Ask AI follows the funnel's company; it needs that company's AI switched on.
@@ -87,6 +90,13 @@ export default function Reports() {
       }
     >
       <PageMeta title={t('pageTitle', 'reports')} description={t('pageSubtitle', 'reports')} />
+      {notOnPlan ? (
+        <EmptyState
+          icon={<Lock className="size-6" />}
+          title={t('notOnPlanTitle', 'reports')}
+          text={t('notOnPlanText', 'reports')}
+        />
+      ) : (
       <div className="space-y-6">
         <AskAiPanel companyId={hiringCompanyId} enabled={aiEnabled} days={days} jobs={data?.hiring?.jobOptions} />
         <MyCharts companyId={hiringCompanyId} days={days} jobs={data?.hiring?.jobOptions} />
@@ -100,6 +110,7 @@ export default function Reports() {
         <JobsPipeline data={data?.jobs} loading={isLoading} showCompany={showCompany} companyName={companyName} />
         <RejectionInsightsChart companyId={companyIds} days={days} info={splitLines(t('how_rejection', 'reports', { days }))} />
       </div>
+      )}
     </PageShell>
   );
 }

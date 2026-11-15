@@ -158,5 +158,7 @@
   "how_g_statusReason": "Grouped by the reasons chosen the last time they were moved to \"{status}\". Only applicants who were ever moved to it are counted, and an applicant with several reasons counts once in each.",
   "how_g_statusReasonLatest": "Grouped by the reasons chosen at their latest status change, whatever the status. An applicant with several reasons counts once in each.",
   "how_split_statusReason": "Each colour is a reason given for \"{status}\".",
-  "how_split_statusReasonLatest": "Each colour is a reason from their latest status change."
+  "how_split_statusReasonLatest": "Each colour is a reason from their latest status change.",
+  "notOnPlanTitle": "Reports aren't on your plan",
+  "notOnPlanText": "Upgrade your plan to see the hiring funnel, ratios, hiring speed and charts."
 }

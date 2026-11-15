@@ -78,7 +78,16 @@ export default function WhatsAppConnectionCard({ companyId, canEdit }: Props) {
                   </p>
                   <p className="text-xs text-slate-500 dark:text-slate-400">{t(`waEventHint_${ev.key}`, 'companies')}</p>
                 </div>
-                {ev.allowedByPlan ? (
+                {ev.allowedByPlan && ev.autoAllowedByPlan === false ? (
+                  // The plan only allows sending this update by hand.
+                  <span className="inline-flex items-center gap-2">
+                    <Badge tone="slate">{t('waModeManual', 'companies')}</Badge>
+                    <span className="inline-flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
+                      <Lock className="size-3" />
+                      {t('waAutoNotOnPlan', 'companies')}
+                    </span>
+                  </span>
+                ) : ev.allowedByPlan ? (
                   <Segmented
                     ariaLabel={t(`waEvent_${ev.key}`, 'companies')}
                     value={ev.mode}

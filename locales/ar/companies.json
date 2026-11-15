@@ -244,5 +244,6 @@
   "waEvent_offerSent": "إرسال عرض عمل",
   "waEventHint_offerSent": "يُبلغ المتقدم بوجود عرض في بريده الإلكتروني.",
   "waEvent_interviewMissed": "مقابلة فائتة",
-  "waEventHint_interviewMissed": "يُبلغ المتقدم بأنه لم يحضر مقابلته ويدعوه لتحديد موعد جديد."
+  "waEventHint_interviewMissed": "يُبلغ المتقدم بأنه لم يحضر مقابلته ويدعوه لتحديد موعد جديد.",
+  "waAutoNotOnPlan": "الإرسال التلقائي غير متاح في باقتك"
 }

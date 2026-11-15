@@ -215,6 +215,7 @@ export default function AdminPlansPage() {
       path: 'users.departmentLevelAccess',
     },
     { kind: 'section', label: t('sectionWhatsApp', 'adminPlans') },
+    { kind: 'boolean', label: t('whatsAppAutomatic', 'adminPlans'), path: 'whatsapp.automatic' },
     ...([
       'applicationReceived',
       'interviewScheduled',
@@ -227,6 +228,9 @@ export default function AdminPlansPage() {
         path: `whatsapp.${key}`,
       })
     ),
+    { kind: 'section', label: t('sectionReports', 'adminPlans') },
+    { kind: 'boolean', label: t('reportsOverview', 'adminPlans'), path: 'reports.overview' },
+    { kind: 'limit', label: t('reportsSavedCharts', 'adminPlans'), path: 'reports.savedCharts' },
     { kind: 'section', label: t('sectionAi', 'adminPlans') },
     ...([
       'jobFieldGenerator',

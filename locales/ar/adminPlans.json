@@ -67,5 +67,9 @@
   "whatsAppInterviewScheduled": "تحديد موعد مقابلة",
   "whatsAppOfferSent": "إرسال عرض عمل",
   "featureReportBuilder": "منشئ التقارير بالذكاء الاصطناعي",
-  "whatsAppInterviewMissed": "مقابلة فائتة"
+  "whatsAppInterviewMissed": "مقابلة فائتة",
+  "whatsAppAutomatic": "التحديثات التلقائية (وإلا تُرسل يدويًا فقط)",
+  "sectionReports": "التقارير",
+  "reportsOverview": "صفحة التقارير",
+  "reportsSavedCharts": "الرسوم المحفوظة لكل مستخدم"
 }

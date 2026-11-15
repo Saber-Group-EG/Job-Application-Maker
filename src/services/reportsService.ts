@@ -80,7 +80,8 @@ export const reportsService = {
       });
       return data.data;
     } catch (error: any) {
-      throw new ApiError(getErrorMessage(error), error?.response?.status);
+      // The plan code lets the page say the Reports page isn't on the plan.
+      throw new ApiError(getErrorMessage(error), error?.response?.status, undefined, error?.response?.data?.error ?? undefined);
     }
   },
 };

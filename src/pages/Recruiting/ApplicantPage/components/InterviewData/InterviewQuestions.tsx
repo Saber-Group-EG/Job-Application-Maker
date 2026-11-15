@@ -7,6 +7,7 @@ import type {
   Interview,
   InterviewAnswer,
   InterviewQuestionsProps,
+  UpdateInterviewStatusRequest,
 } from '../../../../../types/applicants';
 import { applicantsKeys } from '../../../../../hooks/queries/useApplicants';
 import { useInterviewActions } from './hooks/useInterviewActions';
@@ -14,6 +15,7 @@ import { useInterviewState } from './hooks/useInterviewState';
 import { useInterviewTimer } from './hooks/useInterviewTimer';
 import {
   useDeleteInterview,
+  useUpdateInterviewStatus,
   recordQuestionRemovals,
   recordQuestionAdditions,
 } from '../../../../../hooks/queries';
@@ -562,6 +564,55 @@ const InterviewQuestions = ({
     state.setView('assessment');
   }, [onRequestStartInterview, state]);
 
+  // "Start interview" on a scheduled interview: mark it running (startedAt, in_progress,
+  // conductedBy = you) and open it, no questions needed. Questions can still be added
+  // on the interview page; "Choose questions & start" stays as the other way in.
+  const updateInterviewStatus = useUpdateInterviewStatus();
+  const [startingScheduledId, setStartingScheduledId] = useState<string | null>(null);
+  const startingScheduledRef = useRef(false);
+  const handleStartScheduled = useCallback(
+    async (interview: Interview) => {
+      const id = getInterviewId(interview);
+      if (!id || !applicantId || startingScheduledRef.current) return;
+      if (interview.startedAt) {
+        state.openInterview(interview);
+        return;
+      }
+      startingScheduledRef.current = true;
+      setStartingScheduledId(id);
+      const conductedBy =
+        currentUserId ||
+        (interview.conductedBy
+          ? typeof interview.conductedBy === 'string'
+            ? interview.conductedBy
+            : String(
+                (interview.conductedBy as { _id?: string; id?: string })._id ||
+                  (interview.conductedBy as { id?: string }).id ||
+                  ''
+              )
+          : '');
+      try {
+        await updateInterviewStatus.mutateAsync({
+          applicantId,
+          interviewId: id,
+          data: {
+            startedAt: new Date().toISOString(),
+            status: 'in_progress',
+            ...(conductedBy ? { conductedBy } : {}),
+          } as UpdateInterviewStatusRequest,
+        });
+        state.setSelectedInterviewId(id);
+        state.setView('assessment');
+      } catch {
+        // The mutation shows the server's error and rolls the cache back.
+      } finally {
+        startingScheduledRef.current = false;
+        setStartingScheduledId(null);
+      }
+    },
+    [applicantId, currentUserId, state, updateInterviewStatus]
+  );
+
   // ---- Render ----------------------------------------------------------
   const hub = (
     <InterviewsHubView
@@ -569,6 +620,8 @@ const InterviewQuestions = ({
       onStart={handleStartNow}
       onSchedule={() => onRequestScheduleInterview?.()}
       onOpen={(iv) => state.openInterview(iv)}
+      onStartScheduled={handleStartScheduled}
+      startingInterviewId={startingScheduledId}
       onDelete={handleDeleteInterview}
       isStarting={isStartingInterview}
       authUser={authUser}

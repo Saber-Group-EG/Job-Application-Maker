@@ -8,6 +8,10 @@ export type InterviewsHubViewProps = {
   onStart: () => void;
   onSchedule: () => void;
   onOpen: (interview: Interview) => void;
+  /** Start a scheduled interview right away (no questions needed) and open it. */
+  onStartScheduled?: (interview: Interview) => void;
+  /** Id of the scheduled interview being started, if any. */
+  startingInterviewId?: string | null;
   onDelete?: (interview: Interview) => void;
   /** "Start interview" is creating and opening an interview. */
   isStarting?: boolean;
@@ -39,6 +43,8 @@ export const InterviewsHubView = ({
   onStart,
   onSchedule,
   onOpen,
+  onStartScheduled,
+  startingInterviewId = null,
   onDelete,
   isStarting = false,
   authUser,
@@ -108,6 +114,11 @@ export const InterviewsHubView = ({
               : questionCount === 0
               ? t('chooseQuestionsAndStart', 'interview')
               : t('openInterview', 'interview');
+            // A scheduled interview (not started yet) can be started straight away;
+            // choosing questions first stays available as the secondary button.
+            const canStartDirectly = Boolean(onStartScheduled) && !isInProgress && !interview.startedAt;
+            const isThisStarting = Boolean(startingInterviewId) && startingInterviewId === idOf(interview);
+            const isBusy = isStarting || Boolean(startingInterviewId);
 
             return (
               <li key={id} className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -146,15 +157,38 @@ export const InterviewsHubView = ({
                     )}
                   </p>
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => onOpen(interview)}
-                    disabled={isLocked}
-                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {label}
-                  </button>
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
+                  {canStartDirectly ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => onOpen(interview)}
+                        disabled={isBusy}
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-blue-400 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {label}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onStartScheduled?.(interview)}
+                        disabled={isBusy}
+                        aria-busy={isThisStarting}
+                        className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:cursor-wait disabled:opacity-70"
+                      >
+                        {isThisStarting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                        {isThisStarting ? t('startingInterview', 'interview') : t('startInterview', 'interview')}
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => onOpen(interview)}
+                      disabled={isLocked}
+                      className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {label}
+                    </button>
+                  )}
                   {onDelete && (
                     <button
                       type="button"
