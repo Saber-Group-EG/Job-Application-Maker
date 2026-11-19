@@ -24,6 +24,7 @@ import type {
   AiFeatureToggle,
   GmailStatus,
   WhatsAppEventKey,
+  ApplicantVerificationChannel,
 } from '../../types/companies';
 import type { Applicant } from '../../types/applicants';
 import { useAuth } from '../../context/AuthContext';
@@ -48,6 +49,7 @@ export const companiesKeys = {
     [...companiesKeys.all, 'gmailStatus', settingsId] as const,
   whatsappStatus: (companyId: string) => [...companiesKeys.all, 'whatsappStatus', companyId] as const,
   whatsappNotifications: (companyId: string) => [...companiesKeys.all, 'whatsappNotifications', companyId] as const,
+  applicantVerification: (companyId: string) => [...companiesKeys.all, 'applicantVerification', companyId] as const,
   whatsappTemplates: () => [...companiesKeys.all, 'whatsappTemplates'] as const,
   interviewSettings: (companyId: string) =>
     [...companiesKeys.settings(companyId), 'interview'] as const,
@@ -1333,6 +1335,28 @@ export function useUpdateWhatsAppNotifications() {
     onSuccess: (data, { companyId }) => {
       queryClient.setQueryData(companiesKeys.whatsappNotifications(companyId), data);
       queryClient.invalidateQueries({ queryKey: [...companiesKeys.all, 'whatsappStatus'] });
+    },
+  });
+}
+
+// ===== Applicant verification =====
+
+export function useApplicantVerification(companyId?: string, enabled = true) {
+  return useQuery({
+    queryKey: companiesKeys.applicantVerification(companyId ?? ''),
+    queryFn: () => companiesService.getApplicantVerification(companyId!),
+    enabled: enabled && Boolean(companyId),
+    staleTime: 60 * 1000,
+  });
+}
+
+export function useUpdateApplicantVerification() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ companyId, channels }: { companyId: string; channels: Partial<Record<ApplicantVerificationChannel, boolean>> }) =>
+      companiesService.updateApplicantVerification(companyId, channels),
+    onSuccess: (data, { companyId }) => {
+      queryClient.setQueryData(companiesKeys.applicantVerification(companyId), data);
     },
   });
 }

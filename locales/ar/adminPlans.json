@@ -71,5 +71,8 @@
   "whatsAppAutomatic": "التحديثات التلقائية (وإلا تُرسل يدويًا فقط)",
   "sectionReports": "التقارير",
   "reportsOverview": "صفحة التقارير",
-  "reportsSavedCharts": "الرسوم المحفوظة لكل مستخدم"
+  "reportsSavedCharts": "الرسوم المحفوظة لكل مستخدم",
+  "sectionApplicantVerification": "توثيق المتقدمين",
+  "applicantVerificationEmail": "توثيق المتقدمين برمز على البريد الإلكتروني",
+  "applicantVerificationWhatsapp": "توثيق المتقدمين برمز على واتساب"
 }

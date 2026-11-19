@@ -228,6 +228,9 @@ export default function AdminPlansPage() {
         path: `whatsapp.${key}`,
       })
     ),
+    { kind: 'section', label: t('sectionApplicantVerification', 'adminPlans') },
+    { kind: 'boolean', label: t('applicantVerificationEmail', 'adminPlans'), path: 'applicantVerification.email' },
+    { kind: 'boolean', label: t('applicantVerificationWhatsapp', 'adminPlans'), path: 'applicantVerification.whatsapp' },
     { kind: 'section', label: t('sectionReports', 'adminPlans') },
     { kind: 'boolean', label: t('reportsOverview', 'adminPlans'), path: 'reports.overview' },
     { kind: 'limit', label: t('reportsSavedCharts', 'adminPlans'), path: 'reports.savedCharts' },

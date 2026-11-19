@@ -12,6 +12,8 @@ import type {
   WhatsAppNotificationSettings,
   WhatsAppEventKey,
   WhatsAppTemplate,
+  ApplicantVerificationSettings,
+  ApplicantVerificationChannel,
   EmailTemplate,
   CompanySet,
   CompanyStatus,
@@ -311,6 +313,21 @@ class CompaniesService {
     modes: Partial<Record<WhatsAppEventKey, 'auto' | 'manual'>>
   ): Promise<WhatsAppNotificationSettings> {
     return this.request<WhatsAppNotificationSettings>('put', '/whatsapp/notifications', { companyId, modes });
+  }
+
+  // ===== Applicant verification (email / WhatsApp code before applying) =====
+  async getApplicantVerification(companyId: string): Promise<ApplicantVerificationSettings> {
+    return this.request<ApplicantVerificationSettings>(
+      'get',
+      `/applicant-verification?companyId=${encodeURIComponent(companyId)}`
+    );
+  }
+
+  async updateApplicantVerification(
+    companyId: string,
+    channels: Partial<Record<ApplicantVerificationChannel, boolean>>
+  ): Promise<ApplicantVerificationSettings> {
+    return this.request<ApplicantVerificationSettings>('put', '/applicant-verification', { companyId, ...channels });
   }
 
   async getWhatsAppTemplates(): Promise<WhatsAppTemplate[]> {

@@ -71,5 +71,8 @@
   "whatsAppAutomatic": "Automatic updates (otherwise sent by hand only)",
   "sectionReports": "Reports",
   "reportsOverview": "Reports page",
-  "reportsSavedCharts": "Saved charts per user"
+  "reportsSavedCharts": "Saved charts per user",
+  "sectionApplicantVerification": "Applicant verification",
+  "applicantVerificationEmail": "Verify applicants by email code",
+  "applicantVerificationWhatsapp": "Verify applicants by WhatsApp code"
 }

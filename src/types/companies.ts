@@ -184,6 +184,15 @@ export interface WhatsAppNotificationSettings {
   events: WhatsAppEventSetting[];
 }
 
+export type ApplicantVerificationChannel = 'email' | 'whatsapp';
+
+export interface ApplicantVerificationSettings {
+  email: { enabled: boolean; planAllowed: boolean };
+  whatsapp: { enabled: boolean; planAllowed: boolean };
+  // False until the server has its WhatsApp credentials.
+  whatsappAvailable: boolean;
+}
+
 export interface WhatsAppTemplate {
   name: string;
   language: string;
@@ -360,6 +369,11 @@ export interface PlanFeatures {
     interviewScheduled: PlanBooleanFeature;
     offerSent: PlanBooleanFeature;
     interviewMissed: PlanBooleanFeature;
+  };
+  // Applicants confirm their email / WhatsApp number with a code before applying.
+  applicantVerification: {
+    email: PlanBooleanFeature;
+    whatsapp: PlanBooleanFeature;
   };
   reports: {
     overview: PlanBooleanFeature;

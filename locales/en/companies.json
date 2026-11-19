@@ -245,5 +245,15 @@
   "waEventHint_offerSent": "Tells the applicant an offer is waiting in their email.",
   "waEvent_interviewMissed": "Missed interview",
   "waEventHint_interviewMissed": "Tells the applicant they missed their interview and invites them to arrange a new time.",
-  "waAutoNotOnPlan": "Automatic isn't on your plan"
+  "waAutoNotOnPlan": "Automatic isn't on your plan",
+  "avTitle": "Applicant verification",
+  "avSubtitle": "Applicants confirm their email or WhatsApp number with a code before they can apply.",
+  "avEmail": "Verify by email",
+  "avEmailHint": "A code is sent to the applicant's email.",
+  "avWhatsapp": "Verify by WhatsApp",
+  "avWhatsappHint": "A code is sent to the applicant's WhatsApp number.",
+  "avNotOnPlan": "Not on your plan",
+  "avWhatsappUnavailable": "WhatsApp is not set up on this server yet",
+  "avSaveFailed": "Could not save the setting",
+  "avOnlyOneNote": "When both are on, applicants choose how to verify."
 }
