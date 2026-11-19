@@ -452,7 +452,7 @@
   "undoFieldRemoved": "Field removed",
   "undoEntryRemoved": "Entry removed",
   "whatsApp": "WhatsApp",
-  "whatsAppNumber": "WhatsApp number",
+  "whatsAppNumber": "Phone number (WhatsApp)",
   "whatsAppLoginHint": "Use the number you verified in your profile. We will send you a code on WhatsApp.",
   "whatsAppCodeSentHint": "If this number is verified on an account, a code is on its way on WhatsApp from SG Hiring.",
   "sendCodeOnWhatsApp": "Send code on WhatsApp",

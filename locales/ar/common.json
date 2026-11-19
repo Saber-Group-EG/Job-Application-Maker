@@ -452,7 +452,7 @@
   "undoFieldRemoved": "تم حذف الحقل",
   "undoEntryRemoved": "تم حذف الإدخال",
   "whatsApp": "واتساب",
-  "whatsAppNumber": "رقم واتساب",
+  "whatsAppNumber": "رقم الهاتف (واتساب)",
   "whatsAppLoginHint": "استخدم الرقم الذي وثّقته في ملفك الشخصي. سنرسل لك رمزًا على واتساب.",
   "whatsAppCodeSentHint": "إذا كان هذا الرقم موثّقًا على حساب، فالرمز في طريقه إليه على واتساب من SG Hiring.",
   "sendCodeOnWhatsApp": "إرسال الرمز على واتساب",

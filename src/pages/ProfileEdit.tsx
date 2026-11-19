@@ -25,7 +25,6 @@ export default function ProfileEdit() {
   const [formData, setFormData] = useState({
     fullName: user?.fullName || "",
     email: user?.email || "",
-    phone: user?.phone || "",
   });
   const [passwordData, setPasswordData] = useState({
     currentPassword: "",
@@ -62,7 +61,6 @@ export default function ProfileEdit() {
     updateProfileMutation.mutate({
       fullName: formData.fullName,
       email: formData.email,
-      phone: formData.phone,
     });
   }
 
@@ -235,19 +233,6 @@ export default function ProfileEdit() {
                     value={formData.email}
                     onChange={handleChange}
                     placeholder={t('editEmailPlaceholder', 'users')}
-                    className={inputClass}
-                  />
-                </Field>
-                <Field label={t('editPhone', 'users')} htmlFor="phone" optional>
-                  <input
-                    type="tel"
-                    id="phone"
-                    name="phone"
-                    dir="ltr"
-                    autoComplete="tel"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    placeholder={t('editPhonePlaceholder', 'users')}
                     className={inputClass}
                   />
                 </Field>
