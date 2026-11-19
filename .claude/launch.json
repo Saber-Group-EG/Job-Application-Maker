@@ -4,20 +4,56 @@
     {
       "name": "frontend-dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 5173
     },
     {
       "name": "frontend-dev-remote-api",
       "runtimeExecutable": "cmd",
-      "runtimeArgs": ["/c", "set VITE_API_BASE_URL=https://application-maker.onrender.com/api&& npm run dev -- --port 5174 --strictPort"],
+      "runtimeArgs": [
+        "/c",
+        "set VITE_API_BASE_URL=https://application-maker.onrender.com/api&& npm run dev -- --port 5174 --strictPort"
+      ],
       "port": 5174
     },
     {
       "name": "backend-local-no-jobs",
       "runtimeExecutable": "cmd",
-      "runtimeArgs": ["/c", "cd /d D:\\application-maker && set DISABLE_CRON_JOBS=true&& node src/server.js"],
+      "runtimeArgs": [
+        "/c",
+        "cd /d D:\\application-maker && set DISABLE_CRON_JOBS=true&& node src/server.js"
+      ],
       "port": 3000
+    },
+    {
+      "name": "landing-preview",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "cd /d D:\\GitHub\\SaberGroupLanding && npx vite preview --port 4173 --strictPort"
+      ],
+      "port": 4173
+    },
+    {
+      "name": "apply-form-dev",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "cd /d D:\\job-application-form && npm run dev -- --port 5175 --strictPort"
+      ],
+      "port": 5175
+    },
+    {
+      "name": "landing-dev",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "cd /d D:\\SaberGroupLanding && npm run dev -- --port 5176 --strictPort"
+      ],
+      "port": 5176
     }
   ]
 }
