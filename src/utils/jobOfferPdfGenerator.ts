@@ -1,6 +1,16 @@
 // jobOfferPdfGenerator.ts
 import { JobOffer } from '../services/jobOffersService';
 import { workTypeLabel } from './documentLabels';
+import {
+  LETTER,
+  type LetterKey,
+  formatLetterDate,
+  formatLetterMoney,
+  letterAcceptance,
+  letterIntro,
+  letterLogoUrl,
+  letterText,
+} from './offerLetter';
 
 interface JobOfferPDFOptions {
   offer: JobOffer;
@@ -26,125 +36,67 @@ const renderText = (text: string | { en?: string; ar?: string } | null | undefin
   return text.en || text.ar || '—';
 };
 
-const formatDateLocale = (date?: string | number, lang: 'ar' | 'en' = 'en') => {
-  if (!date) return '';
-  try {
-    const d = new Date(date);
-    if (Number.isNaN(d.getTime())) return '';
-    return d.toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch {
-    return String(date);
-  }
-};
-
-const formatCurrency = (amount: number, currency: string, lang: 'ar' | 'en'): string => {
-  const formattedAmount = amount.toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-US');
-  if (lang === 'ar') return `${formattedAmount} ${currency}`;
-  return `${currency} ${formattedAmount}`;
-};
-
 export const generateJobOfferPDF = async ({ offer, lang = 'en', companyName = '' }: JobOfferPDFOptions): Promise<string> => {
   const isRTL = lang === 'ar';
-  const generatedDate = formatDateLocale(new Date().toISOString(), lang);
+  const L = (key: LetterKey) => letterText(key, lang);
+  const ink = LETTER.text;
+  const accent = LETTER.accent;
+  const muted = LETTER.muted;
 
   const position = renderText(offer.position, lang);
   const workType = workTypeLabel(offer.workType, lang);
   const workHours = renderText(offer.workHours, lang);
-  const notes = renderText(offer.notes, lang);
 
-  // Get company name from offer if not provided
-  let finalCompanyName = companyName;
-  if (!finalCompanyName) {
-    if (typeof offer.companyId === 'object' && offer.companyId !== null) {
-      finalCompanyName = renderText((offer.companyId as any).name, lang);
-    } else {
-      finalCompanyName = lang === 'ar' ? 'الشركة' : 'Company';
-    }
-  }
+  const company = typeof offer.companyId === 'object' && offer.companyId !== null ? (offer.companyId as any) : null;
+  const finalCompanyName = companyName || (company ? renderText(company.name, lang) : '');
+  const logo = letterLogoUrl(company?.logoPath);
 
-  const applicantName = typeof offer.applicantId === 'object' && offer.applicantId !== null ? offer.applicantId.fullName : null;
-  const applicantEmail = typeof offer.applicantId === 'object' && offer.applicantId !== null ? offer.applicantId.email : null;
+  const applicant = typeof offer.applicantId === 'object' && offer.applicantId !== null ? offer.applicantId : null;
+  const applicantName = applicant?.fullName || '';
+  const applicantEmail = applicant?.email || '';
+  const addressee = applicantName || L('candidatePlaceholder');
 
-  const createdAt = offer.createdAt ? formatDateLocale(offer.createdAt, lang) : '';
-  const sentAt = offer.sentAt ? formatDateLocale(offer.sentAt, lang) : '';
-  const validUntil = offer.expiresAt ? formatDateLocale(offer.expiresAt, lang) : '';
+  const letterDate = formatLetterDate(offer.sentAt || offer.createdAt || Date.now(), lang);
+  const validUntil = offer.expiresAt ? formatLetterDate(offer.expiresAt, lang) : '';
 
   const sortedSections = [...offer.sections].sort((a, b) => a.displayOrder - b.displayOrder);
 
-  const getStatusInfo = () => {
-    const statusMap: Record<string, { label: string; color: string; bg: string }> = {
-      draft: { label: lang === 'ar' ? 'مسودة' : 'Draft', color: '#64748b', bg: '#f1f5f9' },
-      sent: { label: lang === 'ar' ? 'مرسل' : 'Sent', color: '#3b82f6', bg: '#eff6ff' },
-      accepted: { label: lang === 'ar' ? 'مقبول' : 'Accepted', color: '#10b981', bg: '#f0fdf4' },
-      rejected: { label: lang === 'ar' ? 'مرفوض' : 'Rejected', color: '#ef4444', bg: '#fef2f2' },
-      expired: { label: lang === 'ar' ? 'منتهي' : 'Expired', color: '#f59e0b', bg: '#fffbeb' },
-    };
-    return statusMap[offer.status] || statusMap.draft;
-  };
+  const heading = (text: string) =>
+    `<div style="font-size: 10.5pt; font-weight: 700; color: ${accent}; margin: 18px 0 6px;">${escapeHtml(text)}</div>`;
+  const row = (label: string, value: string) =>
+    `<div style="padding: 2px 0;"><span style="color: ${muted};">${escapeHtml(label)}:</span> <span style="font-weight: 600;">${escapeHtml(value)}</span></div>`;
+  const bullets = (items: string[]) =>
+    `<ul style="margin: 0; ${isRTL ? 'padding-right' : 'padding-left'}: 18px; list-style: disc;">${items
+      .map((i) => `<li style="padding: 2px 0;">${escapeHtml(i)}</li>`)
+      .join('')}</ul>`;
+  const has = (v: string) => Boolean(v) && v !== '—';
 
-  const statusInfo = getStatusInfo();
+  const detailsHTML = [
+    has(position) ? row(L('jobTitle'), position) : '',
+    has(workType) ? row(L('employmentType'), workType) : '',
+    has(workHours) ? row(L('workingHours'), workHours) : '',
+  ].join('');
 
-  // Build commissions HTML with RTL support
-  let commissionsHTML = '';
-  if (offer.commissions.length > 0) {
-    const th = (label: string, align: string) => `<th style="background: #242B32; color: white; padding: 10px 8px; font-weight: 700; font-size: 10pt; border: 1px solid #1a1f24; text-align: ${align};">${label}</th>`;
-    commissionsHTML = '<table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 9pt;"><thead><tr>';
-    commissionsHTML += th(lang === 'ar' ? 'العمولة' : 'Commission', 'start');
-    commissionsHTML += th(lang === 'ar' ? 'القيمة' : 'Value', 'end');
-    commissionsHTML += '</tr></thead><tbody>';
+  const commissionLines = offer.commissions.map((c) => {
+    const label = renderText(c.label, lang);
+    const condition = renderText(c.condition, lang);
+    const value = `${c.value}${c.type === 'percentage' ? '%' : ` ${offer.salary.currency}`}`;
+    return `${has(label) ? `${label}: ` : ''}${value}${has(condition) ? ` (${condition})` : ''}`;
+  });
+  const compensationHTML =
+    (offer.salary.basic != null
+      ? row(L('basicSalary'), formatLetterMoney(offer.salary.basic, offer.salary.currency, lang))
+      : '') +
+    (commissionLines.length
+      ? `<div style="padding: 2px 0; color: ${muted};">${escapeHtml(L('commission'))}:</div>${bullets(commissionLines)}`
+      : '');
 
-    for (const commission of offer.commissions) {
-      const label = renderText(commission.label, lang);
-      const condition = renderText(commission.condition, lang);
-      const commissionValue = commission.value;
-      const commissionType = commission.type;
+  const sectionsHTML = sortedSections
+    .filter((s) => s.items.length > 0)
+    .map((s) => heading(renderText(s.title, lang)) + bullets(s.items.map((i) => renderText(i, lang))))
+    .join('');
 
-      commissionsHTML += '<tr>';
-      commissionsHTML += `<td style="padding: 10px 8px; border-bottom: 1px solid #e0e0e0; text-align: start;"><strong>${escapeHtml(label)}</strong>`;
-      if (condition && condition !== '—') {
-        commissionsHTML += `<div style="font-size: 8pt; color: #666; margin-top: 4px;">📌 ${escapeHtml(condition)}</div>`;
-      }
-      commissionsHTML += `</td>`;
-      commissionsHTML += `<td style="padding: 10px 8px; text-align: end; border-bottom: 1px solid #e0e0e0; font-weight: 700; color: #059669;">${commissionValue}${commissionType === 'percentage' ? '%' : ` ${offer.salary.currency}`}</td>`;
-      commissionsHTML += '</tr>';
-    }
-    commissionsHTML += '</tbody></table>';
-  } else {
-    commissionsHTML = `<div style="text-align: center; padding: 20px; color: #999;">${lang === 'ar' ? 'لا توجد عمولات محددة' : 'No commission structure defined'}</div>`;
-  }
-
-  // Build sections HTML with RTL support
-  let sectionsHTML = '';
-  if (sortedSections.length > 0) {
-    for (const section of sortedSections) {
-      const sectionTitle = renderText(section.title, lang);
-      if (section.items.length === 0) continue;
-
-      let itemsHTML = '';
-      for (const item of section.items) {
-        const itemText = renderText(item, lang);
-        itemsHTML += `
-          <div style="display: flex; align-items: flex-start; gap: 10px; padding: 6px 0; ${isRTL ? 'flex-direction: row-reverse;' : ''}">
-            <span style="color: #4caf50; font-weight: bold;">✓</span>
-            <span style="flex: 1; ${isRTL ? 'text-align: right;' : ''}">${escapeHtml(itemText)}</span>
-          </div>
-        `;
-      }
-
-      sectionsHTML += `
-        <div style="margin-bottom: 20px;">
-          <div style="font-size: 10pt; font-weight: 700; color: #242B32; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 2px solid #242B32; ${isRTL ? 'text-align: right;' : ''}">${escapeHtml(sectionTitle)}</div>
-          <div style="${isRTL ? 'padding-right: 15px;' : 'padding-left: 15px;'}">${itemsHTML}</div>
-        </div>
-      `;
-    }
-  }
+  const signLine = `<div style="border-bottom: 1px solid ${ink}; height: 34px; width: 62mm; margin-bottom: 6px;"></div>`;
 
   const htmlContent = `<!DOCTYPE html>
 <html dir="${isRTL ? 'rtl' : 'ltr'}" lang="${lang}">
@@ -153,137 +105,62 @@ export const generateJobOfferPDF = async ({ offer, lang = 'en', companyName = ''
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Job Offer - ${escapeHtml(position)}</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            font-family: ${isRTL ? "'Segoe UI', 'Tahoma', Arial, sans-serif" : "'Segoe UI', Arial, sans-serif"};
-            font-size: 10pt;
-            line-height: 1.4;
-            color: #333;
-            padding: 0;
-            margin: 0;
-            background: white;
-            direction: ${isRTL ? 'rtl' : 'ltr'};
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: white; }
         .pdf-container {
             max-width: 210mm;
             margin: 0 auto;
             background: white;
-            padding: 12mm 10mm;
+            padding: ${LETTER.padding};
             direction: ${isRTL ? 'rtl' : 'ltr'};
-        }
-        ${isRTL ? `
-        .info-item {
-            flex-direction: row-reverse;
-        }
-        .notes-section {
-            border-left: none !important;
-            border-right: 4px solid #ff9800 !important;
-        }
-        ` : ''}
-        @media print {
-            body {
-                padding: 0;
-                margin: 0;
-            }
+            text-align: start;
+            font-family: ${isRTL ? LETTER.fontAr : LETTER.font};
+            font-size: 10pt;
+            line-height: 1.6;
+            color: ${ink};
         }
     </style>
 </head>
 <body>
     <div class="pdf-container">
-        <!-- Header -->
-        <div style="background: #242B32; color: white; padding: 15px 20px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; border-radius: 4px; ${isRTL ? 'flex-direction: row-reverse;' : ''}">
-            <div style="font-size: 12pt; font-weight: 700;">${escapeHtml(finalCompanyName)}</div>
-            <div style="text-align: ${isRTL ? 'left' : 'right'};">
-                <div style="font-size: 14pt; font-weight: 800;">${lang === 'ar' ? 'عرض وظيفي' : 'JOB OFFER'}</div>
-                <div style="font-size: 9pt; opacity: 0.9; margin-top: 4px;">${escapeHtml(generatedDate)}</div>
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                ${logo ? `<img src="${escapeHtml(logo)}" crossorigin="anonymous" alt="" style="height: 44px; width: auto; object-fit: contain;" />` : ''}
+                <div style="font-size: 13pt; font-weight: 700; color: ${accent};">${escapeHtml(finalCompanyName)}</div>
             </div>
+            <div style="font-size: 9pt; color: ${muted}; text-align: end;">${escapeHtml(letterDate)}</div>
         </div>
+        <div style="border-bottom: 2px solid ${accent}; margin: 14px 0 22px;"></div>
 
-        <!-- Title -->
-        <div style="font-size: 16pt; font-weight: 700; text-align: center; margin: 20px 0; color: #181D21;">
-            ${escapeHtml(position)}
-            <span style="display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 9pt; font-weight: 600; background: ${statusInfo.bg}; color: ${statusInfo.color}; ${isRTL ? 'margin-right: 10px;' : 'margin-left: 10px;'}">${statusInfo.label}</span>
-        </div>
+        <div style="text-align: center; font-size: 18pt; font-weight: 800; letter-spacing: ${isRTL ? '0' : '2px'}; color: ${accent}; margin-bottom: 22px;">${escapeHtml(L('title'))}</div>
 
-        <!-- Applicant Info -->
-        ${applicantName ? `
-        <div style="background: #f5f5f5; border: 1px solid #e0e0e0; border-radius: 4px; padding: 12px 15px; margin: 15px 0;">
-            <div style="font-size: 10pt; font-weight: 700; margin-bottom: 5px; color: #555; ${isRTL ? 'text-align: right;' : ''}">${lang === 'ar' ? 'المرشح' : 'Candidate'}</div>
-            <div style="font-size: 11pt; color: #333; font-weight: 500; ${isRTL ? 'text-align: right;' : ''}">${escapeHtml(applicantName)}</div>
-            ${applicantEmail ? `<div style="font-size: 9pt; color: #666; margin-top: 4px; ${isRTL ? 'text-align: right;' : ''}">${escapeHtml(applicantEmail)}</div>` : ''}
-        </div>
-        ` : ''}
+        <div style="color: ${muted};">${escapeHtml(L('to'))}</div>
+        <div style="font-weight: 600;">${escapeHtml(addressee)}</div>
+        ${applicantEmail ? `<div style="color: ${muted};">${escapeHtml(applicantEmail)}</div>` : ''}
 
-        <!-- Offer Details -->
-        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px 20px; margin: 15px 0; padding: 15px; background: #fafafa; border-radius: 4px; border: 1px solid #e0e0e0;">
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #e0e0e0; ${isRTL ? 'flex-direction: row-reverse;' : ''}">
-                <span style="font-weight: 600; color: #666; font-size: 9pt;">${lang === 'ar' ? 'نوع العمل' : 'Work Type'}</span>
-                <span style="font-weight: 500; color: #333; font-size: 10pt;">${escapeHtml(workType)}</span>
+        <div style="margin-top: 18px;">${escapeHtml(L('dear'))} ${escapeHtml(addressee)}${isRTL ? '،' : ','}</div>
+        <p style="margin-top: 6px; text-align: justify;">${escapeHtml(letterIntro(has(position) ? position : '', finalCompanyName, lang))}</p>
+
+        ${detailsHTML ? heading(L('positionDetails')) + detailsHTML : ''}
+        ${compensationHTML ? heading(L('compensation')) + compensationHTML : ''}
+        ${sectionsHTML}
+
+        ${heading(L('acceptance'))}
+        <p style="text-align: justify;">${escapeHtml(letterAcceptance(validUntil, lang))}</p>
+
+        <div style="display: flex; justify-content: space-between; gap: 24px; margin-top: 34px; page-break-inside: avoid;">
+            <div>
+                <div style="margin-bottom: 4px;">${escapeHtml(L('sincerely'))}</div>
+                ${signLine}
+                <div style="font-weight: 600;">${escapeHtml(finalCompanyName)}</div>
+                <div style="color: ${muted}; font-size: 9pt;">${escapeHtml(L('hr'))}</div>
             </div>
-            ${workHours && workHours !== '—' ? `
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #e0e0e0; ${isRTL ? 'flex-direction: row-reverse;' : ''}">
-                <span style="font-weight: 600; color: #666; font-size: 9pt;">${lang === 'ar' ? 'ساعات العمل' : 'Work Hours'}</span>
-                <span style="font-weight: 500; color: #333; font-size: 10pt;">${escapeHtml(workHours)}</span>
+            <div>
+                <div style="margin-bottom: 4px;">${escapeHtml(L('acceptedBy'))}</div>
+                ${signLine}
+                <div style="font-weight: 600;">${escapeHtml(addressee)}</div>
+                <div style="color: ${muted}; font-size: 9pt;">${escapeHtml(L('date'))} ____________</div>
             </div>
-            ` : ''}
-            ${offer.salary.basic != null ? `
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #e0e0e0; ${isRTL ? 'flex-direction: row-reverse;' : ''}">
-                <span style="font-weight: 600; color: #666; font-size: 9pt;">${lang === 'ar' ? 'الراتب الأساسي' : 'Basic Salary'}</span>
-                <span style="font-size: 11pt; font-weight: 700; color: #059669;">${formatCurrency(offer.salary.basic, offer.salary.currency, lang)}</span>
-            </div>
-            ` : ''}
-            ${createdAt ? `
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #e0e0e0; ${isRTL ? 'flex-direction: row-reverse;' : ''}">
-                <span style="font-weight: 600; color: #666; font-size: 9pt;">${lang === 'ar' ? 'تاريخ الإنشاء' : 'Date Created'}</span>
-                <span style="font-weight: 500; color: #333; font-size: 10pt;">${escapeHtml(createdAt)}</span>
-            </div>
-            ` : ''}
-            ${sentAt ? `
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #e0e0e0; ${isRTL ? 'flex-direction: row-reverse;' : ''}">
-                <span style="font-weight: 600; color: #666; font-size: 9pt;">${lang === 'ar' ? 'تاريخ الإرسال' : 'Date Sent'}</span>
-                <span style="font-weight: 500; color: #333; font-size: 10pt;">${escapeHtml(sentAt)}</span>
-            </div>
-            ` : ''}
-        </div>
-
-        <!-- Commission Structure -->
-        ${offer.commissions.length > 0 ? `
-        <div style="margin: 20px 0;">
-            <div style="font-size: 11pt; font-weight: 700; color: #242B32; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 2px solid #242B32; ${isRTL ? 'text-align: right;' : ''}">${lang === 'ar' ? 'هيكل العمولات' : 'Commission Structure'}</div>
-            ${commissionsHTML}
-        </div>
-        ` : ''}
-
-        <!-- Additional Sections -->
-        ${sectionsHTML ? `
-        <div style="margin: 20px 0;">
-            <div style="font-size: 11pt; font-weight: 700; color: #242B32; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 2px solid #242B32; ${isRTL ? 'text-align: right;' : ''}">${lang === 'ar' ? 'تفاصيل إضافية' : 'Additional Details'}</div>
-            ${sectionsHTML}
-        </div>
-        ` : ''}
-
-        <!-- Validity -->
-        ${validUntil ? `
-        <div style="margin: 20px 0; padding: 10px 15px; background: #fff3e0; border-radius: 4px; text-align: center; font-size: 9pt; border: 1px solid #ffe0b2;">
-            <strong style="color: #e65100;">${lang === 'ar' ? 'صالح حتى:' : 'Valid Until:'}</strong> ${escapeHtml(validUntil)}
-        </div>
-        ` : ''}
-
-        <!-- Notes -->
-        ${notes && notes !== '—' ? `
-        <div style="margin: 20px 0; padding: 12px 15px; background: #fff8e1; ${isRTL ? 'border-right: 4px solid #ff9800; border-left: none;' : 'border-left: 4px solid #ff9800;'} border-radius: 4px;">
-            <div style="font-size: 10pt; font-weight: 700; margin-bottom: 6px; color: #ff9800; ${isRTL ? 'text-align: right;' : ''}">${lang === 'ar' ? 'ملاحظات:' : 'Notes:'}</div>
-            <div style="font-size: 9pt; color: #555; white-space: pre-wrap; word-break: break-word; line-height: 1.5; ${isRTL ? 'text-align: right;' : ''}">${escapeHtml(notes).replace(/\n/g, '<br>')}</div>
-        </div>
-        ` : ''}
-
-        <!-- Footer -->
-        <div style="margin-top: 30px; text-align: center; font-size: 8pt; color: #999; border-top: 1px solid #e0e0e0; padding-top: 15px;">
-            ${lang === 'ar' ? 'شكراً لثقتكم بنا' : 'Thank you for your business'}
         </div>
     </div>
 </body>

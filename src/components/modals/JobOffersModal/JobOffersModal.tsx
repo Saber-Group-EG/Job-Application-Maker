@@ -46,25 +46,28 @@ import { useLocale } from '../../../context/LocaleContext';
 import {
   AddButton,
   BiField,
-  DetailRow,
-  DetailsGrid,
   DocLang,
   EditorShell,
   InlineField,
   InlineSelect,
   Paper,
-  PaperBox,
-  PaperFooter,
-  PaperHeader,
-  PaperHeading,
-  PaperNotes,
-  PaperTitle,
   SectionsEditor,
   SideCard,
   SortableList,
   SortableRow,
-  TableHead,
+  LetterHeader,
+  LetterHeading,
+  LetterRow,
+  LetterSignatures,
 } from '../../documentEditor/Paper';
+import {
+  LETTER,
+  formatLetterDate,
+  letterAcceptance,
+  letterIntro,
+  letterLogoUrl,
+  letterText,
+} from '../../../utils/offerLetter';
 import {
   WORK_TYPE_VALUES,
   workTypeLabel,
@@ -239,17 +242,6 @@ const offerToForm = (offer: JobOffer): FormState => ({
 const inputCls =
   'w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-brand-400';
 
-const STATUS_BADGE: Record<
-  string,
-  { en: string; ar: string; color: string; bg: string }
-> = {
-  draft: { en: 'Draft', ar: 'مسودة', color: '#64748b', bg: '#f1f5f9' },
-  sent: { en: 'Sent', ar: 'مرسل', color: '#3b82f6', bg: '#eff6ff' },
-  accepted: { en: 'Accepted', ar: 'مقبول', color: '#10b981', bg: '#f0fdf4' },
-  rejected: { en: 'Rejected', ar: 'مرفوض', color: '#ef4444', bg: '#fef2f2' },
-  expired: { en: 'Expired', ar: 'منتهي', color: '#f59e0b', bg: '#fffbeb' },
-};
-
 const bilingualName = (
   name: string | { en?: string; ar?: string } | undefined,
   lang: DocLang
@@ -257,15 +249,6 @@ const bilingualName = (
   typeof name === 'string'
     ? name
     : ((lang === 'ar' ? name?.ar || name?.en : name?.en || name?.ar) ?? '');
-
-const formatDocDate = (date: Date | string, lang: DocLang) =>
-  new Date(date).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 
 // ─── Editor page ──────────────────────────────────────────────────────────────
 
@@ -496,6 +479,9 @@ export default function JobOfferEditor({
   const sheetCompanyId =
     form.selectedApplicantObject?.jobPositionId?.companyId?._id ??
     (Array.isArray(companyId) ? companyId[0] : companyId);
+  const sheetCompanyLogo = letterLogoUrl(
+    companies.find((c) => c._id === sheetCompanyId)?.logoPath
+  );
   const sheetCompanyName =
     propCompany ||
     bilingualName(
@@ -885,8 +871,17 @@ export default function JobOfferEditor({
   // ── Render ─────────────────────────────────────────────────────────────────
   const L = (en: string, ar: string) => (docLang === 'ar' ? ar : en);
   const rtl = docLang === 'ar';
-  const status = STATUS_BADGE[editing?.status ?? 'draft'] ?? STATUS_BADGE.draft;
   const cur = form.salaryCurrency;
+  // Bulk offers are addressed to each applicant when they are created.
+  const addressee =
+    (form.isBulk
+      ? ''
+      : editing
+        ? form.selectedApplicantObject?.fullName
+        : applicantId
+          ? fixedApplicant?.fullName
+          : form.selectedApplicantObject?.fullName) ||
+    letterText('candidatePlaceholder', docLang);
 
   const candidate = (() => {
     if (mode !== 'offer') return null;
@@ -894,9 +889,9 @@ export default function JobOfferEditor({
       const a = form.selectedApplicantObject;
       return a ? (
         <>
-          <div style={{ fontSize: '11pt', fontWeight: 500 }}>{a.fullName}</div>
+          <div style={{ fontWeight: 600 }}>{a.fullName}</div>
           {a.email && (
-            <div style={{ fontSize: '9pt', color: '#666', marginTop: 4 }}>
+            <div style={{ color: LETTER.muted }}>
               {a.email}
             </div>
           )}
@@ -905,7 +900,7 @@ export default function JobOfferEditor({
     }
     if (form.isBulk) {
       return (
-        <div style={{ fontSize: '10pt', color: '#555' }}>
+        <div style={{ fontWeight: 600 }}>
           {(applicantObjects ?? []).map((a) => a.fullName).join(L(', ', '، '))}
         </div>
       );
@@ -913,11 +908,9 @@ export default function JobOfferEditor({
     if (applicantId) {
       return fixedApplicant ? (
         <>
-          <div style={{ fontSize: '11pt', fontWeight: 500 }}>
-            {fixedApplicant.fullName}
-          </div>
+          <div style={{ fontWeight: 600 }}>{fixedApplicant.fullName}</div>
           {fixedApplicant.email && (
-            <div style={{ fontSize: '9pt', color: '#666', marginTop: 4 }}>
+            <div style={{ color: LETTER.muted }}>
               {fixedApplicant.email}
             </div>
           )}
@@ -1199,158 +1192,120 @@ export default function JobOfferEditor({
         onDiscard={discardDraft}
         className="mx-auto mb-4 max-w-[210mm]"
       />
-      <Paper lang={docLang}>
-        <PaperHeader
+      <Paper
+        lang={docLang}
+        style={{
+          padding: LETTER.padding,
+          color: LETTER.text,
+          lineHeight: 1.6,
+          fontFamily: rtl ? LETTER.fontAr : LETTER.font,
+        }}
+      >
+        <LetterHeader
           lang={docLang}
           company={sheetCompanyName}
-          title={L('JOB OFFER', 'عرض وظيفي')}
-          date={formatDocDate(new Date(), docLang)}
+          logo={sheetCompanyLogo}
+          date={formatLetterDate(editing?.sentAt || editing?.createdAt || new Date(), docLang)}
+          title={letterText('title', docLang)}
         />
 
-        <PaperTitle>
-          <div className="flex items-center justify-center gap-3">
-            <div className="min-w-0 max-w-[75%] flex-1">
-              <BiField
-                value={form.position}
-                lang={docLang}
-                onChange={(position) => set('position', position)}
-                placeholder={t('positionPlaceholder', 'modals')}
-                inputRef={firstInputRef}
-                style={{ textAlign: 'center' }}
-              />
-            </div>
-            <span
-              style={{
-                display: 'inline-block',
-                padding: '4px 12px',
-                borderRadius: 20,
-                fontSize: '9pt',
-                fontWeight: 600,
-                background: status.bg,
-                color: status.color,
-              }}
-            >
-              {status[docLang]}
-            </span>
-          </div>
-        </PaperTitle>
-
-        {candidate && (
-          <PaperBox label={L('Candidate', 'المرشح')} lang={docLang}>
-            {candidate}
-          </PaperBox>
+        <div style={{ color: LETTER.muted }}>{letterText('to', docLang)}</div>
+        {candidate ?? (
+          <div style={{ fontWeight: 600 }}>{letterText('candidatePlaceholder', docLang)}</div>
         )}
 
-        <DetailsGrid>
-          <DetailRow label={L('Work Type', 'نوع العمل')} lang={docLang}>
-            <InlineSelect
-              value={form.workType}
-              onChange={(v) => set('workType', v as WorkType)}
-              options={WORK_TYPE_VALUES.map((v) => ({
-                value: v,
-                label: workTypeLabel(v, docLang),
-              }))}
-              style={{ textAlign: rtl ? 'left' : 'right' }}
+        <div style={{ marginTop: 18 }}>
+          {letterText('dear', docLang)} {addressee}
+          {rtl ? '،' : ','}
+        </div>
+        <p style={{ marginTop: 6, textAlign: 'justify' }}>
+          {letterIntro(form.position[docLang].trim(), sheetCompanyName, docLang)}
+        </p>
+
+        <LetterHeading>{letterText('positionDetails', docLang)}</LetterHeading>
+        <LetterRow label={letterText('jobTitle', docLang)}>
+          <div className="min-w-0 flex-1">
+            <BiField
+              value={form.position}
+              lang={docLang}
+              onChange={(position) => set('position', position)}
+              placeholder={t('positionPlaceholder', 'modals')}
+              inputRef={firstInputRef}
             />
-          </DetailRow>
-          <DetailRow label={L('Work Hours', 'ساعات العمل')} lang={docLang}>
+          </div>
+        </LetterRow>
+        <LetterRow label={letterText('employmentType', docLang)}>
+          <InlineSelect
+            value={form.workType}
+            onChange={(v) => set('workType', v as WorkType)}
+            options={WORK_TYPE_VALUES.map((v) => ({
+              value: v,
+              label: workTypeLabel(v, docLang),
+            }))}
+            className="-mx-1"
+          />
+        </LetterRow>
+        <LetterRow label={letterText('workingHours', docLang)}>
+          <div className="min-w-0 flex-1">
             <BiField
               value={form.workHours}
               lang={docLang}
               onChange={(workHours) => set('workHours', workHours)}
               placeholder={t('workHoursEnPlaceholder', 'modals')}
-              style={{ textAlign: rtl ? 'left' : 'right' }}
             />
-          </DetailRow>
-          <DetailRow label={L('Basic Salary', 'الراتب الأساسي')} lang={docLang}>
-            <InlineSelect
-              value={cur}
-              onChange={(v) => set('salaryCurrency', v)}
-              options={CURRENCIES.map((c) => ({ value: c, label: c }))}
-              style={{ fontSize: '11pt', fontWeight: 700, color: '#059669' }}
-            />
-            <InlineField
-              type="number"
-              min={0}
-              value={form.salaryBasic}
-              placeholder="0"
-              onChange={(v) =>
-                set('salaryBasic', v === '' ? '' : Math.max(0, Math.round(Number(v))))
-              }
-              className="!w-28"
-              style={{
-                fontSize: '11pt',
-                fontWeight: 700,
-                color: '#059669',
-                textAlign: rtl ? 'left' : 'right',
-              }}
-            />
-          </DetailRow>
-          <DetailRow label={L('Date Created', 'تاريخ الإنشاء')} lang={docLang}>
-            <span>{formatDocDate(editing?.createdAt ?? new Date(), docLang)}</span>
-          </DetailRow>
-          {editing?.sentAt && (
-            <DetailRow label={L('Date Sent', 'تاريخ الإرسال')} lang={docLang}>
-              <span>{formatDocDate(editing.sentAt, docLang)}</span>
-            </DetailRow>
-          )}
-        </DetailsGrid>
+          </div>
+        </LetterRow>
 
-        {/* Commission structure */}
-        <div style={{ margin: '20px 0' }}>
-          <PaperHeading>{L('Commission Structure', 'هيكل العمولات')}</PaperHeading>
-          {form.commissions.length > 0 && (
-            <div style={{ margin: '20px 0 12px', fontSize: '9pt' }}>
-              <TableHead
-                cols={[L('Commission', 'العمولة'), L('Value', 'القيمة')]}
-              />
-              <SortableList
-                items={form.commissions}
-                onReorder={(next) => set('commissions', next)}
-              >
-                {form.commissions.map((c) => (
-                  <SortableRow
-                    key={c._id}
-                    id={c._id}
-                    onDuplicate={() => duplicateCommission(c._id)}
-                    onRemove={() => removeCommission(c._id)}
+        <LetterHeading>{letterText('compensation', docLang)}</LetterHeading>
+        <LetterRow label={letterText('basicSalary', docLang)}>
+          <InlineSelect
+            value={cur}
+            onChange={(v) => set('salaryCurrency', v)}
+            options={CURRENCIES.map((c) => ({ value: c, label: c }))}
+            className="-mx-1"
+          />
+          <InlineField
+            type="number"
+            min={0}
+            value={form.salaryBasic}
+            placeholder="0"
+            onChange={(v) =>
+              set('salaryBasic', v === '' ? '' : Math.max(0, Math.round(Number(v))))
+            }
+            className="!w-28"
+          />
+        </LetterRow>
+        {form.commissions.length > 0 && (
+          <>
+            <div style={{ padding: '2px 0', color: LETTER.muted }}>
+              {letterText('commission', docLang)}:
+            </div>
+            <SortableList
+              items={form.commissions}
+              onReorder={(next) => set('commissions', next)}
+            >
+              {form.commissions.map((c) => (
+                <SortableRow
+                  key={c._id}
+                  id={c._id}
+                  onDuplicate={() => duplicateCommission(c._id)}
+                  onRemove={() => removeCommission(c._id)}
+                >
+                  <div
+                    className="flex items-baseline gap-2"
+                    style={{ padding: '2px 0', paddingInlineStart: 6 }}
                   >
-                    <div
-                      className="grid grid-cols-[1fr_auto]"
-                      style={{ borderBottom: '1px solid #e0e0e0' }}
-                    >
-                      <div style={{ padding: '10px 8px' }}>
-                        <BiField
-                          value={c.label}
-                          lang={docLang}
-                          onChange={(label) => patchCommission(c._id, { label })}
-                          placeholder={t('commissionLabelPlaceholder', 'modals')}
-                          style={{ fontWeight: 700 }}
-                        />
-                        <div
-                          className="flex items-start gap-1"
-                          style={{ fontSize: '8pt', color: '#666', marginTop: 4 }}
-                        >
-                          <span>📌</span>
+                    <span>•</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline gap-1">
+                        <div className="min-w-0 flex-1">
                           <BiField
-                            value={c.condition}
+                            value={c.label}
                             lang={docLang}
-                            onChange={(condition) =>
-                              patchCommission(c._id, { condition })
-                            }
-                            placeholder={t('conditionPlaceholder', 'modals')}
+                            onChange={(label) => patchCommission(c._id, { label })}
+                            placeholder={t('commissionLabelPlaceholder', 'modals')}
                           />
                         </div>
-                      </div>
-                      <div
-                        className="flex items-start justify-end gap-1"
-                        style={{
-                          padding: '10px 8px',
-                          minWidth: 130,
-                          fontWeight: 700,
-                          color: '#059669',
-                        }}
-                      >
                         <InlineField
                           type="number"
                           min={0}
@@ -1362,7 +1317,7 @@ export default function JobOfferEditor({
                             })
                           }
                           className="!w-16"
-                          style={{ textAlign: 'end' }}
+                          style={{ textAlign: 'end', fontWeight: 600 }}
                         />
                         <InlineSelect
                           value={c.type}
@@ -1373,53 +1328,73 @@ export default function JobOfferEditor({
                             { value: 'percentage', label: '%' },
                             { value: 'fixed', label: cur },
                           ]}
+                          style={{ fontWeight: 600 }}
+                        />
+                      </div>
+                      <div style={{ fontSize: '9pt', color: LETTER.muted }}>
+                        <BiField
+                          value={c.condition}
+                          lang={docLang}
+                          onChange={(condition) =>
+                            patchCommission(c._id, { condition })
+                          }
+                          placeholder={t('conditionPlaceholder', 'modals')}
                         />
                       </div>
                     </div>
-                  </SortableRow>
-                ))}
-              </SortableList>
-            </div>
-          )}
+                  </div>
+                </SortableRow>
+              ))}
+            </SortableList>
+          </>
+        )}
+        <div className="pt-1">
           <AddButton onClick={addCommission}>
             {t('addCommissionTier', 'modals')}
           </AddButton>
         </div>
 
-        {/* Additional sections */}
-        <div style={{ margin: '20px 0' }}>
-          {form.sections.length > 0 && (
-            <PaperHeading>{L('Additional Details', 'تفاصيل إضافية')}</PaperHeading>
+        <SectionsEditor
+          sections={form.sections}
+          onChange={changeSections}
+          lang={docLang}
+          docType="offer"
+          variant="offer"
+        />
+
+        <LetterHeading>{letterText('acceptance', docLang)}</LetterHeading>
+        <p style={{ textAlign: 'justify' }}>
+          {letterAcceptance(
+            editing?.expiresAt ? formatLetterDate(editing.expiresAt, docLang) : '',
+            docLang
           )}
-          <SectionsEditor
-            sections={form.sections}
-            onChange={changeSections}
-            lang={docLang}
-            docType="offer"
-            variant="offer"
-          />
+        </p>
+
+        <LetterSignatures
+          left={{
+            caption: letterText('sincerely', docLang),
+            name: sheetCompanyName,
+            sub: letterText('hr', docLang),
+          }}
+          right={{
+            caption: letterText('acceptedBy', docLang),
+            name: addressee,
+            sub: `${letterText('date', docLang)} ____________`,
+          }}
+        />
+      </Paper>
+
+      {/* Internal notes stay off the printed letter: they are for HR. */}
+      <div
+        className="mx-auto mt-4 max-w-[210mm] rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-500/30 dark:bg-amber-500/10"
+        dir={rtl ? 'rtl' : 'ltr'}
+      >
+        <div className="mb-1 text-xs font-semibold text-amber-700 dark:text-amber-300">
+          {locale === 'ar'
+            ? 'ملاحظات داخلية (لا تظهر في الخطاب)'
+            : 'Internal notes (not printed on the letter)'}
         </div>
-
-        {editing?.expiresAt && (
-          <div
-            style={{
-              margin: '20px 0',
-              padding: '10px 15px',
-              background: '#fff3e0',
-              borderRadius: 4,
-              textAlign: 'center',
-              fontSize: '9pt',
-              border: '1px solid #ffe0b2',
-            }}
-          >
-            <strong style={{ color: '#e65100' }}>
-              {L('Valid Until:', 'صالح حتى:')}
-            </strong>{' '}
-            {formatDocDate(editing.expiresAt, docLang)}
-          </div>
-        )}
-
-        <PaperNotes lang={docLang} label={L('Notes:', 'ملاحظات:')}>
+        <div className="text-sm text-slate-700 dark:text-slate-200">
           <BiField
             multiline
             value={form.notes}
@@ -1427,12 +1402,8 @@ export default function JobOfferEditor({
             onChange={(notes) => set('notes', notes)}
             placeholder={t('notesPlaceholderDoc', 'modals')}
           />
-        </PaperNotes>
-
-        <PaperFooter>
-          {L('Thank you for your business', 'شكراً لثقتكم بنا')}
-        </PaperFooter>
-      </Paper>
+        </div>
+      </div>
     </EditorShell>
   );
 }

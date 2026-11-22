@@ -41,6 +41,7 @@ import SectionTemplatePicker from '../form/SectionTemplatePicker';
 import { useLocale } from '../../context/LocaleContext';
 import type { FormSection } from '../modals/JobOffersModal/JobOffersModal';
 import type { DocLang } from '../../utils/documentLabels';
+import { LETTER } from '../../utils/offerLetter';
 
 export type { DocLang };
 export type Bi = { en: string; ar: string };
@@ -210,9 +211,11 @@ export function InlineSelect({
 export function Paper({
   lang,
   children,
+  style,
 }: {
   lang: DocLang;
   children: ReactNode;
+  style?: CSSProperties;
 }) {
   const rtl = lang === 'ar';
   return (
@@ -231,9 +234,130 @@ export function Paper({
         fontFamily: rtl
           ? "'Segoe UI', 'Tahoma', Arial, sans-serif"
           : "'Segoe UI', Arial, sans-serif",
+        ...style,
       }}
     >
       {children}
+    </div>
+  );
+}
+
+// ─── Letter (job offer) ──────────────────────────────────────────────────────
+// Mirrors the markup of jobOfferPdfGenerator; values come from utils/offerLetter.
+
+export function LetterHeader({
+  company,
+  logo,
+  date,
+  title,
+  lang,
+}: {
+  company: string;
+  logo?: string;
+  date: string;
+  title: string;
+  lang: DocLang;
+}) {
+  return (
+    <>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          {logo && (
+            <img
+              src={logo}
+              alt=""
+              style={{ height: 44, width: 'auto', objectFit: 'contain' }}
+            />
+          )}
+          <div style={{ fontSize: '13pt', fontWeight: 700, color: LETTER.accent }}>
+            {company || '—'}
+          </div>
+        </div>
+        <div style={{ fontSize: '9pt', color: LETTER.muted, textAlign: 'end' }}>
+          {date}
+        </div>
+      </div>
+      <div
+        style={{
+          borderBottom: `2px solid ${LETTER.accent}`,
+          margin: '14px 0 22px',
+        }}
+      />
+      <div
+        style={{
+          textAlign: 'center',
+          fontSize: '18pt',
+          fontWeight: 800,
+          letterSpacing: lang === 'ar' ? 0 : 2,
+          color: LETTER.accent,
+          marginBottom: 22,
+        }}
+      >
+        {title}
+      </div>
+    </>
+  );
+}
+
+export function LetterHeading({ children }: { children: ReactNode }) {
+  return (
+    <div
+      style={{
+        fontSize: '10.5pt',
+        fontWeight: 700,
+        color: LETTER.accent,
+        margin: '18px 0 6px',
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+export function LetterRow({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex items-baseline gap-1.5" style={{ padding: '2px 0' }}>
+      <span style={{ color: LETTER.muted, whiteSpace: 'nowrap' }}>{label}:</span>
+      <span className="flex min-w-0 flex-1 items-baseline gap-1" style={{ fontWeight: 600 }}>
+        {children}
+      </span>
+    </div>
+  );
+}
+
+export function LetterSignatures({
+  left,
+  right,
+}: {
+  left: { caption: string; name: string; sub: string };
+  right: { caption: string; name: string; sub: string };
+}) {
+  const block = (b: { caption: string; name: string; sub: string }) => (
+    <div>
+      <div style={{ marginBottom: 4 }}>{b.caption}</div>
+      <div
+        style={{
+          borderBottom: `1px solid ${LETTER.text}`,
+          height: 34,
+          width: '62mm',
+          maxWidth: '100%',
+          marginBottom: 6,
+        }}
+      />
+      <div style={{ fontWeight: 600 }}>{b.name}</div>
+      <div style={{ color: LETTER.muted, fontSize: '9pt' }}>{b.sub}</div>
+    </div>
+  );
+  return (
+    <div className="flex justify-between gap-6" style={{ marginTop: 34 }}>
+      {block(left)}
+      {block(right)}
     </div>
   );
 }
@@ -667,9 +791,11 @@ export function SectionsEditor({
   const itemLine: CSSProperties = {
     display: 'flex',
     alignItems: 'flex-start',
-    gap: 10,
-    padding: contract ? '8px 0' : '6px 0',
-    flexDirection: rtl ? 'row-reverse' : 'row',
+    gap: contract ? 10 : 8,
+    padding: contract ? '8px 0' : '2px 0',
+    // The letter sheet is already dir="rtl" in Arabic, so a plain row puts the
+    // bullet on the right; the contract sheet keeps its original layout.
+    flexDirection: contract && rtl ? 'row-reverse' : 'row',
     ...(contract ? { borderBottom: '1px solid #f1f5f9' } : {}),
   };
 
@@ -682,17 +808,26 @@ export function SectionsEditor({
             id={s._id}
             onDuplicate={() => duplicate(s._id)}
             onRemove={() => remove(s._id)}
-            style={{ marginBottom: contract ? 24 : 20 }}
+            style={{ marginBottom: contract ? 24 : 4 }}
           >
             <div
-              style={{
-                fontSize: contract ? '11pt' : '10pt',
-                fontWeight: 700,
-                color: '#242B32',
-                marginBottom: contract ? 12 : 10,
-                paddingBottom: contract ? 8 : 5,
-                borderBottom: '2px solid #242B32',
-              }}
+              style={
+                contract
+                  ? {
+                      fontSize: '11pt',
+                      fontWeight: 700,
+                      color: '#242B32',
+                      marginBottom: 12,
+                      paddingBottom: 8,
+                      borderBottom: '2px solid #242B32',
+                    }
+                  : {
+                      fontSize: '10.5pt',
+                      fontWeight: 700,
+                      color: LETTER.accent,
+                      margin: '18px 0 6px',
+                    }
+              }
             >
               <BiField
                 value={s.title}
@@ -704,21 +839,21 @@ export function SectionsEditor({
             <div
               style={
                 rtl
-                  ? { paddingRight: contract ? 8 : 15 }
-                  : { paddingLeft: contract ? 8 : 15 }
+                  ? { paddingRight: contract ? 8 : 6 }
+                  : { paddingLeft: contract ? 8 : 6 }
               }
             >
               {s.items.map((item) => (
                 <div key={item._id} className="group/item" style={itemLine}>
-                  <span
-                    style={{
-                      color: '#4caf50',
-                      fontWeight: 'bold',
-                      fontSize: contract ? '11pt' : undefined,
-                    }}
-                  >
-                    ✓
-                  </span>
+                  {contract ? (
+                    <span
+                      style={{ color: '#4caf50', fontWeight: 'bold', fontSize: '11pt' }}
+                    >
+                      ✓
+                    </span>
+                  ) : (
+                    <span style={{ color: LETTER.text }}>•</span>
+                  )}
                   <div
                     style={{
                       flex: 1,
