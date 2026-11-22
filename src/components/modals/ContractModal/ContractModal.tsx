@@ -312,11 +312,21 @@ export default function JobContractEditor({
 
   const draftContractMutation = useDraftContractWithAi();
 
-  // The applicant's company first: from the Contracts page propCompanyId is
-  // just the first of the user's companies, which may have AI turned off.
-  const resolvedCompanyIdForAi =
+  // The company this contract is for. From the Contracts page propCompanyId
+  // is just the first of the user's companies, so the applicant's company
+  // (or the contract being edited/copied) comes first; propCompanyId is the
+  // fallback. Used for saving, the sheet header and AI drafts.
+  const contractCompanyOf = (c?: JobContract | null): string | undefined => {
+    const id = c?.companyId;
+    if (!id) return undefined;
+    return typeof id === 'object' ? id._id : String(id);
+  };
+  const contractCompanyId =
     form.selectedApplicantObject?.jobPositionId?.companyId?._id ||
+    contractCompanyOf(editing) ||
+    contractCompanyOf(cloneFrom) ||
     propCompanyId;
+  const resolvedCompanyIdForAi = contractCompanyId;
 
   // offerId wins over jobPositionId, matching the backend's own priority.
   const aiHasKnownSource = Boolean(offerId || jobPositionId);
@@ -471,8 +481,7 @@ export default function JobContractEditor({
 
   // Company + fixed applicant shown on the sheet
   const { data: companies = [] } = useCompanies();
-  const sheetCompanyId =
-    propCompanyId || form.selectedApplicantObject?.jobPositionId?.companyId?._id;
+  const sheetCompanyId = contractCompanyId;
   const sheetCompanyName = bilingualName(
     companies.find((c) => c._id === sheetCompanyId)?.name as
       | string
@@ -746,9 +755,7 @@ export default function JobContractEditor({
         const singleApplicantId = propApplicantId ?? form.applicantId;
         await createMutation.mutateAsync({
           ...base,
-          companyId:
-            propCompanyId ||
-            form.selectedApplicantObject?.jobPositionId?.companyId?._id!,
+          companyId: contractCompanyId!,
           ...(mode === 'contract' && singleApplicantId
             ? { applicantId: singleApplicantId }
             : {}),
