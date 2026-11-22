@@ -312,10 +312,11 @@ export default function JobContractEditor({
 
   const draftContractMutation = useDraftContractWithAi();
 
-  // Same fallback chain handleSubmit already uses for companyId
+  // The applicant's company first: from the Contracts page propCompanyId is
+  // just the first of the user's companies, which may have AI turned off.
   const resolvedCompanyIdForAi =
-    propCompanyId ||
-    form.selectedApplicantObject?.jobPositionId?.companyId?._id;
+    form.selectedApplicantObject?.jobPositionId?.companyId?._id ||
+    propCompanyId;
 
   // offerId wins over jobPositionId, matching the backend's own priority.
   const aiHasKnownSource = Boolean(offerId || jobPositionId);

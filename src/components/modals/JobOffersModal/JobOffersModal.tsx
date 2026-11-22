@@ -346,9 +346,21 @@ export default function JobOfferEditor({
 
   const draftOfferMutation = useDraftOfferWithAi();
 
-  const resolvedCompanyIdForAi = Array.isArray(companyId)
-    ? companyId[0]
-    : companyId;
+  // From the Job Offers page companyId is every company the user belongs to,
+  // so its first entry is just whichever company comes first, not the one
+  // the offer is for. Prefer the applicant's company, then the offer being
+  // edited or cloned, and only then fall back to the prop.
+  const offerCompanyId = (o?: JobOffer | null): string | undefined => {
+    const c = o?.companyId as unknown;
+    if (!c) return undefined;
+    return typeof c === 'object' ? (c as { _id?: string })._id : String(c);
+  };
+  const resolvedCompanyIdForAi =
+    form.selectedApplicantObject?.jobPositionId?.companyId?._id ||
+    Object.keys(groupedByCompany)[0] ||
+    offerCompanyId(editing) ||
+    offerCompanyId(cloneFrom) ||
+    (Array.isArray(companyId) ? companyId[0] : companyId);
 
   const applyAiDraft = (draft: DraftOfferResult) => {
     setForm((prev) => ({
