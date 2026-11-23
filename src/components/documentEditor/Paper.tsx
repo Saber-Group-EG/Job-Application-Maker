@@ -76,10 +76,17 @@ function AutoTextarea({
   dir,
   className,
   style,
+  autoFocus,
+  onBlur,
 }: Pick<
   InlineProps,
   'placeholder' | 'dir' | 'className' | 'style'
-> & { value: string; onChange: (v: string) => void }) {
+> & {
+  value: string;
+  onChange: (v: string) => void;
+  autoFocus?: boolean;
+  onBlur?: () => void;
+}) {
   const ref = useRef<HTMLTextAreaElement>(null);
   useLayoutEffect(() => {
     const el = ref.current;
@@ -95,9 +102,62 @@ function AutoTextarea({
       value={value}
       placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
+      autoFocus={autoFocus}
+      onBlur={onBlur}
       className={`${fieldCls} overflow-hidden ${className ?? ''}`}
       style={style}
     />
+  );
+}
+
+/**
+ * A paragraph of letter text the user can rewrite. It reads as the finished
+ * sentence (placeholders like {name} filled in); while being edited it shows
+ * the text with its placeholders, so they keep working for other applicants.
+ * Saving the default text back stores nothing, so the default stays live.
+ */
+export function TemplateText({
+  value,
+  lang,
+  onChange,
+  fallback,
+  vars,
+  style,
+}: {
+  value: Bi;
+  lang: DocLang;
+  onChange: (next: Bi) => void;
+  fallback: string;
+  vars: Record<string, string | undefined>;
+  style?: CSSProperties;
+}) {
+  const [editing, setEditing] = useState(false);
+  const saved = value ?? { en: '', ar: '' };
+  const raw = saved[lang]?.trim() ? saved[lang] : fallback;
+  const shown = raw.replace(/\{(\w+)\}/g, (m, k: string) => vars[k] ?? m);
+  if (editing) {
+    return (
+      <AutoTextarea
+        autoFocus
+        value={raw}
+        dir={lang === 'ar' ? 'rtl' : 'ltr'}
+        onChange={(v) => onChange({ ...saved, [lang]: v === fallback ? '' : v })}
+        onBlur={() => setEditing(false)}
+        style={style}
+      />
+    );
+  }
+  return (
+    <div
+      role="textbox"
+      tabIndex={0}
+      onClick={() => setEditing(true)}
+      onFocus={() => setEditing(true)}
+      className="-mx-1 cursor-text rounded-[3px] px-1 transition hover:bg-brand-50"
+      style={{ whiteSpace: 'pre-wrap', ...style }}
+    >
+      {shown}
+    </div>
   );
 }
 

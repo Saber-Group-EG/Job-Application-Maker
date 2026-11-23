@@ -511,7 +511,8 @@ export default function JobContractEditor({
             f.notes
           ) && !hasCustomBulkValues(f.bulkOverrideMap)
       : undefined,
-    onRestore: (saved) => setForm(saved),
+    // Drafts saved before a field existed lack it: fill in the blanks.
+    onRestore: (saved) => setForm({ ...emptyForm(), ...saved }),
   });
   const discardDraft = () => {
     if (startForm) setForm(startForm);

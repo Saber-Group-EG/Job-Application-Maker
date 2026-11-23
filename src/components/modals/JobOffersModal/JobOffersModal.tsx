@@ -58,14 +58,17 @@ import {
   SortableRow,
   LetterHeader,
   LetterHeading,
+  TemplateText,
   LetterRow,
   LetterSignatures,
 } from '../../documentEditor/Paper';
 import {
   LETTER,
   formatLetterDate,
-  letterAcceptance,
-  letterIntro,
+  defaultAcceptance,
+  defaultGreeting,
+  defaultIntro,
+  letterVars,
   letterLogoUrl,
   letterText,
 } from '../../../utils/offerLetter';
@@ -154,6 +157,10 @@ export type FormState = {
   };
   department: { en: string; ar: string };
   reportingTo: { en: string; ar: string };
+  /** Letter paragraphs as written by the user; empty = the default wording. */
+  greeting: { en: string; ar: string };
+  intro: { en: string; ar: string };
+  acceptance: { en: string; ar: string };
   /** How many sections come before the Compensation block on the letter. */
   compensationOrder: number;
   salaryBasic: number | '';
@@ -189,6 +196,9 @@ const emptyForm = (): FormState => ({
   },
   department: { en: '', ar: '' },
   reportingTo: { en: '', ar: '' },
+  greeting: { en: '', ar: '' },
+  intro: { en: '', ar: '' },
+  acceptance: { en: '', ar: '' },
   compensationOrder: 0,
   salaryBasic: '',
   salaryCurrency: 'EGP',
@@ -224,6 +234,9 @@ const offerToForm = (offer: JobOffer): FormState => ({
     en: offer.reportingTo?.en ?? '',
     ar: offer.reportingTo?.ar ?? '',
   },
+  greeting: { en: offer.greeting?.en ?? '', ar: offer.greeting?.ar ?? '' },
+  intro: { en: offer.intro?.en ?? '', ar: offer.intro?.ar ?? '' },
+  acceptance: { en: offer.acceptance?.en ?? '', ar: offer.acceptance?.ar ?? '' },
   compensationOrder: Math.min(
     Math.max(offer.compensationOrder ?? 0, 0),
     offer.sections.length
@@ -497,7 +510,8 @@ export default function JobOfferEditor({
             f.notes
           ) && !hasCustomBulkValues(f.bulkOverrideMap)
       : undefined,
-    onRestore: (saved) => setForm(saved),
+    // Drafts saved before a field existed lack it: fill in the blanks.
+    onRestore: (saved) => setForm({ ...emptyForm(), ...saved }),
   });
   const discardDraft = () => {
     if (startForm)
@@ -774,6 +788,9 @@ export default function JobOfferEditor({
         en: form.reportingTo.en.trim(),
         ar: form.reportingTo.ar.trim(),
       },
+      greeting: { en: form.greeting.en.trim(), ar: form.greeting.ar.trim() },
+      intro: { en: form.intro.en.trim(), ar: form.intro.ar.trim() },
+      acceptance: { en: form.acceptance.en.trim(), ar: form.acceptance.ar.trim() },
       compensationOrder: Math.min(form.compensationOrder, form.sections.length),
       salary: {
         basic: form.salaryBasic === '' ? null : Number(form.salaryBasic),
@@ -917,7 +934,6 @@ export default function JobOfferEditor({
         : t('createOffer', 'modals');
 
   // ── Render ─────────────────────────────────────────────────────────────────
-  const L = (en: string, ar: string) => (docLang === 'ar' ? ar : en);
   const rtl = docLang === 'ar';
   const cur = form.salaryCurrency;
   // Bulk offers are addressed to each applicant when they are created.
@@ -931,41 +947,10 @@ export default function JobOfferEditor({
           : form.selectedApplicantObject?.fullName) ||
     letterText('candidatePlaceholder', docLang);
 
-  const candidate = (() => {
-    if (mode !== 'offer') return null;
-    if (editing) {
-      const a = form.selectedApplicantObject;
-      return a ? (
-        <>
-          <div style={{ fontWeight: 600 }}>{a.fullName}</div>
-          {a.email && (
-            <div style={{ color: LETTER.muted }}>
-              {a.email}
-            </div>
-          )}
-        </>
-      ) : null;
-    }
-    if (form.isBulk) {
-      return (
-        <div style={{ fontWeight: 600 }}>
-          {(applicantObjects ?? []).map((a) => a.fullName).join(L(', ', '، '))}
-        </div>
-      );
-    }
-    if (applicantId) {
-      return fixedApplicant ? (
-        <>
-          <div style={{ fontWeight: 600 }}>{fixedApplicant.fullName}</div>
-          {fixedApplicant.email && (
-            <div style={{ color: LETTER.muted }}>
-              {fixedApplicant.email}
-            </div>
-          )}
-        </>
-      ) : null;
-    }
-    return (
+  // Picking the applicant happens in the side panel; the letter itself only
+  // names them in the greeting.
+  const applicantPicker =
+    mode === 'offer' && !editing && !form.isBulk && !applicantId ? (
       <div dir={locale === 'ar' ? 'rtl' : 'ltr'} style={{ fontSize: '10pt' }}>
         <ApplicantSelect
           value={form.applicantId}
@@ -977,14 +962,40 @@ export default function JobOfferEditor({
           inputCls={inputCls}
         />
       </div>
-    );
-  })();
+    ) : null;
+
+  const validUntil = editing?.expiresAt ? formatLetterDate(editing.expiresAt, docLang) : '';
+  const vars = letterVars(
+    {
+      name: addressee,
+      position: form.position[docLang].trim(),
+      company: sheetCompanyName,
+      validUntil,
+    },
+    docLang
+  );
 
   const side = (
     <>
       <p className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs leading-relaxed text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
         {t('documentEditorHint', 'modals')}
+        {mode === 'offer' && (
+          <span className="mt-1.5 block">
+            {locale === 'ar'
+              ? 'يمكن تعديل الفقرات أيضاً. {name} و{position} و{company} و{validUntil} تُملأ تلقائياً.'
+              : 'The paragraphs can be edited too. {name}, {position}, {company} and {validUntil} fill in automatically.'}
+          </span>
+        )}
       </p>
+
+      {applicantPicker && (
+        <SideCard
+          icon={<Users className="size-4 text-brand-500" />}
+          title={locale === 'ar' ? 'المتقدم' : 'Applicant'}
+        >
+          {applicantPicker}
+        </SideCard>
+      )}
 
       {mode === 'offer' && <TemplateSelector onSelect={applyTemplate} />}
 
@@ -1257,18 +1268,21 @@ export default function JobOfferEditor({
           title={letterText('title', docLang)}
         />
 
-        <div style={{ color: LETTER.muted }}>{letterText('to', docLang)}</div>
-        {candidate ?? (
-          <div style={{ fontWeight: 600 }}>{letterText('candidatePlaceholder', docLang)}</div>
-        )}
-
-        <div style={{ marginTop: 18 }}>
-          {letterText('dear', docLang)} {addressee}
-          {rtl ? '،' : ','}
-        </div>
-        <p style={{ marginTop: 6, textAlign: 'justify' }}>
-          {letterIntro(form.position[docLang].trim(), sheetCompanyName, docLang)}
-        </p>
+        <TemplateText
+          value={form.greeting}
+          lang={docLang}
+          onChange={(greeting) => set('greeting', greeting)}
+          fallback={defaultGreeting(docLang)}
+          vars={vars}
+        />
+        <TemplateText
+          value={form.intro}
+          lang={docLang}
+          onChange={(intro) => set('intro', intro)}
+          fallback={defaultIntro(docLang)}
+          vars={vars}
+          style={{ marginTop: 6, textAlign: 'justify' }}
+        />
 
         <LetterHeading>{letterText('positionDetails', docLang)}</LetterHeading>
         <LetterRow label={letterText('jobTitle', docLang)}>
@@ -1460,12 +1474,14 @@ export default function JobOfferEditor({
         />
 
         <LetterHeading>{letterText('acceptance', docLang)}</LetterHeading>
-        <p style={{ textAlign: 'justify' }}>
-          {letterAcceptance(
-            editing?.expiresAt ? formatLetterDate(editing.expiresAt, docLang) : '',
-            docLang
-          )}
-        </p>
+        <TemplateText
+          value={form.acceptance}
+          lang={docLang}
+          onChange={(acceptance) => set('acceptance', acceptance)}
+          fallback={defaultAcceptance(Boolean(editing?.expiresAt), docLang)}
+          vars={vars}
+          style={{ textAlign: 'justify' }}
+        />
 
         <LetterSignatures
           left={{

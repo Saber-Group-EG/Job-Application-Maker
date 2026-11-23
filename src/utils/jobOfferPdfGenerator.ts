@@ -6,8 +6,12 @@ import {
   type LetterKey,
   formatLetterDate,
   formatLetterMoney,
-  letterAcceptance,
-  letterIntro,
+  defaultAcceptance,
+  defaultGreeting,
+  defaultIntro,
+  fillLetter,
+  letterParagraph,
+  letterVars,
   letterLogoUrl,
   letterText,
 } from './offerLetter';
@@ -55,11 +59,19 @@ export const generateJobOfferPDF = async ({ offer, lang = 'en', companyName = ''
 
   const applicant = typeof offer.applicantId === 'object' && offer.applicantId !== null ? offer.applicantId : null;
   const applicantName = applicant?.fullName || '';
-  const applicantEmail = applicant?.email || '';
   const addressee = applicantName || L('candidatePlaceholder');
 
   const letterDate = formatLetterDate(offer.sentAt || offer.createdAt || Date.now(), lang);
   const validUntil = offer.expiresAt ? formatLetterDate(offer.expiresAt, lang) : '';
+
+  // Greeting, opening and acceptance: the text saved on the offer (or the
+  // default wording), with {name}, {position}, ... filled in.
+  const vars = letterVars(
+    { name: applicantName, position: position !== '—' ? position : '', company: finalCompanyName, validUntil },
+    lang
+  );
+  const paragraph = (saved: { en?: string; ar?: string } | null | undefined, fallback: string) =>
+    fillLetter(letterParagraph(saved, fallback, lang), vars);
 
   const sortedSections = [...offer.sections].sort((a, b) => a.displayOrder - b.displayOrder);
 
@@ -141,18 +153,14 @@ export const generateJobOfferPDF = async ({ offer, lang = 'en', companyName = ''
 
         <div style="text-align: center; font-size: 18pt; font-weight: 800; letter-spacing: ${isRTL ? '0' : '2px'}; color: ${accent}; margin-bottom: 22px;">${escapeHtml(L('title'))}</div>
 
-        <div style="color: ${muted};">${escapeHtml(L('to'))}</div>
-        <div style="font-weight: 600;">${escapeHtml(addressee)}</div>
-        ${applicantEmail ? `<div style="color: ${muted};">${escapeHtml(applicantEmail)}</div>` : ''}
-
-        <div style="margin-top: 18px;">${escapeHtml(L('dear'))} ${escapeHtml(addressee)}${isRTL ? '،' : ','}</div>
-        <p style="margin-top: 6px; text-align: justify;">${escapeHtml(letterIntro(has(position) ? position : '', finalCompanyName, lang))}</p>
+        <div>${escapeHtml(paragraph(offer.greeting, defaultGreeting(lang)))}</div>
+        <p style="margin-top: 6px; text-align: justify;">${escapeHtml(paragraph(offer.intro, defaultIntro(lang)))}</p>
 
         ${detailsHTML ? heading(L('positionDetails')) + detailsHTML : ''}
         ${bodyHTML}
 
         ${heading(L('acceptance'))}
-        <p style="text-align: justify;">${escapeHtml(letterAcceptance(validUntil, lang))}</p>
+        <p style="text-align: justify; white-space: pre-wrap;">${escapeHtml(paragraph(offer.acceptance, defaultAcceptance(Boolean(validUntil), lang)))}</p>
 
         <div style="display: flex; justify-content: space-between; gap: 24px; margin-top: 34px; page-break-inside: avoid;">
             <div>

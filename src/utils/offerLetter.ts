@@ -57,22 +57,47 @@ const T = {
 export type LetterKey = keyof typeof T;
 export const letterText = (key: LetterKey, lang: DocLang) => T[key][lang];
 
-export const letterIntro = (
-  position: string,
-  company: string,
-  lang: DocLang
-) => {
-  const p = position || (lang === 'ar' ? '[المسمى الوظيفي]' : '[position]');
-  const c = company || (lang === 'ar' ? 'شركتنا' : 'our company');
-  return lang === 'ar'
-    ? `يسعدنا أن نعرض عليك وظيفة ${p} في ${c}. لقد أُعجبنا بمؤهلاتك ويسعدنا انضمامك إلى فريقنا. نوضح فيما يلي تفاصيل هذا العرض.`
-    : `We are pleased to offer you the position of ${p} at ${c}. We were impressed with your qualifications and are excited to welcome you to our team. The details of this offer are set out below.`;
-};
+// ─── Editable offer paragraphs ───────────────────────────────────────────────
+// The greeting, opening and acceptance paragraphs are saved as text the user
+// can change. {name}, {position}, {company} and {validUntil} in that text are
+// filled in when the letter is shown or printed, so a template or a bulk offer
+// still reads right for each applicant. Empty text means the default below.
 
-export const letterAcceptance = (validUntil: string, lang: DocLang) =>
+export const LETTER_PLACEHOLDERS = ['name', 'position', 'company', 'validUntil'] as const;
+export type LetterVars = Partial<Record<(typeof LETTER_PLACEHOLDERS)[number], string>>;
+
+export const fillLetter = (raw: string, vars: LetterVars) =>
+  raw.replace(/\{(\w+)\}/g, (m, k: string) => vars[k as keyof LetterVars] ?? m);
+
+export const letterVars = (
+  v: { name?: string; position?: string; company?: string; validUntil?: string },
+  lang: DocLang
+): LetterVars => ({
+  name: v.name || letterText('candidatePlaceholder', lang),
+  position: v.position || (lang === 'ar' ? '[المسمى الوظيفي]' : '[position]'),
+  company: v.company || (lang === 'ar' ? 'شركتنا' : 'our company'),
+  validUntil: v.validUntil || (lang === 'ar' ? '[تاريخ انتهاء العرض]' : '[valid until date]'),
+});
+
+export const defaultGreeting = (lang: DocLang) =>
+  lang === 'ar' ? 'عزيزي/عزيزتي {name}،' : 'Dear {name},';
+
+export const defaultIntro = (lang: DocLang) =>
   lang === 'ar'
-    ? `${validUntil ? `هذا العرض ساري حتى ${validUntil}. ` : ''}يرجى تأكيد قبولك لهذا العرض بالتوقيع أدناه وإعادة نسخة من هذا الخطاب إلينا.`
-    : `${validUntil ? `This offer is valid until ${validUntil}. ` : ''}Please confirm your acceptance of this offer by signing below and returning a copy of this letter to us.`;
+    ? 'يسعدنا أن نعرض عليك وظيفة {position} في {company}. لقد أُعجبنا بمؤهلاتك ويسعدنا انضمامك إلى فريقنا. نوضح فيما يلي تفاصيل هذا العرض.'
+    : 'We are pleased to offer you the position of {position} at {company}. We were impressed with your qualifications and are excited to welcome you to our team. The details of this offer are set out below.';
+
+export const defaultAcceptance = (hasValidUntil: boolean, lang: DocLang) =>
+  lang === 'ar'
+    ? `${hasValidUntil ? 'هذا العرض ساري حتى {validUntil}. ' : ''}يرجى تأكيد قبولك لهذا العرض بالتوقيع أدناه وإعادة نسخة من هذا الخطاب إلينا.`
+    : `${hasValidUntil ? 'This offer is valid until {validUntil}. ' : ''}Please confirm your acceptance of this offer by signing below and returning a copy of this letter to us.`;
+
+/** The saved text in this language, or the default when there is none. */
+export const letterParagraph = (
+  saved: { en?: string; ar?: string } | null | undefined,
+  fallback: string,
+  lang: DocLang
+) => (saved?.[lang]?.trim() ? (saved[lang] as string) : fallback);
 
 export const contractIntro = (
   company: string,
