@@ -106,6 +106,12 @@ export function OfferDetail({
                   <span className="tabular-nums">{offer.salary.basic.toLocaleString()} {offer.salary.currency}</span>
                 </Meta>
               )}
+              {offer.department && pick(offer.department) && (
+                <Meta label={locale === 'ar' ? 'القسم' : 'Department'}>{pick(offer.department)}</Meta>
+              )}
+              {offer.reportingTo && pick(offer.reportingTo) && (
+                <Meta label={locale === 'ar' ? 'يتبع إلى' : 'Reporting To'}>{pick(offer.reportingTo)}</Meta>
+              )}
               {offer.workHours && pick(offer.workHours) && <Meta label={t('workHours', 'jobOffers')}>{pick(offer.workHours)}</Meta>}
               <Meta label={t('createdBy', 'jobOffers')}>{offer.createdBy?.fullName ?? '—'}</Meta>
               <Meta label={t('timelineCreated', 'jobOffers')}>{new Date(offer.createdAt).toLocaleDateString(locale, dateFmt)}</Meta>

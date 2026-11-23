@@ -92,6 +92,9 @@ export interface JobOffer {
   position: BilingualField;
   workType: WorkType;
   workHours: BilingualField;
+  department?: BilingualField;
+  reportingTo?: BilingualField;
+  compensationOrder?: number;
   salary: { basic: number | null; currency: string };
   commissions: Commission[];
   sections: OfferSection[];
@@ -123,6 +126,9 @@ export type CreateJobOfferPayload = {
   position: BilingualField;
   workType: WorkType;
   workHours?: BilingualField;
+  department?: BilingualField;
+  reportingTo?: BilingualField;
+  compensationOrder?: number;
   salary?: { basic?: number | null; currency?: string };
   commissions?: Omit<Commission, '_id'>[];
   sections?: Omit<OfferSection, '_id'>[];

@@ -151,6 +151,10 @@ export type FormState = {
     en: string;
     ar: string;
   };
+  department: { en: string; ar: string };
+  reportingTo: { en: string; ar: string };
+  /** How many sections come before the Compensation block on the letter. */
+  compensationOrder: number;
   salaryBasic: number | '';
   salaryCurrency: string;
   commissions: FormCommission[];
@@ -182,6 +186,9 @@ const emptyForm = (): FormState => ({
     en: '',
     ar: '',
   },
+  department: { en: '', ar: '' },
+  reportingTo: { en: '', ar: '' },
+  compensationOrder: 0,
   salaryBasic: '',
   salaryCurrency: 'EGP',
   commissions: [],
@@ -208,6 +215,18 @@ const offerToForm = (offer: JobOffer): FormState => ({
     en: offer.workHours?.en ?? '',
     ar: offer.workHours?.ar ?? '',
   },
+  department: {
+    en: offer.department?.en ?? '',
+    ar: offer.department?.ar ?? '',
+  },
+  reportingTo: {
+    en: offer.reportingTo?.en ?? '',
+    ar: offer.reportingTo?.ar ?? '',
+  },
+  compensationOrder: Math.min(
+    Math.max(offer.compensationOrder ?? 0, 0),
+    offer.sections.length
+  ),
   salaryBasic: offer.salary.basic ?? '',
   salaryCurrency: offer.salary.currency ?? 'EGP',
   commissions: offer.commissions.map((c) => ({
@@ -555,6 +574,14 @@ export default function JobOfferEditor({
         en: applicant.jobPositionId?.title?.en ?? prev.position.en,
         ar: applicant.jobPositionId?.title?.ar ?? prev.position.ar,
       },
+      department:
+        typeof applicant.jobPositionId?.departmentId === 'object' &&
+        applicant.jobPositionId.departmentId?.name
+          ? {
+              en: applicant.jobPositionId.departmentId.name.en ?? '',
+              ar: applicant.jobPositionId.departmentId.name.ar ?? '',
+            }
+          : prev.department,
       salaryBasic: applicant.expectedSalary
         ? Number(applicant.expectedSalary)
         : prev.salaryBasic,
@@ -581,6 +608,12 @@ export default function JobOfferEditor({
 
       const pos = await smartTranslate(form.position.en, form.position.ar);
       const wh = await smartTranslate(form.workHours.en, form.workHours.ar);
+      const dep = await smartTranslate(form.department.en, form.department.ar);
+      const rep = await smartTranslate(form.reportingTo.en, form.reportingTo.ar);
+      const fill = (
+        field: { en: string; ar: string },
+        r: { target: 'en' | 'ar'; text: string } | null
+      ) => (r ? { ...field, [r.target]: r.text } : field);
       const nt = await smartTranslate(form.notes.en, form.notes.ar);
 
       const sectionResults = await Promise.all(
@@ -631,6 +664,8 @@ export default function JobOfferEditor({
             : wh && wh.target === 'en'
               ? { ...prev.workHours, en: wh.text }
               : prev.workHours,
+        department: fill(prev.department, dep),
+        reportingTo: fill(prev.reportingTo, rep),
         notes:
           nt && nt.target === 'ar'
             ? { ...prev.notes, ar: nt.text }
@@ -727,6 +762,15 @@ export default function JobOfferEditor({
         en: form.workHours.en.trim() ?? '',
         ar: form.workHours.ar.trim() ?? '',
       },
+      department: {
+        en: form.department.en.trim(),
+        ar: form.department.ar.trim(),
+      },
+      reportingTo: {
+        en: form.reportingTo.en.trim(),
+        ar: form.reportingTo.ar.trim(),
+      },
+      compensationOrder: Math.min(form.compensationOrder, form.sections.length),
       salary: {
         basic: form.salaryBasic === '' ? null : Number(form.salaryBasic),
         currency: form.salaryCurrency || 'EGP',
@@ -1234,6 +1278,26 @@ export default function JobOfferEditor({
             />
           </div>
         </LetterRow>
+        <LetterRow label={letterText('department', docLang)}>
+          <div className="min-w-0 flex-1">
+            <BiField
+              value={form.department}
+              lang={docLang}
+              onChange={(department) => set('department', department)}
+              placeholder={letterText('departmentPlaceholder', docLang)}
+            />
+          </div>
+        </LetterRow>
+        <LetterRow label={letterText('reportingTo', docLang)}>
+          <div className="min-w-0 flex-1">
+            <BiField
+              value={form.reportingTo}
+              lang={docLang}
+              onChange={(reportingTo) => set('reportingTo', reportingTo)}
+              placeholder={letterText('reportingToPlaceholder', docLang)}
+            />
+          </div>
+        </LetterRow>
         <LetterRow label={letterText('employmentType', docLang)}>
           <InlineSelect
             value={form.workType}
@@ -1256,122 +1320,6 @@ export default function JobOfferEditor({
           </div>
         </LetterRow>
 
-        <LetterHeading>{letterText('compensation', docLang)}</LetterHeading>
-        <LetterRow label={letterText('basicSalary', docLang)}>
-          <InlineSelect
-            value={cur}
-            onChange={(v) => set('salaryCurrency', v)}
-            options={CURRENCIES.map((c) => ({ value: c, label: c }))}
-            className="-mx-1"
-          />
-          <InlineField
-            type="number"
-            min={0}
-            value={form.salaryBasic}
-            placeholder="0"
-            onChange={(v) =>
-              set('salaryBasic', v === '' ? '' : Math.max(0, Math.round(Number(v))))
-            }
-            className="!w-28"
-            style={{ fontWeight: 600 }}
-          />
-        </LetterRow>
-        {form.commissions.length > 0 && (
-          <>
-            <div style={{ padding: '2px 0', color: LETTER.muted }}>
-              {letterText('commission', docLang)}:
-            </div>
-            <SortableList
-              items={form.commissions}
-              onReorder={(next) => set('commissions', next)}
-            >
-              {form.commissions.map((c) => (
-                <SortableRow
-                  key={c._id}
-                  id={c._id}
-                  onDuplicate={() => duplicateCommission(c._id)}
-                  onRemove={() => removeCommission(c._id)}
-                >
-                  <div
-                    className="flex items-baseline gap-2"
-                    style={{ padding: '2px 0', paddingInlineStart: 6 }}
-                  >
-                    <span>•</span>
-                    <div className="min-w-0 flex-1">
-                      {/* Reads like the printed line: "Closed deals: 5%". The
-                          label grows with its text so the value sits beside it. */}
-                      <div className="flex items-baseline">
-                        <div className="min-w-0">
-                          <BiField
-                            value={c.label}
-                            lang={docLang}
-                            onChange={(label) => patchCommission(c._id, { label })}
-                            placeholder={t('commissionLabelPlaceholder', 'modals')}
-                            className="!mx-0 !w-auto"
-                            style={
-                              {
-                                fieldSizing: 'content',
-                                minWidth: '9ch',
-                                maxWidth: '60ch',
-                              } as CSSProperties
-                            }
-                          />
-                        </div>
-                        <span>:</span>
-                        <InlineField
-                          type="number"
-                          min={0}
-                          value={c.value}
-                          placeholder="0"
-                          onChange={(v) =>
-                            patchCommission(c._id, {
-                              value: v === '' ? '' : Number(v),
-                            })
-                          }
-                          className="!mx-0 !w-auto"
-                          style={
-                            {
-                              fieldSizing: 'content',
-                              minWidth: '2ch',
-                              marginInlineStart: 4,
-                              fontWeight: 600,
-                            } as CSSProperties
-                          }
-                        />
-                        <InlineSelect
-                          value={c.type}
-                          onChange={(v) =>
-                            patchCommission(c._id, { type: v as CommissionType })
-                          }
-                          options={[
-                            { value: 'percentage', label: '%' },
-                            { value: 'fixed', label: cur },
-                          ]}
-                          style={{ fontWeight: 600 }}
-                        />
-                      </div>
-                      <div style={{ fontSize: '9pt', color: LETTER.muted }}>
-                        <BiField
-                          value={c.condition}
-                          lang={docLang}
-                          onChange={(condition) =>
-                            patchCommission(c._id, { condition })
-                          }
-                          placeholder={t('conditionPlaceholder', 'modals')}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </SortableRow>
-              ))}
-            </SortableList>
-          </>
-        )}
-        <div className="pt-1">
-          <AddButton onClick={addCommission}>
-            {t('addCommissionTier', 'modals')}
-          </AddButton>
-        </div>
 
         <SectionsEditor
           sections={form.sections}
@@ -1379,6 +1327,131 @@ export default function JobOfferEditor({
           lang={docLang}
           docType="offer"
           variant="offer"
+          block={{
+            id: '__compensation',
+            order: form.compensationOrder,
+            onOrderChange: (order) => set('compensationOrder', order),
+            content: (
+              <>
+              <LetterHeading>{letterText('compensation', docLang)}</LetterHeading>
+              <LetterRow label={letterText('basicSalary', docLang)}>
+                <InlineSelect
+                  value={cur}
+                  onChange={(v) => set('salaryCurrency', v)}
+                  options={CURRENCIES.map((c) => ({ value: c, label: c }))}
+                  className="-mx-1"
+                />
+                <InlineField
+                  type="number"
+                  min={0}
+                  value={form.salaryBasic}
+                  placeholder="0"
+                  onChange={(v) =>
+                    set('salaryBasic', v === '' ? '' : Math.max(0, Math.round(Number(v))))
+                  }
+                  className="!w-28"
+                  style={{ fontWeight: 600 }}
+                />
+              </LetterRow>
+              {form.commissions.length > 0 && (
+                <>
+                  <div style={{ padding: '2px 0', color: LETTER.muted }}>
+                    {letterText('commission', docLang)}:
+                  </div>
+                  <SortableList
+                    items={form.commissions}
+                    onReorder={(next) => set('commissions', next)}
+                  >
+                    {form.commissions.map((c) => (
+                      <SortableRow
+                        key={c._id}
+                        id={c._id}
+                        onDuplicate={() => duplicateCommission(c._id)}
+                        onRemove={() => removeCommission(c._id)}
+                      >
+                        <div
+                          className="flex items-baseline gap-2"
+                          style={{ padding: '2px 0', paddingInlineStart: 6 }}
+                        >
+                          <span>•</span>
+                          <div className="min-w-0 flex-1">
+                            {/* Reads like the printed line: "Closed deals: 5%". The
+                                label grows with its text so the value sits beside it. */}
+                            <div className="flex items-baseline">
+                              <div className="min-w-0">
+                                <BiField
+                                  value={c.label}
+                                  lang={docLang}
+                                  onChange={(label) => patchCommission(c._id, { label })}
+                                  placeholder={t('commissionLabelPlaceholder', 'modals')}
+                                  className="!mx-0 !w-auto"
+                                  style={
+                                    {
+                                      fieldSizing: 'content',
+                                      minWidth: '9ch',
+                                      maxWidth: '60ch',
+                                    } as CSSProperties
+                                  }
+                                />
+                              </div>
+                              <span>:</span>
+                              <InlineField
+                                type="number"
+                                min={0}
+                                value={c.value}
+                                placeholder="0"
+                                onChange={(v) =>
+                                  patchCommission(c._id, {
+                                    value: v === '' ? '' : Number(v),
+                                  })
+                                }
+                                className="!mx-0 !w-auto"
+                                style={
+                                  {
+                                    fieldSizing: 'content',
+                                    minWidth: '2ch',
+                                    marginInlineStart: 4,
+                                    fontWeight: 600,
+                                  } as CSSProperties
+                                }
+                              />
+                              <InlineSelect
+                                value={c.type}
+                                onChange={(v) =>
+                                  patchCommission(c._id, { type: v as CommissionType })
+                                }
+                                options={[
+                                  { value: 'percentage', label: '%' },
+                                  { value: 'fixed', label: cur },
+                                ]}
+                                style={{ fontWeight: 600 }}
+                              />
+                            </div>
+                            <div style={{ fontSize: '9pt', color: LETTER.muted }}>
+                              <BiField
+                                value={c.condition}
+                                lang={docLang}
+                                onChange={(condition) =>
+                                  patchCommission(c._id, { condition })
+                                }
+                                placeholder={t('conditionPlaceholder', 'modals')}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </SortableRow>
+                    ))}
+                  </SortableList>
+                </>
+              )}
+              <div className="pt-1">
+                <AddButton onClick={addCommission}>
+                  {t('addCommissionTier', 'modals')}
+                </AddButton>
+              </div>
+              </>
+            ),
+          }}
         />
 
         <LetterHeading>{letterText('acceptance', docLang)}</LetterHeading>

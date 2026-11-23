@@ -46,6 +46,8 @@ export const generateJobOfferPDF = async ({ offer, lang = 'en', companyName = ''
   const position = renderText(offer.position, lang);
   const workType = workTypeLabel(offer.workType, lang);
   const workHours = renderText(offer.workHours, lang);
+  const department = renderText(offer.department, lang);
+  const reportingTo = renderText(offer.reportingTo, lang);
 
   const company = typeof offer.companyId === 'object' && offer.companyId !== null ? (offer.companyId as any) : null;
   const finalCompanyName = companyName || (company ? renderText(company.name, lang) : '');
@@ -73,6 +75,8 @@ export const generateJobOfferPDF = async ({ offer, lang = 'en', companyName = ''
 
   const detailsHTML = [
     has(position) ? row(L('jobTitle'), position) : '',
+    has(department) ? row(L('department'), department) : '',
+    has(reportingTo) ? row(L('reportingTo'), reportingTo) : '',
     has(workType) ? row(L('employmentType'), workType) : '',
     has(workHours) ? row(L('workingHours'), workHours) : '',
   ].join('');
@@ -91,10 +95,13 @@ export const generateJobOfferPDF = async ({ offer, lang = 'en', companyName = ''
       ? `<div style="padding: 2px 0; color: ${muted};">${escapeHtml(L('commission'))}:</div>${bullets(commissionLines)}`
       : '');
 
-  const sectionsHTML = sortedSections
-    .filter((s) => s.items.length > 0)
-    .map((s) => heading(renderText(s.title, lang)) + bullets(s.items.map((i) => renderText(i, lang))))
-    .join('');
+  // Compensation prints where it was placed among the sections in the editor.
+  const blocks = sortedSections.map((s) =>
+    s.items.length > 0 ? heading(renderText(s.title, lang)) + bullets(s.items.map((i) => renderText(i, lang))) : ''
+  );
+  const compensationAt = Math.min(Math.max(offer.compensationOrder ?? 0, 0), blocks.length);
+  blocks.splice(compensationAt, 0, compensationHTML ? heading(L('compensation')) + compensationHTML : '');
+  const bodyHTML = blocks.join('');
 
   const signLine = `<div style="border-bottom: 1px solid ${ink}; height: 34px; width: 62mm; margin-bottom: 6px;"></div>`;
 
@@ -142,8 +149,7 @@ export const generateJobOfferPDF = async ({ offer, lang = 'en', companyName = ''
         <p style="margin-top: 6px; text-align: justify;">${escapeHtml(letterIntro(has(position) ? position : '', finalCompanyName, lang))}</p>
 
         ${detailsHTML ? heading(L('positionDetails')) + detailsHTML : ''}
-        ${compensationHTML ? heading(L('compensation')) + compensationHTML : ''}
-        ${sectionsHTML}
+        ${bodyHTML}
 
         ${heading(L('acceptance'))}
         <p style="text-align: justify;">${escapeHtml(letterAcceptance(validUntil, lang))}</p>

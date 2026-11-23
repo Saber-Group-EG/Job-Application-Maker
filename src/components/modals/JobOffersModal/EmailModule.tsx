@@ -21,6 +21,7 @@ export type ApplicantObject = {
     _id: string;
     title?: { en?: string; ar?: string };
     companyId: { _id: string; name: { en: string; ar: string } };
+    departmentId?: { _id?: string; name?: { en?: string; ar?: string } } | string | null;
   } | null;
 };
 
@@ -96,6 +97,8 @@ export function buildOfferHtml(
     position: isAr ? 'المسمى الوظيفي' : 'Position',
     workType: isAr ? 'نوع العمل' : 'Work Type',
     workHours: isAr ? 'ساعات العمل' : 'Work Hours',
+    department: isAr ? 'القسم' : 'Department',
+    reportingTo: isAr ? 'يتبع إلى' : 'Reporting To',
     basicSalary: isAr ? 'الراتب الأساسي' : 'Basic Salary',
     commission: isAr ? 'هيكل العمولات' : 'Commission Structure',
     closing: isAr
@@ -113,9 +116,22 @@ export function buildOfferHtml(
     ? form.workHours.ar || form.workHours.en
     : form.workHours.en || form.workHours.ar;
 
-  const notesValue = isAr
-    ? form.notes.ar || form.notes.en
-    : form.notes.en || form.notes.ar;
+  const pickBi = (v: { en: string; ar: string }) =>
+    (isAr ? v.ar || v.en : v.en || v.ar).trim();
+  const extraRows = [
+    [labels.department, pickBi(form.department)],
+    [labels.reportingTo, pickBi(form.reportingTo)],
+  ]
+    .filter(([, value]) => value)
+    .map(
+      ([label, value]) => `
+        <tr>
+          <td style="padding:10px 12px;font-weight:600;background:#f8fafc;border:1px solid #e2e8f0">${label}</td>
+          <td style="padding:10px 12px;border:1px solid #e2e8f0">${value}</td>
+        </tr>`
+    )
+    .join('');
+
 
   return `
 <!DOCTYPE html>
@@ -140,6 +156,7 @@ export function buildOfferHtml(
           <td style="padding:10px 12px;font-weight:600;background:#f8fafc;border:1px solid #e2e8f0;width:40%">${labels.position}</td>
           <td style="padding:10px 12px;border:1px solid #e2e8f0">${positionLabel}</td>
         </tr>
+        ${extraRows}
         <tr>
           <td style="padding:10px 12px;font-weight:600;background:#f8fafc;border:1px solid #e2e8f0">${labels.workType}</td>
           <td style="padding:10px 12px;border:1px solid #e2e8f0">${form.workType}</td>
@@ -201,14 +218,6 @@ export function buildOfferHtml(
         )
         .join('')}
 
-      ${
-        notesValue
-          ? `
-        <p style="margin:24px 0 0;padding:12px 16px;background:#f8fafc;border-${isAr ? 'right' : 'left'}:3px solid #cbd5e1;font-size:13px;color:#64748b;font-style:italic">
-          ${notesValue}
-        </p>`
-          : ''
-      }
 
       <p style="margin:32px 0 0;font-size:14px;color:#374151">${labels.closing}</p>
     </div>

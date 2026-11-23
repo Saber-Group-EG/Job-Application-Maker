@@ -689,7 +689,7 @@ export function SortableRow({
 }: {
   id: string;
   onDuplicate?: () => void;
-  onRemove: () => void;
+  onRemove?: () => void;
   children: ReactNode;
   className?: string;
   style?: CSSProperties;
@@ -728,13 +728,15 @@ export function SortableRow({
             <Copy className="size-3" />
           </button>
         )}
-        <button
-          type="button"
-          onClick={onRemove}
-          className={`${btn} hover:bg-red-50 hover:text-red-600`}
-        >
-          <Trash2 className="size-3" />
-        </button>
+        {onRemove && (
+          <button
+            type="button"
+            onClick={onRemove}
+            className={`${btn} hover:bg-red-50 hover:text-red-600`}
+          >
+            <Trash2 className="size-3" />
+          </button>
+        )}
       </div>
       {children}
     </div>
@@ -749,12 +751,22 @@ export function SectionsEditor({
   lang,
   docType,
   variant,
+  block,
 }: {
   sections: FormSection[];
   onChange: (next: FormSection[]) => void;
   lang: DocLang;
   docType: 'offer' | 'contract';
   variant: 'offer' | 'contract';
+  /** A fixed block (e.g. the offer's Compensation) that can be dragged to any
+   *  place among the sections but not removed. `order` is how many sections
+   *  come before it. */
+  block?: {
+    id: string;
+    order: number;
+    onOrderChange: (order: number) => void;
+    content: ReactNode;
+  };
 }) {
   const { t } = useLocale();
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -763,6 +775,25 @@ export function SectionsEditor({
 
   const patch = (id: string, p: Partial<FormSection>) =>
     onChange(sections.map((s) => (s._id === id ? { ...s, ...p } : s)));
+
+  type BlockRow = { _id: string; isBlock: true };
+  const blockAt = block ? Math.min(Math.max(block.order, 0), sections.length) : -1;
+  const rows: (FormSection | BlockRow)[] = block
+    ? [
+        ...sections.slice(0, blockAt),
+        { _id: block.id, isBlock: true },
+        ...sections.slice(blockAt),
+      ]
+    : sections;
+  const reorder = (next: (FormSection | BlockRow)[]) => {
+    const nextSections = next.filter((r): r is FormSection => !('isBlock' in r));
+    if (block) {
+      const at = next.findIndex((r) => r._id === block.id);
+      if (at !== blockAt) block.onOrderChange(at);
+    }
+    const moved = nextSections.some((r, i) => r._id !== sections[i]?._id);
+    if (moved) onChange(nextSections);
+  };
   const remove = (id: string) => onChange(sections.filter((s) => s._id !== id));
   const duplicate = (id: string) => {
     const idx = sections.findIndex((s) => s._id === id);
@@ -801,8 +832,12 @@ export function SectionsEditor({
 
   return (
     <div>
-      <SortableList items={sections} onReorder={onChange}>
-        {sections.map((s) => (
+      <SortableList items={rows} onReorder={reorder}>
+        {rows.map((s) => 'isBlock' in s ? (
+          <SortableRow key={s._id} id={s._id} style={{ marginBottom: 4 }}>
+            {block?.content}
+          </SortableRow>
+        ) : (
           <SortableRow
             key={s._id}
             id={s._id}
