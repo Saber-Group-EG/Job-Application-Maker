@@ -56,6 +56,7 @@ import {
   SideCard,
   SortableList,
   SortableRow,
+  EditableLabel,
   LetterHeader,
   LetterHeading,
   TemplateText,
@@ -71,6 +72,9 @@ import {
   letterVars,
   letterLogoUrl,
   letterText,
+  cleanLabels,
+  type LetterKey,
+  type LetterLabels,
 } from '../../../utils/offerLetter';
 import {
   WORK_TYPE_VALUES,
@@ -157,6 +161,8 @@ export type FormState = {
   };
   department: { en: string; ar: string };
   reportingTo: { en: string; ar: string };
+  /** Headings and labels retyped on the sheet; missing = standard wording. */
+  labels: LetterLabels;
   /** Letter paragraphs as written by the user; empty = the default wording. */
   greeting: { en: string; ar: string };
   intro: { en: string; ar: string };
@@ -196,6 +202,7 @@ const emptyForm = (): FormState => ({
   },
   department: { en: '', ar: '' },
   reportingTo: { en: '', ar: '' },
+  labels: {},
   greeting: { en: '', ar: '' },
   intro: { en: '', ar: '' },
   acceptance: { en: '', ar: '' },
@@ -234,6 +241,7 @@ const offerToForm = (offer: JobOffer): FormState => ({
     en: offer.reportingTo?.en ?? '',
     ar: offer.reportingTo?.ar ?? '',
   },
+  labels: { ...(offer.labels ?? {}) },
   greeting: { en: offer.greeting?.en ?? '', ar: offer.greeting?.ar ?? '' },
   intro: { en: offer.intro?.en ?? '', ar: offer.intro?.ar ?? '' },
   acceptance: { en: offer.acceptance?.en ?? '', ar: offer.acceptance?.ar ?? '' },
@@ -788,6 +796,7 @@ export default function JobOfferEditor({
         en: form.reportingTo.en.trim(),
         ar: form.reportingTo.ar.trim(),
       },
+      labels: cleanLabels(form.labels),
       greeting: { en: form.greeting.en.trim(), ar: form.greeting.ar.trim() },
       intro: { en: form.intro.en.trim(), ar: form.intro.ar.trim() },
       acceptance: { en: form.acceptance.en.trim(), ar: form.acceptance.ar.trim() },
@@ -935,6 +944,23 @@ export default function JobOfferEditor({
 
   // ── Render ─────────────────────────────────────────────────────────────────
   const rtl = docLang === 'ar';
+  // Every heading and label on the sheet can be retyped in place.
+  const setLabel = (key: LetterKey, text: string) =>
+    setForm((prev) => ({
+      ...prev,
+      labels: {
+        ...prev.labels,
+        [key]: { ...(prev.labels[key] ?? { en: '', ar: '' }), [docLang]: text },
+      },
+    }));
+  const lbl = (key: LetterKey) => (
+    <EditableLabel
+      value={form.labels[key]?.[docLang]}
+      fallback={letterText(key, docLang)}
+      onChange={(text) => setLabel(key, text)}
+      lang={docLang}
+    />
+  );
   const cur = form.salaryCurrency;
   // Bulk offers are addressed to each applicant when they are created.
   const addressee =
@@ -1265,7 +1291,7 @@ export default function JobOfferEditor({
           company={sheetCompanyName}
           logo={sheetCompanyLogo}
           date={formatLetterDate(editing?.sentAt || editing?.createdAt || new Date(), docLang)}
-          title={letterText('title', docLang)}
+          title={lbl('title')}
         />
 
         <TemplateText
@@ -1284,8 +1310,8 @@ export default function JobOfferEditor({
           style={{ marginTop: 6, textAlign: 'justify' }}
         />
 
-        <LetterHeading>{letterText('positionDetails', docLang)}</LetterHeading>
-        <LetterRow label={letterText('jobTitle', docLang)}>
+        <LetterHeading>{lbl('positionDetails')}</LetterHeading>
+        <LetterRow label={lbl('jobTitle')}>
           <div className="min-w-0 flex-1">
             <BiField
               value={form.position}
@@ -1296,7 +1322,7 @@ export default function JobOfferEditor({
             />
           </div>
         </LetterRow>
-        <LetterRow label={letterText('department', docLang)}>
+        <LetterRow label={lbl('department')}>
           <div className="min-w-0 flex-1">
             <BiField
               value={form.department}
@@ -1306,7 +1332,7 @@ export default function JobOfferEditor({
             />
           </div>
         </LetterRow>
-        <LetterRow label={letterText('reportingTo', docLang)}>
+        <LetterRow label={lbl('reportingTo')}>
           <div className="min-w-0 flex-1">
             <BiField
               value={form.reportingTo}
@@ -1316,7 +1342,7 @@ export default function JobOfferEditor({
             />
           </div>
         </LetterRow>
-        <LetterRow label={letterText('employmentType', docLang)}>
+        <LetterRow label={lbl('employmentType')}>
           <InlineSelect
             value={form.workType}
             onChange={(v) => set('workType', v as WorkType)}
@@ -1327,7 +1353,7 @@ export default function JobOfferEditor({
             className="-mx-1"
           />
         </LetterRow>
-        <LetterRow label={letterText('workingHours', docLang)}>
+        <LetterRow label={lbl('workingHours')}>
           <div className="min-w-0 flex-1">
             <BiField
               value={form.workHours}
@@ -1351,8 +1377,8 @@ export default function JobOfferEditor({
             onOrderChange: (order) => set('compensationOrder', order),
             content: (
               <>
-              <LetterHeading>{letterText('compensation', docLang)}</LetterHeading>
-              <LetterRow label={letterText('basicSalary', docLang)}>
+              <LetterHeading>{lbl('compensation')}</LetterHeading>
+              <LetterRow label={lbl('basicSalary')}>
                 <InlineSelect
                   value={cur}
                   onChange={(v) => set('salaryCurrency', v)}
@@ -1374,7 +1400,7 @@ export default function JobOfferEditor({
               {form.commissions.length > 0 && (
                 <>
                   <div style={{ padding: '2px 0', color: LETTER.muted }}>
-                    {letterText('commission', docLang)}:
+                    {lbl('commission')}:
                   </div>
                   <SortableList
                     items={form.commissions}
@@ -1473,7 +1499,7 @@ export default function JobOfferEditor({
           }}
         />
 
-        <LetterHeading>{letterText('acceptance', docLang)}</LetterHeading>
+        <LetterHeading>{lbl('acceptance')}</LetterHeading>
         <TemplateText
           value={form.acceptance}
           lang={docLang}
@@ -1485,14 +1511,14 @@ export default function JobOfferEditor({
 
         <LetterSignatures
           left={{
-            caption: letterText('sincerely', docLang),
+            caption: lbl('sincerely'),
             name: sheetCompanyName,
-            sub: letterText('hr', docLang),
+            sub: lbl('hr'),
           }}
           right={{
-            caption: letterText('acceptedBy', docLang),
+            caption: lbl('acceptedBy'),
             name: addressee,
-            sub: `${letterText('date', docLang)} ____________`,
+            sub: <>{lbl('date')} ____________</>,
           }}
         />
       </Paper>

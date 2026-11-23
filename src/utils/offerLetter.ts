@@ -57,6 +57,24 @@ const T = {
 export type LetterKey = keyof typeof T;
 export const letterText = (key: LetterKey, lang: DocLang) => T[key][lang];
 
+/** Headings and labels the user retyped on a document, by key; missing or
+ *  empty = the standard wording. */
+export type LetterLabels = Partial<Record<string, { en?: string; ar?: string }>>;
+
+export const letterLabel = (
+  labels: LetterLabels | null | undefined,
+  key: LetterKey,
+  lang: DocLang
+) => labels?.[key]?.[lang]?.trim() || letterText(key, lang);
+
+/** Only the labels that were actually changed, for saving. */
+export const cleanLabels = (labels: LetterLabels) =>
+  Object.fromEntries(
+    Object.entries(labels)
+      .map(([k, v]) => [k, { en: v?.en?.trim() ?? '', ar: v?.ar?.trim() ?? '' }] as const)
+      .filter(([, v]) => v.en || v.ar)
+  );
+
 // ─── Editable offer paragraphs ───────────────────────────────────────────────
 // The greeting, opening and acceptance paragraphs are saved as text the user
 // can change. {name}, {position}, {company} and {validUntil} in that text are

@@ -12,7 +12,7 @@ import {
   formatLetterDate,
   formatLetterMoney,
   letterLogoUrl,
-  letterText,
+  letterLabel,
 } from './offerLetter';
 
 interface ContractPDFOptions {
@@ -41,7 +41,8 @@ const pick = (field: BilingualField | string | null | undefined, lang: 'ar' | 'e
 
 export const generateContractPDF = async ({ contract, lang = 'en', companyName = '' }: ContractPDFOptions): Promise<string> => {
   const isRTL = lang === 'ar';
-  const L = (key: LetterKey) => letterText(key, lang);
+  // Headings and labels as retyped on the document, or the standard wording.
+  const L = (key: LetterKey) => letterLabel(contract.labels, key, lang);
   const ink = LETTER.text;
   const accent = LETTER.accent;
   const muted = LETTER.muted;

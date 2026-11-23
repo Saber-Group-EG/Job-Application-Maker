@@ -266,6 +266,44 @@ export function InlineSelect({
   );
 }
 
+/**
+ * A heading or label on the sheet that can be retyped in place. It looks like
+ * the surrounding text (same font, weight, colour). Typing the standard
+ * wording back, or clearing it, goes back to the standard wording.
+ */
+export function EditableLabel({
+  value,
+  fallback,
+  onChange,
+  lang,
+}: {
+  value?: string;
+  fallback: string;
+  onChange: (next: string) => void;
+  lang: DocLang;
+}) {
+  const text = value?.trim() ? value : fallback;
+  return (
+    <input
+      value={text}
+      dir={lang === 'ar' ? 'rtl' : 'ltr'}
+      onChange={(e) => onChange(e.target.value === fallback ? '' : e.target.value)}
+      className="-mx-1 rounded-[3px] border-0 bg-transparent px-1 py-0 outline-none transition hover:bg-brand-50 focus:bg-brand-50 focus:ring-1 focus:ring-brand-300"
+      style={
+        {
+          fieldSizing: 'content',
+          font: 'inherit',
+          color: 'inherit',
+          letterSpacing: 'inherit',
+          textAlign: 'inherit',
+          minWidth: '2ch',
+          maxWidth: '100%',
+        } as CSSProperties
+      }
+    />
+  );
+}
+
 // ─── Sheet ───────────────────────────────────────────────────────────────────
 
 export function Paper({
@@ -315,7 +353,7 @@ export function LetterHeader({
   company: string;
   logo?: string;
   date: string;
-  title: string;
+  title: ReactNode;
   lang: DocLang;
 }) {
   return (
@@ -378,7 +416,7 @@ export function LetterRow({
   label,
   children,
 }: {
-  label: string;
+  label: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -395,10 +433,10 @@ export function LetterSignatures({
   left,
   right,
 }: {
-  left: { caption: string; name: string; sub: string };
-  right: { caption: string; name: string; sub: string };
+  left: { caption: ReactNode; name: string; sub: ReactNode };
+  right: { caption: ReactNode; name: string; sub: ReactNode };
 }) {
-  const block = (b: { caption: string; name: string; sub: string }) => (
+  const block = (b: { caption: ReactNode; name: string; sub: ReactNode }) => (
     <div>
       <div style={{ marginBottom: 4 }}>{b.caption}</div>
       <div

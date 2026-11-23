@@ -42,6 +42,7 @@ import {
   SideCard,
   SortableList,
   SortableRow,
+  EditableLabel,
   LetterHeader,
   LetterHeading,
   TemplateText,
@@ -56,6 +57,9 @@ import {
   formatLetterDate,
   letterLogoUrl,
   letterText,
+  cleanLabels,
+  type LetterKey,
+  type LetterLabels,
 } from '../../../utils/offerLetter';
 import {
   CONTRACT_TYPE_VALUES,
@@ -120,6 +124,8 @@ export type FormState = {
   };
   department: { en: string; ar: string };
   reportingTo: { en: string; ar: string };
+  /** Headings and labels retyped on the sheet; missing = standard wording. */
+  labels: LetterLabels;
   /** Contract paragraphs as written by the user; empty = the default wording. */
   intro: { en: string; ar: string };
   agreement: { en: string; ar: string };
@@ -174,6 +180,7 @@ const emptyForm = (): FormState => ({
   },
   department: { en: '', ar: '' },
   reportingTo: { en: '', ar: '' },
+  labels: {},
   intro: { en: '', ar: '' },
   agreement: { en: '', ar: '' },
   compensationOrder: 0,
@@ -201,6 +208,7 @@ const contractToForm = (c: JobContract): FormState => {
     },
     department: { en: c.department?.en ?? '', ar: c.department?.ar ?? '' },
     reportingTo: { en: c.reportingTo?.en ?? '', ar: c.reportingTo?.ar ?? '' },
+  labels: { ...(c.labels ?? {}) },
     intro: { en: c.intro?.en ?? '', ar: c.intro?.ar ?? '' },
     agreement: { en: c.agreement?.en ?? '', ar: c.agreement?.ar ?? '' },
     compensationOrder: Math.min(
@@ -760,6 +768,7 @@ export default function JobContractEditor({
         en: form.reportingTo.en.trim(),
         ar: form.reportingTo.ar.trim(),
       },
+      labels: cleanLabels(form.labels),
       intro: { en: form.intro.en.trim(), ar: form.intro.ar.trim() },
       agreement: { en: form.agreement.en.trim(), ar: form.agreement.ar.trim() },
       compensationOrder: Math.min(form.compensationOrder, form.sections.length),
@@ -861,6 +870,23 @@ export default function JobContractEditor({
 
   // ── Render ─────────────────────────────────────────────────────────────────
   const rtl = docLang === 'ar';
+  // Every heading and label on the sheet can be retyped in place.
+  const setLabel = (key: LetterKey, text: string) =>
+    setForm((prev) => ({
+      ...prev,
+      labels: {
+        ...prev.labels,
+        [key]: { ...(prev.labels[key] ?? { en: '', ar: '' }), [docLang]: text },
+      },
+    }));
+  const lbl = (key: LetterKey) => (
+    <EditableLabel
+      value={form.labels[key]?.[docLang]}
+      fallback={letterText(key, docLang)}
+      onChange={(text) => setLabel(key, text)}
+      lang={docLang}
+    />
+  );
   const cur = form.salaryCurrency;
   // Bulk contracts are addressed to each applicant when they are created.
   const employeeName =
@@ -1114,7 +1140,7 @@ export default function JobContractEditor({
           company={sheetCompanyName}
           logo={sheetCompanyLogo}
           date={formatLetterDate(editing?.sentAt || editing?.createdAt || new Date(), docLang)}
-          title={letterText('contractTitle', docLang)}
+          title={lbl('contractTitle')}
         />
 
         <TemplateText
@@ -1126,8 +1152,8 @@ export default function JobContractEditor({
           style={{ textAlign: 'justify' }}
         />
 
-        <LetterHeading>{letterText('employmentDetails', docLang)}</LetterHeading>
-        <LetterRow label={letterText('jobTitle', docLang)}>
+        <LetterHeading>{lbl('employmentDetails')}</LetterHeading>
+        <LetterRow label={lbl('jobTitle')}>
           <div className="min-w-0 flex-1">
             <BiField
               value={form.position}
@@ -1138,7 +1164,7 @@ export default function JobContractEditor({
             />
           </div>
         </LetterRow>
-        <LetterRow label={letterText('department', docLang)}>
+        <LetterRow label={lbl('department')}>
           <div className="min-w-0 flex-1">
             <BiField
               value={form.department}
@@ -1148,7 +1174,7 @@ export default function JobContractEditor({
             />
           </div>
         </LetterRow>
-        <LetterRow label={letterText('reportingTo', docLang)}>
+        <LetterRow label={lbl('reportingTo')}>
           <div className="min-w-0 flex-1">
             <BiField
               value={form.reportingTo}
@@ -1158,7 +1184,7 @@ export default function JobContractEditor({
             />
           </div>
         </LetterRow>
-        <LetterRow label={letterText('contractType', docLang)}>
+        <LetterRow label={lbl('contractType')}>
           <InlineSelect
             value={form.contractType}
             onChange={(v) => set('contractType', v as ContractType)}
@@ -1169,7 +1195,7 @@ export default function JobContractEditor({
             className="-mx-1"
           />
         </LetterRow>
-        <LetterRow label={letterText('startDate', docLang)}>
+        <LetterRow label={lbl('startDate')}>
           <InlineField
             type="date"
             value={form.startDate}
@@ -1177,7 +1203,7 @@ export default function JobContractEditor({
             className="!w-40"
           />
         </LetterRow>
-        <LetterRow label={letterText('endDate', docLang)}>
+        <LetterRow label={lbl('endDate')}>
           <InlineField
             type="date"
             value={form.endDate}
@@ -1186,7 +1212,7 @@ export default function JobContractEditor({
             className="!w-40"
           />
         </LetterRow>
-        <LetterRow label={letterText('probation', docLang)}>
+        <LetterRow label={lbl('probation')}>
           <InlineField
             type="number"
             min={0}
@@ -1197,7 +1223,7 @@ export default function JobContractEditor({
             }
             className="!w-14"
           />
-          <span style={{ fontWeight: 400 }}>{letterText('months', docLang)}</span>
+          <span style={{ fontWeight: 400 }}>{lbl('months')}</span>
         </LetterRow>
 
         <SectionsEditor
@@ -1213,9 +1239,9 @@ export default function JobContractEditor({
             content: (
               <>
                 <LetterHeading>
-                  {letterText('compensationBenefits', docLang)}
+                  {lbl('compensationBenefits')}
                 </LetterHeading>
-                <LetterRow label={letterText('basicSalary', docLang)}>
+                <LetterRow label={lbl('basicSalary')}>
                   <InlineSelect
                     value={cur}
                     onChange={(v) => set('salaryCurrency', v)}
@@ -1240,7 +1266,7 @@ export default function JobContractEditor({
                 {form.benefits.length > 0 && (
                   <>
                     <div style={{ padding: '2px 0', color: LETTER.muted }}>
-                      {letterText('benefits', docLang)}:
+                      {lbl('benefits')}:
                     </div>
                     <SortableList
                       items={form.benefits}
@@ -1305,7 +1331,7 @@ export default function JobContractEditor({
           }}
         />
 
-        <LetterHeading>{letterText('agreement', docLang)}</LetterHeading>
+        <LetterHeading>{lbl('agreement')}</LetterHeading>
         <TemplateText
           value={form.agreement}
           lang={docLang}
@@ -1317,14 +1343,14 @@ export default function JobContractEditor({
 
         <LetterSignatures
           left={{
-            caption: letterText('forCompany', docLang),
+            caption: lbl('forCompany'),
             name: sheetCompanyName,
-            sub: `${letterText('date', docLang)} ____________`,
+            sub: <>{lbl('date')} ____________</>,
           }}
           right={{
-            caption: letterText('employeeSignature', docLang),
+            caption: lbl('employeeSignature'),
             name: employeeName || letterText('employeePlaceholder', docLang),
-            sub: `${letterText('date', docLang)} ____________`,
+            sub: <>{lbl('date')} ____________</>,
           }}
         />
       </Paper>

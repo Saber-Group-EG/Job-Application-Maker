@@ -30,6 +30,7 @@ export type DraftContractResult = {
   position: { en: string; ar: string };
   department?: { en: string; ar: string };
   reportingTo?: { en: string; ar: string };
+  labels?: Partial<Record<string, { en?: string; ar?: string }>>;
   intro?: { en: string; ar: string };
   agreement?: { en: string; ar: string };
   compensationOrder?: number;
@@ -91,6 +92,7 @@ export interface JobContract {
   position: BilingualField;
   department?: { en: string; ar: string };
   reportingTo?: { en: string; ar: string };
+  labels?: Partial<Record<string, { en?: string; ar?: string }>>;
   intro?: { en: string; ar: string };
   agreement?: { en: string; ar: string };
   compensationOrder?: number;
@@ -129,6 +131,7 @@ export type CreateJobContractPayload = {
   position: BilingualField;
   department?: { en: string; ar: string };
   reportingTo?: { en: string; ar: string };
+  labels?: Partial<Record<string, { en?: string; ar?: string }>>;
   intro?: { en: string; ar: string };
   agreement?: { en: string; ar: string };
   compensationOrder?: number;

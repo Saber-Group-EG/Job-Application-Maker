@@ -96,6 +96,7 @@ export interface JobOffer {
   workHours: BilingualField;
   department?: BilingualField;
   reportingTo?: BilingualField;
+  labels?: Partial<Record<string, { en?: string; ar?: string }>>;
   greeting?: BilingualField;
   intro?: BilingualField;
   acceptance?: BilingualField;
@@ -133,6 +134,7 @@ export type CreateJobOfferPayload = {
   workHours?: BilingualField;
   department?: BilingualField;
   reportingTo?: BilingualField;
+  labels?: Partial<Record<string, { en?: string; ar?: string }>>;
   greeting?: BilingualField;
   intro?: BilingualField;
   acceptance?: BilingualField;

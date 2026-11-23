@@ -13,7 +13,7 @@ import {
   letterParagraph,
   letterVars,
   letterLogoUrl,
-  letterText,
+  letterLabel,
 } from './offerLetter';
 
 interface JobOfferPDFOptions {
@@ -42,7 +42,8 @@ const renderText = (text: string | { en?: string; ar?: string } | null | undefin
 
 export const generateJobOfferPDF = async ({ offer, lang = 'en', companyName = '' }: JobOfferPDFOptions): Promise<string> => {
   const isRTL = lang === 'ar';
-  const L = (key: LetterKey) => letterText(key, lang);
+  // Headings and labels as retyped on the document, or the standard wording.
+  const L = (key: LetterKey) => letterLabel(offer.labels, key, lang);
   const ink = LETTER.text;
   const accent = LETTER.accent;
   const muted = LETTER.muted;
