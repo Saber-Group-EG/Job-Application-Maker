@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, type CSSProperties } from 'react';
 import {
   FileText,
   Mail,
@@ -1273,6 +1273,7 @@ export default function JobOfferEditor({
               set('salaryBasic', v === '' ? '' : Math.max(0, Math.round(Number(v))))
             }
             className="!w-28"
+            style={{ fontWeight: 600 }}
           />
         </LetterRow>
         {form.commissions.length > 0 && (
@@ -1297,15 +1298,26 @@ export default function JobOfferEditor({
                   >
                     <span>•</span>
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-baseline gap-1">
-                        <div className="min-w-0 flex-1">
+                      {/* Reads like the printed line: "Closed deals: 5%". The
+                          label grows with its text so the value sits beside it. */}
+                      <div className="flex items-baseline">
+                        <div className="min-w-0">
                           <BiField
                             value={c.label}
                             lang={docLang}
                             onChange={(label) => patchCommission(c._id, { label })}
                             placeholder={t('commissionLabelPlaceholder', 'modals')}
+                            className="!mx-0 !w-auto"
+                            style={
+                              {
+                                fieldSizing: 'content',
+                                minWidth: '9ch',
+                                maxWidth: '60ch',
+                              } as CSSProperties
+                            }
                           />
                         </div>
+                        <span>:</span>
                         <InlineField
                           type="number"
                           min={0}
@@ -1316,8 +1328,15 @@ export default function JobOfferEditor({
                               value: v === '' ? '' : Number(v),
                             })
                           }
-                          className="!w-16"
-                          style={{ textAlign: 'end', fontWeight: 600 }}
+                          className="!mx-0 !w-auto"
+                          style={
+                            {
+                              fieldSizing: 'content',
+                              minWidth: '2ch',
+                              marginInlineStart: 4,
+                              fontWeight: 600,
+                            } as CSSProperties
+                          }
                         />
                         <InlineSelect
                           value={c.type}
