@@ -44,13 +44,15 @@ import {
   SortableRow,
   LetterHeader,
   LetterHeading,
+  TemplateText,
   LetterRow,
   LetterSignatures,
 } from '../../documentEditor/Paper';
 import {
   LETTER,
-  contractAgreement,
-  contractIntro,
+  defaultContractAgreement,
+  defaultContractIntro,
+  letterVars,
   formatLetterDate,
   letterLogoUrl,
   letterText,
@@ -118,6 +120,9 @@ export type FormState = {
   };
   department: { en: string; ar: string };
   reportingTo: { en: string; ar: string };
+  /** Contract paragraphs as written by the user; empty = the default wording. */
+  intro: { en: string; ar: string };
+  agreement: { en: string; ar: string };
   /** How many sections come before the Compensation & Benefits block. */
   compensationOrder: number;
 
@@ -169,6 +174,8 @@ const emptyForm = (): FormState => ({
   },
   department: { en: '', ar: '' },
   reportingTo: { en: '', ar: '' },
+  intro: { en: '', ar: '' },
+  agreement: { en: '', ar: '' },
   compensationOrder: 0,
   startDate: '',
   endDate: '',
@@ -194,6 +201,8 @@ const contractToForm = (c: JobContract): FormState => {
     },
     department: { en: c.department?.en ?? '', ar: c.department?.ar ?? '' },
     reportingTo: { en: c.reportingTo?.en ?? '', ar: c.reportingTo?.ar ?? '' },
+    intro: { en: c.intro?.en ?? '', ar: c.intro?.ar ?? '' },
+    agreement: { en: c.agreement?.en ?? '', ar: c.agreement?.ar ?? '' },
     compensationOrder: Math.min(
       Math.max(c.compensationOrder ?? 0, 0),
       c.sections.length
@@ -751,6 +760,8 @@ export default function JobContractEditor({
         en: form.reportingTo.en.trim(),
         ar: form.reportingTo.ar.trim(),
       },
+      intro: { en: form.intro.en.trim(), ar: form.intro.ar.trim() },
+      agreement: { en: form.agreement.en.trim(), ar: form.agreement.ar.trim() },
       compensationOrder: Math.min(form.compensationOrder, form.sections.length),
       startDate: form.startDate,
       endDate: form.endDate || null,
@@ -849,7 +860,6 @@ export default function JobContractEditor({
       : t('createContract', 'modals');
 
   // ── Render ─────────────────────────────────────────────────────────────────
-  const L = (en: string, ar: string) => (docLang === 'ar' ? ar : en);
   const rtl = docLang === 'ar';
   const cur = form.salaryCurrency;
   // Bulk contracts are addressed to each applicant when they are created.
@@ -862,32 +872,10 @@ export default function JobContractEditor({
           ? fixedApplicant?.fullName
           : form.selectedApplicantObject?.fullName) || '';
 
-  const candidate = (() => {
-    if (mode !== 'contract') return null;
-    const person = (name?: string, email?: string) =>
-      name ? (
-        <>
-          <div style={{ fontWeight: 600 }}>{name}</div>
-          {email && <div style={{ color: LETTER.muted }}>{email}</div>}
-        </>
-      ) : null;
-    if (editing) {
-      return person(
-        form.selectedApplicantObject?.fullName,
-        form.selectedApplicantObject?.email
-      );
-    }
-    if (form.isBulk) {
-      return (
-        <div style={{ fontWeight: 600 }}>
-          {(applicantObjects ?? []).map((a) => a.fullName).join(L(', ', '، '))}
-        </div>
-      );
-    }
-    if (propApplicantId) {
-      return person(fixedApplicant?.fullName, fixedApplicant?.email);
-    }
-    return (
+  // Picking the employee happens in the side panel; the contract names them
+  // in its opening paragraph.
+  const applicantPicker =
+    mode === 'contract' && !editing && !form.isBulk && !propApplicantId ? (
       <div dir={locale === 'ar' ? 'rtl' : 'ltr'} style={{ fontSize: '10pt' }}>
         <ApplicantSelect
           value={form.applicantId}
@@ -899,14 +887,38 @@ export default function JobContractEditor({
           inputCls={inputCls}
         />
       </div>
-    );
-  })();
+    ) : null;
+
+  const vars = letterVars(
+    {
+      name: employeeName || letterText('employeePlaceholder', docLang),
+      position: form.position[docLang].trim(),
+      company: sheetCompanyName,
+    },
+    docLang
+  );
 
   const side = (
     <>
       <p className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs leading-relaxed text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
         {t('documentEditorHint', 'modals')}
+        {mode === 'contract' && (
+          <span className="mt-1.5 block">
+            {locale === 'ar'
+              ? 'يمكن تعديل الفقرات أيضاً. {name} و{position} و{company} تُملأ تلقائياً.'
+              : 'The paragraphs can be edited too. {name}, {position} and {company} fill in automatically.'}
+          </span>
+        )}
       </p>
+
+      {applicantPicker && (
+        <SideCard
+          icon={<Users className="size-4 text-brand-500" />}
+          title={locale === 'ar' ? 'الموظف' : 'Employee'}
+        >
+          {applicantPicker}
+        </SideCard>
+      )}
 
       {mode === 'contract' && <ContractTemplateSelector onSelect={applyTemplate} />}
 
@@ -1105,25 +1117,14 @@ export default function JobContractEditor({
           title={letterText('contractTitle', docLang)}
         />
 
-        {mode === 'contract' && (
-          <>
-            <div style={{ color: LETTER.muted }}>{letterText('employee', docLang)}</div>
-            {candidate ?? (
-              <div style={{ fontWeight: 600 }}>
-                {letterText('employeePlaceholder', docLang)}
-              </div>
-            )}
-          </>
-        )}
-
-        <p style={{ marginTop: 18, textAlign: 'justify' }}>
-          {contractIntro(
-            sheetCompanyName,
-            employeeName,
-            form.position[docLang].trim(),
-            docLang
-          )}
-        </p>
+        <TemplateText
+          value={form.intro}
+          lang={docLang}
+          onChange={(intro) => set('intro', intro)}
+          fallback={defaultContractIntro(docLang)}
+          vars={vars}
+          style={{ textAlign: 'justify' }}
+        />
 
         <LetterHeading>{letterText('employmentDetails', docLang)}</LetterHeading>
         <LetterRow label={letterText('jobTitle', docLang)}>
@@ -1305,7 +1306,14 @@ export default function JobContractEditor({
         />
 
         <LetterHeading>{letterText('agreement', docLang)}</LetterHeading>
-        <p style={{ textAlign: 'justify' }}>{contractAgreement(docLang)}</p>
+        <TemplateText
+          value={form.agreement}
+          lang={docLang}
+          onChange={(agreement) => set('agreement', agreement)}
+          fallback={defaultContractAgreement(docLang)}
+          vars={vars}
+          style={{ textAlign: 'justify' }}
+        />
 
         <LetterSignatures
           left={{

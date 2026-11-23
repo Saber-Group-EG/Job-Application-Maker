@@ -4,8 +4,11 @@ import { contractTypeLabel } from './documentLabels';
 import {
   LETTER,
   type LetterKey,
-  contractAgreement,
-  contractIntro,
+  defaultContractAgreement,
+  defaultContractIntro,
+  fillLetter,
+  letterParagraph,
+  letterVars,
   formatLetterDate,
   formatLetterMoney,
   letterLogoUrl,
@@ -50,7 +53,6 @@ export const generateContractPDF = async ({ contract, lang = 'en', companyName =
 
   const applicant = typeof contract.applicantId === 'object' && contract.applicantId !== null ? contract.applicantId : null;
   const employeeName = applicant?.fullName || '';
-  const employeeEmail = applicant?.email || '';
   const employee = employeeName || L('employeePlaceholder');
 
   const position = pick(contract.position, lang);
@@ -61,6 +63,12 @@ export const generateContractPDF = async ({ contract, lang = 'en', companyName =
   const endDate = contract.endDate ? formatLetterDate(contract.endDate, lang) : '';
   const probation = contract.probationPeriod;
   const letterDate = formatLetterDate((contract as any).sentAt || (contract as any).createdAt || Date.now(), lang);
+
+  // Opening and agreement: the text saved on the contract (or the default
+  // wording), with {name}, {position} and {company} filled in.
+  const vars = letterVars({ name: employee, position: has(position) ? position : '', company: finalCompanyName }, lang);
+  const paragraph = (saved: { en?: string; ar?: string } | null | undefined, fallback: string) =>
+    fillLetter(letterParagraph(saved, fallback, lang), vars);
 
   const heading = (text: string) =>
     `<div style="font-size: 10.5pt; font-weight: 700; color: ${accent}; margin: 18px 0 6px;">${escapeHtml(text)}</div>`;
@@ -145,17 +153,13 @@ export const generateContractPDF = async ({ contract, lang = 'en', companyName =
 
         <div style="text-align: center; font-size: 18pt; font-weight: 800; letter-spacing: ${isRTL ? '0' : '2px'}; color: ${accent}; margin-bottom: 22px;">${escapeHtml(L('contractTitle'))}</div>
 
-        <div style="color: ${muted};">${escapeHtml(L('employee'))}</div>
-        <div style="font-weight: 600;">${escapeHtml(employee)}</div>
-        ${employeeEmail ? `<div style="color: ${muted};">${escapeHtml(employeeEmail)}</div>` : ''}
-
-        <p style="margin-top: 18px; text-align: justify;">${escapeHtml(contractIntro(finalCompanyName, employeeName, has(position) ? position : '', lang))}</p>
+        <p style="text-align: justify; white-space: pre-wrap;">${escapeHtml(paragraph(contract.intro, defaultContractIntro(lang)))}</p>
 
         ${detailsHTML ? heading(L('employmentDetails')) + detailsHTML : ''}
         ${bodyHTML}
 
         ${heading(L('agreement'))}
-        <p style="text-align: justify;">${escapeHtml(contractAgreement(lang))}</p>
+        <p style="text-align: justify; white-space: pre-wrap;">${escapeHtml(paragraph(contract.agreement, defaultContractAgreement(lang)))}</p>
 
         <div style="display: flex; justify-content: space-between; gap: 24px; margin-top: 34px; page-break-inside: avoid;">
             <div>

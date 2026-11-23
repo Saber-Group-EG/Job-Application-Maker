@@ -30,6 +30,8 @@ export type DraftContractResult = {
   position: { en: string; ar: string };
   department?: { en: string; ar: string };
   reportingTo?: { en: string; ar: string };
+  intro?: { en: string; ar: string };
+  agreement?: { en: string; ar: string };
   compensationOrder?: number;
   salary: { basic: number | null; currency: string }; // always null — never applied to form
   benefits: {
@@ -89,6 +91,8 @@ export interface JobContract {
   position: BilingualField;
   department?: { en: string; ar: string };
   reportingTo?: { en: string; ar: string };
+  intro?: { en: string; ar: string };
+  agreement?: { en: string; ar: string };
   compensationOrder?: number;
   startDate: string;
   endDate: string | null;
@@ -125,6 +129,8 @@ export type CreateJobContractPayload = {
   position: BilingualField;
   department?: { en: string; ar: string };
   reportingTo?: { en: string; ar: string };
+  intro?: { en: string; ar: string };
+  agreement?: { en: string; ar: string };
   compensationOrder?: number;
   startDate: string;
   endDate?: string | null;

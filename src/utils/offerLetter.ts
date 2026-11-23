@@ -99,26 +99,19 @@ export const letterParagraph = (
   lang: DocLang
 ) => (saved?.[lang]?.trim() ? (saved[lang] as string) : fallback);
 
-export const contractIntro = (
-  company: string,
-  employee: string,
-  position: string,
-  lang: DocLang
-) => {
-  const c = company || (lang === 'ar' ? 'الشركة' : 'the Company');
-  const e = employee || letterText('employeePlaceholder', lang);
-  const p = position || (lang === 'ar' ? '[المسمى الوظيفي]' : '[position]');
-  return lang === 'ar'
-    ? `تم إبرام عقد العمل هذا بين ${c} ("الشركة") و${e} ("الموظف"). توافق الشركة على تعيين الموظف في وظيفة ${p} وفقاً للشروط والأحكام الموضحة أدناه.`
-    : `This employment contract is made between ${c} (the "Company") and ${e} (the "Employee"). The Company agrees to employ the Employee as ${p} on the terms and conditions set out below.`;
-};
+// Contract paragraphs: same idea as the offer's (saved text, empty = default,
+// {name}, {position} and {company} filled in when shown or printed).
+export const defaultContractIntro = (lang: DocLang) =>
+  lang === 'ar'
+    ? 'تم إبرام عقد العمل هذا بين {company} ("الشركة") و{name} ("الموظف"). توافق الشركة على تعيين الموظف في وظيفة {position} وفقاً للشروط والأحكام الموضحة أدناه.'
+    : 'This employment contract is made between {company} (the "Company") and {name} (the "Employee"). The Company agrees to employ the Employee as {position} on the terms and conditions set out below.';
 
-export const contractAgreement = (lang: DocLang) =>
+export const defaultContractAgreement = (lang: DocLang) =>
   lang === 'ar'
     ? 'بالتوقيع أدناه، يقر الطرفان بأنهما قد قرآ هذا العقد ويوافقان على جميع شروطه وأحكامه.'
     : 'By signing below, both parties confirm that they have read this contract and agree to all of its terms and conditions.';
 
-export const formatLetterDate =(date: Date | string | number, lang: DocLang) => {
+export const formatLetterDate = (date: Date | string | number, lang: DocLang) => {
   const d = new Date(date);
   if (Number.isNaN(d.getTime())) return '';
   return d.toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US', {
