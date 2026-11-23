@@ -81,6 +81,12 @@ export function ContractDetail({
                   </span>
                 </Meta>
               )}
+              {pick(contract.department) && (
+                <Meta label={locale === 'ar' ? 'القسم' : 'Department'}>{pick(contract.department)}</Meta>
+              )}
+              {pick(contract.reportingTo) && (
+                <Meta label={locale === 'ar' ? 'يتبع إلى' : 'Reporting To'}>{pick(contract.reportingTo)}</Meta>
+              )}
               <Meta label={t('createdBy', 'jobContracts')}>{contract.createdBy?.fullName ?? '—'}</Meta>
               <Meta label={t('timelineCreated', 'jobContracts')}>{formatDate(contract.createdAt)}</Meta>
             </dl>

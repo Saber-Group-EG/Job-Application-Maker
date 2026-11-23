@@ -32,6 +32,7 @@ import {
   useJobOfferEmail,
   EmailSettingsPanel,
   type ApplicantObject,
+  applicantDepartment,
 } from './EmailModule';
 import { ModalLabel } from '../../form/ModalLabel';
 import {
@@ -370,6 +371,16 @@ export default function JobOfferEditor({
       position: draft.position,
       workType: draft.workType,
       workHours: draft.workHours,
+      // The AI only fills these when they are empty: a department from the
+      // applicant's job, or a reporting line someone typed, is kept.
+      department:
+        prev.department.en || prev.department.ar
+          ? prev.department
+          : (draft.department ?? prev.department),
+      reportingTo:
+        prev.reportingTo.en || prev.reportingTo.ar
+          ? prev.reportingTo
+          : (draft.reportingTo ?? prev.reportingTo),
       commissions: draft.commissions.map((c) => ({ _id: uid(), ...c })),
       sections: draft.sections.map((s) => ({
         _id: uid(),
@@ -574,14 +585,7 @@ export default function JobOfferEditor({
         en: applicant.jobPositionId?.title?.en ?? prev.position.en,
         ar: applicant.jobPositionId?.title?.ar ?? prev.position.ar,
       },
-      department:
-        typeof applicant.jobPositionId?.departmentId === 'object' &&
-        applicant.jobPositionId.departmentId?.name
-          ? {
-              en: applicant.jobPositionId.departmentId.name.en ?? '',
-              ar: applicant.jobPositionId.departmentId.name.ar ?? '',
-            }
-          : prev.department,
+      department: applicantDepartment(applicant) ?? prev.department,
       salaryBasic: applicant.expectedSalary
         ? Number(applicant.expectedSalary)
         : prev.salaryBasic,
@@ -1390,6 +1394,7 @@ export default function JobOfferEditor({
                                       fieldSizing: 'content',
                                       minWidth: '9ch',
                                       maxWidth: '60ch',
+                                      paddingInlineEnd: 0,
                                     } as CSSProperties
                                   }
                                 />

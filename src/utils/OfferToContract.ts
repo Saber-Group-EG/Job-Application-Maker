@@ -39,6 +39,9 @@ export function offerToContractDefaults(
     offerId: offer._id,
     contractType: WORK_TYPE_TO_CONTRACT_TYPE[offer.workType] ?? 'permanent',
     position: offer.position,
+    ...(offer.department ? { department: offer.department } : {}),
+    ...(offer.reportingTo ? { reportingTo: offer.reportingTo } : {}),
+    compensationOrder: offer.compensationOrder ?? 0,
     // Default to today — user reviews before saving
     startDate: new Date().toISOString().slice(0, 10),
     salary: {

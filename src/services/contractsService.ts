@@ -28,6 +28,9 @@ export interface BilingualField {
 export type DraftContractResult = {
   contractType: ContractType;
   position: { en: string; ar: string };
+  department?: { en: string; ar: string };
+  reportingTo?: { en: string; ar: string };
+  compensationOrder?: number;
   salary: { basic: number | null; currency: string }; // always null — never applied to form
   benefits: {
     label: { en: string; ar: string };
@@ -84,6 +87,9 @@ export interface JobContract {
   isTemplate: boolean;
   contractType: ContractType;
   position: BilingualField;
+  department?: { en: string; ar: string };
+  reportingTo?: { en: string; ar: string };
+  compensationOrder?: number;
   startDate: string;
   endDate: string | null;
   probationPeriod: number | null;
@@ -117,6 +123,9 @@ export type CreateJobContractPayload = {
   isTemplate?: boolean;
   contractType: ContractType;
   position: BilingualField;
+  department?: { en: string; ar: string };
+  reportingTo?: { en: string; ar: string };
+  compensationOrder?: number;
   startDate: string;
   endDate?: string | null;
   probationPeriod?: number | null;

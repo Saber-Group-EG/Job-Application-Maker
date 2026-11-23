@@ -57,6 +57,8 @@ export type DraftOfferResult = {
   position: { en: string; ar: string };
   workType: WorkType;
   workHours: { en: string; ar: string };
+  department?: { en: string; ar: string };
+  reportingTo?: { en: string; ar: string };
   salary: { basic: number | null; currency: string }; // always { null, 'EGP' } from backend — never applied to form
   commissions: {
     label: { en: string; ar: string };

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type CSSProperties } from 'react';
 import { useFormDraft } from '../../../hooks/useFormDraft';
 import DraftBanner from '../../common/DraftBanner';
 import { FileSignature, ChevronDown, Sparkles, Users } from 'lucide-react';
@@ -19,7 +19,7 @@ import { useCompanies } from '../../../hooks/queries';
 import Swal from '../../../utils/swal';
 import { ApplicantSelect } from '../../form/ApplicantSelection';
 import { ContractTemplateSelector } from './ContractTemplateSelector';
-import { ApplicantObject } from '../JobOffersModal/EmailModule';
+import { ApplicantObject, applicantDepartment } from '../JobOffersModal/EmailModule';
 import { ModalLabel } from '../../form/ModalLabel';
 import {
   BulkOverrideMap,
@@ -33,25 +33,28 @@ import { useLocale } from '../../../context/LocaleContext';
 import {
   AddButton,
   BiField,
-  DetailRow,
-  DetailsGrid,
   DocLang,
   EditorShell,
   InlineField,
   InlineSelect,
   Paper,
-  PaperBox,
-  PaperFooter,
-  PaperHeader,
-  PaperHeading,
-  PaperNotes,
-  PaperTitle,
   SectionsEditor,
   SideCard,
   SortableList,
   SortableRow,
-  TableHead,
+  LetterHeader,
+  LetterHeading,
+  LetterRow,
+  LetterSignatures,
 } from '../../documentEditor/Paper';
+import {
+  LETTER,
+  contractAgreement,
+  contractIntro,
+  formatLetterDate,
+  letterLogoUrl,
+  letterText,
+} from '../../../utils/offerLetter';
 import {
   CONTRACT_TYPE_VALUES,
   contractTypeLabel,
@@ -113,6 +116,10 @@ export type FormState = {
     en: string;
     ar: string;
   };
+  department: { en: string; ar: string };
+  reportingTo: { en: string; ar: string };
+  /** How many sections come before the Compensation & Benefits block. */
+  compensationOrder: number;
 
   startDate: string;
   endDate: string;
@@ -160,6 +167,9 @@ const emptyForm = (): FormState => ({
     en: '',
     ar: '',
   },
+  department: { en: '', ar: '' },
+  reportingTo: { en: '', ar: '' },
+  compensationOrder: 0,
   startDate: '',
   endDate: '',
   probationPeriod: '',
@@ -182,6 +192,12 @@ const contractToForm = (c: JobContract): FormState => {
       en: c.position?.en ?? '',
       ar: c.position?.ar ?? '',
     },
+    department: { en: c.department?.en ?? '', ar: c.department?.ar ?? '' },
+    reportingTo: { en: c.reportingTo?.en ?? '', ar: c.reportingTo?.ar ?? '' },
+    compensationOrder: Math.min(
+      Math.max(c.compensationOrder ?? 0, 0),
+      c.sections.length
+    ),
     startDate: toDateInput(c.startDate),
     endDate: toDateInput(c.endDate),
     probationPeriod: c.probationPeriod ?? '',
@@ -224,6 +240,25 @@ function defaultsToForm(
             ar: defaults.position.ar ?? '',
           },
         }
+      : {}),
+    ...(defaults.department
+      ? {
+          department: {
+            en: defaults.department.en ?? '',
+            ar: defaults.department.ar ?? '',
+          },
+        }
+      : {}),
+    ...(defaults.reportingTo
+      ? {
+          reportingTo: {
+            en: defaults.reportingTo.en ?? '',
+            ar: defaults.reportingTo.ar ?? '',
+          },
+        }
+      : {}),
+    ...(defaults.compensationOrder != null
+      ? { compensationOrder: defaults.compensationOrder }
       : {}),
     ...(defaults.startDate ? { startDate: defaults.startDate } : {}),
     ...(defaults.endDate ? { endDate: defaults.endDate } : {}),
@@ -275,13 +310,6 @@ const bilingualName = (
   typeof name === 'string'
     ? name
     : ((lang === 'ar' ? name?.ar || name?.en : name?.en || name?.ar) ?? '');
-
-const formatDocDate = (date: Date | string, lang: DocLang) =>
-  new Date(date).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
 
 // ─── Editor page ──────────────────────────────────────────────────────────────
 
@@ -336,6 +364,16 @@ export default function JobContractEditor({
       ...prev,
       contractType: draft.contractType,
       position: draft.position,
+      // The AI only fills these when they are empty: a department from the
+      // applicant's job, or a reporting line someone typed, is kept.
+      department:
+        prev.department.en || prev.department.ar
+          ? prev.department
+          : (draft.department ?? prev.department),
+      reportingTo:
+        prev.reportingTo.en || prev.reportingTo.ar
+          ? prev.reportingTo
+          : (draft.reportingTo ?? prev.reportingTo),
       benefits: draft.benefits.map((b) => ({
         _id: uid(),
         labelEn: b.label.en,
@@ -482,6 +520,9 @@ export default function JobContractEditor({
   // Company + fixed applicant shown on the sheet
   const { data: companies = [] } = useCompanies();
   const sheetCompanyId = contractCompanyId;
+  const sheetCompanyLogo = letterLogoUrl(
+    companies.find((c) => c._id === sheetCompanyId)?.logoPath
+  );
   const sheetCompanyName = bilingualName(
     companies.find((c) => c._id === sheetCompanyId)?.name as
       | string
@@ -553,6 +594,7 @@ export default function JobContractEditor({
         en: applicant.jobPositionId?.title?.en?.trim() || prev.position.en,
         ar: applicant.jobPositionId?.title?.ar?.trim() || prev.position.ar,
       },
+      department: applicantDepartment(applicant) ?? prev.department,
       salaryBasic: applicant.expectedSalary
         ? Number(applicant.expectedSalary)
         : prev.salaryBasic,
@@ -578,6 +620,12 @@ export default function JobContractEditor({
 
       const pos = await smartTranslate(form.position.en, form.position.ar);
       const nt = await smartTranslate(form.notes.en, form.notes.ar);
+      const dep = await smartTranslate(form.department.en, form.department.ar);
+      const rep = await smartTranslate(form.reportingTo.en, form.reportingTo.ar);
+      const fill = (
+        field: { en: string; ar: string },
+        r: { target: 'en' | 'ar'; text: string } | null
+      ) => (r ? { ...field, [r.target]: r.text } : field);
 
       const sectionResults = await Promise.all(
         form.sections.map(async (s) => {
@@ -628,6 +676,8 @@ export default function JobContractEditor({
             : pos && pos.target === 'en'
               ? { ...prev.position, en: pos.text }
               : prev.position,
+        department: fill(prev.department, dep),
+        reportingTo: fill(prev.reportingTo, rep),
         notes:
           nt && nt.target === 'ar'
             ? { ...prev.notes, ar: nt.text }
@@ -692,6 +742,15 @@ export default function JobContractEditor({
         en: form.position.en.trim(),
         ar: form.position.ar.trim(),
       },
+      department: {
+        en: form.department.en.trim(),
+        ar: form.department.ar.trim(),
+      },
+      reportingTo: {
+        en: form.reportingTo.en.trim(),
+        ar: form.reportingTo.ar.trim(),
+      },
+      compensationOrder: Math.min(form.compensationOrder, form.sections.length),
       startDate: form.startDate,
       endDate: form.endDate || null,
       probationPeriod:
@@ -792,19 +851,23 @@ export default function JobContractEditor({
   const L = (en: string, ar: string) => (docLang === 'ar' ? ar : en);
   const rtl = docLang === 'ar';
   const cur = form.salaryCurrency;
-  const align = { textAlign: rtl ? 'left' : 'right' } as const;
+  // Bulk contracts are addressed to each applicant when they are created.
+  const employeeName =
+    (form.isBulk
+      ? ''
+      : editing
+        ? form.selectedApplicantObject?.fullName
+        : propApplicantId
+          ? fixedApplicant?.fullName
+          : form.selectedApplicantObject?.fullName) || '';
 
   const candidate = (() => {
     if (mode !== 'contract') return null;
     const person = (name?: string, email?: string) =>
       name ? (
         <>
-          <div style={{ fontSize: '11pt', fontWeight: 500 }}>{name}</div>
-          {email && (
-            <div style={{ fontSize: '9pt', color: '#666', marginTop: 4 }}>
-              {email}
-            </div>
-          )}
+          <div style={{ fontWeight: 600 }}>{name}</div>
+          {email && <div style={{ color: LETTER.muted }}>{email}</div>}
         </>
       ) : null;
     if (editing) {
@@ -815,7 +878,7 @@ export default function JobContractEditor({
     }
     if (form.isBulk) {
       return (
-        <div style={{ fontSize: '10pt', color: '#555' }}>
+        <div style={{ fontWeight: 600 }}>
           {(applicantObjects ?? []).map((a) => a.fullName).join(L(', ', '، '))}
         </div>
       );
@@ -1024,176 +1087,250 @@ export default function JobContractEditor({
         onDiscard={discardDraft}
         className="mx-auto mb-4 max-w-[210mm]"
       />
-      <Paper lang={docLang}>
-        <PaperHeader
+      <Paper
+        lang={docLang}
+        style={{
+          padding: LETTER.padding,
+          color: LETTER.text,
+          lineHeight: 1.6,
+          fontFamily: rtl ? LETTER.fontAr : LETTER.font,
+        }}
+      >
+        <LetterHeader
           lang={docLang}
           company={sheetCompanyName}
-          title={L('JOB CONTRACT', 'عقد عمل')}
-          date={formatDocDate(new Date(), docLang)}
+          logo={sheetCompanyLogo}
+          date={formatLetterDate(editing?.sentAt || editing?.createdAt || new Date(), docLang)}
+          title={letterText('contractTitle', docLang)}
         />
 
-        <PaperTitle>
-          <BiField
-            value={form.position}
-            lang={docLang}
-            onChange={(position) => set('position', position)}
-            placeholder={t('positionPlaceholder', 'modals')}
-            inputRef={firstInputRef}
-            style={{ textAlign: 'center' }}
-          />
-        </PaperTitle>
-
-        {candidate && (
-          <PaperBox label={L('Candidate', 'المرشح')} lang={docLang}>
-            {candidate}
-          </PaperBox>
+        {mode === 'contract' && (
+          <>
+            <div style={{ color: LETTER.muted }}>{letterText('employee', docLang)}</div>
+            {candidate ?? (
+              <div style={{ fontWeight: 600 }}>
+                {letterText('employeePlaceholder', docLang)}
+              </div>
+            )}
+          </>
         )}
 
-        <DetailsGrid>
-          <DetailRow label={L('Contract Type', 'نوع العقد')} lang={docLang}>
-            <InlineSelect
-              value={form.contractType}
-              onChange={(v) => set('contractType', v as ContractType)}
-              options={CONTRACT_TYPE_VALUES.map((v) => ({
-                value: v,
-                label: contractTypeLabel(v, docLang),
-              }))}
-              style={align}
-            />
-          </DetailRow>
-          <DetailRow label={L('Start Date', 'تاريخ البدء')} lang={docLang}>
-            <InlineField
-              type="date"
-              value={form.startDate}
-              onChange={(v) => set('startDate', v)}
-              className="!w-40"
-              style={align}
-            />
-          </DetailRow>
-          <DetailRow label={L('End Date', 'تاريخ الانتهاء')} lang={docLang}>
-            <InlineField
-              type="date"
-              value={form.endDate}
-              min={form.startDate || undefined}
-              onChange={(v) => set('endDate', v)}
-              className="!w-40"
-              style={align}
-            />
-          </DetailRow>
-          <DetailRow label={L('Probation Period', 'فترة التجربة')} lang={docLang}>
-            <InlineField
-              type="number"
-              min={0}
-              value={form.probationPeriod}
-              placeholder="0"
-              onChange={(v) =>
-                set('probationPeriod', v === '' ? '' : Math.max(0, Number(v)))
-              }
-              className="!w-14"
-              style={align}
-            />
-            <span>{L('month(s)', 'شهر')}</span>
-          </DetailRow>
-          <DetailRow label={L('Basic Salary', 'الراتب الأساسي')} lang={docLang}>
-            <InlineSelect
-              value={cur}
-              onChange={(v) => set('salaryCurrency', v)}
-              options={['EGP', 'USD', 'EUR', 'SAR', 'AED'].map((c) => ({
-                value: c,
-                label: c,
-              }))}
-              style={{ fontSize: '11pt', fontWeight: 700, color: '#059669' }}
-            />
-            <InlineField
-              type="number"
-              min={0}
-              value={form.salaryBasic}
-              placeholder="0"
-              onChange={(v) =>
-                set('salaryBasic', v === '' ? '' : Math.max(0, Number(v)))
-              }
-              className="!w-28"
-              style={{
-                fontSize: '11pt',
-                fontWeight: 700,
-                color: '#059669',
-                ...align,
-              }}
-            />
-          </DetailRow>
-        </DetailsGrid>
-
-        {/* Benefits */}
-        <div style={{ margin: '20px 0' }}>
-          <PaperHeading>{L('Benefits', 'المزايا')}</PaperHeading>
-          {form.benefits.length > 0 && (
-            <div style={{ margin: '20px 0 12px', fontSize: '9pt' }}>
-              <TableHead cols={[L('Benefit', 'الميزة'), L('Value', 'القيمة')]} />
-              <SortableList
-                items={form.benefits}
-                onReorder={(next) => set('benefits', next)}
-              >
-                {form.benefits.map((b) => (
-                  <SortableRow
-                    key={b._id}
-                    id={b._id}
-                    onDuplicate={() => duplicateBenefit(b._id)}
-                    onRemove={() => removeBenefit(b._id)}
-                  >
-                    <div
-                      className="grid grid-cols-[1fr_auto]"
-                      style={{ borderBottom: '1px solid #e0e0e0' }}
-                    >
-                      <div style={{ padding: '10px 8px' }}>
-                        <BiField
-                          value={{ en: b.labelEn, ar: b.labelAr }}
-                          lang={docLang}
-                          onChange={(label) =>
-                            patchBenefit(b._id, {
-                              labelEn: label.en,
-                              labelAr: label.ar,
-                            })
-                          }
-                          placeholder={t('benefitLabelPlaceholder', 'modals')}
-                          style={{ fontWeight: 700 }}
-                        />
-                      </div>
-                      <div
-                        style={{
-                          padding: '10px 8px',
-                          minWidth: 130,
-                          fontWeight: 500,
-                        }}
-                      >
-                        <BiField
-                          value={b.value}
-                          lang={docLang}
-                          onChange={(value) => patchBenefit(b._id, { value })}
-                          placeholder={t('benefitValuePlaceholder', 'modals')}
-                          style={{ textAlign: 'end' }}
-                        />
-                      </div>
-                    </div>
-                  </SortableRow>
-                ))}
-              </SortableList>
-            </div>
+        <p style={{ marginTop: 18, textAlign: 'justify' }}>
+          {contractIntro(
+            sheetCompanyName,
+            employeeName,
+            form.position[docLang].trim(),
+            docLang
           )}
-          <AddButton onClick={addBenefit}>{t('addBenefit', 'modals')}</AddButton>
-        </div>
+        </p>
 
-        {/* Terms */}
-        <div style={{ margin: '20px 0' }}>
-          <SectionsEditor
-            sections={form.sections}
-            onChange={changeSections}
-            lang={docLang}
-            docType="contract"
-            variant="contract"
+        <LetterHeading>{letterText('employmentDetails', docLang)}</LetterHeading>
+        <LetterRow label={letterText('jobTitle', docLang)}>
+          <div className="min-w-0 flex-1">
+            <BiField
+              value={form.position}
+              lang={docLang}
+              onChange={(position) => set('position', position)}
+              placeholder={t('positionPlaceholder', 'modals')}
+              inputRef={firstInputRef}
+            />
+          </div>
+        </LetterRow>
+        <LetterRow label={letterText('department', docLang)}>
+          <div className="min-w-0 flex-1">
+            <BiField
+              value={form.department}
+              lang={docLang}
+              onChange={(department) => set('department', department)}
+              placeholder={letterText('departmentPlaceholder', docLang)}
+            />
+          </div>
+        </LetterRow>
+        <LetterRow label={letterText('reportingTo', docLang)}>
+          <div className="min-w-0 flex-1">
+            <BiField
+              value={form.reportingTo}
+              lang={docLang}
+              onChange={(reportingTo) => set('reportingTo', reportingTo)}
+              placeholder={letterText('reportingToPlaceholder', docLang)}
+            />
+          </div>
+        </LetterRow>
+        <LetterRow label={letterText('contractType', docLang)}>
+          <InlineSelect
+            value={form.contractType}
+            onChange={(v) => set('contractType', v as ContractType)}
+            options={CONTRACT_TYPE_VALUES.map((v) => ({
+              value: v,
+              label: contractTypeLabel(v, docLang),
+            }))}
+            className="-mx-1"
           />
-        </div>
+        </LetterRow>
+        <LetterRow label={letterText('startDate', docLang)}>
+          <InlineField
+            type="date"
+            value={form.startDate}
+            onChange={(v) => set('startDate', v)}
+            className="!w-40"
+          />
+        </LetterRow>
+        <LetterRow label={letterText('endDate', docLang)}>
+          <InlineField
+            type="date"
+            value={form.endDate}
+            min={form.startDate || undefined}
+            onChange={(v) => set('endDate', v)}
+            className="!w-40"
+          />
+        </LetterRow>
+        <LetterRow label={letterText('probation', docLang)}>
+          <InlineField
+            type="number"
+            min={0}
+            value={form.probationPeriod}
+            placeholder="0"
+            onChange={(v) =>
+              set('probationPeriod', v === '' ? '' : Math.max(0, Number(v)))
+            }
+            className="!w-14"
+          />
+          <span style={{ fontWeight: 400 }}>{letterText('months', docLang)}</span>
+        </LetterRow>
 
-        <PaperNotes lang={docLang} label={L('Notes:', 'ملاحظات:')}>
+        <SectionsEditor
+          sections={form.sections}
+          onChange={changeSections}
+          lang={docLang}
+          docType="contract"
+          variant="offer"
+          block={{
+            id: '__compensation',
+            order: form.compensationOrder,
+            onOrderChange: (order) => set('compensationOrder', order),
+            content: (
+              <>
+                <LetterHeading>
+                  {letterText('compensationBenefits', docLang)}
+                </LetterHeading>
+                <LetterRow label={letterText('basicSalary', docLang)}>
+                  <InlineSelect
+                    value={cur}
+                    onChange={(v) => set('salaryCurrency', v)}
+                    options={['EGP', 'USD', 'EUR', 'SAR', 'AED'].map((c) => ({
+                      value: c,
+                      label: c,
+                    }))}
+                    className="-mx-1"
+                  />
+                  <InlineField
+                    type="number"
+                    min={0}
+                    value={form.salaryBasic}
+                    placeholder="0"
+                    onChange={(v) =>
+                      set('salaryBasic', v === '' ? '' : Math.max(0, Number(v)))
+                    }
+                    className="!w-28"
+                    style={{ fontWeight: 600 }}
+                  />
+                </LetterRow>
+                {form.benefits.length > 0 && (
+                  <>
+                    <div style={{ padding: '2px 0', color: LETTER.muted }}>
+                      {letterText('benefits', docLang)}:
+                    </div>
+                    <SortableList
+                      items={form.benefits}
+                      onReorder={(next) => set('benefits', next)}
+                    >
+                      {form.benefits.map((b) => (
+                        <SortableRow
+                          key={b._id}
+                          id={b._id}
+                          onDuplicate={() => duplicateBenefit(b._id)}
+                          onRemove={() => removeBenefit(b._id)}
+                        >
+                          {/* Reads like the printed line: "Medical insurance: Full coverage" */}
+                          <div
+                            className="flex items-baseline gap-2"
+                            style={{ padding: '2px 0', paddingInlineStart: 6 }}
+                          >
+                            <span>•</span>
+                            <div className="flex min-w-0 flex-1 items-baseline">
+                              <BiField
+                                value={{ en: b.labelEn, ar: b.labelAr }}
+                                lang={docLang}
+                                onChange={(label) =>
+                                  patchBenefit(b._id, {
+                                    labelEn: label.en,
+                                    labelAr: label.ar,
+                                  })
+                                }
+                                placeholder={t('benefitLabelPlaceholder', 'modals')}
+                                className="!mx-0 !w-auto"
+                                style={
+                                  {
+                                    fieldSizing: 'content',
+                                    minWidth: '9ch',
+                                    maxWidth: '50ch',
+                                    paddingInlineEnd: 0,
+                                  } as CSSProperties
+                                }
+                              />
+                              <span style={{ marginInlineEnd: 6 }}>:</span>
+                              <div className="min-w-0 flex-1">
+                                <BiField
+                                  value={b.value}
+                                  lang={docLang}
+                                  onChange={(value) => patchBenefit(b._id, { value })}
+                                  placeholder={t('benefitValuePlaceholder', 'modals')}
+                                  style={{ fontWeight: 600 }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </SortableRow>
+                      ))}
+                    </SortableList>
+                  </>
+                )}
+                <div className="pt-1">
+                  <AddButton onClick={addBenefit}>{t('addBenefit', 'modals')}</AddButton>
+                </div>
+              </>
+            ),
+          }}
+        />
+
+        <LetterHeading>{letterText('agreement', docLang)}</LetterHeading>
+        <p style={{ textAlign: 'justify' }}>{contractAgreement(docLang)}</p>
+
+        <LetterSignatures
+          left={{
+            caption: letterText('forCompany', docLang),
+            name: sheetCompanyName,
+            sub: `${letterText('date', docLang)} ____________`,
+          }}
+          right={{
+            caption: letterText('employeeSignature', docLang),
+            name: employeeName || letterText('employeePlaceholder', docLang),
+            sub: `${letterText('date', docLang)} ____________`,
+          }}
+        />
+      </Paper>
+
+      {/* Internal notes stay off the printed contract: they are for HR. */}
+      <div
+        className="mx-auto mt-4 max-w-[210mm] rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-500/30 dark:bg-amber-500/10"
+        dir={rtl ? 'rtl' : 'ltr'}
+      >
+        <div className="mb-1 text-xs font-semibold text-amber-700 dark:text-amber-300">
+          {locale === 'ar'
+            ? 'ملاحظات داخلية (لا تظهر في العقد)'
+            : 'Internal notes (not printed on the contract)'}
+        </div>
+        <div className="text-sm text-slate-700 dark:text-slate-200">
           <BiField
             multiline
             value={form.notes}
@@ -1201,12 +1338,8 @@ export default function JobContractEditor({
             onChange={(notes) => set('notes', notes)}
             placeholder={t('notesPlaceholderDoc', 'modals')}
           />
-        </PaperNotes>
-
-        <PaperFooter>
-          {L('Thank you for your business', 'شكراً لثقتكم بنا')}
-        </PaperFooter>
-      </Paper>
+        </div>
+      </div>
     </EditorShell>
   );
 }

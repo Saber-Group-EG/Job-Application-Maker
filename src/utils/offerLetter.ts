@@ -36,6 +36,22 @@ const T = {
   hr: { en: 'Human Resources', ar: 'إدارة الموارد البشرية' },
   acceptedBy: { en: 'Accepted by', ar: 'قبول المرشح' },
   signature: { en: 'Signature', ar: 'التوقيع' },
+  // Employment contract
+  contractTitle: { en: 'EMPLOYMENT CONTRACT', ar: 'عقد عمل' },
+  employee: { en: 'Employee:', ar: 'الموظف:' },
+  employeePlaceholder: { en: '[Employee name]', ar: '[اسم الموظف]' },
+  employmentDetails: { en: 'Employment Details', ar: 'تفاصيل التوظيف' },
+  contractType: { en: 'Contract Type', ar: 'نوع العقد' },
+  startDate: { en: 'Start Date', ar: 'تاريخ البدء' },
+  endDate: { en: 'End Date', ar: 'تاريخ الانتهاء' },
+  probation: { en: 'Probation Period', ar: 'فترة التجربة' },
+  months: { en: 'month(s)', ar: 'شهر' },
+  compensationBenefits: { en: 'Compensation & Benefits', ar: 'الراتب والمزايا' },
+  benefits: { en: 'Benefits', ar: 'المزايا' },
+  agreement: { en: 'Agreement', ar: 'الإقرار' },
+  forCompany: { en: 'For the Company', ar: 'عن الشركة' },
+  authorizedSignatory: { en: 'Authorized Signatory', ar: 'المفوض بالتوقيع' },
+  employeeSignature: { en: 'Employee', ar: 'الموظف' },
 } satisfies Record<string, Record<DocLang, string>>;
 
 export type LetterKey = keyof typeof T;
@@ -58,7 +74,26 @@ export const letterAcceptance = (validUntil: string, lang: DocLang) =>
     ? `${validUntil ? `هذا العرض ساري حتى ${validUntil}. ` : ''}يرجى تأكيد قبولك لهذا العرض بالتوقيع أدناه وإعادة نسخة من هذا الخطاب إلينا.`
     : `${validUntil ? `This offer is valid until ${validUntil}. ` : ''}Please confirm your acceptance of this offer by signing below and returning a copy of this letter to us.`;
 
-export const formatLetterDate = (date: Date | string | number, lang: DocLang) => {
+export const contractIntro = (
+  company: string,
+  employee: string,
+  position: string,
+  lang: DocLang
+) => {
+  const c = company || (lang === 'ar' ? 'الشركة' : 'the Company');
+  const e = employee || letterText('employeePlaceholder', lang);
+  const p = position || (lang === 'ar' ? '[المسمى الوظيفي]' : '[position]');
+  return lang === 'ar'
+    ? `تم إبرام عقد العمل هذا بين ${c} ("الشركة") و${e} ("الموظف"). توافق الشركة على تعيين الموظف في وظيفة ${p} وفقاً للشروط والأحكام الموضحة أدناه.`
+    : `This employment contract is made between ${c} (the "Company") and ${e} (the "Employee"). The Company agrees to employ the Employee as ${p} on the terms and conditions set out below.`;
+};
+
+export const contractAgreement = (lang: DocLang) =>
+  lang === 'ar'
+    ? 'بالتوقيع أدناه، يقر الطرفان بأنهما قد قرآ هذا العقد ويوافقان على جميع شروطه وأحكامه.'
+    : 'By signing below, both parties confirm that they have read this contract and agree to all of its terms and conditions.';
+
+export const formatLetterDate =(date: Date | string | number, lang: DocLang) => {
   const d = new Date(date);
   if (Number.isNaN(d.getTime())) return '';
   return d.toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US', {

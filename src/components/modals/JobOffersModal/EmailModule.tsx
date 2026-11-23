@@ -23,6 +23,20 @@ export type ApplicantObject = {
     companyId: { _id: string; name: { en: string; ar: string } };
     departmentId?: { _id?: string; name?: { en?: string; ar?: string } } | string | null;
   } | null;
+  /** Rows from the applicants table carry the department name here. */
+  departmentName?: { en?: string; ar?: string } | string | null;
+};
+
+/** The department of the applicant's job, from whichever shape the row has. */
+export const applicantDepartment = (
+  a: ApplicantObject
+): { en: string; ar: string } | null => {
+  const dep = a.jobPositionId?.departmentId;
+  const name =
+    (typeof dep === 'object' && dep?.name) || a.departmentName || null;
+  if (!name) return null;
+  if (typeof name === 'string') return { en: name, ar: name };
+  return name.en || name.ar ? { en: name.en ?? '', ar: name.ar ?? '' } : null;
 };
 
 // ─── Sender resolution ────────────────────────────────────────────────────────
