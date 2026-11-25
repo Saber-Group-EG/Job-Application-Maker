@@ -17,6 +17,7 @@ import {
   PencilIcon,
   RefreshCwIcon,
   ExternalLinkIcon,
+  MegaphoneIcon,
 } from 'lucide-react';
 import Swal from '../../../utils/swal';
 import {
@@ -31,6 +32,7 @@ import { useCompanyFilter } from '../../../context/CompanyFilterContext';
 import { toPlainString } from '../../../utils/strings';
 import { buildJobLink } from '../../../utils/publicJobLinks';
 import ShareJobMenu from '../../../components/jobs/ShareJobMenu';
+import PromoteJobDialog from '../../../components/jobs/PromoteJobDialog';
 import { normalizeFieldConfig } from '../../../utils/jobUtils';
 import {
   Badge,
@@ -152,9 +154,11 @@ function SortableJobCard({
   onToggleActive,
   onDelete,
   onEdit,
+  onPromote,
   suppressNavigateRef,
 }: {
   job: any;
+  onPromote: (job: any) => void;
   canManageJobs: boolean;
   onToggleActive: (job: any) => void;
   onDelete: (e: React.MouseEvent, jobId: string) => void;
@@ -262,6 +266,16 @@ function SortableJobCard({
             <ExternalLinkIcon className="size-4" />
           </IconButton>
           <ShareJobMenu job={job} />
+          <IconButton
+            label={t('promoteTitle', 'jobs')}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onPromote(job);
+            }}
+          >
+            <MegaphoneIcon className="size-4" />
+          </IconButton>
           {canManageJobs && (
             <IconButton
               label={t('jobsEditJob', 'jobs')}
@@ -294,9 +308,11 @@ function SortableJobCard({
 function SortableJobRow({
   job,
   onNavigate,
+  onPromote,
   suppressNavigateRef,
 }: {
   job: any;
+  onPromote: (job: any) => void;
   onNavigate: (job: any) => void;
   suppressNavigateRef: React.MutableRefObject<boolean>;
 }) {
@@ -370,6 +386,16 @@ function SortableJobRow({
       <td className="px-4 py-3 text-end">
         <div className="flex items-center justify-end gap-1">
           <ShareJobMenu job={job} />
+          <IconButton
+            label={t('promoteTitle', 'jobs')}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onPromote(job);
+            }}
+          >
+            <MegaphoneIcon className="size-4" />
+          </IconButton>
           <ChevronRightIcon className="size-4 text-slate-300 rtl:rotate-180" aria-hidden="true" />
         </div>
       </td>
@@ -673,6 +699,8 @@ export default function Jobs() {
     }, 0);
   };
 
+  const [promoteJob, setPromoteJob] = useState<any | null>(null);
+
   const handleEditJob = (job: any) => {
     navigate(`/create-job?id=${job._id}`, { state: { job } });
   };
@@ -957,6 +985,7 @@ export default function Jobs() {
                             onToggleActive={handleToggleActive}
                             onDelete={handleDelete}
                             onEdit={handleEditJob}
+                            onPromote={setPromoteJob}
                             suppressNavigateRef={suppressNavigateRef}
                           />
                         ))}
@@ -1066,6 +1095,7 @@ export default function Jobs() {
                             key={job._id}
                             job={job}
                             onNavigate={handleJobClick}
+                            onPromote={setPromoteJob}
                             suppressNavigateRef={suppressNavigateRef}
                           />
                         ))}
@@ -1078,6 +1108,7 @@ export default function Jobs() {
           </Card>
         )}
       </PageShell>
+      <PromoteJobDialog job={promoteJob} open={Boolean(promoteJob)} onClose={() => setPromoteJob(null)} />
     </>
   );
 }

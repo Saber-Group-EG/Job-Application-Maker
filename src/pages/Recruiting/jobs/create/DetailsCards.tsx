@@ -40,6 +40,24 @@ const setLanguage = (setForm: SetJobForm, language: JobForm['language']) =>
     return { ...next, language };
   });
 
+// Countries most companies on the platform hire in; the job's saved country
+// is always listed even when it isn't one of these.
+const COMMON_COUNTRIES = ['EG', 'SA', 'AE', 'QA', 'KW', 'BH', 'OM', 'JO', 'LB', 'IQ', 'MA', 'TN', 'DZ', 'LY', 'SD', 'PS', 'TR', 'GB', 'US', 'DE'];
+
+const countryOptions = (locale: string, current: string) => {
+  let names: Intl.DisplayNames | null = null;
+  try {
+    names = new Intl.DisplayNames([locale === 'ar' ? 'ar' : 'en'], { type: 'region' });
+  } catch {
+    names = null;
+  }
+  const codes = current && !COMMON_COUNTRIES.includes(current) ? [current, ...COMMON_COUNTRIES] : COMMON_COUNTRIES;
+  return [
+    { code: '', name: '—' },
+    ...codes.map((code) => ({ code, name: names?.of(code) || code })),
+  ];
+};
+
 const set = <K extends keyof JobForm>(setForm: SetJobForm, key: K, value: JobForm[K]) =>
   setForm((prev) => ({ ...prev, [key]: value }));
 
@@ -71,7 +89,7 @@ export function JobDetailsCard({
   onTranslateAll: () => void;
   translatingAll: boolean;
 }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   return (
     <Section
       icon={<FileText className="size-4" />}
@@ -174,6 +192,30 @@ export function JobDetailsCard({
               <option value="on-site">{t('createOnSite', 'jobs')}</option>
               <option value="remote">{t('createRemote', 'jobs')}</option>
               <option value="hybrid">{t('createHybrid', 'jobs')}</option>
+            </select>
+          </Field>
+          <Field label={t('createLocationCity', 'jobs')} htmlFor="cj-city" hint={t('createLocationHint', 'jobs')}>
+            <input
+              id="cj-city"
+              value={form.locationCity}
+              maxLength={120}
+              onChange={(e) => set(setForm, 'locationCity', e.target.value)}
+              placeholder={t('createLocationCityPlaceholder', 'jobs')}
+              className={inputClass}
+            />
+          </Field>
+          <Field label={t('createLocationCountry', 'jobs')} htmlFor="cj-country">
+            <select
+              id="cj-country"
+              value={form.locationCountry}
+              onChange={(e) => set(setForm, 'locationCountry', e.target.value)}
+              className={selectClass}
+            >
+              {countryOptions(locale, form.locationCountry).map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.name}
+                </option>
+              ))}
             </select>
           </Field>
         </div>

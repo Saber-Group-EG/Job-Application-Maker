@@ -99,6 +99,22 @@ export type JobDepartmentRef =
       managerId?: string | { _id: string; fullName?: string; email?: string; phone?: string };
     };
 
+export type JobLocation = {
+  city?: string;
+  /** ISO 3166-1 alpha-2, e.g. "EG". */
+  country?: string;
+};
+
+export type JobDistributionEntry = {
+  channel: 'telegram' | 'google';
+  /** Telegram chat id; '' for Google. */
+  target: string;
+  status: 'pending' | 'posted' | 'failed' | 'removed';
+  url?: string | null;
+  postedAt?: string | null;
+  error?: string | null;
+};
+
 export type JobPosition = {
   _id: string;
   companyId: JobCompanyRef;
@@ -115,6 +131,9 @@ export type JobPosition = {
   isActive?: boolean;
   employmentType: EmploymentType;
   workArrangement: WorkArrangement;
+  location?: JobLocation;
+  /** Where the platform posted the job by itself (Telegram, Google). */
+  distribution?: JobDistributionEntry[];
   salary?: number;
   salaryVisible?: boolean;
   fieldConfig?: JobFieldConfig;
@@ -162,6 +181,7 @@ export type CreateJobPositionRequest = {
   isActive?: boolean;
   employmentType: EmploymentType;
   workArrangement: WorkArrangement;
+  location?: JobLocation;
   salary?: number;
   salaryVisible?: boolean;
   openPositions?: number;

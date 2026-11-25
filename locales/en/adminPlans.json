@@ -74,5 +74,7 @@
   "reportsSavedCharts": "Saved charts per user",
   "sectionApplicantVerification": "Applicant verification",
   "applicantVerificationEmail": "Verify applicants by email code",
-  "applicantVerificationWhatsapp": "Verify applicants by WhatsApp code"
+  "applicantVerificationWhatsapp": "Verify applicants by WhatsApp code",
+  "jobsTelegramPosting": "Post jobs to Telegram channels",
+  "featureJobPostWriter": "AI job post writer"
 }

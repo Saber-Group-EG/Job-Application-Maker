@@ -66,6 +66,10 @@ export type JobForm = {
   customFields: CustomFieldDraft[];
   employmentType: EmploymentType;
   workArrangement: WorkArrangement;
+  /** City/area, shown on the form and sent to Google for Jobs. */
+  locationCity: string;
+  /** ISO 3166-1 alpha-2 country code, e.g. "EG". */
+  locationCountry: string;
 };
 
 export type SetJobForm = React.Dispatch<React.SetStateAction<JobForm>>;

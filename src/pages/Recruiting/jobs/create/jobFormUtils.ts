@@ -46,6 +46,8 @@ export const emptyJobForm = (companyId = ''): JobForm => ({
   customFields: [],
   employmentType: 'full-time',
   workArrangement: 'on-site',
+  locationCity: '',
+  locationCountry: 'EG',
 });
 
 // ─── Small readers ───────────────────────────────────────────────────────────
@@ -207,6 +209,8 @@ export function duplicateJobToForm(job: JobPosition): JobForm {
       : [],
     employmentType: job.employmentType || 'full-time',
     workArrangement: job.workArrangement || 'on-site',
+    locationCity: job.location?.city || '',
+    locationCountry: job.location?.country || 'EG',
   };
 }
 
@@ -253,6 +257,8 @@ export function editJobToForm(job: JobPosition): JobForm {
       : [],
     employmentType: normalizeEmploymentType(job.employmentType) || 'full-time',
     workArrangement: job.workArrangement || 'on-site',
+    locationCity: job.location?.city || '',
+    locationCountry: job.location?.country || 'EG',
   };
 }
 
@@ -493,6 +499,10 @@ export function buildJobPayload(
   }));
   payload.employmentType = form.employmentType;
   payload.workArrangement = form.workArrangement;
+  payload.location = {
+    city: form.locationCity.trim(),
+    country: /^[A-Za-z]{2}$/.test(form.locationCountry.trim()) ? form.locationCountry.trim().toUpperCase() : '',
+  };
   payload.bilingual = form.bilingual;
   payload.language = form.bilingual ? 'en' : form.language;
   if (!opts.isEditMode && opts.createdBy) payload.createdBy = opts.createdBy;

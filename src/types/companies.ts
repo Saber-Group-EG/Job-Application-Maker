@@ -41,6 +41,7 @@ export type AiFeature =
   | 'interviewScoring'
   | 'interviewReview'
   | 'reportBuilder'
+  | 'jobPostWriter'
   | 'cvParse';
 
 export interface AiFeatureToggle {
@@ -357,6 +358,7 @@ export interface PlanFeatures {
   jobs: {
     postLimit: PlanLimitFeature;
     useSavedFields: PlanBooleanFeature;
+    telegramPosting: PlanBooleanFeature;
   };
   users: {
     total: PlanLimitFeature;
@@ -391,6 +393,7 @@ export interface PlanFeatures {
     cvParse: PlanBooleanFeature;
     interviewReview: PlanBooleanFeature;
     reportBuilder: PlanBooleanFeature;
+    jobPostWriter: PlanBooleanFeature;
   };
 }
 

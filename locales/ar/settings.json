@@ -486,5 +486,7 @@
   "statusSettings.reasonsDesc": "اختيارية. عند نقل متقدم إلى هذه الحالة يمكن اختيار أي منها (أو كتابة سبب آخر)، الآن أو لاحقًا من سجل نشاط المتقدم. اضغط حفظ التغييرات بعد ذلك.",
   "statusSettings.reasonPlaceholder": "مثال: تعذّر التواصل معه",
   "statusSettings.addReason": "إضافة سبب",
-  "statusSettings.reasonsDone": "تم"
+  "statusSettings.reasonsDone": "تم",
+  "aiFeatures.jobPostWriter.title": "كاتب منشورات الوظائف بالذكاء الاصطناعي",
+  "aiFeatures.jobPostWriter.desc": "اكتب إعلانات وظائف جاهزة للنشر على لينكدإن وفيسبوك وإنستجرام وواتساب وX وتيليجرام من تفاصيل الوظيفة، بالعربية أو الإنجليزية."
 }

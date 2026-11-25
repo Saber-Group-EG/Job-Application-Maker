@@ -9,6 +9,7 @@ import { useCompanies, useUpdateMailSettings } from "../../../hooks/queries/useC
 import GmailConnectionCard from "./components/GmailConnectionCard";
 import WhatsAppConnectionCard from "./components/WhatsAppConnectionCard";
 import ApplicantVerificationCard from "./components/ApplicantVerificationCard";
+import TelegramChannelsCard from "./components/TelegramChannelsCard";
 import EmailTemplates from "../Settings/MailTemplate";
 import { AlertTriangle, Building2, CheckCircle, Globe, Mail, PlusCircle, Save, ShieldCheck, Trash2 } from "lucide-react";
 import {
@@ -210,6 +211,10 @@ export default function CompanySettingsPage({ companyId: _companyId, onSaved, on
 
       <WhatsAppConnectionCard companyId={selectedCompanyId ?? undefined} canEdit={canEdit} />
       <ApplicantVerificationCard companyId={selectedCompanyId ?? undefined} canEdit={canEdit} />
+      <TelegramChannelsCard
+        companyId={selectedCompanyId ?? undefined}
+        canEdit={!!hasPermission && hasPermission('Company Management', 'write')}
+      />
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
         <Card className="xl:col-span-4">

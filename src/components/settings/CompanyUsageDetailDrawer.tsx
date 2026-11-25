@@ -86,6 +86,7 @@ export default function CompanyUsageDetailDrawer({
     cvParse: t('featureCvParse', 'systemSettings'),
     interviewReview: t('featureInterviewReview', 'systemSettings'),
     reportBuilder: t('featureReportBuilder', 'systemSettings'),
+    jobPostWriter: t('featureJobPostWriter', 'systemSettings'),
   };
 
   const sectionClass = 'border-t border-slate-200 pt-5 dark:border-slate-800';

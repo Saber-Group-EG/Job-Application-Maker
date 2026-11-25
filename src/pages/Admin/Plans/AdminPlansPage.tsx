@@ -207,6 +207,11 @@ export default function AdminPlansPage() {
       label: t('jobsUseSavedFields', 'adminPlans'),
       path: 'jobs.useSavedFields',
     },
+    {
+      kind: 'boolean',
+      label: t('jobsTelegramPosting', 'adminPlans'),
+      path: 'jobs.telegramPosting',
+    },
     { kind: 'section', label: t('sectionUsers', 'adminPlans') },
     { kind: 'limit', label: t('usersTotal', 'adminPlans'), path: 'users.total' },
     {
@@ -247,6 +252,7 @@ export default function AdminPlansPage() {
       'cvParse',
       'interviewReview',
       'reportBuilder',
+      'jobPostWriter',
     ] as const).map(
       (key): Row => ({
         kind: 'boolean',

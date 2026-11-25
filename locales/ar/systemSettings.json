@@ -105,5 +105,6 @@
   "featureContractGenerator": "مولّد العقود",
   "featureCvParse": "محلل السيرة الذاتية",
   "featureInterviewReview": "تسجيل المقابلات ومراجعتها بالذكاء الاصطناعي",
-  "featureReportBuilder": "منشئ التقارير بالذكاء الاصطناعي"
+  "featureReportBuilder": "منشئ التقارير بالذكاء الاصطناعي",
+  "featureJobPostWriter": "كتابة منشورات الوظائف بالذكاء الاصطناعي"
 }

@@ -488,5 +488,7 @@
   "statusSettings.reasonsDesc": "Optional. When someone moves an applicant to this status they can pick any of these (or type their own), now or later from the applicant's activity. Click Save Changes afterwards.",
   "statusSettings.reasonPlaceholder": "Example: Couldn't be reached",
   "statusSettings.addReason": "Add reason",
-  "statusSettings.reasonsDone": "Done"
+  "statusSettings.reasonsDone": "Done",
+  "aiFeatures.jobPostWriter.title": "AI Job Post Writer",
+  "aiFeatures.jobPostWriter.desc": "Write ready-to-post job ads for LinkedIn, Facebook, Instagram, WhatsApp, X and Telegram from the job details, in English or Arabic."
 }
