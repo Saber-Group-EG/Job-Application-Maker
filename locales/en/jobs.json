@@ -354,5 +354,15 @@
   "promoteDownloadImage": "Download image",
   "promoteCopiedOpen": "Text copied. Paste it if the post box is empty.",
   "promoteInstagramHint": "Instagram has no web sharing: copy the caption, download the image and post from the app. Put the link in your bio or story.",
-  "promoteFacebookHint": "Facebook only takes the link; the text is copied so you can paste it. Works for pages and groups."
+  "promoteFacebookHint": "Facebook only takes the link; the text is copied so you can paste it. Works for pages and groups.",
+  "promoteMetaTitle": "Facebook & Instagram",
+  "promoteMetaNotOnPlan": "Facebook and Instagram posting is not included in your plan.",
+  "promoteMetaNoPages": "No Facebook Page connected.",
+  "promoteMetaNotPosted": "Not posted (auto-posting is off here).",
+  "promoteIgWaitsImage": "Will be posted automatically once the job image is ready.",
+  "promoteImageTitle": "Job image (for Instagram)",
+  "promoteImageReady": "Ready, made {date}",
+  "promoteImageNone": "Not made yet. Instagram posts need it.",
+  "promoteImageMake": "Make image",
+  "promoteImageRemake": "Make again"
 }

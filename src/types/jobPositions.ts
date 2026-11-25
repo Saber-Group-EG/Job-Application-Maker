@@ -106,7 +106,7 @@ export type JobLocation = {
 };
 
 export type JobDistributionEntry = {
-  channel: 'telegram' | 'google';
+  channel: 'telegram' | 'google' | 'facebook' | 'instagram';
   /** Telegram chat id; '' for Google. */
   target: string;
   status: 'pending' | 'posted' | 'failed' | 'removed';

@@ -76,5 +76,6 @@
   "applicantVerificationEmail": "Verify applicants by email code",
   "applicantVerificationWhatsapp": "Verify applicants by WhatsApp code",
   "jobsTelegramPosting": "Post jobs to Telegram channels",
-  "featureJobPostWriter": "AI job post writer"
+  "featureJobPostWriter": "AI job post writer",
+  "jobsSocialPosting": "Post jobs to Facebook Pages and Instagram"
 }

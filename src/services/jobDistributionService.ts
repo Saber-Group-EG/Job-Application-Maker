@@ -41,6 +41,34 @@ export interface TelegramPending {
   expiresAt: string;
 }
 
+export interface MetaPage {
+  _id: string;
+  pageId: string;
+  name: string;
+  instagram: { id: string; username: string } | null;
+  facebookAutoPost: boolean;
+  instagramAutoPost: boolean;
+  lastPostAt: string | null;
+  lastError: string | null;
+  lastErrorAt: string | null;
+}
+
+export interface MetaState {
+  configured: boolean;
+  allowedByPlan: boolean;
+  planReason: string | null;
+  connected: boolean;
+  userName: string;
+  connectedAt: string | null;
+  pages: MetaPage[];
+}
+
+export interface SocialImage {
+  url: string;
+  language: string;
+  createdAt: string;
+}
+
 export type SharePlatform = 'linkedin' | 'facebook' | 'instagram' | 'whatsapp' | 'x' | 'telegram';
 
 export interface JobPostsResult {
@@ -81,7 +109,26 @@ export const jobDistributionService = {
       axios.delete(`/job-distribution/telegram/channels/${p.channelId}`, { params: { companyId: p.companyId } })
     ),
   jobDistribution: (jobId: string) =>
-    call<{ open: boolean; distribution: JobDistributionEntry[] }>(() => axios.get(`/job-distribution/jobs/${jobId}`)),
+    call<{ open: boolean; distribution: JobDistributionEntry[]; socialImage: SocialImage | null }>(() =>
+      axios.get(`/job-distribution/jobs/${jobId}`)
+    ),
+  meta: (companyId: string) => call<MetaState>(() => axios.get('/job-distribution/meta', { params: { companyId } })),
+  metaConnectUrl: (p: { companyId: string; redirectUri: string }) =>
+    call<{ url: string }>(() => axios.post('/job-distribution/meta/connect', p)),
+  metaFinish: (p: { code: string; state: string }) =>
+    call<MetaState & { companyId: string }>(() => axios.post('/job-distribution/meta/callback', p)),
+  updateMetaPage: (p: { companyId: string; pageId: string; facebookAutoPost?: boolean; instagramAutoPost?: boolean }) =>
+    call<MetaState>(() => axios.patch(`/job-distribution/meta/pages/${p.pageId}`, p)),
+  disconnectMeta: (companyId: string) =>
+    call<MetaState>(() => axios.delete('/job-distribution/meta', { params: { companyId } })),
+  postToMeta: (p: { jobId: string; pageId: string; platform: 'facebook' | 'instagram' }) =>
+    call<{ result: { ok?: boolean; url?: string | null }; distribution: JobDistributionEntry[] }>(() =>
+      axios.post(`/job-distribution/jobs/${p.jobId}/meta`, { pageId: p.pageId, platform: p.platform })
+    ),
+  saveSocialImage: (p: { jobId: string; url: string; language: string }) =>
+    call<{ socialImage: SocialImage }>(() =>
+      axios.put(`/job-distribution/jobs/${p.jobId}/social-image`, { url: p.url, language: p.language })
+    ),
   postToTelegram: (jobId: string, chatId?: string) =>
     call<TelegramPostResult>(() => axios.post(`/job-distribution/jobs/${jobId}/telegram`, chatId ? { chatId } : {})),
   writePosts: (p: {

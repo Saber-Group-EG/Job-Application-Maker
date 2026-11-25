@@ -10,6 +10,7 @@ import GmailConnectionCard from "./components/GmailConnectionCard";
 import WhatsAppConnectionCard from "./components/WhatsAppConnectionCard";
 import ApplicantVerificationCard from "./components/ApplicantVerificationCard";
 import TelegramChannelsCard from "./components/TelegramChannelsCard";
+import FacebookPagesCard from "./components/FacebookPagesCard";
 import EmailTemplates from "../Settings/MailTemplate";
 import { AlertTriangle, Building2, CheckCircle, Globe, Mail, PlusCircle, Save, ShieldCheck, Trash2 } from "lucide-react";
 import {
@@ -212,6 +213,10 @@ export default function CompanySettingsPage({ companyId: _companyId, onSaved, on
       <WhatsAppConnectionCard companyId={selectedCompanyId ?? undefined} canEdit={canEdit} />
       <ApplicantVerificationCard companyId={selectedCompanyId ?? undefined} canEdit={canEdit} />
       <TelegramChannelsCard
+        companyId={selectedCompanyId ?? undefined}
+        canEdit={!!hasPermission && hasPermission('Company Management', 'write')}
+      />
+      <FacebookPagesCard
         companyId={selectedCompanyId ?? undefined}
         canEdit={!!hasPermission && hasPermission('Company Management', 'write')}
       />

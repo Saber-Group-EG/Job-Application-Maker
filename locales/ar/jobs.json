@@ -354,5 +354,15 @@
   "promoteDownloadImage": "تنزيل الصورة",
   "promoteCopiedOpen": "تم نسخ النص. الصقه إذا كان مربع المنشور فارغًا.",
   "promoteInstagramHint": "إنستجرام لا يدعم المشاركة من الويب: انسخ الوصف ونزّل الصورة وانشر من التطبيق، وضع الرابط في البايو أو الستوري.",
-  "promoteFacebookHint": "فيسبوك يقبل الرابط فقط؛ تم نسخ النص لتلصقه. يعمل مع الصفحات والجروبات."
+  "promoteFacebookHint": "فيسبوك يقبل الرابط فقط؛ تم نسخ النص لتلصقه. يعمل مع الصفحات والجروبات.",
+  "promoteMetaTitle": "فيسبوك وإنستجرام",
+  "promoteMetaNotOnPlan": "النشر على فيسبوك وإنستجرام غير متاح في باقتك.",
+  "promoteMetaNoPages": "لا توجد صفحة فيسبوك مربوطة.",
+  "promoteMetaNotPosted": "لم تُنشر (النشر التلقائي متوقف هنا).",
+  "promoteIgWaitsImage": "ستُنشر تلقائيًا عندما تجهز صورة الوظيفة.",
+  "promoteImageTitle": "صورة الوظيفة (لإنستجرام)",
+  "promoteImageReady": "جاهزة، أُنشئت {date}",
+  "promoteImageNone": "لم تُنشأ بعد. منشورات إنستجرام تحتاجها.",
+  "promoteImageMake": "إنشاء الصورة",
+  "promoteImageRemake": "إنشاء من جديد"
 }

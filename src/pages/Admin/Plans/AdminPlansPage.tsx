@@ -212,6 +212,11 @@ export default function AdminPlansPage() {
       label: t('jobsTelegramPosting', 'adminPlans'),
       path: 'jobs.telegramPosting',
     },
+    {
+      kind: 'boolean',
+      label: t('jobsSocialPosting', 'adminPlans'),
+      path: 'jobs.socialPosting',
+    },
     { kind: 'section', label: t('sectionUsers', 'adminPlans') },
     { kind: 'limit', label: t('usersTotal', 'adminPlans'), path: 'users.total' },
     {

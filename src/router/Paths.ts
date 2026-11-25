@@ -25,6 +25,7 @@ export const paths = {
   recruiting: {
     root: '/recruiting',
     companySettings: '/recruiting/company-settings',
+    metaCallback: '/integrations/meta/callback',
     interviewSettings: '/recruiting/interview-settings',
     subscription: '/recruiting/subscription',
     plans: '/recruiting/subscription/plans',

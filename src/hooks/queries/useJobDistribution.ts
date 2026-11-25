@@ -1,10 +1,56 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { jobDistributionService, type TelegramState } from '../../services/jobDistributionService';
+import { jobDistributionService, type MetaState, type TelegramState } from '../../services/jobDistributionService';
 
 export const jobDistributionKeys = {
   telegram: (companyId: string) => ['jobDistribution', 'telegram', companyId] as const,
   job: (jobId: string) => ['jobDistribution', 'job', jobId] as const,
+  meta: (companyId: string) => ['jobDistribution', 'meta', companyId] as const,
 };
+
+export function useMetaPages(companyId?: string, enabled = true) {
+  return useQuery({
+    queryKey: jobDistributionKeys.meta(companyId ?? ''),
+    queryFn: () => jobDistributionService.meta(companyId!),
+    enabled: Boolean(companyId) && enabled,
+    staleTime: 60_000,
+  });
+}
+
+function useSetMetaState() {
+  const queryClient = useQueryClient();
+  return (companyId: string, data: MetaState) => queryClient.setQueryData(jobDistributionKeys.meta(companyId), data);
+}
+
+export function useUpdateMetaPage() {
+  const setState = useSetMetaState();
+  return useMutation({
+    mutationFn: jobDistributionService.updateMetaPage,
+    onSuccess: (data, vars) => setState(vars.companyId, data),
+  });
+}
+
+export function useDisconnectMeta() {
+  const setState = useSetMetaState();
+  return useMutation({
+    mutationFn: (companyId: string) => jobDistributionService.disconnectMeta(companyId),
+    onSuccess: (data, companyId) => setState(companyId, data),
+  });
+}
+
+export function usePostJobToMeta() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (p: { jobId: string; pageId: string; platform: 'facebook' | 'instagram'; companyId: string }) =>
+      jobDistributionService.postToMeta(p),
+    onSuccess: (data, vars) => {
+      queryClient.setQueryData(jobDistributionKeys.job(vars.jobId), (old: any) => ({
+        ...(old || { open: true, socialImage: null }),
+        distribution: data.distribution,
+      }));
+      queryClient.invalidateQueries({ queryKey: jobDistributionKeys.meta(vars.companyId) });
+    },
+  });
+}
 
 export function useTelegramChannels(companyId?: string, enabled = true) {
   return useQuery({

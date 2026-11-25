@@ -7,6 +7,7 @@ import {
   DownloadIcon,
   ExternalLinkIcon,
   GlobeIcon,
+  ImageIcon,
   Loader2Icon,
   SendIcon,
   SparklesIcon,
@@ -15,16 +16,28 @@ import { useLocale } from '../../context/LocaleContext';
 import { useAuth } from '../../context/AuthContext';
 import { Badge, Button, Dialog, Segmented, textareaClass } from '../ui/kit';
 import { buildJobLink } from '../../utils/publicJobLinks';
+import { useQueryClient } from '@tanstack/react-query';
 import {
+  jobDistributionKeys,
   useJobDistribution,
+  useMetaPages,
+  usePostJobToMeta,
   usePostJobToTelegram,
   useTelegramChannels,
   useWriteJobPosts,
 } from '../../hooks/queries/useJobDistribution';
-import type { SharePlatform } from '../../services/jobDistributionService';
+import { jobDistributionService, type SharePlatform } from '../../services/jobDistributionService';
+import { uploadToR2 } from '../../utils/uploadToR2';
 import { paths } from '../../router/Paths';
 
 type Lang = 'en' | 'ar';
+
+/** A plain "f" mark (lucide's brand icons are deprecated). */
+const FacebookMark = ({ className = '' }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className}>
+    <path d="M14 8h3V4h-3c-2.8 0-4.5 1.9-4.5 4.6V11H7v4h2.5v9h4v-9h3l.5-4h-3.5V8.8c0-.5.3-.8.5-.8Z" />
+  </svg>
+);
 
 const PLATFORMS: { value: SharePlatform; label: string }[] = [
   { value: 'linkedin', label: 'LinkedIn' },
@@ -153,7 +166,13 @@ export default function PromoteJobDialog({ job, open, onClose }: Props) {
 
   const { data: telegram } = useTelegramChannels(companyId, open);
   const { data: dist } = useJobDistribution(jobId, open);
+  const { data: meta } = useMetaPages(companyId, open);
   const postTelegram = usePostJobToTelegram();
+  const postMeta = usePostJobToMeta();
+  const queryClient = useQueryClient();
+  const [socialBusy, setSocialBusy] = useState(false);
+  const [socialError, setSocialError] = useState<string | null>(null);
+  const autoImageFor = useRef<string | null>(null);
   const writePosts = useWriteJobPosts();
 
   useEffect(() => {
@@ -173,6 +192,87 @@ export default function PromoteJobDialog({ job, open, onClose }: Props) {
   const hasEnglish = Boolean(job && (job.bilingual || job.language !== 'ar'));
 
   const googleEntry = dist?.distribution.find((d) => d.channel === 'google');
+  const metaEntries = useMemo(
+    () =>
+      new Map(
+        (dist?.distribution || [])
+          .filter((d) => d.channel === 'facebook' || d.channel === 'instagram')
+          .map((d) => [d.channel + ':' + d.target, d])
+      ),
+    [dist]
+  );
+  const metaPages = meta?.allowedByPlan ? meta.pages : [];
+  const wantsInstagram = metaPages.some((p) => p.instagram && p.instagramAutoPost);
+
+  /** The square card as a canvas (drops the logo if it would block export). */
+  const renderCard = async () => {
+    const render = () =>
+      html2canvas(cardRef.current!, { scale: 1, useCORS: true, backgroundColor: '#0f172a', logging: false });
+    try {
+      const canvas = await render();
+      canvas.toDataURL(); // throws when a cross-origin logo tainted it
+      return canvas;
+    } catch {
+      cardRef.current!.querySelector('img')?.remove();
+      return render();
+    }
+  };
+
+  /** Makes the job's JPEG card, stores it and records it on the job (Instagram needs it). */
+  const makeSocialImage = async () => {
+    if (!cardRef.current || !job) return null;
+    const canvas = await renderCard();
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+    if (!blob) throw new Error('Could not create the image');
+    const file = new File([blob], (job.slug || 'job') + '-' + lang + '.jpg', { type: 'image/jpeg' });
+    const url = await uploadToR2(file, 'job-images');
+    const { socialImage } = await jobDistributionService.saveSocialImage({ jobId: job._id, url, language: lang });
+    queryClient.setQueryData(jobDistributionKeys.job(job._id), (old: any) => (old ? { ...old, socialImage } : old));
+    return socialImage;
+  };
+
+  // Instagram auto-posting waits for the job image: make it once, quietly,
+  // when someone who can post opens this for an open job that has none yet.
+  useEffect(() => {
+    if (!open || !job || !canPost || !dist || dist.socialImage || !dist.open || !wantsInstagram) return;
+    if (autoImageFor.current === job._id) return;
+    autoImageFor.current = job._id;
+    const timer = window.setTimeout(() => {
+      makeSocialImage().catch(() => {
+        /* the image row offers to try again */
+      });
+    }, 600);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, job?._id, canPost, dist, wantsInstagram]);
+
+  const onMakeImage = async () => {
+    setSocialBusy(true);
+    setSocialError(null);
+    try {
+      await makeSocialImage();
+    } catch (err) {
+      setSocialError((err as Error)?.message || String(err));
+    } finally {
+      setSocialBusy(false);
+    }
+  };
+
+  const onPostMeta = async (pageId: string, platform: 'facebook' | 'instagram') => {
+    if (!job || !companyId) return;
+    setSocialError(null);
+    try {
+      if (platform === 'instagram' && !dist?.socialImage) {
+        setSocialBusy(true);
+        await makeSocialImage();
+      }
+      await postMeta.mutateAsync({ jobId: job._id, pageId, platform, companyId });
+    } catch (err) {
+      setSocialError((err as Error)?.message || String(err));
+    } finally {
+      setSocialBusy(false);
+    }
+  };
   const telegramEntries = useMemo(
     () => new Map((dist?.distribution || []).filter((d) => d.channel === 'telegram').map((d) => [d.target, d])),
     [dist]
@@ -221,16 +321,7 @@ export default function PromoteJobDialog({ job, open, onClose }: Props) {
     if (!cardRef.current) return;
     setImageBusy(true);
     try {
-      const render = () =>
-        html2canvas(cardRef.current!, { scale: 1, useCORS: true, backgroundColor: null, logging: false });
-      let canvas: HTMLCanvasElement;
-      try {
-        canvas = await render();
-        canvas.toDataURL(); // throws when a cross-origin logo tainted it
-      } catch {
-        cardRef.current.querySelector('img')?.remove();
-        canvas = await render();
-      }
+      const canvas = await renderCard();
       const a = document.createElement('a');
       a.href = canvas.toDataURL('image/png');
       a.download = `${job.slug || 'job'}-${lang}.png`;
@@ -340,6 +431,112 @@ export default function PromoteJobDialog({ job, open, onClose }: Props) {
               </p>
             )}
           </div>
+
+          {meta?.configured && (
+            <div className="rounded-lg border border-slate-200 dark:border-slate-700">
+              <div className="flex items-start gap-3 p-3">
+                <FacebookMark className="mt-0.5 size-4 shrink-0 text-slate-400" />
+                <div className="min-w-0 flex-1 text-sm">
+                  <p className="font-medium text-slate-800 dark:text-slate-100">{t('promoteMetaTitle', 'jobs')}</p>
+                  {!meta.allowedByPlan ? (
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{t('promoteMetaNotOnPlan', 'jobs')}</p>
+                  ) : metaPages.length === 0 ? (
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      {t('promoteMetaNoPages', 'jobs')}{' '}
+                      <Link to={paths.recruiting.companySettings} className="font-medium text-brand-600 hover:underline dark:text-brand-400">
+                        {t('promoteTgConnect', 'jobs')}
+                      </Link>
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+              {metaPages.length > 0 && (
+                <ul className="divide-y divide-slate-100 border-t border-slate-100 dark:divide-slate-800 dark:border-slate-800">
+                  {metaPages.flatMap((p) => {
+                    const rows: { platform: 'facebook' | 'instagram'; target: string; name: string; auto: boolean }[] = [
+                      { platform: 'facebook', target: p.pageId, name: p.name, auto: p.facebookAutoPost },
+                    ];
+                    if (p.instagram) {
+                      rows.push({ platform: 'instagram', target: p.instagram.id, name: '@' + p.instagram.username, auto: p.instagramAutoPost });
+                    }
+                    return rows.map((r) => {
+                      const entry = metaEntries.get(r.platform + ':' + r.target);
+                      const busy =
+                        (postMeta.isPending && postMeta.variables?.pageId === p.pageId && postMeta.variables?.platform === r.platform) ||
+                        (socialBusy && r.platform === 'instagram');
+                      return (
+                        <li key={r.platform + ':' + r.target} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+                          <div className="min-w-0 text-sm">
+                            <p className="truncate text-slate-700 dark:text-slate-200">
+                              <span className="text-slate-500 dark:text-slate-400">{r.platform === 'facebook' ? 'Facebook' : 'Instagram'} · </span>
+                              {r.name}
+                            </p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                              {entry?.status === 'posted' ? (
+                                <>
+                                  {t('promoteTgPosted', 'jobs', { date: new Date(entry.postedAt || '').toLocaleString() })}
+                                  {entry.url && (
+                                    <a href={entry.url} target="_blank" rel="noopener noreferrer" className="ms-1 inline-flex items-center gap-0.5 text-brand-600 hover:underline dark:text-brand-400">
+                                      {t('promoteView', 'jobs')} <ExternalLinkIcon className="size-3" />
+                                    </a>
+                                  )}
+                                </>
+                              ) : entry?.status === 'failed' ? (
+                                <span className="text-amber-700 dark:text-amber-400">{entry.error}</span>
+                              ) : r.auto ? (
+                                r.platform === 'instagram' && !dist?.socialImage ? t('promoteIgWaitsImage', 'jobs') : t('promoteTgAuto', 'jobs')
+                              ) : (
+                                t('promoteMetaNotPosted', 'jobs')
+                              )}
+                            </p>
+                          </div>
+                          {canPost && (
+                            <Button
+                              size="sm"
+                              loading={busy}
+                              disabled={(dist ? !dist.open : false) || socialBusy || postMeta.isPending}
+                              onClick={() => onPostMeta(p.pageId, r.platform)}
+                            >
+                              {entry?.status === 'posted' ? t('promotePostAgain', 'jobs') : t('promotePostNow', 'jobs')}
+                            </Button>
+                          )}
+                        </li>
+                      );
+                    });
+                  })}
+                  {metaPages.some((p) => p.instagram) && (
+                    <li className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+                      <div className="flex min-w-0 items-center gap-2 text-sm">
+                        {dist?.socialImage ? (
+                          <a href={dist.socialImage.url} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                            <img src={dist.socialImage.url} alt="" className="size-10 rounded object-cover" />
+                          </a>
+                        ) : (
+                          <ImageIcon className="size-4 shrink-0 text-slate-400" />
+                        )}
+                        <div className="min-w-0">
+                          <p className="text-slate-700 dark:text-slate-200">{t('promoteImageTitle', 'jobs')}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                            {dist?.socialImage
+                              ? t('promoteImageReady', 'jobs', { date: new Date(dist.socialImage.createdAt).toLocaleString() })
+                              : t('promoteImageNone', 'jobs')}
+                          </p>
+                        </div>
+                      </div>
+                      {canPost && (
+                        <Button size="sm" loading={socialBusy && !postMeta.isPending} disabled={socialBusy} onClick={onMakeImage}>
+                          {dist?.socialImage ? t('promoteImageRemake', 'jobs') : t('promoteImageMake', 'jobs')}
+                        </Button>
+                      )}
+                    </li>
+                  )}
+                </ul>
+              )}
+              {socialError && (
+                <p className="border-t border-slate-100 px-3 py-2 text-xs text-rose-600 dark:border-slate-800">{socialError}</p>
+              )}
+            </div>
+          )}
         </section>
 
         {/* ── Share kit ─────────────────────────────────────────── */}

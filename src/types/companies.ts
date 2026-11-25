@@ -359,6 +359,7 @@ export interface PlanFeatures {
     postLimit: PlanLimitFeature;
     useSavedFields: PlanBooleanFeature;
     telegramPosting: PlanBooleanFeature;
+    socialPosting: PlanBooleanFeature;
   };
   users: {
     total: PlanLimitFeature;

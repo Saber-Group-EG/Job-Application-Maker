@@ -76,5 +76,6 @@
   "applicantVerificationEmail": "توثيق المتقدمين برمز على البريد الإلكتروني",
   "applicantVerificationWhatsapp": "توثيق المتقدمين برمز على واتساب",
   "jobsTelegramPosting": "نشر الوظائف على قنوات تيليجرام",
-  "featureJobPostWriter": "كتابة منشورات الوظائف بالذكاء الاصطناعي"
+  "featureJobPostWriter": "كتابة منشورات الوظائف بالذكاء الاصطناعي",
+  "jobsSocialPosting": "نشر الوظائف على صفحات فيسبوك وإنستجرام"
 }
