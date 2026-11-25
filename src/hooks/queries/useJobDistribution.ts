@@ -29,6 +29,22 @@ export function useAddTelegramChannel() {
   });
 }
 
+export function useCheckTelegramPending() {
+  const setState = useSetTelegramState();
+  return useMutation({
+    mutationFn: (companyId: string) => jobDistributionService.checkPending(companyId),
+    onSuccess: (data, companyId) => setState(companyId, data),
+  });
+}
+
+export function useCancelTelegramPending() {
+  const setState = useSetTelegramState();
+  return useMutation({
+    mutationFn: (companyId: string) => jobDistributionService.cancelPending(companyId),
+    onSuccess: (data, companyId) => setState(companyId, data),
+  });
+}
+
 export function useUpdateTelegramChannel() {
   const setState = useSetTelegramState();
   return useMutation({

@@ -27,7 +27,18 @@ export interface TelegramState {
   allowedByPlan: boolean;
   planReason: string | null;
   channels: TelegramChannel[];
+  /** A channel waiting for its ownership code to be posted in it. */
+  pending: TelegramPending | null;
   googleIndexing: boolean;
+}
+
+export interface TelegramPending {
+  chatId: string;
+  title: string;
+  username: string | null;
+  type: string;
+  code: string;
+  expiresAt: string;
 }
 
 export type SharePlatform = 'linkedin' | 'facebook' | 'instagram' | 'whatsapp' | 'x' | 'telegram';
@@ -57,6 +68,10 @@ export const jobDistributionService = {
     call<TelegramState>(() => axios.get('/job-distribution/telegram', { params: { companyId } })),
   addChannel: (p: { companyId: string; chat: string; autoPost?: boolean }) =>
     call<TelegramState>(() => axios.post('/job-distribution/telegram/channels', p)),
+  checkPending: (companyId: string) =>
+    call<TelegramState>(() => axios.post('/job-distribution/telegram/pending/check', { companyId })),
+  cancelPending: (companyId: string) =>
+    call<TelegramState>(() => axios.delete('/job-distribution/telegram/pending', { params: { companyId } })),
   updateChannel: (p: { companyId: string; channelId: string; autoPost: boolean }) =>
     call<TelegramState>(() =>
       axios.patch(`/job-distribution/telegram/channels/${p.channelId}`, { companyId: p.companyId, autoPost: p.autoPost })
