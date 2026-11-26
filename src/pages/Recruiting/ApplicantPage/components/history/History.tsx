@@ -1,9 +1,8 @@
 import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import {
   Briefcase,
-  CheckCircle2,
   FileSignature,
   History as HistoryIcon,
 } from 'lucide-react';
@@ -20,18 +19,14 @@ import {
 } from '../../../../../services/jobContractsService';
 import { useJobOffer } from '../../../../../hooks/queries/useJobOffers';
 import {
-  applicantsKeys,
   useApplicantsByPhone,
-  useDeleteInterview,
 } from '../../../../../hooks/queries/useApplicants';
-import type { Applicant, Interview } from '../../../../../types/applicants';
-import Swal from '../../../../../utils/swal';
+import type { Applicant } from '../../../../../types/applicants';
 import { useLocale } from '../../../../../context/LocaleContext';
 import { paths } from '../../../../../router/Paths';
 import JobOfferHistory from './JobOfferHistory';
 import ContractHistory from './ContractHistory';
 import PreviousEntriesHistory from './PreviousEntriesHistory';
-import CompletedInterviewsHistory from './CompletedInterviewsHistory';
 
 type Props = {
   applicant: Applicant;
@@ -42,11 +37,7 @@ type OfferRow = JobOffer & {
   jobPositionId?: { title?: unknown };
 };
 
-type CompletedInterview = Interview & {
-  id?: string;
-};
-
-type HistorySubTab = 'previous' | 'offers' | 'contracts' | 'interviews';
+type HistorySubTab = 'previous' | 'offers' | 'contracts';
 
 type TabConfig = {
   key: HistorySubTab;
@@ -55,14 +46,12 @@ type TabConfig = {
 
 const SUB_TABS: TabConfig[] = [
   { key: 'previous', icon: HistoryIcon },
-  { key: 'interviews', icon: CheckCircle2 },
   { key: 'offers', icon: Briefcase },
   { key: 'contracts', icon: FileSignature },
 ];
 
 const SUB_TAB_LABEL_KEYS: Record<HistorySubTab, string> = {
   previous: 'previousEntries',
-  interviews: 'completedInterviews',
   offers: 'jobOffers',
   contracts: 'jobContracts',
 };
@@ -167,7 +156,6 @@ function getApplicantCompanyId(applicantItem: Record<string, unknown>): string {
 
 export default function History({ applicant, loading = false }: Props) {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const { t } = useLocale();
   const applicantId = String(applicant?._id || '');
   const applicantPhone = useMemo(
@@ -259,8 +247,6 @@ export default function History({ applicant, loading = false }: Props) {
       companyId: applicantCompanyId || undefined,
     });
 
-  const deleteInterviewMutation = useDeleteInterview();
-
   const filteredPreviousApplicants = useMemo(() => {
     if (!previousApplicants || !Array.isArray(previousApplicants)) return [];
     const filtered = previousApplicants.filter(
@@ -317,14 +303,6 @@ export default function History({ applicant, loading = false }: Props) {
     );
   }, [jobContracts, applicantCompanyId]);
 
-  const completedInterviews = useMemo<CompletedInterview[]>(() => {
-    const list = (applicant?.interviews || []) as CompletedInterview[];
-    return list.filter(
-      (interview) =>
-        String(interview?.status || '').toLowerCase() === 'completed'
-    );
-  }, [applicant?.interviews]);
-
   const normalizedOfferDetail = useMemo(
     () => extractJobOffer(selectedOfferDetail),
     [selectedOfferDetail]
@@ -357,34 +335,6 @@ export default function History({ applicant, loading = false }: Props) {
     setIsContractModalOpen(true);
   };
 
-  const invalidateApplicant = () => {
-    if (!applicantId) return;
-    queryClient.invalidateQueries({
-      queryKey: applicantsKeys.detail(applicantId),
-    });
-  };
-
-  const handleDeleteInterview = async (interview: CompletedInterview) => {
-    const interviewId = String(interview?._id || interview?.id || '');
-    if (!applicantId || !interviewId) return;
-    const result = await Swal.fire({
-      title: t('deleteInterviewTitle', 'applicants'),
-      text: t('actionCannotBeUndone', 'common'),
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: t('delete', 'common'),
-      cancelButtonText: t('cancel', 'common'),
-      confirmButtonColor: '#dc2626',
-    });
-    if (!result.isConfirmed) return;
-    try {
-      await deleteInterviewMutation.mutateAsync({ applicantId, interviewId });
-      invalidateApplicant();
-    } catch (error) {
-      void error;
-    }
-  };
-
   const renderSubTabContent = () => {
     if (loading) {
       return <div className="h-48 rounded-lg bg-gray-100 animate-pulse" />;
@@ -413,15 +363,6 @@ export default function History({ applicant, loading = false }: Props) {
             isLoading={isContractsLoading}
             contracts={filteredContracts}
             onSelectContract={handleContractSelect}
-          />
-        );
-      case 'interviews':
-        return (
-          <CompletedInterviewsHistory
-            isLoading={false}
-            interviews={completedInterviews}
-            applicantId={applicantId}
-            onDelete={handleDeleteInterview}
           />
         );
       default:

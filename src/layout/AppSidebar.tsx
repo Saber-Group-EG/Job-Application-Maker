@@ -362,17 +362,25 @@ const AppSidebar: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname, location.search, isActive, applicantPageSubItems]);
 
+  // Measure the open submenu, and measure again whenever its contents change
+  // size: after a refresh the menu opens before "My pages" have loaded, and a
+  // height taken only once would cut off the pages that arrive later.
   useEffect(() => {
-    if (openSubmenu !== null) {
-      const key = `${openSubmenu.section}-${openSubmenu.index}`;
-      if (subMenuRefs.current[key]) {
-        setSubMenuHeight((prevHeights) => ({
-          ...prevHeights,
-          [key]: subMenuRefs.current[key]?.scrollHeight || 0,
-        }));
-      }
-    }
-  }, [openSubmenu]);
+    if (openSubmenu === null) return;
+    const key = `${openSubmenu.section}-${openSubmenu.index}`;
+    const el = subMenuRefs.current[key];
+    if (!el) return;
+    const measure = () =>
+      setSubMenuHeight((prevHeights) =>
+        prevHeights[key] === el.scrollHeight ? prevHeights : { ...prevHeights, [key]: el.scrollHeight }
+      );
+    measure();
+    const inner = el.firstElementChild;
+    if (!inner || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(inner);
+    return () => observer.disconnect();
+  }, [openSubmenu, isExpanded, isHovered, isMobileOpen]);
 
   const handleSubmenuToggle = (index: number, menuType: string) => {
     setOpenSubmenu((prevOpenSubmenu) => {
