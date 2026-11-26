@@ -193,21 +193,43 @@ export default function DashboardSections({ companyIds, companies }: { companyId
   const canSeeAiUsage = Boolean(hasPermission?.('Billing Management', 'read') || hasPermission?.('Company Management', 'write'));
   const companyName = (id: string) => toPlainString(companies.find((c: any) => (c._id || c.id) === id)?.name, locale) || '';
 
+  // Companies with an AI usage card get their plan meters inside it, so the
+  // plan has one card; the separate plan card keeps only the others.
+  const aiCardIds = canSeeAiUsage ? (companyIds ?? []).slice(0, 3) : [];
+  const planFor = (id: string) => data?.planUsage?.find((c) => c.companyId === id);
+  const nFmt = (v: number) => Math.round(v).toLocaleString(locale === 'ar' ? 'ar-EG' : 'en-US');
+  const requestsMeter = (id: string) => {
+    const r = planFor(id)?.requests;
+    if (!r) return undefined;
+    return r.unlimited ? (
+      <p className="text-sm text-slate-600 dark:text-slate-300">{t('planUnlimited', 'home')}</p>
+    ) : (
+      <Meter label={t('planRequests', 'home', { plan: r.planName || '' })} used={r.used} limit={r.limit} format={nFmt} />
+    );
+  };
+  const otherPlanUsage = data?.planUsage?.filter((c) => !aiCardIds.includes(c.companyId));
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <NeedsAttention data={data?.attention} loading={isLoading} />
         <RecentActivity data={data?.activity} loading={isLoading} />
       </div>
-      {data?.planUsage && <PlanUsage data={data.planUsage} companyName={companyName} />}
-      {canSeeAiUsage &&
-        (companyIds ?? []).slice(0, 3).map((id) => (
+      {otherPlanUsage && otherPlanUsage.length > 0 && <PlanUsage data={otherPlanUsage} companyName={companyName} />}
+      {aiCardIds.map((id) => {
+        const plan = planFor(id);
+        const hasPlan = Boolean(plan && (plan.requests || plan.ai));
+        const baseTitle = t(hasPlan ? 'aiUsage.titleWithPlan' : 'aiUsage.title', 'home');
+        return (
           <AiUsageCard
             key={id}
             companyId={id}
-            title={(companyIds ?? []).length > 1 ? `${t('aiUsage.title', 'home')} · ${companyName(id)}` : undefined}
+            title={(companyIds ?? []).length > 1 ? `${baseTitle} · ${companyName(id)}` : undefined}
+            planMeter={hasPlan ? requestsMeter(id) ?? null : undefined}
+            manageHref={hasPlan ? '/recruiting/subscription' : undefined}
           />
-        ))}
+        );
+      })}
       {hasPermission?.('Applicant Management', 'read') && (
         <Link
           to={paths.reports}

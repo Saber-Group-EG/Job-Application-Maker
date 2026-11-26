@@ -95,5 +95,6 @@
   "aiUsage.total": "Total",
   "aiUsage.feature.offerGenerator": "Offer letter writer",
   "aiUsage.feature.contractGenerator": "Contract writer",
-  "aiUsage.how": "Every AI request made for this company is recorded with what it cost, which feature made it and who made it.\nSpend by feature adds up the cost of each feature's requests in the chosen period; the % is its share of the period's total.\nFailed requests are ones the AI service didn't finish; any cost they had still counts.\nTokens are the text sent to and received from the AI (in / out in the tooltip).\nThis billing cycle starts when the company's monthly AI credits last reset. The bar shows the cycle's credits used out of the monthly limit (plus any extra credits granted)."
+  "aiUsage.how": "Every AI request made for this company is recorded with what it cost, which feature made it and who made it.\nSpend by feature adds up the cost of each feature's requests in the chosen period; the % is its share of the period's total.\nFailed requests are ones the AI service didn't finish; any cost they had still counts.\nTokens are the text sent to and received from the AI (in / out in the tooltip).\nThis billing cycle starts when the company's monthly AI credits last reset. The bar shows the cycle's credits used out of the monthly limit (plus any extra credits granted).",
+  "aiUsage.titleWithPlan": "Plan usage & AI credits"
 }

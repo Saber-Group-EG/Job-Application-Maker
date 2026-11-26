@@ -1,7 +1,8 @@
 // Where a company's AI credits went: spend per AI feature, spend per day and
 // a table with calls, failures and tokens. Data: GET /dashboard/ai-usage.
 // Shown on the homepage and the AI Features page.
-import { lazy, Suspense, useMemo, useState } from 'react';
+import { lazy, Suspense, useMemo, useState, type ReactNode } from 'react';
+import { Link } from 'react-router';
 import type { ApexOptions } from 'apexcharts';
 import { Sparkles } from 'lucide-react';
 import { useLocale } from '../../context/LocaleContext';
@@ -40,7 +41,19 @@ function eachDay(fromIso: string, toIso: string) {
   return out;
 }
 
-export default function AiUsageCard({ companyId, title }: { companyId: string; title?: string }) {
+export default function AiUsageCard({
+  companyId,
+  title,
+  planMeter,
+  manageHref,
+}: {
+  companyId: string;
+  title?: string;
+  /** The plan's request meter, shown with the AI credit meter so the plan has one card. */
+  planMeter?: ReactNode;
+  /** Where the plan is managed ("Manage plan" link in the header). */
+  manageHref?: string;
+}) {
   const { t, locale } = useLocale();
   const [range, setRange] = useState<AiUsageRange>('cycle');
   const { data, isLoading, isError } = useAiUsageBreakdown(companyId, range);
@@ -53,31 +66,42 @@ export default function AiUsageCard({ companyId, title }: { companyId: string; t
     return out && out !== key ? out : feature;
   };
 
-  if (isError) return null;
-  if (data && !data.enabled && data.totals.calls === 0) return null;
+  const noAi = isError || (data && !data.enabled && data.totals.calls === 0);
+  if (noAi && !planMeter) return null;
 
   const select =
     'h-8 rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200';
 
   return (
     <Card
-      title={title || t('aiUsage.title', 'home')}
+      title={title || t(planMeter ? 'aiUsage.titleWithPlan' : 'aiUsage.title', 'home')}
       icon={<Sparkles className="size-4" />}
-      info={t('aiUsage.how', 'home').split('\n')}
+      info={noAi ? undefined : t('aiUsage.how', 'home').split('\n')}
       action={
-        <select className={select} value={range} onChange={(e) => setRange(e.target.value as AiUsageRange)} aria-label={t('aiUsage.range', 'home')}>
-          <option value="cycle">{t('aiUsage.rangeCycle', 'home')}</option>
-          <option value="30">{t('aiUsage.range30', 'home')}</option>
-          <option value="90">{t('aiUsage.range90', 'home')}</option>
-        </select>
+        <div className="flex items-center gap-3">
+          {!noAi && (
+            <select className={select} value={range} onChange={(e) => setRange(e.target.value as AiUsageRange)} aria-label={t('aiUsage.range', 'home')}>
+              <option value="cycle">{t('aiUsage.rangeCycle', 'home')}</option>
+              <option value="30">{t('aiUsage.range30', 'home')}</option>
+              <option value="90">{t('aiUsage.range90', 'home')}</option>
+            </select>
+          )}
+          {manageHref && (
+            <Link to={manageHref} className="whitespace-nowrap text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">
+              {t('planManage', 'home')}
+            </Link>
+          )}
+        </div>
       }
     >
-      {isLoading && !data ? (
+      {noAi ? (
+        planMeter
+      ) : isLoading && !data ? (
         <Skeleton rows={5} />
       ) : !data ? (
         <Empty text={t('noData', 'home')} />
       ) : (
-        <AiUsageBody data={data} dark={dark} lc={lc} num={num} label={label} />
+        <AiUsageBody data={data} dark={dark} lc={lc} num={num} label={label} planMeter={planMeter} />
       )}
     </Card>
   );
@@ -89,12 +113,14 @@ function AiUsageBody({
   lc,
   num,
   label,
+  planMeter,
 }: {
   data: AiUsageBreakdown;
   dark: boolean;
   lc: string;
   num: (v: number) => string;
   label: (feature: string) => string;
+  planMeter?: ReactNode;
 }) {
   const { t } = useLocale();
   const axis = dark ? '#94a3b8' : '#64748b';
@@ -207,6 +233,8 @@ function AiUsageBody({
         <Stat label={t('aiUsage.failed', 'home')} value={num(data.totals.failed)} />
         <Stat label={t('aiUsage.features', 'home')} value={num(features.length)} />
       </div>
+
+      {planMeter}
 
       {cycle.limit > 0 && (
         <div>
