@@ -7,7 +7,12 @@ import { useMatch } from 'react-router';
 import { useUndo } from '../../context/UndoContext';
 import type { FormDraft } from '../../hooks/useFormDraft';
 import ModalDraft from './ModalDraft';
-import { Flag, Mail, MessageCircle, X } from 'lucide-react';
+import { ExternalLink, Flag, Mail, MessageCircle, X } from 'lucide-react';
+import { Link } from 'react-router';
+import { useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '../../context/AuthContext';
+import { companiesKeys } from '../../hooks/queries/useCompanies';
+import { paths } from '../../router/Paths';
 import { useWhatsAppStatus } from '../../hooks/queries/useCompanies';
 import { isNoShowStatus, reasonsForStatus, settingsOf } from '../../utils/noShow';
 
@@ -54,6 +59,36 @@ export default function StatusChangeModal({
 }: Props) {
   const { t } = useLocale();
   const { offerUndo } = useUndo();
+  const { hasPermission } = useAuth();
+  const canManageLists =
+    hasPermission('Interview Settings Management', 'read') ||
+    hasPermission('Company Management', 'read') ||
+    hasPermission('Settings Management', 'read');
+  // Statuses and reasons are edited in a new tab; reload them when the person comes back.
+  const queryClient = useQueryClient();
+  const openedManage = useRef(false);
+  useEffect(() => {
+    const onFocus = () => {
+      if (!openedManage.current) return;
+      openedManage.current = false;
+      queryClient.invalidateQueries({ queryKey: companiesKeys.all });
+    };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [queryClient]);
+  const manageLink = (to: string) =>
+    canManageLists ? (
+      <Link
+        to={to}
+        target="_blank"
+        rel="noopener"
+        onClick={() => (openedManage.current = true)}
+        className="inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400"
+      >
+        {t('manageList', 'modals')}
+        <ExternalLink className="size-3" />
+      </Link>
+    ) : null;
   const resolvedCompanySettings = companySettings;
 
   // Notes and rejection reasons survive a refresh or closing the modal. Only on
@@ -423,7 +458,10 @@ export default function StatusChangeModal({
 
             {/* Status selector */}
             <div>
-              <Label htmlFor="status-select">{t('newStatus', 'modals')}</Label>
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="status-select">{t('newStatus', 'modals')}</Label>
+                {manageLink(paths.applicants.statuses)}
+              </div>
               <Select
                 options={filteredStatusOptions}
                 placeholder={t('selectNewStatus', 'modals')}
@@ -513,13 +551,16 @@ export default function StatusChangeModal({
                     : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700'
                 }`}
               >
-                <Label>
-                  {isRejected
-                    ? t('reasonsForRejection', 'modals')
-                    : isNoShow
-                      ? t('reasonsForNoShow', 'modals')
-                      : t('reasonsOptional', 'modals')}
-                </Label>
+                <div className="flex items-center justify-between gap-2">
+                  <Label>
+                    {isRejected
+                      ? t('reasonsForRejection', 'modals')
+                      : isNoShow
+                        ? t('reasonsForNoShow', 'modals')
+                        : t('reasonsOptional', 'modals')}
+                  </Label>
+                  {manageLink(paths.applicants.rejectionReasons)}
+                </div>
 
                 {/* Selected chips */}
                 <div className="flex flex-wrap gap-2 mt-2 mb-3 p-2 border border-slate-300 dark:border-slate-600 rounded-lg min-h-[42px] bg-white dark:bg-slate-800">

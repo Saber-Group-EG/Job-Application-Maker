@@ -131,10 +131,6 @@ const AppSidebar: React.FC = () => {
   );
 
   const can = hasPermission;
-  const canSeeCompanySettings =
-    can('Interview Settings Management', 'read') ||
-    can('Company Management', 'read') ||
-    can('Settings Management', 'read');
   // The AI features API needs Company Management write, so only people who
   // can switch them see the page.
   const canManageAiFeatures = can('Company Management', 'write');
@@ -168,20 +164,6 @@ const AppSidebar: React.FC = () => {
           tKey: 'importApplicants',
           path: '/applicants/blue-caller',
           show: can('Applicant Management', 'create'),
-          group: 'groupApplicantSetup',
-        },
-        {
-          name: 'Statuses',
-          tKey: 'applicantStatuses',
-          path: '/applicants/statuses',
-          show: canSeeCompanySettings,
-          group: 'groupApplicantSetup',
-        },
-        {
-          name: 'Rejection Reasons',
-          tKey: 'rejectionReasons',
-          path: '/applicants/rejection-reasons',
-          show: canSeeCompanySettings,
           group: 'groupApplicantSetup',
         },
       ],

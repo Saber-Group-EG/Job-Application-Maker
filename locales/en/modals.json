@@ -472,5 +472,6 @@
   "noShowNotifyEmailResult": "Email: sent to {sent}.",
   "noShowNotifyEmailFailed": "Email not sent: {error}",
   "noShowNotifyDone": "Status updated and message sent",
-  "noShowNotifyPartly": "Status updated, but some messages weren't sent"
+  "noShowNotifyPartly": "Status updated, but some messages weren't sent",
+  "manageList": "Manage"
 }

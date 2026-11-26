@@ -472,5 +472,6 @@
   "noShowNotifyEmailResult": "البريد الإلكتروني: أُرسل إلى {sent}.",
   "noShowNotifyEmailFailed": "لم يُرسل البريد الإلكتروني: {error}",
   "noShowNotifyDone": "تم تحديث الحالة وإرسال الرسالة",
-  "noShowNotifyPartly": "تم تحديث الحالة، لكن لم تُرسل بعض الرسائل"
+  "noShowNotifyPartly": "تم تحديث الحالة، لكن لم تُرسل بعض الرسائل",
+  "manageList": "إدارة"
 }
