@@ -50,5 +50,7 @@
   "applicantStatuses": "Statuses",
   "rejectionReasons": "Rejection Reasons",
   "interviewQuestions": "Interview Questions",
-  "aiFeatures": "AI Features"
+  "aiFeatures": "AI Features",
+  "groupMyPages": "My pages",
+  "groupApplicantSetup": "Setup"
 }

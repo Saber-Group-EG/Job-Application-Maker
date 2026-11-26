@@ -26,6 +26,8 @@ type SubItem = {
   pro?: boolean;
   new?: boolean;
   show?: boolean;
+  /** Sidebar key of a small heading; a heading is drawn where the group changes. */
+  group?: string;
 };
 
 type NavItem = {
@@ -88,6 +90,7 @@ const AppSidebar: React.FC = () => {
         tKey: undefined as string | undefined,
         path: `/applicants/page/${encodeURIComponent(p.name)}?statuses=${(p.statuses || []).map(encodeURIComponent).join(',')}${p.jobPositions?.length ? `&jobPositions=${p.jobPositions.map(encodeURIComponent).join(',')}` : ''}`,
         pro: false,
+        group: 'groupMyPages',
       }));
   }, [myPages]);
 
@@ -152,30 +155,34 @@ const AppSidebar: React.FC = () => {
           path: '/applicants',
           show: can('Applicant Management', 'read'),
         },
-        {
-          name: 'Import Applicants',
-          tKey: 'importApplicants',
-          path: '/applicants/blue-caller',
-          show: can('Applicant Management', 'create'),
-        },
         ...applicantPageSubItems,
         {
           name: 'Manage my pages',
           tKey: 'manageMyPages',
           path: '/applicants/my-pages',
           show: can('Applicant Management', 'read'),
+          group: 'groupMyPages',
+        },
+        {
+          name: 'Import Applicants',
+          tKey: 'importApplicants',
+          path: '/applicants/blue-caller',
+          show: can('Applicant Management', 'create'),
+          group: 'groupApplicantSetup',
         },
         {
           name: 'Statuses',
           tKey: 'applicantStatuses',
           path: '/applicants/statuses',
           show: canSeeCompanySettings,
+          group: 'groupApplicantSetup',
         },
         {
           name: 'Rejection Reasons',
           tKey: 'rejectionReasons',
           path: '/applicants/rejection-reasons',
           show: canSeeCompanySettings,
+          group: 'groupApplicantSetup',
         },
       ],
     },
@@ -471,8 +478,13 @@ const AppSidebar: React.FC = () => {
                       <ul
                         className={`mt-2 space-y-1 ${dir === 'ltr' ? 'ml-9' : 'mr-9'}`}
                       >
-                        {visibleSubItems.map((subItem) => (
+                        {visibleSubItems.map((subItem, subIndex) => (
                           <li key={subItem.path}>
+                            {subItem.group && subItem.group !== visibleSubItems[subIndex - 1]?.group && (
+                              <p className="px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+                                {t(subItem.group)}
+                              </p>
+                            )}
                             <Link
                               to={subItem.path}
                               className={`menu-dropdown-item ${
