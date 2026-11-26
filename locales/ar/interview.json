@@ -205,5 +205,7 @@
   "completedInHistory": "المقابلات المنتهية موجودة في تبويب السجل.",
   "interviewerYou": "أنت",
   "locked": "مقفلة",
-  "missed": "فائتة"
+  "missed": "فائتة",
+  "manageQuestionGroups": "أضف مجموعات الأسئلة أو عدّلها:",
+  "addGroupsWithLinksAbove": "أضف مجموعات أسئلة من الروابط أعلاه ثم ارجع إلى هنا."
 }

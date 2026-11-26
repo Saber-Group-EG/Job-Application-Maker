@@ -205,5 +205,7 @@
   "completedInHistory": "Finished interviews are in the History tab.",
   "interviewerYou": "You",
   "locked": "Locked",
-  "missed": "Missed"
+  "missed": "Missed",
+  "manageQuestionGroups": "Add or edit question groups:",
+  "addGroupsWithLinksAbove": "Add question groups with the links above, then come back here."
 }

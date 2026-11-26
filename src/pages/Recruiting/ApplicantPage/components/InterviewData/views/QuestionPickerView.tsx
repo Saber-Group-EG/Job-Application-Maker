@@ -1,5 +1,10 @@
-import { useMemo } from 'react';
-import { ArrowLeft, Building2, CheckCircle2, Library, Loader2, Play, Save } from 'lucide-react';
+import { useEffect, useMemo, useRef } from 'react';
+import { Link } from 'react-router';
+import { useQueryClient } from '@tanstack/react-query';
+import { ArrowLeft, Building2, CheckCircle2, ExternalLink, Library, Loader2, Play, Save } from 'lucide-react';
+import { useAuth } from '../../../../../../context/AuthContext';
+import { companiesKeys, savedQuestionGroupsKeys } from '../../../../../../hooks/queries';
+import { paths } from '../../../../../../router/Paths';
 import type { PoolGroup } from '../hooks/useQuestionPool';
 import type { InterviewAnswer } from '../../../../../../types/applicants';
 import { useLocale } from '../../../../../../context/LocaleContext';
@@ -28,6 +33,56 @@ export const QuestionPickerView = ({
   scheduledAtLabel,
 }: QuestionPickerViewProps) => {
   const { t } = useLocale();
+  const { hasPermission } = useAuth();
+  const canManageCompanyQuestions =
+    hasPermission('Interview Settings Management', 'read') ||
+    hasPermission('Company Management', 'read') ||
+    hasPermission('Settings Management', 'read');
+
+  // The libraries are edited in a new tab; when the person comes back, reload
+  // them so new or changed groups show up here.
+  const queryClient = useQueryClient();
+  const openedManage = useRef(false);
+  useEffect(() => {
+    const onFocus = () => {
+      if (!openedManage.current) return;
+      openedManage.current = false;
+      queryClient.invalidateQueries({ queryKey: savedQuestionGroupsKeys.all });
+      queryClient.invalidateQueries({ queryKey: companiesKeys.all });
+    };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [queryClient]);
+
+  const manageLinks = (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+      <span className="text-slate-500">{t('manageQuestionGroups', 'interview')}</span>
+      {canManageCompanyQuestions && (
+        <Link
+          to={paths.jobs.interviewQuestions}
+          target="_blank"
+          rel="noopener"
+          onClick={() => (openedManage.current = true)}
+          className="inline-flex items-center gap-1 font-medium text-blue-600 hover:text-blue-700"
+        >
+          <Building2 className="h-3.5 w-3.5" />
+          {t('companyLibrary', 'interview')}
+          <ExternalLink className="h-3 w-3" />
+        </Link>
+      )}
+      <Link
+        to={paths.recruiting.savedQuestions}
+        target="_blank"
+        rel="noopener"
+        onClick={() => (openedManage.current = true)}
+        className="inline-flex items-center gap-1 font-medium text-blue-600 hover:text-blue-700"
+      >
+        <Library className="h-3.5 w-3.5" />
+        {t('myLibrary', 'interview')}
+        <ExternalLink className="h-3 w-3" />
+      </Link>
+    </div>
+  );
   const selectedCount = selectedKeys.length;
   const totalQuestions = useMemo(
     () =>
@@ -78,6 +133,7 @@ export const QuestionPickerView = ({
         </div>
       </div>
       <div className="p-6">
+        <div className="mb-4">{manageLinks}</div>
         {isLoading ? (
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
             {t('loadingQuestionLibrary', 'interview')}
@@ -87,7 +143,7 @@ export const QuestionPickerView = ({
             <Library className="mx-auto mb-3 h-10 w-10 text-slate-300" />
             <p className="text-sm font-medium text-slate-500">{t('noQuestionGroupsAvailable', 'interview')}</p>
             <p className="mt-1 text-xs text-slate-400">
-              {t('addGroupsInCompanySettings', 'interview')}
+              {t('addGroupsWithLinksAbove', 'interview')}
             </p>
           </div>
         ) : (

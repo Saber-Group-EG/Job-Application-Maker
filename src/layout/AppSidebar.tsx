@@ -202,17 +202,6 @@ const AppSidebar: React.FC = () => {
           path: '/job-contracts',
           show: can('Contract Management', 'read'),
         },
-        {
-          name: 'Interview Questions',
-          tKey: 'interviewQuestions',
-          path: '/jobs/interview-questions',
-          show: canSeeCompanySettings,
-        },
-        {
-          name: 'Saved Questions',
-          tKey: 'savedQuestions',
-          path: '/recruiting/saved-questions',
-        },
       ],
     },
     {
