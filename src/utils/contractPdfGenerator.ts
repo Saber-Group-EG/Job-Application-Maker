@@ -1,5 +1,6 @@
 // contractPdfGenerator.ts
 import { JobContract, BilingualField } from '../services/contractsService';
+import { downloadLetterPdf } from './letterPdf';
 import { contractTypeLabel } from './documentLabels';
 import {
   LETTER,
@@ -72,7 +73,7 @@ export const generateContractPDF = async ({ contract, lang = 'en', companyName =
     fillLetter(letterParagraph(saved, fallback, lang), vars);
 
   const heading = (text: string) =>
-    `<div style="font-size: 10.5pt; font-weight: 700; color: ${accent}; margin: 18px 0 6px;">${escapeHtml(text)}</div>`;
+    `<div data-keep-next style="font-size: 10.5pt; font-weight: 700; color: ${accent}; margin: 18px 0 6px;">${escapeHtml(text)}</div>`;
   const row = (label: string, value: string) =>
     `<div style="padding: 2px 0;"><span style="color: ${muted};">${escapeHtml(label)}:</span> <span style="font-weight: 600;">${escapeHtml(value)}</span></div>`;
   const bullets = (items: string[]) =>
@@ -162,7 +163,7 @@ export const generateContractPDF = async ({ contract, lang = 'en', companyName =
         ${heading(L('agreement'))}
         <p style="text-align: justify; white-space: pre-wrap;">${escapeHtml(paragraph(contract.agreement, defaultContractAgreement(lang)))}</p>
 
-        <div style="display: flex; justify-content: space-between; gap: 24px; margin-top: 34px; page-break-inside: avoid;">
+        <div data-keep style="display: flex; justify-content: space-between; gap: 24px; margin-top: 34px; page-break-inside: avoid;">
             <div>
                 <div style="margin-bottom: 4px;">${escapeHtml(L('forCompany'))}</div>
                 ${signLine}
@@ -183,67 +184,8 @@ export const generateContractPDF = async ({ contract, lang = 'en', companyName =
   return htmlContent;
 };
 
-export const downloadContractPDF = async (htmlContent: string, filename: string): Promise<void> => {
-  return new Promise<void>((resolve, reject) => {
-    const iframe = document.createElement('iframe');
-    iframe.style.position = 'fixed';
-    iframe.style.top = '0';
-    iframe.style.left = '0';
-    iframe.style.width = '210mm';
-    iframe.style.height = '297mm';
-    iframe.style.border = 'none';
-    iframe.style.visibility = 'hidden';
-    iframe.style.zIndex = '-9999';
-    iframe.style.pointerEvents = 'none';
-    document.body.appendChild(iframe);
-
-    iframe.onload = async () => {
-      try {
-        const iframeDoc = iframe.contentDocument!;
-        iframeDoc.open();
-        iframeDoc.write(htmlContent);
-        iframeDoc.close();
-
-        await new Promise<void>((r) => setTimeout(r, 800));
-
-        const element = iframeDoc.querySelector('.pdf-container') as HTMLElement;
-        if (!element) throw new Error('PDF container not found');
-
-        const html2pdfModule: any = await import('html2pdf.js');
-        const html2pdf = html2pdfModule.default || html2pdfModule;
-
-        const opt = {
-          margin: [0.2, 0.2, 0.2, 0.2] as [number, number, number, number],
-          filename,
-          image: { type: 'jpeg', quality: 1 },
-          html2canvas: {
-            scale: 3,
-            useCORS: true,
-            letterRendering: true,
-            logging: false,
-            backgroundColor: '#ffffff',
-            windowWidth: element.scrollWidth,
-            dpi: 300,
-          },
-          jsPDF: {
-            unit: 'in',
-            format: 'a4',
-            orientation: 'portrait',
-          },
-        };
-
-        await html2pdf().set(opt).from(element).save();
-        resolve();
-      } catch (err) {
-        reject(err);
-      } finally {
-        document.body.removeChild(iframe);
-      }
-    };
-
-    iframe.src = 'about:blank';
-  });
-};
+export const downloadContractPDF = (htmlContent: string, filename: string): Promise<void> =>
+  downloadLetterPdf(htmlContent, filename);
 
 export const downloadContractAsPdf = async (contract: JobContract, lang: 'ar' | 'en' = 'en', companyName?: string): Promise<void> => {
   const htmlContent = await generateContractPDF({ contract, lang, companyName });
