@@ -236,5 +236,6 @@
   "noShowSingleWarningLast": "هذا المتقدم لم يحضر من قبل ({count} مرة)، آخرها في {date}.",
   "noShowDeselectOne": "إزالة من التحديد",
   "noShowDeselectShort": "إزالة",
-  "noShowDeselectAll": "إزالة الكل ({count}) من التحديد"
+  "noShowDeselectAll": "إزالة الكل ({count}) من التحديد",
+  "importApplicants": "استيراد المتقدمين"
 }

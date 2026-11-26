@@ -236,5 +236,6 @@
   "noShowSingleWarningLast": "This applicant already didn't show up before ({count}×), last on {date}.",
   "noShowDeselectOne": "Take out of the selection",
   "noShowDeselectShort": "Remove",
-  "noShowDeselectAll": "Remove all {count} from the selection"
+  "noShowDeselectAll": "Remove all {count} from the selection",
+  "importApplicants": "Import applicants"
 }

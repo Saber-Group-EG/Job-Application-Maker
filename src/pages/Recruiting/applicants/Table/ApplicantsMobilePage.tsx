@@ -46,6 +46,7 @@ Trash2,
   ExternalLink,
   UserPlus,
   Flag,
+  Upload,
 } from 'lucide-react';
 
 const MOBILE_FILTERS_STORAGE_KEY = 'applicants_mobile_filters';
@@ -126,6 +127,7 @@ export default function ApplicantsMobilePage({
   companyIdOverride,
 }: ApplicantsMobilePageProps = {}): JSX.Element {
   const navigate = useNavigate();
+  const canImport = useAuth().hasPermission('Applicant Management', 'create');
   const location = useLocation();
   const unseenMode = useMemo(() => {
     const value = new URLSearchParams(location.search).get('unseen');
@@ -887,6 +889,16 @@ export default function ApplicantsMobilePage({
               </p>
             </div>
             <div className="flex items-center gap-2">
+              {canImport && (
+                <button
+                  onClick={() => navigate('/applicants/blue-caller')}
+                  aria-label={t('importApplicants', 'applicants')}
+                  title={t('importApplicants', 'applicants')}
+                  className="p-2 rounded-xl bg-white border border-slate-200 shadow-sm hover:bg-slate-50 active:scale-95 transition-all dark:bg-slate-900 dark:border-slate-800 dark:hover:bg-slate-800"
+                >
+                  <Upload size={18} className="text-slate-600 dark:text-slate-300" />
+                </button>
+              )}
               <button
                 onClick={() => setFilterDrawerOpen(true)}
                 className="p-2 rounded-xl bg-white border border-slate-200 shadow-sm hover:bg-slate-50 active:scale-95 transition-all dark:bg-slate-900 dark:border-slate-800 dark:hover:bg-slate-800"

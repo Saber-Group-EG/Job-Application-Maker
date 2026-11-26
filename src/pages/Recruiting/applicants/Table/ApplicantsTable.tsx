@@ -54,7 +54,7 @@ import {
 } from 'material-react-table';
 import { ThemeProvider, createTheme } from '@mui/material';
 import { Skeleton } from '@mui/material';
-import { Copy, Flag, FileSignature, FileText, Mail, CalendarClock, RefreshCw, RotateCcw, Search, SlidersHorizontal, Trash2, X, ArrowRightLeft, UserPlus } from 'lucide-react';
+import { Copy, Flag, FileSignature, FileText, Mail, CalendarClock, RefreshCw, RotateCcw, Search, SlidersHorizontal, Trash2, X, ArrowRightLeft, UserPlus, Upload } from 'lucide-react';
 import { Button, Card, Dialog, IconButton, PageShell, focusRing, inputClass } from '../../../../components/ui/kit';
 
 // Table surface colours, matching the kit's slate palette.
@@ -3519,9 +3519,16 @@ export default function Applicants({
         title={t('pageTitle', 'applicants')}
         subtitle={elapsed ? t('lastUpdate', 'applicants', { time: elapsed }) : t('notUpdatedYet', 'applicants')}
         actions={
-          <Button icon={<RefreshCw className={`size-4 ${isRefreshing ? 'animate-spin' : ''}`} />} onClick={refreshAll} disabled={isRefreshing}>
-            {isRefreshing ? t('updatingData', 'applicants') : t('updateData', 'applicants')}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            {hasPermission('Applicant Management', 'create') && (
+              <Button variant="secondary" icon={<Upload className="size-4" />} onClick={() => navigate('/applicants/blue-caller')}>
+                {t('importApplicants', 'applicants')}
+              </Button>
+            )}
+            <Button icon={<RefreshCw className={`size-4 ${isRefreshing ? 'animate-spin' : ''}`} />} onClick={refreshAll} disabled={isRefreshing}>
+              {isRefreshing ? t('updatingData', 'applicants') : t('updateData', 'applicants')}
+            </Button>
+          </div>
         }
       >
         <PageMeta
