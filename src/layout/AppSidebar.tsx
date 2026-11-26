@@ -159,13 +159,6 @@ const AppSidebar: React.FC = () => {
           show: can('Applicant Management', 'read'),
           group: 'groupMyPages',
         },
-        {
-          name: 'Import Applicants',
-          tKey: 'importApplicants',
-          path: '/applicants/blue-caller',
-          show: can('Applicant Management', 'create'),
-          group: 'groupApplicantSetup',
-        },
       ],
     },
     {
