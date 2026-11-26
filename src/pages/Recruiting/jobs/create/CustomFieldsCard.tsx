@@ -5,7 +5,11 @@ import type { ReactNode } from 'react';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { Bookmark, Check, ChevronDown, Loader2, Plus, SlidersHorizontal, Star } from 'lucide-react';
+import { Bookmark, Check, ChevronDown, ExternalLink, Loader2, Plus, SlidersHorizontal, Star } from 'lucide-react';
+import { Link } from 'react-router';
+import { useAuth } from '../../../../context/AuthContext';
+import { useCreateSavedField } from '../../../../hooks/queries';
+import type { CreateSavedFieldRequest } from '../../../../types';
 import { useLocale } from '../../../../context/LocaleContext';
 import { Button, Card, CardToolbar, EmptyState, SectionTitle } from '../../../../components/ui/kit';
 import CustomFieldEditor from './CustomFieldEditor';
@@ -23,6 +27,7 @@ function FieldLibraryMenu({
   added,
   onAdd,
   addLabel,
+  manageHref,
 }: {
   label: string;
   icon: ReactNode;
@@ -33,6 +38,8 @@ function FieldLibraryMenu({
   added: CustomFieldDraft[];
   onAdd: (ids: string[]) => void;
   addLabel: (count: number) => string;
+  /** The page where this library is edited; opens in a new tab so the job form keeps its state. */
+  manageHref?: string;
 }) {
   const { t } = useLocale();
   const [open, setOpen] = useState(false);
@@ -72,7 +79,20 @@ function FieldLibraryMenu({
           aria-label={title}
           className="absolute end-0 top-full z-30 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900"
         >
-          <p className="border-b border-slate-100 px-4 py-2.5 text-xs font-medium text-slate-500 dark:border-slate-800 dark:text-slate-400">{title}</p>
+          <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-4 py-2.5 dark:border-slate-800">
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{title}</p>
+            {manageHref && (
+              <Link
+                to={manageHref}
+                target="_blank"
+                rel="noopener"
+                className="inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400"
+              >
+                {t('cjManageLibrary', 'jobs')}
+                <ExternalLink className="size-3" />
+              </Link>
+            )}
+          </div>
           <div className="max-h-72 overflow-y-auto p-1.5">
             {loading ? (
               <p className="flex items-center justify-center gap-2 p-4 text-sm text-slate-500">
@@ -157,7 +177,55 @@ export default function CustomFieldsCard({
   onAddLibrary: (ids: string[], source: 'saved' | 'recommended') => void;
 }) {
   const { t } = useLocale();
+  const { hasPermission } = useAuth();
+  const canManageRecommended = hasPermission('Settings Management', 'create') && hasPermission('Settings Management', 'write');
   const removeWithUndo = useRemoveWithUndo(setForm);
+  const createSavedField = useCreateSavedField();
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [justSaved, setJustSaved] = useState<Set<string>>(new Set());
+
+  // A question is already in "my fields" when one there has its id or its label.
+  const isInLibrary = (field: CustomFieldDraft) =>
+    justSaved.has(field.fieldId) ||
+    savedFields.some(
+      (f) =>
+        f.fieldId === field.fieldId ||
+        (!!field.label.trim() && convertToString(f.label).trim().toLowerCase() === field.label.trim().toLowerCase())
+    );
+
+  const saveToLibrary = async (field: CustomFieldDraft) => {
+    if (!field.label.trim()) return;
+    const slug = field.label.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+    const taken = new Set(savedFields.map((f) => f.fieldId));
+    let fieldId = slug || `field_${Date.now()}`;
+    if (taken.has(fieldId)) fieldId = `${fieldId}_${Date.now().toString(36)}`;
+    const both = (en: string, ar?: string) => ({ en, ar: ar || en });
+    const payload: CreateSavedFieldRequest = {
+      fieldId,
+      label: both(field.label, field.labelAr),
+      inputType: field.inputType as CreateSavedFieldRequest['inputType'],
+      isRequired: field.isRequired,
+      choices: (field.choices || []).map((c, i) => both(c, field.choicesAr?.[i])),
+      groupFields: (field.subFields || []).map((sf) => ({
+        fieldId: sf.fieldId,
+        label: both(sf.label, sf.labelAr),
+        inputType: sf.inputType,
+        isRequired: !!sf.isRequired,
+        choices: (sf.choices || []).map((c, i) => both(c, sf.choicesAr?.[i])),
+      })),
+      ...(field.minValue !== undefined ? { minValue: field.minValue } : {}),
+      ...(field.maxValue !== undefined ? { maxValue: field.maxValue } : {}),
+    };
+    setSavingId(field.fieldId);
+    try {
+      await createSavedField.mutateAsync(payload);
+      setJustSaved((prev) => new Set(prev).add(field.fieldId));
+    } catch {
+      // the mutation shows the error toast
+    } finally {
+      setSavingId(null);
+    }
+  };
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -194,6 +262,7 @@ export default function CustomFieldsCard({
             added={form.customFields}
             onAdd={(ids) => onAddLibrary(ids, 'saved')}
             addLabel={(count) => t('createAddSelected', 'jobs', { count })}
+            manageHref="/recruiting/saved-fields"
           />
           <FieldLibraryMenu
             label={t('createRecommended', 'jobs')}
@@ -205,6 +274,7 @@ export default function CustomFieldsCard({
             added={form.customFields}
             onAdd={(ids) => onAddLibrary(ids, 'recommended')}
             addLabel={(count) => t('createAddStrategic', 'jobs', { count })}
+            manageHref={canManageRecommended ? '/recommended-fields' : undefined}
           />
           <Button variant="primary" onClick={onAddBlank} icon={<Plus className="size-4" />}>
             {t('createNewField', 'jobs')}
@@ -232,6 +302,9 @@ export default function CustomFieldsCard({
                       : setForm((prev) => patchField(prev, index, patch))
                   }
                   onRemove={() => onRemove(index)}
+                  inLibrary={isInLibrary(field)}
+                  saving={savingId === field.fieldId}
+                  onSaveToLibrary={() => saveToLibrary(field)}
                 />
               ))}
             </ul>

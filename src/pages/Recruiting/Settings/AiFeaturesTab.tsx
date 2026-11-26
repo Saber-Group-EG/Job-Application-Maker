@@ -19,6 +19,7 @@ import {
 import Swal from '../../../utils/swal';
 import { Card, CardToolbar, EmptyState, NoAccess, SectionTitle, Switch } from '../../../components/ui/kit';
 import SettingsSection from './components/SettingsSection';
+import AiUsageCard from '../../../components/dashboard/AiUsageCard';
 import { useAuth } from '../../../context/AuthContext';
 import { useLocale } from '../../../context/LocaleContext';
 import {
@@ -309,6 +310,11 @@ export default function AiFeaturesTab({
           </ul>
         )}
       </Card>
+      {effectiveCompanyId && (
+        <div className="mt-6">
+          <AiUsageCard companyId={effectiveCompanyId} />
+        </div>
+      )}
     </SettingsSection>
   );
 }

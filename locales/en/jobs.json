@@ -364,5 +364,8 @@
   "promoteImageReady": "Ready, made {date}",
   "promoteImageNone": "Not made yet. Instagram posts need it.",
   "promoteImageMake": "Make image",
-  "promoteImageRemake": "Make again"
+  "promoteImageRemake": "Make again",
+  "cjManageLibrary": "Manage",
+  "cjSaveToMyFields": "Save to my saved fields for other jobs",
+  "cjInMyFields": "In your saved fields"
 }

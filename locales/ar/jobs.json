@@ -364,5 +364,8 @@
   "promoteImageReady": "جاهزة، أُنشئت {date}",
   "promoteImageNone": "لم تُنشأ بعد. منشورات إنستجرام تحتاجها.",
   "promoteImageMake": "إنشاء الصورة",
-  "promoteImageRemake": "إنشاء من جديد"
+  "promoteImageRemake": "إنشاء من جديد",
+  "cjManageLibrary": "إدارة",
+  "cjSaveToMyFields": "احفظه في حقولك المحفوظة لاستخدامه في وظائف أخرى",
+  "cjInMyFields": "موجود في حقولك المحفوظة"
 }

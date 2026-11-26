@@ -213,19 +213,6 @@ const AppSidebar: React.FC = () => {
           tKey: 'savedQuestions',
           path: '/recruiting/saved-questions',
         },
-        {
-          name: 'Saved Fields',
-          tKey: 'savedFields',
-          path: '/recruiting/saved-fields',
-        },
-        {
-          name: 'Recommended Fields',
-          tKey: 'recommendedFields',
-          path: '/recommended-fields',
-          show:
-            can('Settings Management', 'create') &&
-            can('Settings Management', 'write'),
-        },
       ],
     },
     {

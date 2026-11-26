@@ -29,7 +29,43 @@ export interface DashboardOverview {
     | null;
 }
 
+export type AiUsageRange = 'cycle' | '30' | '90';
+
+export interface AiUsageBreakdown {
+  enabled: boolean;
+  range: AiUsageRange;
+  from: string;
+  to: string;
+  cycle: { start: string | null; end: string | null; used: number; limit: number };
+  totals: { cost: number; calls: number; failed: number };
+  features: {
+    feature: string;
+    cost: number;
+    calls: number;
+    failed: number;
+    tokensIn: number;
+    tokensOut: number;
+    lastUsedAt: string;
+  }[];
+  days: { date: string; cost: number; calls: number; features: Record<string, number> }[];
+}
+
 export const dashboardService = {
+  async aiUsage(params: { companyId: string; range: AiUsageRange }): Promise<AiUsageBreakdown> {
+    try {
+      const { data } = await axios.get('/dashboard/ai-usage', {
+        params: {
+          companyId: params.companyId,
+          range: params.range,
+          tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        },
+      });
+      return data.data;
+    } catch (error: any) {
+      throw new ApiError(getErrorMessage(error), error?.response?.status);
+    }
+  },
+
   async overview(params: { companyIds?: string[] }): Promise<DashboardOverview> {
     try {
       const { data } = await axios.get('/dashboard/overview', {

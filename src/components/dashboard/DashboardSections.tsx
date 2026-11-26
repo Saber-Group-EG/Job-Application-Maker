@@ -22,6 +22,7 @@ import { useDashboardOverview } from '../../hooks/queries/useDashboard';
 import type { DashboardOverview } from '../../services/dashboardService';
 import { paths } from '../../router/Paths';
 import { toPlainString } from '../../utils/strings';
+import AiUsageCard from './AiUsageCard';
 import { Card, Empty, Skeleton, useTimeAgo } from '../reports/parts';
 
 // ─── Needs attention ───────────────────────────────────────────────────────
@@ -188,6 +189,8 @@ export default function DashboardSections({ companyIds, companies }: { companyId
   const { user, hasPermission } = useAuth();
   const { t, locale } = useLocale();
   const { data, isLoading } = useDashboardOverview(companyIds, { enabled: Boolean(user) });
+  // Same people as the plan meters, plus whoever manages the AI features.
+  const canSeeAiUsage = Boolean(hasPermission?.('Billing Management', 'read') || hasPermission?.('Company Management', 'write'));
   const companyName = (id: string) => toPlainString(companies.find((c: any) => (c._id || c.id) === id)?.name, locale) || '';
 
   return (
@@ -197,6 +200,14 @@ export default function DashboardSections({ companyIds, companies }: { companyId
         <RecentActivity data={data?.activity} loading={isLoading} />
       </div>
       {data?.planUsage && <PlanUsage data={data.planUsage} companyName={companyName} />}
+      {canSeeAiUsage &&
+        (companyIds ?? []).slice(0, 3).map((id) => (
+          <AiUsageCard
+            key={id}
+            companyId={id}
+            title={(companyIds ?? []).length > 1 ? `${t('aiUsage.title', 'home')} · ${companyName(id)}` : undefined}
+          />
+        ))}
       {hasPermission?.('Applicant Management', 'read') && (
         <Link
           to={paths.reports}

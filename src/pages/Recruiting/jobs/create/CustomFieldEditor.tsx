@@ -2,7 +2,7 @@
 // with its label, type, validation, options and (for groups) sub-questions.
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { ChevronRight, GripVertical, Plus, Trash2 } from 'lucide-react';
+import { Bookmark, BookmarkCheck, ChevronRight, GripVertical, Loader2, Plus, Trash2 } from 'lucide-react';
 import { useLocale } from '../../../../context/LocaleContext';
 import { Badge, Button, Field, IconButton, inputClass, selectClass } from '../../../../components/ui/kit';
 import BilingualField from './BilingualField';
@@ -132,6 +132,9 @@ export default function CustomFieldEditor({
   onToggle,
   onChange,
   onRemove,
+  inLibrary,
+  saving,
+  onSaveToLibrary,
 }: {
   field: CustomFieldDraft;
   index: number;
@@ -141,6 +144,10 @@ export default function CustomFieldEditor({
   /** undoMessage marks a removal: the change gets an Undo toast. */
   onChange: (patch: Partial<CustomFieldDraft>, undoMessage?: string) => void;
   onRemove: () => void;
+  /** Already in the user's saved fields. */
+  inLibrary?: boolean;
+  saving?: boolean;
+  onSaveToLibrary?: () => void;
 }) {
   const { t } = useLocale();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: field.fieldId });
@@ -186,6 +193,16 @@ export default function CustomFieldEditor({
           </span>
         </button>
         {field.isRequired && <Badge tone="amber">{t('createRequiredBadge', 'jobs')}</Badge>}
+        {onSaveToLibrary &&
+          (inLibrary ? (
+            <span className="flex size-8 shrink-0 items-center justify-center text-emerald-500" title={t('cjInMyFields', 'jobs')} aria-label={t('cjInMyFields', 'jobs')}>
+              <BookmarkCheck className="size-4" />
+            </span>
+          ) : (
+            <IconButton label={t('cjSaveToMyFields', 'jobs')} onClick={onSaveToLibrary} disabled={saving || !field.label.trim()}>
+              {saving ? <Loader2 className="size-4 animate-spin" /> : <Bookmark className="size-4" />}
+            </IconButton>
+          ))}
         <IconButton tone="danger" label={t('cjRemoveField', 'jobs', { number: index + 1 })} onClick={onRemove}>
           <Trash2 className="size-4" />
         </IconButton>
