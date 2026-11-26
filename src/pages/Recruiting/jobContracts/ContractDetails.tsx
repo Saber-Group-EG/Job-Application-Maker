@@ -28,7 +28,7 @@ export function ContractDetail({
   const pick = (v?: { en?: string | null; ar?: string | null } | null) => (locale === 'ar' ? v?.ar || v?.en : v?.en || v?.ar) || '';
 
   const applicant = typeof contract.applicantId === 'object' && contract.applicantId !== null ? contract.applicantId : null;
-  const applicantName = applicant?.fullName ?? '—';
+  const applicantName = applicant?.fullName || contract.employeeName?.trim() || '—';
   const applicantEmail = applicant?.email ?? '—';
 
   const formatDate = (d: string | null | undefined) => {

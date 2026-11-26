@@ -82,7 +82,7 @@ export default function ContractPreview({ isOpen, onClose, contract }: Props) {
                   {t('applicantInfo', 'modals')}
                 </p>
                 <div className="rounded-lg border border-slate-100 p-3 dark:border-slate-700">
-                  <p className="font-medium">{contract?.applicantId?.fullName || '—'}</p>
+                  <p className="font-medium">{contract?.applicantId?.fullName || contract?.employeeName?.trim() || '—'}</p>
                   <p className="text-sm text-slate-500">
                     {contract?.applicantId?.email || '—'}
                   </p>

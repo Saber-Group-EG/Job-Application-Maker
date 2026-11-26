@@ -113,6 +113,8 @@ export type FormBenefit = {
 
 export type FormState = {
   applicantId: string | null;
+  /** Typed name when the contract is not for an applicant. */
+  employeeName: string;
   selectedApplicantObject?: ApplicantObject | null;
   applicantIds?: string[];
   isBulk?: boolean;
@@ -166,6 +168,7 @@ const toDateInput = (d?: string | Date | null): string => {
 
 const emptyForm = (): FormState => ({
   applicantId: null,
+  employeeName: '',
   applicantIds: [],
   isBulk: false,
   contractType: 'permanent',
@@ -199,6 +202,7 @@ const emptyForm = (): FormState => ({
 const contractToForm = (c: JobContract): FormState => {
   return {
     applicantId: c.applicantId?._id || null,
+    employeeName: c.employeeName ?? '',
     applicantIds: [],
     isBulk: false,
     contractType: c.contractType,
@@ -449,6 +453,7 @@ export default function JobContractEditor({
     setForm((prev) => ({
       ...contractToForm(template),
       applicantId: prev.applicantId,
+      employeeName: prev.employeeName,
       applicantIds: prev.applicantIds,
       selectedApplicantObject: prev.selectedApplicantObject,
       isBulk: prev.isBulk,
@@ -467,6 +472,7 @@ export default function JobContractEditor({
       initial = {
         ...contractToForm(cloneFrom),
         applicantId: null,
+        employeeName: '',
         applicantIds: [],
         isBulk: bulk,
         senderByCompany: {},
@@ -798,9 +804,20 @@ export default function JobContractEditor({
       },
     };
 
+    // A typed name only counts when no applicant is attached.
+    const typedEmployee =
+      mode === 'contract' && !(propApplicantId ?? form.applicantId)
+        ? { employeeName: form.employeeName.trim() }
+        : mode === 'contract'
+          ? { employeeName: '' }
+          : {};
+
     try {
       if (editing) {
-        await updateMutation.mutateAsync({ id: editing._id, payload: base });
+        await updateMutation.mutateAsync({
+          id: editing._id,
+          payload: { ...base, ...typedEmployee },
+        });
       } else if (form.isBulk && form.applicantIds?.length) {
         await bulkMutation.mutateAsync({
           ...base,
@@ -835,6 +852,7 @@ export default function JobContractEditor({
         const singleApplicantId = propApplicantId ?? form.applicantId;
         await createMutation.mutateAsync({
           ...base,
+          ...typedEmployee,
           companyId: contractCompanyId!,
           ...(mode === 'contract' && singleApplicantId
             ? { applicantId: singleApplicantId }
@@ -896,22 +914,44 @@ export default function JobContractEditor({
         ? form.selectedApplicantObject?.fullName
         : propApplicantId
           ? fixedApplicant?.fullName
-          : form.selectedApplicantObject?.fullName) || '';
+          : form.selectedApplicantObject?.fullName) ||
+    (form.isBulk ? '' : form.employeeName.trim());
 
   // Picking the employee happens in the side panel; the contract names them
   // in its opening paragraph.
+  // Or, for someone who is not an applicant, their name is typed here.
+  const isAr = locale === 'ar';
   const applicantPicker =
-    mode === 'contract' && !editing && !form.isBulk && !propApplicantId ? (
-      <div dir={locale === 'ar' ? 'rtl' : 'ltr'} style={{ fontSize: '10pt' }}>
-        <ApplicantSelect
-          value={form.applicantId}
-          onChange={(id, applicant) => {
-            set('applicantId', id);
-            set('selectedApplicantObject', applicant ?? null);
-          }}
-          onPrefill={handlePrefillFromApplicant}
-          inputCls={inputCls}
-        />
+    mode === 'contract' && !form.isBulk && !propApplicantId && !(editing && editing.applicantId) ? (
+      <div dir={isAr ? 'rtl' : 'ltr'} style={{ fontSize: '10pt' }} className="space-y-3">
+        {!editing && (
+          <ApplicantSelect
+            value={form.applicantId}
+            onChange={(id, applicant) => {
+              set('applicantId', id);
+              set('selectedApplicantObject', applicant ?? null);
+            }}
+            onPrefill={handlePrefillFromApplicant}
+            inputCls={inputCls}
+          />
+        )}
+        {!form.applicantId && (
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">
+              {editing
+                ? isAr ? 'اسم الموظف' : 'Employee name'
+                : isAr ? 'ليس متقدمًا؟ اكتب اسم الموظف' : 'Not an applicant? Type the employee name'}
+            </span>
+            <input
+              type="text"
+              value={form.employeeName}
+              maxLength={120}
+              onChange={(e) => set('employeeName', e.target.value)}
+              placeholder={letterText('employeePlaceholder', isAr ? 'ar' : 'en')}
+              className={inputCls}
+            />
+          </label>
+        )}
       </div>
     ) : null;
 

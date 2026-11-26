@@ -15,6 +15,8 @@ export interface JobContract {
     phone?: string;
     applicantNo?: string | number;
   } | null;
+  /** Name typed on the contract when it is not for an applicant. */
+  employeeName?: string;
   jobPositionId?: {
     _id: string;
     title?: any;

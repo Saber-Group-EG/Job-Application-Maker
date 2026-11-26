@@ -76,6 +76,8 @@ export interface JobContract {
     phone?: string;
     applicantNo?: string;
   } | null;
+  /** Name typed on the contract when it is not for an applicant. */
+  employeeName?: string;
   jobPositionId?: {
     _id: string;
     title: string;
@@ -124,6 +126,7 @@ export interface PaginatedJobContracts {
 export type CreateJobContractPayload = {
   companyId: string;
   applicantId?: string | null;
+  employeeName?: string;
   jobPositionId?: string | null;
   offerId?: string | null;
   isTemplate?: boolean;

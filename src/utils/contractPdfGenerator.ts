@@ -54,7 +54,7 @@ export const generateContractPDF = async ({ contract, lang = 'en', companyName =
   const logo = letterLogoUrl(company?.logoPath);
 
   const applicant = typeof contract.applicantId === 'object' && contract.applicantId !== null ? contract.applicantId : null;
-  const employeeName = applicant?.fullName || '';
+  const employeeName = applicant?.fullName || contract.employeeName?.trim() || '';
   const employee = employeeName || L('employeePlaceholder');
 
   const position = pick(contract.position, lang);

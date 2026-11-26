@@ -321,7 +321,7 @@ export default function JobContractsPage() {
                 const applicantName =
                   typeof contract.applicantId === 'object' && contract.applicantId !== null
                     ? contract.applicantId.fullName
-                    : '—';
+                    : contract.employeeName?.trim() || '—';
                 return (
                   <li key={contract._id} className="relative flex items-center gap-4 px-4 py-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/40">
                     <div className="min-w-0 flex-1">
