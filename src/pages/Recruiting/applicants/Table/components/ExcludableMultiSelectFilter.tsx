@@ -53,7 +53,15 @@ export const ExcludableMultiSelectFilter = ({
         });
         return total;
       }
-      return facetedMap.get(optionValue) ?? 0;
+      // Server counts are keyed by the stored value, and the same status can be
+      // stored as "Interviewed" and "interviewed"; the filter treats them as one,
+      // so the count adds up every spelling.
+      const wanted = String(optionValue).trim().toLowerCase();
+      let total = 0;
+      facetedMap.forEach((count, key) => {
+        if (String(key).trim().toLowerCase() === wanted) total += Number(count) || 0;
+      });
+      return total;
     },
     [facetedMap, isArrayColumn, countsMap]
   );
