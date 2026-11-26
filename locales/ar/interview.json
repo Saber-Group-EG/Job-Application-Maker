@@ -207,5 +207,8 @@
   "locked": "مقفلة",
   "missed": "فائتة",
   "manageQuestionGroups": "أضف مجموعات الأسئلة أو عدّلها:",
-  "addGroupsWithLinksAbove": "أضف مجموعات أسئلة من الروابط أعلاه ثم ارجع إلى هنا."
+  "addGroupsWithLinksAbove": "أضف مجموعات أسئلة من الروابط أعلاه ثم ارجع إلى هنا.",
+  "pastInterviews": "المقابلات السابقة",
+  "upcomingAndRunning": "القادمة والجارية",
+  "viewResults": "عرض النتائج"
 }

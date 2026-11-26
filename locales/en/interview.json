@@ -207,5 +207,8 @@
   "locked": "Locked",
   "missed": "Missed",
   "manageQuestionGroups": "Add or edit question groups:",
-  "addGroupsWithLinksAbove": "Add question groups with the links above, then come back here."
+  "addGroupsWithLinksAbove": "Add question groups with the links above, then come back here.",
+  "pastInterviews": "Past interviews",
+  "upcomingAndRunning": "Upcoming and running",
+  "viewResults": "View results"
 }

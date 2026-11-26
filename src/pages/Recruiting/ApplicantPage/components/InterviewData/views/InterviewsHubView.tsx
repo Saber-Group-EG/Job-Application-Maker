@@ -1,10 +1,14 @@
-import { Calendar, CalendarPlus, Loader2, Lock, MessageSquare, Play, Trash2, User } from 'lucide-react';
+import { Calendar, CalendarPlus, History, Loader2, Lock, MessageSquare, Play, Trash2, User } from 'lucide-react';
 import type { Interview } from '../../../../../../types/applicants';
 import { useLocale } from '../../../../../../context/LocaleContext';
 
 export type InterviewsHubViewProps = {
   /** Scheduled and in-progress interviews. */
   interviews: Interview[];
+  /** Finished, cancelled and missed interviews, newest first. */
+  pastInterviews?: Interview[];
+  /** Open a finished interview's results. */
+  onViewPast?: (interview: Interview) => void;
   onStart: () => void;
   onSchedule: () => void;
   onOpen: (interview: Interview) => void;
@@ -40,6 +44,8 @@ const idOf = (v: unknown): string =>
 
 export const InterviewsHubView = ({
   interviews,
+  pastInterviews = [],
+  onViewPast,
   onStart,
   onSchedule,
   onOpen,
@@ -86,6 +92,11 @@ export const InterviewsHubView = ({
         {actions}
       </div>
 
+      {interviews.length > 0 && pastInterviews.length > 0 && (
+        <p className="bg-slate-50 px-6 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          {t('upcomingAndRunning', 'interview')}
+        </p>
+      )}
       {interviews.length === 0 ? (
         <div className="flex flex-col items-center px-6 py-14 text-center">
           <div className="mb-4 rounded-2xl bg-slate-100 p-4 text-slate-500">
@@ -207,9 +218,95 @@ export const InterviewsHubView = ({
         </ul>
       )}
 
-      <p className="border-t border-slate-100 bg-slate-50 px-6 py-3 text-xs text-slate-500">
-        {t('completedInHistory', 'interview')}
-      </p>
+      {pastInterviews.length > 0 && (
+        <div className="border-t border-slate-100">
+          <p className="flex items-center gap-1.5 bg-slate-50 px-6 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <History className="h-3.5 w-3.5" />
+            {t('pastInterviews', 'interview')} ({pastInterviews.length})
+          </p>
+          <ul className="divide-y divide-slate-100">
+            {pastInterviews.map((interview, idx) => {
+              const id = idOf(interview) || `past_${idx}`;
+              const status = String(interview.status || '').toLowerCase();
+              const isCompleted = status === 'completed';
+              const total = Number((interview as { totalScore?: number }).totalScore ?? 0);
+              const achieved = Number((interview as { achievedScore?: number }).achievedScore ?? 0);
+              const when = interview.endedAt || interview.startedAt || interview.scheduledAt;
+              const conductedById = idOf(interview.conductedBy);
+              const conductedByName =
+                interview.conductedBy && typeof interview.conductedBy === 'object'
+                  ? (interview.conductedBy as { fullName?: string; name?: string }).fullName ||
+                    (interview.conductedBy as { name?: string }).name ||
+                    ''
+                  : '';
+              const isMine = Boolean(conductedById) && conductedById === currentUserId;
+              const badge = isCompleted
+                ? 'bg-emerald-50 text-emerald-700'
+                : status === 'missed'
+                ? 'bg-amber-50 text-amber-700'
+                : 'bg-slate-100 text-slate-600';
+              return (
+                <li key={id} className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0 space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-700">
+                        <Calendar className="h-4 w-4 text-slate-400" />
+                        {formatDate(when, t, locale)}
+                      </span>
+                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${badge}`}>
+                        {t(status === 'missed' ? 'missed' : status === 'cancelled' ? 'cancelled' : 'completed', 'interview')}
+                      </span>
+                      {isCompleted && total > 0 && (
+                        <span className="text-xs font-medium tabular-nums text-slate-600">
+                          {achieved} / {total} ({Math.round((achieved / total) * 100)}%)
+                        </span>
+                      )}
+                    </div>
+                    <p className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-slate-500">
+                      {interview.type && (
+                        <span>{t(interview.type === 'in-person' ? 'inPerson' : interview.type, 'modals')}</span>
+                      )}
+                      {Array.isArray(interview.questions) && (
+                        <span>
+                          {t('questions', 'interview')}: {interview.questions.length}
+                        </span>
+                      )}
+                      {(conductedByName || isMine) && (
+                        <span className="inline-flex items-center gap-1">
+                          <User className="h-3 w-3" />
+                          {isMine ? t('interviewerYou', 'interview') : conductedByName}
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 flex-wrap items-center gap-2">
+                    {isCompleted && onViewPast && (
+                      <button
+                        type="button"
+                        onClick={() => onViewPast(interview)}
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-blue-400 hover:bg-blue-50"
+                      >
+                        {t('viewResults', 'interview')}
+                      </button>
+                    )}
+                    {onDelete && (
+                      <button
+                        type="button"
+                        onClick={() => onDelete(interview)}
+                        title={t('deleteInterview', 'interview')}
+                        aria-label={t('deleteInterview', 'interview')}
+                        className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
     </div>
   );
 };

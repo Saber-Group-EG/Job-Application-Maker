@@ -614,9 +614,20 @@ const InterviewQuestions = ({
   );
 
   // ---- Render ----------------------------------------------------------
+  const pastInterviews = (state.allInterviews as Interview[])
+    .filter((iv) => !['scheduled', 'in_progress'].includes(String(iv.status || '').toLowerCase()))
+    .sort((a, b) => {
+      const at = (iv: Interview) => new Date(iv.endedAt || iv.startedAt || iv.scheduledAt || 0).getTime();
+      return at(b) - at(a);
+    });
   const hub = (
     <InterviewsHubView
       interviews={state.scheduledInterviews as Interview[]}
+      pastInterviews={pastInterviews}
+      onViewPast={(iv) => {
+        const id = getInterviewId(iv);
+        if (applicantId && id) navigate(paths.applicants.completedInterview(applicantId, id), { state: { interview: iv } });
+      }}
       onStart={handleStartNow}
       onSchedule={() => onRequestScheduleInterview?.()}
       onOpen={(iv) => state.openInterview(iv)}
