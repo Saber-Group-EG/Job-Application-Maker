@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router';
 import { Suspense, lazy } from 'react';
 import { ScrollToTop } from '../components/common/ScrollToTop';
 import ProtectedRoute from './ProtectedRoute';
@@ -56,6 +56,15 @@ const Checkout = lazy(() => import('../pages/Recruiting/Settings/checkout'));
 const AddCard = lazy(() => import('../pages/Recruiting/Settings/AddCard'));
 const InterviewCompanySettingsPage = lazy(
   () => import('../pages/Recruiting/Settings/interviewCompany')
+);
+const StatusSettingsPage = lazy(
+  () => import('../pages/Recruiting/Settings/StatusSettings')
+);
+const RejectionReasonsPage = lazy(
+  () => import('../pages/Recruiting/Settings/Rejectiontab')
+);
+const AiFeaturesPage = lazy(
+  () => import('../pages/Recruiting/Settings/AiFeaturesTab')
 );
 const SavedQuestions = lazy(
   () => import('../pages/Recruiting/Settings/interviewPerUser')
@@ -250,8 +259,35 @@ export default function App() {
                 }
               >
                 <Route
-                  path={paths.recruiting.interviewSettings}
+                  path={paths.jobs.interviewQuestions}
                   element={<InterviewCompanySettingsPage />}
+                />
+                <Route
+                  path={paths.applicants.statuses}
+                  element={<StatusSettingsPage />}
+                />
+                <Route
+                  path={paths.applicants.rejectionReasons}
+                  element={<RejectionReasonsPage />}
+                />
+              </Route>
+              <Route
+                path={paths.recruiting.interviewSettings}
+                element={<Navigate to={paths.jobs.interviewQuestions} replace />}
+              />
+              {/* AI features: only for people who can change them (the API
+                  needs Company Management write). */}
+              <Route
+                element={
+                  <PermissionProtectedRoute
+                    requiredPermissions={['Company Management']}
+                    accessLevel="write"
+                  />
+                }
+              >
+                <Route
+                  path={paths.recruiting.aiFeatures}
+                  element={<AiFeaturesPage />}
                 />
               </Route>
               <Route

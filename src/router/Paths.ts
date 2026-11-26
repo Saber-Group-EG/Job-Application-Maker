@@ -26,7 +26,9 @@ export const paths = {
     root: '/recruiting',
     companySettings: '/recruiting/company-settings',
     metaCallback: '/integrations/meta/callback',
+    // Old "General Settings" page; redirects to jobs.interviewQuestions.
     interviewSettings: '/recruiting/interview-settings',
+    aiFeatures: '/ai-features',
     subscription: '/recruiting/subscription',
     plans: '/recruiting/subscription/plans',
     checkout: '/recruiting/subscription/checkout',
@@ -55,12 +57,15 @@ export const paths = {
     contracts: '/job-contracts',
     offerEditor: '/job-offers/editor',
     contractEditor: '/job-contracts/editor',
+    interviewQuestions: '/jobs/interview-questions',
   },
 
   applicants: {
     root: '/applicants',
     mobile: '/applicants/mobile',
     blueCaller: '/applicants/blue-caller',
+    statuses: '/applicants/statuses',
+    rejectionReasons: '/applicants/rejection-reasons',
     myPages: '/applicants/my-pages',
     mailPreview: '/applicants/mail-preview',
     page: (pageName: string) => `/applicants/page/${pageName}`,

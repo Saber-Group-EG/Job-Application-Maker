@@ -9,7 +9,7 @@ import {
   Home,
   Inbox,
   ShieldCheck,
-  SlidersHorizontal,
+  Sparkles,
   UsersRound,
 } from 'lucide-react';
 import { ChevronDownIcon, HorizontaLDots } from '../icons';
@@ -128,10 +128,13 @@ const AppSidebar: React.FC = () => {
   );
 
   const can = hasPermission;
-  const canSeeInterviewSettings =
+  const canSeeCompanySettings =
     can('Interview Settings Management', 'read') ||
     can('Company Management', 'read') ||
     can('Settings Management', 'read');
+  // The AI features API needs Company Management write, so only people who
+  // can switch them see the page.
+  const canManageAiFeatures = can('Company Management', 'write');
 
   // One collapsible group per area of the product. A group left with a single
   // visible child is shown as a plain link instead of a one-item submenu.
@@ -162,6 +165,18 @@ const AppSidebar: React.FC = () => {
           path: '/applicants/my-pages',
           show: can('Applicant Management', 'read'),
         },
+        {
+          name: 'Statuses',
+          tKey: 'applicantStatuses',
+          path: '/applicants/statuses',
+          show: canSeeCompanySettings,
+        },
+        {
+          name: 'Rejection Reasons',
+          tKey: 'rejectionReasons',
+          path: '/applicants/rejection-reasons',
+          show: canSeeCompanySettings,
+        },
       ],
     },
     {
@@ -186,6 +201,30 @@ const AppSidebar: React.FC = () => {
           tKey: 'jobContracts',
           path: '/job-contracts',
           show: can('Contract Management', 'read'),
+        },
+        {
+          name: 'Interview Questions',
+          tKey: 'interviewQuestions',
+          path: '/jobs/interview-questions',
+          show: canSeeCompanySettings,
+        },
+        {
+          name: 'Saved Questions',
+          tKey: 'savedQuestions',
+          path: '/recruiting/saved-questions',
+        },
+        {
+          name: 'Saved Fields',
+          tKey: 'savedFields',
+          path: '/recruiting/saved-fields',
+        },
+        {
+          name: 'Recommended Fields',
+          tKey: 'recommendedFields',
+          path: '/recommended-fields',
+          show:
+            can('Settings Management', 'create') &&
+            can('Settings Management', 'write'),
         },
       ],
     },
@@ -246,35 +285,11 @@ const AppSidebar: React.FC = () => {
       ],
     },
     {
-      icon: <SlidersHorizontal />,
-      name: 'Configuration',
-      tKey: 'sectionConfiguration',
-      subItems: [
-        {
-          name: 'Saved Fields',
-          tKey: 'savedFields',
-          path: '/recruiting/saved-fields',
-        },
-        {
-          name: 'Saved Questions',
-          tKey: 'savedQuestions',
-          path: '/recruiting/saved-questions',
-        },
-        {
-          name: 'Recommended Fields',
-          tKey: 'recommendedFields',
-          path: '/recommended-fields',
-          show:
-            can('Settings Management', 'create') &&
-            can('Settings Management', 'write'),
-        },
-        {
-          name: 'General Settings',
-          tKey: 'generalSettings',
-          path: '/recruiting/interview-settings',
-          show: canSeeInterviewSettings,
-        },
-      ],
+      icon: <Sparkles />,
+      name: 'AI Features',
+      tKey: 'aiFeatures',
+      path: '/ai-features',
+      show: canManageAiFeatures,
     },
     {
       icon: <CreditCard />,
@@ -347,7 +362,7 @@ const AppSidebar: React.FC = () => {
   ];
 
   const navItems: NavItem[] = rawItems.flatMap((item) => {
-    if (!item.subItems) return [item];
+    if (!item.subItems) return item.show === false ? [] : [item];
     const visible = item.subItems.filter((s) => s.show !== false);
     if (visible.length === 0) return [];
     if (visible.length === 1) {

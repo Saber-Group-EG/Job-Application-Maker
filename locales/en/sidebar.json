@@ -46,5 +46,9 @@
   "sectionBilling": "Billing & Growth",
   "sectionPlatform": "Platform Admin",
   "jobsHiring": "Jobs & Hiring",
-  "reports": "Reports"
+  "reports": "Reports",
+  "applicantStatuses": "Statuses",
+  "rejectionReasons": "Rejection Reasons",
+  "interviewQuestions": "Interview Questions",
+  "aiFeatures": "AI Features"
 }

@@ -46,5 +46,9 @@
   "sectionBilling": "الفوترة والنمو",
   "sectionPlatform": "إدارة المنصة",
   "jobsHiring": "التوظيف والوظائف",
-  "reports": "التقارير"
+  "reports": "التقارير",
+  "applicantStatuses": "الحالات",
+  "rejectionReasons": "أسباب الرفض",
+  "interviewQuestions": "أسئلة المقابلة",
+  "aiFeatures": "ميزات الذكاء الاصطناعي"
 }

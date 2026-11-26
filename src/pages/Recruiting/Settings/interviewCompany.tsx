@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import {
-  Ban,
   ClipboardList,
   PlusCircle,
   Save,
@@ -8,8 +7,6 @@ import {
   Loader2,
   X,
   CircleCheckBig,
-  Settings,
-  Layout,
   Sparkles,
   ChevronDown,
   ChevronRight,
@@ -48,7 +45,6 @@ import {
   NoAccess,
   PageShell,
   SectionTitle,
-  TabBar,
   focusRing,
   inputClass,
   selectClass,
@@ -64,8 +60,6 @@ import {
   useUpdateCompanyInterviewSettings,
 } from '../../../hooks/queries/useCompanies';
 import { queryClient } from '../../../lib/queryClient';
-import RejectionTab from './Rejectiontab';
-import StatusSettings from './StatusSettings';
 import type {
   InterviewAnswerType,
   InterviewGroup,
@@ -76,9 +70,7 @@ import {
   normalizeChoices,
   normalizeChoicesToServer,
 } from '../../../services/companiesService';
-import ApplicantPagesSettings from './ApplicantsPagesTab';
 import { useJobPositions } from '../../../hooks/queries';
-import AiFeaturesTab from './AiFeaturesTab';
 
 type QuestionItem = InterviewQuestion & { _id: string };
 
@@ -892,19 +884,9 @@ export default function InterviewCompanySettingsPage() {
   const [collapsedGroupIds, setCollapsedGroupIds] = useState<Set<string>>(
     new Set()
   );
-  const [activeTab, setActiveTab] = useState<
-    | 'interview-groups'
-    | 'rejection-reasons'
-    | 'lead-statuses'
-    | 'applicant-pages'
-    | 'ai-features'
-  >('interview-groups');
-
-  const isInterviewGroupsTab = activeTab === 'interview-groups';
-  const isRejectionTab = activeTab === 'rejection-reasons';
-  const isApplicantStatusTab = activeTab === 'lead-statuses';
-  const isApplicantPagesTab = activeTab === 'applicant-pages';
-  const isAiFeaturesTab = activeTab === 'ai-features';
+  // Statuses, rejection reasons, applicant pages and AI features have their
+  // own pages now; this page is only the interview question groups.
+  const isInterviewGroupsTab = true;
 
   const updateInterviewMutation = useUpdateCompanyInterviewSettings();
 
@@ -1314,14 +1296,6 @@ export default function InterviewCompanySettingsPage() {
     );
   }
 
-  const tabs = [
-    { value: 'interview-groups' as const, label: t('interviewCompany.tabInterviewGroups', 'settings'), icon: <ClipboardList className="size-4" /> },
-    { value: 'rejection-reasons' as const, label: t('interviewCompany.tabRejectionReasons', 'settings'), icon: <Ban className="size-4" /> },
-    { value: 'lead-statuses' as const, label: t('interviewCompany.tabStatuses', 'settings'), icon: <Settings className="size-4" /> },
-    { value: 'applicant-pages' as const, label: t('interviewCompany.tabApplicantPages', 'settings'), icon: <Layout className="size-4" /> },
-    { value: 'ai-features' as const, label: t('interviewCompany.tabAiFeatures', 'settings'), icon: <Sparkles className="size-4" /> },
-  ];
-
   return (
     <PageShell
       title={t('interviewCompany.title', 'settings')}
@@ -1346,12 +1320,6 @@ export default function InterviewCompanySettingsPage() {
       />
 
       <Card>
-        <TabBar
-          tabs={tabs}
-          value={activeTab}
-          onChange={setActiveTab}
-          ariaLabel={t('interviewCompany.sectionTitle', 'settings')}
-        />
         {isInterviewGroupsTab && (
           <div className="grid grid-cols-2 gap-3 p-4 md:grid-cols-4">
             {[
@@ -1375,7 +1343,7 @@ export default function InterviewCompanySettingsPage() {
         )}
       </Card>
 
-            <div key={activeTab} className="animate-fade-slide-in">
+            <div className="animate-fade-slide-in">
               {isInterviewGroupsTab ? (
                 <Card>
                   <CardToolbar>
@@ -1606,18 +1574,6 @@ export default function InterviewCompanySettingsPage() {
                     )}
                   </div>
                 </Card>
-              ) : isRejectionTab ? (
-                <RejectionTab embedded />
-              ) : isApplicantStatusTab ? (
-                <StatusSettings embedded />
-              ) : isApplicantPagesTab ? (
-                <ApplicantPagesSettings
-                  companyId={effectiveCompanyId}
-                  hideCompanySelector={true}
-                  embedded
-                />
-              ) : isAiFeaturesTab ? (
-                <AiFeaturesTab embedded />
               ) : null}
             </div>
     </PageShell>

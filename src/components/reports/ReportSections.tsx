@@ -83,7 +83,7 @@ export function HiringFunnel({ data, loading, jobId, onJobChange, companyPicker 
       ) : !data.steps.length ? (
         <div className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">
           {t('noSteps', 'reports')}{' '}
-          <Link to={paths.recruiting.interviewSettings} className="font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">{t('setUpStatuses', 'reports')}</Link>
+          <Link to={paths.applicants.statuses} className="font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">{t('setUpStatuses', 'reports')}</Link>
         </div>
       ) : data.applied === 0 ? (
         <Empty text={t('noApplicantsInRange', 'reports')} />
