@@ -56,7 +56,26 @@ Record at 1080p, in English UI (switch AR → EN at the top), with no passwords 
 7. Click **Post now** next to Instagram (the job image is made first), wait for **Posted · View**, and open the post on Instagram (instagram_content_publish).
 8. Back in Company settings, click **Disconnect** and confirm, to show the company can remove the connection.
 
-Upload the same video for each permission.
+Upload the same video for each Facebook/Instagram permission.
+
+## WhatsApp screen video (for whatsapp_business_messaging and whatsapp_business_management)
+
+Record a second, shorter video (about 1–2 minutes) with a phone visible or a screen-mirrored WhatsApp:
+
+1. Open **ats.sabergroup-eg.com/signin**, choose the **WhatsApp** tab, enter a phone number and request a code. Show the **SG Hiring** WhatsApp message with the code arriving on the phone, enter it, and land in the ATS (login code, Authentication template).
+2. In the ATS, open **Mail & Support → Mail Settings → WhatsApp updates to applicants** and show the per-update **Automatic / Manual** choice.
+3. Open an applicant who gave a WhatsApp number, open their message window and press **Send update from SG Hiring** (for example "Interview scheduled"). Show the message arriving on the phone from **SG Hiring**, naming the company (Utility template).
+4. For whatsapp_business_management: in WhatsApp Manager (business.facebook.com → WhatsApp Manager → Message templates), show the SG Hiring templates (sg_login_code, sg_application_received, sg_interview_scheduled, sg_offer_sent) and the SG Hiring phone number, which the app manages.
+
+Upload this video to both WhatsApp permissions.
+
+### WhatsApp descriptions (already pasted in the form)
+
+**whatsapp_business_messaging**
+> SG Hiring sends WhatsApp messages only from its own business number ("SG Hiring") using approved templates: login, two-step and password reset codes for users who ask for them, and updates to applicants about their own application (received, interview scheduled, offer sent, missed interview). Applicants give their number on the form and agree to updates; companies choose automatic or manual per update. No marketing messages.
+
+**whatsapp_business_management**
+> Used to manage SG Hiring's own WhatsApp Business Account: read its phone number and status, list and create the message templates we send and check their approval, and subscribe our app to the account's webhooks for delivery status and replies. We do not access other businesses' WhatsApp accounts.
 
 ## Data handling: suggested answers (check with whoever handles legal)
 
