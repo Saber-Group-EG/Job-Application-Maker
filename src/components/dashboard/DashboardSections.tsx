@@ -1,6 +1,7 @@
 // Homepage sections under the status cards: what needs attention, recent
 // activity and plan usage, from one request (GET /dashboard/overview). The
 // charts and hiring reports live on the Reports page.
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Activity,
@@ -15,11 +16,13 @@ import {
   UserPlus,
   CheckCircle2,
   RefreshCw,
+  ChevronDown,
+  Loader2,
 } from 'lucide-react';
 import { useLocale } from '../../context/LocaleContext';
 import { useAuth } from '../../context/AuthContext';
 import { useDashboardOverview } from '../../hooks/queries/useDashboard';
-import type { DashboardOverview } from '../../services/dashboardService';
+import { dashboardService, type DashboardOverview } from '../../services/dashboardService';
 import { paths } from '../../router/Paths';
 import { toPlainString } from '../../utils/strings';
 import AiUsageCard from './AiUsageCard';
@@ -79,9 +82,46 @@ function NeedsAttention({ data, loading }: { data?: DashboardOverview['attention
 
 // ─── Recent activity ───────────────────────────────────────────────────────
 
-function RecentActivity({ data, loading }: { data?: DashboardOverview['activity']; loading: boolean }) {
+const ACTIVITY_FIRST = 12;
+const ACTIVITY_STEP = 20;
+
+function RecentActivity({ data, loading, companyIds }: { data?: DashboardOverview['activity']; loading: boolean; companyIds?: string[] }) {
   const { t } = useLocale();
   const timeAgo = useTimeAgo();
+  // The overview brings the newest 20; "Show more" reveals those first, then
+  // pages older ones from /dashboard/activity until the 30 days run out.
+  const [visible, setVisible] = useState(ACTIVITY_FIRST);
+  const [older, setOlder] = useState<DashboardOverview['activity']>([]);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const scopeKey = (companyIds ?? []).join(',');
+  useEffect(() => {
+    setVisible(ACTIVITY_FIRST);
+    setOlder([]);
+    setHasMore(true);
+  }, [scopeKey]);
+  const all = [...(data ?? []), ...older];
+  const firstPageFull = (data?.length ?? 0) >= 20;
+  const canShowMore = visible < all.length || (firstPageFull && hasMore);
+
+  const showMore = async () => {
+    const next = visible + ACTIVITY_STEP;
+    if (next <= all.length || !firstPageFull || !hasMore) {
+      setVisible(next);
+      return;
+    }
+    setLoadingMore(true);
+    try {
+      const page = await dashboardService.activity({ companyIds, skip: all.length, limit: ACTIVITY_STEP });
+      setOlder((prev) => [...prev, ...page.items]);
+      setHasMore(page.hasMore);
+      setVisible(next);
+    } catch {
+      // Leave the list as it is; the button stays so it can be tried again.
+    } finally {
+      setLoadingMore(false);
+    }
+  };
   const icons = {
     status: <RefreshCw className="size-3.5" />,
     comment: <MessageSquare className="size-3.5" />,
@@ -111,7 +151,7 @@ function RecentActivity({ data, loading }: { data?: DashboardOverview['activity'
         <Empty text={t('activityEmpty', 'home')} />
       ) : (
         <ol className="space-y-4">
-          {data.slice(0, 12).map((e, i) => {
+          {all.slice(0, visible).map((e, i) => {
             const link = linkFor(e);
             const body = (
               <>
@@ -134,6 +174,17 @@ function RecentActivity({ data, loading }: { data?: DashboardOverview['activity'
           })}
         </ol>
       )}
+      {data?.length && canShowMore ? (
+        <button
+          type="button"
+          onClick={showMore}
+          disabled={loadingMore}
+          className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800/60"
+        >
+          {loadingMore ? <Loader2 className="size-4 animate-spin" /> : <ChevronDown className="size-4" />}
+          {t('activityShowMore', 'home')}
+        </button>
+      ) : null}
     </Card>
   );
 }
@@ -213,7 +264,7 @@ export default function DashboardSections({ companyIds, companies }: { companyId
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <NeedsAttention data={data?.attention} loading={isLoading} />
-        <RecentActivity data={data?.activity} loading={isLoading} />
+        <RecentActivity data={data?.activity} loading={isLoading} companyIds={companyIds} />
       </div>
       {otherPlanUsage && otherPlanUsage.length > 0 && <PlanUsage data={otherPlanUsage} companyName={companyName} />}
       {aiCardIds.map((id) => {

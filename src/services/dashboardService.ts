@@ -66,6 +66,21 @@ export const dashboardService = {
     }
   },
 
+  async activity(params: { companyIds?: string[]; skip: number; limit?: number }): Promise<{ items: DashboardOverview['activity']; hasMore: boolean }> {
+    try {
+      const { data } = await axios.get('/dashboard/activity', {
+        params: {
+          ...(params.companyIds?.length ? { companyId: params.companyIds.join(',') } : {}),
+          skip: params.skip,
+          limit: params.limit ?? 20,
+        },
+      });
+      return data.data;
+    } catch (error: any) {
+      throw new ApiError(getErrorMessage(error), error?.response?.status);
+    }
+  },
+
   async overview(params: { companyIds?: string[] }): Promise<DashboardOverview> {
     try {
       const { data } = await axios.get('/dashboard/overview', {
