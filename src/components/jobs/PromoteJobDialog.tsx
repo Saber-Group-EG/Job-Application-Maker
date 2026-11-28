@@ -375,7 +375,7 @@ export default function PromoteJobDialog({ job, open, onClose }: Props) {
                 ) : channels.length === 0 ? (
                   <p className="text-xs text-slate-500 dark:text-slate-400">
                     {t('promoteTgNoChannels', 'jobs')}{' '}
-                    <Link to={paths.recruiting.companySettings} className="font-medium text-brand-600 hover:underline dark:text-brand-400">
+                    <Link to={paths.recruiting.integrations} className="font-medium text-brand-600 hover:underline dark:text-brand-400">
                       {t('promoteTgConnect', 'jobs')}
                     </Link>
                   </p>
@@ -443,7 +443,7 @@ export default function PromoteJobDialog({ job, open, onClose }: Props) {
                   ) : metaPages.length === 0 ? (
                     <p className="text-xs text-slate-500 dark:text-slate-400">
                       {t('promoteMetaNoPages', 'jobs')}{' '}
-                      <Link to={paths.recruiting.companySettings} className="font-medium text-brand-600 hover:underline dark:text-brand-400">
+                      <Link to={paths.recruiting.integrations} className="font-medium text-brand-600 hover:underline dark:text-brand-400">
                         {t('promoteTgConnect', 'jobs')}
                       </Link>
                     </p>

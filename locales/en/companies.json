@@ -323,5 +323,7 @@
   "fbConnectedTitle": "Facebook connected",
   "fbConnectedText": "Pages connected: {count}. Choose where jobs are posted automatically.",
   "fbFinishing": "Finishing the Facebook connection…",
-  "fbBackToSettings": "Back to Company settings"
+  "fbBackToSettings": "Back to Company settings",
+  "integrationsTitle": "Integrations",
+  "integrationsDesc": "Connect WhatsApp, Telegram, Facebook & Instagram and applicant verification for the selected company."
 }

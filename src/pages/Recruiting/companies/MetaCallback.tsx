@@ -39,7 +39,7 @@ export default function MetaCallback() {
         const { companyId, ...metaState } = result;
         queryClient.setQueryData(jobDistributionKeys.meta(companyId), metaState);
         setSelectedCompanyId(companyId);
-        navigate(paths.recruiting.companySettings, { replace: true });
+        navigate(paths.recruiting.integrations, { replace: true });
         Swal.fire({
           icon: 'success',
           title: t('fbConnectedTitle', 'companies'),
@@ -62,7 +62,7 @@ export default function MetaCallback() {
           <button
             type="button"
             className="text-sm font-medium text-brand-600 hover:underline dark:text-brand-400"
-            onClick={() => navigate(paths.recruiting.companySettings, { replace: true })}
+            onClick={() => navigate(paths.recruiting.integrations, { replace: true })}
           >
             {t('fbBackToSettings', 'companies')}
           </button>

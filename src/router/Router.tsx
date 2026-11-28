@@ -47,6 +47,9 @@ const PreviewCompany = lazy(
 const CompanySettingsPage = lazy(
   () => import('../pages/Recruiting/companies/companysettings')
 );
+const IntegrationsPage = lazy(
+  () => import('../pages/Recruiting/companies/IntegrationsPage')
+);
 const MetaCallback = lazy(() => import('../pages/Recruiting/companies/MetaCallback'));
 const Subscription = lazy(
   () => import('../pages/Recruiting/Settings/subscription')
@@ -230,6 +233,16 @@ export default function App() {
                 element={<CompanySettingsPage />}
               />
               <Route path={paths.recruiting.metaCallback} element={<MetaCallback />} />
+              <Route
+                element={
+                  <PermissionProtectedRoute
+                    requiredPermissions={['Mail Management', 'Company Management']}
+                    requireAll={false}
+                  />
+                }
+              >
+                <Route path={paths.recruiting.integrations} element={<IntegrationsPage />} />
+              </Route>
               <Route
                 path={paths.recruiting.savedFields}
                 element={<SavedFields />}

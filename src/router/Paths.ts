@@ -25,6 +25,8 @@ export const paths = {
   recruiting: {
     root: '/recruiting',
     companySettings: '/recruiting/company-settings',
+    // WhatsApp, applicant verification, Telegram, Facebook & Instagram.
+    integrations: '/integrations',
     metaCallback: '/integrations/meta/callback',
     // Old "General Settings" page; redirects to jobs.interviewQuestions.
     interviewSettings: '/recruiting/interview-settings',

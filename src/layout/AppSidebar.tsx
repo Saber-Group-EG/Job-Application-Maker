@@ -229,6 +229,12 @@ const AppSidebar: React.FC = () => {
           show: can('Company Management', 'read'),
         },
         {
+          name: 'Integrations',
+          tKey: 'integrations',
+          path: '/integrations',
+          show: can('Mail Management', 'read') || can('Company Management', 'read'),
+        },
+        {
           name: 'Users',
           tKey: 'users',
           path: '/users',

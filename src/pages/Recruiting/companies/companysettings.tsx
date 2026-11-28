@@ -7,10 +7,6 @@ import { useUndo } from "../../../context/UndoContext";
 import PageMeta from "../../../components/common/PageMeta";
 import { useCompanies, useUpdateMailSettings } from "../../../hooks/queries/useCompanies";
 import GmailConnectionCard from "./components/GmailConnectionCard";
-import WhatsAppConnectionCard from "./components/WhatsAppConnectionCard";
-import ApplicantVerificationCard from "./components/ApplicantVerificationCard";
-import TelegramChannelsCard from "./components/TelegramChannelsCard";
-import FacebookPagesCard from "./components/FacebookPagesCard";
 import EmailTemplates from "../Settings/MailTemplate";
 import { AlertTriangle, Building2, CheckCircle, Globe, Mail, PlusCircle, Save, ShieldCheck, Trash2 } from "lucide-react";
 import {
@@ -208,17 +204,6 @@ export default function CompanySettingsPage({ companyId: _companyId, onSaved, on
         settingsId={selectedCompany?.settings?._id}
         canEdit={canEdit}
         defaultSenderName={selectedCompanyName !== t('noCompanySelected', 'companies') ? selectedCompanyName : undefined}
-      />
-
-      <WhatsAppConnectionCard companyId={selectedCompanyId ?? undefined} canEdit={canEdit} />
-      <ApplicantVerificationCard companyId={selectedCompanyId ?? undefined} canEdit={canEdit} />
-      <TelegramChannelsCard
-        companyId={selectedCompanyId ?? undefined}
-        canEdit={!!hasPermission && hasPermission('Company Management', 'write')}
-      />
-      <FacebookPagesCard
-        companyId={selectedCompanyId ?? undefined}
-        canEdit={!!hasPermission && hasPermission('Company Management', 'write')}
       />
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
