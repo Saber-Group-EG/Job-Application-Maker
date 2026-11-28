@@ -48,7 +48,7 @@ Submission draft: developers.facebook.com → Saber ATS → Review → App Revie
 Record at 1080p, in English UI (switch AR → EN at the top), with no passwords visible. About 2–3 minutes.
 
 1. Open **ats.sabergroup-eg.com**, already signed in as a company admin. Pick the company in the top company selector.
-2. Go to **Mail & Support → Mail Settings**, scroll to **Facebook & Instagram**, and show the 3 connect steps. Click **Connect Facebook**.
+2. Go to **Companies & Users → Integrations**, scroll to **Facebook & Instagram**, and show the 3 connect steps. Click **Connect Facebook**.
 3. On Facebook Login for Business: click **Edit settings**, show the **permission screen**, choose the company **Page** and its **Instagram account**, and click **Save / Allow**.
 4. Back in the ATS: show the **Facebook connected** message, the Page name, **@instagram** account and **Connected by <name>** (pages_show_list, business_management, instagram_basic, public_profile).
 5. Switch on **Auto-post on the Page** and **Auto-post on Instagram** (explain they post jobs when they open).
@@ -63,7 +63,7 @@ Upload the same video for each Facebook/Instagram permission.
 Record a second, shorter video (about 1–2 minutes) with a phone visible or a screen-mirrored WhatsApp:
 
 1. Open **ats.sabergroup-eg.com/signin**, choose the **WhatsApp** tab, enter a phone number and request a code. Show the **SG Hiring** WhatsApp message with the code arriving on the phone, enter it, and land in the ATS (login code, Authentication template).
-2. In the ATS, open **Mail & Support → Mail Settings → WhatsApp updates to applicants** and show the per-update **Automatic / Manual** choice.
+2. In the ATS, open **Companies & Users → Integrations → WhatsApp updates to applicants** and show the per-update **Automatic / Manual** choice.
 3. Open an applicant who gave a WhatsApp number, open their message window and press **Send update from SG Hiring** (for example "Interview scheduled"). Show the message arriving on the phone from **SG Hiring**, naming the company (Utility template).
 4. For whatsapp_business_management: in WhatsApp Manager (business.facebook.com → WhatsApp Manager → Message templates), show the SG Hiring templates (sg_login_code, sg_application_received, sg_interview_scheduled, sg_offer_sent) and the SG Hiring phone number, which the app manages.
 
@@ -91,9 +91,9 @@ Upload this video to both WhatsApp permissions.
 ## Reviewer instructions (paste, then add the login yourself)
 
 > 1. Go to https://ats.sabergroup-eg.com and sign in with the test account below.
-> 2. Open Mail & Support → Mail Settings and scroll to "Facebook & Instagram".
+> 2. Open Companies & Users → Integrations and scroll to "Facebook & Instagram".
 > 3. Click "Connect Facebook", log in with a Facebook account that manages a test Page (linked to an Instagram business account), choose the Page and Instagram account, and allow.
-> 4. Back in Mail Settings, the Page and Instagram account are listed. Switch on auto-post if you like.
+> 4. Back in Integrations, the Page and Instagram account are listed. Switch on auto-post if you like.
 > 5. Go to Jobs, click the megaphone icon (Promote job) on the open test job, and click "Post now" for Facebook and for Instagram. Each shows "Posted · View" with a link to the published post.
 >
 > Test login: (add email and password here)
